@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 50
 
     steps:
       - name: Checkout
@@ -33,7 +33,18 @@ jobs:
         shell: bash
         run: |
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-37"
+          for attempt in 1 2 3 4 5 6; do
+            echo "Android SDK install attempt ${attempt}/6"
+            if sdkmanager "platform-tools" "platforms;android-37"; then
+              echo "Android API 37 installed successfully"
+              exit 0
+            fi
+            if [ "$attempt" -eq 6 ]; then
+              echo "Android API 37 installation failed after 6 attempts"
+              exit 1
+            fi
+            sleep $((attempt * 25))
+          done
 
       - name: Restore Later source
         shell: bash
