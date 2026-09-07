@@ -44,6 +44,7 @@ jobs:
           tar -xJf /tmp/later.tar.xz -C later
           test -f later/settings.gradle.kts
           test -f later/app/build.gradle.kts
+          cp later-ci-overrides/app-build.gradle.kts later/app/build.gradle.kts
 
       - name: Verify Gradle
         working-directory: later
