@@ -157,17 +157,18 @@ jobs:
           adb shell run-as com.night.mirrorchess ls -l files/models/maia3-5m.fp16.onnx
 
       - name: Capture v1.1 screen tour
+        timeout-minutes: 12
         run: |
           set -euo pipefail
           mkdir -p visual-tour/screens visual-tour/ui
 
           dump_ui() {
-            for attempt in {1..12}; do
+            for attempt in {1..4}; do
               adb shell input keyevent KEYCODE_WAKEUP || true
               adb shell wm dismiss-keyguard || true
               adb shell rm -f /sdcard/window.xml || true
-              if adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 \
-                && adb pull /sdcard/window.xml visual-tour/current.xml >/dev/null 2>&1 \
+              if timeout 10 adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 \
+                && timeout 10 adb pull /sdcard/window.xml visual-tour/current.xml >/dev/null 2>&1 \
                 && grep -q '<hierarchy' visual-tour/current.xml; then
                 return 0
               fi
@@ -179,7 +180,7 @@ jobs:
           shot() {
             local name="$1"
             sleep 2
-            adb exec-out screencap -p > "visual-tour/screens/${name}.png"
+            timeout 15 adb exec-out screencap -p > "visual-tour/screens/${name}.png"
             if dump_ui; then
               cp visual-tour/current.xml "visual-tour/ui/${name}.xml"
             else
