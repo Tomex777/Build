@@ -1,4 +1,4 @@
-name: MirrorChess verification
+name: MirrorChess runtime verification
 
 on:
   push:
@@ -7,57 +7,45 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
-  verify:
+  launch:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
 
     steps:
-      - name: Check out verification payload
-        uses: actions/checkout@v4
-
-      - name: Extract MirrorChess source
-        run: |
-          mkdir -p mirrorchess/source
-          unzip -q mirrorchess/MirrorChess-verify.zip -d mirrorchess/source
-
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
+      - name: Download tested MirrorChess APK
+        uses: actions/download-artifact@v4
         with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+          name: mirrorchess-verification
+          path: prior-verification
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34220957810
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK and emulator
+      - name: Install Android 36 emulator
         run: |
           sdkmanager \
             "platform-tools" \
-            "platforms;android-36" \
-            "build-tools;36.0.0" \
             "emulator" \
             "system-images;android-36;google_apis;x86_64"
 
-      - name: Verify Gradle wrapper
-        uses: gradle/actions/wrapper-validation@v4
-
-      - name: Run unit tests, lint, and build APK
-        working-directory: mirrorchess/source
-        run: ./gradlew --no-daemon --stacktrace testDebugUnitTest lintDebug assembleDebug
-
       - name: Boot Android 36 emulator
         run: |
+          export ANDROID_AVD_HOME="$GITHUB_WORKSPACE/.android/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
           echo no | avdmanager create avd \
             --force \
             --name mirrorchess-ci \
             --package "system-images;android-36;google_apis;x86_64" \
             --device pixel_2
+          "$ANDROID_HOME/emulator/emulator" -list-avds
+          test -f "$ANDROID_AVD_HOME/mirrorchess-ci.ini"
           sudo chmod 666 /dev/kvm || true
           nohup "$ANDROID_HOME/emulator/emulator" @mirrorchess-ci \
             -no-window \
@@ -67,9 +55,14 @@ jobs:
             -wipe-data \
             -gpu swiftshader_indirect \
             > "$GITHUB_WORKSPACE/emulator.log" 2>&1 &
-          timeout 180 adb wait-for-device
+          emulator_pid=$!
           booted=0
           for attempt in {1..120}; do
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then
+              echo "Android emulator exited before boot completed" >&2
+              cat "$GITHUB_WORKSPACE/emulator.log"
+              exit 1
+            fi
             if [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == "1" ]]; then
               booted=1
               break
@@ -78,6 +71,7 @@ jobs:
           done
           if [[ "$booted" != "1" ]]; then
             echo "Android emulator did not finish booting" >&2
+            cat "$GITHUB_WORKSPACE/emulator.log"
             exit 1
           fi
           adb shell settings put global window_animation_scale 0
@@ -85,41 +79,35 @@ jobs:
           adb shell settings put global animator_duration_scale 0
 
       - name: Install and launch MirrorChess
-        working-directory: mirrorchess/source
         run: |
-          mkdir -p app/build/reports/runtime
-          adb install -r -g app/build/outputs/apk/debug/app-debug.apk
+          mkdir -p runtime
+          apk_path="prior-verification/mirrorchess/source/app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$apk_path"
+          adb install -r -g "$apk_path"
           adb logcat -c
           adb shell am force-stop com.night.mirrorchess
           adb shell am start -W -n com.night.mirrorchess/.MainActivity \
-            | tee app/build/reports/runtime/launch.txt
-          grep -q "Status: ok" app/build/reports/runtime/launch.txt
+            | tee runtime/launch.txt
+          grep -q "Status: ok" runtime/launch.txt
           sleep 8
-          adb shell pidof com.night.mirrorchess \
-            | tee app/build/reports/runtime/pid.txt
-          test -s app/build/reports/runtime/pid.txt
-          adb exec-out screencap -p > app/build/reports/runtime/launch.png
-          adb shell dumpsys activity activities \
-            > app/build/reports/runtime/activity.txt
-          adb logcat -d > app/build/reports/runtime/logcat.txt
-          if grep -A 25 "FATAL EXCEPTION" app/build/reports/runtime/logcat.txt \
+          adb shell pidof com.night.mirrorchess | tee runtime/pid.txt
+          test -s runtime/pid.txt
+          adb exec-out screencap -p > runtime/launch.png
+          adb shell dumpsys activity activities > runtime/activity.txt
+          adb logcat -d > runtime/logcat.txt
+          if grep -A 25 "FATAL EXCEPTION" runtime/logcat.txt \
             | grep -q "com.night.mirrorchess"; then
             echo "MirrorChess crashed during launch" >&2
             exit 1
           fi
 
-      - name: Upload APK and verification reports
+      - name: Upload launch evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mirrorchess-verification
+          name: mirrorchess-runtime
           if-no-files-found: warn
           retention-days: 14
           path: |
-            mirrorchess/source/app/build/outputs/apk/debug/app-debug.apk
-            mirrorchess/source/app/build/reports/tests/
-            mirrorchess/source/app/build/reports/lint-results-debug.html
-            mirrorchess/source/app/build/reports/runtime/
-            mirrorchess/source/gradle/wrapper/gradle-wrapper.jar
-            mirrorchess/source/gradle/wrapper/gradle-wrapper.properties
+            runtime/
             emulator.log
