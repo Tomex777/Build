@@ -59,7 +59,7 @@ jobs:
             --package "system-images;android-36;google_apis;x86_64" \
             --device pixel_2
           sudo chmod 666 /dev/kvm || true
-          nohup emulator @mirrorchess-ci \
+          nohup "$ANDROID_HOME/emulator/emulator" @mirrorchess-ci \
             -no-window \
             -noaudio \
             -no-boot-anim \
