@@ -106,6 +106,9 @@ jobs:
           adb shell settings put global anr_show_background 0
           adb shell settings put global verifier_verify_adb_installs 0
           adb shell settings put global package_verifier_enable 0
+          adb shell input keyevent KEYCODE_WAKEUP
+          adb shell wm dismiss-keyguard || true
+          adb shell input keyevent 82 || true
           adb shell input keyevent KEYCODE_HOME
           sleep 20
 
@@ -159,16 +162,29 @@ jobs:
           mkdir -p visual-tour/screens visual-tour/ui
 
           dump_ui() {
-            adb shell uiautomator dump /sdcard/window.xml >/dev/null
-            adb pull /sdcard/window.xml visual-tour/current.xml >/dev/null
+            for attempt in {1..12}; do
+              adb shell input keyevent KEYCODE_WAKEUP || true
+              adb shell wm dismiss-keyguard || true
+              adb shell rm -f /sdcard/window.xml || true
+              if adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 \
+                && adb pull /sdcard/window.xml visual-tour/current.xml >/dev/null 2>&1 \
+                && grep -q '<hierarchy' visual-tour/current.xml; then
+                return 0
+              fi
+              sleep 2
+            done
+            return 1
           }
 
           shot() {
             local name="$1"
             sleep 2
-            dump_ui
-            cp visual-tour/current.xml "visual-tour/ui/${name}.xml"
             adb exec-out screencap -p > "visual-tour/screens/${name}.png"
+            if dump_ui; then
+              cp visual-tour/current.xml "visual-tour/ui/${name}.xml"
+            else
+              echo 'UI hierarchy unavailable; screenshot still captured.' > "visual-tour/ui/${name}-dump-failed.txt"
+            fi
           }
 
           tap_text_pick() {
@@ -201,10 +217,12 @@ jobs:
           }
 
           adb logcat -c
+          adb shell input keyevent KEYCODE_WAKEUP
+          adb shell wm dismiss-keyguard || true
           adb shell am force-stop com.night.mirrorchess
           adb shell am start -W -n com.night.mirrorchess/.MainActivity | tee visual-tour/launch.txt
           grep -q 'Status: ok' visual-tour/launch.txt
-          sleep 8
+          sleep 15
           shot 01-play-home
 
           adb shell input swipe 960 350 160 350 450
