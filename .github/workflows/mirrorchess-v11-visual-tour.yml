@@ -226,9 +226,9 @@ jobs:
           sleep 15
           shot 01-play-home
 
-          adb shell input swipe 960 350 160 350 450
+          tap_text_pick 'Mirror · 0%'
           shot 02-play-mirror-option
-          adb shell input swipe 160 350 960 350 450
+          tap_text_pick '1800' first
 
           adb shell input tap 975 105
           shot 03-settings-main
@@ -243,7 +243,7 @@ jobs:
 
           tap_text_pick 'Board & Pieces'
           shot 06-settings-board-pieces-top
-          adb shell input swipe 540 1550 540 450 550
+          adb shell input swipe 540 1450 540 900 450
           shot 07-settings-board-pieces-bottom
           tap_text_pick 'Back'
 
@@ -289,9 +289,9 @@ jobs:
           shot 17-play-recent-game
 
           tap_text_pick 'Maia 1800' last
-          shot 18-game-review-start
-          tap_text_pick 'Next'
-          shot 19-game-review-next-position
+          shot 18-game-review-final-position
+          tap_text_pick 'Previous'
+          shot 19-game-review-previous-position
 
           adb shell dumpsys activity activities > visual-tour/activity.txt
           adb logcat -d > visual-tour/logcat.txt
@@ -323,7 +323,8 @@ jobs:
           15 Resign confirmation
           16 Game-over dialog
           17 Play home with recent game
-          18-19 Saved game review
+          18 Saved game review, final position
+          19 Saved game review, previous position
           EOF
 
       - name: Upload v1.1 visual tour
