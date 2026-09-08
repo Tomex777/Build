@@ -1,0 +1,123 @@
+name: MirrorChess verification
+
+on:
+  push:
+    branches:
+      - verify/mirrorchess-20260908
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out verification payload
+        uses: actions/checkout@v4
+
+      - name: Extract MirrorChess source
+        run: |
+          mkdir -p mirrorchess/source
+          unzip -q mirrorchess/MirrorChess-verify.zip -d mirrorchess/source
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK and emulator
+        run: |
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "emulator" \
+            "system-images;android-36;google_apis;x86_64"
+
+      - name: Verify Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Run unit tests, lint, and build APK
+        working-directory: mirrorchess/source
+        run: ./gradlew --no-daemon --stacktrace testDebugUnitTest lintDebug assembleDebug
+
+      - name: Boot Android 36 emulator
+        run: |
+          echo no | avdmanager create avd \
+            --force \
+            --name mirrorchess-ci \
+            --package "system-images;android-36;google_apis;x86_64" \
+            --device pixel_2
+          sudo chmod 666 /dev/kvm || true
+          nohup emulator @mirrorchess-ci \
+            -no-window \
+            -noaudio \
+            -no-boot-anim \
+            -no-snapshot \
+            -wipe-data \
+            -gpu swiftshader_indirect \
+            > "$GITHUB_WORKSPACE/emulator.log" 2>&1 &
+          timeout 180 adb wait-for-device
+          booted=0
+          for attempt in {1..120}; do
+            if [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == "1" ]]; then
+              booted=1
+              break
+            fi
+            sleep 5
+          done
+          if [[ "$booted" != "1" ]]; then
+            echo "Android emulator did not finish booting" >&2
+            exit 1
+          fi
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+
+      - name: Install and launch MirrorChess
+        working-directory: mirrorchess/source
+        run: |
+          mkdir -p app/build/reports/runtime
+          adb install -r -g app/build/outputs/apk/debug/app-debug.apk
+          adb logcat -c
+          adb shell am force-stop com.night.mirrorchess
+          adb shell am start -W -n com.night.mirrorchess/.MainActivity \
+            | tee app/build/reports/runtime/launch.txt
+          grep -q "Status: ok" app/build/reports/runtime/launch.txt
+          sleep 8
+          adb shell pidof com.night.mirrorchess \
+            | tee app/build/reports/runtime/pid.txt
+          test -s app/build/reports/runtime/pid.txt
+          adb exec-out screencap -p > app/build/reports/runtime/launch.png
+          adb shell dumpsys activity activities \
+            > app/build/reports/runtime/activity.txt
+          adb logcat -d > app/build/reports/runtime/logcat.txt
+          if grep -A 25 "FATAL EXCEPTION" app/build/reports/runtime/logcat.txt \
+            | grep -q "com.night.mirrorchess"; then
+            echo "MirrorChess crashed during launch" >&2
+            exit 1
+          fi
+
+      - name: Upload APK and verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mirrorchess-verification
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            mirrorchess/source/app/build/outputs/apk/debug/app-debug.apk
+            mirrorchess/source/app/build/reports/tests/
+            mirrorchess/source/app/build/reports/lint-results-debug.html
+            mirrorchess/source/app/build/reports/runtime/
+            emulator.log
