@@ -31,6 +31,9 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+          validate-wrappers: false
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -44,7 +47,11 @@ jobs:
             "emulator" \
             "system-images;android-36;google_apis;x86_64"
 
-      - name: Verify Gradle wrapper
+      - name: Regenerate official Gradle wrapper
+        working-directory: mirrorchess/source
+        run: gradle wrapper --gradle-version 9.3.1 --distribution-type bin
+
+      - name: Verify regenerated Gradle wrapper
         uses: gradle/actions/wrapper-validation@v4
 
       - name: Run unit tests, lint, and build APK
@@ -120,4 +127,6 @@ jobs:
             mirrorchess/source/app/build/reports/tests/
             mirrorchess/source/app/build/reports/lint-results-debug.html
             mirrorchess/source/app/build/reports/runtime/
+            mirrorchess/source/gradle/wrapper/gradle-wrapper.jar
+            mirrorchess/source/gradle/wrapper/gradle-wrapper.properties
             emulator.log
