@@ -63,7 +63,7 @@ jobs:
             --name mirrorchess-v11 \
             --package "system-images;android-36;google_apis;x86_64" \
             --device pixel_2
-          printf '\ndisk.dataPartition.size=2G\nhw.ramSize=2048\n' >> "$ANDROID_AVD_HOME/mirrorchess-v11.avd/config.ini"
+          printf '\ndisk.dataPartition.size=3G\nhw.ramSize=3072\n' >> "$ANDROID_AVD_HOME/mirrorchess-v11.avd/config.ini"
           sudo chmod 666 /dev/kvm || true
           nohup "$ANDROID_HOME/emulator/emulator" @mirrorchess-v11 \
             -no-window \
@@ -71,7 +71,7 @@ jobs:
             -no-boot-anim \
             -no-snapshot \
             -wipe-data \
-            -partition-size 2048 \
+            -partition-size 3072 \
             -gpu swiftshader_indirect \
             > "$GITHUB_WORKSPACE/emulator.log" 2>&1 &
           emulator_pid=$!
@@ -89,6 +89,16 @@ jobs:
             sleep 5
           done
           test "$booted" = 1
+          package_ready=0
+          for attempt in {1..120}; do
+            if adb shell service check package 2>/dev/null | grep -q 'found' \
+              && adb shell pm path android >/dev/null 2>&1; then
+              package_ready=1
+              break
+            fi
+            sleep 5
+          done
+          test "$package_ready" = 1
           adb shell settings put global window_animation_scale 0
           adb shell settings put global transition_animation_scale 0
           adb shell settings put global animator_duration_scale 0
@@ -123,8 +133,18 @@ jobs:
             "$RUNNER_TEMP/mirrorchess-v11-x86_64-aligned.apk"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify \
             "$RUNNER_TEMP/mirrorchess-v11-x86_64.apk"
-          timeout 300 adb install --no-streaming -r -g \
-            "$RUNNER_TEMP/mirrorchess-v11-x86_64.apk"
+          install_ok=0
+          for attempt in 1 2 3; do
+            if timeout 240 adb install -r -g "$RUNNER_TEMP/mirrorchess-v11-x86_64.apk"; then
+              install_ok=1
+              break
+            fi
+            adb kill-server || true
+            adb start-server
+            adb wait-for-device
+            sleep 20
+          done
+          test "$install_ok" = 1
           adb shell run-as com.night.mirrorchess mkdir -p files/models
           adb push "$model_file" /data/local/tmp/maia3-5m.fp16.onnx
           adb shell chmod 644 /data/local/tmp/maia3-5m.fp16.onnx
