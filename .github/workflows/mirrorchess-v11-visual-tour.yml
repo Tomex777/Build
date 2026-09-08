@@ -19,64 +19,29 @@ jobs:
       - name: Check out private verification branch
         uses: actions/checkout@v4
 
-      - name: Set up Java 17
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Prepare exact project-chat v1.1 source
-        run: |
-          mkdir -p v11-work
-          unzip -q mirrorchess-v11/input/MirrorChess-v1.1-PlayFirst-Night-2026-09-08.zip -d v11-work
-          cp mirrorchess-v11/runtime/gradle-wrapper.jar v11-work/MirrorChess/gradle/wrapper/gradle-wrapper.jar
-          sed -i '/import androidx.compose.foundation.layout.weight/d' \
-            v11-work/MirrorChess/app/src/main/java/com/night/mirrorchess/ui/GameScreen.kt \
-            v11-work/MirrorChess/app/src/main/java/com/night/mirrorchess/ui/ChessBoard.kt
-          sed -i '/import androidx.compose.ui.input.pointer.consume/d' \
-            v11-work/MirrorChess/app/src/main/java/com/night/mirrorchess/ui/ChessBoard.kt
-          chmod +x v11-work/MirrorChess/gradlew
-          grep -q 'versionName = "1.1.0"' v11-work/MirrorChess/app/build.gradle.kts
-          grep -q 'A \*\*Night\*\* app' v11-work/MirrorChess/README.md
-          grep -q 'private enum class RootRoute { PLAY, SETTINGS, GAME }' \
-            v11-work/MirrorChess/app/src/main/java/com/night/mirrorchess/ui/AppShell.kt
-
-      - name: Build exact v1.1 UI source
-        working-directory: v11-work/MirrorChess
-        run: ./gradlew --no-daemon :app:assembleDebug :app:lintDebug
-
-      - name: Download and verify pinned Maia ONNX model
-        run: |
-          mkdir -p model
-          model_url='https://huggingface.co/bqrio/maia3-onnx/resolve/f2582c005a63a034e493d93736ecdd6291dd82e7/maia3-5m.fp16.onnx?download=true'
-          curl -L --fail --retry 4 --retry-all-errors \
-            --output model/maia3-5m.fp16.onnx "$model_url"
-          cd model
-          echo 'ca22fc3031975932e693f9758149302efc177749165443ed52de828add8864fa  maia3-5m.fp16.onnx' > SHA256SUMS.txt
-          sha256sum -c SHA256SUMS.txt
-          stat -c 'maia3-5m.fp16.onnx %s bytes' maia3-5m.fp16.onnx > MODEL_INFO.txt
-          printf '%s\n' \
-            'Model: bqrio/maia3-onnx / maia3-5m.fp16.onnx' \
-            'Pinned revision: f2582c005a63a034e493d93736ecdd6291dd82e7' \
-            'Used by: MirrorChess v1.1.0 (Night)' >> MODEL_INFO.txt
-
-      - name: Upload verified Maia model
-        uses: actions/upload-artifact@v4
-        with:
-          name: maia3-5m-fp16-verified
-          retention-days: 14
-          compression-level: 0
-          path: model/
-
-      - name: Upload v1.1 debug build
-        uses: actions/upload-artifact@v4
+      - name: Download exact v1.1 build from verified build run
+        uses: actions/download-artifact@v4
         with:
           name: mirrorchess-v11-build
-          retention-days: 14
-          compression-level: 0
-          path: |
-            v11-work/MirrorChess/app/build/outputs/apk/debug/app-debug.apk
-            v11-work/MirrorChess/app/build/reports/lint-results-debug.html
+          path: v11-build
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34284401684
+
+      - name: Download checksum-verified Maia model from verified build run
+        uses: actions/download-artifact@v4
+        with:
+          name: maia3-5m-fp16-verified
+          path: model
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 34284401684
+
+      - name: Recheck exact model bytes
+        run: |
+          model_file="$(find model -name maia3-5m.fp16.onnx -print -quit)"
+          test -n "$model_file"
+          echo 'ca22fc3031975932e693f9758149302efc177749165443ed52de828add8864fa  '"$model_file" | sha256sum -c -
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -97,6 +62,7 @@ jobs:
             --name mirrorchess-v11 \
             --package "system-images;android-36;google_apis;x86_64" \
             --device pixel_2
+          printf '\ndisk.dataPartition.size=2G\nhw.ramSize=2048\n' >> "$ANDROID_AVD_HOME/mirrorchess-v11.avd/config.ini"
           sudo chmod 666 /dev/kvm || true
           nohup "$ANDROID_HOME/emulator/emulator" @mirrorchess-v11 \
             -no-window \
@@ -104,6 +70,7 @@ jobs:
             -no-boot-anim \
             -no-snapshot \
             -wipe-data \
+            -partition-size 2048 \
             -gpu swiftshader_indirect \
             > "$GITHUB_WORKSPACE/emulator.log" 2>&1 &
           emulator_pid=$!
@@ -131,10 +98,13 @@ jobs:
 
       - name: Install exact v1.1 build and verified model
         run: |
-          apk='v11-work/MirrorChess/app/build/outputs/apk/debug/app-debug.apk'
+          apk="$(find v11-build -name app-debug.apk -print -quit)"
+          model_file="$(find model -name maia3-5m.fp16.onnx -print -quit)"
+          test -n "$apk"
+          test -n "$model_file"
           adb install -r -g "$apk"
           adb shell run-as com.night.mirrorchess mkdir -p files/models
-          adb push model/maia3-5m.fp16.onnx /data/local/tmp/maia3-5m.fp16.onnx
+          adb push "$model_file" /data/local/tmp/maia3-5m.fp16.onnx
           adb shell chmod 644 /data/local/tmp/maia3-5m.fp16.onnx
           adb shell run-as com.night.mirrorchess cp \
             /data/local/tmp/maia3-5m.fp16.onnx \
