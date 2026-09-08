@@ -50,6 +50,7 @@ jobs:
         run: |
           sdkmanager \
             "platform-tools" \
+            "build-tools;36.0.0" \
             "emulator" \
             "system-images;android-36;google_apis;x86_64"
 
@@ -93,16 +94,37 @@ jobs:
           adb shell settings put global animator_duration_scale 0
           adb shell settings put global hide_error_dialogs 1
           adb shell settings put global anr_show_background 0
+          adb shell settings put global verifier_verify_adb_installs 0
+          adb shell settings put global package_verifier_enable 0
           adb shell input keyevent KEYCODE_HOME
           sleep 20
 
       - name: Install exact v1.1 build and verified model
         run: |
-          apk="$(find v11-build -name app-debug.apk -print -quit)"
+          full_apk="$(find v11-build -name app-debug.apk -print -quit)"
           model_file="$(find model -name maia3-5m.fp16.onnx -print -quit)"
-          test -n "$apk"
+          test -n "$full_apk"
           test -n "$model_file"
-          adb install -r -g "$apk"
+          cp "$full_apk" "$RUNNER_TEMP/mirrorchess-v11-x86_64-unsigned.apk"
+          zip -d "$RUNNER_TEMP/mirrorchess-v11-x86_64-unsigned.apk" \
+            'lib/arm64-v8a/*' 'lib/armeabi-v7a/*' 'lib/x86/*'
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -f 4 \
+            "$RUNNER_TEMP/mirrorchess-v11-x86_64-unsigned.apk" \
+            "$RUNNER_TEMP/mirrorchess-v11-x86_64-aligned.apk"
+          keytool -genkeypair -noprompt \
+            -keystore "$RUNNER_TEMP/runtime-debug.keystore" \
+            -storepass android -keypass android -alias androiddebugkey \
+            -dname 'CN=Android Debug,O=Android,C=US' \
+            -keyalg RSA -keysize 2048 -validity 10000
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign \
+            --ks "$RUNNER_TEMP/runtime-debug.keystore" \
+            --ks-pass pass:android --key-pass pass:android \
+            --out "$RUNNER_TEMP/mirrorchess-v11-x86_64.apk" \
+            "$RUNNER_TEMP/mirrorchess-v11-x86_64-aligned.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify \
+            "$RUNNER_TEMP/mirrorchess-v11-x86_64.apk"
+          timeout 300 adb install --no-streaming -r -g \
+            "$RUNNER_TEMP/mirrorchess-v11-x86_64.apk"
           adb shell run-as com.night.mirrorchess mkdir -p files/models
           adb push "$model_file" /data/local/tmp/maia3-5m.fp16.onnx
           adb shell chmod 644 /data/local/tmp/maia3-5m.fp16.onnx
