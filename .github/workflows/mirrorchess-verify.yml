@@ -77,6 +77,10 @@ jobs:
           adb shell settings put global window_animation_scale 0
           adb shell settings put global transition_animation_scale 0
           adb shell settings put global animator_duration_scale 0
+          adb shell settings put global hide_error_dialogs 1
+          adb shell settings put global anr_show_background 0
+          adb shell input keyevent KEYCODE_HOME
+          sleep 20
 
       - name: Install and launch MirrorChess
         run: |
@@ -92,7 +96,20 @@ jobs:
           sleep 8
           adb shell pidof com.night.mirrorchess | tee runtime/pid.txt
           test -s runtime/pid.txt
-          adb exec-out screencap -p > runtime/launch.png
+          adb shell dumpsys window windows > runtime/window-launch.txt
+          grep -q "mCurrentFocus.*com.night.mirrorchess" runtime/window-launch.txt
+          adb exec-out screencap -p > runtime/play-home.png
+          adb shell input tap 540 1480
+          sleep 5
+          adb shell uiautomator dump /sdcard/mirrorchess-game.xml
+          adb pull /sdcard/mirrorchess-game.xml runtime/game-ui.xml
+          grep -q 'text="Mirror Chess"' runtime/game-ui.xml
+          grep -q 'text="MOVE HISTORY"' runtime/game-ui.xml
+          adb shell pidof com.night.mirrorchess > runtime/game-pid.txt
+          test -s runtime/game-pid.txt
+          adb shell dumpsys window windows > runtime/window-game.txt
+          grep -q "mCurrentFocus.*com.night.mirrorchess" runtime/window-game.txt
+          adb exec-out screencap -p > runtime/game.png
           adb shell dumpsys activity activities > runtime/activity.txt
           adb logcat -d > runtime/logcat.txt
           if grep -A 25 "FATAL EXCEPTION" runtime/logcat.txt \
