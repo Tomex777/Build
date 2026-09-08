@@ -29,7 +29,7 @@ jobs:
         run: |
           mkdir -p v11-work
           unzip -q mirrorchess-v11/input/MirrorChess-v1.1-PlayFirst-Night-2026-09-08.zip -d v11-work
-          cp mirrorchess/source/gradle/wrapper/gradle-wrapper.jar v11-work/MirrorChess/gradle/wrapper/gradle-wrapper.jar
+          cp mirrorchess-v11/runtime/gradle-wrapper.jar v11-work/MirrorChess/gradle/wrapper/gradle-wrapper.jar
           sed -i '/import androidx.compose.foundation.layout.weight/d' \
             v11-work/MirrorChess/app/src/main/java/com/night/mirrorchess/ui/GameScreen.kt \
             v11-work/MirrorChess/app/src/main/java/com/night/mirrorchess/ui/ChessBoard.kt
