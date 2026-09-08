@@ -29,22 +29,11 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android API 37
+      - name: Install Android API 36
         shell: bash
         run: |
           yes | sdkmanager --licenses >/dev/null || true
-          for attempt in 1 2 3 4 5 6; do
-            echo "Android SDK install attempt ${attempt}/6"
-            if sdkmanager "platform-tools" "platforms;android-37"; then
-              echo "Android API 37 installed successfully"
-              exit 0
-            fi
-            if [ "$attempt" -eq 6 ]; then
-              echo "Android API 37 installation failed after 6 attempts"
-              exit 1
-            fi
-            sleep $((attempt * 25))
-          done
+          sdkmanager "platform-tools" "platforms;android-36"
 
       - name: Restore Later source
         shell: bash

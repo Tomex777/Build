@@ -6,11 +6,11 @@ plugins {
 android {
     namespace = "com.night.later"
 
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.night.later"
-        minSdk = 33
+        minSdk = 36
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -50,7 +50,6 @@ android {
             pickFirsts += "**/libmediandk.so"
         }
     }
-
 }
 
 dependencies {
