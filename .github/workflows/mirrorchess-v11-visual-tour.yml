@@ -1,9 +1,6 @@
 name: MirrorChess v1.1 visual tour
 
 on:
-  push:
-    branches:
-      - verify/mirrorchess-v11-20260908
   workflow_dispatch:
 
 permissions:
