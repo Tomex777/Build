@@ -1,4 +1,4 @@
-name: Piano Hub Direct macOS ARM64 Screenshots
+name: Piano Hub Clean ARM64 macOS Screenshot Capture
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 jobs:
   screenshot-macos-arm64:
     runs-on: macos-14
-    timeout-minutes: 15
+    timeout-minutes: 12
     steps:
       - name: Download verified Piano Hub APK
         uses: actions/download-artifact@v4
@@ -29,7 +29,7 @@ jobs:
           test -n "$APK"
           echo "APK=$APK" >> "$GITHUB_ENV"
 
-      - name: Boot matching ARM64 Android 36, capture, and persist actual UI
+      - name: Boot ARM64 Android 36 and persist actual screenshots immediately
         uses: reactivecircus/android-emulator-runner@v2
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -40,7 +40,6 @@ jobs:
           profile: pixel_6
           target: default
           cores: 2
-          ram-size: 2048M
           emulator-boot-timeout: 300
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
@@ -83,7 +82,7 @@ jobs:
             adb install -r "$APK"
             adb shell am force-stop com.night.pianohub
             adb shell am start -W -n com.night.pianohub/.MainActivity
-            sleep 4
+            sleep 5
             adb shell pidof com.night.pianohub
 
             adb exec-out screencap -p > /tmp/pianohub/screenshots/01-learn.png
