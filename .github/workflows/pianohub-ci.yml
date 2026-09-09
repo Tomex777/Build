@@ -84,12 +84,17 @@ jobs:
         with:
           gradle-version: "9.3.1"
 
-      - name: Set up Android SDK
+      - name: Set up current Android SDK tools
         uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: "15859902"
 
       - name: Install Android 37 compile SDK
         shell: bash
-        run: sdkmanager "platforms;android-37"
+        run: |
+          sdkmanager --version
+          sdkmanager "platforms;android-37"
+          test -f "$ANDROID_SDK_ROOT/platforms/android-37/android.jar"
 
       - name: Build APK with real Yamaha C5 samples
         working-directory: /tmp/pianohub
