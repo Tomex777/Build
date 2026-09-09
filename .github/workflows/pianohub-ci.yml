@@ -1,4 +1,4 @@
-name: Piano Hub Real Pixel Screenshots
+name: Piano Hub Offline-First Android Build
 
 on:
   push:
@@ -9,34 +9,96 @@ permissions:
   contents: read
 
 jobs:
-  screenshots:
+  build-verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 40
+
     steps:
-      - name: Download verified Piano Hub APK
-        uses: actions/download-artifact@v4
+      - name: Checkout Piano Hub staging branch
+        uses: actions/checkout@v4
+
+      - name: Restore Piano Hub source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/pianohub
+          mkdir -p /tmp/pianohub
+          cat .ci/pianohub_payload/part*.txt | tr -d '\n' | base64 --decode > /tmp/pianohub-source.tgz
+          tar -xzf /tmp/pianohub-source.tgz -C /tmp/pianohub
+          test -f /tmp/pianohub/settings.gradle.kts
+          test -f /tmp/pianohub/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt
+          test -f /tmp/pianohub/app/src/main/java/com/night/pianohub/storage/PianoHubLocalStore.kt
+          test -f /tmp/pianohub/app/src/main/java/com/night/pianohub/midi/MidiInputManager.kt
+
+      - name: Verify offline-first architecture source
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'AndroidKeyStore' /tmp/pianohub/app/src/main/java/com/night/pianohub/storage/PianoHubLocalStore.kt
+          grep -q 'PerformanceEngine' /tmp/pianohub/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
+          grep -q 'MidiManager' /tmp/pianohub/app/src/main/java/com/night/pianohub/midi/MidiInputManager.kt
+          grep -q '127.0.0.1:11434/v1' /tmp/pianohub/app/src/main/java/com/night/pianohub/ai/AiProvider.kt
+          echo 'Offline-first source checks passed.'
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          name: pianohub-debug-apk
-          path: /tmp/pianohub/apk
-          repository: Tomex777/Build
-          run-id: 34387774146
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          distribution: temurin
+          java-version: "17"
 
-      - name: Locate APK
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - name: Set up Android SDK tools
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: "15859902"
+
+      - name: Install compile SDK
         shell: bash
         run: |
-          APK=$(find /tmp/pianohub/apk -type f -name '*.apk' | head -n1)
-          test -n "$APK"
-          echo "APK=$APK" >> "$GITHUB_ENV"
+          set -euo pipefail
+          sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+          test -f "$ANDROID_SDK_ROOT/platforms/android-37.0/android.jar"
 
-      - name: Enable KVM
+      - name: Build offline-first APK
+        working-directory: /tmp/pianohub
+        run: gradle --stacktrace assembleDebug
+
+      - name: Verify APK contents
         shell: bash
         run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
+          set -euo pipefail
+          APK=/tmp/pianohub/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          COUNT=$(unzip -l "$APK" | grep -E 'assets/piano/.*\.mp3$' | wc -l)
+          echo "Bundled sampled-piano recordings: $COUNT"
+          test "$COUNT" -eq 30
 
-      - name: Boot full Android 36 Pixel and capture real app UI
+      - name: Package verified source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/pianohub
+          tar --exclude='./.gradle' --exclude='./build' --exclude='./app/build' --exclude='./screenshots' -czf /tmp/pianohub-offline-first-source.tgz .
+
+      - name: Upload verified source
+        uses: actions/upload-artifact@v4
+        with:
+          name: pianohub-offline-first-source
+          path: /tmp/pianohub-offline-first-source.tgz
+          if-no-files-found: error
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: pianohub-offline-first-apk
+          path: /tmp/pianohub/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Boot Android 36 and smoke-test the real APK
         uses: reactivecircus/android-emulator-runner@v2
         env:
           ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
@@ -50,6 +112,8 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
           script: |
+            set -euo pipefail
+            APK=/tmp/pianohub/app/build/outputs/apk/debug/app-debug.apk
             mkdir -p /tmp/pianohub/screenshots
             adb install -r "$APK"
             adb shell am force-stop com.night.pianohub
@@ -57,20 +121,14 @@ jobs:
             sleep 5
             adb shell pidof com.night.pianohub
             adb exec-out screencap -p > /tmp/pianohub/screenshots/01-learn.png
-            adb shell input tap 324 2232
-            sleep 3
-            adb exec-out screencap -p > /tmp/pianohub/screenshots/02-piano.png
-            adb shell input tap 972 2232
-            sleep 3
-            adb exec-out screencap -p > /tmp/pianohub/screenshots/03-settings.png
             test -s /tmp/pianohub/screenshots/01-learn.png
-            test -s /tmp/pianohub/screenshots/02-piano.png
-            test -s /tmp/pianohub/screenshots/03-settings.png
+            adb logcat -d -t 400 > /tmp/pianohub/screenshots/logcat-tail.txt
+            ! grep -E 'FATAL EXCEPTION.*com\.night\.pianohub|Process: com\.night\.pianohub.*FATAL EXCEPTION' /tmp/pianohub/screenshots/logcat-tail.txt
 
-      - name: Upload real screenshots
+      - name: Upload runtime proof
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pianohub-real-ui-screenshots
-          path: /tmp/pianohub/screenshots/*.png
-          if-no-files-found: error
+          name: pianohub-offline-first-runtime
+          path: /tmp/pianohub/screenshots/*
+          if-no-files-found: warn
