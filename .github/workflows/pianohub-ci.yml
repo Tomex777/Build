@@ -23,7 +23,7 @@ jobs:
           tar -xzf /tmp/pianohub-source.tgz -C /tmp/pianohub
           test -f /tmp/pianohub/settings.gradle.kts
 
-      - name: Apply AGP 9 generated-assets fix
+      - name: Apply Android build and sample-source fixes
         shell: bash
         run: |
           python3 - <<'PY'
@@ -38,9 +38,13 @@ jobs:
               'val pianoDir = generatedPianoAssets.get().asFile.resolve("piano")',
               'val pianoDir = generatedPianoAssets.resolve("piano")'
           )
+          s = s.replace(
+              'https://unpkg.com/@audio-samples/piano-mp3-velocity8@1.0.5/audio/',
+              'https://cdn.jsdelivr.net/npm/@audio-samples/piano-mp3-velocity8@1.0.5/audio/'
+          )
           p.write_text(s)
           PY
-          grep -n 'generatedPianoAssets\|assets.srcDir' /tmp/pianohub/app/build.gradle.kts
+          grep -n 'generatedPianoAssets\|assets.srcDir\|jsdelivr' /tmp/pianohub/app/build.gradle.kts
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
