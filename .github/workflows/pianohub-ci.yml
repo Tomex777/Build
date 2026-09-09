@@ -1,4 +1,4 @@
-name: Piano Hub Emulator Screenshots ATD
+name: Piano Hub Direct Emulator Screenshot Capture
 
 on:
   push:
@@ -6,10 +6,10 @@ on:
 
 permissions:
   actions: read
-  contents: read
+  contents: write
 
 jobs:
-  screenshot-atd:
+  screenshot-direct:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -36,8 +36,11 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Boot Android 36 ATD and capture actual UI
+      - name: Boot Android 36 ATD, capture, and persist actual UI
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
         with:
           api-level: 36
           arch: x86_64
@@ -50,12 +53,48 @@ jobs:
           script: |
             set -e
             mkdir -p /tmp/pianohub/screenshots
+
+            upload_capture() {
+              local FILE="$1"
+              local NAME="$2"
+              python3 - "$FILE" "$NAME" <<'PY'
+            import base64, json, os, sys, urllib.request
+            file_path, name = sys.argv[1], sys.argv[2]
+            run_id = os.environ['GITHUB_RUN_ID']
+            token = os.environ['GH_TOKEN']
+            repo = os.environ['GITHUB_REPOSITORY']
+            branch = os.environ['GITHUB_REF_NAME']
+            dest = f'.ci/pianohub_screenshots/{run_id}/{name}'
+            payload = json.dumps({
+                'message': f'Persist Piano Hub emulator screenshot {name}',
+                'content': base64.b64encode(open(file_path, 'rb').read()).decode('ascii'),
+                'branch': branch,
+            }).encode('utf-8')
+            req = urllib.request.Request(
+                f'https://api.github.com/repos/{repo}/contents/{dest}',
+                data=payload,
+                method='PUT',
+                headers={
+                    'Authorization': f'Bearer {token}',
+                    'Accept': 'application/vnd.github+json',
+                    'X-GitHub-Api-Version': '2022-11-28',
+                    'Content-Type': 'application/json',
+                },
+            )
+            with urllib.request.urlopen(req, timeout=60) as response:
+                print(f'persisted {name}: HTTP {response.status}')
+            PY
+            }
+
             adb install -r "$APK"
             adb shell am force-stop com.night.pianohub
             adb shell am start -W -n com.night.pianohub/.MainActivity
             sleep 4
             adb shell pidof com.night.pianohub
+
             adb exec-out screencap -p > /tmp/pianohub/screenshots/01-learn.png
+            test -s /tmp/pianohub/screenshots/01-learn.png
+            upload_capture /tmp/pianohub/screenshots/01-learn.png 01-learn.png
 
             SIZE=$(adb shell wm size | tail -n1 | tr -d '\r')
             WIDTH=$(echo "$SIZE" | grep -oE '[0-9]+x[0-9]+' | cut -dx -f1)
@@ -65,20 +104,19 @@ jobs:
             adb shell input tap $((WIDTH * 3 / 10)) "$Y"
             sleep 2
             adb exec-out screencap -p > /tmp/pianohub/screenshots/02-piano.png
+            test -s /tmp/pianohub/screenshots/02-piano.png
+            upload_capture /tmp/pianohub/screenshots/02-piano.png 02-piano.png
 
             adb shell input tap $((WIDTH * 9 / 10)) "$Y"
             sleep 2
             adb exec-out screencap -p > /tmp/pianohub/screenshots/03-settings.png
-
-            adb logcat -d -t 500 > /tmp/pianohub/screenshots/logcat-tail.txt
-            test -s /tmp/pianohub/screenshots/01-learn.png
-            test -s /tmp/pianohub/screenshots/02-piano.png
             test -s /tmp/pianohub/screenshots/03-settings.png
+            upload_capture /tmp/pianohub/screenshots/03-settings.png 03-settings.png
 
-      - name: Upload actual emulator screenshots
+      - name: Upload actual emulator screenshots artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pianohub-ui-screenshots-atd
+          name: pianohub-ui-screenshots-direct
           path: /tmp/pianohub/screenshots/*
           if-no-files-found: warn
