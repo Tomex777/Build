@@ -93,10 +93,8 @@ jobs:
         shell: bash
         run: |
           sdkmanager --version
-          echo '--- API 37 packages visible on preview channels ---'
-          sdkmanager --list --channel=3 | grep -E 'platforms;android-37|build-tools;37|Cinnamon' | head -n 50 || true
-          sdkmanager --channel=3 "platforms;android-37"
-          test -f "$ANDROID_SDK_ROOT/platforms/android-37/android.jar"
+          sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+          test -f "$ANDROID_SDK_ROOT/platforms/android-37.0/android.jar"
 
       - name: Build APK with real Yamaha C5 samples
         working-directory: /tmp/pianohub
