@@ -1,4 +1,4 @@
-name: Piano Hub Emulator Screenshots macOS
+name: Piano Hub Emulator Screenshots ATD
 
 on:
   push:
@@ -9,9 +9,9 @@ permissions:
   contents: read
 
 jobs:
-  screenshot-macos:
-    runs-on: macos-14
-    timeout-minutes: 20
+  screenshot-atd:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Download verified Piano Hub APK
         uses: actions/download-artifact@v4
@@ -25,18 +25,26 @@ jobs:
       - name: Locate verified APK
         shell: bash
         run: |
-          find /tmp/pianohub/apk -type f -maxdepth 3 -print
           APK=$(find /tmp/pianohub/apk -type f -name '*.apk' | head -n1)
           test -n "$APK"
           echo "APK=$APK" >> "$GITHUB_ENV"
 
-      - name: Boot Android 36 on macOS and capture actual UI
+      - name: Enable KVM
+        shell: bash
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Boot Android 36 ATD and capture actual UI
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
           arch: x86_64
-          profile: pixel_6
-          target: default
+          target: aosp_atd
+          cores: 2
+          ram-size: 2048M
+          emulator-boot-timeout: 300
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
@@ -48,8 +56,6 @@ jobs:
             sleep 4
             adb shell pidof com.night.pianohub
             adb exec-out screencap -p > /tmp/pianohub/screenshots/01-learn.png
-            adb shell uiautomator dump /sdcard/window.xml >/dev/null || true
-            adb pull /sdcard/window.xml /tmp/pianohub/screenshots/01-learn-ui.xml >/dev/null || true
 
             SIZE=$(adb shell wm size | tail -n1 | tr -d '\r')
             WIDTH=$(echo "$SIZE" | grep -oE '[0-9]+x[0-9]+' | cut -dx -f1)
@@ -64,7 +70,6 @@ jobs:
             sleep 2
             adb exec-out screencap -p > /tmp/pianohub/screenshots/03-settings.png
 
-            adb shell dumpsys activity activities | grep -A 4 'mResumedActivity' > /tmp/pianohub/screenshots/activity-state.txt || true
             adb logcat -d -t 500 > /tmp/pianohub/screenshots/logcat-tail.txt
             test -s /tmp/pianohub/screenshots/01-learn.png
             test -s /tmp/pianohub/screenshots/02-piano.png
@@ -74,6 +79,6 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pianohub-ui-screenshots-macos
+          name: pianohub-ui-screenshots-atd
           path: /tmp/pianohub/screenshots/*
           if-no-files-found: warn
