@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $Out = Join-Path $Root "app\src\main\assets\models\maia3-5m.fp16.onnx"
-$Url = "https://huggingface.co/bqrio/maia3-onnx/resolve/main/maia3-5m.fp16.onnx?download=true"
+$Url = "https://huggingface.co/bqrio/maia3-onnx/resolve/f2582c005a63a034e493d93736ecdd6291dd82e7/maia3-5m.fp16.onnx?download=true"
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Out) | Out-Null
 Invoke-WebRequest -Uri $Url -OutFile $Out
 $Hash = (Get-FileHash -Algorithm SHA256 $Out).Hash.ToLower()

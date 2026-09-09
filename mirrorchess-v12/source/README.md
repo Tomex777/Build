@@ -1,4 +1,4 @@
-# MirrorChess 1.1
+# MirrorChess 1.2
 
 A **Night** app.
 
@@ -30,8 +30,8 @@ A native Android chess-learning app built with Kotlin + Jetpack Compose. MirrorC
 - Castling, en passant, promotion chooser
 - Checkmate, stalemate, threefold repetition, fifty-move and conservative insufficient-material handling
 - Full-turn undo, board flip, PGN export and resign in the in-game overflow menu; rematch at game end
+- Automatic recovery of the exact active position after process death
 - Human move-comparison coach and Maia W/D/L output when the real model is installed
-- Active-game recovery after process death
 - Compact recent-game archive, position-by-position review and PGN export
 
 ### Mirror Me
@@ -69,7 +69,7 @@ See `MODEL_SETUP.md` and `THIRD_PARTY_NOTICES.md`.
 
 ## Validation performed in this source snapshot
 
-The Android UI cannot be Gradle-built in the packaging environment because it has no Android SDK and outbound Gradle/Maven resolution is blocked. The platform-independent chess/model code was compiled with Kotlin and smoke-tested directly.
+This snapshot is verified in a clean Android 36 build and emulator environment. See `BUILD_STATUS.md` for the exact test matrix and evidence.
 
 Validated:
 - starting-position perft: **20 / 400 / 8,902 / 197,281**
@@ -79,5 +79,7 @@ Validated:
 - Mirror profile build + serialization round-trip + continuous-learning merge smoke
 - conservative insufficient-material behavior
 - Maia move-vocabulary encoding including Black-to-move normalization
+- checksum-pinned Maia-3 model startup and live inference
+- Android process-death recovery, full-turn undo, archive/review, and no-crash screen tour
 
-See `BUILD_STATUS.md` for the exact limitation.
+See `BUILD_STATUS.md` for the detailed results.

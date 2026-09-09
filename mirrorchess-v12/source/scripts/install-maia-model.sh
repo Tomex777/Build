@@ -2,7 +2,7 @@
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 OUT="$ROOT/app/src/main/assets/models/maia3-5m.fp16.onnx"
-URL="https://huggingface.co/bqrio/maia3-onnx/resolve/main/maia3-5m.fp16.onnx?download=true"
+URL="https://huggingface.co/bqrio/maia3-onnx/resolve/f2582c005a63a034e493d93736ecdd6291dd82e7/maia3-5m.fp16.onnx?download=true"
 mkdir -p "$(dirname "$OUT")"
 if command -v curl >/dev/null 2>&1; then
   curl -L --fail --progress-bar "$URL" -o "$OUT"

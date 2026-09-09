@@ -4,9 +4,9 @@ Mirror Chess expects the Maia-3 5M fp16 ONNX export used by the app's encoder.
 
 ## Normal app flow
 
-Open **Settings -> Maia-3 model** and choose **Download**. The app downloads over HTTPS into app-private storage and verifies SHA-256 before installation.
+Open **Play → Settings → AI Model** and choose **Download Maia model**. The app downloads over HTTPS into app-private storage and verifies SHA-256 before installation.
 
-You may instead tap **Import ONNX** and select a local copy. It is subjected to the same checksum verification.
+You may instead tap **Import ONNX manually** and select a local copy. It is subjected to the same checksum verification and runtime startup check.
 
 Expected SHA-256:
 

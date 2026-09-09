@@ -64,8 +64,16 @@ jobs:
             --name mirrorchess-v12 \
             --package "system-images;android-36;google_apis;x86_64" \
             --device pixel_2
-          printf '\ndisk.dataPartition.size=3G\nhw.ramSize=3072\n' \
-            >> "$ANDROID_AVD_HOME/mirrorchess-v12.avd/config.ini"
+          sed -i 's/^disk.dataPartition.size=.*/disk.dataPartition.size=2G/' \
+            "$ANDROID_AVD_HOME/mirrorchess-v12.avd/config.ini"
+          grep -q '^disk.dataPartition.size=' "$ANDROID_AVD_HOME/mirrorchess-v12.avd/config.ini" \
+            || echo 'disk.dataPartition.size=2G' >> "$ANDROID_AVD_HOME/mirrorchess-v12.avd/config.ini"
+          sed -i 's/^hw.ramSize=.*/hw.ramSize=3072/' \
+            "$ANDROID_AVD_HOME/mirrorchess-v12.avd/config.ini"
+          grep -q '^hw.ramSize=' "$ANDROID_AVD_HOME/mirrorchess-v12.avd/config.ini" \
+            || echo 'hw.ramSize=3072' >> "$ANDROID_AVD_HOME/mirrorchess-v12.avd/config.ini"
+          grep -E '^(disk.dataPartition.size|hw.ramSize)=' \
+            "$ANDROID_AVD_HOME/mirrorchess-v12.avd/config.ini"
           sudo chmod 666 /dev/kvm || true
           nohup "$ANDROID_HOME/emulator/emulator" @mirrorchess-v12 \
             -no-window \

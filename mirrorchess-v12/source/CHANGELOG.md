@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.2.0 — Reliability and finish pass
+
+- Repaired the Gradle wrapper with the complete official Gradle 9.3.1 launcher.
+- Added rollback-safe atomic storage for active games, the recent-game archive, and Mirror learning data.
+- Made archive recovery skip an individual damaged entry instead of discarding every saved game.
+- Hardened FEN, UCI, PGN line-comment, promotion, and en-passant validation.
+- Corrected full-turn undo for both player colors and prevented undo before Black has made a move.
+- Kept a completed active game recoverable when archiving fails and made the game-over message truthful about save status.
+- Prevented a recovered completed game from being counted twice in Mirror learning.
+- Made model download/import cancellation-safe, checksum-cached, atomic, and runtime-validated before reporting success.
+- Prevented a corrupt app-private model from taking precedence over a trusted bundled model.
+- Added visible model-busy states, install/remove guards, and confirmation before model or Mirror-profile deletion.
+- Added exact-username enforcement so PGN imports never silently learn both players' moves.
+- Polished Night branding, typography, dark-surface content colors, system bars, cards, selection states, board palette, progress states, and setting previews.
+- Added clear preview-engine labeling when Maia is absent without returning persistent navigation clutter.
+- Added accessibility descriptions for settings, game actions, switches, and all 64 board squares.
+- Added move-history auto-scroll, a thinking indicator, accurate starting-position review text, full recent-game access, and confirmation before replacing an unfinished game.
+- Added Android/JUnit regression tests for perft, mate/draw rules, castling, en passant, promotion, FEN, PGN, Mirror learning, and Maia encoding.
+
 ## 1.1.0 — Play-first redesign
 
 - Replaced the permanent Play / Mirror / Settings bottom navigation with a single Play home and a settings gear.
