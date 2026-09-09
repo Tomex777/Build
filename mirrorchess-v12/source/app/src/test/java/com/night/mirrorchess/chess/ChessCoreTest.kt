@@ -114,6 +114,7 @@ class ChessCoreTest {
         )
         assertEquals(4, commented.moves.size)
         assertTrue(runCatching { Pgn.parseOne("1. e2e4x *") }.isFailure)
+        assertEquals(1, Pgn.parseMany("\uFEFF[Event \"BOM\"]\n\n1. e4 *").games.size)
 
         val result = Pgn.parseMany(
             """
@@ -147,6 +148,20 @@ class ChessCoreTest {
         val blackMove = requireNotNull(ChessRules.findLegalMove(state, requireNotNull(squareFromName("e7")), requireNotNull(squareFromName("e5"))))
         val index = requireNotNull(Maia3Encoding.vocabularyIndex(blackMove, Side.BLACK))
         assertTrue(index in 0 until 4_352)
+
+        val whitePromotion = Move(requireNotNull(squareFromName("a7")), requireNotNull(squareFromName("b8")), PieceType.KNIGHT)
+        val whitePromotionIndex = requireNotNull(Maia3Encoding.vocabularyIndex(whitePromotion, Side.WHITE))
+        assertEquals("a7b8n", Maia3Encoding.uciAt(whitePromotionIndex, Side.WHITE))
+
+        val blackPromotion = Move(requireNotNull(squareFromName("a2")), requireNotNull(squareFromName("b1")), PieceType.QUEEN)
+        val blackPromotionIndex = requireNotNull(Maia3Encoding.vocabularyIndex(blackPromotion, Side.BLACK))
+        assertEquals("a2b1q", Maia3Encoding.uciAt(blackPromotionIndex, Side.BLACK))
+
+        val whiteTokens = Maia3Encoding.boardTokens(GameState.initial())
+        assertEquals(1f, whiteTokens[requireNotNull(squareFromName("a1")) * 12 + 3])
+        val blackToMove = play("e2e4")
+        val blackTokens = Maia3Encoding.boardTokens(blackToMove)
+        assertEquals(1f, blackTokens[requireNotNull(squareFromName("e2")) * 12])
 
         val fen = play("e2e4", "c7c5", "g1f3").toFen()
         assertEquals(fen, gameStateFromFen(fen)?.toFen())

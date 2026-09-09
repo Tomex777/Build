@@ -230,7 +230,8 @@ private fun PlayHome(
                 Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(if (it.result == "*") "Resume game" else "Recover saved result", style = MaterialTheme.typography.titleMedium)
-                        Text("${(it.moves.size + 1) / 2} moves · ${it.playerSide.name.lowercase().replaceFirstChar { character -> character.uppercase() }}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = .72f))
+                        val moveCount = (it.moves.size + 1) / 2
+                        Text("$moveCount ${if (moveCount == 1) "move" else "moves"} · ${it.playerSide.name.lowercase().replaceFirstChar { character -> character.uppercase() }}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = .72f))
                     }
                     Text("Continue", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 }
@@ -397,7 +398,7 @@ private fun RecentGameRow(game: StoredGame, onReview: (StoredGame) -> Unit) {
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(opponent, style = MaterialTheme.typography.titleMedium)
-            Text("$date · ${game.moves.size} plies", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("$date · ${game.moves.size} ${if (game.moves.size == 1) "move" else "moves"} played", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text(game.result, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }

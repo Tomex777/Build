@@ -1,6 +1,7 @@
 package com.night.mirrorchess.data
 
 import android.content.Context
+import androidx.core.content.edit
 
 enum class BoardPalette { CLASSIC, WALNUT, SLATE, OCEAN }
 enum class PieceStyle { CLASSIC, BOLD, SOFT }
@@ -31,15 +32,15 @@ class AppPreferences(context: Context) {
     )
 
     fun save(settings: AppSettings) {
-        prefs.edit()
-            .putInt("playerElo", settings.playerElo.coerceIn(600, 2800))
-            .putBoolean("showLegalMoves", settings.showLegalMoves)
-            .putBoolean("showCoordinates", settings.showCoordinates)
-            .putBoolean("coachEnabled", settings.coachEnabled)
-            .putBoolean("haptics", settings.haptics)
-            .putString("boardPalette", settings.boardPalette.name)
-            .putString("pieceStyle", settings.pieceStyle.name)
-            .putBoolean("pieceShadows", settings.pieceShadows)
-            .apply()
+        prefs.edit {
+            putInt("playerElo", settings.playerElo.coerceIn(600, 2800))
+            putBoolean("showLegalMoves", settings.showLegalMoves)
+            putBoolean("showCoordinates", settings.showCoordinates)
+            putBoolean("coachEnabled", settings.coachEnabled)
+            putBoolean("haptics", settings.haptics)
+            putString("boardPalette", settings.boardPalette.name)
+            putString("pieceStyle", settings.pieceStyle.name)
+            putBoolean("pieceShadows", settings.pieceShadows)
+        }
     }
 }

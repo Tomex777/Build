@@ -42,7 +42,12 @@ object Pgn {
     private val resultTokens = setOf("1-0", "0-1", "1/2-1/2", "*")
 
     fun parseMany(text: String): PgnParseResult {
-        val normalized = text.replace("\r\n", "\n").replace('\r', '\n').trim()
+        val normalized = text
+            .replace("\r\n", "\n")
+            .replace('\r', '\n')
+            .trim()
+            .removePrefix("\uFEFF")
+            .trimStart()
         if (normalized.isBlank()) return PgnParseResult(emptyList(), listOf("The PGN file is empty."))
 
         val starts = Regex("(?m)^\\[Event\\s+").findAll(normalized).map { it.range.first }.toList()

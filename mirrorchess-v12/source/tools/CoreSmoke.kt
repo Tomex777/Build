@@ -93,7 +93,7 @@ fun main() {
 
 1. d4 d5 2. c4 e6 1/2-1/2
 """.trimIndent()
-    val parsed = Pgn.parseMany(pgnText)
+    val parsed = Pgn.parseMany("\uFEFF$pgnText")
     check(parsed.errors.isEmpty()) { parsed.errors.joinToString() }
     check(parsed.games.size == 2)
     val profile = MirrorProfileBuilder.build(parsed.games, "Alice")

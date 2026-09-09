@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -76,7 +77,7 @@ fun ChessBoard(
 ) {
     val boardColors = colorsFor(palette)
     val haptics = LocalHapticFeedback.current
-    var boardWidthPx by remember { mutableStateOf(0) }
+    var boardWidthPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     var draggingSquare by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }

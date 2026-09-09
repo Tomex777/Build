@@ -8,7 +8,11 @@ Mirror Chess depends on `com.microsoft.onnxruntime:onnxruntime-android` for loca
 
 The optional neural model is not bundled in this source ZIP. The app points to the `bqrio/maia3-onnx` Maia-3 5M fp16 export and can install it at runtime after checksum verification.
 
-The model/project has separate licensing terms from this Android shell. At the time this project was prepared, the referenced model was presented under AGPL-3.0 terms. **Review the current upstream model license before publishing or redistributing the model or an app that installs/bundles it.**
+The model/project has separate licensing terms from this Android shell. The pinned ONNX model page identifies the export as **AGPL-3.0**, inherited from the upstream Maia3 checkpoints:
+
+`https://huggingface.co/bqrio/maia3-onnx`
+
+Review and comply with those terms before publishing or redistributing the model or an app that installs or bundles it.
 
 ## UI/source provenance
 
