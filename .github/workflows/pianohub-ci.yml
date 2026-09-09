@@ -1,4 +1,4 @@
-name: Piano Hub Direct Emulator Screenshot Capture
+name: Piano Hub Direct macOS ARM64 Screenshots
 
 on:
   push:
@@ -9,8 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  screenshot-direct:
-    runs-on: ubuntu-latest
+  screenshot-macos-arm64:
+    runs-on: macos-14
     timeout-minutes: 15
     steps:
       - name: Download verified Piano Hub APK
@@ -29,22 +29,16 @@ jobs:
           test -n "$APK"
           echo "APK=$APK" >> "$GITHUB_ENV"
 
-      - name: Enable KVM
-        shell: bash
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-
-      - name: Boot Android 36 ATD, capture, and persist actual UI
+      - name: Boot matching ARM64 Android 36, capture, and persist actual UI
         uses: reactivecircus/android-emulator-runner@v2
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
         with:
           api-level: 36
-          arch: x86_64
-          target: aosp_atd
+          arch: arm64-v8a
+          profile: pixel_6
+          target: default
           cores: 2
           ram-size: 2048M
           emulator-boot-timeout: 300
@@ -117,6 +111,6 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pianohub-ui-screenshots-direct
+          name: pianohub-ui-screenshots-macos-arm64
           path: /tmp/pianohub/screenshots/*
           if-no-files-found: warn
