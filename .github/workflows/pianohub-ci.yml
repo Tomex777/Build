@@ -1,4 +1,4 @@
-name: Piano Hub Clean ARM64 macOS Screenshot Capture
+name: Piano Hub Real Pixel Screenshots
 
 on:
   push:
@@ -6,12 +6,12 @@ on:
 
 permissions:
   actions: read
-  contents: write
+  contents: read
 
 jobs:
-  screenshot-macos-arm64:
-    runs-on: macos-14
-    timeout-minutes: 12
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Download verified Piano Hub APK
         uses: actions/download-artifact@v4
@@ -22,94 +22,55 @@ jobs:
           run-id: 34387774146
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Locate verified APK
+      - name: Locate APK
         shell: bash
         run: |
           APK=$(find /tmp/pianohub/apk -type f -name '*.apk' | head -n1)
           test -n "$APK"
           echo "APK=$APK" >> "$GITHUB_ENV"
 
-      - name: Boot ARM64 Android 36 and persist actual screenshots immediately
+      - name: Enable KVM
+        shell: bash
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Boot full Android 36 Pixel and capture real app UI
         uses: reactivecircus/android-emulator-runner@v2
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
         with:
           api-level: 36
-          arch: arm64-v8a
-          profile: pixel_6
+          arch: x86_64
           target: default
+          profile: pixel_6
           cores: 2
           emulator-boot-timeout: 300
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
           script: |
-            set -e
             mkdir -p /tmp/pianohub/screenshots
-
-            upload_capture() {
-              local FILE="$1"
-              local NAME="$2"
-              python3 - "$FILE" "$NAME" <<'PY'
-            import base64, json, os, sys, urllib.request
-            file_path, name = sys.argv[1], sys.argv[2]
-            run_id = os.environ['GITHUB_RUN_ID']
-            token = os.environ['GH_TOKEN']
-            repo = os.environ['GITHUB_REPOSITORY']
-            branch = os.environ['GITHUB_REF_NAME']
-            dest = f'.ci/pianohub_screenshots/{run_id}/{name}'
-            payload = json.dumps({
-                'message': f'Persist Piano Hub emulator screenshot {name}',
-                'content': base64.b64encode(open(file_path, 'rb').read()).decode('ascii'),
-                'branch': branch,
-            }).encode('utf-8')
-            req = urllib.request.Request(
-                f'https://api.github.com/repos/{repo}/contents/{dest}',
-                data=payload,
-                method='PUT',
-                headers={
-                    'Authorization': f'Bearer {token}',
-                    'Accept': 'application/vnd.github+json',
-                    'X-GitHub-Api-Version': '2022-11-28',
-                    'Content-Type': 'application/json',
-                },
-            )
-            with urllib.request.urlopen(req, timeout=60) as response:
-                print(f'persisted {name}: HTTP {response.status}')
-            PY
-            }
-
             adb install -r "$APK"
             adb shell am force-stop com.night.pianohub
             adb shell am start -W -n com.night.pianohub/.MainActivity
             sleep 5
             adb shell pidof com.night.pianohub
-
             adb exec-out screencap -p > /tmp/pianohub/screenshots/01-learn.png
-            test -s /tmp/pianohub/screenshots/01-learn.png
-            upload_capture /tmp/pianohub/screenshots/01-learn.png 01-learn.png
-
-            SIZE=$(adb shell wm size | tail -n1 | tr -d '\r')
-            WIDTH=$(echo "$SIZE" | grep -oE '[0-9]+x[0-9]+' | cut -dx -f1)
-            HEIGHT=$(echo "$SIZE" | grep -oE '[0-9]+x[0-9]+' | cut -dx -f2)
-            Y=$((HEIGHT * 93 / 100))
-
-            adb shell input tap $((WIDTH * 3 / 10)) "$Y"
-            sleep 2
+            adb shell input tap 324 2232
+            sleep 3
             adb exec-out screencap -p > /tmp/pianohub/screenshots/02-piano.png
-            test -s /tmp/pianohub/screenshots/02-piano.png
-            upload_capture /tmp/pianohub/screenshots/02-piano.png 02-piano.png
-
-            adb shell input tap $((WIDTH * 9 / 10)) "$Y"
-            sleep 2
+            adb shell input tap 972 2232
+            sleep 3
             adb exec-out screencap -p > /tmp/pianohub/screenshots/03-settings.png
+            test -s /tmp/pianohub/screenshots/01-learn.png
+            test -s /tmp/pianohub/screenshots/02-piano.png
             test -s /tmp/pianohub/screenshots/03-settings.png
-            upload_capture /tmp/pianohub/screenshots/03-settings.png 03-settings.png
 
-      - name: Upload actual emulator screenshots artifact
+      - name: Upload real screenshots
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pianohub-ui-screenshots-macos-arm64
-          path: /tmp/pianohub/screenshots/*
-          if-no-files-found: warn
+          name: pianohub-real-ui-screenshots
+          path: /tmp/pianohub/screenshots/*.png
+          if-no-files-found: error
