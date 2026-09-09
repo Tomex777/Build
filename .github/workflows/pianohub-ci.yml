@@ -23,28 +23,55 @@ jobs:
           tar -xzf /tmp/pianohub-source.tgz -C /tmp/pianohub
           test -f /tmp/pianohub/settings.gradle.kts
 
-      - name: Apply Android build and sample-source fixes
+      - name: Apply verified Android source fixes
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('/tmp/pianohub/app/build.gradle.kts')
-          s = p.read_text()
-          s = s.replace(
-              'val generatedPianoAssets = layout.buildDirectory.dir("generated/pianoSamples/assets")',
-              'val generatedPianoAssets = layout.buildDirectory.get().asFile.resolve("generated/pianoSamples/assets")'
-          )
-          s = s.replace(
-              'val pianoDir = generatedPianoAssets.get().asFile.resolve("piano")',
-              'val pianoDir = generatedPianoAssets.resolve("piano")'
-          )
-          s = s.replace(
-              'https://unpkg.com/@audio-samples/piano-mp3-velocity8@1.0.5/audio/',
-              'https://cdn.jsdelivr.net/npm/@audio-samples/piano-mp3-velocity8@1.0.5/audio/'
-          )
-          p.write_text(s)
+
+          build = Path('/tmp/pianohub/app/build.gradle.kts')
+          s = build.read_text()
+          replacements = [
+              (
+                  'val generatedPianoAssets = layout.buildDirectory.dir("generated/pianoSamples/assets")',
+                  'val generatedPianoAssets = layout.buildDirectory.get().asFile.resolve("generated/pianoSamples/assets")'
+              ),
+              (
+                  'val pianoDir = generatedPianoAssets.get().asFile.resolve("piano")',
+                  'val pianoDir = generatedPianoAssets.resolve("piano")'
+              ),
+              (
+                  'https://unpkg.com/@audio-samples/piano-mp3-velocity8@1.0.5/audio/',
+                  'https://cdn.jsdelivr.net/npm/@audio-samples/piano-mp3-velocity8@1.0.5/audio/'
+              ),
+              ('compileSdk = 36', 'compileSdk = 37'),
+          ]
+          for old, new in replacements:
+              if old not in s and new not in s:
+                  raise SystemExit(f'Expected build source text not found: {old}')
+              s = s.replace(old, new)
+          build.write_text(s)
+
+          keyboard = Path('/tmp/pianohub/app/src/main/java/com/night/pianohub/ui/components/PianoKeyboard.kt')
+          k = keyboard.read_text()
+          keyboard_replacements = [
+              ('var size by remember { mutableStateOf(IntSize.Zero) }',
+               'var layoutSize by remember { mutableStateOf(IntSize.Zero) }'),
+              ('.onSizeChanged { size = it }', '.onSizeChanged { layoutSize = it }'),
+              ('.pointerInput(size) {', '.pointerInput(layoutSize) {'),
+              ('if (size.width > 0) onViewportChange((x / size.width).coerceIn(0f, 1f))',
+               'if (layoutSize.width > 0) onViewportChange((x / layoutSize.width).coerceIn(0f, 1f))'),
+          ]
+          for old, new in keyboard_replacements:
+              if old not in k and new not in k:
+                  raise SystemExit(f'Expected PianoKeyboard source text not found: {old}')
+              k = k.replace(old, new)
+          keyboard.write_text(k)
           PY
-          grep -n 'generatedPianoAssets\|assets.srcDir\|jsdelivr' /tmp/pianohub/app/build.gradle.kts
+          echo '--- Android SDK config ---'
+          grep -n 'compileSdk\|minSdk\|targetSdk\|jsdelivr\|generatedPianoAssets' /tmp/pianohub/app/build.gradle.kts
+          echo '--- Piano navigator state ---'
+          grep -n 'layoutSize\|pointerInput' /tmp/pianohub/app/src/main/java/com/night/pianohub/ui/components/PianoKeyboard.kt | tail -n 12
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -60,6 +87,10 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Install Android 37 compile SDK
+        shell: bash
+        run: sdkmanager "platforms;android-37"
+
       - name: Build APK with real Yamaha C5 samples
         working-directory: /tmp/pianohub
         run: gradle --stacktrace assembleDebug
@@ -71,6 +102,19 @@ jobs:
           COUNT=$(unzip -l "$APK" | grep -E 'assets/piano/.*\.mp3$' | wc -l)
           echo "Bundled sampled-piano recordings: $COUNT"
           test "$COUNT" -eq 30
+
+      - name: Package verified source
+        shell: bash
+        run: |
+          cd /tmp/pianohub
+          tar --exclude='./.gradle' --exclude='./build' --exclude='./app/build' --exclude='./screenshots' -czf /tmp/pianohub-verified-source.tgz .
+
+      - name: Upload verified source
+        uses: actions/upload-artifact@v4
+        with:
+          name: pianohub-verified-source
+          path: /tmp/pianohub-verified-source.tgz
+          if-no-files-found: error
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -96,17 +140,22 @@ jobs:
             adb shell am force-stop com.night.pianohub
             adb shell am start -W -n com.night.pianohub/.MainActivity
             sleep 4
+            adb shell pidof com.night.pianohub
             adb exec-out screencap -p > /tmp/pianohub/screenshots/01-learn.png
+            adb shell uiautomator dump /sdcard/window.xml >/dev/null
+            adb pull /sdcard/window.xml /tmp/pianohub/screenshots/01-learn-ui.xml >/dev/null
             SIZE=$(adb shell wm size | tail -n1 | tr -d '\r')
             WIDTH=$(echo "$SIZE" | grep -oE '[0-9]+x[0-9]+' | cut -dx -f1)
             HEIGHT=$(echo "$SIZE" | grep -oE '[0-9]+x[0-9]+' | cut -dx -f2)
-            Y=$((HEIGHT * 95 / 100))
+            Y=$((HEIGHT * 93 / 100))
             adb shell input tap $((WIDTH * 3 / 10)) "$Y"
             sleep 2
             adb exec-out screencap -p > /tmp/pianohub/screenshots/02-piano.png
             adb shell input tap $((WIDTH * 9 / 10)) "$Y"
             sleep 2
             adb exec-out screencap -p > /tmp/pianohub/screenshots/03-settings.png
+            adb shell dumpsys activity activities | grep -A 4 'mResumedActivity' > /tmp/pianohub/screenshots/activity-state.txt || true
+            adb logcat -d -t 300 > /tmp/pianohub/screenshots/logcat-tail.txt
             test -s /tmp/pianohub/screenshots/01-learn.png
             test -s /tmp/pianohub/screenshots/02-piano.png
             test -s /tmp/pianohub/screenshots/03-settings.png
@@ -116,5 +165,5 @@ jobs:
         if: always()
         with:
           name: pianohub-ui-screenshots
-          path: /tmp/pianohub/screenshots/*.png
+          path: /tmp/pianohub/screenshots/*
           if-no-files-found: warn
