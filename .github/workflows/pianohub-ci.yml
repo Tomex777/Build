@@ -22,8 +22,39 @@ jobs:
           set -euo pipefail
           rm -rf /tmp/slumber
           mkdir -p /tmp/slumber
-          test "$(find .ci/slumber_payload_041_final -maxdepth 1 -name 'part*.txt' | wc -l)" -eq 8
-          cat .ci/slumber_payload_041_final/part*.txt | tr -d '\n' | base64 --decode > /tmp/slumber-source.tgz
+          for f in \
+            .ci/slumber_payload_041_final/part01.txt \
+            .ci/slumber_payload_041_final/part02.txt \
+            .ci/slumber_payload_041_final/part03.txt \
+            .ci/slumber_payload_041_final/part04a.txt \
+            .ci/slumber_payload_041_final/part04b00.txt \
+            .ci/slumber_payload_041_final/part04b01.txt \
+            .ci/slumber_payload_041_final/part04b02.txt \
+            .ci/slumber_payload_041_final/part04b03a.txt \
+            .ci/slumber_payload_041_final/part04b03b.txt \
+            .ci/slumber_payload_041_final/part04b03c.txt \
+            .ci/slumber_payload_041_final/part04b04.txt \
+            .ci/slumber_payload_041_final/part05.txt \
+            .ci/slumber_payload_041_final/part06.txt \
+            .ci/slumber_payload_041_final/part07.txt \
+            .ci/slumber_payload_041_final/part08.txt; do test -s "$f"; done
+          cat \
+            .ci/slumber_payload_041_final/part01.txt \
+            .ci/slumber_payload_041_final/part02.txt \
+            .ci/slumber_payload_041_final/part03.txt \
+            .ci/slumber_payload_041_final/part04a.txt \
+            .ci/slumber_payload_041_final/part04b00.txt \
+            .ci/slumber_payload_041_final/part04b01.txt \
+            .ci/slumber_payload_041_final/part04b02.txt \
+            .ci/slumber_payload_041_final/part04b03a.txt \
+            .ci/slumber_payload_041_final/part04b03b.txt \
+            .ci/slumber_payload_041_final/part04b03c.txt \
+            .ci/slumber_payload_041_final/part04b04.txt \
+            .ci/slumber_payload_041_final/part05.txt \
+            .ci/slumber_payload_041_final/part06.txt \
+            .ci/slumber_payload_041_final/part07.txt \
+            .ci/slumber_payload_041_final/part08.txt \
+            | tr -d '\n' | base64 --decode > /tmp/slumber-source.tgz
           echo "0ed8c8e3cecaabc912d3555ad5942576501e35f983d9f7769cc10d131b2194db  /tmp/slumber-source.tgz" | sha256sum -c -
           tar -xzf /tmp/slumber-source.tgz -C /tmp/slumber
           test -f /tmp/slumber/settings.gradle.kts
