@@ -1,0 +1,347 @@
+name: Slumber by Night 0.6.0 Production QA
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".github/workflows/slumber-060-qa.yml"
+      - ".ci/slumber_payload_060_exact/**"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - name: Checkout QA staging
+        uses: actions/checkout@v4
+
+      - name: Reconstruct exact Slumber 0.6.0 source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber /tmp/slumber-base /tmp/slumber-qa
+          mkdir -p /tmp/slumber /tmp/slumber-base /tmp/slumber-qa
+          gh run download 34443740455 --repo Tomex777/Build --name slumber-production-0.5.0-exact --dir /tmp/slumber-base
+          BASE=$(find /tmp/slumber-base -name 'slumber-production-0.5.0-source.tgz' -type f -print -quit)
+          test -n "$BASE"
+          tar -xzf "$BASE" -C /tmp/slumber
+          cat .ci/slumber_payload_060_exact/part00.txt \
+              .ci/slumber_payload_060_exact/part01.txt \
+              .ci/slumber_payload_060_exact/part02.txt \
+              .ci/slumber_payload_060_exact/part03.txt \
+              .ci/slumber_payload_060_exact/part04.txt \
+              .ci/slumber_payload_060_exact/part05.txt \
+              .ci/slumber_payload_060_exact/part06.txt \
+              .ci/slumber_payload_060_exact/part07.txt \
+              | tr -d '\n' | base64 --decode > /tmp/slumber-0.6.0-delta.tgz
+          echo '7cbf8cfafbc8256c1e3c9833bfe9735412989084d8b870cb852500ac5631ca1f  /tmp/slumber-0.6.0-delta.tgz' | sha256sum -c -
+          tar -xzf /tmp/slumber-0.6.0-delta.tgz -C /tmp/slumber
+          grep -q 'versionName = "0.6.0"' /tmp/slumber/app/build.gradle.kts
+          grep -q 'enum class ThemeMode' /tmp/slumber/app/src/main/java/com/night/pianohub/ui/theme/Theme.kt
+          grep -q 'loadThemeMode' /tmp/slumber/app/src/main/java/com/night/pianohub/storage/PianoHubLocalStore.kt
+          grep -q 'ThemeMode.entries' /tmp/slumber/app/src/main/java/com/night/pianohub/ui/screens/SettingsScreen.kt
+          grep -q 'MIDI note must be in 0..127' /tmp/slumber/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: "15859902"
+
+      - name: Install Android compile SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+          test -f "$ANDROID_SDK_ROOT/platforms/android-37.0/android.jar"
+
+      - name: Run full unit and regression suite
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace testDebugUnitTest
+
+      - name: Run Android lint
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace lintDebug
+
+      - name: Build Slumber 0.6.0 APK
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace assembleDebug
+
+      - name: Verify built APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=/tmp/slumber/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          COUNT=$(unzip -l "$APK" | grep -E 'assets/piano/.*\.mp3$' | wc -l)
+          echo "Bundled Yamaha C5 recordings: $COUNT"
+          test "$COUNT" -eq 120
+          unzip -l "$APK" | grep -q 'classes.dex'
+          sha256sum "$APK" | tee /tmp/slumber-qa/apk-sha256.txt
+          cp "$APK" /tmp/slumber-qa/Slumber-0.6.0-debug.apk
+          cd /tmp/slumber
+          tar --exclude='./.gradle' --exclude='./build' --exclude='./app/build' -czf /tmp/slumber-qa/slumber-production-0.6.0-source.tgz .
+
+      - name: Upload verified build
+        uses: actions/upload-artifact@v4
+        with:
+          name: slumber-production-0.6.0-qa
+          path: /tmp/slumber-qa/*
+          if-no-files-found: error
+
+  runtime-qa:
+    needs: build-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Download exact 0.6.0 APK
+        uses: actions/download-artifact@v4
+        with:
+          name: slumber-production-0.6.0-qa
+          path: /tmp/slumber-build
+
+      - name: Locate APK and prepare exhaustive runtime script
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber-runtime
+          mkdir -p /tmp/slumber-runtime
+          cp /tmp/slumber-build/Slumber-0.6.0-debug.apk /tmp/slumber-runtime/app-debug.apk
+          test -s /tmp/slumber-runtime/app-debug.apk
+          cat > /tmp/slumber-runtime/run-qa.sh <<'BASH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          PKG=com.night.pianohub
+          ACT=com.night.pianohub/.MainActivity
+          OUT=/tmp/slumber-runtime
+
+          dump_ui() {
+            adb shell uiautomator dump /sdcard/slumber-ui.xml >/dev/null
+            adb pull /sdcard/slumber-ui.xml "$OUT/ui.xml" >/dev/null
+          }
+
+          assert_text() {
+            dump_ui
+            grep -Fq "$1" "$OUT/ui.xml"
+          }
+
+          tap_text() {
+            dump_ui
+            local target="$1"
+            local xy
+            xy=$(python3 - "$OUT/ui.xml" "$target" <<'PY'
+          import re, sys, xml.etree.ElementTree as ET
+          path, target = sys.argv[1], sys.argv[2]
+          root = ET.parse(path).getroot()
+          found = None
+          for node in root.iter('node'):
+              if node.attrib.get('text') == target or node.attrib.get('content-desc') == target:
+                  found = node
+                  break
+          if found is None:
+              raise SystemExit(3)
+          m = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', found.attrib['bounds'])
+          if not m:
+              raise SystemExit(4)
+          x1,y1,x2,y2 = map(int,m.groups())
+          print((x1+x2)//2, (y1+y2)//2)
+          PY
+          )
+            adb shell input tap $xy
+            sleep 1
+          }
+
+          no_error_dialogs() {
+            dump_ui
+            ! grep -Eiq "isn't responding|isn.t responding|keeps stopping|close app|process system" "$OUT/ui.xml"
+          }
+
+          save_shot() {
+            adb exec-out screencap -p > "$OUT/$1.png"
+            test -s "$OUT/$1.png"
+          }
+
+          prefs() {
+            adb shell run-as "$PKG" cat shared_prefs/pianohub_local_v1.xml
+          }
+
+          relaunch() {
+            adb shell am force-stop "$PKG"
+            adb shell am start -W -n "$ACT" >/dev/null
+            sleep 3
+            test -n "$(adb shell pidof "$PKG")"
+            assert_text "Slumber"
+            no_error_dialogs
+          }
+
+          adb shell settings put global hide_error_dialogs 1
+          adb install -r "$OUT/app-debug.apk"
+          adb logcat -c
+          relaunch
+          assert_text "Ready to practice?"
+          save_shot 01-system-initial
+
+          # Every primary destination.
+          tap_text "Piano"; assert_text "Full keyboard navigator"; save_shot 02-piano
+          tap_text "Songs"; assert_text "Song Studio"; save_shot 03-songs
+          tap_text "Sounds"; assert_text "World instruments"; save_shot 04-sounds
+          tap_text "Progress"; assert_text "Learner profile"; save_shot 05-progress
+          tap_text "Settings"; assert_text "Optional AI teacher"; assert_text "Theme"; save_shot 06-settings-system
+
+          # Theme: Dark persists through process death.
+          tap_text "Dark"
+          sleep 1
+          prefs > "$OUT/prefs-dark.xml"
+          grep -q 'theme_mode.*DARK\|DARK.*theme_mode' "$OUT/prefs-dark.xml"
+          save_shot 07-settings-dark
+          relaunch
+          tap_text "Settings"; assert_text "Theme"
+          prefs | grep -q 'DARK'
+          save_shot 08-dark-after-relaunch
+
+          # Theme: Light persists through process death.
+          tap_text "Light"
+          sleep 1
+          prefs > "$OUT/prefs-light.xml"
+          grep -q 'theme_mode.*LIGHT\|LIGHT.*theme_mode' "$OUT/prefs-light.xml"
+          relaunch
+          tap_text "Settings"; assert_text "Theme"
+          prefs | grep -q 'LIGHT'
+          save_shot 09-light-after-relaunch
+
+          # Theme: System follows both OS night modes and remains persisted as SYSTEM.
+          tap_text "System"
+          sleep 1
+          prefs > "$OUT/prefs-system.xml"
+          grep -q 'theme_mode.*SYSTEM\|SYSTEM.*theme_mode' "$OUT/prefs-system.xml"
+          adb shell cmd uimode night yes >/dev/null
+          relaunch
+          save_shot 10-system-os-dark
+          adb shell cmd uimode night no >/dev/null
+          relaunch
+          save_shot 11-system-os-light
+
+          # Provider UI permutations must render without crashing or losing app process.
+          tap_text "Settings"; assert_text "Provider type"
+          tap_text "Anthropic"; assert_text "API key"
+          tap_text "Google Gemini"; assert_text "API key"
+          tap_text "Local model"; assert_text "Local endpoint"
+          tap_text "OpenAI-compatible"; assert_text "API key"
+          test -n "$(adb shell pidof "$PKG")"
+
+          # Piano interaction + deterministic Fix This entry after an attempted note.
+          tap_text "Piano"; assert_text "Full keyboard navigator"
+          adb shell input tap 540 1850
+          sleep 1
+          assert_text "Fix This"
+          tap_text "Fix This"
+          assert_text "Adaptive practice · local"
+          save_shot 12-fix-this
+          tap_text "Exit"
+          assert_text "Current lesson · 90 BPM"
+
+          # Persist tradition and navigator position through process death.
+          tap_text "Chinese"
+          tap_text "→"
+          sleep 1
+          prefs > "$OUT/prefs-practice.xml"
+          grep -q 'CHINESE' "$OUT/prefs-practice.xml"
+          relaunch
+          tap_text "Piano"; assert_text "Chinese"
+          prefs | grep -q 'CHINESE'
+
+          # Piano settings sheet opens and key-label mode can change without crashing.
+          tap_text "Piano settings"; assert_text "Key labels"
+          tap_text "Letters"
+          tap_text "Done"
+          prefs > "$OUT/prefs-piano-settings.xml"
+          grep -q 'LETTERS' "$OUT/prefs-piano-settings.xml"
+
+          # Background/resume lifecycle.
+          adb shell input keyevent KEYCODE_HOME
+          sleep 2
+          test -n "$(adb shell pidof "$PKG")"
+          adb shell am start -W -n "$ACT" >/dev/null
+          sleep 2
+          assert_text "Slumber"
+
+          # Portrait -> landscape -> portrait configuration changes.
+          adb shell settings put system accelerometer_rotation 0
+          adb shell settings put system user_rotation 1
+          sleep 3
+          test -n "$(adb shell pidof "$PKG")"
+          assert_text "Slumber"
+          save_shot 13-landscape
+          adb shell settings put system user_rotation 0
+          sleep 3
+          test -n "$(adb shell pidof "$PKG")"
+          assert_text "Slumber"
+          save_shot 14-portrait-restored
+
+          # Repeated navigation stress.
+          for round in 1 2 3; do
+            for tab in Learn Piano Songs Sounds Progress Settings; do
+              tap_text "$tab"
+              test -n "$(adb shell pidof "$PKG")"
+            done
+          done
+
+          adb shell dumpsys meminfo "$PKG" > "$OUT/meminfo.txt"
+          adb shell dumpsys activity activities > "$OUT/activity-dump.txt"
+          adb logcat -d -t 5000 > "$OUT/logcat.txt"
+          ! grep -E "ANR in com\.night\.pianohub|FATAL EXCEPTION.*com\.night\.pianohub|Process: com\.night\.pianohub.*FATAL EXCEPTION" "$OUT/logcat.txt"
+          no_error_dialogs
+          test -n "$(adb shell pidof "$PKG")"
+          BASH
+          chmod +x /tmp/slumber-runtime/run-qa.sh
+
+      - name: Enable KVM
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+
+      - name: Android 36 exhaustive runtime QA
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
+        with:
+          api-level: 36
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          cores: 2
+          emulator-boot-timeout: 360
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
+          script: bash /tmp/slumber-runtime/run-qa.sh
+
+      - name: Upload exhaustive QA evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slumber-0.6.0-exhaustive-runtime-qa
+          path: |
+            /tmp/slumber-runtime/*.png
+            /tmp/slumber-runtime/*.xml
+            /tmp/slumber-runtime/*.txt
+          if-no-files-found: warn
