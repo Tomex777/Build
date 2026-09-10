@@ -1,0 +1,77 @@
+name: Slumber 0.7.0 Compiler Fix Verify
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".github/workflows/slumber-070-fix-compile.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  compile-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+
+      - name: Reconstruct exact 0.7.0 and apply compiler micro-fix
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber /tmp/slumber-base
+          mkdir -p /tmp/slumber /tmp/slumber-base
+          gh run download 34443740455 --repo Tomex777/Build --name slumber-production-0.5.0-exact --dir /tmp/slumber-base
+          BASE=$(find /tmp/slumber-base -name 'slumber-production-0.5.0-source.tgz' -type f -print -quit)
+          test -n "$BASE"
+          tar -xzf "$BASE" -C /tmp/slumber
+          cat .ci/slumber_070_overlay/part00.txt \
+              .ci/slumber_070_overlay/part01.txt \
+              .ci/slumber_070_overlay/part02.txt \
+              .ci/slumber_070_overlay/part03.txt \
+              .ci/slumber_070_overlay/part04.txt \
+              .ci/slumber_070_overlay/part05.txt \
+              | tr -d '\n' | base64 --decode > /tmp/slumber-0.7.0-overlay.tgz
+          echo '9ea02dfa49748f9d259fe3dbbff18a47cd25f4b32e8db0c87c84bf700fd5142c  /tmp/slumber-0.7.0-overlay.tgz' | sha256sum -c -
+          tar -xzf /tmp/slumber-0.7.0-overlay.tgz -C /tmp/slumber
+          PIANO=/tmp/slumber/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
+          grep -Fxq 'import androidx.compose.foundation.layout.weight' "$PIANO"
+          sed -i '/^import androidx\.compose\.foundation\.layout\.weight$/d' "$PIANO"
+          ! grep -Fxq 'import androidx.compose.foundation.layout.weight' "$PIANO"
+          grep -q 'versionName = "0.7.0"' /tmp/slumber/app/build.gradle.kts
+          grep -q 'SCREEN_ORIENTATION_SENSOR_LANDSCAPE' "$PIANO"
+          grep -q 'PracticeDisplayMode.TOUCH' "$PIANO"
+          grep -q 'PracticeDisplayMode.ROLL' "$PIANO"
+          grep -q 'PracticeDisplayMode.STAFF' "$PIANO"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: "15859902"
+
+      - name: Install Android compile SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+          test -f "$ANDROID_SDK_ROOT/platforms/android-37.0/android.jar"
+
+      - name: Compile and run unit/regression tests
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace testDebugUnitTest
