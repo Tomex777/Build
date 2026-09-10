@@ -1,0 +1,290 @@
+name: Slumber 0.7.0 Final Android Verify
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".github/workflows/slumber-070-final-verify.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+
+      - name: Reconstruct corrected Slumber 0.7.0
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber /tmp/slumber-base /tmp/slumber-out /tmp/slumber-runtime
+          mkdir -p /tmp/slumber /tmp/slumber-base /tmp/slumber-out /tmp/slumber-runtime
+          gh run download 34443740455 --repo Tomex777/Build --name slumber-production-0.5.0-exact --dir /tmp/slumber-base
+          BASE=$(find /tmp/slumber-base -name 'slumber-production-0.5.0-source.tgz' -type f -print -quit)
+          test -n "$BASE"
+          tar -xzf "$BASE" -C /tmp/slumber
+          cat .ci/slumber_070_overlay/part00.txt \
+              .ci/slumber_070_overlay/part01.txt \
+              .ci/slumber_070_overlay/part02.txt \
+              .ci/slumber_070_overlay/part03.txt \
+              .ci/slumber_070_overlay/part04.txt \
+              .ci/slumber_070_overlay/part05.txt \
+              | tr -d '\n' | base64 --decode > /tmp/slumber-0.7.0-overlay.tgz
+          echo '9ea02dfa49748f9d259fe3dbbff18a47cd25f4b32e8db0c87c84bf700fd5142c  /tmp/slumber-0.7.0-overlay.tgz' | sha256sum -c -
+          tar -xzf /tmp/slumber-0.7.0-overlay.tgz -C /tmp/slumber
+          PIANO=/tmp/slumber/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
+          grep -Fxq 'import androidx.compose.foundation.layout.weight' "$PIANO"
+          sed -i '/^import androidx\.compose\.foundation\.layout\.weight$/d' "$PIANO"
+          ! grep -Fxq 'import androidx.compose.foundation.layout.weight' "$PIANO"
+          grep -q 'versionName = "0.7.0"' /tmp/slumber/app/build.gradle.kts
+          grep -q 'SCREEN_ORIENTATION_SENSOR_LANDSCAPE' "$PIANO"
+          grep -q 'DEFAULT_C4_TO_C7_VIEWPORT' /tmp/slumber/app/src/main/java/com/night/pianohub/ui/components/PianoKeyboard.kt
+          grep -q 'Text("88 keys"' "$PIANO"
+          grep -q 'PracticeDisplayMode.TOUCH' "$PIANO"
+          grep -q 'PracticeDisplayMode.ROLL' "$PIANO"
+          grep -q 'PracticeDisplayMode.STAFF' "$PIANO"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: "15859902"
+
+      - name: Install Android compile SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+          test -f "$ANDROID_SDK_ROOT/platforms/android-37.0/android.jar"
+
+      - name: Run unit and regression suite
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace testDebugUnitTest
+
+      - name: Run Android lint
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace lintDebug
+
+      - name: Build APK
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace assembleDebug
+
+      - name: Verify APK and bundled piano library
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=/tmp/slumber/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          COUNT=$(unzip -l "$APK" | grep -E 'assets/piano/.*\.mp3$' | wc -l)
+          echo "Bundled Yamaha C5 recordings: $COUNT"
+          test "$COUNT" -eq 120
+          unzip -l "$APK" | grep -q 'classes.dex'
+          cp "$APK" /tmp/slumber-out/Slumber-0.7.0-debug.apk
+          sha256sum "$APK" | tee /tmp/slumber-out/apk-sha256.txt
+          cd /tmp/slumber
+          tar --exclude='./.gradle' --exclude='./build' --exclude='./app/build' -czf /tmp/slumber-out/slumber-production-0.7.0-source.tgz .
+          sha256sum /tmp/slumber-out/slumber-production-0.7.0-source.tgz | tee /tmp/slumber-out/source-sha256.txt
+
+      - name: Prepare runtime QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp /tmp/slumber-out/Slumber-0.7.0-debug.apk /tmp/slumber-runtime/app-debug.apk
+          cat > /tmp/slumber-runtime/run-qa.sh <<'BASH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          PKG=com.night.pianohub
+          ACT=com.night.pianohub/.MainActivity
+          OUT=/tmp/slumber-runtime
+
+          dump_ui() {
+            adb shell uiautomator dump /sdcard/slumber-ui.xml >/dev/null
+            adb pull /sdcard/slumber-ui.xml "$OUT/ui.xml" >/dev/null
+          }
+
+          assert_text() {
+            dump_ui
+            grep -Fq "$1" "$OUT/ui.xml"
+          }
+
+          assert_absent() {
+            dump_ui
+            ! grep -Fq "$1" "$OUT/ui.xml"
+          }
+
+          tap_text() {
+            dump_ui
+            local target="$1"
+            local xy
+            xy=$(python3 - "$OUT/ui.xml" "$target" <<'PY'
+          import re, sys, xml.etree.ElementTree as ET
+          path, target = sys.argv[1], sys.argv[2]
+          root = ET.parse(path).getroot()
+          for node in root.iter('node'):
+              if node.attrib.get('text') == target or node.attrib.get('content-desc') == target:
+                  m = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib['bounds'])
+                  if m:
+                      x1,y1,x2,y2 = map(int,m.groups())
+                      print((x1+x2)//2, (y1+y2)//2)
+                      raise SystemExit(0)
+          raise SystemExit(3)
+          PY
+          )
+            adb shell input tap $xy
+            sleep 2
+          }
+
+          screenshot() {
+            adb exec-out screencap -p > "$OUT/$1.png"
+            test -s "$OUT/$1.png"
+          }
+
+          assert_landscape_png() {
+            python3 - "$1" <<'PY'
+          import struct, sys
+          p=sys.argv[1]
+          with open(p,'rb') as f:
+              sig=f.read(24)
+          assert sig[:8] == b'\x89PNG\r\n\x1a\n'
+          w,h=struct.unpack('>II',sig[16:24])
+          print(f'{w}x{h}')
+          assert w > h, (w,h)
+          PY
+          }
+
+          adb shell settings put global hide_error_dialogs 1
+          adb install -r "$OUT/app-debug.apk"
+          adb logcat -c
+          adb shell am force-stop "$PKG"
+          adb shell am start -W -n "$ACT" > "$OUT/start-home.txt"
+          sleep 4
+          test -n "$(adb shell pidof "$PKG")"
+          assert_text "Slumber"
+          screenshot 01-home
+
+          tap_text "Piano"
+          sleep 4
+          test -n "$(adb shell pidof "$PKG")"
+          assert_text "PRACTICE · FULLY LOCAL"
+          assert_text "First Melody"
+          assert_text "Record"
+          assert_text "AI Teacher"
+          assert_text "Touch"
+          assert_text "Roll"
+          assert_text "Staff"
+          assert_text "88 keys"
+          assert_text "C4–C7"
+          assert_absent "Learn"
+          assert_absent "Progress"
+          screenshot 02-piano-touch
+          assert_landscape_png "$OUT/02-piano-touch.png"
+
+          tap_text "Roll"
+          sleep 2
+          screenshot 03-piano-roll
+          assert_landscape_png "$OUT/03-piano-roll.png"
+          tap_text "Staff"
+          sleep 2
+          screenshot 04-piano-staff
+          assert_landscape_png "$OUT/04-piano-staff.png"
+          tap_text "Touch"
+          sleep 2
+
+          tap_text "Piano"
+          sleep 2
+          assert_text "Piano & sound"
+          assert_text "Sound"
+          assert_text "Sustain"
+          assert_text "Done"
+          screenshot 05-instrument-sheet
+          tap_text "Done"
+          sleep 2
+          assert_text "PRACTICE · FULLY LOCAL"
+
+          for x in 280 470 660 850 1040 1230 1420 1610; do
+            adb shell input tap "$x" 820
+          done
+          sleep 2
+          test -n "$(adb shell pidof "$PKG")"
+          tap_text "→"
+          tap_text "←"
+          tap_text "C4–C7"
+          screenshot 06-piano-interaction
+          assert_landscape_png "$OUT/06-piano-interaction.png"
+
+          tap_text "Record"
+          sleep 1
+          assert_text "Stop"
+          adb shell input tap 900 820
+          sleep 1
+          tap_text "Stop"
+          sleep 1
+          test -n "$(adb shell pidof "$PKG")"
+          screenshot 07-after-record
+
+          tap_text "Back"
+          sleep 4
+          assert_text "Slumber"
+          assert_text "Learn"
+          screenshot 08-home-after-piano
+
+          adb shell dumpsys activity activities > "$OUT/activity-dump.txt"
+          adb shell dumpsys meminfo "$PKG" > "$OUT/meminfo.txt"
+          adb logcat -d -t 5000 > "$OUT/logcat.txt"
+          ! grep -E "ANR in ${PKG}|FATAL EXCEPTION.*${PKG}|Process: ${PKG}.*FATAL EXCEPTION" "$OUT/logcat.txt"
+          test -n "$(adb shell pidof "$PKG")"
+          BASH
+          chmod +x /tmp/slumber-runtime/run-qa.sh
+
+      - name: Enable KVM
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+
+      - name: Android 36 runtime verification
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
+        with:
+          api-level: 36
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          cores: 2
+          emulator-boot-timeout: 360
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
+          script: bash /tmp/slumber-runtime/run-qa.sh
+
+      - name: Upload verified 0.7.0 build
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slumber-0.7.0-final-verify
+          path: |
+            /tmp/slumber-out/*
+            /tmp/slumber-runtime/*.png
+            /tmp/slumber-runtime/*.xml
+            /tmp/slumber-runtime/*.txt
+          if-no-files-found: error
