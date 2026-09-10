@@ -1,0 +1,74 @@
+name: Slumber 0.4.2 Exact APK Runtime Gate
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".github/workflows/slumber-runtime-042.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Download exact verified 0.4.2 APK artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/slumber-apk /tmp/slumber-runtime
+          gh run download 34428127806 --repo Tomex777/Build --name slumber-production-0.4.2-apk --dir /tmp/slumber-apk
+          test -s /tmp/slumber-apk/app-debug.apk
+          sha256sum /tmp/slumber-apk/app-debug.apk | tee /tmp/slumber-runtime/apk-sha256.txt
+
+      - name: Enable KVM
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+
+      - name: Boot Android 36 and launch exact Slumber 0.4.2 APK
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
+        with:
+          api-level: 36
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          cores: 4
+          emulator-boot-timeout: 300
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
+          script: |
+            set -eu
+            APK=/tmp/slumber-apk/app-debug.apk
+            adb install -r "$APK"
+            adb logcat -c
+            adb shell am force-stop com.night.pianohub
+            adb shell am start -W -n com.night.pianohub/.MainActivity | tee /tmp/slumber-runtime/activity-start.txt
+            sleep 6
+            adb shell pidof com.night.pianohub | tee /tmp/slumber-runtime/pid.txt
+            adb exec-out screencap -p > /tmp/slumber-runtime/01-learn.png
+            test -s /tmp/slumber-runtime/01-learn.png
+            adb logcat -d -t 1200 > /tmp/slumber-runtime/logcat-tail.txt
+            if grep -E 'FATAL EXCEPTION.*com\.night\.pianohub|Process: com\.night\.pianohub.*FATAL EXCEPTION' /tmp/slumber-runtime/logcat-tail.txt; then
+              exit 1
+            fi
+
+      - name: Upload exact runtime proof
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slumber-0.4.2-exact-runtime-proof
+          path: /tmp/slumber-runtime/*
+          if-no-files-found: error
