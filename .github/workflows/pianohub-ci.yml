@@ -1,4 +1,4 @@
-name: Slumber by Night 0.4.1 Android Build
+name: Slumber by Night 0.4.2 Android Build
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
       - name: Checkout Slumber staging branch
         uses: actions/checkout@v4
 
-      - name: Restore checksum-gated Slumber 0.4.1 source
+      - name: Restore checksum-gated Slumber 0.4.1 base source
         shell: bash
         run: |
           set -euo pipefail
@@ -62,6 +62,16 @@ jobs:
           test -f /tmp/slumber/app/src/main/java/com/night/pianohub/instruments/KeyboardInstrumentCatalog.kt
           test -f /tmp/slumber/app/src/test/java/com/night/pianohub/music/PianoNotesTest.kt
 
+      - name: Apply checksum-gated Slumber 0.4.2 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "8c01b09e8fd76f95560f9149498c065950f7cbf7c90eb3e25750d3253ad7671d  .ci/slumber_patch_042.diff" | sha256sum -c -
+          cd /tmp/slumber
+          patch -p1 < "$GITHUB_WORKSPACE/.ci/slumber_patch_042.diff"
+          grep -q 'versionName = "0.4.2"' app/build.gradle.kts
+          grep -q 'trigger = SampleTrigger.RELEASE' app/src/test/java/com/night/pianohub/instruments/InstrumentPackValidatorTest.kt
+
       - name: Verify Slumber production architecture source
         shell: bash
         run: |
@@ -77,7 +87,7 @@ jobs:
           grep -q '127.0.0.1' /tmp/slumber/app/src/main/res/xml/network_security_config.xml
           grep -q 'usesCleartextTraffic="false"' /tmp/slumber/app/src/main/AndroidManifest.xml
           grep -q 'MidiManager' /tmp/slumber/app/src/main/java/com/night/pianohub/midi/MidiInputManager.kt
-          echo 'Slumber 0.4.1 architecture checks passed.'
+          echo 'Slumber 0.4.2 architecture checks passed.'
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -106,7 +116,7 @@ jobs:
         working-directory: /tmp/slumber
         run: gradle --stacktrace testDebugUnitTest
 
-      - name: Build Slumber 0.4.1 APK
+      - name: Build Slumber 0.4.2 APK
         working-directory: /tmp/slumber
         run: gradle --stacktrace assembleDebug
 
@@ -126,19 +136,19 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/slumber
-          tar --exclude='./.gradle' --exclude='./build' --exclude='./app/build' --exclude='./runtime' -czf /tmp/slumber-production-0.4.1-source.tgz .
+          tar --exclude='./.gradle' --exclude='./build' --exclude='./app/build' --exclude='./runtime' -czf /tmp/slumber-production-0.4.2-source.tgz .
 
       - name: Upload verified source
         uses: actions/upload-artifact@v4
         with:
-          name: slumber-production-0.4.1-source
-          path: /tmp/slumber-production-0.4.1-source.tgz
+          name: slumber-production-0.4.2-source
+          path: /tmp/slumber-production-0.4.2-source.tgz
           if-no-files-found: error
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: slumber-production-0.4.1-apk
+          name: slumber-production-0.4.2-apk
           path: /tmp/slumber/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
@@ -153,7 +163,7 @@ jobs:
           test -r /dev/kvm
           test -w /dev/kvm
 
-      - name: Boot Android 36 and smoke-test Slumber 0.4.1
+      - name: Boot Android 36 and smoke-test Slumber 0.4.2
         uses: reactivecircus/android-emulator-runner@v2
         env:
           ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
@@ -184,6 +194,6 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: slumber-production-0.4.1-runtime
+          name: slumber-production-0.4.2-runtime
           path: /tmp/slumber/runtime/*
           if-no-files-found: warn
