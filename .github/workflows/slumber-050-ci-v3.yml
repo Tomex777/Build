@@ -1,0 +1,171 @@
+name: Slumber by Night 0.5.0 Exact Delta Build
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".github/workflows/slumber-050-ci-v3.yml"
+      - ".ci/slumber_payload_050/**"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  build-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+
+      - name: Download verified Slumber 0.4.2 source artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber /tmp/slumber-base
+          mkdir -p /tmp/slumber /tmp/slumber-base
+          gh run download 34428127806 --repo Tomex777/Build --name slumber-production-0.4.2-source --dir /tmp/slumber-base
+          test -s /tmp/slumber-base/slumber-production-0.4.2-source.tgz
+          tar -xzf /tmp/slumber-base/slumber-production-0.4.2-source.tgz -C /tmp/slumber
+          grep -q 'versionName = "0.4.2"' /tmp/slumber/app/build.gradle.kts
+          grep -q '<string name="app_name">Slumber</string>' /tmp/slumber/app/src/main/res/values/strings.xml
+
+      - name: Apply exact checksum-gated Slumber 0.5.0 delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in .ci/slumber_payload_050/part00.txt .ci/slumber_payload_050/part01.txt .ci/slumber_payload_050/part02.txt .ci/slumber_payload_050/part03.txt; do test -s "$f"; done
+          cat .ci/slumber_payload_050/part00.txt .ci/slumber_payload_050/part01.txt .ci/slumber_payload_050/part02.txt .ci/slumber_payload_050/part03.txt | tr -d '\n' | base64 --decode > /tmp/slumber-0.5.0-delta.tgz
+          echo 'b8119d9bd76afd30a6675b8a90ce4a19d54cc9278212707d8e285179912462be  /tmp/slumber-0.5.0-delta.tgz' | sha256sum -c -
+          tar -xzf /tmp/slumber-0.5.0-delta.tgz -C /tmp/slumber
+          grep -q 'versionName = "0.5.0"' /tmp/slumber/app/build.gradle.kts
+          grep -q 'object AdaptivePracticePlanner' /tmp/slumber/app/src/main/java/com/night/pianohub/learner/AdaptivePractice.kt
+          grep -q 'fun eventsSnapshot()' /tmp/slumber/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt
+          grep -q 'Text("Fix This"' /tmp/slumber/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
+          test -f /tmp/slumber/app/src/test/java/com/night/pianohub/learner/AdaptivePracticePlannerTest.kt
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - name: Set up Android SDK tools
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: "15859902"
+
+      - name: Install compile SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+          test -f "$ANDROID_SDK_ROOT/platforms/android-37.0/android.jar"
+
+      - name: Run Slumber 0.5.0 regression tests
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace testDebugUnitTest
+
+      - name: Build Slumber 0.5.0 APK
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace assembleDebug
+
+      - name: Verify APK contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=/tmp/slumber/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          COUNT=$(unzip -l "$APK" | grep -E 'assets/piano/.*\.mp3$' | wc -l)
+          echo "Bundled Yamaha C5 recordings: $COUNT"
+          test "$COUNT" -eq 120
+          unzip -l "$APK" | grep -q 'classes.dex'
+          sha256sum "$APK" > /tmp/slumber-0.5.0-apk-sha256.txt
+
+      - name: Package verified source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/slumber
+          tar --exclude='./.gradle' --exclude='./build' --exclude='./app/build' --exclude='./runtime' -czf /tmp/slumber-production-0.5.0-source.tgz .
+
+      - name: Upload verified build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: slumber-production-0.5.0-exact
+          path: |
+            /tmp/slumber-production-0.5.0-source.tgz
+            /tmp/slumber/app/build/outputs/apk/debug/app-debug.apk
+            /tmp/slumber-0.5.0-apk-sha256.txt
+          if-no-files-found: error
+
+  runtime-verify:
+    needs: build-verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Download verified Slumber 0.5.0 APK
+        uses: actions/download-artifact@v4
+        with:
+          name: slumber-production-0.5.0-exact
+          path: /tmp/slumber-artifact
+
+      - name: Locate APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          find /tmp/slumber-artifact -name app-debug.apk -type f -print
+          test -s /tmp/slumber-artifact/app-debug.apk
+          mkdir -p /tmp/slumber-runtime
+          sha256sum /tmp/slumber-artifact/app-debug.apk > /tmp/slumber-runtime/apk-sha256.txt
+
+      - name: Enable KVM
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+
+      - name: Android 36 launch verification
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
+        with:
+          api-level: 36
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          cores: 2
+          emulator-boot-timeout: 300
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
+          script: |
+            adb install -r /tmp/slumber-artifact/app-debug.apk
+            adb logcat -c
+            adb shell am force-stop com.night.pianohub
+            adb shell am start -W -n com.night.pianohub/.MainActivity > /tmp/slumber-runtime/activity-start.txt
+            sleep 6
+            adb shell pidof com.night.pianohub > /tmp/slumber-runtime/pid.txt
+            test -s /tmp/slumber-runtime/pid.txt
+            adb exec-out screencap -p > /tmp/slumber-runtime/01-learn.png
+            test -s /tmp/slumber-runtime/01-learn.png
+            adb logcat -d -t 1500 > /tmp/slumber-runtime/logcat-tail.txt
+            sh -c '! grep -E "FATAL EXCEPTION.*com\\.night\\.pianohub|Process: com\\.night\\.pianohub.*FATAL EXCEPTION" /tmp/slumber-runtime/logcat-tail.txt'
+
+      - name: Upload runtime proof
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slumber-production-0.5.0-runtime-proof
+          path: /tmp/slumber-runtime/*
+          if-no-files-found: warn
