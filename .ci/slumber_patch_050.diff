@@ -1,0 +1,571 @@
+diff -ruN slumber_042/BUILD_STATUS.md slumber_050/BUILD_STATUS.md
+--- slumber_042/BUILD_STATUS.md	2026-09-10 02:04:53.154838845 +0000
++++ slumber_050/BUILD_STATUS.md	2026-09-10 02:19:55.438108165 +0000
+@@ -1,6 +1,6 @@
+ # Slumber build status — 2026-09-10
+ 
+-## Production pass 0.4.2 — by Night
++## Production pass 0.5.0 — by Night
+ 
+ - Product rename: launcher/product copy is **Slumber**, with **by Night** parent branding. The legacy `com.night.pianohub` package and local-store aliases remain intentionally stable so existing installs/data are not broken by a cosmetic rename.
+ - Piano range: exactly 88 keys, MIDI 21 (A0) through 108 (C8), with a regression test locking that invariant.
+@@ -11,6 +11,7 @@
+ - Cultural catalog: 38 concrete collections plus a community-specific Indigenous policy entry. Packs are validated instead of substituted with misleading generic patches.
+ - Instrument-pack import: transactional ZIP extraction, zip-slip defense, 2 GiB unpack cap, manifest validation, declared-file checks and SHA-256 payload verification.
+ - Performance engine: local deterministic score following for notes/chords, skip recovery, repeat/extra detection, timing, duration, chord synchronization and source-latency correction.
++- Adaptive practice: **Fix This** uses deterministic performance events to identify the strongest trouble region, isolate a short musical neighborhood, reduce tempo by severity, require clean runs, ramp tempo and return to the full piece.
+ - MIDI: source timestamps, note-on/off, CC64 sustain, CC66 sostenuto, CC67 soft pedal and pitch bend.
+ - Teacher keys: Android Keystore GCM payload stores its IV length; previous 12-byte format remains readable.
+ - Network: cleartext denied globally except localhost/127.0.0.1 for a user-selected local model endpoint.
+diff -ruN slumber_042/README.md slumber_050/README.md
+--- slumber_042/README.md	2026-09-10 02:04:53.154783836 +0000
++++ slumber_050/README.md	2026-09-10 02:19:55.437888898 +0000
+@@ -2,7 +2,7 @@
+ 
+ Slumber is a local-first Android piano-learning and world-instrument platform built with Kotlin and Jetpack Compose.
+ 
+-## Current 0.4.2 foundation
++## Current 0.5.0 foundation
+ 
+ - Standard modern **88-key** instrument model: A0–C8 / MIDI 21–108.
+ - Multi-touch keyboard: independent fingers, chords, overlapping held notes, same-pitch hold reference counting and glissando.
+@@ -14,6 +14,7 @@
+ - 38 cultural/traditional collections, with Nigerian traditions represented separately rather than flattened into one generic "African" preset.
+ - Instrument choice is independent from notation/teaching tradition.
+ - Local deterministic performance engine for notes, chords, timing, duration, extras, repeats, skips and chord synchronization.
++- **Fix This** adaptive practice: local trouble-spot detection, focused 1–4 moment drills, automatic tempo reduction, clean-run gating, tempo ramping and reinsertion into the full exercise.
+ - Local learner history/profile persistence.
+ - Song-file picker and explicit on-device separation/transcription/arrangement pipeline boundaries.
+ - Optional BYO teacher provider: OpenAI-compatible, Anthropic, Gemini, or local model. Cloud providers are called directly from the phone only when the learner configures them.
+diff -ruN slumber_042/app/build.gradle.kts slumber_050/app/build.gradle.kts
+--- slumber_042/app/build.gradle.kts	2026-09-10 02:04:53.154682893 +0000
++++ slumber_050/app/build.gradle.kts	2026-09-10 02:19:55.437066162 +0000
+@@ -75,8 +75,8 @@
+         applicationId = "com.night.pianohub"
+         minSdk = 36
+         targetSdk = 36
+-        versionCode = 6
+-        versionName = "0.4.2"
++        versionCode = 7
++        versionName = "0.5.0"
+     }
+ 
+     compileOptions {
+diff -ruN slumber_042/app/src/main/java/com/night/pianohub/learner/AdaptivePractice.kt slumber_050/app/src/main/java/com/night/pianohub/learner/AdaptivePractice.kt
+--- slumber_042/app/src/main/java/com/night/pianohub/learner/AdaptivePractice.kt	1970-01-01 00:00:00.000000000 +0000
++++ slumber_050/app/src/main/java/com/night/pianohub/learner/AdaptivePractice.kt	2026-09-10 02:18:51.996319236 +0000
+@@ -0,0 +1,219 @@
++package com.night.pianohub.learner
++
++import kotlin.math.abs
++import kotlin.math.roundToInt
++
++enum class PracticeIssueKind(val title: String) {
++    PITCH("Pitch accuracy"),
++    TIMING("Timing"),
++    REPEATS("Repeated notes"),
++    EXTRAS("Extra notes"),
++    CHORD_SYNC("Chord synchronization"),
++}
++
++data class TroubleSpot(
++    val startMomentIndex: Int,
++    val endMomentIndex: Int,
++    val issue: PracticeIssueKind,
++    val severity: Int,
++    val reason: String,
++) {
++    init {
++        require(startMomentIndex >= 0)
++        require(endMomentIndex >= startMomentIndex)
++        require(severity in 1..100)
++    }
++}
++
++data class FixThisPlan(
++    val exerciseName: String,
++    val troubleSpot: TroubleSpot,
++    val originalTempoBpm: Int,
++    val startingTempoBpm: Int,
++    val tempoStepBpm: Int,
++    val successAccuracyPercent: Int = 90,
++    val successTimingPercent: Int = 80,
++    val requiredCleanRuns: Int = 2,
++) {
++    init {
++        require(originalTempoBpm in 20..300)
++        require(startingTempoBpm in 20..originalTempoBpm)
++        require(tempoStepBpm > 0)
++        require(successAccuracyPercent in 1..100)
++        require(successTimingPercent in 1..100)
++        require(requiredCleanRuns in 1..10)
++    }
++
++    fun nextTempo(currentTempoBpm: Int): Int =
++        (currentTempoBpm + tempoStepBpm).coerceAtMost(originalTempoBpm)
++}
++
++/**
++ * Local deterministic adaptive-practice planner.
++ *
++ * It deliberately consumes facts produced by [PerformanceEngine] instead of
++ * asking a language model to guess what went wrong. The LLM teacher can explain
++ * the plan later, but the trouble-spot decision remains local and reproducible.
++ */
++object AdaptivePracticePlanner {
++    fun createPlan(
++        exerciseName: String,
++        score: ExerciseScore,
++        targetTempoBpm: Int,
++        events: List<PracticeEvent>,
++        summary: PracticeSessionSummary,
++    ): FixThisPlan? {
++        if (events.isEmpty() || summary.attempts <= 0 || score.moments.isEmpty()) return null
++        if (summary.completed && summary.accuracyPercent >= 96 && summary.timingPercent >= 90 &&
++            summary.extraNotes == 0 && summary.repeatedNotes == 0 && summary.missedNotes == 0
++        ) return null
++
++        val penalties = IntArray(score.moments.size)
++        val pitchPenalties = IntArray(score.moments.size)
++        val timingPenalties = IntArray(score.moments.size)
++        val repeatPenalties = IntArray(score.moments.size)
++        val extraPenalties = IntArray(score.moments.size)
++
++        events.forEach { event ->
++            val index = event.expectedMomentIndex?.coerceIn(0, score.moments.lastIndex) ?: return@forEach
++            when (event.classification) {
++                PerformanceClassification.HIT -> Unit
++                PerformanceClassification.SKIP_RECOVERY -> {
++                    penalties[index] += 45
++                    pitchPenalties[index] += 45
++                }
++                PerformanceClassification.REPEATED_NOTE -> {
++                    penalties[index] += 34
++                    repeatPenalties[index] += 34
++                }
++                PerformanceClassification.EXTRA_NOTE,
++                PerformanceClassification.AFTER_COMPLETION -> {
++                    penalties[index] += 30
++                    extraPenalties[index] += 30
++                }
++            }
++
++            event.timingErrorMs?.let { error ->
++                val absolute = abs(error)
++                if (absolute >= 45L) {
++                    val timingPenalty = when {
++                        absolute >= 220L -> 36
++                        absolute >= 140L -> 28
++                        absolute >= 90L -> 20
++                        else -> 12
++                    }
++                    penalties[index] += timingPenalty
++                    timingPenalties[index] += timingPenalty
++                }
++            }
++        }
++
++        if (summary.missedNotes > 0) {
++            val recoveryIndex = events.firstOrNull { it.classification == PerformanceClassification.SKIP_RECOVERY }
++                ?.expectedMomentIndex
++            if (recoveryIndex != null && recoveryIndex in penalties.indices) {
++                val bonus = (summary.missedNotes * 22).coerceAtMost(60)
++                penalties[recoveryIndex] += bonus
++                pitchPenalties[recoveryIndex] += bonus
++            }
++        }
++
++        val peakIndex = penalties.indices.maxByOrNull { penalties[it] } ?: return null
++        if (penalties[peakIndex] <= 0) return fallbackPlan(exerciseName, score, targetTempoBpm, summary)
++
++        val maxWindow = minOf(4, score.moments.size)
++        var bestStart = peakIndex
++        var bestEnd = peakIndex
++        var bestScore = Int.MIN_VALUE
++        for (length in 1..maxWindow) {
++            val minStart = (peakIndex - length + 1).coerceAtLeast(0)
++            val maxStart = peakIndex.coerceAtMost(score.moments.size - length)
++            for (start in minStart..maxStart) {
++                val end = start + length - 1
++                val windowPenalty = (start..end).sumOf { penalties[it] } - (length - 1) * 5
++                if (windowPenalty > bestScore) {
++                    bestScore = windowPenalty
++                    bestStart = start
++                    bestEnd = end
++                }
++            }
++        }
++
++        val issue = dominantIssue(bestStart, bestEnd, pitchPenalties, timingPenalties, repeatPenalties, extraPenalties, summary)
++        val severity = ((bestScore.coerceAtLeast(1) * 100f) / 120f).roundToInt().coerceIn(1, 100)
++        val reason = reasonFor(issue, summary)
++        return plan(exerciseName, targetTempoBpm, TroubleSpot(bestStart, bestEnd, issue, severity, reason))
++    }
++
++    private fun fallbackPlan(
++        exerciseName: String,
++        score: ExerciseScore,
++        targetTempoBpm: Int,
++        summary: PracticeSessionSummary,
++    ): FixThisPlan? {
++        val issue = when {
++            summary.timingPercent in 1..79 -> PracticeIssueKind.TIMING
++            summary.chordSyncPercent in 1..79 -> PracticeIssueKind.CHORD_SYNC
++            summary.repeatedNotes > 0 -> PracticeIssueKind.REPEATS
++            summary.extraNotes > 0 -> PracticeIssueKind.EXTRAS
++            summary.accuracyPercent in 1..89 || summary.missedNotes > 0 -> PracticeIssueKind.PITCH
++            else -> return null
++        }
++        val end = minOf(score.moments.lastIndex, 3)
++        return plan(
++            exerciseName,
++            targetTempoBpm,
++            TroubleSpot(0, end, issue, 40, reasonFor(issue, summary)),
++        )
++    }
++
++    private fun dominantIssue(
++        start: Int,
++        end: Int,
++        pitch: IntArray,
++        timing: IntArray,
++        repeats: IntArray,
++        extras: IntArray,
++        summary: PracticeSessionSummary,
++    ): PracticeIssueKind {
++        val totals = linkedMapOf(
++            PracticeIssueKind.PITCH to (start..end).sumOf { pitch[it] },
++            PracticeIssueKind.TIMING to (start..end).sumOf { timing[it] },
++            PracticeIssueKind.REPEATS to (start..end).sumOf { repeats[it] },
++            PracticeIssueKind.EXTRAS to (start..end).sumOf { extras[it] },
++            PracticeIssueKind.CHORD_SYNC to if (summary.chordSyncPercent in 1..79) 18 else 0,
++        )
++        return totals.maxByOrNull { it.value }?.key ?: PracticeIssueKind.PITCH
++    }
++
++    private fun plan(exerciseName: String, targetTempoBpm: Int, spot: TroubleSpot): FixThisPlan {
++        val slowdown = when {
++            spot.severity >= 80 -> 0.58
++            spot.severity >= 60 -> 0.66
++            spot.severity >= 40 -> 0.72
++            else -> 0.78
++        }
++        val startTempo = (targetTempoBpm * slowdown).roundToInt().coerceIn(20, targetTempoBpm)
++        val step = maxOf(4, ((targetTempoBpm - startTempo) / 3.0).roundToInt())
++        return FixThisPlan(
++            exerciseName = exerciseName,
++            troubleSpot = spot,
++            originalTempoBpm = targetTempoBpm,
++            startingTempoBpm = startTempo,
++            tempoStepBpm = step,
++        )
++    }
++
++    private fun reasonFor(issue: PracticeIssueKind, summary: PracticeSessionSummary): String = when (issue) {
++        PracticeIssueKind.PITCH -> "${summary.missedNotes} missed · ${summary.accuracyPercent}% pitch accuracy"
++        PracticeIssueKind.TIMING -> "${summary.averageAbsoluteTimingErrorMs} ms average timing error · ${summary.timingPercent}% timing"
++        PracticeIssueKind.REPEATS -> "${summary.repeatedNotes} repeated note${if (summary.repeatedNotes == 1) "" else "s"} while recovering"
++        PracticeIssueKind.EXTRAS -> "${summary.extraNotes} extra note${if (summary.extraNotes == 1) "" else "s"}"
++        PracticeIssueKind.CHORD_SYNC -> "${summary.chordSyncPercent}% chord synchronization"
++    }
++}
+diff -ruN slumber_042/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt slumber_050/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt
+--- slumber_042/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt	2026-09-10 02:04:53.154907628 +0000
++++ slumber_050/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt	2026-09-10 02:18:52.019712567 +0000
+@@ -319,6 +319,8 @@
+         )
+     }
+ 
++    fun eventsSnapshot(): List<PracticeEvent> = events.toList()
++
+     fun summary(finishedAtEpochMs: Long = System.currentTimeMillis()): PracticeSessionSummary {
+         val snapshot = update()
+         return PracticeSessionSummary(
+diff -ruN slumber_042/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt slumber_050/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
+--- slumber_042/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt	2026-09-10 02:04:53.154963895 +0000
++++ slumber_050/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt	2026-09-10 02:21:18.676983345 +0000
+@@ -26,6 +26,7 @@
+ import androidx.compose.runtime.Composable
+ import androidx.compose.runtime.DisposableEffect
+ import androidx.compose.runtime.getValue
++import androidx.compose.runtime.mutableIntStateOf
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
+ import androidx.compose.runtime.setValue
+@@ -37,6 +38,9 @@
+ import com.night.pianohub.audio.AudioEngine
+ import com.night.pianohub.instruments.KeyboardInstrumentCatalog
+ import com.night.pianohub.instruments.LocalInstrumentPackManager
++import com.night.pianohub.learner.AdaptivePracticePlanner
++import com.night.pianohub.learner.ExerciseScore
++import com.night.pianohub.learner.FixThisPlan
+ import com.night.pianohub.learner.PerformanceEngine
+ import com.night.pianohub.learner.PlayingInputSource
+ import com.night.pianohub.learner.PracticeSnapshot
+@@ -67,7 +71,14 @@
+     var sustainOn by remember { mutableStateOf(false) }
+     val context = LocalContext.current
+     val packManager = remember(context) { LocalInstrumentPackManager(context.applicationContext) }
+-    val performance = remember { PerformanceEngine("First melody", firstMelody, targetTempoBpm = 90) }
++    val fullScore = remember { ExerciseScore.melody(firstMelody) }
++    var activeNotes by remember { mutableStateOf(firstMelody) }
++    var activeStartIndex by remember { mutableIntStateOf(0) }
++    var activeEndIndex by remember { mutableIntStateOf(firstMelody.lastIndex) }
++    var activeTempo by remember { mutableIntStateOf(90) }
++    var fixThisPlan by remember { mutableStateOf<FixThisPlan?>(null) }
++    var cleanFixRuns by remember { mutableIntStateOf(0) }
++    var performance by remember { mutableStateOf(PerformanceEngine("First melody", firstMelody, targetTempoBpm = 90)) }
+ 
+     fun selectedInstrumentTitle(): String =
+         KeyboardInstrumentCatalog.find(state.instrumentId)?.title
+@@ -93,8 +104,14 @@
+             completed = update.completed,
+         )
+         if (update.completed && !completionRecorded) {
+-            state.recordPractice(performance.summary())
++            val summary = performance.summary()
++            state.recordPractice(summary)
+             completionRecorded = true
++            fixThisPlan?.let { plan ->
++                if (summary.accuracyPercent >= plan.successAccuracyPercent && summary.timingPercent >= plan.successTimingPercent) {
++                    cleanFixRuns += 1
++                }
++            }
+         }
+     }
+@@ -118,15 +135,74 @@
+         syncSnapshot()
+     }
+ 
+-    fun resetExercise(recordCurrent: Boolean = true) {
++    fun rebuildExercise(recordCurrent: Boolean = true) {
+         if (recordCurrent && performance.update().attempts > 0 && !completionRecorded) {
+             state.recordPractice(performance.summary())
+         }
+-        performance.reset()
++        val title = if (fixThisPlan == null) "First melody" else "Fix This · ${activeStartIndex + 1}-${activeEndIndex + 1}"
++        performance = PerformanceEngine(title, activeNotes, targetTempoBpm = activeTempo)
+         completionRecorded = false
+         heldCounts = emptyMap()
+-        state.practiceSnapshot = PracticeSnapshot(expectedNote = noteName(firstMelody.first()), progressText = "0/${firstMelody.size}")
++        state.practiceSnapshot = PracticeSnapshot(expectedNote = noteName(activeNotes.first()), progressText = "0/${activeNotes.size}")
++    }
++
++    fun resetExercise(recordCurrent: Boolean = true) {
++        rebuildExercise(recordCurrent)
++    }
++
++    fun startFixThis() {
++        val update = performance.update()
++        if (update.attempts <= 0 || fixThisPlan != null) return
++        val summary = performance.summary()
++        val plan = AdaptivePracticePlanner.createPlan(
++            exerciseName = "First melody",
++            score = fullScore,
++            targetTempoBpm = 90,
++            events = performance.eventsSnapshot(),
++            summary = summary,
++        ) ?: return
++        if (!completionRecorded) state.recordPractice(summary)
++        val start = plan.troubleSpot.startMomentIndex.coerceIn(0, firstMelody.lastIndex)
++        val end = plan.troubleSpot.endMomentIndex.coerceIn(start, firstMelody.lastIndex)
++        fixThisPlan = plan
++        activeStartIndex = start
++        activeEndIndex = end
++        activeNotes = firstMelody.subList(start, end + 1).toList()
++        activeTempo = plan.startingTempoBpm
++        cleanFixRuns = 0
++        rebuildExercise(recordCurrent = false)
++    }
++
++    fun advanceFixThis() {
++        val plan = fixThisPlan ?: return
++        if (cleanFixRuns < plan.requiredCleanRuns) {
++            rebuildExercise(recordCurrent = false)
++            return
++        }
++        if (activeTempo < plan.originalTempoBpm) {
++            activeTempo = plan.nextTempo(activeTempo)
++            cleanFixRuns = 0
++            rebuildExercise(recordCurrent = false)
++        } else {
++            activeNotes = firstMelody
++            activeStartIndex = 0
++            activeEndIndex = firstMelody.lastIndex
++            activeTempo = plan.originalTempoBpm
++            fixThisPlan = null
++            cleanFixRuns = 0
++            rebuildExercise(recordCurrent = false)
++        }
++    }
++
++    fun exitFixThis() {
++        activeNotes = firstMelody
++        activeStartIndex = 0
++        activeEndIndex = firstMelody.lastIndex
++        activeTempo = 90
++        fixThisPlan = null
++        cleanFixRuns = 0
++        rebuildExercise(recordCurrent = false)
+     }
+ 
+     DisposableEffect(midiInput) {
+@@ -189,20 +265,69 @@
+             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                 Row(verticalAlignment = Alignment.CenterVertically) {
+                     Column(Modifier.weight(1f)) {
+-                        Eyebrow("Current lesson · 90 BPM")
+-                        Text(lessonTitle(state.tradition), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
++                        Eyebrow(if (fixThisPlan == null) "Current lesson · $activeTempo BPM" else "Fix This · $activeTempo BPM")
++                        Text(if (fixThisPlan == null) lessonTitle(state.tradition) else "Trouble section · ${activeStartIndex + 1}–${activeEndIndex + 1}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                     }
+-                    Text(state.practiceSnapshot.progressText.ifBlank { "0/${firstMelody.size}" }, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
++                    Text(state.practiceSnapshot.progressText.ifBlank { "0/${activeNotes.size}" }, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                 }
+                 Text(
+-                    lessonNotation(state.tradition),
++                    lessonNotation(state.tradition, activeStartIndex, activeEndIndex),
+                     style = MaterialTheme.typography.titleLarge,
+                     fontWeight = FontWeight.SemiBold,
+                     modifier = Modifier.fillMaxWidth(),
+                 )
+                 Text(
+                     if (state.practiceSnapshot.completed) "Completed — the session is already saved to your local learner profile."
+-                    else "Next: ${state.practiceSnapshot.expectedNote.takeUnless { it == "—" } ?: noteName(firstMelody.first())}. ${lessonDescription(state.tradition)}",
++                    else "Next: ${state.practiceSnapshot.expectedNote.takeUnless { it == "—" } ?: noteName(activeNotes.first())}. ${lessonDescription(state.tradition)}",
+                     style = MaterialTheme.typography.bodySmall,
+                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                 )
+-                OutlinedButton(onClick = { resetExercise() }) { Text("Restart exercise") }
++                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
++                    OutlinedButton(onClick = { resetExercise() }) { Text(if (fixThisPlan == null) "Restart exercise" else "Retry section") }
++                    if (fixThisPlan == null && performance.update().attempts > 0) {
++                        Button(onClick = { startFixThis() }) { Text("Fix This") }
++                    }
++                }
++            }
++        }
++
++        fixThisPlan?.let { plan ->
++            SectionCard {
++                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
++                    Eyebrow("Adaptive practice · local")
++                    Text("Fix This", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
++                    Text(
++                        "${plan.troubleSpot.issue.title} · ${plan.troubleSpot.reason}",
++                        color = MaterialTheme.colorScheme.onSurfaceVariant,
++                    )
++                    Text(
++                        "Slumber isolated notes ${activeStartIndex + 1}–${activeEndIndex + 1}, slowed them from ${plan.originalTempoBpm} to $activeTempo BPM, and will only raise the speed after ${plan.requiredCleanRuns} clean runs.",
++                        style = MaterialTheme.typography.bodySmall,
++                        color = MaterialTheme.colorScheme.onSurfaceVariant,
++                    )
++                    Text(
++                        "Clean runs at this tempo: $cleanFixRuns/${plan.requiredCleanRuns}",
++                        fontWeight = FontWeight.Medium,
++                    )
++                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
++                        Button(
++                            enabled = state.practiceSnapshot.completed,
++                            onClick = { advanceFixThis() },
++                        ) {
++                            Text(
++                                when {
++                                    cleanFixRuns < plan.requiredCleanRuns -> "Repeat clean run"
++                                    activeTempo < plan.originalTempoBpm -> "Speed up to ${plan.nextTempo(activeTempo)} BPM"
++                                    else -> "Back to full piece"
++                                }
++                            )
++                        }
++                        OutlinedButton(onClick = { exitFixThis() }) { Text("Exit") }
++                    }
++                }
+             }
+         }
+ 
+@@ -348,12 +473,20 @@
+     MusicTradition.RUSSIAN -> "Russian classical · control exercise"
+ }
+ 
+-private fun lessonNotation(tradition: MusicTradition): String = when (tradition) {
+-    MusicTradition.CHINESE -> "1  ·  3  ·  5  ·  6  ·  5  ·  3  ·  1"
+-    MusicTradition.INDIAN -> "Sa  ·  Ga  ·  Pa  ·  Dha  ·  Pa  ·  Ga  ·  Sa"
+-    MusicTradition.ARABIC -> "Rast · phrase 01"
+-    else -> "C  ·  E  ·  G  ·  A  ·  G  ·  E  ·  C"
++private fun lessonNotation(tradition: MusicTradition, startIndex: Int = 0, endIndex: Int = firstMelody.lastIndex): String {
++    if (tradition == MusicTradition.ARABIC) {
++        return if (startIndex == 0 && endIndex == firstMelody.lastIndex) "Rast · phrase 01"
++        else "Rast · focused phrase ${startIndex + 1}–${endIndex + 1}"
++    }
++    val tokens = when (tradition) {
++        MusicTradition.CHINESE -> listOf("1", "3", "5", "6", "5", "3", "1")
++        MusicTradition.INDIAN -> listOf("Sa", "Ga", "Pa", "Dha", "Pa", "Ga", "Sa")
++        else -> listOf("C", "E", "G", "A", "G", "E", "C")
++    }
++    val start = startIndex.coerceIn(0, tokens.lastIndex)
++    val end = endIndex.coerceIn(start, tokens.lastIndex)
++    return tokens.subList(start, end + 1).joinToString("  ·  ")
+ }
+ 
+ private fun lessonDescription(tradition: MusicTradition): String = when (tradition) {
+diff -ruN slumber_042/app/src/test/java/com/night/pianohub/learner/AdaptivePracticePlannerTest.kt slumber_050/app/src/test/java/com/night/pianohub/learner/AdaptivePracticePlannerTest.kt
+--- slumber_042/app/src/test/java/com/night/pianohub/learner/AdaptivePracticePlannerTest.kt	1970-01-01 00:00:00.000000000 +0000
++++ slumber_050/app/src/test/java/com/night/pianohub/learner/AdaptivePracticePlannerTest.kt	2026-09-10 02:18:52.005995269 +0000
+@@ -0,0 +1,56 @@
++package com.night.pianohub.learner
++
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertNotNull
++import org.junit.Assert.assertNull
++import org.junit.Assert.assertTrue
++import org.junit.Test
++
++class AdaptivePracticePlannerTest {
++    @Test
++    fun cleanPerformanceDoesNotInventTroubleSpot() {
++        val score = ExerciseScore.melody(listOf(60, 62, 64, 65))
++        val engine = PerformanceEngine("clean", score, 120)
++        val start = 1_000L
++        score.moments.forEachIndexed { index, moment ->
++            engine.noteOn(moment.notes.single(), start + index * 500L, source = PlayingInputSource.MIDI)
++        }
++        val plan = AdaptivePracticePlanner.createPlan("clean", score, 120, engine.eventsSnapshot(), engine.summary())
++        assertNull(plan)
++    }
++
++    @Test
++    fun skipRecoveryCreatesFocusedSlowerPlan() {
++        val score = ExerciseScore.melody(listOf(60, 62, 64, 65, 67, 69, 71, 72))
++        val engine = PerformanceEngine("phrase", score, 100)
++        val start = 10_000L
++        engine.noteOn(60, start, source = PlayingInputSource.MIDI)
++        engine.noteOn(62, start + 600L, source = PlayingInputSource.MIDI)
++        engine.noteOn(67, start + 2_400L, source = PlayingInputSource.MIDI)
++        engine.noteOn(69, start + 3_000L, source = PlayingInputSource.MIDI)
++
++        val plan = AdaptivePracticePlanner.createPlan("phrase", score, 100, engine.eventsSnapshot(), engine.summary())
++        assertNotNull(plan)
++        plan!!
++        assertEquals(PracticeIssueKind.PITCH, plan.troubleSpot.issue)
++        assertTrue(plan.troubleSpot.startMomentIndex <= 2)
++        assertTrue(plan.troubleSpot.endMomentIndex - plan.troubleSpot.startMomentIndex <= 3)
++        assertTrue(plan.startingTempoBpm < 100)
++        assertTrue(plan.nextTempo(plan.startingTempoBpm) > plan.startingTempoBpm)
++    }
++
++    @Test
++    fun timingErrorCanBecomeDominantIssue() {
++        val score = ExerciseScore.melody(listOf(60, 62, 64, 65, 67))
++        val engine = PerformanceEngine("timing", score, 120)
++        val start = 20_000L
++        engine.noteOn(60, start, source = PlayingInputSource.MIDI)
++        engine.noteOn(62, start + 700L, source = PlayingInputSource.MIDI)
++        engine.noteOn(64, start + 1_400L, source = PlayingInputSource.MIDI)
++        engine.noteOn(65, start + 2_100L, source = PlayingInputSource.MIDI)
++        engine.noteOn(67, start + 2_800L, source = PlayingInputSource.MIDI)
++
++        val plan = AdaptivePracticePlanner.createPlan("timing", score, 120, engine.eventsSnapshot(), engine.summary())
++        assertNotNull(plan)
++        assertEquals(PracticeIssueKind.TIMING, plan!!.troubleSpot.issue)
++    }
++}
