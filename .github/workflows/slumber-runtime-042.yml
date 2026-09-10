@@ -45,25 +45,22 @@ jobs:
           arch: x86_64
           target: default
           profile: pixel_6
-          cores: 4
+          cores: 2
           emulator-boot-timeout: 300
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
           script: |
-            set -eu
-            APK=/tmp/slumber-apk/app-debug.apk
-            adb install -r "$APK"
+            adb install -r /tmp/slumber-apk/app-debug.apk
             adb logcat -c
             adb shell am force-stop com.night.pianohub
-            adb shell am start -W -n com.night.pianohub/.MainActivity | tee /tmp/slumber-runtime/activity-start.txt
+            adb shell am start -W -n com.night.pianohub/.MainActivity > /tmp/slumber-runtime/activity-start.txt
             sleep 6
-            adb shell pidof com.night.pianohub | tee /tmp/slumber-runtime/pid.txt
+            adb shell pidof com.night.pianohub > /tmp/slumber-runtime/pid.txt
+            test -s /tmp/slumber-runtime/pid.txt
             adb exec-out screencap -p > /tmp/slumber-runtime/01-learn.png
             test -s /tmp/slumber-runtime/01-learn.png
             adb logcat -d -t 1200 > /tmp/slumber-runtime/logcat-tail.txt
-            if grep -E 'FATAL EXCEPTION.*com\.night\.pianohub|Process: com\.night\.pianohub.*FATAL EXCEPTION' /tmp/slumber-runtime/logcat-tail.txt; then
-              exit 1
-            fi
+            sh -c '! grep -E "FATAL EXCEPTION.*com\\.night\\.pianohub|Process: com\\.night\\.pianohub.*FATAL EXCEPTION" /tmp/slumber-runtime/logcat-tail.txt'
 
       - name: Upload exact runtime proof
         uses: actions/upload-artifact@v4
