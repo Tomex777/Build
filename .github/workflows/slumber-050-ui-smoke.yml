@@ -1,0 +1,113 @@
+name: Slumber 0.5.0 Full UI Smoke Screenshots
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".github/workflows/slumber-050-ui-smoke.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  ui-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Download exact verified Slumber 0.5.0 APK
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber-artifact /tmp/slumber-apk /tmp/slumber-screens
+          mkdir -p /tmp/slumber-artifact /tmp/slumber-apk /tmp/slumber-screens
+          gh run download 34443740455 --repo Tomex777/Build --name slumber-production-0.5.0-exact --dir /tmp/slumber-artifact
+          APK=$(find /tmp/slumber-artifact -name app-debug.apk -type f -print -quit)
+          test -n "$APK"
+          cp "$APK" /tmp/slumber-apk/app-debug.apk
+          echo 'ea9ea9afa9d3d5db6793b24b3bf4fc3a836f87a5af9b814d0917540b5e4d05ae  /tmp/slumber-apk/app-debug.apk' | sha256sum -c -
+
+      - name: Enable KVM
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+
+      - name: Boot Android 36 and test every main screen
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
+        with:
+          api-level: 36
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          cores: 2
+          emulator-boot-timeout: 360
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
+          script: |
+            adb shell settings put global hide_error_dialogs 1
+            adb install -r /tmp/slumber-apk/app-debug.apk
+            adb logcat -c
+            adb shell am force-stop com.night.pianohub
+            adb shell am start -W -n com.night.pianohub/.MainActivity > /tmp/slumber-screens/activity-start.txt
+            sleep 8
+            adb shell pidof com.night.pianohub > /tmp/slumber-screens/pid.txt
+            test -s /tmp/slumber-screens/pid.txt
+            adb shell uiautomator dump /sdcard/ui.xml
+            adb pull /sdcard/ui.xml /tmp/slumber-screens/01-learn.xml
+            grep -q 'Slumber' /tmp/slumber-screens/01-learn.xml
+            grep -q 'Ready to practice' /tmp/slumber-screens/01-learn.xml
+            sh -c '! grep -E "Process system isn.t responding|isn.t responding|keeps stopping|Close app" /tmp/slumber-screens/01-learn.xml'
+            adb exec-out screencap -p > /tmp/slumber-screens/01-learn.png
+            adb shell input tap 540 1070
+            sleep 3
+            adb shell uiautomator dump /sdcard/ui.xml
+            adb pull /sdcard/ui.xml /tmp/slumber-screens/02-piano.xml
+            grep -q 'Piano' /tmp/slumber-screens/02-piano.xml
+            grep -q 'Full keyboard navigator' /tmp/slumber-screens/02-piano.xml
+            adb exec-out screencap -p > /tmp/slumber-screens/02-piano.png
+            adb shell input tap 446 2150
+            sleep 2
+            adb shell uiautomator dump /sdcard/ui.xml
+            adb pull /sdcard/ui.xml /tmp/slumber-screens/03-songs.xml
+            grep -q 'Turn a song into a lesson' /tmp/slumber-screens/03-songs.xml
+            grep -q 'Choose an audio file' /tmp/slumber-screens/03-songs.xml
+            adb exec-out screencap -p > /tmp/slumber-screens/03-songs.png
+            adb shell input tap 630 2150
+            sleep 2
+            adb shell uiautomator dump /sdcard/ui.xml
+            adb pull /sdcard/ui.xml /tmp/slumber-screens/04-sounds.xml
+            grep -q 'Instrument library' /tmp/slumber-screens/04-sounds.xml
+            adb exec-out screencap -p > /tmp/slumber-screens/04-sounds.png
+            adb shell input tap 815 2150
+            sleep 2
+            adb shell uiautomator dump /sdcard/ui.xml
+            adb pull /sdcard/ui.xml /tmp/slumber-screens/05-progress.xml
+            grep -q 'How you actually play' /tmp/slumber-screens/05-progress.xml
+            adb exec-out screencap -p > /tmp/slumber-screens/05-progress.png
+            adb shell input tap 995 2150
+            sleep 2
+            adb shell uiautomator dump /sdcard/ui.xml
+            adb pull /sdcard/ui.xml /tmp/slumber-screens/06-settings.xml
+            grep -q 'Optional AI teacher' /tmp/slumber-screens/06-settings.xml
+            grep -q 'Slumber' /tmp/slumber-screens/06-settings.xml
+            adb exec-out screencap -p > /tmp/slumber-screens/06-settings.png
+            adb shell pidof com.night.pianohub > /tmp/slumber-screens/pid-after-navigation.txt
+            test -s /tmp/slumber-screens/pid-after-navigation.txt
+            adb logcat -d -t 2500 > /tmp/slumber-screens/logcat-tail.txt
+            sh -c '! grep -E "ANR in com\\.night\\.pianohub|FATAL EXCEPTION.*com\\.night\\.pianohub|Process: com\\.night\\.pianohub.*FATAL EXCEPTION" /tmp/slumber-screens/logcat-tail.txt'
+
+      - name: Upload tested screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slumber-0.5.0-tested-ui-screenshots
+          path: /tmp/slumber-screens/*
+          if-no-files-found: error
