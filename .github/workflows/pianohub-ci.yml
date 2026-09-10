@@ -1,4 +1,4 @@
-name: Piano Hub Production 0.3.0 Android Build
+name: Slumber by Night 0.4.1 Android Build
 
 on:
   push:
@@ -12,41 +12,41 @@ jobs:
   build-verify:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-
     steps:
-      - name: Checkout Piano Hub staging branch
+      - name: Checkout Slumber staging branch
         uses: actions/checkout@v4
 
-      - name: Restore checksum-gated Piano Hub 0.3.0 source
+      - name: Restore checksum-gated Slumber 0.4.1 source
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf /tmp/pianohub
-          mkdir -p /tmp/pianohub
-          test "$(find .ci/pianohub_payload_030_final -maxdepth 1 -name 'part*.txt' | wc -l)" -eq 8
-          cat .ci/pianohub_payload_030_final/part*.txt | tr -d '\n' | base64 --decode > /tmp/pianohub-source.tgz
-          echo "d4cd1ed269498afdfb111c02be370d61b1108fee3e1de356406a02c0f65200c8  /tmp/pianohub-source.tgz" | sha256sum -c -
-          tar -xzf /tmp/pianohub-source.tgz -C /tmp/pianohub
-          test -f /tmp/pianohub/settings.gradle.kts
-          test -f /tmp/pianohub/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt
-          test -f /tmp/pianohub/app/src/main/java/com/night/pianohub/instruments/CulturalCatalog.kt
-          test -f /tmp/pianohub/app/src/main/java/com/night/pianohub/instruments/InstrumentPack.kt
-          test -f /tmp/pianohub/app/src/main/java/com/night/pianohub/instruments/LocalInstrumentPackManager.kt
-          test -f /tmp/pianohub/app/src/main/java/com/night/pianohub/ui/screens/SoundsScreen.kt
+          rm -rf /tmp/slumber
+          mkdir -p /tmp/slumber
+          test "$(find .ci/slumber_payload_041_final -maxdepth 1 -name 'part*.txt' | wc -l)" -eq 8
+          cat .ci/slumber_payload_041_final/part*.txt | tr -d '\n' | base64 --decode > /tmp/slumber-source.tgz
+          echo "0ed8c8e3cecaabc912d3555ad5942576501e35f983d9f7769cc10d131b2194db  /tmp/slumber-source.tgz" | sha256sum -c -
+          tar -xzf /tmp/slumber-source.tgz -C /tmp/slumber
+          test -f /tmp/slumber/settings.gradle.kts
+          test -f /tmp/slumber/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt
+          test -f /tmp/slumber/app/src/main/java/com/night/pianohub/instruments/KeyboardInstrumentCatalog.kt
+          test -f /tmp/slumber/app/src/test/java/com/night/pianohub/music/PianoNotesTest.kt
 
-      - name: Verify production architecture source
+      - name: Verify Slumber production architecture source
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'AndroidKeyStore' /tmp/pianohub/app/src/main/java/com/night/pianohub/storage/PianoHubLocalStore.kt
-          grep -q 'ScoreMoment' /tmp/pianohub/app/src/main/java/com/night/pianohub/learner/PerformanceEngine.kt
-          grep -q 'InstrumentPackValidator' /tmp/pianohub/app/src/main/java/com/night/pianohub/instruments/InstrumentPack.kt
-          grep -q 'LocalInstrumentPackManager' /tmp/pianohub/app/src/main/java/com/night/pianohub/ui/screens/SoundsScreen.kt
-          grep -q 'pianoVelocityLayers = listOf(2, 6, 10, 16)' /tmp/pianohub/app/build.gradle.kts
-          grep -q '127.0.0.1' /tmp/pianohub/app/src/main/res/xml/network_security_config.xml
-          grep -q 'usesCleartextTraffic="false"' /tmp/pianohub/app/src/main/AndroidManifest.xml
-          grep -q 'MidiManager' /tmp/pianohub/app/src/main/java/com/night/pianohub/midi/MidiInputManager.kt
-          echo 'Piano Hub 0.3.0 production architecture checks passed.'
+          grep -q '<string name="app_name">Slumber</string>' /tmp/slumber/app/src/main/res/values/strings.xml
+          grep -q '<string name="brand_byline">by Night</string>' /tmp/slumber/app/src/main/res/values/strings.xml
+          grep -q 'assertEquals(88, notes.size)' /tmp/slumber/app/src/test/java/com/night/pianohub/music/PianoNotesTest.kt
+          grep -q 'heldCounts' /tmp/slumber/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
+          grep -q 'Piano-style glissando' /tmp/slumber/app/src/main/java/com/night/pianohub/ui/components/PianoKeyboard.kt
+          grep -q 'setMaxStreams(128)' /tmp/slumber/app/src/main/java/com/night/pianohub/audio/SampledPianoAudioEngine.kt
+          grep -q 'pianoVelocityLayers = listOf(2, 6, 10, 16)' /tmp/slumber/app/build.gradle.kts
+          grep -q 'AndroidKeyStore' /tmp/slumber/app/src/main/java/com/night/pianohub/storage/PianoHubLocalStore.kt
+          grep -q '127.0.0.1' /tmp/slumber/app/src/main/res/xml/network_security_config.xml
+          grep -q 'usesCleartextTraffic="false"' /tmp/slumber/app/src/main/AndroidManifest.xml
+          grep -q 'MidiManager' /tmp/slumber/app/src/main/java/com/night/pianohub/midi/MidiInputManager.kt
+          echo 'Slumber 0.4.1 architecture checks passed.'
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -71,19 +71,19 @@ jobs:
           sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
           test -f "$ANDROID_SDK_ROOT/platforms/android-37.0/android.jar"
 
-      - name: Run scoring and instrument-pack regression tests
-        working-directory: /tmp/pianohub
+      - name: Run Slumber regression tests
+        working-directory: /tmp/slumber
         run: gradle --stacktrace testDebugUnitTest
 
-      - name: Build Piano Hub 0.3.0 APK
-        working-directory: /tmp/pianohub
+      - name: Build Slumber 0.4.1 APK
+        working-directory: /tmp/slumber
         run: gradle --stacktrace assembleDebug
 
-      - name: Verify APK contents and real piano layers
+      - name: Verify APK contents and piano layers
         shell: bash
         run: |
           set -euo pipefail
-          APK=/tmp/pianohub/app/build/outputs/apk/debug/app-debug.apk
+          APK=/tmp/slumber/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
           COUNT=$(unzip -l "$APK" | grep -E 'assets/piano/.*\.mp3$' | wc -l)
           echo "Bundled Yamaha C5 recordings: $COUNT"
@@ -94,24 +94,35 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd /tmp/pianohub
-          tar --exclude='./.gradle' --exclude='./build' --exclude='./app/build' --exclude='./screenshots' -czf /tmp/pianohub-production-0.3.0-source.tgz .
+          cd /tmp/slumber
+          tar --exclude='./.gradle' --exclude='./build' --exclude='./app/build' --exclude='./runtime' -czf /tmp/slumber-production-0.4.1-source.tgz .
 
       - name: Upload verified source
         uses: actions/upload-artifact@v4
         with:
-          name: pianohub-production-0.3.0-source
-          path: /tmp/pianohub-production-0.3.0-source.tgz
+          name: slumber-production-0.4.1-source
+          path: /tmp/slumber-production-0.4.1-source.tgz
           if-no-files-found: error
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: pianohub-production-0.3.0-apk
-          path: /tmp/pianohub/app/build/outputs/apk/debug/app-debug.apk
+          name: slumber-production-0.4.1-apk
+          path: /tmp/slumber/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-      - name: Boot Android 36 and smoke-test Piano Hub 0.3.0
+      - name: Enable KVM for Android emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+
+      - name: Boot Android 36 and smoke-test Slumber 0.4.1
         uses: reactivecircus/android-emulator-runner@v2
         env:
           ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
@@ -126,22 +137,22 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
           script: |
             set -euo pipefail
-            APK=/tmp/pianohub/app/build/outputs/apk/debug/app-debug.apk
-            mkdir -p /tmp/pianohub/screenshots
+            APK=/tmp/slumber/app/build/outputs/apk/debug/app-debug.apk
+            mkdir -p /tmp/slumber/runtime
             adb install -r "$APK"
             adb shell am force-stop com.night.pianohub
             adb shell am start -W -n com.night.pianohub/.MainActivity
             sleep 5
             adb shell pidof com.night.pianohub
-            adb exec-out screencap -p > /tmp/pianohub/screenshots/01-learn.png
-            test -s /tmp/pianohub/screenshots/01-learn.png
-            adb logcat -d -t 500 > /tmp/pianohub/screenshots/logcat-tail.txt
-            ! grep -E 'FATAL EXCEPTION.*com\.night\.pianohub|Process: com\.night\.pianohub.*FATAL EXCEPTION' /tmp/pianohub/screenshots/logcat-tail.txt
+            adb exec-out screencap -p > /tmp/slumber/runtime/01-learn.png
+            test -s /tmp/slumber/runtime/01-learn.png
+            adb logcat -d -t 800 > /tmp/slumber/runtime/logcat-tail.txt
+            ! grep -E 'FATAL EXCEPTION.*com\.night\.pianohub|Process: com\.night\.pianohub.*FATAL EXCEPTION' /tmp/slumber/runtime/logcat-tail.txt
 
       - name: Upload runtime proof
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pianohub-production-0.3.0-runtime
-          path: /tmp/pianohub/screenshots/*
+          name: slumber-production-0.4.1-runtime
+          path: /tmp/slumber/runtime/*
           if-no-files-found: warn
