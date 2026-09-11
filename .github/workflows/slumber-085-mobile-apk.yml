@@ -107,7 +107,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
           script: |
-            set -euo pipefail
+            set -eu
             APK=/tmp/slumber-out/Slumber-0.8.5-mobile.apk
             adb install -r "$APK"
             adb shell am force-stop com.night.pianohub
