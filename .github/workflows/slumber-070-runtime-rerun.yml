@@ -1,0 +1,192 @@
+name: Slumber 0.7.0 Runtime Rerun
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".github/workflows/slumber-070-runtime-rerun.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Download exact already-built 0.7.0 APK
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber-art /tmp/slumber-runtime
+          mkdir -p /tmp/slumber-art /tmp/slumber-runtime
+          gh run download 34483426519 --repo Tomex777/Build --name slumber-0.7.0-final-verify --dir /tmp/slumber-art
+          APK=$(find /tmp/slumber-art -name 'Slumber-0.7.0-debug.apk' -type f -print -quit)
+          test -n "$APK"
+          cp "$APK" /tmp/slumber-runtime/app-debug.apk
+          echo '5096d36dc49a56df9973ffea0ae15b881a4bdca3aaa177963c3f3daf978e4407  /tmp/slumber-runtime/app-debug.apk' | sha256sum -c -
+          cat > /tmp/slumber-runtime/run-qa.sh <<'BASH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          PKG=com.night.pianohub
+          ACT=com.night.pianohub/.MainActivity
+          OUT=/tmp/slumber-runtime
+
+          dump_ui() {
+            adb shell uiautomator dump /sdcard/slumber-ui.xml >/dev/null
+            adb pull /sdcard/slumber-ui.xml "$OUT/ui.xml" >/dev/null
+          }
+
+          has_text() {
+            dump_ui
+            python3 - "$OUT/ui.xml" "$1" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root=ET.parse(sys.argv[1]).getroot(); target=sys.argv[2]
+          for n in root.iter('node'):
+              if n.attrib.get('text') == target or n.attrib.get('content-desc') == target:
+                  raise SystemExit(0)
+          raise SystemExit(1)
+          PY
+          }
+
+          lacks_text() {
+            if has_text "$1"; then return 1; else return 0; fi
+          }
+
+          tap_text() {
+            dump_ui
+            local xy
+            xy=$(python3 - "$OUT/ui.xml" "$1" <<'PY'
+          import re, sys, xml.etree.ElementTree as ET
+          root=ET.parse(sys.argv[1]).getroot(); target=sys.argv[2]
+          for n in root.iter('node'):
+              if n.attrib.get('text') == target or n.attrib.get('content-desc') == target:
+                  m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', n.attrib.get('bounds',''))
+                  if m:
+                      x1,y1,x2,y2=map(int,m.groups()); print((x1+x2)//2,(y1+y2)//2); raise SystemExit(0)
+          raise SystemExit(3)
+          PY
+          )
+            adb shell input tap $xy
+            sleep 2
+          }
+
+          shot() {
+            adb exec-out screencap -p > "$OUT/$1.png"
+            test -s "$OUT/$1.png"
+          }
+
+          assert_landscape() {
+            python3 - "$1" <<'PY'
+          import struct,sys
+          b=open(sys.argv[1],'rb').read(24); w,h=struct.unpack('>II',b[16:24]); print(f'{w}x{h}'); assert w>h
+          PY
+          }
+
+          adb shell settings put global hide_error_dialogs 1
+          adb install -r "$OUT/app-debug.apk"
+          adb logcat -c
+          adb shell am force-stop "$PKG"
+          adb shell am start -W -n "$ACT" > "$OUT/start.txt"
+          sleep 4
+          test -n "$(adb shell pidof "$PKG")"
+          has_text "Slumber"
+          shot 01-home
+
+          tap_text "Piano"
+          sleep 4
+          for t in "PRACTICE · FULLY LOCAL" "First Melody" "Record" "AI Teacher" "Touch" "Roll" "Staff" "88 keys" "C4–C7"; do has_text "$t"; done
+          lacks_text "Learn"
+          lacks_text "Progress"
+          shot 02-touch
+          assert_landscape "$OUT/02-touch.png"
+
+          tap_text "Roll"
+          has_text "Roll"
+          shot 03-roll
+          assert_landscape "$OUT/03-roll.png"
+
+          tap_text "Staff"
+          has_text "Staff"
+          shot 04-staff
+          assert_landscape "$OUT/04-staff.png"
+
+          tap_text "Touch"
+          has_text "Touch"
+
+          # Instrument / sound sheet. XML parsing avoids the '&amp;' false failure from the previous gate.
+          tap_text "Piano"
+          has_text "Piano & sound"
+          has_text "Yamaha C5 Concert Grand"
+          shot 05-instrument-sheet
+          adb shell input keyevent KEYCODE_BACK
+          sleep 2
+          has_text "PRACTICE · FULLY LOCAL"
+
+          # Keyboard and navigator interaction.
+          for x in 280 470 660 850 1040 1230 1420 1610; do adb shell input tap "$x" 820; done
+          sleep 2
+          test -n "$(adb shell pidof "$PKG")"
+          tap_text "→"
+          tap_text "←"
+          tap_text "C4–C7"
+          shot 06-keyboard-interaction
+          assert_landscape "$OUT/06-keyboard-interaction.png"
+
+          tap_text "Record"
+          has_text "Stop"
+          adb shell input tap 900 820
+          tap_text "Stop"
+          has_text "Record"
+          shot 07-after-record
+
+          tap_text "Back"
+          sleep 4
+          has_text "Slumber"
+          has_text "Learn"
+          shot 08-home-return
+
+          adb shell dumpsys meminfo "$PKG" > "$OUT/meminfo.txt"
+          adb logcat -d -t 5000 > "$OUT/logcat.txt"
+          ! grep -E "ANR in ${PKG}|FATAL EXCEPTION.*${PKG}|Process: ${PKG}.*FATAL EXCEPTION" "$OUT/logcat.txt"
+          test -n "$(adb shell pidof "$PKG")"
+          BASH
+          chmod +x /tmp/slumber-runtime/run-qa.sh
+
+      - name: Enable KVM
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+
+      - name: Run exact APK on Android 36
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
+        with:
+          api-level: 36
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          cores: 2
+          emulator-boot-timeout: 360
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
+          script: bash /tmp/slumber-runtime/run-qa.sh
+
+      - name: Upload runtime proof
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slumber-0.7.0-runtime-rerun-proof
+          path: |
+            /tmp/slumber-runtime/*.png
+            /tmp/slumber-runtime/*.txt
+            /tmp/slumber-runtime/*.xml
+          if-no-files-found: warn
