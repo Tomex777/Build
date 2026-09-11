@@ -1,0 +1,83 @@
+name: Slumber 0.8.2 Landscape Sheets Verify
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".github/workflows/slumber-082-landscape-sheets.yml"
+      - ".ci/slumber_082_landscape_sheets.patch"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+
+      - name: Reconstruct exact 0.8.1 source and apply 0.8.2 fix
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber-base /tmp/slumber /tmp/slumber-out
+          mkdir -p /tmp/slumber-base /tmp/slumber /tmp/slumber-out
+          gh run download 34632258957 --repo Tomex777/Build --name slumber-0.8.1-final-runtime-build --dir /tmp/slumber-base
+          SRC=$(find /tmp/slumber-base -name 'slumber-production-0.8.1-source.tgz' -type f -print -quit)
+          test -n "$SRC"
+          tar -xzf "$SRC" -C /tmp/slumber
+          cd /tmp/slumber
+          patch -p1 < "$GITHUB_WORKSPACE/.ci/slumber_082_landscape_sheets.patch"
+          grep -q 'versionCode = 14' app/build.gradle.kts
+          grep -q 'versionName = "0.8.2"' app/build.gradle.kts
+          test "$(grep -c 'rememberModalBottomSheetState(skipPartiallyExpanded = true)' app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt)" -eq 3
+          test "$(grep -c 'sheetState = .*SheetState' app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt)" -eq 3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: "15859902"
+
+      - name: Install Android compile SDK
+        shell: bash
+        run: sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+
+      - name: Run unit tests
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace testDebugUnitTest
+
+      - name: Build APK
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace assembleDebug
+
+      - name: Package APK and source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp /tmp/slumber/app/build/outputs/apk/debug/app-debug.apk /tmp/slumber-out/Slumber-0.8.2-debug.apk
+          sha256sum /tmp/slumber-out/Slumber-0.8.2-debug.apk | tee /tmp/slumber-out/apk-sha256.txt
+          cd /tmp/slumber
+          tar --exclude='./.gradle' --exclude='./build' --exclude='./app/build' -czf /tmp/slumber-out/slumber-production-0.8.2-source.tgz .
+
+      - name: Upload Slumber 0.8.2 build
+        uses: actions/upload-artifact@v4
+        with:
+          name: slumber-0.8.2-landscape-sheets
+          path: /tmp/slumber-out/*
+          if-no-files-found: error
