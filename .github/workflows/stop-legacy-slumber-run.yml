@@ -1,0 +1,28 @@
+name: Stop legacy Slumber run
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".github/workflows/stop-legacy-slumber-run.yml"
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  stop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel already-started legacy 0.4.2 run and remove its artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api -X POST repos/Tomex777/Build/actions/runs/34656304258/cancel || true
+          sleep 2
+          gh api --paginate 'repos/Tomex777/Build/actions/artifacts?per_page=100' \
+            --jq '.artifacts[] | select(.name | startswith("slumber-production-0.4.2-")) | .id' \
+            | while read -r id; do
+                [ -n "$id" ] && gh api -X DELETE "repos/Tomex777/Build/actions/artifacts/$id"
+              done
