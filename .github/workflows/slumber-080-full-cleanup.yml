@@ -43,11 +43,13 @@ jobs:
               | base64 --decode | gzip -dc > /tmp/slumber-080.patch
           cd /tmp/slumber
           patch -p1 < /tmp/slumber-080.patch
+          PIANO=app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
+          grep -q '^import androidx.compose.foundation.verticalScroll$' "$PIANO" || sed -i '/^import androidx.compose.foundation.rememberScrollState$/a import androidx.compose.foundation.verticalScroll' "$PIANO"
           grep -q 'versionName = "0.8.0"' app/build.gradle.kts
           grep -q 'Destination("settings", "Settings"' app/src/main/java/com/night/pianohub/ui/PianoHubApp.kt
           ! grep -q 'Destination("sounds", "Sounds"' app/src/main/java/com/night/pianohub/ui/PianoHubApp.kt
           grep -q 'EGYPTIAN' app/src/main/java/com/night/pianohub/music/MusicModels.kt
-          grep -q 'Listen & Repeat' app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
+          grep -q 'Listen & Repeat' "$PIANO"
           grep -q 'releaseMs' app/src/main/java/com/night/pianohub/audio/SampledPianoAudioEngine.kt
           test "$(grep -R --include='*.kt' -n 'by Night' app/src/main/java/com/night/pianohub/ui | wc -l)" -eq 1
 
