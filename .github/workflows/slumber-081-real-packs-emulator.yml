@@ -1,0 +1,302 @@
+name: Slumber 0.8.1 Real Packs + Emulator QA
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".ci/slumber_081_real_packs.patch.gz.b64.part00"
+      - ".ci/slumber_081_real_packs.patch.gz.b64.part01"
+      - ".github/workflows/slumber-081-real-packs-emulator.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  build-and-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+
+      - name: Reconstruct verified 0.8.0 and apply 0.8.1 patch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber-base /tmp/slumber /tmp/slumber-out /tmp/slumber-runtime
+          mkdir -p /tmp/slumber-base /tmp/slumber /tmp/slumber-out /tmp/slumber-runtime
+          gh run download 34572806431 --repo Tomex777/Build --name slumber-0.8.0-full-cleanup --dir /tmp/slumber-base
+          SRC=$(find /tmp/slumber-base -name 'slumber-production-0.8.0-source.tgz' -type f -print -quit)
+          test -n "$SRC"
+          tar -xzf "$SRC" -C /tmp/slumber
+          cat .ci/slumber_081_real_packs.patch.gz.b64.part00 .ci/slumber_081_real_packs.patch.gz.b64.part01 | base64 --decode | gzip -dc > /tmp/slumber-081.patch
+          cd /tmp/slumber
+          patch -p1 < /tmp/slumber-081.patch
+          grep -q 'versionCode = 13' app/build.gradle.kts
+          grep -q 'versionName = "0.8.1"' app/build.gradle.kts
+          grep -q 'freepats_drawbar_organ' app/src/main/java/com/night/pianohub/instruments/BuiltInInstrumentPackCatalog.kt
+          grep -q 'no links to hunt down or paste' app/src/main/java/com/night/pianohub/ui/screens/SoundsScreen.kt
+          test "$(grep -R --include='*.kt' -n 'by Night' app/src/main/java/com/night/pianohub/ui | wc -l)" -eq 1
+          ! grep -R -iE --include='*.kt' 'local-first|local first|on-device|on device|no slumber server|no server|personal piano|fully local|local learning|local piano|local cultural' app/src/main/java/com/night/pianohub/ui
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: "15859902"
+
+      - name: Install Android compile SDK
+        shell: bash
+        run: sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+
+      - name: Run unit tests
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace testDebugUnitTest
+
+      - name: Build APK
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace assembleDebug
+
+      - name: Package APK and source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp /tmp/slumber/app/build/outputs/apk/debug/app-debug.apk /tmp/slumber-out/Slumber-0.8.1-debug.apk
+          sha256sum /tmp/slumber-out/Slumber-0.8.1-debug.apk | tee /tmp/slumber-out/apk-sha256.txt
+          cd /tmp/slumber
+          tar --exclude='./.gradle' --exclude='./build' --exclude='./app/build' -czf /tmp/slumber-out/slumber-production-0.8.1-source.tgz .
+          cp /tmp/slumber-out/Slumber-0.8.1-debug.apk /tmp/slumber-runtime/app-debug.apk
+
+      - name: Prepare emulator QA script
+        shell: bash
+        run: |
+          cat > /tmp/slumber-runtime/run-qa.sh <<'BASH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          PKG=com.night.pianohub
+          ACT=com.night.pianohub/.MainActivity
+          OUT=/tmp/slumber-runtime
+
+          dump_ui() {
+            adb shell uiautomator dump /sdcard/slumber-ui.xml >/dev/null
+            adb pull /sdcard/slumber-ui.xml "$OUT/ui.xml" >/dev/null
+          }
+
+          has_text() {
+            dump_ui
+            python3 - "$OUT/ui.xml" "$1" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root=ET.parse(sys.argv[1]).getroot(); target=sys.argv[2]
+          for n in root.iter('node'):
+              if n.attrib.get('text') == target or n.attrib.get('content-desc') == target:
+                  raise SystemExit(0)
+          raise SystemExit(1)
+          PY
+          }
+
+          lacks_text() { if has_text "$1"; then return 1; else return 0; fi; }
+
+          wait_text() {
+            local t="$1"
+            for _ in $(seq 1 20); do if has_text "$t"; then return 0; fi; sleep 1; done
+            echo "Timed out waiting for UI text: $t" >&2; return 1
+          }
+
+          tap_text() {
+            dump_ui
+            local xy
+            xy=$(python3 - "$OUT/ui.xml" "$1" <<'PY'
+          import re, sys, xml.etree.ElementTree as ET
+          root=ET.parse(sys.argv[1]).getroot(); target=sys.argv[2]
+          for n in root.iter('node'):
+              if n.attrib.get('text') == target or n.attrib.get('content-desc') == target:
+                  m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', n.attrib.get('bounds',''))
+                  if m:
+                      x1,y1,x2,y2=map(int,m.groups()); print((x1+x2)//2,(y1+y2)//2); raise SystemExit(0)
+          raise SystemExit(3)
+          PY
+          )
+            adb shell input tap $xy
+            sleep 2
+          }
+
+          shot() { adb exec-out screencap -p > "$OUT/$1.png"; test -s "$OUT/$1.png"; }
+
+          dims() {
+            python3 - "$1" <<'PY'
+          import struct,sys
+          b=open(sys.argv[1],'rb').read(24); w,h=struct.unpack('>II',b[16:24]); print(w,h)
+          PY
+          }
+          assert_portrait() { read w h < <(dims "$1"); echo "portrait check ${w}x${h}"; test "$h" -gt "$w"; }
+          assert_landscape() { read w h < <(dims "$1"); echo "landscape check ${w}x${h}"; test "$w" -gt "$h"; }
+
+          adb shell settings put global hide_error_dialogs 1
+          adb install -r "$OUT/app-debug.apk"
+          adb logcat -c
+          adb shell am force-stop "$PKG"
+          adb shell am start -W -n "$ACT" > "$OUT/start.txt"
+          sleep 4
+          test -n "$(adb shell pidof "$PKG")"
+
+          wait_text "Slumber"
+          has_text "Ready to practice?"
+          shot 01-home
+          assert_portrait "$OUT/01-home.png"
+
+          tap_text "Settings"
+          wait_text "Make Slumber yours"
+          has_text "Sounds"
+          has_text "by Night"
+          has_text "Version 0.8.1"
+          shot 02-settings
+          assert_portrait "$OUT/02-settings.png"
+
+          tap_text "Sounds"
+          wait_text "Instrument packs"
+          shot 03-sounds
+          assert_portrait "$OUT/03-sounds.png"
+
+          tap_text "Instrument packs"
+          wait_text "Upright Piano KW"
+          has_text "Drawbar Organ"
+          has_text "Church Organ"
+          has_text "Install"
+          shot 04-real-pack-catalog
+          assert_portrait "$OUT/04-real-pack-catalog.png"
+
+          tap_text "Install"
+          for _ in $(seq 1 45); do
+            if adb shell run-as "$PKG" test -f files/instrument_packs/freepats_upright_kw/manifest.json; then break; fi
+            sleep 1
+          done
+          adb shell run-as "$PKG" test -f files/instrument_packs/freepats_upright_kw/manifest.json
+          adb shell run-as "$PKG" cat files/instrument_packs/freepats_upright_kw/manifest.json > "$OUT/installed-pack-manifest.json"
+          grep -q 'Upright Piano KW' "$OUT/installed-pack-manifest.json"
+          grep -q 'CC0-1.0' "$OUT/installed-pack-manifest.json"
+          wait_text "Use"
+          shot 05-pack-installed
+
+          adb shell input keyevent KEYCODE_BACK
+          sleep 1
+          adb shell input keyevent KEYCODE_BACK
+          sleep 2
+          wait_text "Make Slumber yours"
+
+          tap_text "Piano"
+          sleep 4
+          wait_text "First Melody"
+          has_text "BPM"
+          has_text "AI Teacher"
+          shot 06-piano-landscape
+          assert_landscape "$OUT/06-piano-landscape.png"
+
+          tap_text "Increase tempo"
+          wait_text "95"
+          shot 07-bpm-95
+          assert_landscape "$OUT/07-bpm-95.png"
+
+          tap_text "Piano settings"
+          wait_text "Piano settings"
+          lacks_text "Make Slumber yours"
+          has_text "Controls for the playing surface only. App-wide preferences stay in Settings."
+          shot 08-piano-settings
+          assert_landscape "$OUT/08-piano-settings.png"
+          adb shell input keyevent KEYCODE_BACK
+          sleep 1
+
+          tap_text "AI Teacher"
+          wait_text "Listen & Repeat"
+          has_text "Play phrase"
+          shot 09-listen-repeat
+          assert_landscape "$OUT/09-listen-repeat.png"
+          tap_text "Play phrase"
+          wait_text "● Your turn"
+          has_text "Your turn — play the same four notes."
+          shot 10-listen-repeat-turn
+          adb shell input keyevent KEYCODE_BACK
+          sleep 1
+
+          tap_text "Back"
+          wait_text "Ready to practice?"
+          shot 11-piano-exit-portrait
+          assert_portrait "$OUT/11-piano-exit-portrait.png"
+
+          tap_text "Songs"
+          wait_text "Turn a song into a lesson"
+          shot 12-songs
+          assert_portrait "$OUT/12-songs.png"
+          tap_text "Piano"
+          sleep 4
+          wait_text "First Melody"
+          lacks_text "Turn a song into a lesson"
+          shot 13-songs-to-piano
+          assert_landscape "$OUT/13-songs-to-piano.png"
+          tap_text "Back"
+          wait_text "Ready to practice?"
+          shot 14-final-home
+          assert_portrait "$OUT/14-final-home.png"
+
+          adb shell dumpsys meminfo "$PKG" > "$OUT/meminfo.txt"
+          adb logcat -d -t 6000 > "$OUT/logcat.txt"
+          ! grep -E "ANR in ${PKG}|FATAL EXCEPTION.*${PKG}|Process: ${PKG}.*FATAL EXCEPTION" "$OUT/logcat.txt"
+          test -n "$(adb shell pidof "$PKG")"
+          BASH
+          chmod +x /tmp/slumber-runtime/run-qa.sh
+
+      - name: Enable KVM
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+
+      - name: Run Android 36 emulator QA
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
+        with:
+          api-level: 36
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          cores: 2
+          emulator-boot-timeout: 360
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
+          script: bash /tmp/slumber-runtime/run-qa.sh
+
+      - name: Upload Slumber 0.8.1 build
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: slumber-0.8.1-real-packs
+          path: /tmp/slumber-out/*
+          if-no-files-found: error
+
+      - name: Upload emulator proof
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slumber-0.8.1-emulator-proof
+          path: |
+            /tmp/slumber-runtime/*.png
+            /tmp/slumber-runtime/*.txt
+            /tmp/slumber-runtime/*.xml
+            /tmp/slumber-runtime/*.json
+          if-no-files-found: warn
