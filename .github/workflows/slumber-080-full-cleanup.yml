@@ -4,7 +4,11 @@ on:
   push:
     branches: ["pianohub-ci"]
     paths:
-      - ".ci/slumber_080_full.patch.gz.b64"
+      - ".ci/slumber_080_full.patch.gz.b64.part00"
+      - ".ci/slumber_080_full.patch.gz.b64.part01"
+      - ".ci/slumber_080_full.patch.gz.b64.part02"
+      - ".ci/slumber_080_full.patch.gz.b64.part03"
+      - ".ci/slumber_080_full.patch.gz.b64.part04"
       - ".github/workflows/slumber-080-full-cleanup.yml"
 
 permissions:
@@ -31,7 +35,12 @@ jobs:
           SRC=$(find /tmp/slumber-base -name 'slumber-production-0.7.1-source.tgz' -type f -print -quit)
           test -n "$SRC"
           tar -xzf "$SRC" -C /tmp/slumber
-          base64 --decode .ci/slumber_080_full.patch.gz.b64 | gzip -dc > /tmp/slumber-080.patch
+          cat .ci/slumber_080_full.patch.gz.b64.part00 \
+              .ci/slumber_080_full.patch.gz.b64.part01 \
+              .ci/slumber_080_full.patch.gz.b64.part02 \
+              .ci/slumber_080_full.patch.gz.b64.part03 \
+              .ci/slumber_080_full.patch.gz.b64.part04 \
+              | base64 --decode | gzip -dc > /tmp/slumber-080.patch
           cd /tmp/slumber
           patch -p1 < /tmp/slumber-080.patch
           grep -q 'versionName = "0.8.0"' app/build.gradle.kts
