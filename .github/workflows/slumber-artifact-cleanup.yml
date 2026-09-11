@@ -1,0 +1,46 @@
+name: Slumber artifact cleanup
+
+on:
+  push:
+    paths:
+      - '.github/workflows/slumber-artifact-cleanup.yml'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove old Slumber artifacts only
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEEP_BUILD: '10281573628'
+          KEEP_PROOF: '10281574841'
+        run: |
+          set -euo pipefail
+          gh api --paginate 'repos/Tomex777/Build/actions/artifacts?per_page=100' \
+            --jq '.artifacts[] | select(.name | startswith("slumber-")) | [.id,.name,.size_in_bytes] | @tsv' \
+            > /tmp/slumber-artifacts.tsv
+
+          echo 'Slumber artifacts before cleanup:'
+          cat /tmp/slumber-artifacts.tsv || true
+
+          freed=0
+          while IFS=$'\t' read -r id name size; do
+            [ -z "${id:-}" ] && continue
+            if [ "$id" = "$KEEP_BUILD" ] || [ "$id" = "$KEEP_PROOF" ]; then
+              echo "KEEP $id $name $size"
+              continue
+            fi
+            echo "DELETE $id $name $size"
+            gh api -X DELETE "repos/Tomex777/Build/actions/artifacts/$id"
+            freed=$((freed + size))
+          done < /tmp/slumber-artifacts.tsv
+
+          echo "Freed bytes: $freed"
+          python - <<'PY'
+          import os
+          n=int(os.environ.get('FREED','0')) if False else 0
+          PY
