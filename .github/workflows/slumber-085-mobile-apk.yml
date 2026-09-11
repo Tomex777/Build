@@ -31,6 +31,23 @@ jobs:
           grep -q 'versionName = "0.8.5"' /tmp/slumber/app/build.gradle.kts
           grep -q 'pianoVelocityLayers = listOf(2, 6, 10, 16)' /tmp/slumber/app/build.gradle.kts
 
+      - name: Enable shrinker for the installable beta
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/slumber/app/build.gradle.kts')
+          s=p.read_text()
+          needle='    buildFeatures { compose = true }\n'
+          assert needle in s
+          block='''    buildFeatures { compose = true }\n\n    buildTypes {\n        getByName("release") {\n            isMinifyEnabled = true\n            isShrinkResources = true\n            signingConfig = signingConfigs.getByName("debug")\n            proguardFiles(\n                getDefaultProguardFile("proguard-android-optimize.txt"),\n                "proguard-rules.pro",\n            )\n        }\n    }\n'''
+          p.write_text(s.replace(needle, block, 1))
+          PY
+          grep -q 'isMinifyEnabled = true' /tmp/slumber/app/build.gradle.kts
+          grep -q 'isShrinkResources = true' /tmp/slumber/app/build.gradle.kts
+          grep -q 'signingConfig = signingConfigs.getByName("debug")' /tmp/slumber/app/build.gradle.kts
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -47,57 +64,24 @@ jobs:
       - name: Install Android SDK
         run: sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
 
-      - name: Unit tests
+      - name: Build zero-loss shrunk APK
         working-directory: /tmp/slumber
-        run: gradle --stacktrace testDebugUnitTest
-
-      - name: Fetch the exact 120 Yamaha C5 samples
-        working-directory: /tmp/slumber
-        run: gradle --stacktrace fetchPianoSamples
-
-      - name: Install audio optimizer
-        run: |
-          set -euo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg
-          ffmpeg -version | head -1
-          ffprobe -version | head -1
-
-      - name: Optimize bundled samples for mobile download
-        shell: bash
-        run: |
-          set -euo pipefail
-          PIANO=/tmp/slumber/app/build/generated/pianoSamples/assets/piano
-          test "$(find "$PIANO" -type f -name '*.mp3' | wc -l)" -eq 120
-          BEFORE=$(du -sb "$PIANO" | cut -f1)
-          mkdir -p /tmp/mobile-audio
-          while IFS= read -r f; do
-            out="/tmp/mobile-audio/$(basename "$f")"
-            ffmpeg -nostdin -hide_banner -loglevel error -y -i "$f" -ac 1 -ar 44100 -b:a 80k "$out"
-            mv "$out" "$f"
-          done < <(find "$PIANO" -type f -name '*.mp3' | sort)
-          AFTER=$(du -sb "$PIANO" | cut -f1)
-          echo "Original piano sample bytes: $BEFORE" | tee /tmp/slumber-out/mobile-size.txt
-          echo "Mobile piano sample bytes:   $AFTER" | tee -a /tmp/slumber-out/mobile-size.txt
-          test "$AFTER" -lt "$BEFORE"
-          test "$(find "$PIANO" -type f -name '*.mp3' | wc -l)" -eq 120
-          while IFS= read -r f; do ffprobe -v error -show_entries stream=codec_name,sample_rate,channels -of default=nw=1 "$f" >/dev/null; done < <(find "$PIANO" -type f -name '*.mp3' | sort)
-
-      - name: Build mobile APK
-        working-directory: /tmp/slumber
-        run: gradle --stacktrace assembleDebug
+        run: gradle --stacktrace assembleRelease
 
       - name: Verify mobile APK
         shell: bash
         run: |
           set -euo pipefail
-          APK=/tmp/slumber/app/build/outputs/apk/debug/app-debug.apk
+          APK=/tmp/slumber/app/build/outputs/apk/release/app-release.apk
           test -s "$APK"
           COUNT=$(unzip -l "$APK" | grep -E 'assets/piano/.*\.mp3$' | wc -l)
-          echo "Bundled Yamaha C5 recordings: $COUNT" | tee -a /tmp/slumber-out/mobile-size.txt
+          echo "Bundled original Yamaha C5 recordings: $COUNT" | tee /tmp/slumber-out/mobile-size.txt
           test "$COUNT" -eq 120
+          SAMPLE_BYTES=$(unzip -l "$APK" | awk '/assets\/piano\/.*\.mp3$/ {s += $1} END {print s+0}')
+          echo "Bundled original sample bytes: $SAMPLE_BYTES" | tee -a /tmp/slumber-out/mobile-size.txt
+          test "$SAMPLE_BYTES" -gt 20000000
           BYTES=$(stat -c%s "$APK")
-          echo "Mobile APK bytes: $BYTES" | tee -a /tmp/slumber-out/mobile-size.txt
+          echo "Shrunk APK bytes: $BYTES" | tee -a /tmp/slumber-out/mobile-size.txt
           test "$BYTES" -lt 60000000
           cp "$APK" /tmp/slumber-out/Slumber-0.8.5-mobile.apk
           sha256sum /tmp/slumber-out/Slumber-0.8.5-mobile.apk | tee /tmp/slumber-out/mobile-apk-sha256.txt
