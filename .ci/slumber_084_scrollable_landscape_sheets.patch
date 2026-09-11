@@ -1,0 +1,33 @@
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -75,8 +75,8 @@
+         applicationId = "com.night.pianohub"
+         minSdk = 36
+         targetSdk = 36
+-        versionCode = 15
+-        versionName = "0.8.3"
++        versionCode = 16
++        versionName = "0.8.4"
+     }
+ 
+     compileOptions {
+--- a/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
++++ b/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
+@@ -707,7 +707,7 @@
+             sheetState = pianoSettingsSheetState,
+         ) {
+             Column(
+-                modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp),
++                modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp),
+                 verticalArrangement = Arrangement.spacedBy(12.dp),
+             ) {
+                 Text("Piano settings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+@@ -788,7 +788,7 @@
+             sheetState = instrumentSheetState,
+         ) {
+             Column(
+-                modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp),
++                modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp),
+                 verticalArrangement = Arrangement.spacedBy(12.dp),
+             ) {
+                 Text("Piano & sound", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
