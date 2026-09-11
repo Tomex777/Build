@@ -1,0 +1,263 @@
+name: Slumber 0.8.3 Exact Runtime QA v2
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".github/workflows/slumber-083-runtime-v2.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Download exact tested 0.8.3 APK
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber-build /tmp/slumber-runtime
+          mkdir -p /tmp/slumber-build /tmp/slumber-runtime
+          gh run download 34640084077 --repo Tomex777/Build --name slumber-0.8.3-version-and-sheets --dir /tmp/slumber-build
+          APK=$(find /tmp/slumber-build -name 'Slumber-0.8.3-debug.apk' -type f -print -quit)
+          test -n "$APK"
+          cp "$APK" /tmp/slumber-runtime/app-debug.apk
+          echo '5967b75d1a90b751ffb8d244f38d067515cb92f88153366a2b522c326879d2f3  /tmp/slumber-runtime/app-debug.apk' | sha256sum -c -
+
+      - name: Prepare emulator QA
+        shell: bash
+        run: |
+          cat > /tmp/slumber-runtime/run-qa.sh <<'BASH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          PKG=com.night.pianohub
+          ACT=com.night.pianohub/.MainActivity
+          OUT=/tmp/slumber-runtime
+
+          dump_ui() {
+            for _ in 1 2 3; do
+              if adb shell uiautomator dump /sdcard/slumber-ui.xml >/dev/null 2>&1 && adb pull /sdcard/slumber-ui.xml "$OUT/ui.xml" >/dev/null 2>&1; then return 0; fi
+              sleep 1
+            done
+            return 1
+          }
+
+          has_text() {
+            dump_ui
+            python3 - "$OUT/ui.xml" "$1" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root=ET.parse(sys.argv[1]).getroot(); target=sys.argv[2]
+          for n in root.iter('node'):
+              if n.attrib.get('text') == target or n.attrib.get('content-desc') == target:
+                  raise SystemExit(0)
+          raise SystemExit(1)
+          PY
+          }
+
+          tap_text() {
+            dump_ui
+            local xy
+            xy=$(python3 - "$OUT/ui.xml" "$1" <<'PY'
+          import re, sys, xml.etree.ElementTree as ET
+          root=ET.parse(sys.argv[1]).getroot(); target=sys.argv[2]
+          for n in root.iter('node'):
+              if n.attrib.get('text') == target or n.attrib.get('content-desc') == target:
+                  m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', n.attrib.get('bounds',''))
+                  if m:
+                      x1,y1,x2,y2=map(int,m.groups()); print((x1+x2)//2,(y1+y2)//2); raise SystemExit(0)
+          raise SystemExit(3)
+          PY
+          )
+            adb shell input tap $xy
+            sleep 2
+          }
+
+          clear_system_ui_anr() {
+            if has_text "System UI isn't responding"; then
+              echo "Recovering emulator System UI ANR" >&2
+              if has_text "Wait"; then tap_text "Wait"; else adb shell input keyevent KEYCODE_BACK || true; fi
+              sleep 6
+              return 0
+            fi
+            return 1
+          }
+
+          wait_text() {
+            local t="$1"
+            for _ in $(seq 1 40); do
+              if has_text "$t"; then return 0; fi
+              clear_system_ui_anr || true
+              sleep 1
+            done
+            echo "Timed out waiting for UI text: $t" >&2
+            dump_ui || true
+            cp "$OUT/ui.xml" "$OUT/failure-ui.xml" 2>/dev/null || true
+            adb exec-out screencap -p > "$OUT/failure.png" || true
+            adb logcat -d -t 5000 > "$OUT/failure-logcat.txt" || true
+            return 1
+          }
+
+          lacks_text() { if has_text "$1"; then return 1; else return 0; fi; }
+
+          assert_text_fully_visible() {
+            dump_ui
+            python3 - "$OUT/ui.xml" "$1" <<'PY'
+          import re, sys, xml.etree.ElementTree as ET
+          root=ET.parse(sys.argv[1]).getroot(); target=sys.argv[2]
+          rb=None
+          for n in root.iter('node'):
+              m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', n.attrib.get('bounds',''))
+              if rb is None and m: rb=tuple(map(int,m.groups()))
+              if n.attrib.get('text') == target or n.attrib.get('content-desc') == target:
+                  if not m: raise SystemExit(3)
+                  x1,y1,x2,y2=map(int,m.groups())
+                  if rb is None: raise SystemExit(4)
+                  sw,sh=rb[2],rb[3]
+                  print(f'{target}: [{x1},{y1}][{x2},{y2}] screen={sw}x{sh}')
+                  if x1 < 0 or y1 < 0 or x2 > sw or y2 > sh or x2-x1 < 4 or y2-y1 < 12: raise SystemExit(5)
+                  if y2 > sh-24: raise SystemExit(6)
+                  raise SystemExit(0)
+          raise SystemExit(2)
+          PY
+          }
+
+          scroll_until_text() {
+            local t="$1"
+            for _ in $(seq 1 8); do
+              if has_text "$t"; then return 0; fi
+              adb shell input swipe 540 2200 540 1350 350
+              sleep 1
+            done
+            echo "Could not scroll to UI text: $t" >&2
+            return 1
+          }
+
+          dismiss_sheet_to() {
+            local expected="$1"
+            for _ in 1 2 3; do
+              if has_text "$expected"; then return 0; fi
+              dump_ui
+              local swipe
+              swipe=$(python3 - "$OUT/ui.xml" <<'PY'
+          import re, xml.etree.ElementTree as ET
+          root=ET.parse('/tmp/slumber-runtime/ui.xml').getroot()
+          def box(s):
+              m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',s or '')
+              return tuple(map(int,m.groups())) if m else None
+          rb=box(next(root.iter('node')).attrib.get('bounds',''))
+          handle=None
+          for n in root.iter('node'):
+              if n.attrib.get('content-desc') == 'Drag handle':
+                  handle=box(n.attrib.get('bounds','')); break
+          if not handle or not rb: raise SystemExit(4)
+          x=(handle[0]+handle[2])//2; y=(handle[1]+handle[3])//2
+          print(x,y,x,max(y+250, rb[3]-120))
+          PY
+          )
+              adb shell input swipe $swipe 700
+              sleep 2
+            done
+            wait_text "$expected"
+          }
+
+          shot() { adb exec-out screencap -p > "$OUT/$1.png"; test -s "$OUT/$1.png"; }
+          dims() { python3 - "$1" <<'PY'
+          import struct,sys
+          b=open(sys.argv[1],'rb').read(24); w,h=struct.unpack('>II',b[16:24]); print(w,h)
+          PY
+          }
+          portrait() { read w h < <(dims "$1"); echo "portrait ${w}x${h}"; test "$h" -gt "$w"; }
+          landscape() { read w h < <(dims "$1"); echo "landscape ${w}x${h}"; test "$w" -gt "$h"; }
+
+          adb shell settings put global hide_error_dialogs 1 || true
+          sleep 12
+          for _ in 1 2 3; do clear_system_ui_anr || break; done
+
+          adb install -r "$OUT/app-debug.apk"
+          adb logcat -c
+          adb shell am force-stop "$PKG"
+          adb shell am start -W -n "$ACT" > "$OUT/start.txt"
+          sleep 6
+          clear_system_ui_anr || true
+          test -n "$(adb shell pidof "$PKG")"
+
+          wait_text "Ready to practice?"; shot 01-home; portrait "$OUT/01-home.png"
+          tap_text "Settings"; wait_text "Make Slumber yours"; has_text "Sounds"; has_text "by Night"; has_text "Version 0.8.3"; shot 02-settings; portrait "$OUT/02-settings.png"
+          tap_text "Sounds"; wait_text "SETTINGS · SOUNDS"; wait_text "Instrument packs"; shot 03-sounds; portrait "$OUT/03-sounds.png"
+          tap_text "Instrument packs"; wait_text "Upright Piano KW"; has_text "Old Piano FB"; shot 04-pack-top; portrait "$OUT/04-pack-top.png"
+
+          tap_text "Install"
+          for _ in $(seq 1 60); do
+            if adb shell run-as "$PKG" test -f files/instrument_packs/freepats_upright_kw/manifest.json; then break; fi
+            sleep 1
+          done
+          adb shell run-as "$PKG" test -f files/instrument_packs/freepats_upright_kw/manifest.json
+          adb shell run-as "$PKG" cat files/instrument_packs/freepats_upright_kw/manifest.json > "$OUT/installed-pack-manifest.json"
+          grep -q 'Upright Piano KW' "$OUT/installed-pack-manifest.json"
+          grep -q 'CC0-1.0' "$OUT/installed-pack-manifest.json"
+          wait_text "Use"; shot 05-pack-installed
+          scroll_until_text "FM Piano 2"; scroll_until_text "Drawbar Organ"; scroll_until_text "Church Organ"; shot 06-pack-bottom; portrait "$OUT/06-pack-bottom.png"
+          dismiss_sheet_to "SETTINGS · SOUNDS"
+          wait_text "Yamaha C5 Concert Grand"; shot 07-sounds-return; portrait "$OUT/07-sounds-return.png"
+          tap_text "Back"; wait_text "Make Slumber yours"; shot 08-settings-return; portrait "$OUT/08-settings-return.png"
+
+          tap_text "Piano"; wait_text "First Melody"; has_text "BPM"; has_text "AI Teacher"; shot 09-piano; landscape "$OUT/09-piano.png"
+          tap_text "Increase tempo"; wait_text "95"; shot 10-bpm-95; landscape "$OUT/10-bpm-95.png"
+          tap_text "Piano settings"; wait_text "Piano settings"; lacks_text "Make Slumber yours"; assert_text_fully_visible "Done"; shot 11-piano-settings; landscape "$OUT/11-piano-settings.png"
+          dismiss_sheet_to "First Melody"
+
+          tap_text "AI Teacher"; wait_text "Listen & Repeat"; wait_text "Play phrase"; assert_text_fully_visible "Play phrase"; shot 12-listen-repeat; landscape "$OUT/12-listen-repeat.png"
+          tap_text "Play phrase"; wait_text "● Your turn"; has_text "Your turn — play the same four notes."; shot 13-listen-repeat-turn; landscape "$OUT/13-listen-repeat-turn.png"
+          dismiss_sheet_to "First Melody"
+
+          tap_text "Back"; wait_text "Ready to practice?"; shot 14-piano-exit; portrait "$OUT/14-piano-exit.png"
+          tap_text "Songs"; wait_text "Turn a song into a lesson"; shot 15-songs; portrait "$OUT/15-songs.png"
+          tap_text "Piano"; wait_text "First Melody"; lacks_text "Turn a song into a lesson"; shot 16-songs-to-piano; landscape "$OUT/16-songs-to-piano.png"
+          tap_text "Back"; wait_text "Ready to practice?"; shot 17-final-home; portrait "$OUT/17-final-home.png"
+
+          adb shell dumpsys meminfo "$PKG" > "$OUT/meminfo.txt"
+          adb logcat -d -t 8000 > "$OUT/logcat.txt"
+          ! grep -E "ANR in ${PKG}|FATAL EXCEPTION.*${PKG}|Process: ${PKG}.*FATAL EXCEPTION" "$OUT/logcat.txt"
+          test -n "$(adb shell pidof "$PKG")"
+          echo PASS > "$OUT/runtime-result.txt"
+          BASH
+          chmod +x /tmp/slumber-runtime/run-qa.sh
+
+      - name: Enable KVM
+        shell: bash
+        run: |
+          test -e /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+
+      - name: Run exact APK on Android 36
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
+        with:
+          api-level: 36
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          cores: 4
+          emulator-boot-timeout: 360
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics -memory 4096
+          script: bash /tmp/slumber-runtime/run-qa.sh
+
+      - name: Upload runtime proof
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slumber-0.8.3-runtime-v2-proof
+          path: |
+            /tmp/slumber-runtime/*.png
+            /tmp/slumber-runtime/*.txt
+            /tmp/slumber-runtime/*.xml
+            /tmp/slumber-runtime/*.json
+          if-no-files-found: warn
