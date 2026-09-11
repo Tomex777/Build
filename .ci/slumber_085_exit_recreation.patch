@@ -1,0 +1,113 @@
+diff -ruN '--exclude=.gradle' '--exclude=build' '--exclude=app/build' slumber084_src_exact/app/build.gradle.kts slumber085_src/app/build.gradle.kts
+--- slumber084_src_exact/app/build.gradle.kts	2026-09-11 20:13:54.000000000 +0000
++++ slumber085_src/app/build.gradle.kts	2026-09-11 20:37:14.648298882 +0000
+@@ -75,8 +75,8 @@
+         applicationId = "com.night.pianohub"
+         minSdk = 36
+         targetSdk = 36
+-        versionCode = 16
+-        versionName = "0.8.4"
++        versionCode = 17
++        versionName = "0.8.5"
+     }
+ 
+     compileOptions {
+diff -ruN '--exclude=.gradle' '--exclude=build' '--exclude=app/build' slumber084_src_exact/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt slumber085_src/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
+--- slumber084_src_exact/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt	2026-09-11 20:13:54.000000000 +0000
++++ slumber085_src/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt	2026-09-11 20:37:14.648124257 +0000
+@@ -58,6 +58,7 @@
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
+ import androidx.compose.runtime.rememberCoroutineScope
++import androidx.compose.runtime.saveable.rememberSaveable
+ import androidx.compose.runtime.setValue
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+@@ -133,36 +134,42 @@
+     val teacherSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+     val pianoSettingsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+     val instrumentSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+-    var pendingExit by remember { mutableStateOf<(() -> Unit)?>(null) }
++    var pendingExitTarget by rememberSaveable { mutableStateOf<String?>(null) }
+ 
+-    // Practice is the only forced-landscape destination. Leaving it restores
+-    // whatever orientation policy the rest of Slumber was using.
+-    DisposableEffect(activity) {
++    // Practice is the only forced-landscape destination. The exit target is
++    // saveable because requesting portrait can recreate the Activity. A lambda
++    // stored only in remember() is lost during that recreation and would leave
++    // Piano stranded in landscape.
++    DisposableEffect(activity, pendingExitTarget) {
+         val previous = activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+-        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
++        if (pendingExitTarget == null) {
++            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
++        }
+         onDispose { activity?.requestedOrientation = previous }
+     }
+ 
+-    fun leavePiano(afterPortrait: () -> Unit) {
+-        if (pendingExit == null) pendingExit = afterPortrait
++    fun leavePiano(target: String) {
++        if (pendingExitTarget == null) pendingExitTarget = target
+     }
+ 
+-    // Do not navigate away while the Activity is still landscape. The old
+-    // implementation popped the destination first and restored orientation in
+-    // onDispose, which let portrait screens visibly re-layout in landscape.
+-    LaunchedEffect(pendingExit) {
+-        if (pendingExit != null) {
++    // Do not navigate away while the Activity is still landscape. Keep the
++    // requested destination across Activity recreation and invoke it only once
++    // the new configuration is actually portrait.
++    LaunchedEffect(pendingExitTarget) {
++        if (pendingExitTarget != null) {
+             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+         }
+     }
+-    LaunchedEffect(pendingExit, configuration.orientation) {
+-        if (pendingExit != null && configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
+-            val action = pendingExit
+-            pendingExit = null
+-            action?.invoke()
++    LaunchedEffect(pendingExitTarget, configuration.orientation) {
++        val target = pendingExitTarget
++        if (target != null && configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
++            when (target) {
++                "songs" -> onSongs()
++                else -> onBack()
++            }
+         }
+     }
+-    BackHandler(enabled = pendingExit == null) { leavePiano(onBack) }
++    BackHandler(enabled = pendingExitTarget == null) { leavePiano("back") }
+ 
+     var heldCounts by remember { mutableStateOf(emptyMap<Int, Int>()) }
+     val pressedMidis = heldCounts.keys
+@@ -470,7 +477,7 @@
+     val detailed = performance.update()
+     val progress = if (detailed.targetCount == 0) 0f else detailed.targetIndex.toFloat() / detailed.targetCount
+ 
+-    if (pendingExit != null) {
++    if (pendingExitTarget != null) {
+         // Keep a stable, blank app surface visible while Android rotates back.
+         // The portrait destination is not composed until rotation completes.
+         Box(
+@@ -500,7 +507,7 @@
+                     verticalAlignment = Alignment.CenterVertically,
+                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                 ) {
+-                    IconButton(onClick = { leavePiano(onBack) }) {
++                    IconButton(onClick = { leavePiano("back") }) {
+                         Icon(Icons.Outlined.ArrowBack, contentDescription = "Back")
+                     }
+ 
+@@ -554,7 +561,7 @@
+                         onClick = { showTeacherSheet = true },
+                     )
+ 
+-                    IconButton(onClick = { leavePiano(onSongs) }) {
++                    IconButton(onClick = { leavePiano("songs") }) {
+                         Icon(Icons.Outlined.LibraryMusic, contentDescription = "Songs")
+                     }
+                     IconButton(onClick = { showPianoSettingsSheet = true }) {
