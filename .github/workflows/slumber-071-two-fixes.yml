@@ -1,0 +1,294 @@
+name: Slumber 0.7.1 Two Fixes Verify
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".github/workflows/slumber-071-two-fixes.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+
+      - name: Reconstruct verified 0.7.0 and apply the two fixes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber-base /tmp/slumber /tmp/slumber-out /tmp/slumber-runtime
+          mkdir -p /tmp/slumber-base /tmp/slumber /tmp/slumber-out /tmp/slumber-runtime
+          gh run download 34483426519 --repo Tomex777/Build --name slumber-0.7.0-final-verify --dir /tmp/slumber-base
+          SRC=$(find /tmp/slumber-base -name 'slumber-production-0.7.0-source.tgz' -type f -print -quit)
+          test -n "$SRC"
+          tar -xzf "$SRC" -C /tmp/slumber
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p=Path('/tmp/slumber/app/build.gradle.kts')
+          s=p.read_text().replace('versionCode = 10','versionCode = 11').replace('versionName = "0.7.0"','versionName = "0.7.1"')
+          p.write_text(s)
+
+          p=Path('/tmp/slumber/app/src/main/java/com/night/pianohub/ui/PianoHubApp.kt')
+          s=p.read_text().replace('''                    onSongs = { navController.navigate("songs") },
+                    onSettings = { navController.navigate("settings") },
+''','''                    onSongs = { navController.navigate("songs") },
+''')
+          p.write_text(s)
+
+          p=Path('/tmp/slumber/app/src/main/AndroidManifest.xml')
+          s=p.read_text().replace('''        <activity
+            android:name=".MainActivity"
+            android:exported="true">''','''        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait">''')
+          p.write_text(s)
+
+          p=Path('/tmp/slumber/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt')
+          s=p.read_text()
+          s=s.replace('import android.content.pm.ActivityInfo\n', 'import android.content.pm.ActivityInfo\nimport android.content.res.Configuration\n')
+          s=s.replace('import androidx.compose.foundation.Canvas\n', 'import androidx.activity.compose.BackHandler\nimport androidx.compose.foundation.Canvas\n')
+          s=s.replace('import androidx.compose.ui.platform.LocalContext\n', 'import androidx.compose.ui.platform.LocalConfiguration\nimport androidx.compose.ui.platform.LocalContext\n')
+          s=s.replace('    onSongs: () -> Unit,\n    onSettings: () -> Unit,\n)', '    onSongs: () -> Unit,\n)')
+          s=s.replace('    val context = LocalContext.current\n', '    val context = LocalContext.current\n    val configuration = LocalConfiguration.current\n')
+          s=s.replace('''    // Practice is the only forced-landscape destination. Leaving it restores
+    // whatever orientation policy the rest of Slumber was using.
+    DisposableEffect(activity) {
+''','''    var showInstrumentSheet by remember { mutableStateOf(false) }
+    var showPianoSettingsSheet by remember { mutableStateOf(false) }
+    var pendingExit by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    // Practice is the only forced-landscape destination. Leaving it restores
+    // whatever orientation policy the rest of Slumber was using.
+    DisposableEffect(activity) {
+''')
+          s=s.replace('''
+    var showInstrumentSheet by remember { mutableStateOf(false) }
+    var heldCounts by remember { mutableStateOf(emptyMap<Int, Int>()) }
+''','''
+    fun leavePiano(afterPortrait: () -> Unit) {
+        if (pendingExit == null) pendingExit = afterPortrait
+    }
+
+    LaunchedEffect(pendingExit) {
+        if (pendingExit != null) activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+    }
+    LaunchedEffect(pendingExit, configuration.orientation) {
+        if (pendingExit != null && configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
+            val action = pendingExit
+            action?.invoke()
+            pendingExit = null
+        }
+    }
+    BackHandler(enabled = pendingExit == null) { leavePiano(onBack) }
+
+    var heldCounts by remember { mutableStateOf(emptyMap<Int, Int>()) }
+''')
+          s=s.replace('''    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+    ) {
+''','''    if (pendingExit != null) {
+        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
+    } else BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+    ) {
+''',1)
+          s=s.replace('IconButton(onClick = onBack) {', 'IconButton(onClick = { leavePiano(onBack) }) {')
+          s=s.replace('IconButton(onClick = onSongs) {', 'IconButton(onClick = { leavePiano(onSongs) }) {')
+          s=s.replace('''                    IconButton(onClick = onSettings) {
+                        Icon(Icons.Outlined.Settings, contentDescription = "Settings")
+                    }
+''','''                    IconButton(onClick = { showPianoSettingsSheet = true }) {
+                        Icon(Icons.Outlined.Settings, contentDescription = "Piano settings")
+                    }
+''')
+          marker='''    if (showInstrumentSheet) {
+        ModalBottomSheet(onDismissRequest = { showInstrumentSheet = false }) {
+'''
+          insert='''    if (showPianoSettingsSheet) {
+        ModalBottomSheet(onDismissRequest = { showPianoSettingsSheet = false }) {
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("Piano settings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                Text("Controls for the playing surface only. App-wide preferences stay in Settings.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                HorizontalDivider()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Sound", fontWeight = FontWeight.Medium)
+                        Text("Play the selected instrument while you practice", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked = state.soundEnabled, onCheckedChange = { state.soundEnabled = it })
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Sustain", fontWeight = FontWeight.Medium)
+                        Text("Keep notes ringing after key release", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked = sustainOn, onCheckedChange = { sustainOn = it; audioEngine.sustain(if (it) 1f else 0f) })
+                }
+                HorizontalDivider()
+                Text("Display", fontWeight = FontWeight.Medium)
+                Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PracticeDisplayMode.entries.forEach { mode ->
+                        FilterChip(selected = displayMode == mode, onClick = { displayMode = mode }, label = { Text(mode.title) })
+                    }
+                }
+                Text("Key labels", fontWeight = FontWeight.Medium)
+                Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    KeyLabelMode.entries.forEach { mode ->
+                        FilterChip(selected = state.keyLabels == mode, onClick = { state.keyLabels = mode }, label = { Text(mode.title) })
+                    }
+                }
+                OutlinedButton(onClick = { state.viewport = PianoKeyboardConfig.DEFAULT_C4_TO_C7_VIEWPORT }, modifier = Modifier.fillMaxWidth()) { Text("Reset visible range to C4–C7") }
+                OutlinedButton(onClick = { showPianoSettingsSheet = false; showInstrumentSheet = true }, modifier = Modifier.fillMaxWidth()) { Text("Piano & sound") }
+                Button(onClick = { showPianoSettingsSheet = false }, modifier = Modifier.fillMaxWidth()) { Text("Done") }
+            }
+        }
+    }
+
+'''+marker
+          if marker not in s: raise SystemExit('instrument sheet marker missing')
+          s=s.replace(marker,insert,1)
+          p.write_text(s)
+          PY
+          grep -q 'versionName = "0.7.1"' /tmp/slumber/app/build.gradle.kts
+          grep -q 'android:screenOrientation="portrait"' /tmp/slumber/app/src/main/AndroidManifest.xml
+          grep -q 'contentDescription = "Piano settings"' /tmp/slumber/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
+          ! grep -q 'onSettings = { navController.navigate("settings") }' /tmp/slumber/app/src/main/java/com/night/pianohub/ui/PianoHubApp.kt
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: "15859902"
+
+      - name: Install Android SDK
+        run: sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+
+      - name: Unit tests and build
+        working-directory: /tmp/slumber
+        run: |
+          gradle --stacktrace testDebugUnitTest
+          gradle --stacktrace assembleDebug
+
+      - name: Prepare APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=/tmp/slumber/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          cp "$APK" /tmp/slumber-out/Slumber-0.7.1-debug.apk
+          sha256sum "$APK" | tee /tmp/slumber-out/apk-sha256.txt
+          cd /tmp/slumber
+          tar --exclude='./.gradle' --exclude='./build' --exclude='./app/build' -czf /tmp/slumber-out/slumber-production-0.7.1-source.tgz .
+
+      - name: Runtime verify orientation and piano settings
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
+        with:
+          api-level: 36
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          cores: 2
+          emulator-boot-timeout: 360
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
+          script: |
+            set -euo pipefail
+            APK=/tmp/slumber-out/Slumber-0.7.1-debug.apk
+            PKG=com.night.pianohub
+            ACT=com.night.pianohub/.MainActivity
+            OUT=/tmp/slumber-runtime
+            mkdir -p "$OUT"
+            dump_ui() { adb shell uiautomator dump /sdcard/u.xml >/dev/null; adb pull /sdcard/u.xml "$OUT/ui.xml" >/dev/null; }
+            tap() {
+              dump_ui
+              XY=$(python3 - "$OUT/ui.xml" "$1" <<'PY'
+            import re,sys,xml.etree.ElementTree as ET
+            root=ET.parse(sys.argv[1]).getroot(); t=sys.argv[2]
+            for n in root.iter('node'):
+                if n.attrib.get('text') == t or n.attrib.get('content-desc') == t:
+                    m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', n.attrib.get('bounds',''))
+                    if m:
+                        x1,y1,x2,y2=map(int,m.groups()); print((x1+x2)//2,(y1+y2)//2); raise SystemExit(0)
+            raise SystemExit(3)
+            PY
+              )
+              adb shell input tap $XY
+              sleep 2
+            }
+            has() { dump_ui; grep -Fq "$1" "$OUT/ui.xml"; }
+            orient() {
+              adb exec-out screencap -p > "$1"
+              python3 - "$1" "$2" <<'PY'
+            import struct,sys
+            b=open(sys.argv[1],'rb').read(24); w,h=struct.unpack('>II',b[16:24]); print(w,h)
+            assert (h>w) if sys.argv[2]=='portrait' else (w>h)
+            PY
+            }
+            adb install -r "$APK"
+            adb shell am start -W -n "$ACT" >/dev/null
+            sleep 3
+            has "Slumber"
+            orient "$OUT/01-home.png" portrait
+            tap "Piano"
+            sleep 3
+            has "PRACTICE · FULLY LOCAL"
+            orient "$OUT/02-piano.png" landscape
+            tap "Piano settings"
+            has "Piano settings"
+            has "Controls for the playing surface only. App-wide preferences stay in Settings."
+            ! grep -Fq "Optional AI teacher" "$OUT/ui.xml"
+            adb exec-out screencap -p > "$OUT/03-piano-settings.png"
+            tap "Done"
+            tap "Back"
+            sleep 3
+            has "Slumber"
+            orient "$OUT/04-home-return.png" portrait
+            tap "Piano"
+            sleep 3
+            tap "Songs"
+            sleep 3
+            has "Songs"
+            orient "$OUT/05-songs-return.png" portrait
+            adb logcat -d -t 5000 > "$OUT/logcat.txt"
+            ! grep -E "ANR in ${PKG}|FATAL EXCEPTION.*${PKG}|Process: ${PKG}.*FATAL EXCEPTION" "$OUT/logcat.txt"
+
+      - name: Upload verified 0.7.1 build
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slumber-0.7.1-two-fixes
+          path: |
+            /tmp/slumber-out/*
+            /tmp/slumber-runtime/*
+          if-no-files-found: error
