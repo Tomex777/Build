@@ -1,0 +1,68 @@
+--- slumber082_exact_source/app/build.gradle.kts	2026-09-11 19:27:47.000000000 +0000
++++ slumber083_source/app/build.gradle.kts	2026-09-11 19:39:38.856464624 +0000
+@@ -75,8 +75,8 @@
+         applicationId = "com.night.pianohub"
+         minSdk = 36
+         targetSdk = 36
+-        versionCode = 14
+-        versionName = "0.8.2"
++        versionCode = 15
++        versionName = "0.8.3"
+     }
+ 
+     compileOptions {
+--- slumber082_exact_source/app/src/main/java/com/night/pianohub/ui/screens/SettingsScreen.kt	2026-09-11 18:15:42.000000000 +0000
++++ slumber083_source/app/src/main/java/com/night/pianohub/ui/screens/SettingsScreen.kt	2026-09-11 19:39:38.856782711 +0000
+@@ -33,6 +33,7 @@
+ import androidx.compose.runtime.rememberCoroutineScope
+ import androidx.compose.runtime.setValue
+ import androidx.compose.ui.Alignment
++import androidx.compose.ui.platform.LocalContext
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.text.font.FontWeight
+ import androidx.compose.ui.text.input.PasswordVisualTransformation
+@@ -50,6 +51,13 @@
+ @OptIn(ExperimentalMaterial3Api::class)
+ @Composable
+ fun SettingsScreen(state: PianoHubState, onOpenSounds: () -> Unit) {
++    val context = LocalContext.current
++    val versionName = remember(context) {
++        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }
++            .getOrNull()
++            .orEmpty()
++            .ifBlank { "Unknown" }
++    }
+     var showAiSheet by remember { mutableStateOf(false) }
+     val scope = rememberCoroutineScope()
+     var draft by remember(state.aiConfig) { mutableStateOf(state.aiConfig) }
+@@ -94,7 +102,7 @@
+                     Eyebrow("About")
+                     Text("Slumber", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                     Text("by Night", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+-                    Text("Version 0.8.1", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
++                    Text("Version $versionName", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                 }
+             }
+         }
+--- slumber082_exact_source/app/src/main/java/com/night/pianohub/instruments/LocalInstrumentPackManager.kt	2026-09-11 18:15:42.000000000 +0000
++++ slumber083_source/app/src/main/java/com/night/pianohub/instruments/LocalInstrumentPackManager.kt	2026-09-11 19:39:38.856909692 +0000
+@@ -23,6 +23,10 @@
+  */
+ class LocalInstrumentPackManager(context: Context) {
+     private val appContext = context.applicationContext
++    private val appVersion = runCatching { appContext.packageManager.getPackageInfo(appContext.packageName, 0).versionName }
++        .getOrNull()
++        .orEmpty()
++        .ifBlank { "unknown" }
+     private val root = File(appContext.filesDir, "instrument_packs").apply { mkdirs() }
+ 
+     fun installedManifests(): List<InstrumentPackManifest> =
+@@ -78,7 +82,7 @@
+                 connectTimeout = 15_000
+                 readTimeout = 45_000
+                 instanceFollowRedirects = true
+-                setRequestProperty("User-Agent", "Slumber/0.8.1")
++                setRequestProperty("User-Agent", "Slumber/$appVersion")
+             }
+             connection.connect()
+             if (connection.responseCode !in 200..299) return PackImportResult.Failure("Download failed (${connection.responseCode})")
