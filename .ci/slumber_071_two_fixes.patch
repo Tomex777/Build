@@ -1,0 +1,228 @@
+--- app/build.gradle.kts	2026-09-10 12:29:53.000000000 +0000
++++ app/build.gradle.kts	2026-09-11 06:37:52.590254824 +0000
+@@ -75,8 +75,8 @@
+         applicationId = "com.night.pianohub"
+         minSdk = 36
+         targetSdk = 36
+-        versionCode = 10
+-        versionName = "0.7.0"
++        versionCode = 11
++        versionName = "0.7.1"
+     }
+ 
+     compileOptions {
+--- app/src/main/java/com/night/pianohub/ui/PianoHubApp.kt	2026-09-10 12:29:52.000000000 +0000
++++ app/src/main/java/com/night/pianohub/ui/PianoHubApp.kt	2026-09-11 06:37:04.357421015 +0000
+@@ -94,7 +94,6 @@
+                     midiInput = midiInput,
+                     onBack = { navController.popBackStack() },
+                     onSongs = { navController.navigate("songs") },
+-                    onSettings = { navController.navigate("settings") },
+                 )
+             }
+             composable("songs") { SongsScreen(state = appState) }
+--- app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt	2026-09-10 13:34:10.000000000 +0000
++++ app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt	2026-09-11 06:37:16.743805851 +0000
+@@ -4,6 +4,8 @@
+ import android.content.Context
+ import android.content.ContextWrapper
+ import android.content.pm.ActivityInfo
++import android.content.res.Configuration
++import androidx.activity.compose.BackHandler
+ import androidx.compose.foundation.Canvas
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.clickable
+@@ -61,6 +63,7 @@
+ import androidx.compose.ui.geometry.Size
+ import androidx.compose.ui.graphics.Color
+ import androidx.compose.ui.graphics.drawscope.Stroke
++import androidx.compose.ui.platform.LocalConfiguration
+ import androidx.compose.ui.platform.LocalContext
+ import androidx.compose.ui.text.font.FontWeight
+ import androidx.compose.ui.text.style.TextOverflow
+@@ -114,13 +117,17 @@
+     midiInput: MidiInputManager,
+     onBack: () -> Unit,
+     onSongs: () -> Unit,
+-    onSettings: () -> Unit,
+ ) {
+     val context = LocalContext.current
++    val configuration = LocalConfiguration.current
+     val activity = remember(context) { context.findActivity() }
+     val scope = rememberCoroutineScope()
+     val packManager = remember(context) { LocalInstrumentPackManager(context.applicationContext) }
+ 
++    var showInstrumentSheet by remember { mutableStateOf(false) }
++    var showPianoSettingsSheet by remember { mutableStateOf(false) }
++    var pendingExit by remember { mutableStateOf<(() -> Unit)?>(null) }
++
+     // Practice is the only forced-landscape destination. Leaving it restores
+     // whatever orientation policy the rest of Slumber was using.
+     DisposableEffect(activity) {
+@@ -129,7 +136,27 @@
+         onDispose { activity?.requestedOrientation = previous }
+     }
+ 
+-    var showInstrumentSheet by remember { mutableStateOf(false) }
++    fun leavePiano(afterPortrait: () -> Unit) {
++        if (pendingExit == null) pendingExit = afterPortrait
++    }
++
++    // Do not navigate away while the Activity is still landscape. The old
++    // implementation popped the destination first and restored orientation in
++    // onDispose, which let portrait screens visibly re-layout in landscape.
++    LaunchedEffect(pendingExit) {
++        if (pendingExit != null) {
++            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
++        }
++    }
++    LaunchedEffect(pendingExit, configuration.orientation) {
++        if (pendingExit != null && configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
++            val action = pendingExit
++            pendingExit = null
++            action?.invoke()
++        }
++    }
++    BackHandler(enabled = pendingExit == null) { leavePiano(onBack) }
++
+     var heldCounts by remember { mutableStateOf(emptyMap<Int, Int>()) }
+     val pressedMidis = heldCounts.keys
+     var completionRecorded by remember { mutableStateOf(false) }
+@@ -384,7 +411,15 @@
+     val detailed = performance.update()
+     val progress = if (detailed.targetCount == 0) 0f else detailed.targetIndex.toFloat() / detailed.targetCount
+ 
+-    BoxWithConstraints(
++    if (pendingExit != null) {
++        // Keep a stable, blank app surface visible while Android rotates back.
++        // The portrait destination is not composed until rotation completes.
++        Box(
++            modifier = Modifier
++                .fillMaxSize()
++                .background(MaterialTheme.colorScheme.background)
++        )
++    } else BoxWithConstraints(
+         modifier = Modifier
+             .fillMaxSize()
+             .background(MaterialTheme.colorScheme.background)
+@@ -406,7 +441,7 @@
+                     verticalAlignment = Alignment.CenterVertically,
+                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                 ) {
+-                    IconButton(onClick = onBack) {
++                    IconButton(onClick = { leavePiano(onBack) }) {
+                         Icon(Icons.Outlined.ArrowBack, contentDescription = "Back")
+                     }
+ 
+@@ -460,11 +495,11 @@
+                         modifier = Modifier.weight(1.35f),
+                     )
+ 
+-                    IconButton(onClick = onSongs) {
++                    IconButton(onClick = { leavePiano(onSongs) }) {
+                         Icon(Icons.Outlined.LibraryMusic, contentDescription = "Songs")
+                     }
+-                    IconButton(onClick = onSettings) {
+-                        Icon(Icons.Outlined.Settings, contentDescription = "Settings")
++                    IconButton(onClick = { showPianoSettingsSheet = true }) {
++                        Icon(Icons.Outlined.Settings, contentDescription = "Piano settings")
+                     }
+                 }
+             }
+@@ -576,6 +611,84 @@
+                 }
+             }
+         }
++    }
++
++    if (showPianoSettingsSheet) {
++        ModalBottomSheet(onDismissRequest = { showPianoSettingsSheet = false }) {
++            Column(
++                modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp),
++                verticalArrangement = Arrangement.spacedBy(12.dp),
++            ) {
++                Text("Piano settings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
++                Text(
++                    "Controls for the playing surface only. App-wide preferences stay in Settings.",
++                    style = MaterialTheme.typography.bodySmall,
++                    color = MaterialTheme.colorScheme.onSurfaceVariant,
++                )
++                HorizontalDivider()
++                Row(verticalAlignment = Alignment.CenterVertically) {
++                    Column(Modifier.weight(1f)) {
++                        Text("Sound", fontWeight = FontWeight.Medium)
++                        Text("Play the selected instrument while you practice", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
++                    }
++                    Switch(checked = state.soundEnabled, onCheckedChange = { state.soundEnabled = it })
++                }
++                Row(verticalAlignment = Alignment.CenterVertically) {
++                    Column(Modifier.weight(1f)) {
++                        Text("Sustain", fontWeight = FontWeight.Medium)
++                        Text("Keep notes ringing after key release", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
++                    }
++                    Switch(
++                        checked = sustainOn,
++                        onCheckedChange = {
++                            sustainOn = it
++                            audioEngine.sustain(if (it) 1f else 0f)
++                        },
++                    )
++                }
++                HorizontalDivider()
++                Text("Display", fontWeight = FontWeight.Medium)
++                Row(
++                    modifier = Modifier.horizontalScroll(rememberScrollState()),
++                    horizontalArrangement = Arrangement.spacedBy(8.dp),
++                ) {
++                    PracticeDisplayMode.entries.forEach { mode ->
++                        FilterChip(
++                            selected = displayMode == mode,
++                            onClick = { displayMode = mode },
++                            label = { Text(mode.title) },
++                        )
++                    }
++                }
++                Text("Key labels", fontWeight = FontWeight.Medium)
++                Row(
++                    modifier = Modifier.horizontalScroll(rememberScrollState()),
++                    horizontalArrangement = Arrangement.spacedBy(8.dp),
++                ) {
++                    KeyLabelMode.entries.forEach { mode ->
++                        FilterChip(
++                            selected = state.keyLabels == mode,
++                            onClick = { state.keyLabels = mode },
++                            label = { Text(mode.title) },
++                        )
++                    }
++                }
++                OutlinedButton(
++                    onClick = { state.viewport = PianoKeyboardConfig.DEFAULT_C4_TO_C7_VIEWPORT },
++                    modifier = Modifier.fillMaxWidth(),
++                ) { Text("Reset visible range to C4–C7") }
++                OutlinedButton(
++                    onClick = {
++                        showPianoSettingsSheet = false
++                        showInstrumentSheet = true
++                    },
++                    modifier = Modifier.fillMaxWidth(),
++                ) { Text("Piano & sound") }
++                Button(onClick = { showPianoSettingsSheet = false }, modifier = Modifier.fillMaxWidth()) {
++                    Text("Done")
++                }
++            }
++        }
+     }
+ 
+     if (showInstrumentSheet) {
+--- app/src/main/AndroidManifest.xml	2026-09-09 23:24:27.000000000 +0000
++++ app/src/main/AndroidManifest.xml	2026-09-11 06:37:04.357485261 +0000
+@@ -13,7 +13,8 @@
+         android:theme="@style/Theme.PianoHub">
+         <activity
+             android:name=".MainActivity"
+-            android:exported="true">
++            android:exported="true"
++            android:screenOrientation="portrait">
+             <intent-filter>
+                 <action android:name="android.intent.action.MAIN" />
+                 <category android:name="android.intent.category.LAUNCHER" />
