@@ -1,8 +1,7 @@
 name: Slumber by Night 0.4.2 Android Build
 
 on:
-  push:
-    branches: ["pianohub-ci"]
+  workflow_dispatch:
 
 permissions:
   actions: read
