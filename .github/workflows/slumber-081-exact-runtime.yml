@@ -158,70 +158,74 @@ jobs:
           shot 06-pack-catalog-bottom
           assert_portrait "$OUT/06-pack-catalog-bottom.png"
 
-          # Close the pack sheet, then use the Sounds page's own navigation button.
-          adb shell input keyevent KEYCODE_BACK
-          sleep 2
+          # Close the Compose sheet through its actual semantics target.
+          wait_text "Close sheet"
+          tap_text "Close sheet"
           wait_text "SETTINGS · SOUNDS"
           wait_text "Yamaha C5 Concert Grand"
+          shot 07-sounds-after-pack-sheet
+          assert_portrait "$OUT/07-sounds-after-pack-sheet.png"
+
+          # Leave Sounds through its own page Back control.
           tap_text "Back"
           wait_text "Make Slumber yours"
-          shot 07-settings-return
-          assert_portrait "$OUT/07-settings-return.png"
+          shot 08-settings-return
+          assert_portrait "$OUT/08-settings-return.png"
 
           tap_text "Piano"
           sleep 4
           wait_text "First Melody"
           has_text "BPM"
           has_text "AI Teacher"
-          shot 08-piano-landscape
-          assert_landscape "$OUT/08-piano-landscape.png"
+          shot 09-piano-landscape
+          assert_landscape "$OUT/09-piano-landscape.png"
 
           tap_text "Increase tempo"
           wait_text "95"
-          shot 09-bpm-95
-          assert_landscape "$OUT/09-bpm-95.png"
+          shot 10-bpm-95
+          assert_landscape "$OUT/10-bpm-95.png"
 
           tap_text "Piano settings"
           wait_text "Piano settings"
           lacks_text "Make Slumber yours"
           has_text "Controls for the playing surface only. App-wide preferences stay in Settings."
-          shot 10-piano-settings
-          assert_landscape "$OUT/10-piano-settings.png"
+          shot 11-piano-settings
+          assert_landscape "$OUT/11-piano-settings.png"
           adb shell input keyevent KEYCODE_BACK
           sleep 1
 
           tap_text "AI Teacher"
           wait_text "Listen & Repeat"
           has_text "Play phrase"
-          shot 11-listen-repeat
-          assert_landscape "$OUT/11-listen-repeat.png"
+          shot 12-listen-repeat
+          assert_landscape "$OUT/12-listen-repeat.png"
           tap_text "Play phrase"
           wait_text "● Your turn"
           has_text "Your turn — play the same four notes."
-          shot 12-listen-repeat-turn
+          shot 13-listen-repeat-turn
           adb shell input keyevent KEYCODE_BACK
           sleep 1
 
           tap_text "Back"
           wait_text "Ready to practice?"
-          shot 13-piano-exit-portrait
-          assert_portrait "$OUT/13-piano-exit-portrait.png"
+          shot 14-piano-exit-portrait
+          assert_portrait "$OUT/14-piano-exit-portrait.png"
 
           tap_text "Songs"
           wait_text "Turn a song into a lesson"
-          shot 14-songs
-          assert_portrait "$OUT/14-songs.png"
+          shot 15-songs
+          assert_portrait "$OUT/15-songs.png"
           tap_text "Piano"
           sleep 4
           wait_text "First Melody"
           lacks_text "Turn a song into a lesson"
-          shot 15-songs-to-piano
-          assert_landscape "$OUT/15-songs-to-piano.png"
+          shot 16-songs-to-piano
+          assert_landscape "$OUT/16-songs-to-piano.png"
 
           tap_text "Back"
           wait_text "Ready to practice?"
-          shot 16-final-home
-          assert_portrait "$OUT/16-final-home.png"
+          shot 17-final-home
+          assert_portrait "$OUT/17-final-home.png"
 
           adb shell dumpsys meminfo "$PKG" > "$OUT/meminfo.txt"
           adb logcat -d -t 6000 > "$OUT/logcat.txt"
