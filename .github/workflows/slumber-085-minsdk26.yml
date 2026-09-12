@@ -1,0 +1,238 @@
+name: Slumber 0.8.5 Android 8+ APK
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".github/workflows/slumber-085-minsdk26.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  build-and-test-api26:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore exact Slumber 0.8.5 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber-base /tmp/slumber /tmp/slumber-out
+          mkdir -p /tmp/slumber-base /tmp/slumber /tmp/slumber-out
+          gh run download 34645245543 --repo Tomex777/Build --name slumber-0.8.5-exit-recreation --dir /tmp/slumber-base
+          SRC=$(find /tmp/slumber-base -name 'slumber-production-0.8.5-source.tgz' -type f -print -quit)
+          test -n "$SRC"
+          tar -xzf "$SRC" -C /tmp/slumber
+          grep -q 'versionName = "0.8.5"' /tmp/slumber/app/build.gradle.kts
+
+      - name: Apply frozen scope and Android 8+ compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat "$GITHUB_WORKSPACE"/.ci/slumber_085_final_scope/final.patch.gz.b64.part* > /tmp/slumber-final.patch.gz.b64
+          echo '8133f27d9d76d002967f1c53d0a0b27cf89eec9f31cb24ff2188e70951ec504b  /tmp/slumber-final.patch.gz.b64' | sha256sum -c -
+          base64 -d /tmp/slumber-final.patch.gz.b64 | gzip -dc > /tmp/slumber-final.patch
+          echo '42b4f12ec7496c52712154594c31ca39bfe8f43addc7edaab84acefa37c23fa1  /tmp/slumber-final.patch' | sha256sum -c -
+          echo '75efe499cdc80e28f3fb1e5abd60ba4d67e933d6462b0d58feba05a68c596228  '$GITHUB_WORKSPACE'/.ci/slumber_085_minsdk26.patch' | sha256sum -c -
+          cd /tmp/slumber
+          patch -p1 < /tmp/slumber-final.patch
+          patch -p1 < "$GITHUB_WORKSPACE"/.ci/slumber_085_android_xml_runtime_fix.patch
+          patch -p1 < "$GITHUB_WORKSPACE"/.ci/slumber_085_minsdk26.patch
+          grep -q 'minSdk = 26' app/build.gradle.kts
+          grep -q 'targetSdk = 36' app/build.gradle.kts
+          grep -q 'compileSdk = 37' app/build.gradle.kts
+          grep -q 'Slumber Originals' app/src/main/java/com/night/pianohub/music/PianoLessonCatalog.kt
+          grep -q 'Add to My XMLs' app/src/main/java/com/night/pianohub/ui/screens/ChartPreviewScreen.kt
+          grep -q 'runCatching { isXIncludeAware = false }' app/src/main/java/com/night/pianohub/music/SlumberChartXml.kt
+
+      - name: Enable shrinker for installable beta
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/slumber/app/build.gradle.kts')
+          s=p.read_text()
+          needle='    buildFeatures { compose = true }\n'
+          assert needle in s
+          block='''    buildFeatures { compose = true }\n\n    buildTypes {\n        getByName("release") {\n            isMinifyEnabled = true\n            isShrinkResources = true\n            signingConfig = signingConfigs.getByName("debug")\n            proguardFiles(\n                getDefaultProguardFile("proguard-android-optimize.txt"),\n                "proguard-rules.pro",\n            )\n        }\n    }\n'''
+          p.write_text(s.replace(needle, block, 1))
+          PY
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: "15859902"
+
+      - name: Install Android SDK
+        run: sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+
+      - name: Run unit tests
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace testDebugUnitTest
+
+      - name: Build R8 release APK
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace assembleRelease
+
+      - name: Verify APK and SDK levels
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=/tmp/slumber/app/build/outputs/apk/release/app-release.apk
+          test -s "$APK"
+          AAPT2="$ANDROID_HOME/build-tools/37.0.0/aapt2"
+          "$AAPT2" dump badging "$APK" | tee /tmp/slumber-out/apk-badging.txt
+          grep -q "sdkVersion:'26'" /tmp/slumber-out/apk-badging.txt
+          grep -q "targetSdkVersion:'36'" /tmp/slumber-out/apk-badging.txt
+          COUNT=$(unzip -l "$APK" | grep -E 'assets/piano/.*\.mp3$' | wc -l)
+          test "$COUNT" -eq 120
+          SAMPLE_BYTES=$(unzip -l "$APK" | awk '/assets\/piano\/.*\.mp3$/ {s += $1} END {print s+0}')
+          test "$SAMPLE_BYTES" -eq 21923785
+          BYTES=$(stat -c%s "$APK")
+          {
+            echo "Minimum SDK: 26 (Android 8.0)"
+            echo "Target SDK: 36"
+            echo "Compile SDK: 37"
+            echo "Bundled original Yamaha C5 recordings: $COUNT"
+            echo "Bundled original sample bytes: $SAMPLE_BYTES"
+            echo "Shrunk APK bytes: $BYTES"
+          } | tee /tmp/slumber-out/mobile-size.txt
+          cp "$APK" /tmp/slumber-out/Slumber-0.8.5-Android8Plus.apk
+          sha256sum /tmp/slumber-out/Slumber-0.8.5-Android8Plus.apk | tee /tmp/slumber-out/mobile-apk-sha256.txt
+
+      - name: Build external XML sender for API 26
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber-open-with-qa
+          mkdir -p /tmp/slumber-open-with-qa/app/src/main/java/com/night/slumberqa
+          cat > /tmp/slumber-open-with-qa/settings.gradle.kts <<'EOF'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          rootProject.name = "SlumberOpenWithQa"
+          include(":app")
+          EOF
+          cat > /tmp/slumber-open-with-qa/build.gradle.kts <<'EOF'
+          plugins { id("com.android.application") version "9.1.1" apply false }
+          EOF
+          cat > /tmp/slumber-open-with-qa/app/build.gradle.kts <<'EOF'
+          plugins { id("com.android.application") }
+          android {
+              namespace = "com.night.slumberqa"
+              compileSdk = 37
+              defaultConfig {
+                  applicationId = "com.night.slumberqa"
+                  minSdk = 26
+                  targetSdk = 36
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+          }
+          EOF
+          cat > /tmp/slumber-open-with-qa/app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application android:theme="@android:style/Theme.Material.Light.NoActionBar">
+                  <provider android:name=".ChartProvider" android:authorities="com.night.slumberqa.charts" android:exported="true" android:grantUriPermissions="true" />
+                  <activity android:name=".SenderActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+          cat > /tmp/slumber-open-with-qa/app/src/main/java/com/night/slumberqa/ChartProvider.java <<'EOF'
+          package com.night.slumberqa;
+          import android.content.ContentProvider; import android.content.ContentValues; import android.database.Cursor; import android.database.MatrixCursor; import android.net.Uri; import android.os.ParcelFileDescriptor; import android.provider.OpenableColumns;
+          import java.io.File; import java.io.FileNotFoundException; import java.io.FileOutputStream; import java.io.IOException; import java.nio.charset.StandardCharsets;
+          public final class ChartProvider extends ContentProvider {
+              private static final byte[] CHART=("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"+"<song version=\"1\" title=\"Open With Test\" artist=\"Slumber QA\" bpm=\"120\" difficulty=\"Easy\">\n"+"<note midi=\"60\" time=\"0.000\" duration=\"0.350\" velocity=\"0.780\" />\n"+"<note midi=\"64\" time=\"0.500\" duration=\"0.350\" velocity=\"0.780\" />\n"+"<note midi=\"67\" time=\"1.000\" duration=\"0.500\" velocity=\"0.780\" />\n"+"</song>\n").getBytes(StandardCharsets.UTF_8);
+              @Override public boolean onCreate(){return true;} @Override public String getType(Uri uri){return "application/xml";}
+              @Override public ParcelFileDescriptor openFile(Uri uri,String mode)throws FileNotFoundException{File f=new File(getContext().getFilesDir(),"open-with-test.xml");try(FileOutputStream out=new FileOutputStream(f,false)){out.write(CHART);}catch(IOException e){FileNotFoundException x=new FileNotFoundException(e.getMessage());x.initCause(e);throw x;}return ParcelFileDescriptor.open(f,ParcelFileDescriptor.MODE_READ_ONLY);}
+              @Override public Cursor query(Uri uri,String[] projection,String selection,String[] selectionArgs,String sortOrder){String[] c=projection!=null?projection:new String[]{OpenableColumns.DISPLAY_NAME,OpenableColumns.SIZE};MatrixCursor cur=new MatrixCursor(c);Object[] row=new Object[c.length];for(int i=0;i<c.length;i++){if(OpenableColumns.DISPLAY_NAME.equals(c[i]))row[i]="open-with-test.xml";else if(OpenableColumns.SIZE.equals(c[i]))row[i]=CHART.length;}cur.addRow(row);return cur;}
+              @Override public Uri insert(Uri uri,ContentValues values){throw new UnsupportedOperationException();} @Override public int delete(Uri uri,String selection,String[] selectionArgs){return 0;} @Override public int update(Uri uri,ContentValues values,String selection,String[] selectionArgs){return 0;}
+          }
+          EOF
+          cat > /tmp/slumber-open-with-qa/app/src/main/java/com/night/slumberqa/SenderActivity.java <<'EOF'
+          package com.night.slumberqa;
+          import android.app.Activity; import android.content.Intent; import android.net.Uri; import android.os.Bundle;
+          public final class SenderActivity extends Activity { @Override protected void onCreate(Bundle state){super.onCreate(state);Uri chart=Uri.parse("content://com.night.slumberqa.charts/open-with-test.xml");Intent view=new Intent(Intent.ACTION_VIEW);view.setDataAndType(chart,"application/xml");view.setPackage("com.night.pianohub");view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);startActivity(view);finish();} }
+          EOF
+          gradle -p /tmp/slumber-open-with-qa --stacktrace :app:assembleDebug
+          cp /tmp/slumber-open-with-qa/app/build/outputs/apk/debug/app-debug.apk /tmp/slumber-out/slumber-open-with-qa.apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Android 8.0 API 26 product smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
+        with:
+          api-level: 26
+          arch: x86_64
+          target: default
+          profile: pixel_2
+          cores: 2
+          ram-size: 3072M
+          emulator-boot-timeout: 300
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
+          script: |
+            adb install -r /tmp/slumber-out/Slumber-0.8.5-Android8Plus.apk
+            adb install -r /tmp/slumber-out/slumber-open-with-qa.apk
+            adb shell wm dismiss-keyguard || true
+            adb shell input keyevent 82 || true
+            sleep 8
+            adb logcat -c || true
+            adb shell am force-stop com.night.pianohub
+            adb shell am start -W -n com.night.pianohub/.MainActivity
+            adb shell pidof com.night.pianohub
+            for I in $(seq 1 20); do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || true; adb pull /sdcard/ui.xml /tmp/slumber-out/api26-home-ui.xml >/dev/null 2>&1 || true; grep -q 'Ready to practice?' /tmp/slumber-out/api26-home-ui.xml 2>/dev/null && exit 0; sleep 2; done; adb exec-out screencap -p > /tmp/slumber-out/api26-failure-home.png || true; adb logcat -d -t 2500 > /tmp/slumber-out/api26-logcat.txt || true; exit 1
+            python -c 'import re,subprocess,xml.etree.ElementTree as E;r=E.parse("/tmp/slumber-out/api26-home-ui.xml").getroot();n=next(x for x in r.iter("node") if x.attrib.get("text") in ("Start practice","Continue practice"));a=list(map(int,re.findall(r"\d+",n.attrib["bounds"])));subprocess.run(["adb","shell","input","tap",str((a[0]+a[2])//2),str((a[1]+a[3])//2)],check=True)'
+            for I in $(seq 1 20); do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || true; adb pull /sdcard/ui.xml /tmp/slumber-out/api26-piano-ui.xml >/dev/null 2>&1 || true; grep -q 'AI Teacher' /tmp/slumber-out/api26-piano-ui.xml 2>/dev/null && exit 0; sleep 2; done; adb exec-out screencap -p > /tmp/slumber-out/api26-failure-piano.png || true; adb logcat -d -t 2500 > /tmp/slumber-out/api26-logcat.txt || true; exit 1
+            python -c 'import xml.etree.ElementTree as E;r=E.parse("/tmp/slumber-out/api26-piano-ui.xml").getroot();assert r.attrib.get("rotation") in ("1","3"),r.attrib.get("rotation")'
+            adb shell input keyevent 4
+            for I in $(seq 1 20); do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || true; adb pull /sdcard/ui.xml /tmp/slumber-out/api26-after-piano-ui.xml >/dev/null 2>&1 || true; grep -q 'Ready to practice?' /tmp/slumber-out/api26-after-piano-ui.xml 2>/dev/null && exit 0; sleep 2; done; exit 1
+            python -c 'import xml.etree.ElementTree as E;r=E.parse("/tmp/slumber-out/api26-after-piano-ui.xml").getroot();assert r.attrib.get("rotation")=="0",r.attrib.get("rotation")'
+            python -c 'import re,subprocess,xml.etree.ElementTree as E;r=E.parse("/tmp/slumber-out/api26-after-piano-ui.xml").getroot();n=next(x for x in r.iter("node") if x.attrib.get("text")=="Songs");a=list(map(int,re.findall(r"\d+",n.attrib["bounds"])));subprocess.run(["adb","shell","input","tap",str((a[0]+a[2])//2),str((a[1]+a[3])//2)],check=True)'
+            for I in $(seq 1 20); do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || true; adb pull /sdcard/ui.xml /tmp/slumber-out/api26-songs-ui.xml >/dev/null 2>&1 || true; grep -q 'Official Songs' /tmp/slumber-out/api26-songs-ui.xml 2>/dev/null && exit 0; sleep 2; done; exit 1
+            grep -q 'Slumber Originals' /tmp/slumber-out/api26-songs-ui.xml
+            grep -q 'My XMLs' /tmp/slumber-out/api26-songs-ui.xml
+            adb shell am start -W -n com.night.slumberqa/.SenderActivity
+            for I in $(seq 1 20); do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || true; adb pull /sdcard/ui.xml /tmp/slumber-out/api26-open-with-ui.xml >/dev/null 2>&1 || true; grep -q 'Open With Test' /tmp/slumber-out/api26-open-with-ui.xml 2>/dev/null && exit 0; sleep 2; done; adb exec-out screencap -p > /tmp/slumber-out/api26-failure-open-with.png || true; adb logcat -d -t 2500 > /tmp/slumber-out/api26-logcat.txt || true; exit 1
+            grep -q 'Duration' /tmp/slumber-out/api26-open-with-ui.xml
+            grep -q 'Difficulty' /tmp/slumber-out/api26-open-with-ui.xml
+            grep -q 'Notes' /tmp/slumber-out/api26-open-with-ui.xml
+            grep -q 'Add to My XMLs' /tmp/slumber-out/api26-open-with-ui.xml
+            grep -q 'Play' /tmp/slumber-out/api26-open-with-ui.xml
+            adb shell pidof com.night.pianohub
+            adb logcat -d -t 2500 > /tmp/slumber-out/api26-logcat.txt
+            ! grep -E 'FATAL EXCEPTION.*com\.night\.pianohub|Process: com\.night\.pianohub.*FATAL EXCEPTION|ANR in com\.night\.pianohub' /tmp/slumber-out/api26-logcat.txt
+
+      - name: Upload Android 8+ APK and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: slumber-0.8.5-android8plus
+          path: /tmp/slumber-out/*
+          if-no-files-found: error
+          retention-days: 7
