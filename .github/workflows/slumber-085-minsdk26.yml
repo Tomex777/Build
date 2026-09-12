@@ -96,7 +96,7 @@ jobs:
           test -s "$APK"
           AAPT2="$ANDROID_HOME/build-tools/37.0.0/aapt2"
           "$AAPT2" dump badging "$APK" | tee /tmp/slumber-out/apk-badging.txt
-          grep -q "sdkVersion:'26'" /tmp/slumber-out/apk-badging.txt
+          grep -q "minSdkVersion:'26'" /tmp/slumber-out/apk-badging.txt
           grep -q "targetSdkVersion:'36'" /tmp/slumber-out/apk-badging.txt
           COUNT=$(unzip -l "$APK" | grep -E 'assets/piano/.*\.mp3$' | wc -l)
           test "$COUNT" -eq 120
