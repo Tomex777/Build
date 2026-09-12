@@ -1,4 +1,4 @@
-# frozen-scope build revision 9
+# frozen-scope build revision 10
 name: Slumber 0.8.5 Mobile APK
 
 on:
@@ -117,6 +117,154 @@ jobs:
           </song>
           XML
 
+      - name: Build external XML open-with sender
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber-open-with-qa
+          mkdir -p /tmp/slumber-open-with-qa/app/src/main/java/com/night/slumberqa
+          cat > /tmp/slumber-open-with-qa/settings.gradle.kts <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "SlumberOpenWithQa"
+          include(":app")
+          EOF
+          cat > /tmp/slumber-open-with-qa/build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application") version "9.1.1" apply false
+          }
+          EOF
+          cat > /tmp/slumber-open-with-qa/app/build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application")
+          }
+
+          android {
+              namespace = "com.night.slumberqa"
+              compileSdk = 37
+
+              defaultConfig {
+                  applicationId = "com.night.slumberqa"
+                  minSdk = 36
+                  targetSdk = 36
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+          }
+          EOF
+          cat > /tmp/slumber-open-with-qa/app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application android:theme="@android:style/Theme.Material.Light.NoActionBar">
+                  <provider
+                      android:name=".ChartProvider"
+                      android:authorities="com.night.slumberqa.charts"
+                      android:exported="true"
+                      android:grantUriPermissions="true" />
+                  <activity
+                      android:name=".SenderActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+          cat > /tmp/slumber-open-with-qa/app/src/main/java/com/night/slumberqa/ChartProvider.java <<'EOF'
+          package com.night.slumberqa;
+
+          import android.content.ContentProvider;
+          import android.content.ContentValues;
+          import android.database.Cursor;
+          import android.database.MatrixCursor;
+          import android.net.Uri;
+          import android.os.ParcelFileDescriptor;
+          import android.provider.OpenableColumns;
+
+          import java.io.File;
+          import java.io.FileNotFoundException;
+          import java.io.FileOutputStream;
+          import java.io.IOException;
+          import java.nio.charset.StandardCharsets;
+
+          public final class ChartProvider extends ContentProvider {
+              private static final byte[] CHART = ("<song title=\"Open With Test\" artist=\"Slumber QA\" bpm=\"120\" difficulty=\"Easy\">\n"
+                      + "  <note pitch=\"C4\" time=\"0.000\" duration=\"0.350\" />\n"
+                      + "  <note pitch=\"E4\" time=\"0.500\" duration=\"0.350\" />\n"
+                      + "  <note pitch=\"G4\" time=\"1.000\" duration=\"0.500\" />\n"
+                      + "</song>\n").getBytes(StandardCharsets.UTF_8);
+
+              @Override public boolean onCreate() { return true; }
+
+              @Override public String getType(Uri uri) { return "application/xml"; }
+
+              @Override public ParcelFileDescriptor openFile(Uri uri, String mode) throws FileNotFoundException {
+                  File file = new File(getContext().getFilesDir(), "open-with-test.xml");
+                  try (FileOutputStream out = new FileOutputStream(file, false)) {
+                      out.write(CHART);
+                  } catch (IOException error) {
+                      FileNotFoundException wrapped = new FileNotFoundException(error.getMessage());
+                      wrapped.initCause(error);
+                      throw wrapped;
+                  }
+                  return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY);
+              }
+
+              @Override public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs, String sortOrder) {
+                  String[] columns = projection != null ? projection : new String[]{OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE};
+                  MatrixCursor cursor = new MatrixCursor(columns);
+                  Object[] row = new Object[columns.length];
+                  for (int i = 0; i < columns.length; i++) {
+                      if (OpenableColumns.DISPLAY_NAME.equals(columns[i])) row[i] = "open-with-test.xml";
+                      else if (OpenableColumns.SIZE.equals(columns[i])) row[i] = CHART.length;
+                  }
+                  cursor.addRow(row);
+                  return cursor;
+              }
+
+              @Override public Uri insert(Uri uri, ContentValues values) { throw new UnsupportedOperationException(); }
+              @Override public int delete(Uri uri, String selection, String[] selectionArgs) { return 0; }
+              @Override public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) { return 0; }
+          }
+          EOF
+          cat > /tmp/slumber-open-with-qa/app/src/main/java/com/night/slumberqa/SenderActivity.java <<'EOF'
+          package com.night.slumberqa;
+
+          import android.app.Activity;
+          import android.content.Intent;
+          import android.net.Uri;
+          import android.os.Bundle;
+
+          public final class SenderActivity extends Activity {
+              @Override protected void onCreate(Bundle state) {
+                  super.onCreate(state);
+                  Uri chart = Uri.parse("content://com.night.slumberqa.charts/open-with-test.xml");
+                  Intent view = new Intent(Intent.ACTION_VIEW);
+                  view.setDataAndType(chart, "application/xml");
+                  view.setPackage("com.night.pianohub");
+                  view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                  startActivity(view);
+                  finish();
+              }
+          }
+          EOF
+          gradle -p /tmp/slumber-open-with-qa --stacktrace :app:assembleDebug
+          cp /tmp/slumber-open-with-qa/app/build/outputs/apk/debug/app-debug.apk /tmp/slumber-out/slumber-open-with-qa.apk
+          test -s /tmp/slumber-out/slumber-open-with-qa.apk
+
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -139,6 +287,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
           script: |
             adb install -r /tmp/slumber-out/Slumber-0.8.5-final.apk
+            adb install -r /tmp/slumber-out/slumber-open-with-qa.apk
             adb shell wm dismiss-keyguard || true
             adb shell input keyevent 82 || true
             adb shell settings put secure immersive_mode_confirmations confirmed || true
@@ -163,9 +312,7 @@ jobs:
             grep -q 'Glass Rain' /tmp/slumber-out/originals-ui.xml
             python -c 'import re,subprocess,xml.etree.ElementTree as E;r=E.parse("/tmp/slumber-out/originals-ui.xml").getroot();n=next(x for x in r.iter("node") if x.attrib.get("text")=="My XMLs");a=list(map(int,re.findall(r"\d+",n.attrib["bounds"])));subprocess.run(["adb","shell","input","tap",str((a[0]+a[2])//2),str((a[1]+a[3])//2)],check=True)'
             for I in $(seq 1 20); do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || true; adb pull /sdcard/ui.xml /tmp/slumber-out/my-xmls-ui.xml >/dev/null 2>&1 || true; if grep -q "isn't responding" /tmp/slumber-out/my-xmls-ui.xml 2>/dev/null; then python -c 'import re,subprocess,sys,xml.etree.ElementTree as E;r=E.parse(sys.argv[1]).getroot();n=next(x for x in r.iter("node") if x.attrib.get("text")=="Wait");a=list(map(int,re.findall(r"\d+",n.attrib["bounds"])));subprocess.run(["adb","shell","input","tap",str((a[0]+a[2])//2),str((a[1]+a[3])//2)],check=True)' /tmp/slumber-out/my-xmls-ui.xml; sleep 2; continue; fi; grep -q 'Import XML' /tmp/slumber-out/my-xmls-ui.xml 2>/dev/null && exit 0; sleep 2; done; cat /tmp/slumber-out/my-xmls-ui.xml || true; adb exec-out screencap -p > /tmp/slumber-out/failure-my-xmls.png || true; exit 1
-            adb shell mkdir -p /sdcard/Android/data/com.night.pianohub/files
-            adb push /tmp/slumber-out/open-with-test.xml /sdcard/Android/data/com.night.pianohub/files/slumber-open-test.xml >/dev/null
-            adb shell am start -W -a android.intent.action.VIEW -d 'file:///sdcard/Android/data/com.night.pianohub/files/slumber-open-test.xml' -t application/xml -p com.night.pianohub
+            adb shell am start -W -n com.night.slumberqa/.SenderActivity
             for I in $(seq 1 20); do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || true; adb pull /sdcard/ui.xml /tmp/slumber-out/open-with-ui.xml >/dev/null 2>&1 || true; if grep -q "isn't responding" /tmp/slumber-out/open-with-ui.xml 2>/dev/null; then python -c 'import re,subprocess,sys,xml.etree.ElementTree as E;r=E.parse(sys.argv[1]).getroot();n=next(x for x in r.iter("node") if x.attrib.get("text")=="Wait");a=list(map(int,re.findall(r"\d+",n.attrib["bounds"])));subprocess.run(["adb","shell","input","tap",str((a[0]+a[2])//2),str((a[1]+a[3])//2)],check=True)' /tmp/slumber-out/open-with-ui.xml; sleep 2; continue; fi; grep -q 'Open With Test' /tmp/slumber-out/open-with-ui.xml 2>/dev/null && exit 0; sleep 2; done; cat /tmp/slumber-out/open-with-ui.xml || true; adb exec-out screencap -p > /tmp/slumber-out/failure-open-with.png || true; adb logcat -d -t 2500 > /tmp/slumber-out/mobile-logcat.txt || true; exit 1
             grep -q 'Duration' /tmp/slumber-out/open-with-ui.xml
             grep -q 'Difficulty' /tmp/slumber-out/open-with-ui.xml
