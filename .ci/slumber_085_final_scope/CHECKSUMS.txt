@@ -1,0 +1,13 @@
+Slumber 0.8.5 final frozen-scope patch
+
+42b4f12ec7496c52712154594c31ca39bfe8f43addc7edaab84acefa37c23fa1  slumber-0.8.5-final-scope.patch
+f400e43bb8385ddbc9abefefa801fe8b115456b351effa1e278ea1f3ed250421  slumber-0.8.5-final-scope.patch.gz
+8133f27d9d76d002967f1c53d0a0b27cf89eec9f31cb24ff2188e70951ec504b  slumber-0.8.5-final-scope.patch.gz.b64
+
+64ac905d963f655e0c3ff26a8bdbbd2edacb881a5805cd3c92790f704527753c  final.patch.gz.b64.part00
+b2cd3350a21c3fe2b8dd6fed776c67adc9daa9d755990e9744abb8433d40b82f  final.patch.gz.b64.part01
+c89fcd1cb75aa637d5f28a69764e5ba26ec2668ce40d270143c02d3cb14fc2a5  final.patch.gz.b64.part02
+cd1fcf5f41bce58e177c02246570337426355919bd81f7ad2db0e7fd2851261d  final.patch.gz.b64.part03
+c7d3d6ba475e2ebf4c99e526f77c1a5a17de59d056f79a578df8dbb858d949c5  final.patch.gz.b64.part04
+12ca62adb4f244435dfe710d5ac6a8f957c05905e1e458b5658e8b6ef74b475a  final.patch.gz.b64.part05
+ff860f9e31d2232b47c56acd0fcc6aed7b1b59e726d7091108262fb4514e2cb1  final.patch.gz.b64.part06
