@@ -1,4 +1,4 @@
-# frozen-scope build revision 11
+# frozen-scope build revision 12
 name: Slumber 0.8.5 Mobile APK
 
 on:
@@ -42,10 +42,12 @@ jobs:
           echo '42b4f12ec7496c52712154594c31ca39bfe8f43addc7edaab84acefa37c23fa1  /tmp/slumber-final.patch' | sha256sum -c -
           cd /tmp/slumber
           patch -p1 < /tmp/slumber-final.patch
+          patch -p1 < "$GITHUB_WORKSPACE"/.ci/slumber_085_android_xml_runtime_fix.patch
           grep -q 'Slumber Originals' app/src/main/java/com/night/pianohub/music/PianoLessonCatalog.kt
           grep -q 'Jingle Bells' app/src/main/java/com/night/pianohub/music/PianoLessonCatalog.kt
           grep -q 'application/vnd.recordare.musicxml' app/src/main/AndroidManifest.xml
           grep -q 'Add to My XMLs' app/src/main/java/com/night/pianohub/ui/screens/ChartPreviewScreen.kt
+          grep -q 'runCatching { isXIncludeAware = false }' app/src/main/java/com/night/pianohub/music/SlumberChartXml.kt
 
       - name: Enable shrinker for the installable beta
         shell: bash
@@ -112,9 +114,9 @@ jobs:
           cat > /tmp/slumber-out/open-with-test.xml <<'XML'
           <?xml version="1.0" encoding="utf-8"?>
           <song version="1" title="Open With Test" artist="Slumber QA" bpm="120" difficulty="Easy">
-            <note midi="60" start="0.000" duration="0.350" velocity="96" />
-            <note midi="64" start="0.500" duration="0.350" velocity="96" />
-            <note midi="67" start="1.000" duration="0.500" velocity="96" />
+            <note midi="60" time="0.000" duration="0.350" velocity="0.780" />
+            <note midi="64" time="0.500" duration="0.350" velocity="0.780" />
+            <note midi="67" time="1.000" duration="0.500" velocity="0.780" />
           </song>
           XML
 
@@ -204,9 +206,9 @@ jobs:
           public final class ChartProvider extends ContentProvider {
               private static final byte[] CHART = ("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
                       + "<song version=\"1\" title=\"Open With Test\" artist=\"Slumber QA\" bpm=\"120\" difficulty=\"Easy\">\n"
-                      + "  <note midi=\"60\" start=\"0.000\" duration=\"0.350\" velocity=\"96\" />\n"
-                      + "  <note midi=\"64\" start=\"0.500\" duration=\"0.350\" velocity=\"96\" />\n"
-                      + "  <note midi=\"67\" start=\"1.000\" duration=\"0.500\" velocity=\"96\" />\n"
+                      + "  <note midi=\"60\" time=\"0.000\" duration=\"0.350\" velocity=\"0.780\" />\n"
+                      + "  <note midi=\"64\" time=\"0.500\" duration=\"0.350\" velocity=\"0.780\" />\n"
+                      + "  <note midi=\"67\" time=\"1.000\" duration=\"0.500\" velocity=\"0.780\" />\n"
                       + "</song>\n").getBytes(StandardCharsets.UTF_8);
 
               @Override public boolean onCreate() { return true; }
