@@ -1,0 +1,51 @@
+Slumber 0.8.5 — source-only song library / tutor pass
+Date: 2026-09-12
+Baseline: exact source artifact from GitHub Actions run 34645245543 (slumber-0.8.5-exit-recreation)
+Target branch: pianohub-ci only. main is untouched.
+
+IMPORTANT STATUS
+- UNBUILT by explicit request.
+- No Gradle invocation.
+- No APK build.
+- No Android emulator run.
+- No Codespaces use.
+- No new GitHub Actions workflow run/dispatch.
+- Do not claim Android compile/runtime verification yet.
+
+Current source changes include:
+- Learn / Songs / Settings primary navigation; Piano/Progress are contextual rather than permanent bottom tabs.
+- Progress surfaced from Learn.
+- Piano immersive landscape workspace and preserved portrait restoration path.
+- Recording of real note events with last-take replay and MIDI export.
+- Existing Touch / Roll / Staff teaching surface reused for Listen / Learn / Play Along.
+- Deterministic scripted tutor. Wrong/future notes do not advance the expected-note follower.
+- Compact optional text field beside AI Teacher; deterministic commands stay local before any LLM fallback.
+- Songs selection and Song Studio preparation state persist across normal navigation.
+- MusicXML/XML/MXL and Standard MIDI import into normal Slumber lessons.
+- Installable local song-pack format with integrity checks, license/source metadata, metadata-first search and parse-on-open.
+- Starter public-domain/traditional melodies including Happy Birthday and Jingle Bells.
+- PDMX maintainer-side pack builder for large symbolic libraries.
+- PDMX minimal fetch helper downloads only PDMX.csv + mxl.tar.gz (~2.1 GB rather than the full ~14.4 GB record) and verifies Zenodo v9 MD5s.
+
+PDMX LARGE-LIBRARY CORRECTION
+- PDMX's `tracks` column contains zero-based General MIDI program numbers joined with '-'; it does NOT contain words such as 'piano'.
+- The builder parses programs correctly. Piano family = GM programs 0..7 in PDMX/MusPy's zero-based representation.
+- Default strict policy requires all declared programs to be piano programs. `--allow-mixed-piano` relaxes this to any piano-containing score.
+- `--offset` + `--limit` provide deterministic sharding (max 5,000 songs per pack).
+- Optional `--min-notes` / `--max-notes` can create beginner-focused subsets.
+- Exact third-party corpus files are NOT embedded in this source archive.
+
+SOURCE RESEARCH POLICY
+- PDMX v9 is the primary large public-domain MusicXML source. Its maintainers report 31,221 license conflicts and recommend the 222,856-score `no_license_conflict` subset.
+- Slumber further requires all-valid, deduplicated, explicit public-domain/CC0 metadata and conservative piano-program filtering.
+- OpenScore Lieder is CC0 and useful as a future secondary corpus, but voice+piano scores need deliberate piano-part selection.
+- Mutopia is useful but licenses are piece-specific and must be preserved per score.
+- MuseTrainer is a useful public-domain MusicXML reference for familiar titles, but Slumber does not blindly copy arrangements without a clear file-level license trail.
+- Piano-Tiles-style games use structured note charts in multiple formats; Piano Tiles 2 community tooling includes MIDI-to-JSON. Slumber uses standard MusicXML/MXL + MIDI and does not copy proprietary Piano Tiles song assets.
+
+STATIC SOURCE CHECKS PERFORMED
+- `python -m py_compile tools/build_pdmx_song_pack.py tools/test_build_pdmx_song_pack.py tools/fetch_pdmx_minimal.py`: passed.
+- `python tools/test_build_pdmx_song_pack.py`: PASS using synthetic PDMX CSV + MXL data.
+- Full unified patch dry-run against the exact baseline: passed.
+- Patch applied to a fresh baseline and byte-for-byte tree comparison against current source: zero differences.
+- These are not Android/Gradle build tests.
