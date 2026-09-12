@@ -1,4 +1,4 @@
-# frozen-scope build revision 8
+# frozen-scope build revision 9
 name: Slumber 0.8.5 Mobile APK
 
 on:
@@ -163,8 +163,9 @@ jobs:
             grep -q 'Glass Rain' /tmp/slumber-out/originals-ui.xml
             python -c 'import re,subprocess,xml.etree.ElementTree as E;r=E.parse("/tmp/slumber-out/originals-ui.xml").getroot();n=next(x for x in r.iter("node") if x.attrib.get("text")=="My XMLs");a=list(map(int,re.findall(r"\d+",n.attrib["bounds"])));subprocess.run(["adb","shell","input","tap",str((a[0]+a[2])//2),str((a[1]+a[3])//2)],check=True)'
             for I in $(seq 1 20); do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || true; adb pull /sdcard/ui.xml /tmp/slumber-out/my-xmls-ui.xml >/dev/null 2>&1 || true; if grep -q "isn't responding" /tmp/slumber-out/my-xmls-ui.xml 2>/dev/null; then python -c 'import re,subprocess,sys,xml.etree.ElementTree as E;r=E.parse(sys.argv[1]).getroot();n=next(x for x in r.iter("node") if x.attrib.get("text")=="Wait");a=list(map(int,re.findall(r"\d+",n.attrib["bounds"])));subprocess.run(["adb","shell","input","tap",str((a[0]+a[2])//2),str((a[1]+a[3])//2)],check=True)' /tmp/slumber-out/my-xmls-ui.xml; sleep 2; continue; fi; grep -q 'Import XML' /tmp/slumber-out/my-xmls-ui.xml 2>/dev/null && exit 0; sleep 2; done; cat /tmp/slumber-out/my-xmls-ui.xml || true; adb exec-out screencap -p > /tmp/slumber-out/failure-my-xmls.png || true; exit 1
-            adb push /tmp/slumber-out/open-with-test.xml /sdcard/Download/slumber-open-test.xml >/dev/null
-            adb shell am start -W -a android.intent.action.VIEW -d 'content://com.android.externalstorage.documents/document/primary%3ADownload%2Fslumber-open-test.xml' -t application/xml -f 0x1 -p com.night.pianohub
+            adb shell mkdir -p /sdcard/Android/data/com.night.pianohub/files
+            adb push /tmp/slumber-out/open-with-test.xml /sdcard/Android/data/com.night.pianohub/files/slumber-open-test.xml >/dev/null
+            adb shell am start -W -a android.intent.action.VIEW -d 'file:///sdcard/Android/data/com.night.pianohub/files/slumber-open-test.xml' -t application/xml -p com.night.pianohub
             for I in $(seq 1 20); do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || true; adb pull /sdcard/ui.xml /tmp/slumber-out/open-with-ui.xml >/dev/null 2>&1 || true; if grep -q "isn't responding" /tmp/slumber-out/open-with-ui.xml 2>/dev/null; then python -c 'import re,subprocess,sys,xml.etree.ElementTree as E;r=E.parse(sys.argv[1]).getroot();n=next(x for x in r.iter("node") if x.attrib.get("text")=="Wait");a=list(map(int,re.findall(r"\d+",n.attrib["bounds"])));subprocess.run(["adb","shell","input","tap",str((a[0]+a[2])//2),str((a[1]+a[3])//2)],check=True)' /tmp/slumber-out/open-with-ui.xml; sleep 2; continue; fi; grep -q 'Open With Test' /tmp/slumber-out/open-with-ui.xml 2>/dev/null && exit 0; sleep 2; done; cat /tmp/slumber-out/open-with-ui.xml || true; adb exec-out screencap -p > /tmp/slumber-out/failure-open-with.png || true; adb logcat -d -t 2500 > /tmp/slumber-out/mobile-logcat.txt || true; exit 1
             grep -q 'Duration' /tmp/slumber-out/open-with-ui.xml
             grep -q 'Difficulty' /tmp/slumber-out/open-with-ui.xml
