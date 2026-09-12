@@ -26,6 +26,8 @@ Current source changes include:
 - Starter public-domain/traditional melodies including Happy Birthday and Jingle Bells.
 - PDMX maintainer-side pack builder for large symbolic libraries.
 - PDMX minimal fetch helper downloads only PDMX.csv + mxl.tar.gz (~2.1 GB rather than the full ~14.4 GB record) and verifies Zenodo v9 MD5s.
+- OpenScore Lieder maintainer-side pack builder for its current 1,454-score CC0 corpus.
+- Multi-part MusicXML now prefers a declared Piano/Keyboard/Klavier part or General MIDI piano program 1..8 before falling back to the first serialized part.
 
 PDMX LARGE-LIBRARY CORRECTION
 - PDMX's `tracks` column contains zero-based General MIDI program numbers joined with '-'; it does NOT contain words such as 'piano'.
@@ -33,19 +35,32 @@ PDMX LARGE-LIBRARY CORRECTION
 - Default strict policy requires all declared programs to be piano programs. `--allow-mixed-piano` relaxes this to any piano-containing score.
 - `--offset` + `--limit` provide deterministic sharding (max 5,000 songs per pack).
 - Optional `--min-notes` / `--max-notes` can create beginner-focused subsets.
+- Builders mirror Slumber's 32 MiB per-score and 512 MiB installed-pack limits and end a shard before producing a pack the phone would reject.
+- Per-score PDMX source links use the real dataset citation rather than an invented URL fragment.
 - Exact third-party corpus files are NOT embedded in this source archive.
 
+OPENSCORE LIEDER
+- Repository: OpenScore/Lieder.
+- Repository license file is CC0 1.0 Universal.
+- Current data/corpus.yaml reports 1,454 scores, 143 composers and 316 sets.
+- The builder packages already-converted local MXL files; it does not invoke MuseScore, Gradle, Android tooling, network access, Codespaces or GitHub Actions.
+- Voice+piano scores remain intact in the pack. Slumber selects the piano part when the lesson is opened.
+- Deterministic offset/limit sharding, source/license metadata and pack size safety checks are included.
+
 SOURCE RESEARCH POLICY
-- PDMX v9 is the primary large public-domain MusicXML source. Its maintainers report 31,221 license conflicts and recommend the 222,856-score `no_license_conflict` subset.
+- PDMX v9 remains the primary large public-domain MusicXML source. Its maintainers report 31,221 license conflicts and recommend the 222,856-score `no_license_conflict` subset.
 - Slumber further requires all-valid, deduplicated, explicit public-domain/CC0 metadata and conservative piano-program filtering.
-- OpenScore Lieder is CC0 and useful as a future secondary corpus, but voice+piano scores need deliberate piano-part selection.
+- OpenScore Lieder is the CC0 secondary corpus for voice+piano/classical material.
 - Mutopia is useful but licenses are piece-specific and must be preserved per score.
 - MuseTrainer is a useful public-domain MusicXML reference for familiar titles, but Slumber does not blindly copy arrangements without a clear file-level license trail.
 - Piano-Tiles-style games use structured note charts in multiple formats; Piano Tiles 2 community tooling includes MIDI-to-JSON. Slumber uses standard MusicXML/MXL + MIDI and does not copy proprietary Piano Tiles song assets.
 
 STATIC SOURCE CHECKS PERFORMED
-- `python -m py_compile tools/build_pdmx_song_pack.py tools/test_build_pdmx_song_pack.py tools/fetch_pdmx_minimal.py`: passed.
+- `python -m py_compile` passed for the PDMX and OpenScore builder/test tools.
 - `python tools/test_build_pdmx_song_pack.py`: PASS using synthetic PDMX CSV + MXL data.
-- Full unified patch dry-run against the exact baseline: passed.
-- Patch applied to a fresh baseline and byte-for-byte tree comparison against current source: zero differences.
+- `python tools/test_build_openscore_lieder_song_pack.py`: PASS using synthetic OpenScore-style MXL data.
+- Main unified patch dry-run against the exact baseline: passed.
+- Main patch applied to a fresh baseline and byte-for-byte tree comparison against the working source: zero differences.
+- OpenScore follow-up patch dry-run/apply against the prior checkpoint: passed.
+- Follow-up changed files compared byte-for-byte with the current source: zero differences.
 - These are not Android/Gradle build tests.
