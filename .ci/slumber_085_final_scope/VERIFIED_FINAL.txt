@@ -1,0 +1,64 @@
+Slumber 0.8.5 — verified frozen-scope candidate
+Verified: 2026-09-12
+Branch: pianohub-ci
+
+TESTED SOURCE / GATE
+Tested commit: 3478e88e8dd0d5e00bc8b1644b466d2929d42877
+Workflow run: 34693318397
+Workflow job: 103552375516
+Result: SUCCESS
+
+ANDROID RUNTIME FIX
+Patch: .ci/slumber_085_android_xml_runtime_fix.patch
+Patch Git blob: 1feea2826608df15878f012716ca7c369b9c8b70
+Patch SHA256: bcebe859edf937c63404f5bfeed19ee5213710e60a45955e7cd27832d9555a73
+Change: guard DocumentBuilderFactory.setXIncludeAware(false) on Android while retaining existing XML external-entity/DTD protections.
+
+APK
+Filename: Slumber-0.8.5-final.apk
+Bytes: 24544465
+SHA256: 0be7d5b98979f948d77e7fbaad9e92a68c85a49931abf41e80cf39c88bb92d3e
+R8 minification: PASS
+Resource shrinking: PASS
+Unit tests: PASS
+
+AUDIO INTEGRITY
+Bundled Yamaha C5 recordings: 120
+Bundled original sample bytes: 21923785
+Audio fidelity requirement: PASS (original sample bytes preserved)
+
+ANDROID 36 PRODUCT GATE
+Cold launch: PASS
+Home / "Ready to practice?": PASS
+Piano launch: PASS
+Piano landscape orientation: PASS
+Piano back -> portrait Home: PASS
+Songs / Official Songs: PASS
+Songs / Slumber Originals: PASS
+Songs / My XMLs: PASS
+My XMLs / Import XML: PASS
+External content:// ACTION_VIEW XML open: PASS
+Incoming chart preview title: PASS
+Incoming chart preview Duration: PASS
+Incoming chart preview Difficulty: PASS
+Incoming chart preview Notes: PASS
+Incoming chart preview Play action present: PASS
+Incoming chart preview Add to My XMLs action present: PASS
+Process alive after Open-With: PASS
+No Slumber FATAL EXCEPTION / ANR in runtime gate log: PASS
+
+SLUMBER ORIGINALS PRESENT IN TESTED UI
+Count: 3
+- After Midnight
+- Glass Rain
+- Ember Waltz
+
+WORKFLOW ARTIFACT
+Artifact name: slumber-0.8.5-final
+Artifact ID: 10298346549
+Artifact ZIP bytes: 23709627
+Artifact ZIP SHA256: 5543e2a290e5df10471c162abcbf81e65b99c13818068f53679904cf5467e479
+Retention used by gate: 1 day
+
+SCOPE
+This verification applies to the frozen Slumber scope. No new feature scope was added by this checkpoint.
