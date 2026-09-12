@@ -1,4 +1,4 @@
-# frozen-scope build revision 6
+# frozen-scope build revision 7
 name: Slumber 0.8.5 Mobile APK
 
 on:
@@ -141,6 +141,7 @@ jobs:
             adb install -r /tmp/slumber-out/Slumber-0.8.5-final.apk
             adb shell wm dismiss-keyguard || true
             adb shell input keyevent 82 || true
+            adb shell settings put secure immersive_mode_confirmations confirmed || true
             sleep 10
             adb logcat -c || true
             adb shell am force-stop com.night.pianohub
