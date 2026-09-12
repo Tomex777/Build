@@ -1,0 +1,54 @@
+name: Slumber 0.8.5 Source Inspection
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".github/workflows/slumber-085-source-inspection.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  inspect-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore exact Slumber 0.8.5 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber-base /tmp/slumber
+          mkdir -p /tmp/slumber-base /tmp/slumber
+          gh run download 34645245543 --repo Tomex777/Build --name slumber-0.8.5-exit-recreation --dir /tmp/slumber-base
+          SRC=$(find /tmp/slumber-base -name 'slumber-production-0.8.5-source.tgz' -type f -print -quit)
+          test -n "$SRC"
+          tar -xzf "$SRC" -C /tmp/slumber
+
+      - name: Apply frozen Slumber feature scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat "$GITHUB_WORKSPACE"/.ci/slumber_085_final_scope/final.patch.gz.b64.part* > /tmp/slumber-final.patch.gz.b64
+          echo '8133f27d9d76d002967f1c53d0a0b27cf89eec9f31cb24ff2188e70951ec504b  /tmp/slumber-final.patch.gz.b64' | sha256sum -c -
+          base64 -d /tmp/slumber-final.patch.gz.b64 | gzip -dc > /tmp/slumber-final.patch
+          echo '42b4f12ec7496c52712154594c31ca39bfe8f43addc7edaab84acefa37c23fa1  /tmp/slumber-final.patch' | sha256sum -c -
+          cd /tmp/slumber
+          patch -p1 < /tmp/slumber-final.patch
+
+      - name: Print XML import source only
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '===== SlumberChartXml.kt ====='
+          sed -n '1,320p' /tmp/slumber/app/src/main/java/com/night/pianohub/music/SlumberChartXml.kt
+          echo '===== SlumberChartXmlTest.kt ====='
+          sed -n '1,320p' /tmp/slumber/app/src/test/java/com/night/pianohub/music/SlumberChartXmlTest.kt
+          echo '===== MainActivity routing ====='
+          grep -n -C 18 -E 'SlumberChartXml|StructuredScoreImporter|ACTION_VIEW|incoming|Intent|intent|chart|Uri' /tmp/slumber/app/src/main/java/com/night/pianohub/MainActivity.kt || true
+          echo '===== ChartPreviewScreen routing ====='
+          grep -n -C 18 -E 'SlumberChartXml|StructuredScoreImporter|incoming|uri|Uri|chart|parse|import' /tmp/slumber/app/src/main/java/com/night/pianohub/ui/screens/ChartPreviewScreen.kt || true
