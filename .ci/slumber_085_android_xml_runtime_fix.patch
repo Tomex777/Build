@@ -1,0 +1,11 @@
+--- a/app/src/main/java/com/night/pianohub/music/SlumberChartXml.kt
++++ b/app/src/main/java/com/night/pianohub/music/SlumberChartXml.kt
+@@ -218,7 +218,7 @@
+ 
+     private fun secureFactory(): DocumentBuilderFactory = DocumentBuilderFactory.newInstance().apply {
+         isNamespaceAware = false
+-        isXIncludeAware = false
++        runCatching { isXIncludeAware = false }
+         setExpandEntityReferences(false)
+         runCatching { setFeature("http://apache.org/xml/features/disallow-doctype-decl", true) }
+         runCatching { setFeature("http://xml.org/sax/features/external-general-entities", false) }
