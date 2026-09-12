@@ -1,4 +1,4 @@
-# frozen-scope build revision 10
+# frozen-scope build revision 11
 name: Slumber 0.8.5 Mobile APK
 
 on:
@@ -110,10 +110,11 @@ jobs:
         shell: bash
         run: |
           cat > /tmp/slumber-out/open-with-test.xml <<'XML'
-          <song title="Open With Test" artist="Slumber QA" bpm="120" difficulty="Easy">
-            <note pitch="C4" time="0.000" duration="0.350" />
-            <note pitch="E4" time="0.500" duration="0.350" />
-            <note pitch="G4" time="1.000" duration="0.500" />
+          <?xml version="1.0" encoding="utf-8"?>
+          <song version="1" title="Open With Test" artist="Slumber QA" bpm="120" difficulty="Easy">
+            <note midi="60" start="0.000" duration="0.350" velocity="96" />
+            <note midi="64" start="0.500" duration="0.350" velocity="96" />
+            <note midi="67" start="1.000" duration="0.500" velocity="96" />
           </song>
           XML
 
@@ -201,10 +202,11 @@ jobs:
           import java.nio.charset.StandardCharsets;
 
           public final class ChartProvider extends ContentProvider {
-              private static final byte[] CHART = ("<song title=\"Open With Test\" artist=\"Slumber QA\" bpm=\"120\" difficulty=\"Easy\">\n"
-                      + "  <note pitch=\"C4\" time=\"0.000\" duration=\"0.350\" />\n"
-                      + "  <note pitch=\"E4\" time=\"0.500\" duration=\"0.350\" />\n"
-                      + "  <note pitch=\"G4\" time=\"1.000\" duration=\"0.500\" />\n"
+              private static final byte[] CHART = ("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+                      + "<song version=\"1\" title=\"Open With Test\" artist=\"Slumber QA\" bpm=\"120\" difficulty=\"Easy\">\n"
+                      + "  <note midi=\"60\" start=\"0.000\" duration=\"0.350\" velocity=\"96\" />\n"
+                      + "  <note midi=\"64\" start=\"0.500\" duration=\"0.350\" velocity=\"96\" />\n"
+                      + "  <note midi=\"67\" start=\"1.000\" duration=\"0.500\" velocity=\"96\" />\n"
                       + "</song>\n").getBytes(StandardCharsets.UTF_8);
 
               @Override public boolean onCreate() { return true; }
