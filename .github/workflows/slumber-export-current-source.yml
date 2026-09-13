@@ -1,0 +1,104 @@
+name: Export current Slumber 0.8.5 source
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".github/workflows/slumber-export-current-source.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore exact 0.8.5 baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber-base /tmp/slumber /tmp/out
+          mkdir -p /tmp/slumber-base /tmp/slumber /tmp/out
+          gh run download 34645245543 --repo Tomex777/Build --name slumber-0.8.5-exit-recreation --dir /tmp/slumber-base
+          SRC=$(find /tmp/slumber-base -name 'slumber-production-0.8.5-source.tgz' -type f -print -quit)
+          test -n "$SRC"
+          tar -xzf "$SRC" -C /tmp/slumber
+          grep -q 'versionName = "0.8.5"' /tmp/slumber/app/build.gradle.kts
+
+      - name: Apply frozen Slumber scope and Android 8+ compatibility
+        run: |
+          set -euo pipefail
+          cat .ci/slumber_085_final_scope/final.patch.gz.b64.part* > /tmp/slumber-final.patch.gz.b64
+          echo '8133f27d9d76d002967f1c53d0a0b27cf89eec9f31cb24ff2188e70951ec504b  /tmp/slumber-final.patch.gz.b64' | sha256sum -c -
+          base64 -d /tmp/slumber-final.patch.gz.b64 | gzip -dc > /tmp/slumber-final.patch
+          echo '42b4f12ec7496c52712154594c31ca39bfe8f43addc7edaab84acefa37c23fa1  /tmp/slumber-final.patch' | sha256sum -c -
+          echo '75efe499cdc80e28f3fb1e5abd60ba4d67e933d6462b0d58feba05a68c596228  .ci/slumber_085_minsdk26.patch' | sha256sum -c -
+          cd /tmp/slumber
+          patch -p1 < /tmp/slumber-final.patch
+          patch -p1 < "$GITHUB_WORKSPACE/.ci/slumber_085_android_xml_runtime_fix.patch"
+          patch -p1 < "$GITHUB_WORKSPACE/.ci/slumber_085_minsdk26.patch"
+
+      - name: Persist the exact release shrinker configuration used by the verified APK
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/slumber/app/build.gradle.kts')
+          s=p.read_text()
+          needle='    buildFeatures { compose = true }\n'
+          assert needle in s
+          block='''    buildFeatures { compose = true }\n\n    buildTypes {\n        getByName("release") {\n            isMinifyEnabled = true\n            isShrinkResources = true\n            signingConfig = signingConfigs.getByName("debug")\n            proguardFiles(\n                getDefaultProguardFile("proguard-android-optimize.txt"),\n                "proguard-rules.pro",\n            )\n        }\n    }\n'''
+          p.write_text(s.replace(needle, block, 1))
+          PY
+
+      - name: Verify checkpoint markers
+        run: |
+          set -euo pipefail
+          cd /tmp/slumber
+          grep -q 'minSdk = 26' app/build.gradle.kts
+          grep -q 'targetSdk = 36' app/build.gradle.kts
+          grep -q 'compileSdk = 37' app/build.gradle.kts
+          grep -q 'isMinifyEnabled = true' app/build.gradle.kts
+          grep -q 'isShrinkResources = true' app/build.gradle.kts
+          grep -q 'Slumber Originals' app/src/main/java/com/night/pianohub/music/PianoLessonCatalog.kt
+          grep -q 'Add to My XMLs' app/src/main/java/com/night/pianohub/ui/screens/ChartPreviewScreen.kt
+          grep -q 'runCatching { isXIncludeAware = false }' app/src/main/java/com/night/pianohub/music/SlumberChartXml.kt
+
+      - name: Add source checkpoint metadata
+        run: |
+          cat > /tmp/slumber/CURRENT_CHECKPOINT.md <<'EOF'
+          # Current Slumber checkpoint
+
+          Version: 0.8.5
+          Minimum SDK: 26 (Android 8.0+)
+          Target SDK: 36
+          Compile SDK: 37
+          Release minification: R8 enabled
+          Resource shrinking: enabled
+          Verified Yamaha C5 sample count in release APK: 120
+          Verified Yamaha C5 sample bytes in release APK: 21,923,785
+          Verified release APK size: 23,467,329 bytes
+          Verified release APK SHA-256: 1289daea8425ba1cced229e847a275d8abd89221dc2773735696dffb1a3adb1c
+
+          This source includes the frozen XML/Open-in-Slumber scope and Android 8+ compatibility fixes used by the verified release checkpoint.
+          The 120 Yamaha C5 samples are reproducibly fetched by the Gradle sample task and bundled into the APK; generated sample binaries are not committed to source control.
+          EOF
+
+      - name: Pack source
+        run: |
+          set -euo pipefail
+          cd /tmp/slumber
+          tar --exclude='./.gradle' --exclude='./.kotlin' --exclude='./app/build' --exclude='./build' -czf /tmp/out/slumber-0.8.5-android8plus-current-source.tgz .
+          sha256sum /tmp/out/slumber-0.8.5-android8plus-current-source.tgz > /tmp/out/source-sha256.txt
+          find . -type f | sort > /tmp/out/source-file-list.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: slumber-0.8.5-android8plus-current-source
+          path: /tmp/out/*
+          if-no-files-found: error
+          retention-days: 7
