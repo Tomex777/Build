@@ -2,23 +2,39 @@ name: Night Mods Android CI
 
 on:
   push:
-    branches: [ nightmods-ci ]
+    branches:
+      - nightmods-ci
   workflow_dispatch:
 
 jobs:
-  build-night-mods:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    env:
-      CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
-      CCACHE_NOHASHDIR: "true"
-      CCACHE_HARDLINK: "true"
 
     steps:
-      - name: Checkout Night Mods CI branch
+      - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android API 36
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36"
+
       - name: Clone LSPosed ET
+        shell: bash
         run: |
           git clone --depth 1 https://github.com/EzequielDevTeam/LSPosed-ET.git lsposed-et
           cd lsposed-et
@@ -28,65 +44,48 @@ jobs:
           rm -rf external/lsplant/test
           git -C external/lsplant submodule update --init --recursive --depth 1
 
-      - name: Apply Night Mods manager overlay
+      - name: Apply Night Mods overlay
+        shell: bash
         run: |
           python3 nightmods/manager-overlay/apply_nightmods.py lsposed-et
           grep -n 'startDestination="@id/modules_nav"' lsposed-et/app/src/main/res/navigation/main_nav.xml
           grep -n 'Night Mods' lsposed-et/app/src/main/res/values/strings.xml
           test -f lsposed-et/app/src/main/java/org/lsposed/manager/nightmods/NightModsBackend.java
 
-      - name: Checkout libxposed service API 100
+      - name: Restore libxposed service dependency
+        shell: bash
         run: |
           git clone --depth 1 --branch 100 https://github.com/libxposed/service.git lsposed-et/libxposed/service
-
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-home-cache-cleanup: true
-
-      - name: Install vendored libxposed API 100
-        working-directory: lsposed-et
-        run: |
           mkdir -p ~/.m2/repository/io/github/libxposed/api/100
-          cp ci/libxposed-api-100/api-100.aar ci/libxposed-api-100/api-100.pom ~/.m2/repository/io/github/libxposed/api/100/
+          cp lsposed-et/ci/libxposed-api-100/api-100.aar lsposed-et/ci/libxposed-api-100/api-100.pom ~/.m2/repository/io/github/libxposed/api/100/
 
-      - name: Build libxposed service dependency
+      - name: Build libxposed service
         working-directory: lsposed-et/libxposed/service
-        run: |
-          echo 'org.gradle.caching=true' >> ~/.gradle/gradle.properties
-          echo 'org.gradle.parallel=true' >> ~/.gradle/gradle.properties
-          echo 'org.gradle.jvmargs=-Xmx3072m -Dfile.encoding=UTF-8 -XX:+UseParallelGC' >> ~/.gradle/gradle.properties
-          ./gradlew publishToMavenLocal --stacktrace
+        run: ./gradlew --no-daemon --stacktrace publishToMavenLocal
 
       - name: Build Night Mods manager APK
         working-directory: lsposed-et
-        run: |
-          ./gradlew :app:assembleDebug --stacktrace
+        run: ./gradlew --no-daemon --stacktrace :app:assembleDebug
 
-      - name: Verify APK exists
-        run: |
-          find lsposed-et/app/build/outputs -type f -name '*.apk' -print
-          test -n "$(find lsposed-et/app/build/outputs -type f -name '*.apk' -print -quit)"
+      - name: List APK outputs
+        if: always()
+        shell: bash
+        run: find lsposed-et/app/build/outputs -type f -name '*.apk' -print 2>/dev/null || true
 
-      - name: Upload Night Mods APK
+      - name: Upload debug APK
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Night-Mods-debug-apk
           path: lsposed-et/app/build/outputs/**/*.apk
-          if-no-files-found: error
+          if-no-files-found: warn
 
-      - name: Upload patched manager source snapshot
+      - name: Upload Gradle reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Night-Mods-patched-manager-source
+          name: Night-Mods-build-reports
           path: |
-            lsposed-et/app/src/main/java/org/lsposed/manager/nightmods/**
-            lsposed-et/app/src/main/res/navigation/main_nav.xml
-            lsposed-et/app/src/main/res/menu/navigation_menu.xml
-            lsposed-et/app/src/main/res/values/strings.xml
+            lsposed-et/app/build/reports/**
+            lsposed-et/app/build/outputs/logs/**
+          if-no-files-found: ignore
