@@ -32,12 +32,22 @@ jobs:
           test -n "$SRC"
           tar -xzf "$SRC" -C /tmp/slumber
 
-      - name: Apply accepted song library and OpenScore source work
+      - name: Validate and apply accepted song library source work
         shell: bash
         run: |
           set -euo pipefail
-          base64 -d "$GITHUB_WORKSPACE/.ci/slumber_085_song_library_unbuilt/slumber_085_song_library_unbuilt.patch.gz.b64" | gzip -dc > /tmp/song-library.patch
-          base64 -d "$GITHUB_WORKSPACE/.ci/slumber_085_song_library_unbuilt/slumber_085_song_library_openscore_update.patch.gz.b64" | gzip -dc > /tmp/openscore.patch
+          MAIN="$GITHUB_WORKSPACE/.ci/slumber_085_song_library_unbuilt/slumber_085_song_library_unbuilt.patch.gz.b64"
+          OPEN="$GITHUB_WORKSPACE/.ci/slumber_085_song_library_unbuilt/slumber_085_song_library_openscore_update.patch.gz.b64"
+          echo "a4599b5eb76b0f927279f229f499d54227ea6924ae4497f65b9922b7002b99d8  $MAIN" | sha256sum -c -
+          echo "5985136d3f57a296be7ae629d66be1cd19b7764d8deebce8c88c4b5c4f0bbb63  $OPEN" | sha256sum -c -
+          base64 -d "$MAIN" > /tmp/song-library.patch.gz
+          base64 -d "$OPEN" > /tmp/openscore.patch.gz
+          echo "51c25dd5e6b798d7df40b3d08b2479cb2e7a7286f817d69bc85340f155ca12d9  /tmp/song-library.patch.gz" | sha256sum -c -
+          echo "316881d661a85d8e77180a6280f10d6da4c20f6345b0b6afe5421851323e10bc  /tmp/openscore.patch.gz" | sha256sum -c -
+          gzip -t /tmp/song-library.patch.gz
+          gzip -t /tmp/openscore.patch.gz
+          gzip -dc /tmp/song-library.patch.gz > /tmp/song-library.patch
+          gzip -dc /tmp/openscore.patch.gz > /tmp/openscore.patch
           echo "4822813b4d72f844528ce245750bd9e5f40bbaf5a4c674cab90b7944e6d30dbe  /tmp/song-library.patch" | sha256sum -c -
           echo "270e7e3d89d72c2fd7ea88881b69f81893e247145de941ac4acdd760711478f2  /tmp/openscore.patch" | sha256sum -c -
           cd /tmp/slumber
@@ -53,7 +63,6 @@ jobs:
           cd /tmp/slumber
           test -f app/src/main/java/com/night/pianohub/ui/screens/SongsScreen.kt
           grep -R -q 'MusicXML' app/src/main/java
-          grep -R -q 'OpenScore' tools README.md . 2>/dev/null || true
           python -m py_compile tools/*.py
           python tools/test_build_pdmx_song_pack.py
           python tools/test_build_openscore_lieder_song_pack.py
