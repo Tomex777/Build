@@ -5,7 +5,7 @@ on:
   push:
     branches: ["room-visual-audit"]
     paths:
-      - "room-visual-audit/chatgpt_room_v3.zip"
+      - "room-visual-audit/v3-src/**"
       - ".github/workflows/room-v3-visual-audit.yml"
 
 permissions:
@@ -20,14 +20,16 @@ jobs:
         with:
           ref: room-visual-audit
 
-      - name: Extract room v3
+      - name: Prepare exact room v3 source
         run: |
-          rm -rf /tmp/room-v3 && mkdir -p /tmp/room-v3
-          sha256sum room-visual-audit/chatgpt_room_v3.zip
-          unzip -t room-visual-audit/chatgpt_room_v3.zip
-          unzip -q room-visual-audit/chatgpt_room_v3.zip -d /tmp/room-v3
-          test -f /tmp/room-v3/chatgpt_room_v3/index.html
-          test -f /tmp/room-v3/chatgpt_room_v3/src/main.js
+          rm -rf /tmp/room-v3
+          mkdir -p /tmp/room-v3/site/src
+          cp room-visual-audit/v3-src/index.html /tmp/room-v3/site/index.html
+          cp room-visual-audit/v3-src/room.css /tmp/room-v3/site/room.css
+          cat room-visual-audit/v3-src/src/main.part1.js room-visual-audit/v3-src/src/main.part2.js > /tmp/room-v3/site/src/main.js
+          echo "50b38293bede7efe2c57737927c5fc3dae4f5d863e61d66b1d0ec18fb3e040b1  /tmp/room-v3/site/index.html" | sha256sum -c -
+          echo "68c08438a2b9d282c3b41c7f4f1e2eeff613c0e25118192c2f198d90456d4f0f  /tmp/room-v3/site/room.css" | sha256sum -c -
+          echo "113ecb279bd5bae0b3f25a80635144da8174fb2ed1ebd2855b39a02506c7c5c2  /tmp/room-v3/site/src/main.js" | sha256sum -c -
 
       - uses: actions/setup-node@v4
         with:
@@ -42,7 +44,7 @@ jobs:
 
       - name: Serve room
         run: |
-          cd /tmp/room-v3/chatgpt_room_v3
+          cd /tmp/room-v3/site
           python3 -m http.server 4175 --bind 127.0.0.1 >/tmp/room-v3-http.log 2>&1 &
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:4175/ >/dev/null; then exit 0; fi
@@ -82,7 +84,7 @@ jobs:
             '--disable-dev-shm-usage','--disable-gpu-vsync'
           ]});
 
-          async function capture(name,page,file){
+          async function capture(page,file){
             const target=path.join(out,file);
             await page.screenshot({path:target,fullPage:false,timeout:90000});
             return analyzePng(target);
@@ -120,8 +122,7 @@ jobs:
             if(runtime.errorVisible||!runtime.webgl||runtime.canvasWidth<2||runtime.canvasHeight<2) fatal=true;
 
             const shots={};
-            shots.initial=await capture(name,page,`${name}-initial.png`);
-
+            shots.initial=await capture(page,`${name}-initial.png`);
             if(!mobile){
               const x=Math.round(viewport.width*.56), y=Math.round(viewport.height*.50);
               await page.mouse.move(x,y);
@@ -129,15 +130,13 @@ jobs:
               await page.mouse.move(x-135,y+28,{steps:12});
               await page.mouse.up();
               await page.waitForTimeout(500);
-              shots.orbited=await capture(name,page,`${name}-orbited.png`);
-
+              shots.orbited=await capture(page,`${name}-orbited.png`);
               await page.keyboard.press('KeyL');
               await page.waitForTimeout(450);
-              shots.lamp=await capture(name,page,`${name}-lamp-on.png`);
-
+              shots.lamp=await capture(page,`${name}-lamp-on.png`);
               await page.keyboard.press('KeyR');
               await page.waitForTimeout(450);
-              shots.reset=await capture(name,page,`${name}-reset.png`);
+              shots.reset=await capture(page,`${name}-reset.png`);
             }
 
             const meaningful=Object.values(shots).every(s=>s.stdLuma>7 && (s.maxLuma-s.minLuma)>45);
