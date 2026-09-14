@@ -1,0 +1,178 @@
+name: Room V3 Visual Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["room-visual-audit"]
+    paths:
+      - "room-visual-audit/chatgpt_room_v3.zip"
+      - ".github/workflows/room-v3-visual-audit.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: room-visual-audit
+
+      - name: Extract room v3
+        run: |
+          rm -rf /tmp/room-v3 && mkdir -p /tmp/room-v3
+          echo "9b50d5062d11ea66a36a056f86e67192f52bf58110e45a020f133c40aab6fbf4  room-visual-audit/chatgpt_room_v3.zip" | sha256sum -c -
+          unzip -q room-visual-audit/chatgpt_room_v3.zip -d /tmp/room-v3
+          test -f /tmp/room-v3/chatgpt_room_v3/index.html
+          test -f /tmp/room-v3/chatgpt_room_v3/src/main.js
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Chromium audit dependencies
+        run: |
+          cd /tmp/room-v3
+          npm init -y >/dev/null 2>&1
+          npm install playwright@latest pngjs@latest
+          npx playwright install --with-deps chromium
+
+      - name: Serve room
+        run: |
+          cd /tmp/room-v3/chatgpt_room_v3
+          python3 -m http.server 4175 --bind 127.0.0.1 >/tmp/room-v3-http.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4175/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/room-v3-http.log
+          exit 1
+
+      - name: Render and inspect in Chromium
+        run: |
+          cat >/tmp/room-v3/capture.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { PNG } from 'pngjs';
+
+          const out='/tmp/room-v3/output';
+          fs.mkdirSync(out,{recursive:true});
+          const cases=[];
+          let fatal=false;
+
+          function analyzePng(file){
+            const png=PNG.sync.read(fs.readFileSync(file));
+            let sum=0,sum2=0,min=255,max=0,n=0;
+            const step=Math.max(1,Math.floor((png.width*png.height)/50000));
+            for(let p=0;p<png.width*png.height;p+=step){
+              const i=p*4;
+              const y=.2126*png.data[i]+.7152*png.data[i+1]+.0722*png.data[i+2];
+              sum+=y;sum2+=y*y;min=Math.min(min,y);max=Math.max(max,y);n++;
+            }
+            const mean=sum/n,variance=Math.max(0,sum2/n-mean*mean);
+            return {width:png.width,height:png.height,meanLuma:+mean.toFixed(2),stdLuma:+Math.sqrt(variance).toFixed(2),minLuma:+min.toFixed(2),maxLuma:+max.toFixed(2)};
+          }
+
+          const browser=await chromium.launch({headless:true,args:[
+            '--use-angle=swiftshader','--enable-webgl','--ignore-gpu-blocklist',
+            '--disable-dev-shm-usage','--disable-gpu-vsync'
+          ]});
+
+          async function capture(name,page,file){
+            const target=path.join(out,file);
+            await page.screenshot({path:target,fullPage:false,timeout:90000});
+            return analyzePng(target);
+          }
+
+          async function inspect(name,viewport,mobile=false){
+            const context=await browser.newContext({viewport,deviceScaleFactor:1,isMobile:mobile,hasTouch:mobile});
+            const page=await context.newPage();
+            page.setDefaultTimeout(90000);
+            const events=[];
+            page.on('console',m=>events.push({type:`console:${m.type()}`,text:m.text()}));
+            page.on('pageerror',e=>{events.push({type:'pageerror',text:e.message});fatal=true;});
+            page.on('requestfailed',r=>events.push({type:'requestfailed',text:`${r.url()} :: ${r.failure()?.errorText||''}`}));
+
+            await page.goto('http://127.0.0.1:4175/',{waitUntil:'networkidle',timeout:90000});
+            await page.waitForTimeout(2400);
+            const runtime=await page.evaluate(()=>{
+              const c=document.querySelector('#scene');
+              const e=document.querySelector('#error');
+              const r=document.querySelector('#resetView');
+              const h=document.querySelector('#hint');
+              let gl=null;
+              try{ gl=c?.getContext('webgl2')||c?.getContext('webgl'); }catch(_){}
+              return {
+                title:document.title,
+                canvasWidth:c?.width||0,canvasHeight:c?.height||0,
+                cssWidth:c?.getBoundingClientRect().width||0,cssHeight:c?.getBoundingClientRect().height||0,
+                errorVisible:e?!e.hidden:null,errorText:e?.textContent||'',
+                resetVisible:!!r && getComputedStyle(r).display!=='none',
+                hintText:h?.textContent||'',webgl:!!gl,
+                renderer:gl?gl.getParameter(gl.RENDERER):null,
+                vendor:gl?gl.getParameter(gl.VENDOR):null
+              };
+            });
+            if(runtime.errorVisible||!runtime.webgl||runtime.canvasWidth<2||runtime.canvasHeight<2) fatal=true;
+
+            const shots={};
+            shots.initial=await capture(name,page,`${name}-initial.png`);
+
+            if(!mobile){
+              const x=Math.round(viewport.width*.56), y=Math.round(viewport.height*.50);
+              await page.mouse.move(x,y);
+              await page.mouse.down();
+              await page.mouse.move(x-135,y+28,{steps:12});
+              await page.mouse.up();
+              await page.waitForTimeout(500);
+              shots.orbited=await capture(name,page,`${name}-orbited.png`);
+
+              await page.keyboard.press('KeyL');
+              await page.waitForTimeout(450);
+              shots.lamp=await capture(name,page,`${name}-lamp-on.png`);
+
+              await page.keyboard.press('KeyR');
+              await page.waitForTimeout(450);
+              shots.reset=await capture(name,page,`${name}-reset.png`);
+            }
+
+            const meaningful=Object.values(shots).every(s=>s.stdLuma>7 && (s.maxLuma-s.minLuma)>45);
+            if(!meaningful) fatal=true;
+            cases.push({name,viewport,mobile,runtime,shots,meaningful,events});
+            await context.close();
+          }
+
+          await inspect('desktop-1280x800',{width:1280,height:800},false);
+          await inspect('mobile-393x873',{width:393,height:873},true);
+          await browser.close();
+
+          fs.writeFileSync(path.join(out,'report.json'),JSON.stringify({fatal,cases},null,2));
+          fs.writeFileSync(path.join(out,'browser.log'),cases.flatMap(x=>x.events.map(e=>`[${x.name}] ${e.type}: ${e.text}`)).join('\n'));
+          if(fatal) process.exitCode=2;
+          EOF
+          cd /tmp/room-v3 && node capture.mjs
+
+      - name: Save audit evidence
+        if: always()
+        run: |
+          rm -rf room-visual-audit/v3-output
+          mkdir -p room-visual-audit/v3-output
+          cp -f /tmp/room-v3/output/* room-visual-audit/v3-output/ 2>/dev/null || true
+          cp -f /tmp/room-v3-http.log room-visual-audit/v3-output/http.log 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add room-visual-audit/v3-output
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update room v3 visual audit [skip ci]"
+            git push origin HEAD:room-visual-audit
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: room-v3-visual-audit
+          path: room-visual-audit/v3-output
+          if-no-files-found: warn
