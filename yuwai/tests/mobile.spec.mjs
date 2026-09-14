@@ -74,7 +74,9 @@ test('mobile Layers and Properties open as dismissible bottom sheets', async ({ 
   await page.locator('#mobile-more').click();
   await page.locator('[data-ma="properties"]').click();
   await expect(page.locator('#right-panel')).toHaveClass(/mobile-open/);
-  await expect(page.locator('#right-panel')).toContainText('Position');
+  await expect(page.locator('#right-panel')).toContainText('Layer name');
+  await expect(page.locator('#right-panel')).toContainText('Layout');
+  await expect(page.locator('#right-panel input[type="number"]')).toHaveCount(14);
   await page.locator('#mobile-scrim').click({position:{x:20,y:20}});
   await expect(page.locator('#right-panel')).not.toHaveClass(/mobile-open/);
   expect(errors).toEqual([]);
@@ -128,8 +130,19 @@ test('prototype fits mobile modal and navigates Home → Trip → Home', async (
   await page.locator('#mobile-more').click();
   await page.locator('[data-ma="preview"]').click();
   await expect(page.locator('#preview-phone')).toBeVisible();
-  const fit=await page.evaluate(()=>{const p=document.querySelector('#preview-phone').getBoundingClientRect();const s=document.querySelector('#preview-stage').getBoundingClientRect();return{p:p.toJSON(),s:s.toJSON(),title:document.querySelector('.modal-head span').textContent};});
-  expect(fit.p.left).toBeGreaterThanOrEqual(fit.s.left-2); expect(fit.p.right).toBeLessThanOrEqual(fit.s.right+2); expect(fit.p.top).toBeGreaterThanOrEqual(fit.s.top-2); expect(fit.p.bottom).toBeLessThanOrEqual(fit.s.bottom+2); expect(fit.title).toContain('Aster · Home');
+  const fit=await page.evaluate(()=>{
+    const p=document.querySelector('#preview-phone').getBoundingClientRect();
+    const stage=document.querySelector('#preview-stage');
+    const s=stage.getBoundingClientRect();
+    const css=getComputedStyle(stage);
+    const inner={left:s.left+parseFloat(css.paddingLeft),right:s.right-parseFloat(css.paddingRight),top:s.top+parseFloat(css.paddingTop),bottom:s.bottom-parseFloat(css.paddingBottom)};
+    return{p:p.toJSON(),s:s.toJSON(),inner,title:document.querySelector('.modal-head span').textContent};
+  });
+  expect(fit.p.left).toBeGreaterThanOrEqual(fit.inner.left-1);
+  expect(fit.p.right).toBeLessThanOrEqual(fit.inner.right+1);
+  expect(fit.p.top).toBeGreaterThanOrEqual(fit.inner.top-1);
+  expect(fit.p.bottom).toBeLessThanOrEqual(fit.inner.bottom+1);
+  expect(fit.title).toContain('Aster · Home');
   const hero=page.locator('#preview-phone > div').filter({hasText:'Quiet light'}).first(); await expect(hero).toBeVisible(); await hero.click();
   await expect(page.locator('.modal-head span')).toContainText('Aster · Trip'); await expect(page.locator('#preview-phone')).toContainText('Save this trip');
   await page.locator('#preview-phone').getByText('Save this trip',{exact:true}).click(); await expect(page.locator('.modal-head span')).toContainText('Aster · Home');
