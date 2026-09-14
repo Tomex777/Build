@@ -1,0 +1,31 @@
+name: Slumber Checkpoint Rescue
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths: [".github/workflows/slumber-checkpoint-rescue.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  rescue:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover plain patches
+        shell: bash
+        run: |
+          set -u
+          mkdir -p /tmp/rescue
+          base64 -d .ci/slumber_085_song_library_unbuilt/slumber_085_song_library_unbuilt.patch.gz.b64 > /tmp/rescue/main.gz || true
+          gzip -dc /tmp/rescue/main.gz > /tmp/rescue/song-library.partial.patch 2>/tmp/rescue/main-gzip.txt || true
+          base64 -d .ci/slumber_085_song_library_unbuilt/slumber_085_song_library_openscore_update.patch.gz.b64 > /tmp/rescue/open.gz || true
+          gzip -dc /tmp/rescue/open.gz > /tmp/rescue/openscore.partial.patch 2>/tmp/rescue/open-gzip.txt || true
+          sha256sum /tmp/rescue/* > /tmp/rescue/SHA256SUMS.txt || true
+          wc -c /tmp/rescue/* > /tmp/rescue/SIZES.txt || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: slumber-checkpoint-rescue
+          path: /tmp/rescue/*
+          if-no-files-found: error
