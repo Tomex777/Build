@@ -23,8 +23,12 @@ import com.night.sora.ui.theme.SoraMuted
 import com.night.sora.ui.theme.SoraSurface
 
 @Composable
-fun AiScreen(initialMessages: List<AiMessage>, onBack: () -> Unit) {
-    var messages by remember { mutableStateOf(initialMessages) }
+fun AiScreen(
+    messages: List<AiMessage>,
+    onSendText: (String) -> Unit,
+    onSendVoice: () -> Unit,
+    onBack: () -> Unit,
+) {
     var draft by remember { mutableStateOf("") }
     var recording by remember { mutableStateOf(false) }
     var stopped by remember { mutableStateOf(false) }
@@ -45,7 +49,7 @@ fun AiScreen(initialMessages: List<AiMessage>, onBack: () -> Unit) {
                     onSend = {
                         recording = false
                         stopped = false
-                        messages = messages + AiMessage(System.nanoTime(), AiMessage.Role.USER, "Voice message")
+                        onSendVoice()
                     },
                 )
             } else {
@@ -56,7 +60,7 @@ fun AiScreen(initialMessages: List<AiMessage>, onBack: () -> Unit) {
                     onSend = {
                         val text = draft.trim()
                         if (text.isNotEmpty()) {
-                            messages = messages + AiMessage(System.nanoTime(), AiMessage.Role.USER, text)
+                            onSendText(text)
                             draft = ""
                         }
                     },
@@ -134,7 +138,7 @@ private fun RecordingComposer(stopped: Boolean, onCancel: () -> Unit, onStop: ()
             ) {
                 Icon(Icons.Rounded.GraphicEq, null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(8.dp))
-                Text(if (stopped) "Ready to send" else "Recording  0:08", fontSize = 14.sp)
+                Text(if (stopped) "Ready to send" else "Recording", fontSize = 14.sp)
             }
             if (!stopped) {
                 FilledTonalIconButton(onClick = onStop) { Icon(Icons.Rounded.Stop, "Stop") }
