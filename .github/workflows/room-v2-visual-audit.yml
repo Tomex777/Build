@@ -4,7 +4,7 @@ on:
   push:
     branches: ["room-visual-audit"]
     paths:
-      - "room-visual-audit/v2-b64/**"
+      - "room-visual-audit/chatgpt_room_v2.zip"
       - ".github/workflows/room-v2-visual-audit.yml"
   workflow_dispatch:
 
@@ -20,12 +20,11 @@ jobs:
         with:
           ref: room-visual-audit
 
-      - name: Reconstruct revised room
+      - name: Extract revised room
         run: |
           rm -rf /tmp/room-v2 && mkdir -p /tmp/room-v2
-          cat room-visual-audit/v2-b64/part-* | base64 -d > /tmp/chatgpt_room_v2.zip
-          echo "6291037dd0133a04021ee95f6d72cab471d03ab9e0ce79855153db070edfbca6  /tmp/chatgpt_room_v2.zip" | sha256sum -c -
-          unzip -q /tmp/chatgpt_room_v2.zip -d /tmp/room-v2
+          echo "6291037dd0133a04021ee95f6d72cab471d03ab9e0ce79855153db070edfbca6  room-visual-audit/chatgpt_room_v2.zip" | sha256sum -c -
+          unzip -q room-visual-audit/chatgpt_room_v2.zip -d /tmp/room-v2
           test -f /tmp/room-v2/chatgpt_room_v2/index.html
           test -f /tmp/room-v2/chatgpt_room_v2/src/main.js
 
