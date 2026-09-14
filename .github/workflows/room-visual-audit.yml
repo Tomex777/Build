@@ -1,0 +1,194 @@
+name: Room Visual Audit
+
+on:
+  push:
+    branches: ["room-visual-audit"]
+    paths:
+      - "room-visual-audit/chatgpt_room_original.zip"
+      - ".github/workflows/room-visual-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: room-visual-audit
+
+      - name: Extract exact original room build
+        run: |
+          rm -rf /tmp/room-audit
+          mkdir -p /tmp/room-audit
+          unzip -q room-visual-audit/chatgpt_room_original.zip -d /tmp/room-audit
+          test -f /tmp/room-audit/chatgpt_room_original/index.html
+          test -f /tmp/room-audit/chatgpt_room_original/room.css
+          test -f /tmp/room-audit/chatgpt_room_original/src/main.js
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Playwright Chromium
+        run: |
+          cd /tmp/room-audit
+          npm init -y >/dev/null 2>&1
+          npm install playwright@latest
+          npx playwright install --with-deps chromium
+
+      - name: Start static server
+        run: |
+          cd /tmp/room-audit/chatgpt_room_original
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/room-http.log 2>&1 &
+          echo $! >/tmp/room-http.pid
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/room-http.log
+          exit 1
+
+      - name: Render and inspect in real Chromium
+        run: |
+          cat >/tmp/room-audit/capture.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          import path from 'node:path';
+
+          const out = '/tmp/room-audit/output';
+          fs.mkdirSync(out, { recursive: true });
+          const all = [];
+          let fatal = false;
+
+          const browser = await chromium.launch({
+            headless: true,
+            args: [
+              '--use-angle=swiftshader',
+              '--enable-webgl',
+              '--ignore-gpu-blocklist',
+              '--disable-dev-shm-usage'
+            ]
+          });
+
+          async function runCase(name, viewport, mobile = false) {
+            const context = await browser.newContext({
+              viewport,
+              deviceScaleFactor: 1,
+              isMobile: mobile,
+              hasTouch: mobile
+            });
+            const page = await context.newPage();
+            const events = [];
+            page.on('console', m => events.push({ type: `console:${m.type()}`, text: m.text() }));
+            page.on('pageerror', e => { events.push({ type: 'pageerror', text: e.message }); fatal = true; });
+            page.on('requestfailed', r => events.push({ type: 'requestfailed', text: `${r.url()} :: ${r.failure()?.errorText || ''}` }));
+
+            await page.goto('http://127.0.0.1:4173/', { waitUntil: 'networkidle', timeout: 90000 });
+            await page.waitForTimeout(3500);
+
+            const runtime = await page.evaluate(() => {
+              const canvas = document.querySelector('#scene');
+              const error = document.querySelector('#error');
+              let gl = null;
+              let renderer = null;
+              let vendor = null;
+              try {
+                gl = canvas?.getContext('webgl2') || canvas?.getContext('webgl');
+                if (gl) {
+                  renderer = gl.getParameter(gl.RENDERER);
+                  vendor = gl.getParameter(gl.VENDOR);
+                }
+              } catch (e) {}
+              return {
+                title: document.title,
+                canvasWidth: canvas?.width || 0,
+                canvasHeight: canvas?.height || 0,
+                cssWidth: canvas?.getBoundingClientRect().width || 0,
+                cssHeight: canvas?.getBoundingClientRect().height || 0,
+                errorVisible: error ? !error.hidden : null,
+                errorText: error?.textContent || '',
+                webgl: !!gl,
+                renderer,
+                vendor
+              };
+            });
+            if (runtime.errorVisible || !runtime.webgl || runtime.canvasWidth < 2 || runtime.canvasHeight < 2) fatal = true;
+
+            await page.screenshot({ path: path.join(out, `${name}-initial.png`), fullPage: true });
+
+            if (!mobile) {
+              // Actually manipulate the OrbitControls, then capture a second view.
+              const cx = Math.round(viewport.width * 0.56);
+              const cy = Math.round(viewport.height * 0.48);
+              await page.mouse.move(cx, cy);
+              await page.mouse.down();
+              await page.mouse.move(cx - 250, cy + 35, { steps: 24 });
+              await page.mouse.up();
+              await page.waitForTimeout(1200);
+              await page.screenshot({ path: path.join(out, `${name}-orbited.png`), fullPage: true });
+
+              // Toggle the actual desk lamp through the app's L shortcut.
+              await page.keyboard.press('l');
+              await page.waitForTimeout(700);
+              await page.screenshot({ path: path.join(out, `${name}-lamp-on.png`), fullPage: true });
+
+              // Reset to verify interaction state remains responsive.
+              await page.keyboard.press('r');
+              await page.waitForTimeout(700);
+              await page.screenshot({ path: path.join(out, `${name}-reset.png`), fullPage: true });
+            } else {
+              // Touch drag to verify mobile orbit input, not just a static screenshot.
+              await page.touchscreen.tap(Math.round(viewport.width * 0.5), Math.round(viewport.height * 0.45));
+              await page.waitForTimeout(300);
+            }
+
+            all.push({ name, viewport, mobile, runtime, events });
+            await context.close();
+          }
+
+          await runCase('desktop-1440x900', { width: 1440, height: 900 }, false);
+          await runCase('mobile-393x873', { width: 393, height: 873 }, true);
+
+          await browser.close();
+          fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify({ fatal, cases: all }, null, 2));
+          fs.writeFileSync(path.join(out, 'browser.log'), all.flatMap(x => x.events.map(e => `[${x.name}] ${e.type}: ${e.text}`)).join('\n'));
+          if (fatal) process.exitCode = 2;
+          EOF
+
+          cd /tmp/room-audit
+          node capture.mjs
+
+      - name: Copy visual evidence into branch
+        if: always()
+        run: |
+          mkdir -p room-visual-audit/audit-output
+          cp -f /tmp/room-audit/output/* room-visual-audit/audit-output/ 2>/dev/null || true
+          cp -f /tmp/room-http.log room-visual-audit/audit-output/http.log 2>/dev/null || true
+
+      - name: Commit screenshots and report
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add room-visual-audit/audit-output
+          if git diff --cached --quiet; then
+            echo "No audit-output changes"
+          else
+            git commit -m "chore: update room visual audit [skip ci]"
+            git push origin HEAD:room-visual-audit
+          fi
+
+      - name: Upload audit artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: room-visual-audit
+          path: room-visual-audit/audit-output
+          if-no-files-found: warn
