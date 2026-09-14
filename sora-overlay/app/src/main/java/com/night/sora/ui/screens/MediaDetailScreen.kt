@@ -28,6 +28,8 @@ fun MediaDetailScreen(
     selection: ExtensionMediaSelection,
     extension: InstalledExtension,
     manager: ExtensionManager,
+    isSaved: Boolean,
+    onToggleSaved: () -> Unit,
     onBack: () -> Unit,
 ) {
     var description by remember { mutableStateOf(selection.subtitle) }
@@ -35,6 +37,8 @@ fun MediaDetailScreen(
     var secondaryRows by remember { mutableStateOf<List<DetailRow>>(emptyList()) }
     var secondaryTitle by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(true) }
+    var moreOpen by remember { mutableStateOf(false) }
+    var showSource by remember { mutableStateOf(false) }
 
     LaunchedEffect(selection.id, extension.packageName) {
         manager.call(
@@ -87,17 +91,40 @@ fun MediaDetailScreen(
             TopAppBar(
                 title = { Text(selection.title) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back") } },
-                actions = { IconButton(onClick = {}) { Icon(Icons.Rounded.MoreVert, "More") } },
+                actions = {
+                    Box {
+                        IconButton(onClick = { moreOpen = true }) { Icon(Icons.Rounded.MoreVert, "More") }
+                        DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text(if (showSource) "Hide source info" else "Source info") },
+                                leadingIcon = { Icon(Icons.Rounded.Source, null) },
+                                onClick = {
+                                    showSource = !showSource
+                                    moreOpen = false
+                                },
+                            )
+                        }
+                    }
+                },
             )
         }
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(vertical = 10.dp)) {
             item { DenseRow(selection.title, description, iconForType(selection.type)) }
-            item { DenseRow("Add to Library", "Keep this in Sora", Icons.Rounded.BookmarkAdd) }
+            item {
+                DenseRow(
+                    if (isSaved) "Remove from Library" else "Add to Library",
+                    if (isSaved) "Saved privately in Sora" else "Keep this in Sora",
+                    if (isSaved) Icons.Rounded.BookmarkRemove else Icons.Rounded.BookmarkAdd,
+                    onClick = onToggleSaved,
+                )
+            }
             if (selection.type != ContentType.MEME) {
                 item { DenseRow("Download", "Sora owns download state; the source supplies media data.", Icons.Rounded.Download) }
             }
-            item { DenseRow("Source", "${extension.declaredName} · ${selection.sourceId}", Icons.Rounded.Source) }
+            if (showSource) {
+                item { DenseRow("Source", "${extension.declaredName} · ${selection.sourceId}", Icons.Rounded.Source) }
+            }
             item { SectionHeader(primarySectionTitle(selection.type)) }
             if (loading) {
                 item { LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) }
