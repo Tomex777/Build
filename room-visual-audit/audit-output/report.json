@@ -1,0 +1,47 @@
+{
+  "fatal": false,
+  "cases": [
+    {
+      "name": "desktop-1440x900",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "mobile": false,
+      "runtime": {
+        "title": "Room Study — Three.js",
+        "canvasWidth": 1440,
+        "canvasHeight": 900,
+        "cssWidth": 1440,
+        "cssHeight": 900,
+        "errorVisible": false,
+        "errorText": "",
+        "webgl": true,
+        "renderer": "WebKit WebGL",
+        "vendor": "WebKit"
+      },
+      "events": []
+    },
+    {
+      "name": "mobile-393x873",
+      "viewport": {
+        "width": 393,
+        "height": 873
+      },
+      "mobile": true,
+      "runtime": {
+        "title": "Room Study — Three.js",
+        "canvasWidth": 393,
+        "canvasHeight": 873,
+        "cssWidth": 393,
+        "cssHeight": 873,
+        "errorVisible": false,
+        "errorText": "",
+        "webgl": true,
+        "renderer": "WebKit WebGL",
+        "vendor": "WebKit"
+      },
+      "events": []
+    }
+  ]
+}
