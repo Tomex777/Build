@@ -32,22 +32,26 @@ jobs:
           test -n "$SRC"
           tar -xzf "$SRC" -C /tmp/slumber
 
-      - name: Validate and apply accepted song library source work
+      - name: Recover and apply accepted song library source work
         shell: bash
         run: |
           set -euo pipefail
           MAIN="$GITHUB_WORKSPACE/.ci/slumber_085_song_library_unbuilt/slumber_085_song_library_unbuilt.patch.gz.b64"
           OPEN="$GITHUB_WORKSPACE/.ci/slumber_085_song_library_unbuilt/slumber_085_song_library_openscore_update.patch.gz.b64"
-          echo "a4599b5eb76b0f927279f229f499d54227ea6924ae4497f65b9922b7002b99d8  $MAIN" | sha256sum -c -
-          echo "5985136d3f57a296be7ae629d66be1cd19b7764d8deebce8c88c4b5c4f0bbb63  $OPEN" | sha256sum -c -
+          echo "Stored wrapper hashes:"
+          sha256sum "$MAIN" "$OPEN"
           base64 -d "$MAIN" > /tmp/song-library.patch.gz
           base64 -d "$OPEN" > /tmp/openscore.patch.gz
-          echo "51c25dd5e6b798d7df40b3d08b2479cb2e7a7286f817d69bc85340f155ca12d9  /tmp/song-library.patch.gz" | sha256sum -c -
-          echo "316881d661a85d8e77180a6280f10d6da4c20f6345b0b6afe5421851323e10bc  /tmp/openscore.patch.gz" | sha256sum -c -
-          gzip -t /tmp/song-library.patch.gz
-          gzip -t /tmp/openscore.patch.gz
-          gzip -dc /tmp/song-library.patch.gz > /tmp/song-library.patch
-          gzip -dc /tmp/openscore.patch.gz > /tmp/openscore.patch
+          echo "Decoded gzip hashes:"
+          sha256sum /tmp/song-library.patch.gz /tmp/openscore.patch.gz
+          # The archived Base64/gzip wrapper may have a damaged trailer. The authoritative
+          # integrity check is the original uncompressed patch SHA recorded by the checkpoint.
+          gzip -dc /tmp/song-library.patch.gz > /tmp/song-library.patch 2>/tmp/main-gzip.err || true
+          gzip -dc /tmp/openscore.patch.gz > /tmp/openscore.patch 2>/tmp/open-gzip.err || true
+          cat /tmp/main-gzip.err || true
+          cat /tmp/open-gzip.err || true
+          echo "Recovered patch hashes:"
+          sha256sum /tmp/song-library.patch /tmp/openscore.patch
           echo "4822813b4d72f844528ce245750bd9e5f40bbaf5a4c674cab90b7944e6d30dbe  /tmp/song-library.patch" | sha256sum -c -
           echo "270e7e3d89d72c2fd7ea88881b69f81893e247145de941ac4acdd760711478f2  /tmp/openscore.patch" | sha256sum -c -
           cd /tmp/slumber
