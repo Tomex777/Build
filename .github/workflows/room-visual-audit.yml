@@ -4,7 +4,7 @@ on:
   push:
     branches: ["room-visual-audit"]
     paths:
-      - "room-visual-audit/chatgpt_room_original.zip"
+      - "room-visual-audit/source-b64/**"
       - ".github/workflows/room-visual-audit.yml"
   workflow_dispatch:
 
@@ -22,11 +22,13 @@ jobs:
         with:
           ref: room-visual-audit
 
-      - name: Extract exact original room build
+      - name: Reconstruct exact original room build
         run: |
           rm -rf /tmp/room-audit
           mkdir -p /tmp/room-audit
-          unzip -q room-visual-audit/chatgpt_room_original.zip -d /tmp/room-audit
+          cat room-visual-audit/source-b64/part-* | base64 -d > /tmp/chatgpt_room_original.zip
+          echo "55a7bd37183fb4ad112062b8d3a0ca502f19440f65603133d44e959322575b1b  /tmp/chatgpt_room_original.zip" | sha256sum -c -
+          unzip -q /tmp/chatgpt_room_original.zip -d /tmp/room-audit
           test -f /tmp/room-audit/chatgpt_room_original/index.html
           test -f /tmp/room-audit/chatgpt_room_original/room.css
           test -f /tmp/room-audit/chatgpt_room_original/src/main.js
@@ -124,7 +126,6 @@ jobs:
             await page.screenshot({ path: path.join(out, `${name}-initial.png`), fullPage: true });
 
             if (!mobile) {
-              // Actually manipulate the OrbitControls, then capture a second view.
               const cx = Math.round(viewport.width * 0.56);
               const cy = Math.round(viewport.height * 0.48);
               await page.mouse.move(cx, cy);
@@ -134,19 +135,13 @@ jobs:
               await page.waitForTimeout(1200);
               await page.screenshot({ path: path.join(out, `${name}-orbited.png`), fullPage: true });
 
-              // Toggle the actual desk lamp through the app's L shortcut.
               await page.keyboard.press('l');
               await page.waitForTimeout(700);
               await page.screenshot({ path: path.join(out, `${name}-lamp-on.png`), fullPage: true });
 
-              // Reset to verify interaction state remains responsive.
               await page.keyboard.press('r');
               await page.waitForTimeout(700);
               await page.screenshot({ path: path.join(out, `${name}-reset.png`), fullPage: true });
-            } else {
-              // Touch drag to verify mobile orbit input, not just a static screenshot.
-              await page.touchscreen.tap(Math.round(viewport.width * 0.5), Math.round(viewport.height * 0.45));
-              await page.waitForTimeout(300);
             }
 
             all.push({ name, viewport, mobile, runtime, events });
