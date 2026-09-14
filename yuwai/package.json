@@ -1,0 +1,14 @@
+{
+  "name": "yuwai-mobile-ci-audit",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "restore": "node scripts/restore-source.mjs",
+    "verify": "node scripts/verify.mjs",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.0"
+  },
+  "engines": { "node": ">=20" }
+}
