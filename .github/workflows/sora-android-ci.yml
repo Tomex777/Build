@@ -21,6 +21,10 @@ jobs:
           test -f "$ROOT/settings.gradle.kts"
           sed -i 's/compileSdk = 37/compileSdk = 36/g' "$ROOT/app/build.gradle.kts" "$ROOT/extension-api/build.gradle.kts" "$ROOT/test-extension/build.gradle.kts"
           sed -i 's/compose-bom:2026.08.00/compose-bom:2026.04.01/g' "$ROOT/app/build.gradle.kts"
+          for f in AiScreen.kt ExtensionsScreen.kt MediaDetailScreen.kt; do
+            FILE="$ROOT/app/src/main/java/com/night/sora/ui/screens/$f"
+            grep -q '^@file:OptIn' "$FILE" || sed -i '1i@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)\n' "$FILE"
+          done
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
