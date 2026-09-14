@@ -23,7 +23,8 @@ jobs:
       - name: Extract room v3
         run: |
           rm -rf /tmp/room-v3 && mkdir -p /tmp/room-v3
-          echo "9b50d5062d11ea66a36a056f86e67192f52bf58110e45a020f133c40aab6fbf4  room-visual-audit/chatgpt_room_v3.zip" | sha256sum -c -
+          sha256sum room-visual-audit/chatgpt_room_v3.zip
+          unzip -t room-visual-audit/chatgpt_room_v3.zip
           unzip -q room-visual-audit/chatgpt_room_v3.zip -d /tmp/room-v3
           test -f /tmp/room-v3/chatgpt_room_v3/index.html
           test -f /tmp/room-v3/chatgpt_room_v3/src/main.js
