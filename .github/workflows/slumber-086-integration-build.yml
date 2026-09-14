@@ -1,0 +1,98 @@
+name: Slumber 0.8.6 Integration Build
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".github/workflows/slumber-086-integration-build.yml"
+      - ".ci/slumber_085_song_library_unbuilt/**"
+      - ".ci/slumber_085_production_purge/**"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reconstruct verified 0.8.5 source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber-base /tmp/slumber /tmp/slumber-out
+          mkdir -p /tmp/slumber-base /tmp/slumber /tmp/slumber-out
+          gh run download 34645245543 --repo Tomex777/Build --name slumber-0.8.5-exit-recreation --dir /tmp/slumber-base
+          SRC=$(find /tmp/slumber-base -name 'slumber-production-0.8.5-source.tgz' -type f -print -quit)
+          test -n "$SRC"
+          tar -xzf "$SRC" -C /tmp/slumber
+
+      - name: Apply accepted song library and OpenScore source work
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d "$GITHUB_WORKSPACE/.ci/slumber_085_song_library_unbuilt/slumber_085_song_library_unbuilt.patch.gz.b64" | gzip -dc > /tmp/song-library.patch
+          base64 -d "$GITHUB_WORKSPACE/.ci/slumber_085_song_library_unbuilt/slumber_085_song_library_openscore_update.patch.gz.b64" | gzip -dc > /tmp/openscore.patch
+          echo "4822813b4d72f844528ce245750bd9e5f40bbaf5a4c674cab90b7944e6d30dbe  /tmp/song-library.patch" | sha256sum -c -
+          echo "270e7e3d89d72c2fd7ea88881b69f81893e247145de941ac4acdd760711478f2  /tmp/openscore.patch" | sha256sum -c -
+          cd /tmp/slumber
+          patch --dry-run -p1 < /tmp/song-library.patch
+          patch -p1 < /tmp/song-library.patch
+          patch --dry-run -p1 < /tmp/openscore.patch
+          patch -p1 < /tmp/openscore.patch
+
+      - name: Source sanity checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/slumber
+          test -f app/src/main/java/com/night/pianohub/ui/screens/SongsScreen.kt
+          grep -R -q 'MusicXML' app/src/main/java
+          grep -R -q 'OpenScore' tools README.md . 2>/dev/null || true
+          python -m py_compile tools/*.py
+          python tools/test_build_pdmx_song_pack.py
+          python tools/test_build_openscore_lieder_song_pack.py
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: "15859902"
+
+      - name: Install Android SDK
+        run: sdkmanager --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+
+      - name: Unit tests
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace testDebugUnitTest
+
+      - name: Build APK
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace assembleDebug
+
+      - name: Package tested source and APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp /tmp/slumber/app/build/outputs/apk/debug/app-debug.apk /tmp/slumber-out/Slumber-0.8.6-integration-debug.apk
+          sha256sum /tmp/slumber-out/Slumber-0.8.6-integration-debug.apk | tee /tmp/slumber-out/apk-sha256.txt
+          cd /tmp/slumber
+          tar --exclude='./.gradle' --exclude='./build' --exclude='./app/build' -czf /tmp/slumber-out/slumber-0.8.6-integration-source.tgz .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: slumber-0.8.6-integration
+          path: /tmp/slumber-out/*
+          if-no-files-found: error
