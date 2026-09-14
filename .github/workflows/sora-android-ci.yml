@@ -1,89 +1,10 @@
 name: Sora Android CI
 
 on:
-  push:
-    branches: [sora-android-ci]
   workflow_dispatch:
 
 jobs:
-  core-without-extension:
-    name: Core APK (extension removed)
+  staged:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - name: Reconstruct and pin API 36 baseline
-        run: |
-          rm -rf /tmp/sora-src /tmp/sora-core /tmp/sora.zip
-          cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/sora.zip
-          unzip -q /tmp/sora.zip -d /tmp/sora-src
-          ROOT=/tmp/sora-src/Sora_Android_v0_1
-          test -f "$ROOT/settings.gradle.kts"
-          sed -i 's/compileSdk = 37/compileSdk = 36/g' "$ROOT/app/build.gradle.kts" "$ROOT/extension-api/build.gradle.kts" "$ROOT/test-extension/build.gradle.kts"
-          sed -i 's/compose-bom:2026.08.00/compose-bom:2026.04.01/g' "$ROOT/app/build.gradle.kts"
-          for f in AiScreen.kt ExtensionsScreen.kt MediaDetailScreen.kt; do
-            FILE="$ROOT/app/src/main/java/com/night/sora/ui/screens/$f"
-            grep -q '^@file:OptIn' "$FILE" || sed -i '1i@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)\n' "$FILE"
-          done
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-      - name: Set up Android 36 SDK
-        uses: android-actions/setup-android@v3
-        with:
-          cmdline-tools-version: 12266719
-          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.5.0'
-      - name: Make isolated Core copy
-        run: |
-          cp -R /tmp/sora-src/Sora_Android_v0_1 /tmp/sora-core
-          rm -rf /tmp/sora-core/test-extension
-          sed -i '/include(":test-extension")/d' /tmp/sora-core/settings.gradle.kts
-          test ! -d /tmp/sora-core/test-extension
-          ! grep -R "com.night.sora.ext.demo\|DemoExtensionService\|DemoCatalog" /tmp/sora-core/app /tmp/sora-core/extension-api
-      - name: Build Sora Core with extension project absent
-        working-directory: /tmp/sora-core
-        run: gradle --stacktrace :app:assembleDebug
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sora-core-debug-apk
-          path: /tmp/sora-core/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-
-  extension:
-    name: Test Extension APK
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - name: Reconstruct and pin API 36 baseline
-        run: |
-          rm -rf /tmp/sora-src /tmp/sora.zip
-          cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/sora.zip
-          unzip -q /tmp/sora.zip -d /tmp/sora-src
-          ROOT=/tmp/sora-src/Sora_Android_v0_1
-          sed -i 's/compileSdk = 37/compileSdk = 36/g' "$ROOT/app/build.gradle.kts" "$ROOT/extension-api/build.gradle.kts" "$ROOT/test-extension/build.gradle.kts"
-          sed -i 's/compose-bom:2026.08.00/compose-bom:2026.04.01/g' "$ROOT/app/build.gradle.kts"
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-      - name: Set up Android 36 SDK
-        uses: android-actions/setup-android@v3
-        with:
-          cmdline-tools-version: 12266719
-          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.5.0'
-      - name: Build external test extension
-        working-directory: /tmp/sora-src/Sora_Android_v0_1
-        run: gradle --stacktrace :test-extension:assembleDebug
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sora-test-extension-debug-apk
-          path: /tmp/sora-src/Sora_Android_v0_1/test-extension/build/outputs/apk/debug/test-extension-debug.apk
-          if-no-files-found: error
+      - run: echo "Sora source overlay is being staged; CI push builds are temporarily paused."
