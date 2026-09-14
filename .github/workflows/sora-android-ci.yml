@@ -2,8 +2,7 @@ name: Sora Android CI
 
 on:
   push:
-    branches:
-      - sora-android-ci
+    branches: [sora-android-ci]
   workflow_dispatch:
 
 jobs:
@@ -12,42 +11,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Reconstruct Sora source
+      - uses: actions/checkout@v4
+      - name: Reconstruct and pin API 36 baseline
         run: |
           rm -rf /tmp/sora-src /tmp/sora-core /tmp/sora.zip
           cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/sora.zip
           unzip -q /tmp/sora.zip -d /tmp/sora-src
-          test -f /tmp/sora-src/Sora_Android_v0_1/settings.gradle.kts
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
+          ROOT=/tmp/sora-src/Sora_Android_v0_1
+          test -f "$ROOT/settings.gradle.kts"
+          sed -i 's/compileSdk = 37/compileSdk = 36/g' "$ROOT/app/build.gradle.kts" "$ROOT/extension-api/build.gradle.kts" "$ROOT/test-extension/build.gradle.kts"
+          sed -i 's/compose-bom:2026.08.00/compose-bom:2026.04.01/g' "$ROOT/app/build.gradle.kts"
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-
-      - name: Set up current Android command-line tools
+      - name: Set up Android 36 SDK
         uses: android-actions/setup-android@v3
         with:
           cmdline-tools-version: 12266719
-          packages: 'platform-tools'
-
-      - name: Install Android 17 Cinnamon Bun SDK
-        shell: bash
-        run: |
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager"
-          test -x "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --channel=3 "platforms;android-37" "build-tools;37.0.0"
-          test -f "$ANDROID_HOME/platforms/android-37/android.jar"
-
-      - name: Set up Gradle 9.5
-        uses: gradle/actions/setup-gradle@v4
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
-
       - name: Make isolated Core copy
         run: |
           cp -R /tmp/sora-src/Sora_Android_v0_1 /tmp/sora-core
@@ -55,13 +40,10 @@ jobs:
           sed -i '/include(":test-extension")/d' /tmp/sora-core/settings.gradle.kts
           test ! -d /tmp/sora-core/test-extension
           ! grep -R "com.night.sora.ext.demo\|DemoExtensionService\|DemoCatalog" /tmp/sora-core/app /tmp/sora-core/extension-api
-
       - name: Build Sora Core with extension project absent
         working-directory: /tmp/sora-core
         run: gradle --stacktrace :app:assembleDebug
-
-      - name: Upload Sora Core APK
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: sora-core-debug-apk
           path: /tmp/sora-core/app/build/outputs/apk/debug/app-debug.apk
@@ -72,48 +54,31 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Reconstruct Sora source
+      - uses: actions/checkout@v4
+      - name: Reconstruct and pin API 36 baseline
         run: |
           rm -rf /tmp/sora-src /tmp/sora.zip
           cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/sora.zip
           unzip -q /tmp/sora.zip -d /tmp/sora-src
-          test -f /tmp/sora-src/Sora_Android_v0_1/settings.gradle.kts
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
+          ROOT=/tmp/sora-src/Sora_Android_v0_1
+          sed -i 's/compileSdk = 37/compileSdk = 36/g' "$ROOT/app/build.gradle.kts" "$ROOT/extension-api/build.gradle.kts" "$ROOT/test-extension/build.gradle.kts"
+          sed -i 's/compose-bom:2026.08.00/compose-bom:2026.04.01/g' "$ROOT/app/build.gradle.kts"
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-
-      - name: Set up current Android command-line tools
+      - name: Set up Android 36 SDK
         uses: android-actions/setup-android@v3
         with:
           cmdline-tools-version: 12266719
-          packages: 'platform-tools'
-
-      - name: Install Android 17 Cinnamon Bun SDK
-        shell: bash
-        run: |
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager"
-          test -x "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --channel=3 "platforms;android-37" "build-tools;37.0.0"
-          test -f "$ANDROID_HOME/platforms/android-37/android.jar"
-
-      - name: Set up Gradle 9.5
-        uses: gradle/actions/setup-gradle@v4
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
-
       - name: Build external test extension
         working-directory: /tmp/sora-src/Sora_Android_v0_1
         run: gradle --stacktrace :test-extension:assembleDebug
-
-      - name: Upload Test Extension APK
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: sora-test-extension-debug-apk
           path: /tmp/sora-src/Sora_Android_v0_1/test-extension/build/outputs/apk/debug/test-extension-debug.apk
