@@ -56,17 +56,6 @@ jobs:
           grep -n 'Night Mods' lsposed-et/app/src/main/res/values/strings.xml
           test -f lsposed-et/app/src/main/java/org/lsposed/manager/nightmods/NightModsBackend.java
 
-      - name: Restore libxposed service dependency
-        shell: bash
-        run: |
-          git clone --depth 1 --branch 100 https://github.com/libxposed/service.git lsposed-et/libxposed/service
-          mkdir -p ~/.m2/repository/io/github/libxposed/api/100
-          cp lsposed-et/ci/libxposed-api-100/api-100.aar lsposed-et/ci/libxposed-api-100/api-100.pom ~/.m2/repository/io/github/libxposed/api/100/
-
-      - name: Build libxposed service
-        working-directory: lsposed-et/libxposed/service
-        run: ./gradlew --no-daemon --stacktrace publishToMavenLocal
-
       - name: Build Night Mods manager APK
         working-directory: lsposed-et
         run: ./gradlew --no-daemon --stacktrace :app:assembleDebug
