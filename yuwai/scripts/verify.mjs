@@ -12,13 +12,14 @@ const html = fs.readFileSync(file,'utf8');
 const checks = [];
 const assert = (name, ok) => { checks.push([name,!!ok]); if(!ok) throw new Error(`Verification failed: ${name}`); };
 
-assert('exact audited source hash', crypto.createHash('sha256').update(html).digest('hex') === 'a6af228cbc4dd9c3c66b7ad48deac30c24b8ba1ed1eea395fbf0fe0e6bddc78d');
+assert('exact audited source hash', crypto.createHash('sha256').update(html).digest('hex') === '25eb988c7d0623183b5e70f4e7dd29787603df2dd659a30e881262f0a3dd985d');
 assert('standalone HTML has app shell', html.includes('id="app" class="app-shell"'));
 assert('mobile-first tool dock exists', html.includes('id="mobile-toolbar"'));
 assert('SVG icon system exists', html.includes('const uiIconDefs={') && html.includes('function uiSvg('));
 assert('showcase builder exists', html.includes('function buildShowcaseDemo()'));
 assert('root nodes render in free mode', html.includes("root.append(renderNode(n,'free'))"));
 assert('prototype uses fit wrapper', html.includes('id="preview-wrap"') && html.includes('previewScale'));
+assert('prototype fit subtracts stage padding', html.includes('stageStyle.paddingLeft') && html.includes('stageStyle.paddingBottom'));
 assert('portable YUWAI project builder exists', html.includes('buildProjectBytes') && html.includes('parseProjectBytes'));
 assert('mobile touch pinch implementation exists', html.includes('function handleTouchStart(e)') && html.includes('pinchGesture'));
 assert('mobile long press implementation exists', html.includes('function scheduleLongPress(e,id)'));
