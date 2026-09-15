@@ -126,14 +126,22 @@ jobs:
             adb pull /sdcard/after-q.xml after-q.xml
             grep -q 'text="qCursor test: move the caret through this sentence"' after-q.xml
 
-            # A normal `input swipe` starts moving immediately and never reproduces
-            # Compose's long-press gate. Generate one continuous pointer sequence:
-            # DOWN, hold beyond long-press timeout, MOVE left, then UP.
+            # A real finger produces a stream of MOVE events after the long-press
+            # gate. Inject that continuous pointer stream rather than a single jump,
+            # then prove the actual host caret moved before committing the next key.
             adb shell input motionevent DOWN 545 2320
             sleep 0.7
-            adb shell input motionevent MOVE 405 2320
-            sleep 0.2
-            adb shell input motionevent UP 405 2320
+            adb shell input motionevent MOVE 525 2320
+            sleep 0.06
+            adb shell input motionevent MOVE 505 2320
+            sleep 0.06
+            adb shell input motionevent MOVE 485 2320
+            sleep 0.06
+            adb shell input motionevent MOVE 465 2320
+            sleep 0.06
+            adb shell input motionevent MOVE 445 2320
+            sleep 0.10
+            adb shell input motionevent UP 445 2320
             sleep 1
             adb shell input tap 161 1935
             sleep 1
