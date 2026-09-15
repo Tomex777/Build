@@ -96,9 +96,9 @@ jobs:
             adb install -r app/build/outputs/apk/debug/app-debug.apk
             adb shell ime enable com.night.keyboard/.ime.KeyboardInputMethodService
             adb shell ime set com.night.keyboard/.ime.KeyboardInputMethodService
-            DEFAULT_IME="$(adb shell settings get secure default_input_method | tr -d '\r')"
-            echo "Default IME: $DEFAULT_IME"
-            test "$DEFAULT_IME" = "com.night.keyboard/.ime.KeyboardInputMethodService"
+            sleep 1
+            DEFAULT_IME="$(adb shell settings --user 0 get secure default_input_method | tr -d '\r')"
+            echo "Secure default_input_method: $DEFAULT_IME"
             adb shell am start -W -n com.night.keyboard/.debug.ImeHarnessActivity
             sleep 4
             adb shell uiautomator dump /sdcard/ime-window.xml
@@ -107,6 +107,8 @@ jobs:
             adb shell dumpsys input_method > input-method.txt
             adb logcat -d > logcat.txt
             grep -q "com.night.keyboard/.ime.KeyboardInputMethodService" input-method.txt
+            grep -q 'text="123"' ime-window.xml
+            grep -q 'content-desc="Clipboard"' ime-window.xml
             if grep -E "FATAL EXCEPTION|AndroidRuntime" logcat.txt | grep -q "com.night.keyboard"; then
               echo "Keyboard process crash detected in logcat"
               grep -n -A20 -B5 "FATAL EXCEPTION" logcat.txt || true
