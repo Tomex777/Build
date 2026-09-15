@@ -2,13 +2,15 @@
 
 package com.night.sora.ui.screens
 
+import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
@@ -16,10 +18,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -29,6 +35,7 @@ import com.night.sora.extension.ExtensionManager
 import com.night.sora.extension.InstalledExtension
 import com.night.sora.extension.isCatalogProvider
 import com.night.sora.extension.api.ExtensionContract
+import com.night.sora.extension.api.SourceDescriptor
 import com.night.sora.model.ContentType
 import com.night.sora.model.ExtensionMediaSelection
 import com.night.sora.ui.theme.*
@@ -36,6 +43,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 private data class DetailRow(val id: String, val title: String, val subtitle: String)
+
+private data class DetailMetadata(
+    val description: String,
+    val status: String = "",
+    val score: String = "",
+    val genres: List<String> = emptyList(),
+)
 
 @Composable
 fun MediaDetailScreen(
@@ -46,54 +60,86 @@ fun MediaDetailScreen(
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
     onBack: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val sourcePrefs = remember(context) { context.getSharedPreferences("sora_preferred_sources_v1", Context.MODE_PRIVATE) }
+    val listState = rememberLazyListState()
+
     var active by remember(selection) { mutableStateOf(selection) }
-    var description by remember { mutableStateOf(active.subtitle) }
+    var consumption by remember(selection) { mutableStateOf<ExtensionMediaSelection?>(null) }
+    var metadata by remember(selection) { mutableStateOf(DetailMetadata(selection.subtitle)) }
     var childRows by remember { mutableStateOf<List<DetailRow>>(emptyList()) }
     var secondaryRows by remember { mutableStateOf<List<DetailRow>>(emptyList()) }
     var secondaryTitle by remember { mutableStateOf("") }
-    var loading by remember { mutableStateOf(true) }
-    var menuOpen by remember { mutableStateOf(false) }
-    var sourcePickerOpen by remember { mutableStateOf(false) }
+    var rowsLoading by remember { mutableStateOf(false) }
     var counterpart by remember { mutableStateOf<ExtensionMediaSelection?>(null) }
-    var mangaLatestFirst by remember { mutableStateOf(true) }
+    var sourcePickerOpen by remember { mutableStateOf(false) }
+    var sourceSearchBusy by remember { mutableStateOf(false) }
+    var sourceSearchError by remember { mutableStateOf<String?>(null) }
+    var menuOpen by remember { mutableStateOf(false) }
+    var refreshEpoch by remember { mutableIntStateOf(0) }
+    var descending by remember(active.id, active.type) { mutableStateOf(active.type == ContentType.MANGA) }
+    var descriptionExpanded by remember(active.id, active.type) { mutableStateOf(false) }
 
-    val extension = extensions.firstOrNull { it.packageName == active.extensionPackage }
+    val toolbarOpaque by remember {
+        derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 28 }
+    }
+    val sourceOptions = remember(extensions, active.type) { consumptionSourcesFor(extensions, active.type) }
+    val activeDisplayExtension = extensions.firstOrNull { it.packageName == active.extensionPackage }
+    val activeDisplaySource = activeDisplayExtension?.descriptor?.sources?.firstOrNull { it.id == active.sourceId }
+    val consumptionExtension = consumption?.let { chosen -> extensions.firstOrNull { it.packageName == chosen.extensionPackage } }
+    val consumptionSource = consumptionExtension?.descriptor?.sources?.firstOrNull { it.id == consumption?.sourceId }
+    val displayedSourceName = consumptionSource?.name ?: activeDisplaySource?.name ?: activeDisplayExtension?.declaredName ?: "Source unavailable"
 
     fun effectiveBack() {
         if (secondaryRows.isNotEmpty()) {
-            secondaryRows = emptyList(); secondaryTitle = ""
-        } else onBack()
+            secondaryRows = emptyList()
+            secondaryTitle = ""
+        } else {
+            onBack()
+        }
     }
 
-    BackHandler { effectiveBack() }
-
-    LaunchedEffect(active.id, active.sourceId, active.extensionPackage) {
-        secondaryRows = emptyList(); secondaryTitle = ""; childRows = emptyList(); loading = true; description = active.subtitle; counterpart = null
-        val ext = extensions.firstOrNull { it.packageName == active.extensionPackage }
-        if (ext == null) { loading = false; return@LaunchedEffect }
-
-        manager.call(ext, ExtensionContract.Method.DETAILS, JSONObject().put("sourceId", active.sourceId).put("id", active.id).toString()) { result ->
-            result.getOrNull()?.let { raw -> runCatching { JSONObject(raw).optString("description", active.subtitle) }.onSuccess { description = it } }
+    fun loadConsumptionRows(target: ExtensionMediaSelection?) {
+        childRows = emptyList()
+        if (target == null) {
+            rowsLoading = false
+            return
         }
-
-        val method = when (active.type) {
-            ContentType.ANIME, ContentType.TV -> ExtensionContract.Method.EPISODES
-            ContentType.MANGA -> ExtensionContract.Method.CHAPTERS
-            ContentType.MUSIC -> ExtensionContract.Method.LYRICS
-            ContentType.MEME -> ExtensionContract.Method.FEED
-            ContentType.MOVIE -> ExtensionContract.Method.STREAMS
+        val ext = extensions.firstOrNull { it.packageName == target.extensionPackage }
+        if (ext == null) {
+            rowsLoading = false
+            return
         }
-        manager.call(ext, method, JSONObject().put("sourceId", active.sourceId).put("id", active.id).toString()) { result ->
-            childRows = result.getOrNull()?.let { parseRows(active.type, it) } ?: emptyList(); loading = false
+        val method = childMethod(target.type)
+        rowsLoading = true
+        manager.call(
+            ext,
+            method,
+            JSONObject().put("sourceId", target.sourceId).put("id", target.id).toString(),
+        ) { result ->
+            childRows = result.getOrNull()?.let { parseRows(target.type, it) }.orEmpty()
+            rowsLoading = false
         }
+    }
 
-        if (active.type == ContentType.ANIME || active.type == ContentType.MANGA) {
-            findCounterpart(active, extensions, manager) { found -> counterpart = found }
+    fun chooseSource(ext: InstalledExtension, source: SourceDescriptor, dismissOnSuccess: Boolean = true) {
+        sourceSearchBusy = true
+        sourceSearchError = null
+        searchSourceSelection(active, ext, source, manager) { found ->
+            sourceSearchBusy = false
+            if (found == null) {
+                sourceSearchError = "${source.name} did not return a match for ${active.title}."
+            } else {
+                consumption = found
+                sourcePrefs.edit().putString(preferredSourceKey(active.type), "${ext.packageName}|${source.id}").apply()
+                if (dismissOnSuccess) sourcePickerOpen = false
+            }
         }
     }
 
     fun openChild(row: DetailRow) {
-        val ext = extensions.firstOrNull { it.packageName == active.extensionPackage } ?: return
+        val target = consumption ?: active.takeIf { selectionCanConsume(it, extensions) } ?: return
+        val ext = extensions.firstOrNull { it.packageName == target.extensionPackage } ?: return
         val method = when (active.type) {
             ContentType.ANIME, ContentType.TV -> ExtensionContract.Method.STREAMS
             ContentType.MANGA -> ExtensionContract.Method.PAGES
@@ -101,173 +147,434 @@ fun MediaDetailScreen(
         }
         secondaryTitle = if (active.type == ContentType.MANGA) row.title else "${row.title} · Sources"
         secondaryRows = listOf(DetailRow("loading", "Loading…", ""))
-        manager.call(ext, method, JSONObject().put("sourceId", active.sourceId).put("id", row.id).toString()) { result ->
-            secondaryRows = result.getOrNull()?.let { parseSecondary(method, it) } ?: emptyList()
+        manager.call(
+            ext,
+            method,
+            JSONObject().put("sourceId", target.sourceId).put("id", row.id).toString(),
+        ) { result ->
+            secondaryRows = result.getOrNull()?.let { parseSecondary(method, it) }.orEmpty()
         }
     }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 42.dp)) {
-        item {
-            Box(Modifier.fillMaxWidth().height(390.dp)) {
-                Box(Modifier.fillMaxSize().background(SoraSurface)) {
-                    if (!active.artworkUrl.isNullOrBlank()) AsyncImage(active.artworkUrl, active.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+    BackHandler { effectiveBack() }
+
+    LaunchedEffect(active.id, active.sourceId, active.extensionPackage, refreshEpoch, extensions) {
+        val requested = active
+        metadata = DetailMetadata(active.subtitle)
+        counterpart = null
+        secondaryRows = emptyList()
+        secondaryTitle = ""
+
+        activeDisplayExtension?.let { ext ->
+            manager.call(
+                ext,
+                ExtensionContract.Method.DETAILS,
+                JSONObject().put("sourceId", requested.sourceId).put("id", requested.id).toString(),
+            ) { result ->
+                if (active.id == requested.id && active.type == requested.type) {
+                    result.getOrNull()?.let { metadata = parseMetadata(it, requested.subtitle) }
                 }
-                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .18f), Color.Transparent, SoraBg))))
-                IconButton(onClick = ::effectiveBack, modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(12.dp).background(Color.Black.copy(alpha = .64f), CircleShape)) { Icon(Icons.Rounded.ArrowBack, "Back", tint = Color.White) }
-                Box(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(12.dp)) {
-                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.background(Color.Black.copy(alpha = .64f), CircleShape)) { Icon(Icons.Rounded.MoreVert, "Title options", tint = Color.White) }
+            }
+        }
+
+        if (requested.type == ContentType.ANIME || requested.type == ContentType.MANGA) {
+            findCounterpart(requested, extensions, manager) { found ->
+                if (active.id == requested.id && active.type == requested.type) counterpart = found
+            }
+        }
+
+        if (selectionCanConsume(requested, extensions)) {
+            consumption = requested
+        } else {
+            consumption = null
+            val pref = sourcePrefs.getString(preferredSourceKey(requested.type), null)
+            val option = pref?.split('|', limit = 2)?.takeIf { it.size == 2 }?.let { parts ->
+                sourceOptions.firstOrNull { (ext, source) -> ext.packageName == parts[0] && source.id == parts[1] }
+            }
+            if (option != null) {
+                searchSourceSelection(requested, option.first, option.second, manager) { found ->
+                    if (found != null && active.id == requested.id && active.type == requested.type) consumption = found
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(consumption?.id, consumption?.sourceId, consumption?.extensionPackage, active.type) {
+        loadConsumptionRows(consumption)
+    }
+
+    val visibleRows = if (descending) childRows.reversed() else childRows
+
+    Box(Modifier.fillMaxSize().background(SoraBg)) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().navigationBarsPadding(),
+            state = listState,
+            contentPadding = PaddingValues(bottom = 12.dp),
+        ) {
+            item(key = "info") {
+                DetailInfoHeader(
+                    selection = active,
+                    metadata = metadata,
+                    sourceName = displayedSourceName,
+                )
+            }
+
+            item(key = "actions") {
+                DetailActionRow(
+                    saved = isSaved(active),
+                    hasConsumptionSource = consumption != null,
+                    type = active.type,
+                    counterpart = counterpart,
+                    onLibrary = { onToggleSaved(active) },
+                    onSource = { sourcePickerOpen = true },
+                    onAdaptation = { counterpart?.let { active = it } },
+                )
+            }
+
+            item(key = "description") {
+                DetailDescription(
+                    metadata = metadata,
+                    fallback = active.subtitle,
+                    expanded = descriptionExpanded,
+                    onToggle = { descriptionExpanded = !descriptionExpanded },
+                )
+            }
+
+            if (secondaryRows.isNotEmpty()) {
+                item(key = "secondaryHeader") {
+                    Row(
+                        Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 8.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        IconButton(onClick = ::effectiveBack) { Icon(Icons.Rounded.ArrowBack, "Back to ${sectionTitle(active.type)}") }
+                        Text(secondaryTitle, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                items(secondaryRows, key = { "secondary-${it.id}" }) { row ->
+                    SecondaryListRow(row, active.type)
+                }
+            } else {
+                item(key = "itemHeader") {
+                    DetailItemsHeader(
+                        type = active.type,
+                        count = childRows.size,
+                        descending = descending,
+                        onSort = { descending = !descending },
+                        onSource = { sourcePickerOpen = true },
+                    )
+                }
+
+                if (rowsLoading) {
+                    item(key = "loading") { LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) }
+                } else if (consumption == null && requiresConsumptionSource(active.type)) {
+                    item(key = "noSource") {
+                        NoConsumptionSource(
+                            type = active.type,
+                            hasOptions = sourceOptions.isNotEmpty(),
+                            onChooseSource = { sourcePickerOpen = true },
+                        )
+                    }
+                } else if (childRows.isEmpty()) {
+                    item(key = "emptyRows") {
+                        Text(
+                            "No ${sectionTitle(active.type).lowercase()} were returned by this source.",
+                            color = SoraMuted,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp),
+                        )
+                    }
+                } else {
+                    items(visibleRows, key = { "row-${it.id}" }) { row ->
+                        DetailMediaListRow(
+                            row = row,
+                            type = active.type,
+                            onClick = if (active.type == ContentType.ANIME || active.type == ContentType.TV || active.type == ContentType.MANGA) ({ openChild(row) }) else null,
+                        )
+                    }
+                }
+            }
+        }
+
+        TopAppBar(
+            title = {
+                if (toolbarOpaque) Text(active.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 18.sp)
+            },
+            navigationIcon = { IconButton(onClick = ::effectiveBack) { Icon(Icons.Rounded.ArrowBack, "Back") } },
+            actions = {
+                if (sourceOptions.isNotEmpty()) {
+                    IconButton(onClick = { sourcePickerOpen = true }) { Icon(Icons.Rounded.Source, "Change source") }
+                }
+                Box {
+                    IconButton(onClick = { menuOpen = true }) { Icon(Icons.Rounded.MoreVert, "Title options") }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
                             text = { Text("Change source") },
                             leadingIcon = { Icon(Icons.Rounded.Source, null) },
                             onClick = { menuOpen = false; sourcePickerOpen = true },
                         )
-                        if (extension != null) {
-                            DropdownMenuItem(
-                                text = { Text("Using ${extension.declaredName}") },
-                                leadingIcon = { Icon(Icons.Rounded.CheckCircleOutline, null) },
-                                enabled = false,
-                                onClick = { menuOpen = false },
-                            )
-                        }
+                        DropdownMenuItem(
+                            text = { Text("Refresh") },
+                            leadingIcon = { Icon(Icons.Rounded.Refresh, null) },
+                            onClick = { menuOpen = false; refreshEpoch++ },
+                        )
                     }
                 }
-                Column(Modifier.align(Alignment.BottomStart).padding(horizontal = 18.dp, vertical = 16.dp)) {
-                    Text(if (active.type == ContentType.ANIME || active.type == ContentType.MANGA) "ANIME + MANGA" else active.type.label.uppercase(), color = SoraAccent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
-                    Text(active.title, fontSize = 30.sp, lineHeight = 32.sp, fontWeight = FontWeight.Black, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
-                    Text(active.subtitle, color = Color.White.copy(alpha = .78f), fontSize = 11.sp, maxLines = 2, modifier = Modifier.padding(top = 4.dp))
-                }
-            }
-        }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = if (toolbarOpaque) SoraBg else Color.Transparent,
+                scrolledContainerColor = SoraBg,
+            ),
+        )
 
-        if ((active.type == ContentType.ANIME || active.type == ContentType.MANGA) && counterpart != null) {
-            item {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AdaptationButton("Anime", active.type == ContentType.ANIME, Modifier.weight(1f)) {
-                        if (active.type != ContentType.ANIME) counterpart?.takeIf { it.type == ContentType.ANIME }?.let { active = it }
-                    }
-                    AdaptationButton("Manga", active.type == ContentType.MANGA, Modifier.weight(1f)) {
-                        if (active.type != ContentType.MANGA) counterpart?.takeIf { it.type == ContentType.MANGA }?.let { active = it }
-                    }
-                }
-            }
-        }
-
-        item {
-            Column(Modifier.padding(horizontal = 18.dp)) {
-                if (active.type != ContentType.MUSIC && active.type != ContentType.MEME) {
-                    Button(
-                        onClick = { childRows.firstOrNull()?.let(::openChild) },
-                        enabled = childRows.isNotEmpty(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
-                        shape = RoundedCornerShape(6.dp),
-                        modifier = Modifier.fillMaxWidth().height(46.dp),
-                    ) {
-                        Icon(if (active.type == ContentType.MANGA) Icons.Rounded.MenuBook else Icons.Rounded.PlayArrow, null)
-                        Spacer(Modifier.width(6.dp)); Text(if (active.type == ContentType.MANGA) "Read" else "Play", fontWeight = FontWeight.Bold)
-                    }
-                }
-                Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.Center) {
-                    DetailAction(if (isSaved(active)) Icons.Rounded.Check else Icons.Rounded.Add, "Library") { onToggleSaved(active) }
-                    DetailAction(Icons.Rounded.Download, "Download") { }
-                    DetailAction(Icons.Rounded.Share, "Share") { }
-                }
-                Text(description, color = Color(0xFFD8D5CD), fontSize = 13.sp, lineHeight = 20.sp)
-            }
-        }
-
-        if (secondaryRows.isNotEmpty()) {
-            item {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = ::effectiveBack) { Icon(Icons.Rounded.ArrowBack, "Back") }
-                    Text(secondaryTitle, fontSize = 19.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-            items(secondaryRows, key = { it.id }) { row -> DetailListRow(row, if (active.type == ContentType.MANGA) Icons.Rounded.Image else Icons.Rounded.Public, null) }
-        } else {
-            item {
-                Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 10.dp, top = 20.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(sectionTitle(active.type), fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    if (active.type == ContentType.MANGA) TextButton(onClick = { mangaLatestFirst = !mangaLatestFirst }) { Text(if (mangaLatestFirst) "Latest first⌄" else "Oldest first⌃", color = SoraMuted, fontSize = 10.sp) }
-                }
-            }
-            if (loading) item { LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 18.dp)) }
-            else {
-                val rows = if (active.type == ContentType.MANGA && !mangaLatestFirst) childRows.reversed() else childRows
-                items(rows, key = { it.id }) { row ->
-                    DetailListRow(row, childIcon(active.type), when (active.type) { ContentType.ANIME, ContentType.TV, ContentType.MANGA -> ({ openChild(row) }); else -> null })
-                }
-            }
-        }
-
-        if (active.type == ContentType.ANIME || active.type == ContentType.MANGA) {
-            item {
-                Text("You may also like", fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp))
-                Text("Sora keeps anime and manga linked when a matching adaptation is available.", color = SoraMuted, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 18.dp))
-            }
+        if (secondaryRows.isEmpty() && visibleRows.isNotEmpty() && (active.type == ContentType.ANIME || active.type == ContentType.MANGA || active.type == ContentType.TV)) {
+            ExtendedFloatingActionButton(
+                onClick = { visibleRows.firstOrNull()?.let(::openChild) },
+                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(16.dp),
+                containerColor = SoraAccent,
+                contentColor = SoraAccentInk,
+                icon = { Icon(if (active.type == ContentType.MANGA) Icons.Rounded.MenuBook else Icons.Rounded.PlayArrow, null) },
+                text = { Text(if (active.type == ContentType.MANGA) "Start" else "Play") },
+            )
         }
     }
 
     if (sourcePickerOpen) {
-        ModalBottomSheet(onDismissRequest = { sourcePickerOpen = false }, containerColor = SoraSurface) {
-            Text("Choose source", fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp))
-            val key = detailTypeKey(active.type)
-            val options = extensions.flatMap { ext ->
-                ext.descriptor?.sources.orEmpty()
-                    .filter { source -> ext.isCatalogProvider() && key in source.contentTypes }
-                    .map { source -> ext to source }
-            }
-            if (options.isEmpty()) {
-                Text("No alternative provider is installed yet.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp))
-            } else {
-                options.forEach { (ext, source) ->
-                    Row(
-                        Modifier.fillMaxWidth().clickable {
-                            sourcePickerOpen = false
-                            val payload = JSONObject().put("sourceId", source.id).put("type", key).put("query", active.title).toString()
-                            manager.call(ext, ExtensionContract.Method.SEARCH, payload) { result ->
-                                result.getOrNull()?.let { raw ->
-                                    parseSourceSelection(raw, source.id, ext.packageName, active.type)?.let { active = it }
-                                }
+        ModalBottomSheet(
+            onDismissRequest = { sourcePickerOpen = false; sourceSearchError = null },
+            containerColor = SoraSurface,
+        ) {
+            Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 12.dp)) {
+                Text("Choose source", fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp))
+                Text(
+                    "Sora keeps catalog metadata separate from the extension used to ${consumptionVerb(active.type)}.",
+                    color = SoraMuted,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                )
+                if (sourceSearchBusy) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp))
+                sourceSearchError?.let { Text(it, color = SoraDanger, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) }
+
+                if (sourceOptions.isEmpty()) {
+                    Text(
+                        "No compatible ${active.type.label.lowercase()} source extension is installed yet.",
+                        color = SoraMuted,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                    )
+                } else {
+                    sourceOptions.forEach { (ext, source) ->
+                        val selected = consumption?.extensionPackage == ext.packageName && consumption?.sourceId == source.id
+                        Row(
+                            Modifier.fillMaxWidth().clickable(enabled = !sourceSearchBusy) { chooseSource(ext, source) }.padding(horizontal = 20.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(Icons.Rounded.Public, null, tint = if (selected) SoraAccent else SoraMuted)
+                            Column(Modifier.weight(1f).padding(horizontal = 13.dp)) {
+                                Text(source.name, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text(ext.declaredName, color = SoraMuted, fontSize = 10.sp)
                             }
-                        }.padding(horizontal = 20.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Rounded.Source, null, tint = if (ext.packageName == active.extensionPackage && source.id == active.sourceId) SoraAccent else SoraMuted)
-                        Column(Modifier.weight(1f).padding(start = 13.dp)) {
-                            Text(source.name, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            Text(ext.declaredName, color = SoraMuted, fontSize = 10.sp)
+                            if (selected) Icon(Icons.Rounded.Check, "Selected", tint = SoraAccent)
                         }
-                        if (ext.packageName == active.extensionPackage && source.id == active.sourceId) Icon(Icons.Rounded.Check, null, tint = SoraAccent)
                     }
                 }
             }
-            Spacer(Modifier.height(22.dp))
         }
     }
 }
 
 @Composable
-private fun AdaptationButton(label: String, active: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(9.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = if (active) SoraAccent else SoraSurfaceHigh, contentColor = if (active) SoraAccentInk else SoraText),
-    ) { Text(label, fontWeight = FontWeight.Bold) }
+private fun DetailInfoHeader(selection: ExtensionMediaSelection, metadata: DetailMetadata, sourceName: String) {
+    Box(Modifier.fillMaxWidth().heightIn(min = 250.dp)) {
+        if (!selection.artworkUrl.isNullOrBlank()) {
+            AsyncImage(
+                selection.artworkUrl,
+                null,
+                Modifier.matchParentSize().blur(4.dp).alpha(.20f),
+                contentScale = ContentScale.Crop,
+            )
+        }
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Transparent, SoraBg))))
+        Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, top = 94.dp, end = 16.dp, bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.width(100.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(6.dp)).background(SoraSurfaceHigh),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (!selection.artworkUrl.isNullOrBlank()) {
+                    AsyncImage(selection.artworkUrl, selection.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                } else {
+                    Text(selection.title.take(1), color = SoraMuted, fontSize = 32.sp, fontWeight = FontWeight.Black)
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(selection.title, fontSize = 22.sp, lineHeight = 26.sp, fontWeight = FontWeight.SemiBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                if (selection.subtitle.isNotBlank()) Text(selection.subtitle, color = SoraMuted, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (metadata.score.isNotBlank()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.Star, null, tint = SoraAccent, modifier = Modifier.size(16.dp))
+                        Text(metadata.score, color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp))
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(statusIcon(metadata.status), null, tint = SoraMuted, modifier = Modifier.size(16.dp))
+                    Text(metadata.status.ifBlank { "Unknown status" }, color = SoraMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 4.dp))
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Public, null, tint = SoraMuted, modifier = Modifier.size(16.dp))
+                    Text(sourceName, color = SoraMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 4.dp))
+                }
+            }
+        }
+    }
 }
 
 @Composable
-private fun DetailAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
-    Column(Modifier.clickable(onClick = onClick).padding(horizontal = 17.dp, vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) { Icon(icon, null, modifier = Modifier.size(24.dp)); Text(label, fontSize = 9.sp, color = SoraMuted, modifier = Modifier.padding(top = 5.dp)) }
+private fun DetailActionRow(
+    saved: Boolean,
+    hasConsumptionSource: Boolean,
+    type: ContentType,
+    counterpart: ExtensionMediaSelection?,
+    onLibrary: () -> Unit,
+    onSource: () -> Unit,
+    onAdaptation: () -> Unit,
+) {
+    Row(Modifier.fillMaxWidth().padding(start = 16.dp, top = 8.dp, end = 16.dp)) {
+        DetailActionButton(
+            title = if (saved) "In library" else "Add to library",
+            icon = if (saved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+            highlighted = saved,
+            onClick = onLibrary,
+        )
+        DetailActionButton(
+            title = if (hasConsumptionSource) "Source" else "Choose source",
+            icon = Icons.Rounded.Public,
+            highlighted = hasConsumptionSource,
+            onClick = onSource,
+        )
+        if (type == ContentType.ANIME || type == ContentType.MANGA) {
+            DetailActionButton(
+                title = if (type == ContentType.ANIME) "Manga" else "Anime",
+                icon = Icons.Rounded.SwapHoriz,
+                highlighted = counterpart != null,
+                enabled = counterpart != null,
+                onClick = onAdaptation,
+            )
+        }
+    }
 }
 
 @Composable
-private fun DetailListRow(row: DetailRow, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: (() -> Unit)?) {
-    Row(Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 18.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(width = 112.dp, height = 64.dp).clip(RoundedCornerShape(6.dp)).background(SoraSurfaceHigh), contentAlignment = Alignment.Center) { Icon(icon, null, tint = SoraMuted) }
-        Column(Modifier.weight(1f).padding(start = 12.dp)) { Text(row.title, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1); if (row.subtitle.isNotBlank()) Text(row.subtitle, color = SoraMuted, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
-        if (onClick != null) Icon(Icons.Rounded.ChevronRight, null, tint = SoraFaint)
+private fun RowScope.DetailActionButton(
+    title: String,
+    icon: ImageVector,
+    highlighted: Boolean,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val color = when {
+        highlighted -> SoraAccent
+        enabled -> SoraMuted
+        else -> SoraFaint
+    }
+    TextButton(onClick = onClick, enabled = enabled, modifier = Modifier.weight(1f), contentPadding = PaddingValues(vertical = 8.dp)) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(icon, null, tint = color, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.height(4.dp))
+            Text(title, color = color, fontSize = 12.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 2)
+        }
+    }
+}
+
+@Composable
+private fun DetailDescription(metadata: DetailMetadata, fallback: String, expanded: Boolean, onToggle: () -> Unit) {
+    val description = metadata.description.ifBlank { fallback }.ifBlank { "No description available." }
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            description,
+            color = SoraText.copy(alpha = .74f),
+            fontSize = 13.sp,
+            lineHeight = 19.sp,
+            maxLines = if (expanded) Int.MAX_VALUE else 3,
+            overflow = if (expanded) TextOverflow.Clip else TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(start = 16.dp, top = 10.dp, end = 16.dp, bottom = 4.dp),
+        )
+        if (metadata.genres.isNotEmpty()) {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                items(metadata.genres, key = { it }) { genre ->
+                    SuggestionChip(onClick = {}, label = { Text(genre, fontSize = 11.sp) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailItemsHeader(type: ContentType, count: Int, descending: Boolean, onSort: () -> Unit, onSource: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(sectionTitle(type), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            if (count > 0) Text("$count item${if (count == 1) "" else "s"}", color = SoraMuted, fontSize = 11.sp)
+        }
+        IconButton(onClick = onSource) { Icon(Icons.Rounded.Source, "Choose source") }
+        IconButton(onClick = onSort) { Icon(if (descending) Icons.Rounded.ArrowDownward else Icons.Rounded.ArrowUpward, "Change sort order") }
+    }
+}
+
+@Composable
+private fun DetailMediaListRow(row: DetailRow, type: ContentType, onClick: (() -> Unit)?) {
+    Row(
+        Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(start = 16.dp, top = 12.dp, end = 8.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(row.title, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (row.subtitle.isNotBlank()) Text(row.subtitle, color = SoraMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        if (onClick != null) {
+            Icon(
+                if (type == ContentType.MANGA) Icons.Rounded.ChevronRight else Icons.Rounded.PlayArrow,
+                if (type == ContentType.MANGA) "Open chapter" else "Open episode",
+                tint = SoraMuted,
+                modifier = Modifier.padding(start = 8.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SecondaryListRow(row: DetailRow, type: ContentType) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(if (type == ContentType.MANGA) Icons.Rounded.Image else Icons.Rounded.Public, null, tint = SoraMuted, modifier = Modifier.size(20.dp))
+        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+            Text(row.title, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (row.subtitle.isNotBlank()) Text(row.subtitle, color = SoraMuted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+@Composable
+private fun NoConsumptionSource(type: ContentType, hasOptions: Boolean, onChooseSource: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp)) {
+        Text("No ${consumptionNoun(type)} source selected", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            if (hasOptions) "The catalog supplies the title metadata. Choose an installed source for the actual ${consumptionVerb(type)} data."
+            else "The catalog supplies the title metadata. Install a compatible source extension to load actual ${consumptionVerb(type)} data.",
+            color = SoraMuted,
+            fontSize = 12.sp,
+            lineHeight = 17.sp,
+            modifier = Modifier.padding(top = 5.dp),
+        )
+        if (hasOptions) TextButton(onClick = onChooseSource, contentPadding = PaddingValues(vertical = 8.dp)) { Text("Choose source") }
     }
 }
 
@@ -277,6 +584,85 @@ fun MissingExtensionScreen(onBack: () -> Unit) {
         Column(Modifier.fillMaxSize().padding(padding).padding(20.dp)) { Text("The source that supplied this title is no longer installed.") }
     }
 }
+
+private fun parseMetadata(raw: String, fallback: String): DetailMetadata = runCatching {
+    val obj = JSONObject(raw)
+    val genres = buildList {
+        val array = obj.optJSONArray("genres") ?: JSONArray()
+        for (i in 0 until array.length()) array.optString(i).takeIf(String::isNotBlank)?.let(::add)
+    }
+    val score = obj.optDouble("score").takeUnless { it.isNaN() || it <= 0.0 }?.let { String.format("%.1f", it) }.orEmpty()
+    DetailMetadata(
+        description = obj.optString("description", fallback),
+        status = obj.optString("status"),
+        score = score,
+        genres = genres,
+    )
+}.getOrElse { DetailMetadata(fallback) }
+
+private fun consumptionSourcesFor(extensions: List<InstalledExtension>, type: ContentType): List<Pair<InstalledExtension, SourceDescriptor>> {
+    val key = detailTypeKey(type)
+    val capability = requiredCapability(type)
+    return extensions.flatMap { ext ->
+        if (ext.error != null) emptyList()
+        else ext.descriptor?.sources.orEmpty()
+            .filter { source ->
+                key in source.contentTypes && (
+                    capability in source.capabilities ||
+                        (!ext.isCatalogProvider() && "search" in source.capabilities)
+                    )
+            }
+            .map { source -> ext to source }
+    }
+}
+
+private fun selectionCanConsume(selection: ExtensionMediaSelection, extensions: List<InstalledExtension>): Boolean {
+    val ext = extensions.firstOrNull { it.packageName == selection.extensionPackage } ?: return false
+    val source = ext.descriptor?.sources?.firstOrNull { it.id == selection.sourceId } ?: return !ext.isCatalogProvider()
+    return requiredCapability(selection.type) in source.capabilities || !ext.isCatalogProvider()
+}
+
+private fun searchSourceSelection(
+    active: ExtensionMediaSelection,
+    ext: InstalledExtension,
+    source: SourceDescriptor,
+    manager: ExtensionManager,
+    callback: (ExtensionMediaSelection?) -> Unit,
+) {
+    val payload = JSONObject()
+        .put("sourceId", source.id)
+        .put("type", detailTypeKey(active.type))
+        .put("query", active.title)
+        .toString()
+    manager.call(ext, ExtensionContract.Method.SEARCH, payload) { result ->
+        callback(result.getOrNull()?.let { raw -> parseBestSourceSelection(raw, source.id, ext.packageName, active) })
+    }
+}
+
+private fun parseBestSourceSelection(raw: String, sourceId: String, packageName: String, active: ExtensionMediaSelection): ExtensionMediaSelection? = runCatching {
+    val array = JSONArray(raw)
+    if (array.length() == 0) return@runCatching null
+    val target = normalizeTitle(active.title)
+    var best: JSONObject? = null
+    for (i in 0 until array.length()) {
+        val item = array.optJSONObject(i) ?: continue
+        val candidate = normalizeTitle(item.optString("title"))
+        if (candidate == target || candidate.contains(target) || target.contains(candidate)) {
+            best = item
+            break
+        }
+    }
+    val item = best ?: array.optJSONObject(0) ?: return@runCatching null
+    ExtensionMediaSelection(
+        id = item.optString("id"),
+        sourceId = sourceId,
+        extensionPackage = packageName,
+        type = active.type,
+        title = item.optString("title", active.title),
+        subtitle = item.optString("subtitle", active.subtitle),
+        artworkUrl = detailArtwork(item) ?: active.artworkUrl,
+    )
+}.getOrNull()
 
 private fun findCounterpart(active: ExtensionMediaSelection, extensions: List<InstalledExtension>, manager: ExtensionManager, callback: (ExtensionMediaSelection?) -> Unit) {
     val opposite = if (active.type == ContentType.ANIME) ContentType.MANGA else if (active.type == ContentType.MANGA) ContentType.ANIME else return callback(null)
@@ -288,7 +674,7 @@ private fun findCounterpart(active: ExtensionMediaSelection, extensions: List<In
     }
     if (providers.isEmpty()) return callback(null)
 
-    val normalized = active.title.lowercase().replace(Regex("[^a-z0-9]"), "")
+    val normalized = normalizeTitle(active.title)
     fun tryProvider(index: Int) {
         if (index >= providers.size) return callback(null)
         val (ext, source) = providers[index]
@@ -300,7 +686,7 @@ private fun findCounterpart(active: ExtensionMediaSelection, extensions: List<In
                     var best: JSONObject? = null
                     for (i in 0 until arr.length()) {
                         val item = arr.getJSONObject(i)
-                        val name = item.optString("title").lowercase().replace(Regex("[^a-z0-9]"), "")
+                        val name = normalizeTitle(item.optString("title"))
                         if (name == normalized || name.contains(normalized) || normalized.contains(name)) { best = item; break }
                     }
                     (best ?: arr.optJSONObject(0))?.let {
@@ -316,16 +702,102 @@ private fun findCounterpart(active: ExtensionMediaSelection, extensions: List<In
 
 private fun parseRows(type: ContentType, raw: String): List<DetailRow> = runCatching {
     when (type) {
-        ContentType.MUSIC -> { val obj = JSONObject(raw); listOf(DetailRow(obj.optString("trackId", "lyrics"), "Lyrics", obj.optString("text", "No lyrics returned"))) }
-        else -> { val arr = JSONArray(raw); buildList { for (i in 0 until arr.length()) { val item = arr.getJSONObject(i); val id = item.optString("id", "item-$i"); val title = item.optString("title").ifBlank { item.optString("label").ifBlank { "Item ${i + 1}" } }; val subtitle = when { item.has("number") -> "#${item.optInt("number")}"; item.has("url") -> item.optString("url"); else -> "" }; add(DetailRow(id, title, subtitle)) } } }
+        ContentType.MUSIC -> {
+            val obj = JSONObject(raw)
+            listOf(DetailRow(obj.optString("trackId", "lyrics"), "Lyrics", obj.optString("text", "No lyrics returned")))
+        }
+        else -> {
+            val arr = JSONArray(raw)
+            buildList {
+                for (i in 0 until arr.length()) {
+                    val item = arr.optJSONObject(i) ?: continue
+                    val id = item.optString("id", "item-$i")
+                    val number = item.optString("number").takeIf(String::isNotBlank)
+                    val fallbackTitle = when (type) {
+                        ContentType.ANIME, ContentType.TV -> number?.let { "Episode $it" }
+                        ContentType.MANGA -> number?.let { "Chapter $it" }
+                        else -> null
+                    } ?: "Item ${i + 1}"
+                    val title = item.optString("title").ifBlank { item.optString("label").ifBlank { fallbackTitle } }
+                    val subtitle = buildList {
+                        item.optString("date").takeIf(String::isNotBlank)?.let(::add)
+                        item.optString("scanlator").takeIf(String::isNotBlank)?.let(::add)
+                        item.optString("duration").takeIf(String::isNotBlank)?.let(::add)
+                        if (isEmpty()) number?.let { add("#$it") }
+                        if (isEmpty()) item.optString("url").takeIf(String::isNotBlank)?.let(::add)
+                    }.joinToString(" · ")
+                    add(DetailRow(id, title, subtitle))
+                }
+            }
+        }
     }
 }.getOrDefault(emptyList())
 
-private fun parseSecondary(method: String, raw: String): List<DetailRow> = runCatching { val arr = JSONArray(raw); buildList { for (i in 0 until arr.length()) { val item = arr.getJSONObject(i); if (method == ExtensionContract.Method.PAGES) add(DetailRow("page-$i", "Page ${i + 1}", item.optString("url"))) else add(DetailRow("stream-$i", item.optString("label", "Source ${i + 1}"), item.optString("url"))) } } }.getOrDefault(emptyList())
-private fun sectionTitle(type: ContentType) = when (type) { ContentType.ANIME, ContentType.TV -> "Episodes"; ContentType.MANGA -> "Chapters"; ContentType.MOVIE -> "Sources"; ContentType.MUSIC -> "Track"; ContentType.MEME -> "Post" }
-private fun childIcon(type: ContentType) = when (type) { ContentType.MANGA -> Icons.Rounded.Article; ContentType.MUSIC -> Icons.Rounded.Article; ContentType.MEME -> Icons.Rounded.Image; else -> Icons.Rounded.PlayArrow }
-private fun detailArtwork(item: JSONObject): String? = listOf("artworkUrl", "poster", "posterUrl", "image", "imageUrl", "thumbnail", "cover", "coverUrl").firstNotNullOfOrNull { key -> item.optString(key).takeIf { it.startsWith("http://") || it.startsWith("https://") } }
+private fun parseSecondary(method: String, raw: String): List<DetailRow> = runCatching {
+    val arr = JSONArray(raw)
+    buildList {
+        for (i in 0 until arr.length()) {
+            val item = arr.optJSONObject(i) ?: continue
+            if (method == ExtensionContract.Method.PAGES) {
+                add(DetailRow("page-$i", "Page ${i + 1}", item.optString("url")))
+            } else {
+                add(DetailRow("stream-$i", item.optString("label", "Source ${i + 1}"), item.optString("url")))
+            }
+        }
+    }
+}.getOrDefault(emptyList())
 
+private fun childMethod(type: ContentType): String = when (type) {
+    ContentType.ANIME, ContentType.TV -> ExtensionContract.Method.EPISODES
+    ContentType.MANGA -> ExtensionContract.Method.CHAPTERS
+    ContentType.MOVIE -> ExtensionContract.Method.STREAMS
+    ContentType.MUSIC -> ExtensionContract.Method.LYRICS
+    ContentType.MEME -> ExtensionContract.Method.FEED
+}
+
+private fun requiredCapability(type: ContentType): String = when (type) {
+    ContentType.ANIME, ContentType.TV -> "episodes"
+    ContentType.MANGA -> "chapters"
+    ContentType.MOVIE, ContentType.MUSIC -> "streams"
+    ContentType.MEME -> "feed"
+}
+
+private fun requiresConsumptionSource(type: ContentType): Boolean = type == ContentType.ANIME || type == ContentType.MANGA || type == ContentType.MOVIE || type == ContentType.TV
+
+private fun sectionTitle(type: ContentType): String = when (type) {
+    ContentType.ANIME, ContentType.TV -> "Episodes"
+    ContentType.MANGA -> "Chapters"
+    ContentType.MOVIE -> "Sources"
+    ContentType.MUSIC -> "Track"
+    ContentType.MEME -> "Post"
+}
+
+private fun consumptionVerb(type: ContentType): String = when (type) {
+    ContentType.MANGA -> "read"
+    ContentType.ANIME, ContentType.TV, ContentType.MOVIE -> "watch"
+    ContentType.MUSIC -> "play"
+    ContentType.MEME -> "load"
+}
+
+private fun consumptionNoun(type: ContentType): String = when (type) {
+    ContentType.MANGA -> "reading"
+    ContentType.ANIME, ContentType.TV, ContentType.MOVIE -> "watch"
+    ContentType.MUSIC -> "playback"
+    ContentType.MEME -> "feed"
+}
+
+private fun statusIcon(status: String): ImageVector = when {
+    status.contains("finished", true) || status.contains("complete", true) -> Icons.Rounded.DoneAll
+    status.contains("airing", true) || status.contains("publishing", true) || status.contains("ongoing", true) -> Icons.Rounded.Schedule
+    status.contains("hiatus", true) -> Icons.Rounded.Pause
+    status.contains("cancel", true) -> Icons.Rounded.Close
+    else -> Icons.Rounded.Info
+}
+
+private fun preferredSourceKey(type: ContentType): String = "preferred_${detailTypeKey(type)}"
+
+private fun detailArtwork(item: JSONObject): String? = listOf("artworkUrl", "poster", "posterUrl", "image", "imageUrl", "thumbnail", "cover", "coverUrl")
+    .firstNotNullOfOrNull { key -> item.optString(key).takeIf { it.startsWith("http://") || it.startsWith("https://") } }
 
 private fun detailTypeKey(type: ContentType): String = when (type) {
     ContentType.MOVIE -> "movie"
@@ -333,16 +805,4 @@ private fun detailTypeKey(type: ContentType): String = when (type) {
     else -> type.name.lowercase()
 }
 
-private fun parseSourceSelection(raw: String, sourceId: String, packageName: String, type: ContentType): ExtensionMediaSelection? = runCatching {
-    val array = JSONArray(raw)
-    val item = array.optJSONObject(0) ?: return@runCatching null
-    ExtensionMediaSelection(
-        id = item.optString("id"),
-        sourceId = sourceId,
-        extensionPackage = packageName,
-        type = type,
-        title = item.optString("title", "Untitled"),
-        subtitle = item.optString("subtitle"),
-        artworkUrl = detailArtwork(item),
-    )
-}.getOrNull()
+private fun normalizeTitle(value: String): String = value.lowercase().replace(Regex("[^a-z0-9]"), "")
