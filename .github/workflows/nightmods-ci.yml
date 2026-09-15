@@ -54,7 +54,7 @@ jobs:
         run: |
           python3 nightmods/manager-overlay/apply_nightmods.py lsposed-et
           grep -n 'startDestination="@id/modules_nav"' lsposed-et/app/src/main/res/navigation/main_nav.xml
-          grep -n 'Night Mods' lsposed-et/app/src/main/res/values/strings.xml
+          grep -n 'Night Mods' lsposed-et/app/src/main/res/values/strings_untranslatable.xml
           test -f lsposed-et/app/src/main/java/org/lsposed/manager/nightmods/NightModsBackend.java
 
       - name: Build Night Mods manager APK
