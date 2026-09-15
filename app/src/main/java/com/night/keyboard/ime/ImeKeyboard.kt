@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -22,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -96,20 +95,20 @@ private fun Toolbar(panel: ToolPanel, onPanel: (ToolPanel) -> Unit, controller: 
         horizontalArrangement = Arrangement.spacedBy(3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ToolButton(Icons.Outlined.ContentPaste, "Clipboard", panel == ToolPanel.CLIPBOARD) { onPanel(ToolPanel.CLIPBOARD) }
-        ToolButton(Icons.Outlined.EmojiEmotions, "Emoji", panel == ToolPanel.EMOJI) { onPanel(ToolPanel.EMOJI) }
-        ToolButton(Icons.Outlined.KeyboardVoice, "Voice input", panel == ToolPanel.VOICE) { onPanel(ToolPanel.VOICE) }
-        ToolButton(Icons.Outlined.AutoAwesome, "Editor", panel == ToolPanel.EDITOR) { onPanel(ToolPanel.EDITOR) }
-        ToolButton(Icons.Outlined.Tune, "Tone", panel == ToolPanel.TONE) { onPanel(ToolPanel.TONE) }
-        ToolButton(Icons.Outlined.ManageSearch, "Research", panel == ToolPanel.RESEARCH) { onPanel(ToolPanel.RESEARCH) }
+        ToolButton(KeyboardIcons.Clipboard, "Clipboard", panel == ToolPanel.CLIPBOARD) { onPanel(ToolPanel.CLIPBOARD) }
+        ToolButton(KeyboardIcons.Emoji, "Emoji", panel == ToolPanel.EMOJI) { onPanel(ToolPanel.EMOJI) }
+        ToolButton(KeyboardIcons.Voice, "Voice input", panel == ToolPanel.VOICE) { onPanel(ToolPanel.VOICE) }
+        ToolButton(KeyboardIcons.Editor, "Editor", panel == ToolPanel.EDITOR) { onPanel(ToolPanel.EDITOR) }
+        ToolButton(KeyboardIcons.Tone, "Tone", panel == ToolPanel.TONE) { onPanel(ToolPanel.TONE) }
+        ToolButton(KeyboardIcons.Research, "Research", panel == ToolPanel.RESEARCH) { onPanel(ToolPanel.RESEARCH) }
         Spacer(Modifier.width(2.dp))
-        ToolButton(Icons.Outlined.RecordVoiceOver, "Input picker", false) { controller.showInputPicker() }
+        ToolButton(KeyboardIcons.InputPicker, "Input picker", false) { controller.showInputPicker() }
     }
 }
 
 @Composable
 private fun ToolButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     description: String,
     selected: Boolean,
     onClick: () -> Unit,
@@ -380,6 +379,13 @@ private fun ImeKey(
     val borderColor = Color((style.borderArgb ?: theme.borderArgb).toInt())
     val borderWidth = if (borderEnabled) (style.borderWidthDp ?: theme.borderWidthDp).dp else 0.dp
     val secondary = key.secondary
+    val specialIcon = when (key.special) {
+        SpecialKey.SHIFT -> KeyboardIcons.Shift
+        SpecialKey.BACKSPACE -> KeyboardIcons.Backspace
+        SpecialKey.ENTER -> KeyboardIcons.Enter
+        SpecialKey.EMOJI -> KeyboardIcons.Emoji
+        else -> null
+    }
 
     Box(
         modifier
@@ -410,19 +416,34 @@ private fun ImeKey(
                 fontSize = 8.sp,
             )
         }
-        Text(
-            displayLabel,
-            color = labelColor,
-            fontSize = (style.labelSizeSp ?: theme.labelSizeSp).sp,
-            fontWeight = if (style.bold == true) FontWeight.Bold else FontWeight.Normal,
-            fontStyle = if (style.italic == true) FontStyle.Italic else FontStyle.Normal,
-        )
+        if (specialIcon != null) {
+            Icon(
+                specialIcon,
+                contentDescription = when (key.special) {
+                    SpecialKey.SHIFT -> "Shift"
+                    SpecialKey.BACKSPACE -> "Backspace"
+                    SpecialKey.ENTER -> "Enter"
+                    SpecialKey.EMOJI -> "Emoji"
+                    else -> null
+                },
+                tint = labelColor,
+                modifier = Modifier.size(22.dp),
+            )
+        } else {
+            Text(
+                displayLabel,
+                color = labelColor,
+                fontSize = (style.labelSizeSp ?: theme.labelSizeSp).sp,
+                fontWeight = if (style.bold == true) FontWeight.Bold else FontWeight.Normal,
+                fontStyle = if (style.italic == true) FontStyle.Italic else FontStyle.Normal,
+            )
+        }
         if (key.special == SpecialKey.COMMA && secondary == "mic") {
             Icon(
-                Icons.Outlined.KeyboardVoice,
+                KeyboardIcons.Voice,
                 contentDescription = null,
                 tint = Color(theme.secondaryLabelArgb.toInt()),
-                modifier = Modifier.align(Alignment.TopEnd).padding(top = 3.dp, end = 5.dp).size(9.dp),
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 3.dp, end = 5.dp).size(10.dp),
             )
         }
     }
