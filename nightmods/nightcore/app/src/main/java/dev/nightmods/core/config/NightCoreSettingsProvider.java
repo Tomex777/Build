@@ -8,24 +8,26 @@ import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
 
-/** Narrow IPC bridge used by Night Mods to edit Night Core hook-readable preferences. */
+/** Narrow IPC bridge between Night Mods / scoped target apps and Night Core settings. */
 public final class NightCoreSettingsProvider extends ContentProvider {
     public static final String AUTHORITY = "dev.nightmods.core.settings";
     public static final String METHOD_GET_BUBBLE_STYLE = "get_bubble_style";
     public static final String METHOD_SET_BUBBLE_STYLE = "set_bubble_style";
 
     private static final String NIGHT_MODS_PACKAGE = "org.lsposed.manager";
+    private static final String WHATSAPP_PACKAGE = "com.whatsapp";
+    private static final String INSTAGRAM_PACKAGE = "com.instagram.android";
 
     @Override public boolean onCreate() { return true; }
 
     @Override
     public Bundle call(String method, String arg, Bundle extras) {
-        enforceNightModsCaller();
         var context = getContext();
-        if (context == null) return Bundle.EMPTY;
-        var prefs = NightCorePreferences.open(context);
+        if (context == null) throw new IllegalStateException("Night Core unavailable");
 
         if (METHOD_GET_BUBBLE_STYLE.equals(method)) {
+            enforceReadCaller();
+            var prefs = NightCorePreferences.open(context);
             Bundle result = new Bundle();
             result.putBoolean(BubbleStyleConfig.KEY_ENABLED, prefs.getBoolean(BubbleStyleConfig.KEY_ENABLED, true));
             result.putBoolean(BubbleStyleConfig.KEY_WHATSAPP, prefs.getBoolean(BubbleStyleConfig.KEY_WHATSAPP, true));
@@ -36,7 +38,9 @@ public final class NightCoreSettingsProvider extends ContentProvider {
         }
 
         if (METHOD_SET_BUBBLE_STYLE.equals(method)) {
+            enforceWriteCaller();
             if (extras == null) throw new IllegalArgumentException("Missing settings bundle");
+            var prefs = NightCorePreferences.open(context);
             prefs.edit()
                     .putBoolean(BubbleStyleConfig.KEY_ENABLED, extras.getBoolean(BubbleStyleConfig.KEY_ENABLED, true))
                     .putBoolean(BubbleStyleConfig.KEY_WHATSAPP, extras.getBoolean(BubbleStyleConfig.KEY_WHATSAPP, true))
@@ -50,19 +54,33 @@ public final class NightCoreSettingsProvider extends ContentProvider {
         throw new IllegalArgumentException("Unknown Night Core settings method: " + method);
     }
 
-    private void enforceNightModsCaller() {
+    private void enforceReadCaller() {
+        if (isOwnUid()) return;
+        if (callerHasPackage(NIGHT_MODS_PACKAGE)
+                || callerHasPackage(WHATSAPP_PACKAGE)
+                || callerHasPackage(INSTAGRAM_PACKAGE)) return;
+        throw new SecurityException("Caller is not allowed to read Night Core settings");
+    }
+
+    private void enforceWriteCaller() {
+        if (isOwnUid() || callerHasPackage(NIGHT_MODS_PACKAGE)) return;
+        throw new SecurityException("Caller is not allowed to write Night Core settings");
+    }
+
+    private boolean isOwnUid() {
+        return Binder.getCallingUid() == android.os.Process.myUid();
+    }
+
+    private boolean callerHasPackage(String expectedPackage) {
         var context = getContext();
-        if (context == null) throw new SecurityException("Night Core unavailable");
-        int uid = Binder.getCallingUid();
-        if (uid == android.os.Process.myUid()) return;
+        if (context == null) return false;
         PackageManager pm = context.getPackageManager();
-        String[] packages = pm.getPackagesForUid(uid);
-        if (packages != null) {
-            for (String packageName : packages) {
-                if (NIGHT_MODS_PACKAGE.equals(packageName)) return;
-            }
+        String[] packages = pm.getPackagesForUid(Binder.getCallingUid());
+        if (packages == null) return false;
+        for (String packageName : packages) {
+            if (expectedPackage.equals(packageName)) return true;
         }
-        throw new SecurityException("Caller is not Night Mods");
+        return false;
     }
 
     private static int clamp(int value, int min, int max) {
