@@ -10,6 +10,11 @@
     <string name="corner_radius">Corner radius</string>
     <string name="message_spacing">Message spacing</string>
     <string name="status_ready">Architecture ready. App-specific bubble hooks require version analysis.</string>
+    <string name="engine_subtitle">Cross-app UI engine for Night Mods</string>
+    <string name="managed_by_night_mods">Managed by Night Mods</string>
+    <string name="open_night_mods">Open Night Mods</string>
+    <string name="target_adapters">Target adapters</string>
+    <string name="version_guard_note">Night Core only activates app-specific UI hooks for target versions that have been explicitly verified. Unknown versions stay inactive until analyzed.</string>
     <string name="engine_version_value">Engine version · %1$s</string>
     <string name="night_mods_detected">Night Mods detected · configuration is managed there</string>
     <string name="night_mods_not_detected">Night Mods not detected</string>
