@@ -1,6 +1,6 @@
 --- a/app/src/main/java/com/night/later/ui/editor/LaterEntryDecorations.kt
 +++ b/app/src/main/java/com/night/later/ui/editor/LaterEntryDecorations.kt
-@@ -168,7 +168,7 @@
+@@ -168,6 +168,6 @@
      ) {
          val compact = maxWidth < 340.dp
 -        val titleWidth = if (compact) 112.dp else 148.dp
