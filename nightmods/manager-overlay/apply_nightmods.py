@@ -50,6 +50,7 @@ def main() -> None:
 
     repo = Path(sys.argv[1]).resolve()
     main_nav = repo / "app/src/main/res/navigation/main_nav.xml"
+    modules_nav = repo / "app/src/main/res/navigation/modules_nav.xml"
     nav_menu = repo / "app/src/main/res/menu/navigation_menu.xml"
     strings = repo / "app/src/main/res/values/strings.xml"
     strings_untranslatable = repo / "app/src/main/res/values/strings_untranslatable.xml"
@@ -59,6 +60,7 @@ def main() -> None:
 
     for p in (
         main_nav,
+        modules_nav,
         nav_menu,
         strings,
         strings_untranslatable,
@@ -76,6 +78,17 @@ def main() -> None:
         "module-first start destination",
     )
     main_nav.write_text(text, encoding="utf-8")
+
+    # Keep the proven LSPosed scope destination/action, but replace only the
+    # visible module-list fragment with Night's own native presentation.
+    modules_nav_text = modules_nav.read_text(encoding="utf-8")
+    modules_nav_text = replace_once(
+        modules_nav_text,
+        r'android:name="org\.lsposed\.manager\.ui\.fragment\.ModulesFragment"',
+        'android:name="org.lsposed.manager.nightmods.ui.NightModulesFragment"',
+        "Night-owned Modules fragment",
+    )
+    modules_nav.write_text(modules_nav_text, encoding="utf-8")
 
     menu = '''<?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
@@ -106,7 +119,15 @@ def main() -> None:
 
     # Keep any optional full-name resource synchronized if upstream adds/uses it.
     replace_string_resource(strings, "app_name_full", "Night Mods")
+    ensure_string_resource(strings, "night_framework_active", "Framework active")
     ensure_string_resource(strings, "night_framework_unavailable", "Framework unavailable")
+    ensure_string_resource(strings, "night_framework_connected_detail", "Xposed service connected")
+    ensure_string_resource(strings, "night_framework_unavailable_detail", "Module controls require the Xposed framework service.")
+    ensure_string_resource(strings, "night_modules_empty_title", "No modules installed")
+    ensure_string_resource(strings, "night_modules_empty_detail", "Installed Xposed modules will appear here.")
+    ensure_string_resource(strings, "night_modules_offline_title", "Modules unavailable")
+    ensure_string_resource(strings, "night_modules_offline_detail", "Start the framework service to load and manage modules.")
+    ensure_string_resource(strings, "night_module_toggle_failed", "Couldn’t change the module state.")
 
     # Upstream removes most bottom-navigation destinations when the daemon is not
     # connected. Night Mods keeps the complete application shell visible instead.
@@ -120,8 +141,8 @@ def main() -> None:
     )
     main_activity.write_text(activity_text, encoding="utf-8")
 
-    # A disconnected framework is a real state, not "zero enabled modules". Keep
-    # the Modules screen usable, but surface the state and hide the unusable FAB.
+    # Keep the old fragment safe as a fallback/deep-link target while the Night-owned
+    # screen is introduced. This also fixes any legacy route that still reaches it.
     modules_text = modules_fragment.read_text(encoding="utf-8")
     modules_text = replace_once(
         modules_text,
@@ -142,6 +163,7 @@ def main() -> None:
     print("Night Mods overlay applied successfully.")
     print("Preserved manager applicationId/package for LSPosed ET Binder compatibility.")
     print("Launcher label: Night Mods.")
+    print("Night-owned Modules screen: enabled.")
     print("Primary navigation stays visible even when the framework is unavailable.")
     print("Primary navigation: Modules -> Repository -> Logs -> Settings.")
 
