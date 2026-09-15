@@ -127,21 +127,32 @@ jobs:
           MANIFEST=nightmods/nightcore/app/src/main/AndroidManifest.xml
           PREFS=nightmods/nightcore/app/src/main/java/dev/nightmods/core/config/NightCorePreferences.java
           PROVIDER=nightmods/nightcore/app/src/main/java/dev/nightmods/core/config/NightCoreSettingsProvider.java
+          RECEIVER=nightmods/nightcore/app/src/main/java/dev/nightmods/core/config/NightCoreSettingsReceiver.java
           CLIENT=nightmods/nightcore/app/src/main/java/dev/nightmods/core/config/NightCoreSettingsClient.java
           HOOK=nightmods/nightcore/app/src/main/java/dev/nightmods/core/hook/NightCoreHook.java
+          PROBE=nightmods/nightcore/target-probe/src/main/java/com/whatsapp/MainActivity.java
           test -f nightmods/nightcore/settings.gradle.kts
           test -f nightmods/nightcore/app/build.gradle.kts
           test -f nightmods/nightcore/app/src/main/assets/xposed_init
           test -f "$PROVIDER"
+          test -f "$RECEIVER"
           test -f "$CLIENT"
           test -f "$HOOK"
-          test -f nightmods/nightcore/target-probe/src/main/java/com/whatsapp/MainActivity.java
+          test -f "$PROBE"
           grep -q 'android:name="xposedminversion" android:value="92"' "$MANIFEST"
+          grep -q 'android:name=".config.NightCoreSettingsReceiver"' "$MANIFEST"
           ! grep -q 'xposedsharedprefs' "$MANIFEST"
           grep -q 'Context.MODE_PRIVATE' "$PREFS"
-          grep -q 'com.whatsapp' "$PROVIDER"
-          grep -q 'com.instagram.android' "$PROVIDER"
-          grep -q 'ContentResolver().call\|getContentResolver().call' "$CLIENT"
+          grep -q 'com.whatsapp' "$RECEIVER"
+          grep -q 'com.instagram.android' "$RECEIVER"
+          grep -q 'getSentFromPackage()' "$RECEIVER"
+          grep -q 'getSentFromUid()' "$RECEIVER"
+          grep -q 'BroadcastOptions.makeBasic()' "$CLIENT"
+          grep -q 'setShareIdentityEnabled(true)' "$CLIENT"
+          grep -q 'sendOrderedBroadcast' "$CLIENT"
+          grep -q 'sendOrderedBroadcast' "$PROBE"
+          ! grep -q 'getContentResolver().call' "$CLIENT"
+          ! grep -q 'getContentResolver().call' "$PROBE"
           grep -q 'Application.class' "$HOOK"
           ! grep -R -q 'XSharedPreferences' nightmods/nightcore/app/src/main/java
 
@@ -166,6 +177,7 @@ jobs:
           grep -q 'xposedminversion' /tmp/nightcore-manifest.txt
           grep -q 'xposedscope' /tmp/nightcore-manifest.txt
           grep -q 'dev.nightmods.core.settings' /tmp/nightcore-manifest.txt
+          grep -q 'NightCoreSettingsReceiver' /tmp/nightcore-manifest.txt
           ! grep -q 'xposedsharedprefs' /tmp/nightcore-manifest.txt
           sha256sum "$APK"
 
@@ -303,6 +315,7 @@ jobs:
             sleep 2
             adb shell run-as com.whatsapp cat shared_prefs/night_core_probe.xml | tee smoke/target-probe-result.xml
             grep -q 'name="success" value="true"' smoke/target-probe-result.xml
+            grep -q 'name="protocol_version" value="1"' smoke/target-probe-result.xml
             grep -q 'name="bubble_enabled" value="false"' smoke/target-probe-result.xml
             grep -q 'name="bubble_radius" value="20"' smoke/target-probe-result.xml
 
