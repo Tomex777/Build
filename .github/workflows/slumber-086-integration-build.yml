@@ -1,4 +1,4 @@
-name: Slumber 0.8.7 Integration Build
+name: Slumber 0.8.8 Integration Build
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
       - ".ci/slumber_085_final_scope/**"
       - ".ci/slumber_086_production_merge/**"
       - ".ci/slumber_087_lesson_timing/**"
+      - ".ci/slumber_088_three_row_roll/**"
 
 permissions:
   actions: read
@@ -77,6 +78,21 @@ jobs:
           patch --dry-run -p1 < /tmp/lesson.patch
           patch -p1 < /tmp/lesson.patch
 
+      - name: Apply 0.8.8 three-row Roll patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          D="$GITHUB_WORKSPACE/.ci/slumber_088_three_row_roll"
+          cat "$D"/three_row_roll.patch.gz.b64.part* > /tmp/roll.b64
+          echo '050b9d97ebc241438947fa53d15d9cde23b8e2a871ce1cb38caed563c472d35f  /tmp/roll.b64' | sha256sum -c -
+          base64 -d /tmp/roll.b64 > /tmp/roll.gz
+          echo 'fc682cee192c445c44d9d3c83579ff28a1afb0f6f9eef5fac7abadc195ebd7f1  /tmp/roll.gz' | sha256sum -c -
+          gzip -dc /tmp/roll.gz > /tmp/roll.patch
+          echo '93786828ea7ccb28d226ad3a7df727073765fc982d4fb1f0016b1d929aff8a57  /tmp/roll.patch' | sha256sum -c -
+          cd /tmp/slumber
+          patch --dry-run -p1 < /tmp/roll.patch
+          patch -p1 < /tmp/roll.patch
+
       - name: Production surface sanity checks
         shell: bash
         run: |
@@ -90,8 +106,9 @@ jobs:
           grep -R -q 'Add to My XMLs' app/src/main/java/com/night/pianohub
           grep -R -q 'PERFORM("Perform")' app/src/main/java/com/night/pianohub
           grep -R -q 'advanceTimelineToTimestamp' app/src/main/java/com/night/pianohub
+          grep -R -q 'PianoRollRowsCanvas' app/src/main/java/com/night/pianohub
           grep -q 'minSdk = 26' app/build.gradle.kts
-          grep -q 'versionName = "0.8.7"' app/build.gradle.kts
+          grep -q 'versionName = "0.8.8"' app/build.gradle.kts
 
       - uses: actions/setup-java@v4
         with:
@@ -126,13 +143,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cp /tmp/slumber/app/build/outputs/apk/debug/app-debug.apk /tmp/slumber-out/Slumber-0.8.7-debug.apk
-          sha256sum /tmp/slumber-out/Slumber-0.8.7-debug.apk | tee /tmp/slumber-out/apk-sha256.txt
+          cp /tmp/slumber/app/build/outputs/apk/debug/app-debug.apk /tmp/slumber-out/Slumber-0.8.8-debug.apk
+          sha256sum /tmp/slumber-out/Slumber-0.8.8-debug.apk | tee /tmp/slumber-out/apk-sha256.txt
           cd /tmp/slumber
-          tar --exclude='./.gradle' --exclude='./build' --exclude='./app/build' -czf /tmp/slumber-out/slumber-0.8.7-source.tgz .
+          tar --exclude='./.gradle' --exclude='./build' --exclude='./app/build' -czf /tmp/slumber-out/slumber-0.8.8-source.tgz .
 
       - uses: actions/upload-artifact@v4
         with:
-          name: slumber-0.8.7-integration
+          name: slumber-0.8.8-integration
           path: /tmp/slumber-out/*
           if-no-files-found: error
