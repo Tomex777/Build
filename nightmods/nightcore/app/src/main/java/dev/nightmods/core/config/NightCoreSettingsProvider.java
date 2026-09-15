@@ -13,7 +13,7 @@ import dev.nightmods.core.hook.adapters.TargetAdapter;
 import dev.nightmods.core.hook.adapters.TargetAppInfo;
 import dev.nightmods.core.hook.adapters.WhatsAppAdapter;
 
-/** Narrow IPC bridge between Night Mods and Night Core settings/status. */
+/** Narrow manager-to-Night-Core settings/status bridge. Target apps never read this provider. */
 public final class NightCoreSettingsProvider extends ContentProvider {
     public static final String AUTHORITY = "dev.nightmods.core.settings";
     public static final String METHOD_GET_BUBBLE_STYLE = "get_bubble_style";
@@ -29,7 +29,12 @@ public final class NightCoreSettingsProvider extends ContentProvider {
     private static final String WHATSAPP_PACKAGE = "com.whatsapp";
     private static final String INSTAGRAM_PACKAGE = "com.instagram.android";
 
-    @Override public boolean onCreate() { return true; }
+    @Override
+    public boolean onCreate() {
+        var context = getContext();
+        if (context != null) NightCoreServiceStore.initialize(context);
+        return true;
+    }
 
     @Override
     public Bundle call(String method, String arg, Bundle extras) {
@@ -37,28 +42,16 @@ public final class NightCoreSettingsProvider extends ContentProvider {
         if (context == null) throw new IllegalStateException("Night Core unavailable");
 
         if (METHOD_GET_BUBBLE_STYLE.equals(method)) {
-            enforceReadCaller();
-            var prefs = NightCorePreferences.open(context);
-            Bundle result = new Bundle();
-            result.putBoolean(BubbleStyleConfig.KEY_ENABLED, prefs.getBoolean(BubbleStyleConfig.KEY_ENABLED, true));
-            result.putBoolean(BubbleStyleConfig.KEY_WHATSAPP, prefs.getBoolean(BubbleStyleConfig.KEY_WHATSAPP, true));
-            result.putBoolean(BubbleStyleConfig.KEY_INSTAGRAM, prefs.getBoolean(BubbleStyleConfig.KEY_INSTAGRAM, true));
-            result.putInt(BubbleStyleConfig.KEY_RADIUS, prefs.getInt(BubbleStyleConfig.KEY_RADIUS, 20));
-            result.putInt(BubbleStyleConfig.KEY_SPACING, prefs.getInt(BubbleStyleConfig.KEY_SPACING, 6));
-            return result;
+            enforceManagerCaller();
+            return NightCoreServiceStore.read(context).toBundle();
         }
 
         if (METHOD_SET_BUBBLE_STYLE.equals(method)) {
-            enforceWriteCaller();
+            enforceManagerCaller();
             if (extras == null) throw new IllegalArgumentException("Missing settings bundle");
-            var prefs = NightCorePreferences.open(context);
-            prefs.edit()
-                    .putBoolean(BubbleStyleConfig.KEY_ENABLED, extras.getBoolean(BubbleStyleConfig.KEY_ENABLED, true))
-                    .putBoolean(BubbleStyleConfig.KEY_WHATSAPP, extras.getBoolean(BubbleStyleConfig.KEY_WHATSAPP, true))
-                    .putBoolean(BubbleStyleConfig.KEY_INSTAGRAM, extras.getBoolean(BubbleStyleConfig.KEY_INSTAGRAM, true))
-                    .putInt(BubbleStyleConfig.KEY_RADIUS, clamp(extras.getInt(BubbleStyleConfig.KEY_RADIUS, 20), 0, 48))
-                    .putInt(BubbleStyleConfig.KEY_SPACING, clamp(extras.getInt(BubbleStyleConfig.KEY_SPACING, 6), 0, 24))
-                    .apply();
+            if (!NightCoreServiceStore.write(context, BubbleStyleConfig.fromBundle(extras))) {
+                throw new IllegalStateException("Night Core could not persist settings");
+            }
             return Bundle.EMPTY;
         }
 
@@ -100,22 +93,9 @@ public final class NightCoreSettingsProvider extends ContentProvider {
         return result;
     }
 
-    private void enforceReadCaller() {
-        if (isOwnUid()) return;
-        if (callerHasPackage(NIGHT_MODS_PACKAGE)
-                || callerHasPackage(WHATSAPP_PACKAGE)
-                || callerHasPackage(INSTAGRAM_PACKAGE)) return;
-        throw new SecurityException("Caller is not allowed to read Night Core settings");
-    }
-
     private void enforceManagerCaller() {
         if (isOwnUid() || callerHasPackage(NIGHT_MODS_PACKAGE)) return;
-        throw new SecurityException("Caller is not allowed to read Night Core manager metadata");
-    }
-
-    private void enforceWriteCaller() {
-        if (isOwnUid() || callerHasPackage(NIGHT_MODS_PACKAGE)) return;
-        throw new SecurityException("Caller is not allowed to write Night Core settings");
+        throw new SecurityException("Caller is not allowed to access Night Core manager data");
     }
 
     private boolean isOwnUid() {
@@ -134,14 +114,8 @@ public final class NightCoreSettingsProvider extends ContentProvider {
         return false;
     }
 
-    private static int clamp(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
-    }
-
     @Override public Cursor query(Uri uri, String[] projection, String selection,
-            String[] selectionArgs, String sortOrder) {
-        throw new UnsupportedOperationException();
-    }
+            String[] selectionArgs, String sortOrder) { throw new UnsupportedOperationException(); }
     @Override public String getType(Uri uri) { return null; }
     @Override public Uri insert(Uri uri, ContentValues values) { throw new UnsupportedOperationException(); }
     @Override public int delete(Uri uri, String selection, String[] selectionArgs) { throw new UnsupportedOperationException(); }

@@ -10,8 +10,8 @@ android {
         applicationId = "dev.nightmods.core"
         minSdk = 36
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
     }
 
     compileOptions {
@@ -25,6 +25,9 @@ android {
 }
 
 dependencies {
-    // Compile-only stubs. These classes are supplied by LSPosed at runtime and are NOT packaged.
-    compileOnly(project(":xposed-stubs"))
+    // API 100 is supplied by LSPosed ET inside hooked processes.
+    compileOnly("io.github.libxposed:api:100")
+    // The module app packages the API-100 framework service client/provider.
+    implementation("io.github.libxposed:service:100-1.0.0")
+    compileOnly("androidx.annotation:annotation:1.7.1")
 }

@@ -10,37 +10,49 @@ on:
   workflow_dispatch:
 
 jobs:
-  sender-authorization:
-    name: Verify sender security and cold process restart
+  provider-security:
+    name: Verify manager-only provider and cold restart
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
+      - name: Checkout libxposed API 100
+        uses: actions/checkout@v4
+        with:
+          repository: libxposed/api
+          ref: '100'
+          path: libxposed/api
+      - name: Checkout libxposed service 100
+        uses: actions/checkout@v4
+        with:
+          repository: libxposed/service
+          ref: '100'
+          path: libxposed/service
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Set up Gradle 9.6
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.6.0'
-
-      - name: Install Android API 36
+      - name: Install Android SDKs
         shell: bash
         run: |
           export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
           export ANDROID_HOME="$ANDROID_SDK_ROOT"
           SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-          test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+          "$SDKMANAGER" "platform-tools" "platforms;android-33" "build-tools;33.0.1" "build-tools;33.0.2" "platforms;android-36" "build-tools;36.0.0"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
-
+      - name: Publish exact libxposed API/service 100 locally
+        shell: bash
+        run: |
+          (cd libxposed/api && ./gradlew --no-daemon :api:publishApiPublicationToMavenLocal)
+          (cd libxposed/service && ./gradlew --no-daemon publishToMavenLocal)
       - name: Build Night Core and security probes
         working-directory: nightmods/nightcore
         run: |
@@ -49,7 +61,6 @@ jobs:
             :manager-probe:assembleDebug \
             :target-probe:assembleDebug \
             :attacker-probe:assembleDebug
-
       - name: Verify APK identities
         shell: bash
         run: |
@@ -58,13 +69,11 @@ jobs:
           MANAGER="$(find nightmods/nightcore/manager-probe/build/outputs -type f -name '*.apk' -print -quit)"
           TARGET="$(find nightmods/nightcore/target-probe/build/outputs -type f -name '*.apk' -print -quit)"
           ATTACKER="$(find nightmods/nightcore/attacker-probe/build/outputs -type f -name '*.apk' -print -quit)"
-          test -n "$CORE" && test -n "$MANAGER" && test -n "$TARGET" && test -n "$ATTACKER"
           "$AAPT" dump badging "$CORE" | grep -q "package: name='dev.nightmods.core'"
           "$AAPT" dump badging "$MANAGER" | grep -q "package: name='org.lsposed.manager'"
           "$AAPT" dump badging "$TARGET" | grep -q "package: name='com.whatsapp'"
           "$AAPT" dump badging "$ATTACKER" | grep -q "package: name='dev.nightmods.attacker'"
           sha256sum "$CORE" "$MANAGER" "$TARGET" "$ATTACKER" | tee security-apk-sha256.txt
-
       - name: Enable KVM
         shell: bash
         run: |
@@ -72,8 +81,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm || true
           sudo chmod 666 /dev/kvm || true
-
-      - name: Verify sender authorization on Android 16
+      - name: Verify provider authorization on Android 16
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
@@ -85,63 +93,56 @@ jobs:
           script: |
             mkdir -p security-smoke
             adb wait-for-device
-            adb shell getprop ro.build.version.sdk | tr -d '\r' | tee security-smoke/sdk.txt
-            test "$(cat security-smoke/sdk.txt)" = "36"
-
+            test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "36"
             adb install -r "$(find nightmods/nightcore/app/build/outputs -type f -name '*.apk' -print -quit)"
             adb install -r "$(find nightmods/nightcore/manager-probe/build/outputs -type f -name '*.apk' -print -quit)"
             adb install -r "$(find nightmods/nightcore/target-probe/build/outputs -type f -name '*.apk' -print -quit)"
             adb install -r "$(find nightmods/nightcore/attacker-probe/build/outputs -type f -name '*.apk' -print -quit)"
             adb logcat -c
 
-            # Product bootstrap: the real Night Mods package identity can read Night Core through the
-            # manager-only provider. This also verifies target-version metadata comes from Night Core.
-            adb shell dumpsys package dev.nightmods.core > security-smoke/core-before-bootstrap.txt
+            # Night Mods package identity is allowed.
             adb shell am start -W -n org.lsposed.manager/org.lsposed.manager.MainActivity | tee security-smoke/manager-start.txt
             sleep 1
-            adb shell run-as org.lsposed.manager cat shared_prefs/night_core_manager_probe.xml | tee security-smoke/manager-result.xml || true
-            adb shell dumpsys package dev.nightmods.core > security-smoke/core-after-bootstrap.txt
+            adb shell run-as org.lsposed.manager cat shared_prefs/night_core_manager_probe.xml | tee security-smoke/manager-result.xml
+            grep -q 'name="success" value="true"' security-smoke/manager-result.xml
 
-            # Security boundary: identical request code under a foreign Android UID/package must never
-            # receive Night Core settings. Android may deliver an explicit rejection or withhold
-            # completion; both are secure as long as no settings snapshot is disclosed.
-            adb shell am force-stop dev.nightmods.attacker || true
+            # The actual target UID is deliberately not an IPC reader anymore.
+            adb shell am start -W -n com.whatsapp/com.whatsapp.MainActivity | tee security-smoke/target-start.txt
+            sleep 1
+            adb shell run-as com.whatsapp cat shared_prefs/night_core_probe.xml | tee security-smoke/target-result.xml
+            grep -q 'name="access_denied" value="true"' security-smoke/target-result.xml
+            grep -q 'name="settings_disclosed" value="false"' security-smoke/target-result.xml
+            grep -q 'SecurityException' security-smoke/target-result.xml
+            ! grep -q 'bubble_enabled' security-smoke/target-result.xml
+
+            # Same probe code under an unrelated UID must also be rejected.
             adb shell am start -W -n dev.nightmods.attacker/com.whatsapp.MainActivity | tee security-smoke/attacker-start.txt
-            sleep 2
-            adb shell run-as dev.nightmods.attacker cat shared_prefs/night_core_probe.xml | tee security-smoke/attacker-result.xml || true
+            sleep 1
+            adb shell run-as dev.nightmods.attacker cat shared_prefs/night_core_probe.xml | tee security-smoke/attacker-result.xml
+            grep -q 'name="access_denied" value="true"' security-smoke/attacker-result.xml
+            grep -q 'name="settings_disclosed" value="false"' security-smoke/attacker-result.xml
+            grep -q 'SecurityException' security-smoke/attacker-result.xml
 
-            # Lifecycle boundary: remove any warm-process advantage without putting Night Core into
-            # Android's explicit stopped-package state. This models ordinary process death/restart.
-            adb shell pidof dev.nightmods.core | tee security-smoke/core-pid-before-kill.txt || true
+            # Kill Night Core without force-stopping it. A manager provider call must restart the
+            # app process and still work; hook-side settings no longer depend on this lifecycle at all.
+            adb shell pidof dev.nightmods.core | tee security-smoke/core-pid-before-kill.txt
             adb shell am kill dev.nightmods.core || true
             sleep 1
             adb shell pidof dev.nightmods.core | tee security-smoke/core-pid-after-kill.txt || true
-            adb shell dumpsys package dev.nightmods.core > security-smoke/core-before-cold-target.txt
-
-            # Allowed sender must still retrieve settings after ordinary Night Core process death.
-            adb shell am force-stop com.whatsapp || true
-            adb shell am start -W -n com.whatsapp/com.whatsapp.MainActivity | tee security-smoke/allowed-start.txt
-            sleep 2
-            adb shell run-as com.whatsapp cat shared_prefs/night_core_probe.xml | tee security-smoke/allowed-result.xml || true
-            adb shell dumpsys package dev.nightmods.core > security-smoke/core-after-cold-target.txt
+            test ! -s security-smoke/core-pid-after-kill.txt
+            adb shell run-as org.lsposed.manager rm -f shared_prefs/night_core_manager_probe.xml || true
+            adb shell am force-stop org.lsposed.manager || true
+            adb shell am start -W -n org.lsposed.manager/org.lsposed.manager.MainActivity | tee security-smoke/manager-cold-start.txt
+            sleep 1
+            adb shell run-as org.lsposed.manager cat shared_prefs/night_core_manager_probe.xml | tee security-smoke/manager-cold-result.xml
+            grep -q 'name="success" value="true"' security-smoke/manager-cold-result.xml
+            adb shell pidof dev.nightmods.core | tee security-smoke/core-pid-after-manager.txt
+            test -s security-smoke/core-pid-after-manager.txt
 
             adb logcat -d > security-smoke/logcat.txt
             adb logcat -b crash -d > security-smoke/crash.txt || true
-
-            grep -q 'name="success" value="true"' security-smoke/manager-result.xml
-            grep -q 'name="whatsapp_installed" value="true"' security-smoke/manager-result.xml
-            grep -q '<string name="whatsapp_compatibility">ANALYSIS_REQUIRED</string>' security-smoke/manager-result.xml
-            grep -q 'name="instagram_installed" value="false"' security-smoke/manager-result.xml
-            grep -q 'name="success" value="false"' security-smoke/attacker-result.xml
-            ! grep -q 'name="protocol_version"' security-smoke/attacker-result.xml
-            ! grep -q 'name="bubble_enabled"' security-smoke/attacker-result.xml
-            ! grep -q 'name="bubble_radius"' security-smoke/attacker-result.xml
-            grep -Eq 'unauthorized_sender|timed out' security-smoke/attacker-result.xml
-            grep -q 'name="success" value="true"' security-smoke/allowed-result.xml
-            grep -q 'name="protocol_version" value="1"' security-smoke/allowed-result.xml
             test -z "$(grep -E 'dev\.nightmods\.core|org\.lsposed\.manager|com\.whatsapp|dev\.nightmods\.attacker' security-smoke/crash.txt || true)"
-            echo 'Android 16 passed: manager metadata valid, foreign sender disclosed no settings, cold com.whatsapp read succeeded after ordinary Night Core process death.'
-
+            echo 'Android 16 passed: manager-only provider enforced and manager bridge survives Night Core process death.'
       - name: Upload security evidence
         if: always()
         uses: actions/upload-artifact@v4

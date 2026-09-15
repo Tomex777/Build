@@ -1,8 +1,9 @@
 package dev.nightmods.core.config;
 
+import android.content.SharedPreferences;
 import android.os.Bundle;
 
-/** Immutable Bubble Styler settings shared by the manager bridge and target adapters. */
+/** Immutable Bubble Styler settings shared by Night Mods and target adapters. */
 public final class BubbleStyleConfig {
     public static final String PREFS = "night_core";
     public static final String KEY_ENABLED = "bubble_enabled";
@@ -21,8 +22,8 @@ public final class BubbleStyleConfig {
         this.enabled = enabled;
         this.whatsapp = whatsapp;
         this.instagram = instagram;
-        this.radius = radius;
-        this.spacing = spacing;
+        this.radius = clamp(radius, 0, 48);
+        this.spacing = clamp(spacing, 0, 24);
     }
 
     public static BubbleStyleConfig defaults() {
@@ -35,9 +36,50 @@ public final class BubbleStyleConfig {
                 bundle.getBoolean(KEY_ENABLED, true),
                 bundle.getBoolean(KEY_WHATSAPP, true),
                 bundle.getBoolean(KEY_INSTAGRAM, true),
-                clamp(bundle.getInt(KEY_RADIUS, 20), 0, 48),
-                clamp(bundle.getInt(KEY_SPACING, 6), 0, 24)
+                bundle.getInt(KEY_RADIUS, 20),
+                bundle.getInt(KEY_SPACING, 6)
         );
+    }
+
+    public static BubbleStyleConfig fromPreferences(SharedPreferences prefs) {
+        if (prefs == null) return defaults();
+        return new BubbleStyleConfig(
+                prefs.getBoolean(KEY_ENABLED, true),
+                prefs.getBoolean(KEY_WHATSAPP, true),
+                prefs.getBoolean(KEY_INSTAGRAM, true),
+                prefs.getInt(KEY_RADIUS, 20),
+                prefs.getInt(KEY_SPACING, 6)
+        );
+    }
+
+    public Bundle toBundle() {
+        Bundle bundle = new Bundle();
+        bundle.putBoolean(KEY_ENABLED, enabled);
+        bundle.putBoolean(KEY_WHATSAPP, whatsapp);
+        bundle.putBoolean(KEY_INSTAGRAM, instagram);
+        bundle.putInt(KEY_RADIUS, radius);
+        bundle.putInt(KEY_SPACING, spacing);
+        return bundle;
+    }
+
+    public boolean writeTo(SharedPreferences prefs) {
+        if (prefs == null) return false;
+        return prefs.edit()
+                .putBoolean(KEY_ENABLED, enabled)
+                .putBoolean(KEY_WHATSAPP, whatsapp)
+                .putBoolean(KEY_INSTAGRAM, instagram)
+                .putInt(KEY_RADIUS, radius)
+                .putInt(KEY_SPACING, spacing)
+                .commit();
+    }
+
+    public static boolean hasValues(SharedPreferences prefs) {
+        return prefs != null && (
+                prefs.contains(KEY_ENABLED)
+                        || prefs.contains(KEY_WHATSAPP)
+                        || prefs.contains(KEY_INSTAGRAM)
+                        || prefs.contains(KEY_RADIUS)
+                        || prefs.contains(KEY_SPACING));
     }
 
     private static int clamp(int value, int min, int max) {

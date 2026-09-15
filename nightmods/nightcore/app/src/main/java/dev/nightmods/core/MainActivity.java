@@ -1,6 +1,7 @@
 package dev.nightmods.core;
 
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -12,6 +13,7 @@ import android.widget.TextView;
 /** Diagnostic/status surface. Night Mods is the only normal configuration UI. */
 public final class MainActivity extends Activity {
     private static final String NIGHT_MODS_PACKAGE = "org.lsposed.manager";
+    private static final Uri NIGHT_CORE_URI = Uri.parse("lsposed://night-core");
     private static final Uri SETTINGS_URI = Uri.parse("content://dev.nightmods.core.settings");
     private static final String METHOD_TARGET_STATUS = "get_target_status";
 
@@ -40,6 +42,16 @@ public final class MainActivity extends Activity {
     }
 
     private void openNightMods() {
+        Intent direct = new Intent(Intent.ACTION_VIEW, NIGHT_CORE_URI)
+                .setPackage(NIGHT_MODS_PACKAGE)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            startActivity(direct);
+            return;
+        } catch (ActivityNotFoundException ignored) {
+            // Fall back only if this Night Mods build does not expose the Night Core deep link.
+        }
+
         Intent launch = getPackageManager().getLaunchIntentForPackage(NIGHT_MODS_PACKAGE);
         if (launch == null) return;
         launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

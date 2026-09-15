@@ -19,10 +19,6 @@
             android:authorities="dev.nightmods.core.settings"
             android:exported="true" />
 
-        <receiver
-            android:name=".config.NightCoreSettingsReceiver"
-            android:exported="true" />
-
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -31,10 +27,5 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <meta-data android:name="xposedmodule" android:value="true" />
-        <meta-data android:name="xposeddescription" android:value="Night cross-app UI capability engine" />
-        <meta-data android:name="xposedminversion" android:value="92" />
-        <meta-data android:name="xposedscope" android:resource="@array/night_core_scope" />
     </application>
 </manifest>

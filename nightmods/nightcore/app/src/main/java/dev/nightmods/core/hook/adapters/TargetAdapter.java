@@ -2,7 +2,7 @@ package dev.nightmods.core.hook.adapters;
 
 import android.content.Context;
 
-import de.robv.android.xposed.callbacks.XC_LoadPackage;
+import io.github.libxposed.api.XposedInterface;
 import dev.nightmods.core.config.BubbleStyleConfig;
 
 public interface TargetAdapter {
@@ -12,7 +12,8 @@ public interface TargetAdapter {
     TargetCompatibility compatibility(TargetAppInfo appInfo);
     void attach(
             Context context,
-            XC_LoadPackage.LoadPackageParam loadPackage,
+            XposedInterface xposed,
+            ClassLoader classLoader,
             BubbleStyleConfig config,
             TargetAppInfo appInfo
     ) throws Throwable;

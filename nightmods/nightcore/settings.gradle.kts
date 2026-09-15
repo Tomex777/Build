@@ -10,7 +10,12 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        mavenLocal {
+            content {
+                includeGroup("io.github.libxposed")
+            }
+        }
     }
 }
 rootProject.name = "NightCore"
-include(":app", ":xposed-stubs", ":target-probe", ":attacker-probe", ":manager-probe")
+include(":app", ":target-probe", ":attacker-probe", ":manager-probe")
