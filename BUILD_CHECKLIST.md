@@ -8,11 +8,12 @@ This checklist is a release gate, not a marketing list. An item is checked only 
 - [x] Real `InputMethodService` declared with `BIND_INPUT_METHOD`.
 - [x] Multi-module foundation: `app`, `core:model`, `core:data`.
 - [x] Room, DataStore and Hilt foundations wired.
-- [ ] CI unit/lint/APK gate passes.
-- [ ] Android 16 emulator instrumentation gate passes.
+- [x] CI unit/lint/APK gate passes.
+- [x] Android 16 connected instrumentation tests pass.
+- [ ] Full Android 16 real-IME interaction gate passes.
 
 ## 2. Keyboard layout and real input
-- [x] Borderless default visual model inspired by SwiftKey Beta structure.
+- [x] Borderless default visual model inspired by the approved SwiftKey reference structure.
 - [x] QWERTY letter pane.
 - [x] Permanent bottom-left `123` mode key, independent of optional number row.
 - [x] Main symbols pane.
@@ -24,7 +25,7 @@ This checklist is a release gate, not a marketing list. An item is checked only 
 - [x] Unicode-codepoint backspace source path.
 - [x] Editor-action-aware Enter source path.
 - [x] Secondary-character long press source path.
-- [ ] Backspace hold/repeat verified on emulator/device.
+- [ ] Backspace hold/repeat implemented and verified on emulator/device.
 - [ ] Email, URL, number, multiline, search, password and chat fields verified end-to-end.
 - [ ] RTL behavior verified.
 
@@ -32,6 +33,7 @@ This checklist is a release gate, not a marketing list. An item is checked only 
 - [x] Long-press/drag spacebar gesture implemented.
 - [x] Gesture calls the real `InputConnection.setSelection` path.
 - [x] Selection is clamped to document bounds.
+- [ ] Real Android interaction proves the caret moves through the host app field.
 - [ ] Caret remains visible and moves correctly in several real Android text fields.
 - [ ] Multiline and selected-text cursor movement verified.
 - [ ] No accidental spaces while trackpad mode is active.
@@ -41,18 +43,21 @@ This checklist is a release gate, not a marketing list. An item is checked only 
 - [x] Select action opens Android input picker.
 - [x] Setup completion is derived from enabled IMEs + `DEFAULT_INPUT_METHOD`, not a fake local flag.
 - [x] `Finish setup` is conditionally removed once setup is complete.
-- [ ] Setup disappearance/persistence verified in emulator after relaunch.
+- [x] Completed setup does not render a permanent `Setup complete`/success card on Home.
+- [x] Home re-reads system IME state on resume and while incomplete so the setup card can disappear without a manual refresh.
+- [ ] Setup disappearance/persistence verified in emulator after selection and relaunch.
 
 ## 5. Toolbar and suggestions
 - [x] Toolbar and prediction strip are separate surfaces.
 - [x] Clipboard toolbar entry.
-- [x] Custom-vector emoji toolbar entry.
+- [x] Emoji toolbar entry.
 - [x] Voice entry.
 - [x] Editor entry.
 - [x] Tone entry.
 - [x] Contextual Research entry.
 - [x] Input-method picker entry.
 - [x] Small on-device suggestion engine provides a non-empty prototype path.
+- [ ] Toolbar/special-key icons replaced with the approved coherent custom vector icon system.
 - [ ] Production prediction model.
 - [ ] Autocorrect engine and aggression levels.
 - [ ] Undo-autocorrect interaction.
@@ -108,11 +113,12 @@ This checklist is a release gate, not a marketing list. An item is checked only 
 
 ## 8. Emoji
 - [x] Emoji toolbar/panel exists.
-- [x] Picker artwork uses custom Compose vector/Canvas shapes rather than rendering system emoji artwork.
-- [x] Selecting art inserts the corresponding Unicode emoji into the target app.
+- [x] Selecting an emoji entry commits the corresponding Unicode emoji to the target app in source.
+- [ ] Picker artwork uses custom Compose vector/Canvas artwork instead of system emoji glyph rendering.
 - [ ] Full custom emoji library.
 - [ ] Categories/search/recents/favorites in native app.
-- [ ] Rendering/performance stress test with large pack.
+- [ ] Emoji insertion verified through the real Android IME harness.
+- [ ] Rendering/performance stress test with a large pack.
 
 ## 9. AI and voice scope
 - [x] AI scope kept to Editor, Tone and Contextual Research only.
@@ -140,8 +146,10 @@ This checklist is a release gate, not a marketing list. An item is checked only 
 - [x] Default IME source is borderless rather than boxed 3D keys.
 - [x] `123` is present in the correct bottom utility row.
 - [x] Main app has Home, Editor, Clipboard, Settings surfaces.
-- [ ] Actual emulator screenshots compared against the approved SwiftKey Beta references.
+- [x] Android 16 screenshot proves the real custom IME renders in the system keyboard window.
+- [ ] Actual emulator screenshots systematically compared against the approved SwiftKey references.
 - [ ] Toolbar icon optical size/stroke consistency pass.
+- [ ] Special-key icon optical size/stroke consistency pass.
 - [ ] One-handed mode.
 - [ ] Floating/resizable keyboard.
 - [ ] Portrait + landscape QA.
@@ -155,5 +163,6 @@ This checklist is a release gate, not a marketing list. An item is checked only 
 - [ ] IME cold-start latency measured.
 - [ ] Keypress latency sanity test.
 - [ ] Clipboard/emoji panel memory stress test.
+- [x] Current real-IME evidence has no Keyboard fatal crash after the Compose owner fix.
 - [ ] Logcat crash/error scan after full QA flow.
 - [ ] Fixed issues rerun through regression checklist before handoff.
