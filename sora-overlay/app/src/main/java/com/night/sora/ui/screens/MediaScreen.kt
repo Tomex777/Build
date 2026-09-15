@@ -330,7 +330,7 @@ private fun AnimeMangaSurface(
 ) {
     val selected = rows.firstOrNull()
     val continued = libraryEntries.filter { it.contentType == type }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 126.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
         if (selected == null) item { EmptyFeatureShell(type) }
         if (selected != null) item {
             StreamFeature(
@@ -384,7 +384,7 @@ private fun MovieTvSurface(
 ) {
     val selected = rows.firstOrNull()
     val continued = libraryEntries.filter { it.contentType == type }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 126.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
         if (selected == null) item { EmptyFeatureShell(type) }
         if (selected != null) item {
             StreamFeature(
@@ -429,7 +429,7 @@ private fun MusicHome(
     selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
     onPlay: (ExtensionMediaSelection) -> Unit, onOpen: (ExtensionMediaSelection) -> Unit,
 ) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 126.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
         item {
             Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) { Text("Good evening", color = SoraMuted, fontSize = 11.sp); Text("Music", fontSize = 28.sp, fontWeight = FontWeight.Black) }
@@ -454,7 +454,7 @@ private fun MusicHome(
 
 @Composable
 private fun MusicDiscover(rows: List<BrowseCard>, selection: (BrowseCard, ContentType) -> ExtensionMediaSelection, onPlay: (ExtensionMediaSelection) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 126.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
         item {
             Surface(color = Color(0xFF242118), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth().padding(18.dp)) {
                 Column(Modifier.padding(20.dp)) {
@@ -475,7 +475,7 @@ private fun MusicDiscover(rows: List<BrowseCard>, selection: (BrowseCard, Conten
 @Composable
 private fun MusicLibrary(rows: List<BrowseCard>, libraryEntries: List<LibraryEntry>, selection: (BrowseCard, ContentType) -> ExtensionMediaSelection, onPlay: (ExtensionMediaSelection) -> Unit) {
     val savedMusic = libraryEntries.filter { it.contentType == ContentType.MUSIC }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 126.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
         item {
             Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp), verticalAlignment = Alignment.Bottom) {
                 Column(Modifier.weight(1f)) { Text("YOUR MUSIC", color = SoraAccent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp); Text("Everything you kept.", fontSize = 25.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 3.dp)) }
@@ -515,7 +515,7 @@ private fun MemeSurface(rows: List<BrowseCard>, selection: (BrowseCard, ContentT
 
 @Composable
 private fun SearchResultsSurface(rows: List<BrowseCard>, type: ContentType, selection: (BrowseCard, ContentType) -> ExtensionMediaSelection, onOpen: (ExtensionMediaSelection) -> Unit, onPlayMusic: (ExtensionMediaSelection) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 126.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
         item { MediaSectionTitle("Results", type.label) }
         items(rows, key = { it.id }) { card ->
             Row(Modifier.fillMaxWidth().clickable { if (type == ContentType.MUSIC) onPlayMusic(selection(card, type)) else onOpen(selection(card, type)) }.padding(horizontal = 18.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
