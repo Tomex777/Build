@@ -13,6 +13,10 @@
             android:authorities="dev.nightmods.core.settings"
             android:exported="true" />
 
+        <receiver
+            android:name=".config.NightCoreSettingsReceiver"
+            android:exported="true" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
