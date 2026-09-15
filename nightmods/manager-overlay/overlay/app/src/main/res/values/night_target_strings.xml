@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="night_whatsapp">WhatsApp</string>
+    <string name="night_instagram">Instagram</string>
+    <string name="night_target_checking">Checking compatibility…</string>
+    <string name="night_target_engine_unavailable">Night Core unavailable</string>
+    <string name="night_target_status_unavailable">Compatibility unavailable</string>
+    <string name="night_target_not_installed">Not installed</string>
+    <string name="night_target_supported">Supported</string>
+    <string name="night_target_supported_version">%1$s · Supported</string>
+    <string name="night_target_analysis_required">Installed · Analysis required</string>
+    <string name="night_target_analysis_required_version">%1$s · Analysis required</string>
+    <string name="night_target_unsupported">Unsupported version</string>
+    <string name="night_target_unsupported_version">%1$s · Unsupported</string>
+    <string name="night_target_unknown_version">%1$s · Compatibility unknown</string>
+</resources>
