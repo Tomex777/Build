@@ -311,16 +311,21 @@ private fun KeyboardRows(
                 val widthScale = theme.overrides[key.id]?.widthScale ?: 1f
                 val effectiveWeight = (key.weight * widthScale).coerceAtLeast(.2f)
 
-                if (key.special == SpecialKey.SPACE) {
-                    SpacebarKey(
+                when (key.special) {
+                    SpecialKey.SPACE -> SpacebarKey(
                         key,
                         theme,
                         Modifier.weight(effectiveWeight),
                         onSpace = { controller.commit(" "); onTextChanged() },
                         onCursor = { controller.moveCursor(it) },
                     )
-                } else {
-                    ImeKey(
+                    SpecialKey.BACKSPACE -> RepeatBackspaceKey(
+                        key = key,
+                        theme = theme,
+                        modifier = Modifier.weight(effectiveWeight),
+                        onBackspace = { controller.backspace(); onTextChanged() },
+                    )
+                    else -> ImeKey(
                         key = key,
                         displayLabel = display,
                         theme = theme,
@@ -329,13 +334,13 @@ private fun KeyboardRows(
                         onClick = {
                             when (key.special) {
                                 SpecialKey.SHIFT -> onShift(if (shift == ShiftState.OFF) ShiftState.ONCE else ShiftState.OFF)
-                                SpecialKey.BACKSPACE -> { controller.backspace(); onTextChanged() }
                                 SpecialKey.ENTER -> { controller.enter(); onTextChanged() }
                                 SpecialKey.EMOJI -> onOpenEmoji()
                                 SpecialKey.NUMBERS -> onLayer(KeyboardLayer.SYMBOLS)
                                 SpecialKey.LETTERS -> onLayer(KeyboardLayer.LETTERS)
                                 SpecialKey.MORE_SYMBOLS -> onLayer(KeyboardLayer.SYMBOLS_MORE)
                                 SpecialKey.LESS_SYMBOLS -> onLayer(KeyboardLayer.SYMBOLS)
+                                SpecialKey.BACKSPACE, SpecialKey.SPACE -> Unit
                                 else -> rawOutput?.let { raw ->
                                     val output = if (
                                         layer == KeyboardLayer.LETTERS &&
@@ -387,7 +392,6 @@ private fun ImeKey(
     val secondary = key.secondary
     val specialIcon = when (key.special) {
         SpecialKey.SHIFT -> KeyboardIcons.Shift
-        SpecialKey.BACKSPACE -> KeyboardIcons.Backspace
         SpecialKey.ENTER -> KeyboardIcons.Enter
         SpecialKey.EMOJI -> KeyboardIcons.Emoji
         else -> null
@@ -427,7 +431,6 @@ private fun ImeKey(
                 specialIcon,
                 contentDescription = when (key.special) {
                     SpecialKey.SHIFT -> "Shift"
-                    SpecialKey.BACKSPACE -> "Backspace"
                     SpecialKey.ENTER -> "Enter"
                     SpecialKey.EMOJI -> "Emoji"
                     else -> null
