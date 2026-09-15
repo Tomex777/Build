@@ -249,17 +249,9 @@ jobs:
             grep -q 'Instagram' smoke/nightmods-bubble.xml
             adb exec-out screencap -p > smoke/nightmods-bubble-android16.png
 
-            python3 - <<'PY2' > /tmp/night-bubble-tap.txt
-            import re, xml.etree.ElementTree as ET
-            root = ET.parse('smoke/nightmods-bubble.xml').getroot()
-            for node in root.iter('node'):
-                if node.attrib.get('resource-id', '').endswith(':id/night_bubble_enabled'):
-                    x1, y1, x2, y2 = map(int, re.findall(r'\d+', node.attrib['bounds']))
-                    print((x1+x2)//2, (y1+y2)//2)
-                    break
-            PY2
-            read X Y < /tmp/night-bubble-tap.txt
-            adb shell input tap "$X" "$Y"
+            python3 -c "import re,xml.etree.ElementTree as ET; root=ET.parse('smoke/nightmods-bubble.xml').getroot(); node=next(n for n in root.iter('node') if n.attrib.get('resource-id','').endswith(':id/night_bubble_enabled')); x1,y1,x2,y2=map(int,re.findall(r'\\d+',node.attrib['bounds'])); print((x1+x2)//2,(y1+y2)//2)" > /tmp/night-bubble-tap.txt
+            test -s /tmp/night-bubble-tap.txt
+            adb shell input tap $(cat /tmp/night-bubble-tap.txt)
             sleep 2
             adb shell run-as dev.nightmods.core cat shared_prefs/night_core.xml | tee smoke/night-core-prefs.xml
             grep -q 'name="bubble_enabled" value="false"' smoke/night-core-prefs.xml
