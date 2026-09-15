@@ -23,6 +23,16 @@ def replace_once(text: str, pattern: str, replacement: str, description: str) ->
     return out
 
 
+def replace_string_resource(path: Path, name: str, value: str) -> bool:
+    text = path.read_text(encoding="utf-8")
+    pattern = rf'(<string\s+name="{re.escape(name)}"[^>]*>)(.*?)(</string>)'
+    out, count = re.subn(pattern, rf'\1{value}\3', text, count=1, flags=re.S)
+    if count:
+        path.write_text(out, encoding="utf-8")
+        return True
+    return False
+
+
 def main() -> None:
     if len(sys.argv) != 2:
         raise SystemExit("Usage: apply_nightmods.py /path/to/LSPosed-ET")
@@ -31,9 +41,16 @@ def main() -> None:
     main_nav = repo / "app/src/main/res/navigation/main_nav.xml"
     nav_menu = repo / "app/src/main/res/menu/navigation_menu.xml"
     strings = repo / "app/src/main/res/values/strings.xml"
+    strings_untranslatable = repo / "app/src/main/res/values/strings_untranslatable.xml"
     overlay = Path(__file__).parent / "overlay"
 
-    for p in (main_nav, nav_menu, strings, repo / "app/src/main/java/org/lsposed/manager/ConfigManager.java"):
+    for p in (
+        main_nav,
+        nav_menu,
+        strings,
+        strings_untranslatable,
+        repo / "app/src/main/java/org/lsposed/manager/ConfigManager.java",
+    ):
         require(p)
 
     text = main_nav.read_text(encoding="utf-8")
@@ -67,20 +84,13 @@ def main() -> None:
 '''
     nav_menu.write_text(menu, encoding="utf-8")
 
-    s = strings.read_text(encoding="utf-8")
-    app_name_patterns = [
-        r'(<string\s+name="app_name"[^>]*>)(.*?)(</string>)',
-        r'(<string\s+name="app_name_full"[^>]*>)(.*?)(</string>)',
-    ]
-    changed = False
-    for pattern in app_name_patterns:
-        if re.search(pattern, s, flags=re.S):
-            s = re.sub(pattern, r'\1Night Mods\3', s, count=1, flags=re.S)
-            changed = True
-    if not changed:
-        insertion = '\n    <string name="night_mods_name">Night Mods</string>\n'
-        s = s.replace('</resources>', insertion + '</resources>')
-    strings.write_text(s, encoding="utf-8")
+    # LSPosed ET keeps the actual launcher label in strings_untranslatable.xml.
+    # Update that exact resource rather than merely adding a second unused label.
+    if not replace_string_resource(strings_untranslatable, "app_name", "Night Mods"):
+        raise SystemExit("Could not find app_name in strings_untranslatable.xml")
+
+    # Keep any optional full-name resource synchronized if upstream adds/uses it.
+    replace_string_resource(strings, "app_name_full", "Night Mods")
 
     for src in overlay.rglob("*"):
         if not src.is_file():
@@ -92,6 +102,7 @@ def main() -> None:
 
     print("Night Mods overlay applied successfully.")
     print("Preserved manager applicationId/package for LSPosed ET Binder compatibility.")
+    print("Launcher label: Night Mods.")
     print("Primary navigation: Modules -> Repository -> Logs -> Settings.")
 
 
