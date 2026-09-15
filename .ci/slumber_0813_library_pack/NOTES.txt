@@ -1,0 +1,26 @@
+Slumber 0.8.13 library-pack checkpoint
+
+Base: verified Slumber 0.8.12 integration artifact from GitHub Actions run 34969131123.
+Branch: pianohub-ci only. main is not modified.
+
+Changes in this layer:
+- Responsive/manual visible keyboard presets: Auto, 7, 12, 16, 22, 29, 36 white keys.
+- One visible-key policy shared by the piano and navigator, with C4 centering.
+- Persistent active dynamic lessons so imported XML/MIDI/audio/pack lessons survive landscape/activity recreation.
+- Local song-pack schema, transactional ZIP installation, integrity verification, metadata-only browsing, parse-on-open.
+- Song-pack UI in Songs: install/remove/search; Listen/Learn/Play Along/Perform for pack songs.
+- 32 MiB internal pack score limit while normal user-import limits remain conservative.
+- Maintainer-side PDMX and OpenScore Lieder builders plus minimal PDMX fetch helper.
+- Synthetic Python tests for strict PDMX piano/license filtering and OpenScore CC0 pack generation.
+- Production copy cleanup; no placeholder/fake state added.
+
+Build target:
+- versionName 0.8.13
+- versionCode 25
+- minSdk 26
+- targetSdk 36
+- compileSdk 37
+
+Patch SHA-256: 1eddfbc5b9f429f042ad1a757cb9f2bf8f3df9baf4d3123fd95d0034efa428b9
+Gzip SHA-256: 3c604da3d4957187117bf5e89dbf044f57cd851d3d8051d5913b53c2bfb42060
+Base64 wrapper SHA-256: c739084d5825736f5bbcaed46683871dc4d8563afe63393d516be16d3e3c8e50
