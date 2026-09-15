@@ -4,11 +4,11 @@ set -euo pipefail
 OUT=/tmp/sora-ui
 mkdir -p "$OUT"
 
+adb uninstall com.night.sora.ext.live >/dev/null 2>&1 || true
 adb install -r "$SORA_ROOT/app/build/outputs/apk/debug/app-debug.apk"
-adb install -r "$SORA_ROOT/live-extension/build/outputs/apk/debug/live-extension-debug.apk"
 adb shell am force-stop com.night.sora
 adb shell am start -W -n com.night.sora/.MainActivity
-sleep 5
+sleep 4
 
 shot() {
   local name="$1"
@@ -58,43 +58,60 @@ PY
     sleep 1
   done
   echo "Could not find UI node: $label" >&2
-  adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
-  adb pull /sdcard/window.xml "$OUT/failure-$attempt.xml" >/dev/null 2>&1 || true
   shot "failure-${label//[^A-Za-z0-9]/_}"
   return 1
 }
 
-shot 01-home-top
-adb shell input swipe 540 1750 540 600 650
-sleep 2
-shot 02-home-scrolled
-
+# Core must render instantly with zero extensions installed.
+shot 00-core-only-home
 tap_text Media
-shot 03-media-anime
+shot 01-core-only-anime
+tap_text Manga
+shot 02-core-only-manga
+
+# The old blocking/source-error language must never appear in the visible tree.
+for file in "$OUT/01-core-only-anime.xml" "$OUT/02-core-only-manga.xml"; do
+  if grep -Eqi 'No .* source installed|Manage extensions|source unavailable' "$file"; then
+    echo "Extension leaked into user-facing media UI: $file" >&2
+    exit 1
+  fi
+done
+
+# Install a provider while Sora is backgrounded. ON_RESUME must rediscover it.
+adb shell input keyevent KEYCODE_HOME
+sleep 1
+adb install -r "$SORA_ROOT/live-extension/build/outputs/apk/debug/live-extension-debug.apk"
+adb shell am start -W -n com.night.sora/.MainActivity
+sleep 8
+shot 03-manga-after-provider-arrives
+
+# Continue walking the real app after the provider refresh.
+tap_text Anime
+shot 04-media-anime-live
 
 tap_text 'Anime & Manga'
-shot 04-media-switch-sheet
+shot 05-media-switch-sheet
 
 tap_text 'Movies & TV'
-shot 05-movies-tv
+shot 06-movies-tv
 
 tap_text 'Movies & TV'
 tap_text Music
-shot 06-music-home
+shot 07-music-home
 
 tap_text Library
-shot 07-library
+shot 08-library
 
 tap_text Games
-shot 08-games
+shot 09-games
 
 tap_text More
-shot 09-more
+shot 10-more
 
 tap_text 'Open Sora AI'
-shot 10-ai-quick-sheet
+shot 11-ai-quick-sheet
 
 tap_text 'Full chat'
-shot 11-ai-full
+shot 12-ai-full
 
 adb shell dumpsys activity activities | grep -q 'com.night.sora'
