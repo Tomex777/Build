@@ -48,7 +48,7 @@ dependencies {
     implementation("androidx.compose.ui:ui:1.11.4")
     implementation("androidx.compose.ui:ui-tooling-preview:1.11.4")
     implementation("androidx.compose.foundation:foundation:1.11.4")
-    implementation("androidx.compose.material:material-icons-extended:1.11.4")
+    implementation("androidx.compose.material:material-icons-extended:1.7.8")
     implementation("androidx.compose.material3:material3:1.4.0")
     debugImplementation("androidx.compose.ui:ui-tooling:1.11.4")
     implementation("com.google.dagger:hilt-android:2.60.1")
