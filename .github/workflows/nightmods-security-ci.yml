@@ -11,7 +11,7 @@ on:
 
 jobs:
   sender-authorization:
-    name: Verify allowed and rejected target UIDs
+    name: Verify manager bootstrap and target UIDs
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -46,6 +46,7 @@ jobs:
         run: |
           gradle --no-daemon --stacktrace \
             :app:assembleDebug \
+            :manager-probe:assembleDebug \
             :target-probe:assembleDebug \
             :attacker-probe:assembleDebug
 
@@ -54,13 +55,15 @@ jobs:
         run: |
           AAPT="${ANDROID_SDK_ROOT}/build-tools/36.0.0/aapt"
           CORE="$(find nightmods/nightcore/app/build/outputs -type f -name '*.apk' -print -quit)"
+          MANAGER="$(find nightmods/nightcore/manager-probe/build/outputs -type f -name '*.apk' -print -quit)"
           TARGET="$(find nightmods/nightcore/target-probe/build/outputs -type f -name '*.apk' -print -quit)"
           ATTACKER="$(find nightmods/nightcore/attacker-probe/build/outputs -type f -name '*.apk' -print -quit)"
-          test -n "$CORE" && test -n "$TARGET" && test -n "$ATTACKER"
+          test -n "$CORE" && test -n "$MANAGER" && test -n "$TARGET" && test -n "$ATTACKER"
           "$AAPT" dump badging "$CORE" | grep -q "package: name='dev.nightmods.core'"
+          "$AAPT" dump badging "$MANAGER" | grep -q "package: name='org.lsposed.manager'"
           "$AAPT" dump badging "$TARGET" | grep -q "package: name='com.whatsapp'"
           "$AAPT" dump badging "$ATTACKER" | grep -q "package: name='dev.nightmods.attacker'"
-          sha256sum "$CORE" "$TARGET" "$ATTACKER" | tee security-apk-sha256.txt
+          sha256sum "$CORE" "$MANAGER" "$TARGET" "$ATTACKER" | tee security-apk-sha256.txt
 
       - name: Enable KVM
         shell: bash
@@ -86,30 +89,40 @@ jobs:
             test "$(cat security-smoke/sdk.txt)" = "36"
 
             adb install -r "$(find nightmods/nightcore/app/build/outputs -type f -name '*.apk' -print -quit)"
+            adb install -r "$(find nightmods/nightcore/manager-probe/build/outputs -type f -name '*.apk' -print -quit)"
             adb install -r "$(find nightmods/nightcore/target-probe/build/outputs -type f -name '*.apk' -print -quit)"
             adb install -r "$(find nightmods/nightcore/attacker-probe/build/outputs -type f -name '*.apk' -print -quit)"
             adb logcat -c
+
+            # Product lifecycle: Night Mods touches Night Core through the manager-only provider first.
+            adb shell dumpsys package dev.nightmods.core > security-smoke/core-before-bootstrap.txt
+            adb shell am start -W -n org.lsposed.manager/org.lsposed.manager.MainActivity | tee security-smoke/manager-start.txt
+            sleep 1
+            adb shell run-as org.lsposed.manager cat shared_prefs/night_core_manager_probe.xml | tee security-smoke/manager-result.xml || true
+            adb shell dumpsys package dev.nightmods.core > security-smoke/core-after-bootstrap.txt
 
             # Allowed sender: the OS-reported package really is com.whatsapp.
             adb shell am force-stop com.whatsapp || true
             adb shell am start -W -n com.whatsapp/com.whatsapp.MainActivity | tee security-smoke/allowed-start.txt
             sleep 2
-            adb shell run-as com.whatsapp cat shared_prefs/night_core_probe.xml | tee security-smoke/allowed-result.xml
-            grep -q 'name="success" value="true"' security-smoke/allowed-result.xml
-            grep -q 'name="protocol_version" value="1"' security-smoke/allowed-result.xml
+            adb shell run-as com.whatsapp cat shared_prefs/night_core_probe.xml | tee security-smoke/allowed-result.xml || true
 
             # Rejected sender: identical probe code, different Android application identity.
             adb shell am force-stop dev.nightmods.attacker || true
             adb shell am start -W -n dev.nightmods.attacker/com.whatsapp.MainActivity | tee security-smoke/attacker-start.txt
             sleep 2
-            adb shell run-as dev.nightmods.attacker cat shared_prefs/night_core_probe.xml | tee security-smoke/attacker-result.xml
-            grep -q 'name="success" value="false"' security-smoke/attacker-result.xml
-            grep -q 'unauthorized_sender' security-smoke/attacker-result.xml
+            adb shell run-as dev.nightmods.attacker cat shared_prefs/night_core_probe.xml | tee security-smoke/attacker-result.xml || true
 
             adb logcat -d > security-smoke/logcat.txt
             adb logcat -b crash -d > security-smoke/crash.txt || true
-            test -z "$(grep -E 'dev\.nightmods\.core|com\.whatsapp|dev\.nightmods\.attacker' security-smoke/crash.txt || true)"
-            echo 'Android 16 sender authorization passed: com.whatsapp allowed, foreign package rejected.'
+
+            grep -q 'name="success" value="true"' security-smoke/manager-result.xml
+            grep -q 'name="success" value="true"' security-smoke/allowed-result.xml
+            grep -q 'name="protocol_version" value="1"' security-smoke/allowed-result.xml
+            grep -q 'name="success" value="false"' security-smoke/attacker-result.xml
+            grep -q 'unauthorized_sender' security-smoke/attacker-result.xml
+            test -z "$(grep -E 'dev\.nightmods\.core|org\.lsposed\.manager|com\.whatsapp|dev\.nightmods\.attacker' security-smoke/crash.txt || true)"
+            echo 'Android 16 sender authorization passed: manager bootstrapped Night Core, com.whatsapp allowed, foreign package rejected.'
 
       - name: Upload security evidence
         if: always()
