@@ -1,0 +1,16 @@
+Slumber 0.8.7 lesson-core layer
+
+Base: successful Slumber 0.8.6 integration source from Actions run 34912897686.
+Branch: pianohub-ci only. main untouched.
+
+Adds:
+- shared chord-aware LessonMoment/LessonArrangement model
+- three-row LessonRows partition/focus model
+- Learn/Play Along/Perform progress separation and mastery policy
+- compatibility bridge from existing PianoLesson/Slumber XML chart model
+- PerformanceEngine strict future-note control
+- moving timeline clock that expires missed notes/chord tones without fake input events
+- unit tests for chord grouping, row continuity, progress policy, strict Learn and moving-mode chord expiry
+- versionCode 19 / versionName 0.8.7
+
+This checkpoint intentionally does not yet switch the production Piano UI to the new moment model. It is the first independently buildable layer before MusicXML/MIDI enrichment and Piano UI integration.
