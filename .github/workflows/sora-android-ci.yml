@@ -1,8 +1,6 @@
 name: Sora Android CI
 
 on:
-  push:
-    branches: [sora-android-ci]
   workflow_dispatch:
 
 jobs:
@@ -49,11 +47,11 @@ jobs:
         working-directory: /tmp/sora-core
         run: gradle --stacktrace :app:assembleDebug
       - name: Prepare Core artifact
-        run: cp /tmp/sora-core/app/build/outputs/apk/debug/app-debug.apk /tmp/Sora-Core-v0.3-live-sources-debug.apk
+        run: cp /tmp/sora-core/app/build/outputs/apk/debug/app-debug.apk /tmp/Sora-Core-v0.4-ui-remake-debug.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: sora-core-v0.3-live-sources-apk
-          path: /tmp/Sora-Core-v0.3-live-sources-debug.apk
+          name: sora-core-v0.4-ui-remake-apk
+          path: /tmp/Sora-Core-v0.4-ui-remake-debug.apk
           if-no-files-found: error
 
   test-extension:
@@ -86,11 +84,11 @@ jobs:
         working-directory: /tmp/sora-src/Sora_Android_v0_1
         run: gradle --stacktrace :test-extension:assembleDebug
       - name: Prepare demo artifact
-        run: cp /tmp/sora-src/Sora_Android_v0_1/test-extension/build/outputs/apk/debug/test-extension-debug.apk /tmp/Sora-Test-Extension-v0.3-debug.apk
+        run: cp /tmp/sora-src/Sora_Android_v0_1/test-extension/build/outputs/apk/debug/test-extension-debug.apk /tmp/Sora-Test-Extension-v0.4-debug.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: sora-test-extension-v0.3-apk
-          path: /tmp/Sora-Test-Extension-v0.3-debug.apk
+          name: sora-test-extension-v0.4-apk
+          path: /tmp/Sora-Test-Extension-v0.4-debug.apk
           if-no-files-found: error
 
   live-extension:
@@ -129,9 +127,9 @@ jobs:
           curl -fsSL --retry 2 --max-time 12 'https://api.tvmaze.com/search/shows?q=dark' | grep -q '"show"'
           curl -fsSL --retry 2 --max-time 12 'https://itunes.apple.com/search?term=adele&media=music&entity=song&limit=1&country=US' | grep -q '"resultCount"'
       - name: Prepare live extension artifact
-        run: cp /tmp/sora-src/Sora_Android_v0_1/live-extension/build/outputs/apk/debug/live-extension-debug.apk /tmp/Sora-Live-Sources-v0.3-debug.apk
+        run: cp /tmp/sora-src/Sora_Android_v0_1/live-extension/build/outputs/apk/debug/live-extension-debug.apk /tmp/Sora-Live-Sources-v0.4-debug.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: sora-live-sources-v0.3-apk
-          path: /tmp/Sora-Live-Sources-v0.3-debug.apk
+          name: sora-live-sources-v0.4-apk
+          path: /tmp/Sora-Live-Sources-v0.4-debug.apk
           if-no-files-found: error
