@@ -6,6 +6,7 @@ on:
     paths: [".github/workflows/slumber-checkpoint-rescue.yml"]
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -13,19 +14,45 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Recover plain patches
+
+      - name: Reconstruct verified frozen-scope source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base /tmp/slumber /tmp/rescue
+          mkdir -p /tmp/base /tmp/slumber /tmp/rescue
+          gh run download 34645245543 --repo Tomex777/Build --name slumber-0.8.5-exit-recreation --dir /tmp/base
+          SRC=$(find /tmp/base -name 'slumber-production-0.8.5-source.tgz' -type f -print -quit)
+          test -n "$SRC"
+          tar -xzf "$SRC" -C /tmp/slumber
+          D="$GITHUB_WORKSPACE/.ci/slumber_085_final_scope"
+          cat "$D/final.patch.gz.b64.part00" "$D/final.patch.gz.b64.part01" "$D/final.patch.gz.b64.part02" "$D/final.patch.gz.b64.part03a" "$D/final.patch.gz.b64.part03b" "$D/final.patch.gz.b64.part04" "$D/final.patch.gz.b64.part05" "$D/final.patch.gz.b64.part06" > /tmp/final.patch.gz.b64
+          echo '8133f27d9d76d002967f1c53d0a0b27cf89eec9f31cb24ff2188e70951ec504b  /tmp/final.patch.gz.b64' | sha256sum -c -
+          base64 -d /tmp/final.patch.gz.b64 > /tmp/final.patch.gz
+          echo 'f400e43bb8385ddbc9abefefa801fe8b115456b351effa1e278ea1f3ed250421  /tmp/final.patch.gz' | sha256sum -c -
+          gzip -dc /tmp/final.patch.gz > /tmp/final.patch
+          echo '42b4f12ec7496c52712154594c31ca39bfe8f43addc7edaab84acefa37c23fa1  /tmp/final.patch' | sha256sum -c -
+          cd /tmp/slumber
+          patch -p1 < /tmp/final.patch
+          tar -czf /tmp/rescue/slumber-0.8.5-verified-final-scope-source.tgz .
+
+      - name: Export production purge patch and old song checkpoint fragments
         shell: bash
         run: |
           set -u
-          mkdir -p /tmp/rescue
+          base64 -d .ci/slumber_085_production_purge/production_purge.patch.gz.b64 > /tmp/rescue/production-purge.patch.gz || true
+          gzip -dc /tmp/rescue/production-purge.patch.gz > /tmp/rescue/production-purge.patch 2>/tmp/rescue/production-purge-gzip.txt || true
           base64 -d .ci/slumber_085_song_library_unbuilt/slumber_085_song_library_unbuilt.patch.gz.b64 > /tmp/rescue/main.gz || true
           gzip -dc /tmp/rescue/main.gz > /tmp/rescue/song-library.partial.patch 2>/tmp/rescue/main-gzip.txt || true
           base64 -d .ci/slumber_085_song_library_unbuilt/slumber_085_song_library_openscore_update.patch.gz.b64 > /tmp/rescue/open.gz || true
           gzip -dc /tmp/rescue/open.gz > /tmp/rescue/openscore.partial.patch 2>/tmp/rescue/open-gzip.txt || true
           sha256sum /tmp/rescue/* > /tmp/rescue/SHA256SUMS.txt || true
           wc -c /tmp/rescue/* > /tmp/rescue/SIZES.txt || true
+
       - uses: actions/upload-artifact@v4
         with:
-          name: slumber-checkpoint-rescue
+          name: slumber-merge-inputs
           path: /tmp/rescue/*
           if-no-files-found: error
