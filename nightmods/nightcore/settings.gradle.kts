@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "NightCore"
-include(":app", ":xposed-stubs")
+include(":app", ":xposed-stubs", ":target-probe")
