@@ -75,6 +75,7 @@ fun MediaDetailScreen(
     var consumption by remember(selection) { mutableStateOf<ExtensionMediaSelection?>(null) }
     var metadata by remember(selection) { mutableStateOf(DetailMetadata(selection.subtitle)) }
     var childRows by remember { mutableStateOf<List<DetailRow>>(emptyList()) }
+    var movieStreams by remember { mutableStateOf<List<PlaybackStream>>(emptyList()) }
     var secondaryRows by remember { mutableStateOf<List<DetailRow>>(emptyList()) }
     var secondaryTitle by remember { mutableStateOf("") }
     var rowsLoading by remember { mutableStateOf(false) }
@@ -130,6 +131,7 @@ fun MediaDetailScreen(
 
     fun loadConsumptionRows(target: ExtensionMediaSelection?) {
         childRows = emptyList()
+        movieStreams = emptyList()
         if (target == null) {
             rowsLoading = false
             return
@@ -146,7 +148,21 @@ fun MediaDetailScreen(
             method,
             JSONObject().put("sourceId", target.sourceId).put("id", target.id).toString(),
         ) { result ->
-            childRows = result.getOrNull()?.let { parseRows(target.type, it) }.orEmpty()
+            if (target.type == ContentType.MOVIE) {
+                movieStreams = result.getOrNull()?.let(::parsePlaybackStreams).orEmpty()
+                childRows = movieStreams.mapIndexed { index, stream ->
+                    DetailRow(
+                        id = "movie-stream-$index",
+                        title = stream.label.ifBlank { "Stream ${index + 1}" },
+                        subtitle = stream.mimeType.orEmpty(),
+                    )
+                }
+                if (movieStreams.isEmpty() && result.isFailure) {
+                    playbackError = result.exceptionOrNull()?.message ?: "This source could not load movie streams."
+                }
+            } else {
+                childRows = result.getOrNull()?.let { parseRows(target.type, it) }.orEmpty()
+            }
             rowsLoading = false
         }
     }
@@ -186,6 +202,21 @@ fun MediaDetailScreen(
             if (session != null) browserSession = session
             else browserError = result.exceptionOrNull()?.message ?: "This source could not open its browser session."
         }
+    }
+
+    fun openMovie(row: DetailRow? = null) {
+        if (active.type != ContentType.MOVIE || movieStreams.isEmpty()) return
+        val requested = row?.id?.removePrefix("movie-stream-")?.toIntOrNull() ?: 0
+        val index = requested.coerceIn(0, movieStreams.lastIndex)
+        onOpenPlayer(
+            PlaybackSession(
+                title = active.title,
+                episodeTitle = active.title,
+                sourceName = consumptionSource?.name ?: consumptionExtension?.declaredName ?: "Movie source",
+                streams = movieStreams,
+                initialStream = index,
+            )
+        )
     }
 
     fun openChild(row: DetailRow) {
@@ -399,7 +430,11 @@ fun MediaDetailScreen(
                         DetailMediaListRow(
                             row = row,
                             type = active.type,
-                            onClick = if (active.type == ContentType.ANIME || active.type == ContentType.TV || active.type == ContentType.MANGA) ({ openChild(row) }) else null,
+                            onClick = when (active.type) {
+                                ContentType.ANIME, ContentType.TV, ContentType.MANGA -> ({ openChild(row) })
+                                ContentType.MOVIE -> ({ openMovie(row) })
+                                else -> null
+                            },
                         )
                     }
                 }
@@ -444,9 +479,12 @@ fun MediaDetailScreen(
             ),
         )
 
-        if (secondaryRows.isEmpty() && visibleRows.isNotEmpty() && (active.type == ContentType.ANIME || active.type == ContentType.MANGA || active.type == ContentType.TV)) {
+        if (secondaryRows.isEmpty() && visibleRows.isNotEmpty() && (active.type == ContentType.ANIME || active.type == ContentType.MANGA || active.type == ContentType.TV || active.type == ContentType.MOVIE)) {
             ExtendedFloatingActionButton(
-                onClick = { visibleRows.firstOrNull()?.let(::openChild) },
+                onClick = {
+                    if (active.type == ContentType.MOVIE) openMovie(visibleRows.firstOrNull())
+                    else visibleRows.firstOrNull()?.let(::openChild)
+                },
                 modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(16.dp),
                 containerColor = SoraAccent,
                 contentColor = SoraAccentInk,
