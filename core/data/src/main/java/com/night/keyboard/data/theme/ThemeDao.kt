@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
@@ -16,4 +17,10 @@ interface ThemeDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(theme: ThemeEntity): Long
     @Update suspend fun update(theme: ThemeEntity)
     @Query("UPDATE themes SET active = 0") suspend fun clearActive()
+
+    @Transaction
+    suspend fun replaceActive(theme: ThemeEntity): Long {
+        clearActive()
+        return insert(theme.copy(active = true))
+    }
 }
