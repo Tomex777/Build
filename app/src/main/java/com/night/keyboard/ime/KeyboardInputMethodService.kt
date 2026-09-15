@@ -4,6 +4,7 @@ import android.content.ClipboardManager
 import android.inputmethodservice.InputMethodService
 import android.text.InputType
 import android.view.View
+import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -64,6 +65,16 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
             setViewTreeViewModelStoreOwner(this@KeyboardInputMethodService)
             setViewTreeSavedStateRegistryOwner(this@KeyboardInputMethodService)
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+
+            // Android's gestural navigation area is drawn inside the IME window.
+            // Keep the bottom keyboard row above that reserved touch region instead
+            // of letting the spacebar sit beneath the home gesture pill.
+            setOnApplyWindowInsetsListener { view, insets ->
+                val navigation = insets.getInsets(WindowInsets.Type.navigationBars())
+                view.setPadding(0, 0, 0, navigation.bottom)
+                insets
+            }
+
             setContent {
                 KeyboardTheme {
                     ImeKeyboard(
