@@ -20,22 +20,78 @@ adb exec-out screencap -p > ime-qa.png
 adb shell uiautomator dump /sdcard/ime-window.xml
 adb pull /sdcard/ime-window.xml ime-window.xml
 
-# Android 16 draws the navigation affordance inside the IME window. The Pixel 6
-# profile reports the exact navigation frame in InputMethodService diagnostics.
-# Production reserves the same bottom region, so move fixed-profile probes up by
-# that measured height rather than hard-coding one navigation mode.
-NAV_HEIGHT="$(python3 - <<'PY'
-import re
-s = open('input-method.txt', encoding='utf-8').read()
-m = re.search(r'mNavigationBarFrame=.*?\s0,(\d+)-1080,(\d+)\}', s)
-print(int(m.group(2)) - int(m.group(1)) if m else 0)
-PY
-)"
-case "$NAV_HEIGHT" in
-  ''|*[!0-9]*) echo "Invalid IME navigation height: $NAV_HEIGHT"; exit 1 ;;
+SCREEN_HEIGHT="$(adb shell wm size | tr -d '\r' | sed -n 's/.*x\([0-9][0-9]*\)$/\1/p' | tail -1)"
+case "$SCREEN_HEIGHT" in
+  ''|*[!0-9]*) echo "Unable to read emulator screen height"; exit 1 ;;
 esac
-echo "ime_navigation_bar_height_px=$NAV_HEIGHT"
-key_y() { echo $(( $1 - NAV_HEIGHT )); }
+
+ime_top_from_dump() {
+  python3 - "$1" "$SCREEN_HEIGHT" <<'PY'
+import re
+import sys
+path, screen_height = sys.argv[1], int(sys.argv[2])
+s = open(path, encoding='utf-8').read()
+m = re.search(r'mNavigationBarFrame=.*?\s0,(\d+)-\d+,(\d+)\}', s)
+if not m:
+    raise SystemExit('NavigationBarFrame not found in ' + path)
+nav_top, nav_bottom = map(int, m.groups())
+print(screen_height - nav_bottom)
+PY
+}
+
+nav_height_from_dump() {
+  python3 - "$1" <<'PY'
+import re
+import sys
+s = open(sys.argv[1], encoding='utf-8').read()
+m = re.search(r'mNavigationBarFrame=.*?\s0,(\d+)-\d+,(\d+)\}', s)
+if not m:
+    raise SystemExit('NavigationBarFrame not found')
+a, b = map(int, m.groups())
+print(b - a)
+PY
+}
+
+assert_xml_text() {
+  local file="$1"
+  local expected="$2"
+  if ! grep -Fq "text=\"$expected\"" "$file"; then
+    echo "Expected UI text not found in $file: $expected"
+    python3 - "$file" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+for node in ET.parse(sys.argv[1]).iter():
+    text = node.attrib.get('text', '')
+    if text:
+        print(repr(text))
+PY
+    exit 1
+  fi
+}
+
+IME_TOP="$(ime_top_from_dump input-method.txt)"
+NAV_HEIGHT="$(nav_height_from_dump input-method.txt)"
+echo "screen_height_px=$SCREEN_HEIGHT ime_top_px=$IME_TOP ime_navigation_bar_height_px=$NAV_HEIGHT"
+
+# Local coordinates are measured inside the fixed Pixel 6 production IME. They
+# remain stable when the IME window grows upward because we anchor them to the
+# window's measured top instead of shifting every control by the nav-bar height.
+Q_X=54
+W_X=161
+Q_ROW_LOCAL_Y=235
+BACKSPACE_X=1006
+BACKSPACE_LOCAL_Y=492
+SPACE_X=545
+SPACE_LOCAL_Y=620
+TOOLBAR_EMOJI_X=174
+TOOLBAR_LOCAL_Y=61
+EMOJI_FIRST_X=75
+EMOJI_FIRST_LOCAL_Y=196
+
+Q_Y=$(( IME_TOP + Q_ROW_LOCAL_Y ))
+BACKSPACE_Y=$(( IME_TOP + BACKSPACE_LOCAL_Y ))
+SPACE_Y=$(( IME_TOP + SPACE_LOCAL_Y ))
+TOOLBAR_Y=$(( IME_TOP + TOOLBAR_LOCAL_Y ))
 
 # Framework-level proof that the real InputMethodService window is live.
 grep -q "mCurImeId=com.night.keyboard/.ime.KeyboardInputMethodService" input-method.txt
@@ -48,68 +104,71 @@ if grep -E "FATAL EXCEPTION|AndroidRuntime" logcat.txt | grep -q "com.night.keyb
   exit 1
 fi
 
-Q_Y="$(key_y 1935)"
-SPACE_Y="$(key_y 2320)"
-BACKSPACE_Y="$(key_y 2192)"
-TOOLBAR_Y="$(key_y 1607)"
-EMOJI_FIRST_Y="$(key_y 1685)"
-EXPANDED_TOOLBAR_Y="$(key_y 1555)"
-
 # Tap the real Q key and prove text and selection reach the host editor.
-adb shell input tap 54 "$Q_Y"
+adb shell input tap "$Q_X" "$Q_Y"
 sleep 1
 adb shell uiautomator dump /sdcard/after-q.xml
 adb pull /sdcard/after-q.xml after-q.xml
-grep -q 'text="qCursor test: move the caret through this sentence"' after-q.xml
-grep -q 'text="Selection: 1-1"' after-q.xml
+assert_xml_text after-q.xml "qCursor test: move the caret through this sentence"
+assert_xml_text after-q.xml "Selection: 1-1"
 
 # One continuous swipe crosses the production long-press gate. The gesture must
 # move the actual host caret left without leaking a space character.
-adb shell input swipe 545 "$SPACE_Y" 445 "$SPACE_Y" 1200
+adb shell input swipe "$SPACE_X" "$SPACE_Y" 445 "$SPACE_Y" 1200
 sleep 1
 adb shell uiautomator dump /sdcard/after-trackpad.xml
 adb pull /sdcard/after-trackpad.xml after-trackpad.xml
-grep -q 'text="qCursor test: move the caret through this sentence"' after-trackpad.xml
-grep -q 'text="Selection: 0-0"' after-trackpad.xml
+assert_xml_text after-trackpad.xml "qCursor test: move the caret through this sentence"
+assert_xml_text after-trackpad.xml "Selection: 0-0"
 
 # Commit W after the moved caret as a second end-to-end cursor proof.
-adb shell input tap 161 "$Q_Y"
+adb shell input tap "$W_X" "$Q_Y"
 sleep 1
 adb shell uiautomator dump /sdcard/after-cursor.xml
 adb pull /sdcard/after-cursor.xml after-cursor.xml
-grep -q 'text="wqCursor test: move the caret through this sentence"' after-cursor.xml
+assert_xml_text after-cursor.xml "wqCursor test: move the caret through this sentence"
 
 # Single Backspace must delete the character before the caret.
-adb shell input tap 1006 "$BACKSPACE_Y"
+adb shell input tap "$BACKSPACE_X" "$BACKSPACE_Y"
 sleep 1
 adb shell uiautomator dump /sdcard/after-backspace.xml
 adb pull /sdcard/after-backspace.xml after-backspace.xml
-grep -q 'text="qCursor test: move the caret through this sentence"' after-backspace.xml
+assert_xml_text after-backspace.xml "qCursor test: move the caret through this sentence"
 adb exec-out screencap -p > ime-qa-after-input.png
 
-# Exercise the visible Emoji toolbar on the fixed Pixel 6 QA profile. The panel
-# artwork itself is custom vector rendering, while the committed output remains
-# the corresponding Unicode emoji for normal Android text fields.
-adb shell input tap 134 "$TOOLBAR_Y"
+# Exercise the visible Emoji toolbar. Opening the panel changes the IME height,
+# so re-measure the window before touching panel content rather than guessing how
+# far the toolbar moved on screen.
+adb shell input tap "$TOOLBAR_EMOJI_X" "$TOOLBAR_Y"
 sleep 1
+adb shell dumpsys input_method > input-method-emoji.txt
 adb exec-out screencap -p > emoji-panel.png
-adb shell input tap 75 "$EMOJI_FIRST_Y"
+EXPANDED_IME_TOP="$(ime_top_from_dump input-method-emoji.txt)"
+EMOJI_FIRST_Y=$(( EXPANDED_IME_TOP + EMOJI_FIRST_LOCAL_Y ))
+EXPANDED_TOOLBAR_Y=$(( EXPANDED_IME_TOP + TOOLBAR_LOCAL_Y ))
+echo "expanded_ime_top_px=$EXPANDED_IME_TOP emoji_first_y=$EMOJI_FIRST_Y"
+adb shell input tap "$EMOJI_FIRST_X" "$EMOJI_FIRST_Y"
 sleep 1
 adb shell uiautomator dump /sdcard/after-emoji.xml
 adb pull /sdcard/after-emoji.xml after-emoji.xml
-grep -q 'text="🙂qCursor test: move the caret through this sentence"' after-emoji.xml
+assert_xml_text after-emoji.xml "🙂qCursor test: move the caret through this sentence"
 
-# Close the expanded emoji panel; its panel height shifts the toolbar upward.
-adb shell input tap 134 "$EXPANDED_TOOLBAR_Y"
+# Close the expanded emoji panel using the toolbar position in the expanded
+# window, then re-measure the normal IME before the repeat test.
+adb shell input tap "$TOOLBAR_EMOJI_X" "$EXPANDED_TOOLBAR_Y"
 sleep 1
+adb shell dumpsys input_method > input-method-normal.txt
+NORMAL_IME_TOP="$(ime_top_from_dump input-method-normal.txt)"
+Q_Y=$(( NORMAL_IME_TOP + Q_ROW_LOCAL_Y ))
+BACKSPACE_Y=$(( NORMAL_IME_TOP + BACKSPACE_LOCAL_Y ))
 
 # Insert a safe run of q characters, then hold Backspace without movement. More
 # than one character must disappear, proving stationary repeat rather than a tap.
-for _ in 1 2 3 4 5 6 7 8; do adb shell input tap 54 "$Q_Y"; done
+for _ in 1 2 3 4 5 6 7 8; do adb shell input tap "$Q_X" "$Q_Y"; done
 sleep 1
 adb shell uiautomator dump /sdcard/before-repeat-backspace.xml
 adb pull /sdcard/before-repeat-backspace.xml before-repeat-backspace.xml
-adb shell input swipe 1006 "$BACKSPACE_Y" 1006 "$BACKSPACE_Y" 720
+adb shell input swipe "$BACKSPACE_X" "$BACKSPACE_Y" "$BACKSPACE_X" "$BACKSPACE_Y" 720
 sleep 1
 adb shell uiautomator dump /sdcard/after-repeat-backspace.xml
 adb pull /sdcard/after-repeat-backspace.xml after-repeat-backspace.xml
