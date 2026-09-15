@@ -132,18 +132,17 @@ public final class NightModulesFragment extends BaseFragment implements ModuleUt
         frameworkStatus.setActivated(frameworkActive);
         adapter.submit(rows);
 
-        boolean empty = rows.isEmpty();
-        recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
-        emptyState.setVisibility(empty ? View.VISIBLE : View.GONE);
+        boolean hasModules = !rows.isEmpty();
+        recyclerView.setVisibility(hasModules ? View.VISIBLE : View.GONE);
 
-        if (empty) {
-            if (frameworkActive) {
-                emptyTitle.setText(R.string.night_modules_empty_title);
-                emptyDetail.setText(R.string.night_modules_empty_detail);
-            } else {
-                emptyTitle.setText(R.string.night_modules_offline_title);
-                emptyDetail.setText(R.string.night_modules_offline_detail);
-            }
+        // The framework status block already explains the disconnected state.
+        // Only show a separate empty state when the framework is active and there
+        // genuinely are no installed modules; avoid repeating the same warning twice.
+        boolean showEmpty = frameworkActive && !hasModules;
+        emptyState.setVisibility(showEmpty ? View.VISIBLE : View.GONE);
+        if (showEmpty) {
+            emptyTitle.setText(R.string.night_modules_empty_title);
+            emptyDetail.setText(R.string.night_modules_empty_detail);
         }
     }
 
