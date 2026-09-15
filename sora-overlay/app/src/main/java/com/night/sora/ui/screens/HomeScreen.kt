@@ -82,7 +82,7 @@ fun HomeScreen(
             override fun onAvailable(network: Network) { mainHandler.post { networkEpoch++ } }
         }
         val registered = runCatching { connectivity.registerDefaultNetworkCallback(callback); true }.getOrDefault(false)
-        onDispose { if (registered) runCatching { connectivity.unregisterNetworkCallback(callback) } }
+        onDispose { if (registered) runCatching { connectivity.unregisterDefaultNetworkCallback(callback) } }
     }
 
     LaunchedEffect(extensions, networkEpoch) {
@@ -107,81 +107,85 @@ fun HomeScreen(
         else -> "Good evening"
     }
 
-    LazyColumn(
-        modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 128.dp),
-    ) {
-        item {
-            Row(
-                Modifier.fillMaxWidth().statusBarsPadding().height(54.dp).padding(horizontal = 18.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                    SoraMark()
-                    Spacer(Modifier.width(10.dp))
-                    Text("Sora", fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
-                }
-                IconButton(onClick = onSearch) { Icon(Icons.Rounded.Search, "Search") }
+    Column(modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().statusBarsPadding().height(54.dp).padding(horizontal = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                SoraMark()
+                Spacer(Modifier.width(10.dp))
+                Text("Sora", fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
             }
+            IconButton(onClick = onSearch) { Icon(Icons.Rounded.Search, "Search") }
         }
 
-        item {
-            Column(Modifier.padding(start = 18.dp, end = 18.dp, top = 4.dp, bottom = 2.dp)) {
-                Text(greeting.uppercase(), color = SoraMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
-                Text("Your stuff,\nwhere you left it.", fontSize = 29.sp, lineHeight = 31.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1.2).sp)
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 12.dp),
+        ) {
+            item {
+                Text(
+                    greeting.uppercase(),
+                    color = SoraMuted,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.2.sp,
+                    modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 2.dp),
+                )
             }
-        }
 
-        item { HomeSectionHeader("Continue", "Pick up exactly where you stopped", "History") }
-        item {
-            if (continueEntries.isEmpty()) {
-                Text("Nothing in progress yet.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp))
-            } else {
-                LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(continueEntries, key = { it.id }) { entry ->
-                        ContinueCard(entry) { entry.toMediaSelection()?.let(onOpenSelection) }
+            item { HomeSectionHeader("Continue", "Pick up exactly where you stopped", "History") }
+            item {
+                if (continueEntries.isEmpty()) {
+                    Text("Nothing in progress yet.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp))
+                } else {
+                    LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        items(continueEntries, key = { it.id }) { entry ->
+                            ContinueCard(entry) { entry.toMediaSelection()?.let(onOpenSelection) }
+                        }
                     }
                 }
             }
-        }
 
-        item { HomeSectionHeader("For you", "Picked from across Sora", "Refresh") }
-        item {
-            if (recommendations.isEmpty()) {
-                Text("Your recommendations will fill in as Sora learns what you like.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 18.dp))
-            } else {
-                LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(recommendations.take(10), key = { "${it.extensionPackage}:${it.sourceId}:${it.id}" }) { card ->
-                        HomePosterTile(card) { onOpenSelection(card.selection()) }
+            item { HomeSectionHeader("For you", "Picked from across Sora", "Refresh") }
+            item {
+                if (recommendations.isEmpty()) {
+                    Text("Your recommendations will fill in as Sora learns what you like.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 18.dp))
+                } else {
+                    LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        items(recommendations.take(10), key = { "${it.extensionPackage}:${it.sourceId}:${it.id}" }) { card ->
+                            HomePosterTile(card) { onOpenSelection(card.selection()) }
+                        }
                     }
                 }
             }
-        }
 
-        item { HomeSectionHeader("Recently played", "Music stays with you across Sora", "Library") }
-        item {
-            LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(music.take(8), key = { "music-${it.id}" }) { card ->
-                    HomeSquareTile(card) { onOpenSelection(card.selection()) }
+            item { HomeSectionHeader("Recently played", "Music stays with you across Sora", "Library") }
+            item {
+                LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(music.take(8), key = { "music-${it.id}" }) { card ->
+                        HomeSquareTile(card) { onOpenSelection(card.selection()) }
+                    }
                 }
             }
-        }
 
-        item { HomeSectionHeader("You probably needed this", "Something from your feed", "More") }
-        item { MemeStrip(memes.firstOrNull()) }
+            item { HomeSectionHeader("You probably needed this", "Something from your feed", "More") }
+            item { MemeStrip(memes.firstOrNull()) }
 
-        item { HomeSectionHeader("Bible", "Continue your reading", "Open", onSee = onOpenBible) }
-        item {
-            Surface(
-                color = Color(0xFF151513),
-                shape = RoundedCornerShape(18.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .08f)),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).clickable(onClick = onOpenBible),
-            ) {
-                Column(Modifier.padding(18.dp)) {
-                    Text("John 1 · verse 5", color = SoraAccent, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = .7.sp)
-                    Text("“The light shines in the darkness, and the darkness has not overcome it.”", fontSize = 19.sp, lineHeight = 27.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 9.dp))
-                    Text("Last read · John 1:1–5", color = SoraMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp))
+            item { HomeSectionHeader("Bible", "Continue your reading", "Open", onSee = onOpenBible) }
+            item {
+                Surface(
+                    color = Color(0xFF151513),
+                    shape = RoundedCornerShape(18.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .08f)),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).clickable(onClick = onOpenBible),
+                ) {
+                    Column(Modifier.padding(18.dp)) {
+                        Text("John 1 · verse 5", color = SoraAccent, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = .7.sp)
+                        Text("“The light shines in the darkness, and the darkness has not overcome it.”", fontSize = 19.sp, lineHeight = 27.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 9.dp))
+                        Text("Last read · John 1:1–5", color = SoraMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp))
+                    }
                 }
             }
         }
