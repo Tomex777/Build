@@ -1,1 +1,1 @@
-rerun emulator smoke after POSIX shell fix
+rerun emulator smoke from standalone Bash walker
