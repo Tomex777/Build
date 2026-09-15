@@ -22,18 +22,16 @@ class LiveExtensionService : Service() {
     private val descriptor = ExtensionDescriptor(
         id = "night.sora.live.sources",
         name = "Sora Live Sources",
-        version = "0.1.0",
+        version = "0.2.0",
         apiVersion = ExtensionContract.API_VERSION,
         author = "Night",
-        description = "Network-backed discovery sources for Sora.",
-        contentTypes = setOf("anime", "manga", "movie", "tv", "music"),
-        capabilities = setOf("browse", "search", "details", "episodes", "chapters", "pages", "streams", "lyrics", "relatedArtists"),
+        description = "Temporary network-backed discovery sources for Movies, TV and Music.",
+        contentTypes = setOf("movie", "tv", "music"),
+        capabilities = setOf("browse", "search", "details", "episodes", "lyrics", "relatedArtists"),
         permissions = listOf(
-            ExtensionPermission("network", listOf("api.jikan.moe", "api.tvmaze.com", "itunes.apple.com")),
+            ExtensionPermission("network", listOf("api.tvmaze.com", "itunes.apple.com")),
         ),
         sources = listOf(
-            SourceDescriptor("live.jikan.anime", "Jikan Anime", setOf("anime"), setOf("browse", "search", "details", "episodes", "streams")),
-            SourceDescriptor("live.jikan.manga", "Jikan Manga", setOf("manga"), setOf("browse", "search", "details", "chapters", "pages")),
             SourceDescriptor("live.itunes.movies", "iTunes Movies", setOf("movie"), setOf("browse", "search", "details")),
             SourceDescriptor("live.tvmaze.tv", "TVmaze", setOf("tv"), setOf("browse", "search", "details", "episodes")),
             SourceDescriptor("live.itunes.music", "iTunes Music", setOf("music"), setOf("browse", "search", "details", "lyrics", "relatedArtists")),
