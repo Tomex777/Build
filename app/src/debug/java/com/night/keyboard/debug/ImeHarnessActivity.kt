@@ -27,7 +27,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.night.keyboard.ui.theme.KeyboardTheme
@@ -50,7 +52,14 @@ class ImeHarnessActivity : ComponentActivity() {
 
 @Composable
 private fun ImeHarnessScreen() {
-    var value by remember { mutableStateOf("Cursor test: move the caret through this sentence") }
+    var value by remember {
+        mutableStateOf(
+            TextFieldValue(
+                text = "Cursor test: move the caret through this sentence",
+                selection = TextRange.Zero,
+            ),
+        )
+    }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -80,6 +89,12 @@ private fun ImeHarnessScreen() {
                     .padding(16.dp)
                     .focusRequester(focusRequester),
                 textStyle = TextStyle(color = Color(0xFF15181C), fontSize = 18.sp),
+            )
+            Text(
+                "Selection: ${value.selection.start}-${value.selection.end}",
+                color = Color(0xFF626A73),
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 8.dp),
             )
         }
     }
