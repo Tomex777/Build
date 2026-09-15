@@ -20,7 +20,7 @@
         "initial": {
           "width": 1280,
           "height": 800,
-          "meanLuma": 173.46,
+          "meanLuma": 173.47,
           "stdLuma": 31.13,
           "minLuma": 19.72,
           "maxLuma": 251.35
@@ -28,25 +28,25 @@
         "orbited": {
           "width": 1280,
           "height": 800,
-          "meanLuma": 171.99,
-          "stdLuma": 30.92,
+          "meanLuma": 172.07,
+          "stdLuma": 30.91,
           "minLuma": 17.72,
-          "maxLuma": 250.13
+          "maxLuma": 250.06
         },
         "lamp": {
           "width": 1280,
           "height": 800,
-          "meanLuma": 173.03,
-          "stdLuma": 31.01,
+          "meanLuma": 173.05,
+          "stdLuma": 31.02,
           "minLuma": 17.72,
           "maxLuma": 250.34
         },
         "reset": {
           "width": 1280,
           "height": 800,
-          "meanLuma": 173.26,
-          "stdLuma": 31.3,
-          "minLuma": 21.43,
+          "meanLuma": 173.28,
+          "stdLuma": 31.26,
+          "minLuma": 19.64,
           "maxLuma": 249.27
         }
       },
@@ -72,15 +72,15 @@
         "initial": {
           "width": 393,
           "height": 873,
-          "meanLuma": 174.22,
-          "stdLuma": 33.81,
+          "meanLuma": 174.21,
+          "stdLuma": 33.76,
           "minLuma": 22.43,
           "maxLuma": 252.14
         },
         "reset": {
           "width": 393,
           "height": 873,
-          "meanLuma": 173.29,
+          "meanLuma": 173.31,
           "stdLuma": 33.19,
           "minLuma": 22.43,
           "maxLuma": 252.14
@@ -108,17 +108,17 @@
         "initial": {
           "width": 873,
           "height": 393,
-          "meanLuma": 175.83,
-          "stdLuma": 32.95,
-          "minLuma": 22.43,
-          "maxLuma": 249.27
+          "meanLuma": 172.74,
+          "stdLuma": 29.1,
+          "minLuma": 21.72,
+          "maxLuma": 249.2
         },
         "reset": {
           "width": 873,
           "height": 393,
-          "meanLuma": 174.76,
-          "stdLuma": 32.81,
-          "minLuma": 21.64,
+          "meanLuma": 171.57,
+          "stdLuma": 28.41,
+          "minLuma": 20.64,
           "maxLuma": 251.35
         }
       },
