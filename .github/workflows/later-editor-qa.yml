@@ -1,0 +1,219 @@
+name: Later editor QA
+
+on:
+  push:
+    branches:
+      - later-editor-qa
+
+permissions:
+  contents: read
+
+jobs:
+  editor-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout QA branch
+        uses: actions/checkout@v4
+
+      - name: Restore verified Later source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .later-qa/source/part-* > later-build.tar.xz.b64
+          base64 -d later-build.tar.xz.b64 > later-build.tar.xz
+          echo 'b98f343406579d4fe8476d04f2f510127fe774e83240af1a73fe142360fb16b2  later-build.tar.xz' | sha256sum -c -
+          mkdir -p later
+          tar -xJf later-build.tar.xz -C later
+          chmod +x later/gradlew || true
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install API 36 build SDK
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'platform-tools'
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Unit tests and debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p later testDebugUnitTest assembleDebug --stacktrace --console=plain
+
+      - name: API 36 editor emulator validation
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            set -euo pipefail
+            cd later
+            mkdir -p qa-evidence
+            gradle installDebug --stacktrace --console=plain
+
+            cat > qa_click.py <<'PY'
+            import re, subprocess, sys, xml.etree.ElementTree as ET
+            xml_path, mode, needle = sys.argv[1:4]
+            root = ET.parse(xml_path).getroot()
+            nodes = list(root.iter('node'))
+            def bounds(n):
+                m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',n.attrib.get('bounds',''))
+                return tuple(map(int,m.groups())) if m else None
+            found=None
+            if mode=='text-exact': found=next((n for n in nodes if n.attrib.get('text')==needle),None)
+            elif mode=='text-contains': found=next((n for n in nodes if needle in n.attrib.get('text','')),None)
+            elif mode=='desc-exact': found=next((n for n in nodes if n.attrib.get('content-desc')==needle),None)
+            elif mode=='right-clickable-of-text':
+                a=next((n for n in nodes if n.attrib.get('text')==needle),None)
+                if a and bounds(a):
+                    ax1,ay1,ax2,ay2=bounds(a); c=[]
+                    for n in nodes:
+                        b=bounds(n)
+                        if n.attrib.get('clickable')=='true' and b:
+                            x1,y1,x2,y2=b
+                            if x1>=ax2 and not (y2<ay1-140 or y1>ay2+140): c.append(((x2-x1)*(y2-y1),x1,n))
+                    if c: found=sorted(c,key=lambda t:(t[0],t[1]))[0][2]
+            elif mode=='first-clickable-below-text':
+                a=next((n for n in nodes if n.attrib.get('text')==needle),None)
+                if a and bounds(a):
+                    ay2=bounds(a)[3]; c=[]
+                    for n in nodes:
+                        b=bounds(n)
+                        if n.attrib.get('clickable')=='true' and b and b[1]>=ay2: c.append((b[1],b[0],(b[2]-b[0])*(b[3]-b[1]),n))
+                    if c: found=sorted(c,key=lambda t:(t[0],t[1],t[2]))[0][3]
+            if not found or not bounds(found):
+                print(open(xml_path,encoding='utf-8').read()); raise SystemExit(f'node not found: {mode} {needle}')
+            x1,y1,x2,y2=bounds(found); x=(x1+x2)//2; y=(y1+y2)//2
+            print(f'click {mode} {needle!r} at {x},{y} bounds={found.attrib.get("bounds")}')
+            subprocess.run(['adb','shell','input','tap',str(x),str(y)],check=True)
+            PY
+
+            dump(){ adb exec-out uiautomator dump /dev/tty > "qa-evidence/$1.xml"; }
+            shot(){ adb exec-out screencap -p > "qa-evidence/$1.png"; }
+            click_text(){ python3 qa_click.py "$1" text-exact "$2"; }
+            click_contains(){ python3 qa_click.py "$1" text-contains "$2"; }
+            click_desc(){ python3 qa_click.py "$1" desc-exact "$2"; }
+            assert_text(){ python3 - "$1" "$2" <<'PY'
+            import sys,xml.etree.ElementTree as ET
+            r=ET.parse(sys.argv[1]).getroot(); q=sys.argv[2]
+            if not any(q in n.attrib.get('text','') for n in r.iter('node')): raise SystemExit(f'missing text {q!r}')
+            PY
+            }
+            assert_desc(){ python3 - "$1" "$2" <<'PY'
+            import sys,xml.etree.ElementTree as ET
+            r=ET.parse(sys.argv[1]).getroot(); q=sys.argv[2]
+            if q not in [n.attrib.get('content-desc','') for n in r.iter('node')]: raise SystemExit(f'missing desc {q!r}')
+            PY
+            }
+            assert_editor(){ for l in Seal Media Voice Attachment Sticker Format; do assert_text "$1" "$l"; done; assert_desc "$1" 'Go back'; }
+
+            adb logcat -c
+            adb shell am force-stop com.night.later
+            adb shell am start -W -n com.night.later/.MainActivity
+            sleep 4
+            test -n "$(adb shell pidof -s com.night.later | tr -d '\r')"
+
+            dump home; shot home
+            click_desc qa-evidence/home.xml 'Create capsule'
+            sleep 3
+            dump editor-initial; shot editor-initial
+            assert_editor qa-evidence/editor-initial.xml
+            assert_text qa-evidence/editor-initial.xml 'Title'
+            assert_text qa-evidence/editor-initial.xml 'Write to your future self'
+
+            click_text qa-evidence/editor-initial.xml 'Title'
+            adb shell input text 'LaterEditorQA'
+            sleep 1
+            dump editor-title-keyboard; shot editor-title-keyboard
+            assert_text qa-evidence/editor-title-keyboard.xml 'LaterEditorQA'
+            adb shell input keyevent 4; sleep 1
+
+            dump editor-pre-body
+            click_contains qa-evidence/editor-pre-body.xml 'Write to your future self'
+            adb shell input text 'EditorBodyQA'
+            sleep 1
+            dump editor-body-keyboard; shot editor-body-keyboard
+            assert_text qa-evidence/editor-body-keyboard.xml 'EditorBodyQA'
+            adb shell input keyevent 4; sleep 1
+            dump editor-body; shot editor-body
+            assert_editor qa-evidence/editor-body.xml
+
+            click_text qa-evidence/editor-body.xml 'Format'
+            sleep 1
+            dump format-home; shot format-home
+            for l in Home Paragraph Paper; do assert_text qa-evidence/format-home.xml "$l"; done
+            assert_desc qa-evidence/format-home.xml 'Undo'; assert_desc qa-evidence/format-home.xml 'Redo'
+            click_text qa-evidence/format-home.xml 'Paragraph'; sleep 1
+            dump format-paragraph; shot format-paragraph
+            assert_text qa-evidence/format-paragraph.xml 'Bullets'; assert_text qa-evidence/format-paragraph.xml 'Numbered'
+            click_text qa-evidence/format-paragraph.xml 'Paper'; sleep 1
+            dump format-paper; shot format-paper
+            adb shell input keyevent 4; sleep 1
+
+            dump editor-before-sticker
+            click_text qa-evidence/editor-before-sticker.xml 'Sticker'; sleep 1
+            dump stickers; shot stickers; assert_text qa-evidence/stickers.xml 'Stickers'
+            python3 qa_click.py qa-evidence/stickers.xml first-clickable-below-text 'Stickers'
+            sleep 1; dump editor-after-sticker; shot editor-after-sticker; assert_editor qa-evidence/editor-after-sticker.xml
+
+            python3 qa_click.py qa-evidence/editor-after-sticker.xml right-clickable-of-text 'LaterEditorQA'
+            sleep 1; dump mood; shot mood
+            assert_text qa-evidence/mood.xml 'How does this moment feel?'
+            assert_text qa-evidence/mood.xml 'Choose the one that fits this moment.'
+            adb shell input keyevent 4; sleep 1
+
+            dump editor-before-seal
+            click_text qa-evidence/editor-before-seal.xml 'Seal'; sleep 1
+            dump seal; shot seal
+            assert_text qa-evidence/seal.xml 'Date'; assert_text qa-evidence/seal.xml 'Time'
+            assert_text qa-evidence/seal.xml 'Choose a time in the future.'; assert_text qa-evidence/seal.xml 'Seal capsule'
+            adb shell input keyevent 4; sleep 1
+
+            for control in Media Attachment; do
+              dump "editor-before-${control,,}"; click_text "qa-evidence/editor-before-${control,,}.xml" "$control"; sleep 2
+              dump "${control,,}-picker"; shot "${control,,}-picker"; adb shell input keyevent 4; sleep 1
+              dump "editor-after-${control,,}"; assert_editor "qa-evidence/editor-after-${control,,}.xml"
+            done
+
+            dump editor-before-voice; click_text qa-evidence/editor-before-voice.xml 'Voice'; sleep 2
+            dump voice-entry; shot voice-entry; adb shell input keyevent 4 || true; sleep 1; dump editor-after-voice
+            if ! grep -q 'text="Voice"' qa-evidence/editor-after-voice.xml; then adb shell input keyevent 4 || true; sleep 1; dump editor-after-voice; fi
+            assert_editor qa-evidence/editor-after-voice.xml
+
+            adb shell input swipe 540 1500 540 650 450; sleep 1
+            dump editor-scrolled; shot editor-scrolled; assert_editor qa-evidence/editor-scrolled.xml
+            sleep 3; dump editor-autosave; shot editor-autosave
+            click_desc qa-evidence/editor-autosave.xml 'Go back'; sleep 2; dump home-after-editor; shot home-after-editor
+
+            adb logcat -d > qa-evidence/logcat.txt
+            adb logcat -b crash -d > qa-evidence/crash.txt
+            if grep -q 'com.night.later' qa-evidence/crash.txt; then cat qa-evidence/crash.txt; exit 1; fi
+            echo 'LATER_EDITOR_QA_PASS'
+
+      - name: Upload editor QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: later-editor-qa-evidence
+          if-no-files-found: warn
+          path: |
+            later/app/build/outputs/apk/debug/app-debug.apk
+            later/app/build/reports/tests/
+            later/qa-evidence/
