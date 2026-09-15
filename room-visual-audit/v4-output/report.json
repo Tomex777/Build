@@ -20,33 +20,33 @@
         "initial": {
           "width": 1280,
           "height": 800,
-          "meanLuma": 173.49,
-          "stdLuma": 31.16,
+          "meanLuma": 173.46,
+          "stdLuma": 31.13,
           "minLuma": 19.72,
           "maxLuma": 251.35
         },
         "orbited": {
           "width": 1280,
           "height": 800,
-          "meanLuma": 172.01,
-          "stdLuma": 30.93,
+          "meanLuma": 171.99,
+          "stdLuma": 30.92,
           "minLuma": 17.72,
           "maxLuma": 250.13
         },
         "lamp": {
           "width": 1280,
           "height": 800,
-          "meanLuma": 173.11,
-          "stdLuma": 30.96,
+          "meanLuma": 173.03,
+          "stdLuma": 31.01,
           "minLuma": 17.72,
           "maxLuma": 250.34
         },
         "reset": {
           "width": 1280,
           "height": 800,
-          "meanLuma": 173.28,
-          "stdLuma": 31.27,
-          "minLuma": 19.72,
+          "meanLuma": 173.26,
+          "stdLuma": 31.3,
+          "minLuma": 21.43,
           "maxLuma": 249.27
         }
       },
@@ -72,18 +72,18 @@
         "initial": {
           "width": 393,
           "height": 873,
-          "meanLuma": 176.08,
-          "stdLuma": 36.3,
-          "minLuma": 23.57,
+          "meanLuma": 174.22,
+          "stdLuma": 33.81,
+          "minLuma": 22.43,
           "maxLuma": 252.14
         },
         "reset": {
           "width": 393,
           "height": 873,
-          "meanLuma": 175.03,
-          "stdLuma": 35.63,
-          "minLuma": 23.5,
-          "maxLuma": 252.21
+          "meanLuma": 173.29,
+          "stdLuma": 33.19,
+          "minLuma": 22.43,
+          "maxLuma": 252.14
         }
       },
       "meaningful": true,
@@ -108,18 +108,18 @@
         "initial": {
           "width": 873,
           "height": 393,
-          "meanLuma": 171.83,
-          "stdLuma": 27.65,
-          "minLuma": 21.5,
-          "maxLuma": 251.35
+          "meanLuma": 175.83,
+          "stdLuma": 32.95,
+          "minLuma": 22.43,
+          "maxLuma": 249.27
         },
         "reset": {
           "width": 873,
           "height": 393,
-          "meanLuma": 170.75,
-          "stdLuma": 26.56,
-          "minLuma": 18.64,
-          "maxLuma": 252.06
+          "meanLuma": 174.76,
+          "stdLuma": 32.81,
+          "minLuma": 21.64,
+          "maxLuma": 251.35
         }
       },
       "meaningful": true,
