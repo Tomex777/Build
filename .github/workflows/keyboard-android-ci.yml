@@ -76,7 +76,28 @@ jobs:
           test -n "$SDKMANAGER" || { echo "sdkmanager not found under $SDK_ROOT"; exit 1; }
           echo "Using $SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platform-tools" "platforms;android-36"
+
+          install_with_retry() {
+            local attempt
+            for attempt in 1 2 3; do
+              echo "sdkmanager attempt $attempt: $*"
+              if "$SDKMANAGER" "$@"; then
+                return 0
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                sleep $((attempt * 5))
+              fi
+            done
+            return 1
+          }
+
+          # Pre-provision everything android-emulator-runner will need. The action
+          # still validates/installs these packages itself, but a completed local
+          # install makes its setup idempotent and avoids losing the entire QA run
+          # to a transient corrupt/partial emulator ZIP download.
+          install_with_retry "platform-tools" "platforms;android-36"
+          install_with_retry "emulator"
+          install_with_retry "system-images;android-36;google_apis;x86_64"
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
@@ -113,6 +134,8 @@ jobs:
             after-repeat-backspace.xml
             home-after-setup.xml
             input-method.txt
+            input-method-emoji.txt
+            input-method-normal.txt
             logcat.txt
             logcat-final.txt
           if-no-files-found: warn
