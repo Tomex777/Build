@@ -10,41 +10,126 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:paddingHorizontal="20dp"
-        android:paddingTop="24dp"
+        android:paddingTop="28dp"
         android:paddingBottom="40dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Night Core"
+            android:text="@string/app_name"
             android:textColor="@color/night_text"
-            android:textSize="30sp"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/engine_subtitle"
+            android:textColor="@color/night_muted"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/engine_version"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="@color/night_muted"
+            android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="26dp"
+            android:paddingBottom="8dp"
+            android:text="@string/managed_by_night_mods"
+            android:textAllCaps="true"
+            android:textColor="@color/night_accent"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/manager_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:textColor="@color/night_text"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/open_night_mods"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:layout_marginTop="4dp"
+            android:text="@string/open_night_mods"
+            android:textAllCaps="false" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="24dp"
+            android:background="#34352F" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="22dp"
+            android:paddingBottom="8dp"
+            android:text="@string/target_adapters"
+            android:textAllCaps="true"
+            android:textColor="@color/night_accent"
+            android:textSize="12sp"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Diagnostic fallback · configure normally in Night Mods"
+            android:layout_marginTop="8dp"
+            android:text="@string/whatsapp"
+            android:textColor="@color/night_text"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/whatsapp_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
             android:textColor="@color/night_muted"
-            android:textSize="15sp" />
+            android:textSize="14sp" />
 
-        <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="24dp" android:background="#34352F" />
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginStart="0dp"
+            android:layout_marginTop="16dp"
+            android:background="#34352F" />
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="22dp" android:text="BUBBLE STYLER" android:textColor="@color/night_accent" android:textSize="12sp" android:textStyle="bold" />
-        <Switch android:id="@+id/enabled" android:layout_width="match_parent" android:layout_height="56dp" android:text="Enabled" android:textColor="@color/night_text" android:textSize="16sp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/instagram"
+            android:textColor="@color/night_text"
+            android:textSize="16sp"
+            android:textStyle="bold" />
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="TARGETS" android:textColor="@color/night_accent" android:textSize="12sp" android:textStyle="bold" />
-        <CheckBox android:id="@+id/target_whatsapp" android:layout_width="match_parent" android:layout_height="52dp" android:text="WhatsApp" android:textColor="@color/night_text" android:textSize="16sp" />
-        <CheckBox android:id="@+id/target_instagram" android:layout_width="match_parent" android:layout_height="52dp" android:text="Instagram" android:textColor="@color/night_text" android:textSize="16sp" />
+        <TextView
+            android:id="@+id/instagram_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:textColor="@color/night_muted"
+            android:textSize="14sp" />
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="SHAPE" android:textColor="@color/night_accent" android:textSize="12sp" android:textStyle="bold" />
-        <TextView android:id="@+id/radius_value" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Corner radius · 20" android:textColor="@color/night_text" android:textSize="16sp" />
-        <SeekBar android:id="@+id/radius" android:layout_width="match_parent" android:layout_height="48dp" android:max="48" />
-        <TextView android:id="@+id/spacing_value" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Message spacing · 6" android:textColor="@color/night_text" android:textSize="16sp" />
-        <SeekBar android:id="@+id/spacing" android:layout_width="match_parent" android:layout_height="48dp" android:max="24" />
-
-        <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="22dp" android:background="#34352F" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:text="Architecture ready. App-specific bubble hooks require version analysis." android:textColor="@color/night_muted" android:textSize="14sp" android:lineSpacingExtra="3dp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/version_guard_note"
+            android:textColor="@color/night_muted"
+            android:textSize="13sp"
+            android:lineSpacingExtra="3dp" />
     </LinearLayout>
 </ScrollView>
