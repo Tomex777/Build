@@ -4,18 +4,7 @@
      ) {
          val compact = maxWidth < 340.dp
 -        val titleWidth = if (compact) 112.dp else 148.dp
-+        val titleWidth = if (compact) 152.dp else 148.dp
++        val titleWidth = if (compact) 156.dp else 148.dp
          val moodSize = if (compact) 84.dp else 96.dp
          val headerHeight = if (compact) 124.dp else 132.dp
  
-@@ -212,7 +212,9 @@
-                     value = title,
-                     onValueChange = { onTitleChanged(it.take(240)) },
-                     singleLine = true,
--                    modifier = Modifier.width(titleWidth),
-+                    modifier = Modifier
-+                        .width(titleWidth)
-+                        .padding(start = 4.dp),
-                     textStyle = TextStyle(
-                         color = paper.text,
-                         fontFamily = FontFamily.Serif,
