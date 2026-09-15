@@ -66,7 +66,7 @@ public final class MainActivity extends Activity {
                     null
             );
 
-            if (!latch.await(1500L, TimeUnit.MILLISECONDS)) {
+            if (!latch.await(5000L, TimeUnit.MILLISECONDS)) {
                 throw new IllegalStateException("Night Core settings broadcast timed out");
             }
             if (code.get() != Activity.RESULT_OK) {
