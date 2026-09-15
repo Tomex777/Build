@@ -1,0 +1,21 @@
+Slumber 0.8.15 — chord-aware guides + cultural provenance tooling
+
+Base: successful Slumber 0.8.14 integration artifact from GitHub Actions run 35006919593.
+Branch: pianohub-ci only. main untouched.
+
+Changes:
+- Touch guide now consumes chord-aware score moments instead of flattening the active score into individual MIDI notes.
+- A simultaneous chord is shown as one current musical event (for example C4 + E4 + G4) and one preview item.
+- Staff guide now places all notes from the same score moment at the same horizontal position so chords render simultaneously rather than sequentially.
+- Removes the now-unused flattened guide index/expected-note state.
+- Adds a maintainer-side cultural instrument pack builder that refuses packs without explicit provenance.
+- Every source WAV must have a declared SHA-256 that matches the local file and an HTTPS source URL.
+- Pack-level license allowlist: CC0-1.0, Public-Domain, CC-BY-4.0; attribution is required for provenance even when the license itself does not require credit.
+- Builder writes PROVENANCE.json, Slumber schema-v2 manifest.json, validates MIDI/velocity/round-robin ranges and WAV properties, and computes the exact payload digest used by LocalInstrumentPackManager.
+- Adds a synthetic provenance test including rejection of an insecure HTTP sample source.
+- No cultural voice is advertised as playable by this layer; actual downloadable packs still require real licensed sample artifacts and published URLs.
+
+Version: 0.8.15 (versionCode 27), minSdk 26, targetSdk 36, compileSdk 37.
+
+Local verification: patch applies cleanly to exact green 0.8.14 source; PDMX/OpenScore builder tests PASS; cultural provenance builder test PASS.
+Patch SHA-256: 4df6690133b88d71e2bc010a7b62ea348f0ebc5d4e8d3cc83dbe8155036801bb
