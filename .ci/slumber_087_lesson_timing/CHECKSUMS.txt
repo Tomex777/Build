@@ -1,0 +1,3 @@
+3b2557760fa7a09aa9a4f3d4f5f6b5ea0d60ab2741d8b833d038bc232cece77c  lesson_timing.patch
+77e06c1e3c0ed9e714665991e3361db034d519181f2d775781522929dc1e0ac0  lesson_timing.patch.gz
+1f3df70e7df1ef86e904accf15d63d8be96779c5bc2551cf6ad25f5311088314  lesson_timing.patch.gz.b64
