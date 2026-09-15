@@ -5,6 +5,7 @@ OUT=/tmp/sora-ui
 mkdir -p "$OUT"
 
 adb uninstall com.night.sora.ext.live >/dev/null 2>&1 || true
+adb uninstall com.night.sora.ext.demo >/dev/null 2>&1 || true
 adb install -r "$SORA_ROOT/app/build/outputs/apk/debug/app-debug.apk"
 adb shell am force-stop com.night.sora
 adb shell am start -W -n com.night.sora/.MainActivity
@@ -62,56 +63,61 @@ PY
   return 1
 }
 
-# Core must render instantly with zero extensions installed.
+# Core must render and populate Anime/Manga with no external APK installed.
 shot 00-core-only-home
 tap_text Media
-shot 01-core-only-anime
-tap_text Manga
-shot 02-core-only-manga
+sleep 8
+shot 01-core-only-anime-jikan
 
-# The old blocking/source-error language must never appear in the visible tree.
-for file in "$OUT/01-core-only-anime.xml" "$OUT/02-core-only-manga.xml"; do
+tap_text Manga
+sleep 8
+shot 02-core-only-manga-jikan
+
+for file in "$OUT/01-core-only-anime-jikan.xml" "$OUT/02-core-only-manga-jikan.xml"; do
   if grep -Eqi 'No .* source installed|Manage extensions|source unavailable' "$file"; then
     echo "Extension leaked into user-facing media UI: $file" >&2
     exit 1
   fi
 done
 
-# Install a provider while Sora is backgrounded. ON_RESUME must rediscover it.
+# Built-in Jikan must be registered inside Core itself.
+adb shell dumpsys package com.night.sora | grep -q 'JikanCatalogService'
+
+# Verify the remaining external provider can arrive later without changing shell ownership.
 adb shell input keyevent KEYCODE_HOME
 sleep 1
 adb install -r "$SORA_ROOT/live-extension/build/outputs/apk/debug/live-extension-debug.apk"
 adb shell am start -W -n com.night.sora/.MainActivity
-sleep 8
-shot 03-manga-after-provider-arrives
+sleep 5
 
-# Continue walking the real app after the provider refresh.
 tap_text Anime
-shot 04-media-anime-live
+shot 03-anime-after-external-provider
 
 tap_text 'Anime & Manga'
-shot 05-media-switch-sheet
+shot 04-media-switch-sheet
 
 tap_text 'Movies & TV'
-shot 06-movies-tv
+sleep 5
+shot 05-movies-tv
 
 tap_text 'Movies & TV'
 tap_text Music
-shot 07-music-home
+sleep 5
+shot 06-music-home
 
 tap_text Library
-shot 08-library
+shot 07-library
 
 tap_text Games
-shot 09-games
+shot 08-games
 
 tap_text More
-shot 10-more
+shot 09-more
 
 tap_text 'Open Sora AI'
-shot 11-ai-quick-sheet
+shot 10-ai-quick-sheet
 
 tap_text 'Full chat'
-shot 12-ai-full
+shot 11-ai-full
 
 adb shell dumpsys activity activities | grep -q 'com.night.sora'
