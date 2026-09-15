@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="576" height="192" viewBox="0 0 576 192">
+  <title>Keyboard custom emoji sample artwork</title>
+  <desc>Original vector artwork used as the source reference for the native Compose emoji picker. Each tile is 96 by 96.</desc>
+  <defs>
+    <style>
+      .face{fill:#ffc94d}.shade{fill:none;stroke:#f5a623;stroke-width:5;stroke-linecap:round;opacity:.35}
+      .ink{fill:#202124;stroke:#202124;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.line{fill:none;stroke:#202124;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+      .red{fill:#e64b5d}.blue{fill:#5ba8ff}.white{fill:#f8fafc}.gold{fill:#ffc338}.pink{fill:#ff8cb8}
+    </style>
+    <symbol id="face-base" viewBox="0 0 96 96"><circle class="face" cx="48" cy="48" r="40"/><path class="shade" d="M22 31c10-13 28-19 43-11"/></symbol>
+    <symbol id="heart" viewBox="0 0 96 96"><path class="red" d="M48 82C3 51 13 18 34 18c9 0 14 7 14 14 0-7 5-14 14-14 21 0 31 33-14 64Z"/></symbol>
+    <symbol id="spark" viewBox="0 0 96 96"><path fill="#ffd65c" d="m42 10 7 25 25 7-25 7-7 25-7-25-25-7 25-7Z"/><path fill="#ffeea8" d="m72 8 3 11 11 3-11 3-3 11-3-11-11-3 11-3Z"/></symbol>
+  </defs>
+
+  <!-- smile -->
+  <g transform="translate(0 0)"><use href="#face-base"/><circle class="ink" cx="33" cy="41" r="3"/><circle class="ink" cx="63" cy="41" r="3"/><path class="line" d="M31 56c7 13 27 13 34 0"/></g>
+  <!-- grin -->
+  <g transform="translate(96 0)"><use href="#face-base"/><circle class="ink" cx="33" cy="41" r="3"/><circle class="ink" cx="63" cy="41" r="3"/><path class="ink" d="M27 55c3 18 39 18 42 0Z"/><rect class="white" x="32" y="57" width="32" height="8" rx="2"/></g>
+  <!-- heart eyes -->
+  <g transform="translate(192 0)"><use href="#face-base"/><path class="red" d="M23 38c-7-7 2-16 8-8 6-8 15 1 8 8l-8 8Z"/><path class="red" d="M57 38c-7-7 2-16 8-8 6-8 15 1 8 8l-8 8Z"/><path class="line" d="M30 57c8 13 28 13 36 0"/></g>
+  <!-- sunglasses -->
+  <g transform="translate(288 0)"><use href="#face-base"/><rect class="ink" x="18" y="31" width="27" height="17" rx="5"/><rect class="ink" x="51" y="31" width="27" height="17" rx="5"/><path class="line" d="M44 37h8M31 57c7 12 27 12 34 0"/></g>
+  <!-- sad -->
+  <g transform="translate(384 0)"><use href="#face-base"/><circle class="ink" cx="33" cy="41" r="3"/><circle class="ink" cx="63" cy="41" r="3"/><path class="line" d="M31 68c7-13 27-13 34 0"/></g>
+  <!-- cry -->
+  <g transform="translate(480 0)"><use href="#face-base"/><circle class="ink" cx="33" cy="41" r="3"/><circle class="ink" cx="63" cy="41" r="3"/><path class="line" d="M31 68c7-13 27-13 34 0"/><path class="blue" d="M67 49c9 13 8 23 0 26-8-3-9-13 0-26Z"/></g>
+
+  <!-- angry -->
+  <g transform="translate(0 96)"><use href="#face-base"/><path class="line" d="m23 32 17 7m33-7-17 7"/><circle class="ink" cx="34" cy="44" r="3"/><circle class="ink" cx="62" cy="44" r="3"/><path class="line" d="M31 68c7-12 27-12 34 0"/></g>
+  <!-- heart -->
+  <g transform="translate(96 96)"><use href="#heart"/></g>
+  <!-- sparkle -->
+  <g transform="translate(192 96)"><use href="#spark"/></g>
+  <!-- sun -->
+  <g transform="translate(288 96)" class="gold"><circle cx="48" cy="48" r="22"/><g stroke="#ffc338" stroke-width="6" stroke-linecap="round"><path d="M48 7v11M48 78v11M7 48h11M78 48h11M19 19l8 8M69 69l8 8M77 19l-8 8M27 69l-8 8"/></g></g>
+  <!-- flower -->
+  <g transform="translate(384 96)"><circle class="pink" cx="48" cy="24" r="17"/><circle class="pink" cx="71" cy="41" r="17"/><circle class="pink" cx="62" cy="69" r="17"/><circle class="pink" cx="34" cy="69" r="17"/><circle class="pink" cx="25" cy="41" r="17"/><circle fill="#ffd45c" cx="48" cy="48" r="14"/></g>
+  <!-- rocket -->
+  <g transform="translate(480 96)"><path fill="#e9eef5" d="M48 8c22 19 23 53 0 65-23-12-22-46 0-65Z"/><circle class="blue" cx="48" cy="39" r="9"/><path class="red" d="m33 55-18 24 23-7Zm30 0 18 24-23-7Z"/><path fill="#ffa62b" d="m39 71 9 20 9-20Z"/></g>
+</svg>
