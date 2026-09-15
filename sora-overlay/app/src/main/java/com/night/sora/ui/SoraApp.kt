@@ -126,7 +126,10 @@ fun SoraApp() {
                 )
                 RootTab.GAMES -> GamesScreen(Modifier.padding(padding))
                 RootTab.MORE -> MoreScreen(
-                    modifier = Modifier.padding(padding), extensionCount = extensions.count { it.error == null },
+                    modifier = Modifier.padding(padding),
+                    extensionCount = extensions.count {
+                        it.error == null && !(it.packageName == "com.night.sora" && it.declaredId == "sora.core.jikan")
+                    },
                     onExtensions = { push(AppScreen.Extensions) },
                 )
             }
@@ -197,7 +200,7 @@ private fun AiQuickSheet(onDismiss: () -> Unit, onSend: (String) -> Unit, onExpa
                 QuickSuggestion("Give me something funny") { draft = "Show me something funny." }
                 QuickSuggestion("Explain my last passage") { draft = "Explain what I last read in the Bible." }
             }
-            Surface(color = SoraSurface, border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .08f)), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth().padding( top = 8.dp)) {
+            Surface(color = SoraSurface, border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .08f)), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                 Row(Modifier.padding(horizontal = 7.dp, vertical = 7.dp), verticalAlignment = Alignment.Bottom) {
                     IconButton(onClick = {}, modifier = Modifier.size(38.dp)) { Icon(Icons.Rounded.Add, "Attach") }
                     Box(Modifier.weight(1f).padding(vertical = 9.dp)) {
@@ -220,5 +223,7 @@ private fun AiQuickSheet(onDismiss: () -> Unit, onSend: (String) -> Unit, onExpa
 
 @Composable
 private fun QuickSuggestion(text: String, onClick: () -> Unit) {
-    Surface(color = SoraSurfaceHigh, shape = RoundedCornerShape(999.dp), modifier = Modifier.clickable(onClick = onClick)) { Text(text, fontSize = 9.sp, modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp)) }
+    Surface(color = SoraSurfaceHigh, shape = RoundedCornerShape(999.dp), modifier = Modifier.clickable(onClick = onClick)) {
+        Text(text, fontSize = 9.sp, modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp))
+    }
 }
