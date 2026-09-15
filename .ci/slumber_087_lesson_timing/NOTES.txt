@@ -1,0 +1,19 @@
+Slumber 0.8.7 lesson timing + chord scoring checkpoint
+
+Base: verified green Slumber 0.8.6 integration artifact from Actions run 34912897686.
+Branch: pianohub-ci. main is untouched.
+
+Changes:
+- Adds Perform mode.
+- Adds score-clock progression for Play Along / Perform so missed notes do not freeze the song.
+- A partially played chord expires only its missing tones.
+- Converts timed/imported score onsets into true chord-aware ExerciseScore moments.
+- Learn remains strict: future notes do not advance the target.
+- Fix This operates on score moments rather than flattening chords to melody notes.
+- Bumps version to 0.8.7 (versionCode 19).
+
+Pure Kotlin checks before checkpoint:
+- strict Learn rejects a future note
+- three-note chord waits for all notes
+- moving timeline marks only missing chord tone, then continues
+- timed lesson conversion preserves a C4/E4/G4 chord as one moment
