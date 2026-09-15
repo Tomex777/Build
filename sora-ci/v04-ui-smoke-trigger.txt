@@ -1,1 +1,1 @@
-verify sticky Home header, dead-space fix and built-in Jikan
+verify hardened smoke navigation, sticky headers, dead-space fix and Jikan
