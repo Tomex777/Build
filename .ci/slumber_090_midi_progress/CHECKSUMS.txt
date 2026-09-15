@@ -1,0 +1,6 @@
+4b2ee2cc91f38bb289fc90a71ee660bd320cc5a9cb1087a0f0b6a8b8b9cd3efb  slumber-0.8.10-midi-progress.patch
+6631d3b41c5b2b428f8fae55f1b319af44f94a92dd7607454912e0e22706fc62  slumber-0.8.10-midi-progress.patch.gz
+6334c30a5a07f8b49805951c7909095535a08868c3b98eb634c0f67e1eca4a37  slumber-0.8.10-midi-progress.patch.gz.b64
+344a19dcb41c0d3efbc1e552369f1a51a84454fac7c1fd77210736e781faac85  midi_progress.patch.gz.b64.part00
+67cd4f6e0297e14ad576fff929ca435f0a617c8b5f13c7505cd69083b623b698  midi_progress.patch.gz.b64.part01
+a1eeb66b7aeecfc33595b12576593d3e894c2a64282cf650c0cd698138a71499  midi_progress.patch.gz.b64.part02
