@@ -1,0 +1,130 @@
+name: Sora v0.4 UI Smoke
+
+on:
+  push:
+    branches: [sora-android-ci]
+    paths:
+      - 'sora-ci/v04-ui-smoke-trigger.txt'
+  workflow_dispatch:
+
+jobs:
+  emulator-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reconstruct Sora source
+        run: |
+          rm -rf /tmp/sora-src /tmp/sora.zip /tmp/sora-ui
+          cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/sora.zip
+          unzip -q /tmp/sora.zip -d /tmp/sora-src
+          ROOT=/tmp/sora-src/Sora_Android_v0_1
+          test -f "$ROOT/settings.gradle.kts"
+          cp -R sora-overlay/. "$ROOT/"
+          echo "SORA_ROOT=$ROOT" >> "$GITHUB_ENV"
+          mkdir -p /tmp/sora-ui
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+
+      - name: Build Core and live extension
+        working-directory: /tmp/sora-src/Sora_Android_v0_1
+        run: gradle --stacktrace :app:assembleDebug :live-extension:assembleDebug
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Launch and inspect Sora
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            set -euo pipefail
+            adb install -r "$SORA_ROOT/app/build/outputs/apk/debug/app-debug.apk"
+            adb install -r "$SORA_ROOT/live-extension/build/outputs/apk/debug/live-extension-debug.apk"
+            adb shell am force-stop com.night.sora
+            adb shell am start -W -n com.night.sora/.MainActivity
+            sleep 4
+
+            shot() {
+              adb exec-out screencap -p > "/tmp/sora-ui/$1.png"
+              adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
+              adb pull /sdcard/window.xml "/tmp/sora-ui/$1.xml" >/dev/null 2>&1 || true
+            }
+
+            tap_text() {
+              local label="$1"
+              adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1
+              adb pull /sdcard/window.xml /tmp/window.xml >/dev/null 2>&1
+              python3 - "$label" <<'PY'
+            import re, subprocess, sys, xml.etree.ElementTree as ET
+            label=sys.argv[1]
+            root=ET.parse('/tmp/window.xml').getroot()
+            best=None
+            for node in root.iter('node'):
+                text=(node.attrib.get('text') or '').strip()
+                desc=(node.attrib.get('content-desc') or '').strip()
+                if text == label or desc == label or label in text or label in desc:
+                    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+                    if m:
+                        x1,y1,x2,y2=map(int,m.groups())
+                        best=((x1+x2)//2,(y1+y2)//2)
+                        if text == label or desc == label:
+                            break
+            if not best:
+                raise SystemExit(f'Could not find UI node: {label}')
+            subprocess.check_call(['adb','shell','input','tap',str(best[0]),str(best[1])])
+            PY
+              sleep 2
+            }
+
+            shot 01-home-top
+            adb shell input swipe 540 1750 540 600 650
+            sleep 2
+            shot 02-home-scrolled
+
+            tap_text Media
+            shot 03-media-anime
+            tap_text 'Anime & Manga'
+            shot 04-media-switch-sheet
+            tap_text 'Movies & TV'
+            shot 05-movies-tv
+            tap_text 'Movies & TV'
+            tap_text Music
+            shot 06-music-home
+
+            tap_text Library
+            shot 07-library
+            tap_text Games
+            shot 08-games
+            tap_text More
+            shot 09-more
+
+            # FAB should remain available on every root destination. Use its content description.
+            tap_text 'Open Sora AI'
+            shot 10-ai-quick-sheet
+            tap_text 'Full chat'
+            shot 11-ai-full
+
+            adb shell dumpsys activity activities | grep -q 'com.night.sora'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sora-v0.4-ui-smoke
+          path: /tmp/sora-ui
+          if-no-files-found: error
