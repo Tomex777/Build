@@ -28,6 +28,19 @@ log_ui_state() {
   echo "--- end Sora UI diagnostics ---" >&2
 }
 
+log_jikan_state() {
+  local token="$1"
+  echo "--- Jikan diagnostics: $token ---" >&2
+  echo "Sora catalog cache:" >&2
+  adb shell run-as com.night.sora cat shared_prefs/sora_media_catalog_v1.xml >&2 2>/dev/null || true
+  echo "Host reachability to Jikan:" >&2
+  curl -fsS --max-time 12 'https://api.jikan.moe/v4/top/anime?filter=airing&limit=1&sfw=true' 2>&1 | head -c 700 >&2 || true
+  echo >&2
+  echo "Recent Sora/Jikan logcat:" >&2
+  adb logcat -d -t 500 2>/dev/null | grep -Ei 'com\.night\.sora|Jikan|AndroidRuntime|FATAL EXCEPTION' | tail -n 120 >&2 || true
+  echo "--- end Jikan diagnostics ---" >&2
+}
+
 ensure_sora_foreground() {
   if ! adb shell dumpsys activity activities | grep -q 'mResumedActivity.*com.night.sora'; then
     adb shell am start -W -n com.night.sora/.MainActivity >/dev/null 2>&1 || true
@@ -131,29 +144,47 @@ cache_contains() {
   adb shell run-as com.night.sora cat shared_prefs/sora_media_catalog_v1.xml 2>/dev/null | grep -q "$token"
 }
 
+wait_for_cache() {
+  local token="$1"
+  local timeout="${2:-35}"
+  local elapsed=0
+  while (( elapsed < timeout )); do
+    dismiss_system_dialogs
+    if cache_contains "$token"; then
+      echo "Catalog cache contains $token after ${elapsed}s"
+      return 0
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+  echo "Timed out after ${timeout}s waiting for catalog cache token: $token" >&2
+  log_jikan_state "$token"
+  return 1
+}
+
 dismiss_system_dialogs
 
 # Core must render and populate Anime/Manga with no external APK installed.
 shot 00-core-only-home
 tap_text Media
-sleep 8
-dismiss_system_dialogs
-shot 01-core-only-anime-jikan
-if ! cache_contains 'jikan.anime'; then
+if ! wait_for_cache 'jikan.anime' 35; then
   echo 'Built-in Jikan did not populate the Anime cache.' >&2
   log_ui_state 'missing jikan.anime cache'
+  shot 01-failure-anime-jikan
   exit 1
 fi
+dismiss_system_dialogs
+shot 01-core-only-anime-jikan
 
 tap_text Manga
-sleep 8
-dismiss_system_dialogs
-shot 02-core-only-manga-jikan
-if ! cache_contains 'jikan.manga'; then
+if ! wait_for_cache 'jikan.manga' 35; then
   echo 'Built-in Jikan did not populate the Manga cache.' >&2
   log_ui_state 'missing jikan.manga cache'
+  shot 02-failure-manga-jikan
   exit 1
 fi
+dismiss_system_dialogs
+shot 02-core-only-manga-jikan
 
 for file in "$OUT/01-core-only-anime-jikan.xml" "$OUT/02-core-only-manga-jikan.xml"; do
   if grep -Eqi 'No .* source installed|Manage extensions|source unavailable' "$file"; then
@@ -162,7 +193,7 @@ for file in "$OUT/01-core-only-anime-jikan.xml" "$OUT/02-core-only-manga-jikan.x
   fi
 done
 
-# Built-in Jikan must be registered inside Core itself.
+# Built-in Jikan remains registered inside Core itself for contract parity/diagnostics.
 adb shell dumpsys package com.night.sora | grep -q 'JikanCatalogService'
 
 # Verify the remaining external provider can arrive later without changing shell ownership.
