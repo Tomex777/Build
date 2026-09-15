@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 
 package com.night.sora.ui.screens
 
@@ -50,7 +50,7 @@ fun AiScreen(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(containerColor = Color(0xFF161614), modifier = Modifier.widthIn(max = 340.dp)) {
+            ModalDrawerSheet(drawerContainerColor = Color(0xFF161614), modifier = Modifier.widthIn(max = 340.dp)) {
                 Text("Sora AI", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 14.dp))
                 NavigationDrawerItem(
                     label = { Text("New chat") }, selected = false,
