@@ -1,0 +1,123 @@
+name: Slumber 0.8.14 Learning Polish Build
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".github/workflows/slumber-0814-learning-polish-build.yml"
+      - ".ci/slumber_0814_learning_polish/**"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reconstruct verified 0.8.13 source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber-base /tmp/slumber /tmp/slumber-out
+          mkdir -p /tmp/slumber-base /tmp/slumber /tmp/slumber-out
+          gh run download 34994294908 --repo Tomex777/Build --name slumber-0.8.13-integration --dir /tmp/slumber-base
+          SRC=$(find /tmp/slumber-base -name 'slumber-0.8.13-source.tgz' -type f -print -quit)
+          test -n "$SRC"
+          tar -xzf "$SRC" -C /tmp/slumber
+
+      - name: Apply verified 0.8.14 learning polish
+        shell: bash
+        run: |
+          set -euo pipefail
+          D="$GITHUB_WORKSPACE/.ci/slumber_0814_learning_polish"
+          cp "$D/learning_polish.patch.gz.b64" /tmp/learning.b64
+          echo 'eb8c9fe463adfd0918aa4935b9bd674bb684a4444abbdc31422642b55f053b9f  /tmp/learning.b64' | sha256sum -c -
+          base64 -d /tmp/learning.b64 > /tmp/learning.gz
+          echo '9263f56c5096b7ee3bbdcc8e8d04dc9a2b2f0c6b8389d6ae047b485b9e152cff  /tmp/learning.gz' | sha256sum -c -
+          gzip -dc /tmp/learning.gz > /tmp/learning.patch
+          echo 'a8980be917f402e9edbb5354e15019b91af78361633cd6c6b250a00c50f623f2  /tmp/learning.patch' | sha256sum -c -
+          cd /tmp/slumber
+          patch --dry-run -p1 < /tmp/learning.patch
+          patch -p1 < /tmp/learning.patch
+
+      - name: Production learning gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/slumber
+          grep -q 'versionCode = 26' app/build.gradle.kts
+          grep -q 'versionName = "0.8.14"' app/build.gradle.kts
+          grep -q 'minSdk = 26' app/build.gradle.kts
+          grep -q 'val fundamentals: List<PianoLesson>' app/src/main/java/com/night/pianohub/music/PianoLessonCatalog.kt
+          grep -q 'C_ONLY("C notes")' app/src/main/java/com/night/pianohub/music/MusicModels.kt
+          grep -q 'fundamental-triads' app/src/main/java/com/night/pianohub/music/PianoLessonCatalog.kt
+          grep -q 'fundamental-two-hands' app/src/main/java/com/night/pianohub/music/PianoLessonCatalog.kt
+          if grep -R -nEi 'streakDays|effectiveMethods|songStudioMode|songPipelinePrepared|prepare lesson|not available yet|engine boundary|model adapter|coming soon|MIDI [0-9]+' app/src/main/java/com/night/pianohub; then
+            echo 'Prototype or fake production state remains' >&2
+            exit 1
+          fi
+          python3 -m py_compile tools/*.py
+          python3 tools/test_song_pack_builders.py
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --channel=3 "platform-tools" "platforms;android-37.0" "build-tools;37.0.0"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+
+      - name: Unit tests
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace testDebugUnitTest
+
+      - name: Build debug APK
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace assembleDebug
+
+      - name: Verify APK metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          AAPT="$SDK_ROOT/build-tools/37.0.0/aapt"
+          APK=/tmp/slumber/app/build/outputs/apk/debug/app-debug.apk
+          test -f "$APK"
+          "$AAPT" dump badging "$APK" | tee /tmp/slumber-out/apk-badging.txt
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.night.pianohub' versionCode='26' versionName='0.8.14'"
+          "$AAPT" dump badging "$APK" | grep -q "sdkVersion:'26'"
+          "$AAPT" dump badging "$APK" | grep -q "targetSdkVersion:'36'"
+
+      - name: Package source and APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp /tmp/slumber/app/build/outputs/apk/debug/app-debug.apk /tmp/slumber-out/Slumber-0.8.14-debug.apk
+          sha256sum /tmp/slumber-out/Slumber-0.8.14-debug.apk | tee /tmp/slumber-out/apk-sha256.txt
+          cd /tmp/slumber
+          tar --exclude='./.gradle' --exclude='./build' --exclude='./app/build' --exclude='./tools/__pycache__' -czf /tmp/slumber-out/slumber-0.8.14-source.tgz .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: slumber-0.8.14-integration
+          path: /tmp/slumber-out/*
+          if-no-files-found: error
