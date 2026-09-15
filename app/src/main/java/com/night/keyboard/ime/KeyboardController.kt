@@ -53,11 +53,11 @@ class KeyboardController(private val service: InputMethodService) {
      * Move the real host-app caret without committing placeholder text.
      *
      * setSelection is preferred because it gives exact bounded movement when the
-     * editor exposes extracted text. Some editors expose incomplete extracted
-     * state or reject setSelection while composing, so directional key events are
-     * used as a compatibility fallback. Both paths operate through the active
-     * InputConnection and therefore move the host caret rather than a local UI
-     * cursor inside the keyboard.
+     * editor exposes extracted text. ExtractedText selection offsets are relative
+     * to startOffset, so convert them back to absolute editor offsets before
+     * calling setSelection. Some editors expose incomplete extracted state or
+     * reject setSelection while composing, so directional key events are used as
+     * a compatibility fallback.
      */
     fun moveCursor(delta: Int): Boolean {
         if (delta == 0) return false
@@ -67,7 +67,8 @@ class KeyboardController(private val service: InputMethodService) {
         if (extracted?.text != null) {
             val textLength = extracted.text.length
             val startOffset = extracted.startOffset.coerceAtLeast(0)
-            val currentAbsolute = extracted.selectionEnd.coerceAtLeast(startOffset)
+            val currentRelative = extracted.selectionEnd.coerceIn(0, textLength)
+            val currentAbsolute = startOffset + currentRelative
             val minAbsolute = startOffset
             val maxAbsolute = startOffset + textLength
             val targetAbsolute = (currentAbsolute + delta).coerceIn(minAbsolute, maxAbsolute)
