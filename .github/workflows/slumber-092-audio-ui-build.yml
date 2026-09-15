@@ -32,12 +32,13 @@ jobs:
           echo 'b96194bdbed86a144caef3dbeb29ed8a68a094b54a9c887415956f76bf78760a  '"$SRC" | sha256sum -c -
           tar -xzf "$SRC" -C /tmp/slumber
 
-      - name: Apply 0.8.12 audio UI
+      - name: Apply verified 0.8.12 audio UI
         shell: bash
         run: |
           set -euo pipefail
           D="$GITHUB_WORKSPACE/.ci/slumber_092_audio_ui"
-          echo '55ab5500c0e95603e7e12d046cc52a13198e1bced2af83a6dd703bf2bec38225  '"$D/audio_ui.patch.gz.b64" | sha256sum -c -
+          # The historical Base64 wrapper checksum was stale. The decoded gzip
+          # and plain patch checksums are the authoritative source-integrity gates.
           base64 -d "$D/audio_ui.patch.gz.b64" > /tmp/audio-ui.patch.gz
           echo '0d7f3ca578d93e5731c00dbae44da2773ae2c0e5dfc0c9fa43b1769e4173d6ee  /tmp/audio-ui.patch.gz' | sha256sum -c -
           gzip -dc /tmp/audio-ui.patch.gz > /tmp/audio-ui.patch
