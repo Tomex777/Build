@@ -1,0 +1,411 @@
+--- a/app/src/main/java/com/night/later/ui/editor/LaterEntryDecorations.kt
++++ b/app/src/main/java/com/night/later/ui/editor/LaterEntryDecorations.kt
+@@ -7,6 +7,7 @@
+ import androidx.compose.foundation.gestures.detectDragGestures
+ import androidx.compose.foundation.layout.Arrangement
+ import androidx.compose.foundation.layout.Box
++import androidx.compose.foundation.layout.BoxWithConstraints
+ import androidx.compose.foundation.layout.Column
+ import androidx.compose.foundation.layout.Row
+ import androidx.compose.foundation.layout.Spacer
+@@ -57,6 +58,7 @@
+ import androidx.compose.ui.text.TextStyle
+ import androidx.compose.ui.text.font.FontFamily
+ import androidx.compose.ui.text.font.FontWeight
++import androidx.compose.ui.text.style.TextAlign
+ import androidx.compose.ui.unit.IntOffset
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
+@@ -161,104 +163,131 @@
+             .atZone(ZoneId.systemDefault())
+     }
+ 
+-    Row(
++    BoxWithConstraints(
+         modifier = Modifier
+             .fillMaxWidth()
+-            .padding(start = 24.dp, end = 18.dp, top = 6.dp, bottom = 12.dp),
+-        verticalAlignment = Alignment.Top
++            .padding(start = 24.dp, end = 18.dp, top = 6.dp, bottom = 12.dp)
+     ) {
+-        Column(
+-            modifier = Modifier.weight(1f)
++        val compact = maxWidth < 340.dp
++        val titleWidth = if (compact) 112.dp else 148.dp
++        val moodSize = if (compact) 84.dp else 96.dp
++        val headerHeight = if (compact) 124.dp else 132.dp
++
++        Box(
++            modifier = Modifier
++                .fillMaxWidth()
++                .height(headerHeight)
+         ) {
+             Row(
+-                verticalAlignment = Alignment.Bottom,
+-                horizontalArrangement = Arrangement.spacedBy(9.dp)
++                modifier = Modifier.fillMaxWidth(),
++                verticalAlignment = Alignment.Top
+             ) {
+-                Text(
+-                    text = moment.format(DateTimeFormatter.ofPattern("dd")),
+-                    color = paper.text,
+-                    fontFamily = FontFamily.Serif,
+-                    fontWeight = FontWeight.SemiBold,
+-                    fontSize = 42.sp,
+-                    lineHeight = 42.sp
+-                )
+-                Text(
+-                    text = moment.format(DateTimeFormatter.ofPattern("MMM yyyy · h:mm a")),
+-                    color = paper.muted,
+-                    fontSize = 12.sp,
+-                    fontWeight = FontWeight.Medium,
+-                    modifier = Modifier.padding(bottom = 5.dp)
+-                )
+-            }
+-
+-            Spacer(Modifier.height(12.dp))
+-
+-            BasicTextField(
+-                value = title,
+-                onValueChange = { onTitleChanged(it.take(240)) },
+-                singleLine = true,
+-                modifier = Modifier
+-                    .fillMaxWidth()
+-                    .padding(end = 5.dp),
+-                textStyle = TextStyle(
+-                    color = paper.text,
+-                    fontFamily = FontFamily.Serif,
+-                    fontWeight = FontWeight.SemiBold,
+-                    fontSize = 23.sp
+-                ),
+-                cursorBrush = androidx.compose.ui.graphics.SolidColor(paper.accent),
+-                decorationBox = { field ->
+-                    Column {
+-                        Box {
+-                            if (title.isBlank()) {
+-                                Text(
+-                                    "Title",
+-                                    color = paper.muted,
+-                                    fontFamily = FontFamily.Serif,
+-                                    fontSize = 23.sp
+-                                )
+-                            }
+-                            field()
+-                        }
+-                        Spacer(Modifier.height(8.dp))
+-                        Box(
+-                            Modifier
+-                                .fillMaxWidth()
+-                                .height(1.dp)
+-                                .background(paper.text.copy(alpha = 0.13f))
++                Row(
++                    modifier = Modifier.weight(1f),
++                    verticalAlignment = Alignment.Top,
++                    horizontalArrangement = Arrangement.spacedBy(9.dp)
++                ) {
++                    Text(
++                        text = moment.format(DateTimeFormatter.ofPattern("dd")),
++                        color = paper.text,
++                        fontFamily = FontFamily.Serif,
++                        fontWeight = FontWeight.SemiBold,
++                        fontSize = 42.sp,
++                        lineHeight = 42.sp
++                    )
++                    Column(
++                        modifier = Modifier.padding(top = 4.dp),
++                        verticalArrangement = Arrangement.spacedBy(1.dp)
++                    ) {
++                        Text(
++                            text = moment.format(DateTimeFormatter.ofPattern("MMM yyyy")),
++                            color = paper.muted,
++                            fontSize = 12.sp,
++                            fontWeight = FontWeight.Medium,
++                            maxLines = 1
++                        )
++                        Text(
++                            text = moment.format(DateTimeFormatter.ofPattern("h:mm a")),
++                            color = paper.muted,
++                            fontSize = 12.sp,
++                            fontWeight = FontWeight.Medium,
++                            maxLines = 1
+                         )
+                     }
+                 }
+-            )
+-        }
+-
+-        Spacer(Modifier.width(8.dp))
+-
+-        Box(
+-            modifier = Modifier
+-                .size(116.dp)
+-                .semantics {
+-                    contentDescription = "Change mood"
+-                    stateDescription = moodId
+-                        ?.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+-                        ?: "No mood selected"
+-                }
+-                .clickable(onClick = onMoodClick),
+-            contentAlignment = Alignment.Center
+-        ) {
+-            LaterMoodArt(
+-                moodId = moodId ?: LaterMoodIds.all.first(),
+-                accent = paper.accent,
+-                foreground = paper.text,
+-                modifier = Modifier.size(104.dp)
+-            )
++
++                Spacer(Modifier.width(10.dp))
++
++                BasicTextField(
++                    value = title,
++                    onValueChange = { onTitleChanged(it.take(240)) },
++                    singleLine = true,
++                    modifier = Modifier.width(titleWidth),
++                    textStyle = TextStyle(
++                        color = paper.text,
++                        fontFamily = FontFamily.Serif,
++                        fontWeight = FontWeight.SemiBold,
++                        fontSize = 21.sp,
++                        textAlign = TextAlign.End
++                    ),
++                    cursorBrush = androidx.compose.ui.graphics.SolidColor(paper.accent),
++                    decorationBox = { field ->
++                        Column(horizontalAlignment = Alignment.End) {
++                            Box(
++                                modifier = Modifier.fillMaxWidth(),
++                                contentAlignment = Alignment.CenterEnd
++                            ) {
++                                if (title.isBlank()) {
++                                    Text(
++                                        "Title",
++                                        color = paper.muted,
++                                        fontFamily = FontFamily.Serif,
++                                        fontSize = 21.sp,
++                                        textAlign = TextAlign.End,
++                                        modifier = Modifier.fillMaxWidth()
++                                    )
++                                }
++                                field()
++                            }
++                            Spacer(Modifier.height(7.dp))
++                            Box(
++                                Modifier
++                                    .fillMaxWidth()
++                                    .height(1.dp)
++                                    .background(paper.text.copy(alpha = 0.13f))
++                            )
++                        }
++                    }
++                )
++            }
++
+             Box(
+-                Modifier
++                modifier = Modifier
+                     .align(Alignment.BottomEnd)
+-                    .padding(8.dp)
+-                    .size(8.dp)
+-                    .background(paper.accent.copy(alpha = 0.75f), CircleShape)
+-            )
++                    .size(moodSize)
++                    .semantics {
++                        contentDescription = "Change mood"
++                        stateDescription = moodId
++                            ?.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
++                            ?: "No mood selected"
++                    }
++                    .clickable(onClick = onMoodClick),
++                contentAlignment = Alignment.Center
++            ) {
++                LaterMoodArt(
++                    moodId = moodId ?: LaterMoodIds.all.first(),
++                    accent = paper.accent,
++                    foreground = paper.text,
++                    modifier = Modifier.size(moodSize - 8.dp)
++                )
++                Box(
++                    Modifier
++                        .align(Alignment.BottomEnd)
++                        .padding(5.dp)
++                        .size(8.dp)
++                        .background(paper.accent.copy(alpha = 0.75f), CircleShape)
++                )
++            }
+         }
+     }
+ }
+--- a/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
++++ b/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
+@@ -1971,28 +1971,41 @@
+         contentPadding =
+             PaddingValues(
+                 horizontal = if (compact) 1.dp else 8.dp,
+-                vertical = 6.dp
++                vertical = if (compact) 4.dp else 6.dp
+             )
+     ) {
+-        if (!compact) {
++        if (compact) {
++            Column(
++                horizontalAlignment = Alignment.CenterHorizontally,
++                verticalArrangement = Arrangement.Center
++            ) {
++                Icon(
++                    imageVector = icon,
++                    contentDescription = null,
++                    modifier = Modifier.size(18.dp)
++                )
++                Spacer(Modifier.height(2.dp))
++                Text(
++                    text = label,
++                    fontSize = 10.sp,
++                    maxLines = 1,
++                    softWrap = false
++                )
++            }
++        } else {
+             Icon(
+                 imageVector = icon,
+                 contentDescription = null,
+-                modifier =
+-                    Modifier.size(20.dp)
+-            )
+-
+-            Spacer(
+-                Modifier.width(5.dp)
+-            )
+-        }
+-
+-        Text(
+-            text = label,
+-            fontSize = if (compact) 10.sp else 12.sp,
+-            maxLines = 1,
+-            softWrap = false
+-        )
++                modifier = Modifier.size(20.dp)
++            )
++            Spacer(Modifier.width(5.dp))
++            Text(
++                text = label,
++                fontSize = 12.sp,
++                maxLines = 1,
++                softWrap = false
++            )
++        }
+     }
+ }
+ 
+--- a/app/src/main/java/com/night/later/ui/editor/LaterRichText.kt
++++ b/app/src/main/java/com/night/later/ui/editor/LaterRichText.kt
+@@ -672,52 +672,64 @@
+     }
+ 
+     RibbonSection("STYLE") {
+-        Row(
+-            modifier = Modifier
+-                .fillMaxWidth()
+-                .horizontalScroll(rememberScrollState()),
+-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+-        ) {
+-            StyleChip("Body", state.currentHeadingStyle == HeadingStyle.Normal) {
+-                mutateFormat { setHeadingStyle(HeadingStyle.Normal) }
+-            }
+-            StyleChip("H1", state.currentHeadingStyle == HeadingStyle.H1) {
+-                mutateFormat { setHeadingStyle(HeadingStyle.H1) }
+-            }
+-            StyleChip("H2", state.currentHeadingStyle == HeadingStyle.H2) {
+-                mutateFormat { setHeadingStyle(HeadingStyle.H2) }
+-            }
+-            StyleChip("H3", state.currentHeadingStyle == HeadingStyle.H3) {
+-                mutateFormat { setHeadingStyle(HeadingStyle.H3) }
+-            }
+-            FormatIconButton(
+-                active = bold,
+-                contentDescription = "Bold",
+-                onClick = {
+-                    mutateFormat { toggleSpanStyle(SpanStyle(fontWeight = FontWeight.Bold)) }
+-                }
+-            ) { Icon(Icons.Rounded.FormatBold, null) }
+-            FormatIconButton(
+-                active = italic,
+-                contentDescription = "Italic",
+-                onClick = {
+-                    mutateFormat { toggleSpanStyle(SpanStyle(fontStyle = FontStyle.Italic)) }
+-                }
+-            ) { Icon(Icons.Rounded.FormatItalic, null) }
+-            FormatIconButton(
+-                active = underline,
+-                contentDescription = "Underline",
+-                onClick = {
+-                    mutateFormat { toggleSpanStyle(SpanStyle(textDecoration = TextDecoration.Underline)) }
+-                }
+-            ) { Icon(Icons.Rounded.FormatUnderlined, null) }
+-            FormatIconButton(
+-                active = strike,
+-                contentDescription = "Strikethrough",
+-                onClick = {
+-                    mutateFormat { toggleSpanStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) }
+-                }
+-            ) { Icon(Icons.Rounded.FormatStrikethrough, null) }
++        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
++            Row(
++                modifier = Modifier
++                    .fillMaxWidth()
++                    .horizontalScroll(rememberScrollState()),
++                horizontalArrangement = Arrangement.spacedBy(8.dp)
++            ) {
++                StyleChip("Body", state.currentHeadingStyle == HeadingStyle.Normal) {
++                    mutateFormat { setHeadingStyle(HeadingStyle.Normal) }
++                }
++                StyleChip("H1", state.currentHeadingStyle == HeadingStyle.H1) {
++                    mutateFormat { setHeadingStyle(HeadingStyle.H1) }
++                }
++                StyleChip("H2", state.currentHeadingStyle == HeadingStyle.H2) {
++                    mutateFormat { setHeadingStyle(HeadingStyle.H2) }
++                }
++                StyleChip("H3", state.currentHeadingStyle == HeadingStyle.H3) {
++                    mutateFormat { setHeadingStyle(HeadingStyle.H3) }
++                }
++            }
++
++            Row(
++                modifier = Modifier.fillMaxWidth(),
++                horizontalArrangement = Arrangement.spacedBy(8.dp)
++            ) {
++                FormatIconButton(
++                    modifier = Modifier.weight(1f),
++                    active = bold,
++                    contentDescription = "Bold",
++                    onClick = {
++                        mutateFormat { toggleSpanStyle(SpanStyle(fontWeight = FontWeight.Bold)) }
++                    }
++                ) { Icon(Icons.Rounded.FormatBold, null) }
++                FormatIconButton(
++                    modifier = Modifier.weight(1f),
++                    active = italic,
++                    contentDescription = "Italic",
++                    onClick = {
++                        mutateFormat { toggleSpanStyle(SpanStyle(fontStyle = FontStyle.Italic)) }
++                    }
++                ) { Icon(Icons.Rounded.FormatItalic, null) }
++                FormatIconButton(
++                    modifier = Modifier.weight(1f),
++                    active = underline,
++                    contentDescription = "Underline",
++                    onClick = {
++                        mutateFormat { toggleSpanStyle(SpanStyle(textDecoration = TextDecoration.Underline)) }
++                    }
++                ) { Icon(Icons.Rounded.FormatUnderlined, null) }
++                FormatIconButton(
++                    modifier = Modifier.weight(1f),
++                    active = strike,
++                    contentDescription = "Strikethrough",
++                    onClick = {
++                        mutateFormat { toggleSpanStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) }
++                    }
++                ) { Icon(Icons.Rounded.FormatStrikethrough, null) }
++            }
+         }
+     }
+ 
