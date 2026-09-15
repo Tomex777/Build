@@ -168,11 +168,15 @@ jobs:
           adb shell input keyevent 4; sleep 1
           """,
               """grep -q 'content-desc=\"Peaceful\".*checked=\"true\"' qa-evidence/mood-reopen.xml || { cat qa-evidence/mood-reopen.xml; exit 1; }
-          click_desc qa-evidence/mood-reopen.xml 'Close sheet'; sleep 1
+          adb shell input keyevent 4; sleep 0.7
+          dump mood-after-first-back
+          if grep -q 'How does this moment feel?' qa-evidence/mood-after-first-back.xml; then
+            adb shell input keyevent 4; sleep 1
+          fi
           dump editor-after-mood-close
           assert_editor qa-evidence/editor-after-mood-close.xml
           """,
-              'verify persisted mood and close sheet explicitly',
+              'verify persisted mood and dismiss sheet via back states',
           )
 
           replace_once(
@@ -190,7 +194,7 @@ jobs:
 
           grep -q "for attempt in 1 2 3 4 5" .github/scripts/later-editor-qa.sh
           grep -q "editor-body-selected" .github/scripts/later-editor-qa.sh
-          grep -q "editor-after-mood-close" .github/scripts/later-editor-qa.sh
+          grep -q "mood-after-first-back" .github/scripts/later-editor-qa.sh
           grep -q "LaterEditorQA'" .github/scripts/later-editor-qa.sh
 
       - name: Set up Java 21
