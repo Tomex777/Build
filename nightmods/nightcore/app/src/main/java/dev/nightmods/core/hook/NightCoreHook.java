@@ -16,6 +16,8 @@ import dev.nightmods.core.config.BubbleStyleConfig;
 import dev.nightmods.core.config.NightCoreSettingsClient;
 import dev.nightmods.core.hook.adapters.InstagramAdapter;
 import dev.nightmods.core.hook.adapters.TargetAdapter;
+import dev.nightmods.core.hook.adapters.TargetAppInfo;
+import dev.nightmods.core.hook.adapters.TargetCompatibility;
 import dev.nightmods.core.hook.adapters.WhatsAppAdapter;
 
 /** One Night module, many target-app adapters. */
@@ -99,10 +101,27 @@ public final class NightCoreHook implements IXposedHookLoadPackage {
 
         if (!config.enabled || !selectedAdapter.enabled(config)) return;
 
-        XposedBridge.log("NightCore attached: " + selectedAdapter.displayName()
-                + " package=" + lpparam.packageName + " process=" + processName);
+        final TargetAppInfo appInfo;
         try {
-            selectedAdapter.attach(lpparam, config);
+            appInfo = TargetAppInfo.resolve(context, selectedAdapter.packageName());
+        } catch (Throwable error) {
+            XposedBridge.log("NightCore skipped: could not resolve target version for "
+                    + selectedAdapter.displayName());
+            XposedBridge.log(error);
+            return;
+        }
+
+        TargetCompatibility compatibility = selectedAdapter.compatibility(appInfo);
+        if (compatibility != TargetCompatibility.SUPPORTED) {
+            XposedBridge.log("NightCore skipped UI hooks: " + selectedAdapter.displayName()
+                    + " compatibility=" + compatibility + " " + appInfo.describe());
+            return;
+        }
+
+        XposedBridge.log("NightCore attaching: " + selectedAdapter.displayName()
+                + " " + appInfo.describe() + " process=" + processName);
+        try {
+            selectedAdapter.attach(context, lpparam, config, appInfo);
         } catch (Throwable error) {
             XposedBridge.log("NightCore adapter failed: " + selectedAdapter.displayName());
             XposedBridge.log(error);
