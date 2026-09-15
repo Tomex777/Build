@@ -1,1 +1,1 @@
-verify direct built-in Jikan cache and current UI
+verify direct Jikan with bounded cache polling and current media stack
