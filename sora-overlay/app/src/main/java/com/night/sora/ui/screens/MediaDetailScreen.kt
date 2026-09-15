@@ -34,6 +34,7 @@ import coil3.compose.AsyncImage
 import com.night.sora.extension.ExtensionManager
 import com.night.sora.extension.InstalledExtension
 import com.night.sora.extension.isCatalogProvider
+import com.night.sora.extension.isDiagnosticProvider
 import com.night.sora.extension.api.ExtensionContract
 import com.night.sora.extension.api.ExtensionSessionContract
 import com.night.sora.extension.api.SourceDescriptor
@@ -798,7 +799,7 @@ private fun consumptionSourcesFor(extensions: List<InstalledExtension>, type: Co
     val key = detailTypeKey(type)
     val capability = requiredCapability(type)
     return extensions.flatMap { ext ->
-        if (ext.error != null) emptyList()
+        if (ext.error != null || ext.isDiagnosticProvider()) emptyList()
         else ext.descriptor?.sources.orEmpty()
             .filter { source ->
                 key in source.contentTypes && (
@@ -812,6 +813,7 @@ private fun consumptionSourcesFor(extensions: List<InstalledExtension>, type: Co
 
 private fun selectionCanConsume(selection: ExtensionMediaSelection, extensions: List<InstalledExtension>): Boolean {
     val ext = extensions.firstOrNull { it.packageName == selection.extensionPackage } ?: return false
+    if (ext.isDiagnosticProvider()) return false
     val source = ext.descriptor?.sources?.firstOrNull { it.id == selection.sourceId } ?: return !ext.isCatalogProvider()
     return requiredCapability(selection.type) in source.capabilities || !ext.isCatalogProvider()
 }
