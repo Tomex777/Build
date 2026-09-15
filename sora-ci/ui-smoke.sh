@@ -63,15 +63,28 @@ PY
   return 1
 }
 
+cache_contains() {
+  local token="$1"
+  adb shell run-as com.night.sora cat shared_prefs/sora_media_catalog_v1.xml 2>/dev/null | grep -q "$token"
+}
+
 # Core must render and populate Anime/Manga with no external APK installed.
 shot 00-core-only-home
 tap_text Media
 sleep 8
 shot 01-core-only-anime-jikan
+if ! cache_contains 'jikan.anime'; then
+  echo 'Built-in Jikan did not populate the Anime cache.' >&2
+  exit 1
+fi
 
 tap_text Manga
 sleep 8
 shot 02-core-only-manga-jikan
+if ! cache_contains 'jikan.manga'; then
+  echo 'Built-in Jikan did not populate the Manga cache.' >&2
+  exit 1
+fi
 
 for file in "$OUT/01-core-only-anime-jikan.xml" "$OUT/02-core-only-manga-jikan.xml"; do
   if grep -Eqi 'No .* source installed|Manage extensions|source unavailable' "$file"; then
