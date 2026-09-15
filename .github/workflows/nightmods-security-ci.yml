@@ -1,0 +1,125 @@
+name: Night Core Android 16 Security CI
+
+on:
+  push:
+    branches:
+      - nightmods-ci
+    paths:
+      - 'nightmods/nightcore/**'
+      - '.github/workflows/nightmods-security-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  sender-authorization:
+    name: Verify allowed and rejected target UIDs
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 9.6
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Install Android API 36
+        shell: bash
+        run: |
+          export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+          export ANDROID_HOME="$ANDROID_SDK_ROOT"
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+
+      - name: Build Night Core and security probes
+        working-directory: nightmods/nightcore
+        run: |
+          gradle --no-daemon --stacktrace \
+            :app:assembleDebug \
+            :target-probe:assembleDebug \
+            :attacker-probe:assembleDebug
+
+      - name: Verify APK identities
+        shell: bash
+        run: |
+          AAPT="${ANDROID_SDK_ROOT}/build-tools/36.0.0/aapt"
+          CORE="$(find nightmods/nightcore/app/build/outputs -type f -name '*.apk' -print -quit)"
+          TARGET="$(find nightmods/nightcore/target-probe/build/outputs -type f -name '*.apk' -print -quit)"
+          ATTACKER="$(find nightmods/nightcore/attacker-probe/build/outputs -type f -name '*.apk' -print -quit)"
+          test -n "$CORE" && test -n "$TARGET" && test -n "$ATTACKER"
+          "$AAPT" dump badging "$CORE" | grep -q "package: name='dev.nightmods.core'"
+          "$AAPT" dump badging "$TARGET" | grep -q "package: name='com.whatsapp'"
+          "$AAPT" dump badging "$ATTACKER" | grep -q "package: name='dev.nightmods.attacker'"
+          sha256sum "$CORE" "$TARGET" "$ATTACKER" | tee security-apk-sha256.txt
+
+      - name: Enable KVM
+        shell: bash
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm || true
+          sudo chmod 666 /dev/kvm || true
+
+      - name: Verify sender authorization on Android 16
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            mkdir -p security-smoke
+            adb wait-for-device
+            adb shell getprop ro.build.version.sdk | tr -d '\r' | tee security-smoke/sdk.txt
+            test "$(cat security-smoke/sdk.txt)" = "36"
+
+            CORE="$(find nightmods/nightcore/app/build/outputs -type f -name '*.apk' -print -quit)"
+            TARGET="$(find nightmods/nightcore/target-probe/build/outputs -type f -name '*.apk' -print -quit)"
+            ATTACKER="$(find nightmods/nightcore/attacker-probe/build/outputs -type f -name '*.apk' -print -quit)"
+            adb install -r "$CORE"
+            adb install -r "$TARGET"
+            adb install -r "$ATTACKER"
+            adb logcat -c
+
+            # Allowed sender: the OS-reported package really is com.whatsapp.
+            adb shell am force-stop com.whatsapp || true
+            adb shell am start -W -n com.whatsapp/com.whatsapp.MainActivity | tee security-smoke/allowed-start.txt
+            sleep 2
+            adb shell run-as com.whatsapp cat shared_prefs/night_core_probe.xml | tee security-smoke/allowed-result.xml
+            grep -q 'name="success" value="true"' security-smoke/allowed-result.xml
+            grep -q 'name="protocol_version" value="1"' security-smoke/allowed-result.xml
+
+            # Rejected sender: identical probe code, different Android application identity.
+            adb shell am force-stop dev.nightmods.attacker || true
+            adb shell am start -W -n dev.nightmods.attacker/com.whatsapp.MainActivity | tee security-smoke/attacker-start.txt
+            sleep 2
+            adb shell run-as dev.nightmods.attacker cat shared_prefs/night_core_probe.xml | tee security-smoke/attacker-result.xml
+            grep -q 'name="success" value="false"' security-smoke/attacker-result.xml
+            grep -q 'unauthorized_sender' security-smoke/attacker-result.xml
+
+            adb logcat -d > security-smoke/logcat.txt
+            adb logcat -b crash -d > security-smoke/crash.txt || true
+            test -z "$(grep -E 'dev\.nightmods\.core|com\.whatsapp|dev\.nightmods\.attacker' security-smoke/crash.txt || true)"
+            echo 'Android 16 sender authorization passed: com.whatsapp allowed, foreign package rejected.'
+
+      - name: Upload security evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Night-Core-Android16-security
+          path: |
+            security-smoke/**
+            security-apk-sha256.txt
+          if-no-files-found: warn
