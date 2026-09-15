@@ -25,31 +25,14 @@ class ThemeRepository @Inject constructor(private val dao: ThemeDao) {
             else -> 0L
         }
         val normalized = theme.copy(id = targetId)
-        val encoded = ThemeCodec.encode(normalized)
-
-        dao.clearActive()
-        if (targetId == 0L) {
-            dao.insert(
-                ThemeEntity(
-                    name = theme.name,
-                    snapshotJson = encoded,
-                    createdAt = now,
-                    updatedAt = now,
-                    active = true,
-                ),
-            )
-        } else {
-            dao.update(
-                ThemeEntity(
-                    id = targetId,
-                    name = theme.name,
-                    snapshotJson = encoded,
-                    createdAt = existing?.createdAt ?: now,
-                    updatedAt = now,
-                    active = true,
-                ),
-            )
-            targetId
-        }
+        val entity = ThemeEntity(
+            id = targetId,
+            name = theme.name,
+            snapshotJson = ThemeCodec.encode(normalized),
+            createdAt = existing?.createdAt ?: now,
+            updatedAt = now,
+            active = true,
+        )
+        dao.replaceActive(entity)
     }
 }
