@@ -39,28 +39,72 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
     }
 
     override fun onCreate() {
-        savedStateController.performAttach(); super.onCreate(); savedStateController.performRestore(null)
+        savedStateController.performAttach()
+        super.onCreate()
+        savedStateController.performRestore(null)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
-        clipboard = getSystemService(ClipboardManager::class.java); clipboard.addPrimaryClipChangedListener(clipListener)
+        clipboard = getSystemService(ClipboardManager::class.java)
+        clipboard.addPrimaryClipChangedListener(clipListener)
     }
 
     override fun onCreateInputView(): View {
+        // A ComposeView hosted by InputMethodService is attached beneath the IME
+        // dialog's decor tree rather than an Activity. WindowRecomposer resolves
+        // lifecycle/saved-state owners from that tree, so installing owners only on
+        // the child ComposeView is too late and crashes on first attachment.
+        window?.window?.decorView?.let { decorView ->
+            decorView.setViewTreeLifecycleOwner(this)
+            decorView.setViewTreeViewModelStoreOwner(this)
+            decorView.setViewTreeSavedStateRegistryOwner(this)
+        }
+
         val controller = KeyboardController(this)
         return ComposeView(this).apply {
             setViewTreeLifecycleOwner(this@KeyboardInputMethodService)
             setViewTreeViewModelStoreOwner(this@KeyboardInputMethodService)
             setViewTreeSavedStateRegistryOwner(this@KeyboardInputMethodService)
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-            setContent { KeyboardTheme { ImeKeyboard(controller, themeRepository.activeTheme, preferences.state, clipboardRepository.items) } }
+            setContent {
+                KeyboardTheme {
+                    ImeKeyboard(
+                        controller,
+                        themeRepository.activeTheme,
+                        preferences.state,
+                        clipboardRepository.items,
+                    )
+                }
+            }
         }
     }
-    override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) { super.onStartInput(attribute, restarting); sensitiveField = attribute?.let(::isSensitive) ?: false }
-    override fun onStartInputView(info: EditorInfo?, restarting: Boolean) { super.onStartInputView(info, restarting); lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START); lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME) }
-    override fun onFinishInputView(finishingInput: Boolean) { lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE); lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP); super.onFinishInputView(finishingInput) }
-    override fun onDestroy() { clipboard.removePrimaryClipChangedListener(clipListener); serviceScope.cancel(); store.clear(); lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY); super.onDestroy() }
+
+    override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
+        super.onStartInput(attribute, restarting)
+        sensitiveField = attribute?.let(::isSensitive) ?: false
+    }
+
+    override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
+        super.onStartInputView(info, restarting)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+    }
+
+    override fun onFinishInputView(finishingInput: Boolean) {
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
+        super.onFinishInputView(finishingInput)
+    }
+
+    override fun onDestroy() {
+        clipboard.removePrimaryClipChangedListener(clipListener)
+        serviceScope.cancel()
+        store.clear()
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        super.onDestroy()
+    }
 
     private fun isSensitive(info: EditorInfo): Boolean {
-        val variation = info.inputType and InputType.TYPE_MASK_VARIATION; val klass = info.inputType and InputType.TYPE_MASK_CLASS
+        val variation = info.inputType and InputType.TYPE_MASK_VARIATION
+        val klass = info.inputType and InputType.TYPE_MASK_CLASS
         return when (klass) {
             InputType.TYPE_CLASS_TEXT -> variation == InputType.TYPE_TEXT_VARIATION_PASSWORD || variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD || variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
             InputType.TYPE_CLASS_NUMBER -> variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD
