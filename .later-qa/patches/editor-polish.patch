@@ -1,0 +1,198 @@
+--- a/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
++++ b/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
+@@ -1380,10 +1380,12 @@
+                     text =
+                         if (draftSaveInProgress) {
+                             "Saving encrypted draft…"
+-                        } else if (blocks == lastAutosavedBlocks) {
++                        } else if (blocks != lastAutosavedBlocks) {
++                            "Saving soon…"
++                        } else if (activeDraftId != null) {
+                             "Draft autosaved"
+                         } else {
+-                            "Saving soon…"
++                            "New capsule"
+                         },
+                     modifier =
+                         Modifier.align(
+@@ -1486,6 +1488,7 @@
+                                         showPlaceholder =
+                                             block.id == firstEditableTextBlockId &&
+                                                 block.text.orEmpty().isBlank(),
++                                        modifier = Modifier.padding(horizontal = 24.dp),
+                                         onFocused = { state ->
+                                             activeTextState = state
+                                             activeTextBlockId = block.id
+--- a/app/src/main/java/com/night/later/ui/editor/LaterEntryDecorations.kt
++++ b/app/src/main/java/com/night/later/ui/editor/LaterEntryDecorations.kt
+@@ -17,6 +17,8 @@
+ import androidx.compose.foundation.layout.offset
+ import androidx.compose.foundation.layout.size
+ import androidx.compose.foundation.layout.width
++import androidx.compose.foundation.rememberScrollState
++import androidx.compose.foundation.verticalScroll
+ import androidx.compose.foundation.shape.CircleShape
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.foundation.text.BasicTextField
+@@ -48,6 +50,10 @@
+ import androidx.compose.ui.graphics.drawscope.Stroke
+ import androidx.compose.ui.input.pointer.pointerInput
+ import androidx.compose.ui.platform.LocalDensity
++import androidx.compose.ui.semantics.contentDescription
++import androidx.compose.ui.semantics.selected
++import androidx.compose.ui.semantics.semantics
++import androidx.compose.ui.semantics.stateDescription
+ import androidx.compose.ui.text.TextStyle
+ import androidx.compose.ui.text.font.FontFamily
+ import androidx.compose.ui.text.font.FontWeight
+@@ -94,7 +100,7 @@
+                     lineHeight = 42.sp
+                 )
+                 Text(
+-                    text = moment.format(DateTimeFormatter.ofPattern("MMM yyyy · h:mm a")),
++                    text = moment.format(DateTimeFormatter.ofPattern("MMM yyyy · h:mm a")),
+                     color = paper.muted,
+                     fontSize = 12.sp,
+                     fontWeight = FontWeight.Medium,
+@@ -177,7 +183,7 @@
+                     lineHeight = 42.sp
+                 )
+                 Text(
+-                    text = moment.format(DateTimeFormatter.ofPattern("MMM yyyy · h:mm a")),
++                    text = moment.format(DateTimeFormatter.ofPattern("MMM yyyy · h:mm a")),
+                     color = paper.muted,
+                     fontSize = 12.sp,
+                     fontWeight = FontWeight.Medium,
+@@ -231,6 +237,12 @@
+         Box(
+             modifier = Modifier
+                 .size(116.dp)
++                .semantics {
++                    contentDescription = "Change mood"
++                    stateDescription = moodId
++                        ?.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
++                        ?: "No mood selected"
++                }
+                 .clickable(onClick = onMoodClick),
+             contentAlignment = Alignment.Center
+         ) {
+@@ -352,6 +364,7 @@
+         Column(
+             Modifier
+                 .fillMaxWidth()
++                .verticalScroll(rememberScrollState())
+                 .padding(horizontal = 18.dp, vertical = 4.dp)
+                 .padding(bottom = 28.dp)
+         ) {
+@@ -383,6 +396,11 @@
+                                     if (moodId == selectedMoodId) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                     RoundedCornerShape(18.dp)
+                                 )
++                                .semantics {
++                                    contentDescription = moodId
++                                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
++                                    selected = moodId == selectedMoodId
++                                }
+                                 .clickable { onSelected(moodId) },
+                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                             shape = RoundedCornerShape(18.dp)
+--- a/app/src/main/java/com/night/later/ui/editor/LaterRichText.kt
++++ b/app/src/main/java/com/night/later/ui/editor/LaterRichText.kt
+@@ -62,6 +62,9 @@
+ import androidx.compose.ui.graphics.SolidColor
+ import androidx.compose.ui.graphics.isSpecified
+ import androidx.compose.ui.graphics.StrokeCap
++import androidx.compose.ui.semantics.contentDescription
++import androidx.compose.ui.semantics.selected
++import androidx.compose.ui.semantics.semantics
+ import androidx.compose.ui.text.ParagraphStyle
+ import androidx.compose.ui.text.SpanStyle
+ import androidx.compose.ui.text.TextStyle
+@@ -674,18 +677,34 @@
+             StyleChip("H3", state.currentHeadingStyle == HeadingStyle.H3) {
+                 mutateFormat { setHeadingStyle(HeadingStyle.H3) }
+             }
+-            FormatIconButton(active = bold, onClick = {
+-                mutateFormat { toggleSpanStyle(SpanStyle(fontWeight = FontWeight.Bold)) }
+-            }) { Icon(Icons.Rounded.FormatBold, null) }
+-            FormatIconButton(active = italic, onClick = {
+-                mutateFormat { toggleSpanStyle(SpanStyle(fontStyle = FontStyle.Italic)) }
+-            }) { Icon(Icons.Rounded.FormatItalic, null) }
+-            FormatIconButton(active = underline, onClick = {
+-                mutateFormat { toggleSpanStyle(SpanStyle(textDecoration = TextDecoration.Underline)) }
+-            }) { Icon(Icons.Rounded.FormatUnderlined, null) }
+-            FormatIconButton(active = strike, onClick = {
+-                mutateFormat { toggleSpanStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) }
+-            }) { Icon(Icons.Rounded.FormatStrikethrough, null) }
++            FormatIconButton(
++                active = bold,
++                contentDescription = "Bold",
++                onClick = {
++                    mutateFormat { toggleSpanStyle(SpanStyle(fontWeight = FontWeight.Bold)) }
++                }
++            ) { Icon(Icons.Rounded.FormatBold, null) }
++            FormatIconButton(
++                active = italic,
++                contentDescription = "Italic",
++                onClick = {
++                    mutateFormat { toggleSpanStyle(SpanStyle(fontStyle = FontStyle.Italic)) }
++                }
++            ) { Icon(Icons.Rounded.FormatItalic, null) }
++            FormatIconButton(
++                active = underline,
++                contentDescription = "Underline",
++                onClick = {
++                    mutateFormat { toggleSpanStyle(SpanStyle(textDecoration = TextDecoration.Underline)) }
++                }
++            ) { Icon(Icons.Rounded.FormatUnderlined, null) }
++            FormatIconButton(
++                active = strike,
++                contentDescription = "Strikethrough",
++                onClick = {
++                    mutateFormat { toggleSpanStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) }
++                }
++            ) { Icon(Icons.Rounded.FormatStrikethrough, null) }
+         }
+     }
+ 
+@@ -1108,7 +1127,9 @@
+     onClick: () -> Unit
+ ) {
+     Surface(
+-        modifier = Modifier.clickable(onClick = onClick),
++        modifier = Modifier
++            .semantics { selected = active }
++            .clickable(onClick = onClick),
+         shape = RoundedCornerShape(13.dp),
+         color = if (active) {
+             MaterialTheme.colorScheme.primaryContainer
+@@ -1131,11 +1152,18 @@
+     onClick: () -> Unit,
+     modifier: Modifier = Modifier,
+     enabled: Boolean = true,
++    contentDescription: String? = null,
+     icon: @Composable () -> Unit
+ ) {
+     Surface(
+         modifier = modifier
+             .size(42.dp)
++            .semantics {
++                selected = active
++                contentDescription?.let { description ->
++                    this.contentDescription = description
++                }
++            }
+             .clickable(enabled = enabled, onClick = onClick),
+         shape = RoundedCornerShape(13.dp),
+         color = if (active) {
+@@ -1163,7 +1191,9 @@
+     icon: @Composable () -> Unit
+ ) {
+     Surface(
+-        modifier = Modifier.clickable(onClick = onClick),
++        modifier = Modifier
++            .semantics { selected = active }
++            .clickable(onClick = onClick),
+         shape = RoundedCornerShape(14.dp),
+         color = if (active) {
+             MaterialTheme.colorScheme.primaryContainer
