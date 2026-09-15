@@ -1,1 +1,1 @@
-build Sora v0.4 after AI drawer Compose compatibility fix
+build Sora v0.4 after extension-independent instant media cache
