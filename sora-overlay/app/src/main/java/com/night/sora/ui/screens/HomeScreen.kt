@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.night.sora.extension.ExtensionManager
 import com.night.sora.extension.InstalledExtension
+import com.night.sora.extension.isCatalogProvider
 import com.night.sora.extension.api.ExtensionContract
 import com.night.sora.data.CachedMediaRecord
 import com.night.sora.data.MediaCatalogCache
@@ -288,7 +289,7 @@ private fun loadHomeType(
     val cached = cachedHomeType(cache, type)
     val providers = extensions.flatMap { ext ->
         ext.descriptor?.sources.orEmpty()
-            .filter { source -> ext.error == null && key in source.contentTypes }
+            .filter { source -> ext.isCatalogProvider() && key in source.contentTypes }
             .map { source -> ext to source }
     }
     if (providers.isEmpty()) return callback(cached)
