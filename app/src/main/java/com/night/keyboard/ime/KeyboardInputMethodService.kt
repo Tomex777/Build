@@ -7,7 +7,10 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.doOnAttach
+import androidx.core.view.updatePadding
 import androidx.lifecycle.*
 import androidx.savedstate.*
 import com.night.keyboard.data.clipboard.ClipboardRepository
@@ -66,16 +69,18 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
             setViewTreeSavedStateRegistryOwner(this@KeyboardInputMethodService)
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
 
-            // Android's gestural navigation area is drawn inside the IME window.
-            // Keep the bottom keyboard row above that reserved touch region instead
-            // of letting the spacebar sit beneath the home gesture pill.
-            setOnApplyWindowInsetsListener { view, insets ->
-                val navigation = WindowInsetsCompat
-                    .toWindowInsetsCompat(insets, view)
-                    .getInsets(WindowInsetsCompat.Type.navigationBars())
-                view.setPadding(0, 0, 0, navigation.bottom)
+            // Gesture navigation can share the bottom of the IME window. Reserve
+            // whichever system region is larger so Spacebar and bottom-row actions
+            // never compete with the home gesture or a classic navigation bar.
+            ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
+                val safeBottom = insets.getInsets(
+                    WindowInsetsCompat.Type.navigationBars() or
+                        WindowInsetsCompat.Type.systemGestures(),
+                ).bottom
+                view.updatePadding(bottom = safeBottom)
                 insets
             }
+            doOnAttach { ViewCompat.requestApplyInsets(it) }
 
             setContent {
                 KeyboardTheme {
