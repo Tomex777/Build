@@ -70,7 +70,7 @@ jobs:
             echo 'Prototype or fake production state remains' >&2
             exit 1
           fi
-          grep -R -q 'IncomingChartPreview' app/src/main/java/com/night/pianohub
+          grep -R -q 'fun ChartPreviewScreen' app/src/main/java/com/night/pianohub
           grep -R -q 'Add to My XMLs' app/src/main/java/com/night/pianohub
           grep -q 'minSdk = 26' app/build.gradle.kts
           grep -q 'versionName = "0.8.6"' app/build.gradle.kts
