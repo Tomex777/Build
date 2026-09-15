@@ -1,0 +1,29 @@
+Slumber 0.8.11 — audio conversion engine checkpoint
+
+Base: successful Slumber 0.8.10 integration source from GitHub Actions run 34945773781.
+Branch: pianohub-ci only. main untouched.
+
+This checkpoint adds the real conversion engine but intentionally does NOT expose a Songs UI action until Android compilation is green.
+
+Adds:
+- WorkManager 2.11.2 and LiteRT 1.4.2 core runtime
+- Spotify Basic Pitch TFLite model pinned to fa5997af0a8210982619003269994a1be25eddf3
+- exact model integrity: 204448 bytes + Git blob SHA-1 85a41befdd036e9b365a052b7c704c6810288b95
+- Android MediaExtractor/MediaCodec decode to private mono float32 PCM at 22.05 kHz
+- streaming linear resampling; no full-song PCM buffer in RAM
+- 12 minute conversion guard and cancellation checks
+- overlap-aware Basic Pitch inference using the model SignatureDef
+- true window time offsets to avoid cumulative timing drift
+- pure Kotlin polyphonic note decoder with onset inference, sustained residual recovery and adjacent-bin leakage suppression
+- deterministic arrangement builder that groups only near-simultaneous onsets before quantization
+- persistent CoroutineWorker stages and canonical Slumber XML save
+- versionCode 23 / versionName 0.8.11
+
+Pure Kotlin core check before checkpoint: PASS (C4/E4/G4 chord + sustained A4; adjacent C# leakage suppressed; 120 ms later melody note remains separate).
+
+Not claimed yet:
+- Android compile/runtime verification for this layer
+- source separation
+- lyric transcription/alignment
+- full-mix accuracy equal to isolated piano
+- user-visible audio conversion button
