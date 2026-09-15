@@ -170,6 +170,28 @@ jobs:
             adb pull /sdcard/after-emoji.xml after-emoji.xml
             grep -q 'text="🙂qCursor test: move the caret through this sentence"' after-emoji.xml
 
+            # Close the emoji panel, insert a safe run of q characters, then hold
+            # the real backspace without moving. At least two characters must be
+            # removed, proving stationary hold-repeat rather than single-tap delete.
+            adb shell input tap $(cut -d' ' -f1 emoji-toolbar-center.txt) $(cut -d' ' -f2 emoji-toolbar-center.txt)
+            sleep 1
+            adb shell uiautomator dump /sdcard/after-emoji-close.xml
+            adb pull /sdcard/after-emoji-close.xml after-emoji-close.xml
+            python3 -c 'import re,xml.etree.ElementTree as ET; n=next(n for n in ET.parse("after-emoji-close.xml").iter() if n.attrib.get("text")=="q"); m=re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",n.attrib["bounds"]); x=(int(m.group(1))+int(m.group(3)))//2; y=(int(m.group(2))+int(m.group(4)))//2; open("q-center.txt","w").write(f"{x} {y}")'
+            for i in 1 2 3 4 5 6 7 8; do adb shell input tap $(cut -d' ' -f1 q-center.txt) $(cut -d' ' -f2 q-center.txt); done
+            sleep 1
+            adb shell uiautomator dump /sdcard/before-repeat-backspace.xml
+            adb pull /sdcard/before-repeat-backspace.xml before-repeat-backspace.xml
+            python3 -c 'import re,xml.etree.ElementTree as ET; n=next(n for n in ET.parse("before-repeat-backspace.xml").iter() if n.attrib.get("content-desc")=="Backspace"); m=re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",n.attrib["bounds"]); x=(int(m.group(1))+int(m.group(3)))//2; y=(int(m.group(2))+int(m.group(4)))//2; open("backspace-center.txt","w").write(f"{x} {y}")'
+            adb shell input motionevent DOWN $(cut -d' ' -f1 backspace-center.txt) $(cut -d' ' -f2 backspace-center.txt)
+            sleep 0.72
+            adb shell input motionevent UP $(cut -d' ' -f1 backspace-center.txt) $(cut -d' ' -f2 backspace-center.txt)
+            sleep 1
+            adb shell uiautomator dump /sdcard/after-repeat-backspace.xml
+            adb pull /sdcard/after-repeat-backspace.xml after-repeat-backspace.xml
+            python3 -c 'import xml.etree.ElementTree as ET; phrase="Cursor test: move the caret through this sentence"; before=next(n.attrib["text"] for n in ET.parse("before-repeat-backspace.xml").iter() if phrase in n.attrib.get("text","")); after=next(n.attrib["text"] for n in ET.parse("after-repeat-backspace.xml").iter() if phrase in n.attrib.get("text","")); assert len(before)-len(after)>=2, f"hold repeat removed only {len(before)-len(after)} character(s): {before!r} -> {after!r}"; assert phrase in after'
+            adb exec-out screencap -p > after-repeat-backspace.png
+
             # Setup is now genuinely complete. Launch the normal app and verify the
             # onboarding/success status cards do not occupy Home after setup.
             adb shell am start -W -n com.night.keyboard/.MainActivity
@@ -189,6 +211,7 @@ jobs:
             ime-qa.png
             ime-qa-after-input.png
             emoji-panel.png
+            after-repeat-backspace.png
             home-after-setup.png
             ime-window.xml
             after-q.xml
@@ -196,6 +219,9 @@ jobs:
             after-backspace.xml
             emoji-panel.xml
             after-emoji.xml
+            after-emoji-close.xml
+            before-repeat-backspace.xml
+            after-repeat-backspace.xml
             home-after-setup.xml
             input-method.txt
             logcat.txt
