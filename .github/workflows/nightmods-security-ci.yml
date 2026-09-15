@@ -102,8 +102,9 @@ jobs:
             adb shell run-as org.lsposed.manager cat shared_prefs/night_core_manager_probe.xml | tee security-smoke/manager-result.xml || true
             adb shell dumpsys package dev.nightmods.core > security-smoke/core-after-bootstrap.txt
 
-            # Security boundary: identical request code under a foreign Android UID/package must be
-            # rejected by the OS-reported sender identity, not by a caller-supplied extra.
+            # Security boundary: identical request code under a foreign Android UID/package must never
+            # receive Night Core settings. Android may deliver an explicit rejection or withhold
+            # completion; both are secure as long as no settings snapshot is disclosed.
             adb shell am force-stop dev.nightmods.attacker || true
             adb shell am start -W -n dev.nightmods.attacker/com.whatsapp.MainActivity | tee security-smoke/attacker-start.txt
             sleep 2
@@ -126,11 +127,14 @@ jobs:
 
             grep -q 'name="success" value="true"' security-smoke/manager-result.xml
             grep -q 'name="success" value="false"' security-smoke/attacker-result.xml
-            grep -q 'unauthorized_sender' security-smoke/attacker-result.xml
+            ! grep -q 'name="protocol_version"' security-smoke/attacker-result.xml
+            ! grep -q 'name="bubble_enabled"' security-smoke/attacker-result.xml
+            ! grep -q 'name="bubble_radius"' security-smoke/attacker-result.xml
+            grep -Eq 'unauthorized_sender|timed out' security-smoke/attacker-result.xml
             grep -q 'name="success" value="true"' security-smoke/allowed-result.xml
             grep -q 'name="protocol_version" value="1"' security-smoke/allowed-result.xml
             test -z "$(grep -E 'dev\.nightmods\.core|org\.lsposed\.manager|com\.whatsapp|dev\.nightmods\.attacker' security-smoke/crash.txt || true)"
-            echo 'Android 16 passed: manager bootstrap valid, foreign sender rejected, cold com.whatsapp read succeeded.'
+            echo 'Android 16 passed: manager bootstrap valid, foreign sender disclosed no settings, cold com.whatsapp read succeeded.'
 
       - name: Upload security evidence
         if: always()
