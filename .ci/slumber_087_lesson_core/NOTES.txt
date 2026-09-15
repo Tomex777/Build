@@ -1,16 +1,22 @@
-Slumber 0.8.7 lesson-core layer
+Slumber 0.8.7 lesson-core production layer
 
 Base: successful Slumber 0.8.6 integration source from Actions run 34912897686.
 Branch: pianohub-ci only. main untouched.
 
-Adds:
-- shared chord-aware LessonMoment/LessonArrangement model
-- three-row LessonRows partition/focus model
-- Learn/Play Along/Perform progress separation and mastery policy
-- compatibility bridge from existing PianoLesson/Slumber XML chart model
-- PerformanceEngine strict future-note control
-- moving timeline clock that expires missed notes/chord tones without fake input events
-- unit tests for chord grouping, row continuity, progress policy, strict Learn and moving-mode chord expiry
+This current production patch includes:
+- strict Learn scoring: future notes cannot advance the follower
+- clock-driven Play Along / Perform expiry for genuinely missed notes and partial chords
+- chord-aware LessonMoment timeline shared by scoring and guide views
+- MusicXML/MXL enrichment for chord onsets, lyric/syllabic, staff/hand and fingering
+- Slumber XML round-trip for those fields
+- lesson-specific tuning boundary; cultural tradition selection alone no longer retunes the keyboard
+- factual key labels with note+octave and explicit-tonic-only Jianpu/Sargam behavior
+- Piano screen converted to musical moments for Learn / Listen / Play Along / Perform
+- true chord rendering in Touch / Roll / Staff
+- three-row Roll viewport with rhythm spacing, duration bars, chord stacking and lyric alignment
+- Perform guide without note hints
+- Happy Birthday aligned lyric syllables
+- Perform action in Songs
 - versionCode 19 / versionName 0.8.7
 
-This checkpoint intentionally does not yet switch the production Piano UI to the new moment model. It is the first independently buildable layer before MusicXML/MIDI enrichment and Piano UI integration.
+Pure Kotlin checks passed locally for strict/timed scoring and MusicXML chord/lyrics/hand/fingering timeline behavior. Android Gradle verification is performed by the 0.8.7 integration workflow.
