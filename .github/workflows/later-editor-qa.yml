@@ -27,6 +27,8 @@ jobs:
           mkdir -p later
           tar -xJf later-build.tar.xz -C later
           chmod +x later/gradlew || true
+          sed -i 's/compileSdk = 36/compileSdk = 37/' later/app/build.gradle.kts
+          grep -q 'compileSdk = 37' later/app/build.gradle.kts
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -39,11 +41,11 @@ jobs:
         with:
           packages: platform-tools
 
-      - name: Install API 36 build SDK
+      - name: Install Android build SDKs
         shell: bash
         run: |
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'platform-tools'
+          sdkmanager 'platforms;android-36' 'platforms;android-37' 'build-tools;36.0.0' 'platform-tools'
 
       - name: Set up Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
