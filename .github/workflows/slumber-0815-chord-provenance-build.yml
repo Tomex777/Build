@@ -1,0 +1,124 @@
+name: Slumber 0.8.15 Chord Provenance Build
+
+on:
+  push:
+    branches: ["pianohub-ci"]
+    paths:
+      - ".github/workflows/slumber-0815-chord-provenance-build.yml"
+      - ".ci/slumber_0815_chord_provenance/**"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reconstruct verified 0.8.14 source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slumber-base /tmp/slumber /tmp/slumber-out
+          mkdir -p /tmp/slumber-base /tmp/slumber /tmp/slumber-out
+          gh run download 35006919593 --repo Tomex777/Build --name slumber-0.8.14-integration --dir /tmp/slumber-base
+          SRC=$(find /tmp/slumber-base -name 'slumber-0.8.14-source.tgz' -type f -print -quit)
+          test -n "$SRC"
+          tar -xzf "$SRC" -C /tmp/slumber
+
+      - name: Apply verified 0.8.15 chord/provenance layer
+        shell: bash
+        run: |
+          set -euo pipefail
+          D="$GITHUB_WORKSPACE/.ci/slumber_0815_chord_provenance"
+          cat "$D"/chord_provenance.patch.gz.b64.part* > /tmp/chord.b64
+          echo '145ea23a5f1cb57cfae2dce58c1313e2fc95a1b5af999c2b66e60829abcb6a07  /tmp/chord.b64' | sha256sum -c -
+          base64 -d /tmp/chord.b64 > /tmp/chord.gz
+          echo '4b62295b77d1b37242eb20e15eebecabc7c88dac537b78a680ea17868ecf0d06  /tmp/chord.gz' | sha256sum -c -
+          gzip -dc /tmp/chord.gz > /tmp/chord.patch
+          echo '4df6690133b88d71e2bc010a7b62ea348f0ebc5d4e8d3cc83dbe8155036801bb  /tmp/chord.patch' | sha256sum -c -
+          cd /tmp/slumber
+          patch --dry-run -p1 < /tmp/chord.patch
+          patch -p1 < /tmp/chord.patch
+
+      - name: Production and provenance gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/slumber
+          grep -q 'versionCode = 27' app/build.gradle.kts
+          grep -q 'versionName = "0.8.15"' app/build.gradle.kts
+          grep -q 'minSdk = 26' app/build.gradle.kts
+          grep -q 'score = activeScore' app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
+          grep -q 'moment.notes.sorted().forEach' app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt
+          test -f tools/build_cultural_instrument_pack.py
+          test -f tools/test_cultural_instrument_pack.py
+          if grep -R -nEi 'streakDays|effectiveMethods|songStudioMode|songPipelinePrepared|prepare lesson|not available yet|engine boundary|model adapter|coming soon|MIDI [0-9]+' app/src/main/java/com/night/pianohub; then
+            echo 'Prototype or fake production state remains' >&2
+            exit 1
+          fi
+          python3 -m py_compile tools/*.py
+          python3 tools/test_song_pack_builders.py
+          python3 tools/test_cultural_instrument_pack.py
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --channel=3 "platform-tools" "platforms;android-37.0" "build-tools;37.0.0"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+
+      - name: Unit tests
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace testDebugUnitTest
+
+      - name: Build debug APK
+        working-directory: /tmp/slumber
+        run: gradle --stacktrace assembleDebug
+
+      - name: Verify APK metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          AAPT="$SDK_ROOT/build-tools/37.0.0/aapt"
+          APK=/tmp/slumber/app/build/outputs/apk/debug/app-debug.apk
+          test -f "$APK"
+          "$AAPT" dump badging "$APK" | tee /tmp/slumber-out/apk-badging.txt
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.night.pianohub' versionCode='27' versionName='0.8.15'"
+          "$AAPT" dump badging "$APK" | grep -q "sdkVersion:'26'"
+          "$AAPT" dump badging "$APK" | grep -q "targetSdkVersion:'36'"
+
+      - name: Package source and APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp /tmp/slumber/app/build/outputs/apk/debug/app-debug.apk /tmp/slumber-out/Slumber-0.8.15-debug.apk
+          sha256sum /tmp/slumber-out/Slumber-0.8.15-debug.apk | tee /tmp/slumber-out/apk-sha256.txt
+          cd /tmp/slumber
+          tar --exclude='./.gradle' --exclude='./build' --exclude='./app/build' --exclude='./tools/__pycache__' -czf /tmp/slumber-out/slumber-0.8.15-source.tgz .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: slumber-0.8.15-integration
+          path: /tmp/slumber-out/*
+          if-no-files-found: error
