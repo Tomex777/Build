@@ -82,7 +82,7 @@ fun HomeScreen(
             override fun onAvailable(network: Network) { mainHandler.post { networkEpoch++ } }
         }
         val registered = runCatching { connectivity.registerDefaultNetworkCallback(callback); true }.getOrDefault(false)
-        onDispose { if (registered) runCatching { connectivity.unregisterDefaultNetworkCallback(callback) } }
+        onDispose { if (registered) runCatching { connectivity.unregisterNetworkCallback(callback) } }
     }
 
     LaunchedEffect(extensions, networkEpoch) {
