@@ -18,10 +18,10 @@ repl(
 )
 repl(
     '  const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.05, 80);\n  camera.position.set(6.15, 3.55, 6.75);',
-    '  const portraitLayout = () => innerWidth < 620 || innerHeight > innerWidth * 1.45;\n  const camera = new THREE.PerspectiveCamera(portraitLayout() ? 54 : 47, innerWidth/innerHeight, 0.05, 80);\n  camera.position.set(...(portraitLayout() ? [6.45,4.95,7.35] : [5.85,3.65,6.30]));',
+    '  const portraitLayout = () => innerWidth < 620 || innerHeight > innerWidth * 1.45;\n  const landscapeMobile = () => innerHeight < 500 && innerWidth > innerHeight;\n  const viewFov = () => portraitLayout() ? 57 : (landscapeMobile() ? 43 : 47);\n  const viewPos = () => portraitLayout() ? [6.95,4.85,8.25] : (landscapeMobile() ? [5.15,3.25,5.45] : [5.85,3.65,6.30]);\n  const viewMaxDistance = () => portraitLayout() ? 14.0 : (landscapeMobile() ? 9.0 : 10.0);\n  const camera = new THREE.PerspectiveCamera(viewFov(), innerWidth/innerHeight, 0.05, 80);\n  camera.position.set(...viewPos());',
     'camera'
 )
-repl('  controls.maxDistance = 10.5;', '  controls.maxDistance = portraitLayout() ? 13.5 : 10.0;', 'max distance')
+repl('  controls.maxDistance = 10.5;', '  controls.maxDistance = viewMaxDistance();', 'max distance')
 repl(
     '  const floorLamp=new THREE.Group();floorLamp.position.set(2.12,0,1.50);room.add(floorLamp);',
     '  const floorLamp=new THREE.Group();floorLamp.position.set(-2.05,0,1.34);room.add(floorLamp);',
@@ -59,10 +59,9 @@ old_reset = '''  function resetView(){
     controls.update();
   }'''
 new_reset = '''  function resetView(){
-    const mobile = portraitLayout();
-    camera.fov = mobile ? 54 : 47;
-    controls.maxDistance = mobile ? 13.5 : 10.0;
-    camera.position.set(...(mobile ? [6.45,4.95,7.35] : [5.85,3.65,6.30]));
+    camera.fov = viewFov();
+    controls.maxDistance = viewMaxDistance();
+    camera.position.set(...viewPos());
     controls.target.set(.05,1.10,-.18);
     camera.updateProjectionMatrix();
     controls.update();
@@ -79,8 +78,8 @@ new_resize = '''  function resize(){
     const w=innerWidth,h=innerHeight;
     renderer.setSize(w,h,false);
     camera.aspect=w/h;
-    camera.fov=portraitLayout()?54:47;
-    controls.maxDistance=portraitLayout()?13.5:10.0;
+    camera.fov=viewFov();
+    controls.maxDistance=viewMaxDistance();
     camera.updateProjectionMatrix();
   }'''
 repl(old_resize, new_resize, 'resize')
