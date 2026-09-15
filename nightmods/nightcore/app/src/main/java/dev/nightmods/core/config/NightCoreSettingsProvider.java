@@ -8,9 +8,6 @@ import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-
 /** Narrow IPC bridge used by Night Mods to edit Night Core hook-readable preferences. */
 public final class NightCoreSettingsProvider extends ContentProvider {
     public static final String AUTHORITY = "dev.nightmods.core.settings";
@@ -21,9 +18,8 @@ public final class NightCoreSettingsProvider extends ContentProvider {
 
     @Override public boolean onCreate() { return true; }
 
-    @Nullable
     @Override
-    public Bundle call(@NonNull String method, @Nullable String arg, @Nullable Bundle extras) {
+    public Bundle call(String method, String arg, Bundle extras) {
         enforceNightModsCaller();
         var context = getContext();
         if (context == null) return Bundle.EMPTY;
@@ -73,12 +69,12 @@ public final class NightCoreSettingsProvider extends ContentProvider {
         return Math.max(min, Math.min(max, value));
     }
 
-    @Nullable @Override public Cursor query(@NonNull Uri uri, @Nullable String[] projection,
-            @Nullable String selection, @Nullable String[] selectionArgs, @Nullable String sortOrder) {
+    @Override public Cursor query(Uri uri, String[] projection, String selection,
+            String[] selectionArgs, String sortOrder) {
         throw new UnsupportedOperationException();
     }
-    @Nullable @Override public String getType(@NonNull Uri uri) { return null; }
-    @Nullable @Override public Uri insert(@NonNull Uri uri, @Nullable ContentValues values) { throw new UnsupportedOperationException(); }
-    @Override public int delete(@NonNull Uri uri, @Nullable String selection, @Nullable String[] selectionArgs) { throw new UnsupportedOperationException(); }
-    @Override public int update(@NonNull Uri uri, @Nullable ContentValues values, @Nullable String selection, @Nullable String[] selectionArgs) { throw new UnsupportedOperationException(); }
+    @Override public String getType(Uri uri) { return null; }
+    @Override public Uri insert(Uri uri, ContentValues values) { throw new UnsupportedOperationException(); }
+    @Override public int delete(Uri uri, String selection, String[] selectionArgs) { throw new UnsupportedOperationException(); }
+    @Override public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) { throw new UnsupportedOperationException(); }
 }
