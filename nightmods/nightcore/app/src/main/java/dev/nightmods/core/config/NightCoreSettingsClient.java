@@ -21,13 +21,16 @@ import java.util.concurrent.atomic.AtomicReference;
  * Package visibility prevents real target apps from discovering Night Core's provider on Android 16,
  * so hook-side reads use an explicit ordered broadcast. The receiver verifies Android's shared sender
  * identity before returning a read-only settings snapshot.
+ *
+ * This call may wait for a cold Night Core process to start. Callers must keep it off the target app's
+ * main thread; NightCoreHook does so before attaching the selected adapter.
  */
 public final class NightCoreSettingsClient {
     private static final ComponentName SETTINGS_RECEIVER = new ComponentName(
             "dev.nightmods.core",
             "dev.nightmods.core.config.NightCoreSettingsReceiver"
     );
-    private static final long SETTINGS_TIMEOUT_MS = 1500L;
+    private static final long SETTINGS_TIMEOUT_MS = 5000L;
 
     private NightCoreSettingsClient() {}
 
