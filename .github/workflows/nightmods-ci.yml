@@ -121,18 +121,29 @@ jobs:
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
 
-      - name: Verify Night Core source tree and preference contract
+      - name: Verify Night Core source tree and IPC contract
         shell: bash
         run: |
           MANIFEST=nightmods/nightcore/app/src/main/AndroidManifest.xml
           PREFS=nightmods/nightcore/app/src/main/java/dev/nightmods/core/config/NightCorePreferences.java
+          PROVIDER=nightmods/nightcore/app/src/main/java/dev/nightmods/core/config/NightCoreSettingsProvider.java
+          CLIENT=nightmods/nightcore/app/src/main/java/dev/nightmods/core/config/NightCoreSettingsClient.java
+          HOOK=nightmods/nightcore/app/src/main/java/dev/nightmods/core/hook/NightCoreHook.java
           test -f nightmods/nightcore/settings.gradle.kts
           test -f nightmods/nightcore/app/build.gradle.kts
           test -f nightmods/nightcore/app/src/main/assets/xposed_init
-          test -f nightmods/nightcore/app/src/main/java/dev/nightmods/core/config/NightCoreSettingsProvider.java
+          test -f "$PROVIDER"
+          test -f "$CLIENT"
+          test -f "$HOOK"
+          test -f nightmods/nightcore/target-probe/src/main/java/com/whatsapp/MainActivity.java
           grep -q 'android:name="xposedminversion" android:value="92"' "$MANIFEST"
           ! grep -q 'xposedsharedprefs' "$MANIFEST"
           grep -q 'Context.MODE_PRIVATE' "$PREFS"
+          grep -q 'com.whatsapp' "$PROVIDER"
+          grep -q 'com.instagram.android' "$PROVIDER"
+          grep -q 'ContentResolver().call\|getContentResolver().call' "$CLIENT"
+          grep -q 'Application.class' "$HOOK"
+          ! grep -R -q 'XSharedPreferences' nightmods/nightcore/app/src/main/java
 
       - name: Build and lint Night Core
         working-directory: nightmods/nightcore
@@ -158,6 +169,16 @@ jobs:
           ! grep -q 'xposedsharedprefs' /tmp/nightcore-manifest.txt
           sha256sum "$APK"
 
+      - name: Verify target probe APK
+        shell: bash
+        run: |
+          PROBE="$(find nightmods/nightcore/target-probe/build/outputs -type f -name '*.apk' -print -quit)"
+          test -n "$PROBE"
+          AAPT="${ANDROID_SDK_ROOT}/build-tools/36.0.0/aapt"
+          "$AAPT" dump badging "$PROBE" | tee /tmp/target-probe-badging.txt
+          grep -q "package: name='com.whatsapp'" /tmp/target-probe-badging.txt
+          sha256sum "$PROBE"
+
       - name: Upload Night Core APK
         uses: actions/upload-artifact@v4
         with:
@@ -165,12 +186,21 @@ jobs:
           path: nightmods/nightcore/app/build/outputs/**/*.apk
           if-no-files-found: error
 
+      - name: Upload target probe APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Night-Core-target-probe-apk
+          path: nightmods/nightcore/target-probe/build/outputs/**/*.apk
+          if-no-files-found: error
+
       - name: Upload Night Core reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Night-Core-build-reports
-          path: nightmods/nightcore/app/build/reports/**
+          path: |
+            nightmods/nightcore/app/build/reports/**
+            nightmods/nightcore/target-probe/build/reports/**
           if-no-files-found: ignore
 
   android16-smoke:
@@ -196,12 +226,19 @@ jobs:
           name: Night-Core-debug-apk
           path: nightcore-apk
 
+      - name: Download target probe APK
+        uses: actions/download-artifact@v4
+        with:
+          name: Night-Core-target-probe-apk
+          path: target-probe-apk
+
       - name: Prepare smoke output
         shell: bash
         run: |
           mkdir -p smoke
           test -n "$(find nightmods-apk -type f -name '*.apk' -print -quit)"
           test -n "$(find nightcore-apk -type f -name '*.apk' -print -quit)"
+          test -n "$(find target-probe-apk -type f -name '*.apk' -print -quit)"
 
       - name: Enable KVM
         shell: bash
@@ -211,7 +248,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm || true
           sudo chmod 666 /dev/kvm || true
 
-      - name: Boot Android 16 and verify manager-to-engine bridge
+      - name: Boot Android 16 and verify manager-to-target settings bridge
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
@@ -226,6 +263,7 @@ jobs:
             test "$(cat smoke/sdk.txt)" = "36"
             adb install -r "$(find nightmods-apk -type f -name '*.apk' -print -quit)"
             adb install -r "$(find nightcore-apk -type f -name '*.apk' -print -quit)"
+            adb install -r "$(find target-probe-apk -type f -name '*.apk' -print -quit)"
             adb logcat -c
 
             adb shell am force-stop org.lsposed.manager || true
@@ -260,6 +298,14 @@ jobs:
             adb shell run-as dev.nightmods.core cat shared_prefs/night_core.xml | tee smoke/night-core-prefs.xml
             grep -q 'name="bubble_enabled" value="false"' smoke/night-core-prefs.xml
 
+            adb shell am force-stop com.whatsapp || true
+            adb shell am start -W -n com.whatsapp/.MainActivity | tee smoke/target-probe-start.txt
+            sleep 2
+            adb shell run-as com.whatsapp cat shared_prefs/night_core_probe.xml | tee smoke/target-probe-result.xml
+            grep -q 'name="success" value="true"' smoke/target-probe-result.xml
+            grep -q 'name="bubble_enabled" value="false"' smoke/target-probe-result.xml
+            grep -q 'name="bubble_radius" value="20"' smoke/target-probe-result.xml
+
             adb shell am force-stop dev.nightmods.core || true
             adb shell am start -W -n dev.nightmods.core/.MainActivity | tee smoke/nightcore-start.txt
             sleep 3
@@ -269,8 +315,8 @@ jobs:
 
             adb logcat -d > smoke/logcat.txt
             adb logcat -b crash -d > smoke/crash.txt || true
-            test -z "$(grep -E 'org\.lsposed\.manager|dev\.nightmods\.core' smoke/crash.txt || true)"
-            echo 'Android 16 Night Mods + Night Core bridge smoke test passed.'
+            test -z "$(grep -E 'org\.lsposed\.manager|dev\.nightmods\.core|com\.whatsapp' smoke/crash.txt || true)"
+            echo 'Android 16 Night Mods -> Night Core -> target UID settings bridge passed.'
 
       - name: Upload smoke evidence
         if: always()
