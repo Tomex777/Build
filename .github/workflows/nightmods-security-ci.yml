@@ -85,12 +85,9 @@ jobs:
             adb shell getprop ro.build.version.sdk | tr -d '\r' | tee security-smoke/sdk.txt
             test "$(cat security-smoke/sdk.txt)" = "36"
 
-            CORE="$(find nightmods/nightcore/app/build/outputs -type f -name '*.apk' -print -quit)"
-            TARGET="$(find nightmods/nightcore/target-probe/build/outputs -type f -name '*.apk' -print -quit)"
-            ATTACKER="$(find nightmods/nightcore/attacker-probe/build/outputs -type f -name '*.apk' -print -quit)"
-            adb install -r "$CORE"
-            adb install -r "$TARGET"
-            adb install -r "$ATTACKER"
+            adb install -r "$(find nightmods/nightcore/app/build/outputs -type f -name '*.apk' -print -quit)"
+            adb install -r "$(find nightmods/nightcore/target-probe/build/outputs -type f -name '*.apk' -print -quit)"
+            adb install -r "$(find nightmods/nightcore/attacker-probe/build/outputs -type f -name '*.apk' -print -quit)"
             adb logcat -c
 
             # Allowed sender: the OS-reported package really is com.whatsapp.
