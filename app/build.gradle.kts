@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.night.keyboard"
-    compileSdk = 37
+    compileSdk = 36
     defaultConfig {
         applicationId = "com.night.keyboard"
         minSdk = 26
@@ -47,6 +47,7 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:rules:1.6.1")
+    androidTestImplementation("androidx.test:core:1.6.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.12.1")
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.12.1")
 }

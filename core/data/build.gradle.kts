@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.night.keyboard.data"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 26

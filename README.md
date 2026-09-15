@@ -22,7 +22,7 @@ Native Android keyboard project built in Kotlin + Jetpack Compose. The current p
 - Room 2.8.5
 - DataStore 1.2.1
 - Dagger/Hilt 2.60.1
-- compileSdk 37 / targetSdk 36 / minSdk 26
+- compileSdk 36 / targetSdk 36 / minSdk 26
 
 ## CI
 
