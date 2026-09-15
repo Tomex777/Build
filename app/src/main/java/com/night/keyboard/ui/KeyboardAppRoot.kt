@@ -13,6 +13,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -37,14 +38,29 @@ fun KeyboardAppRoot() {
     Scaffold(bottomBar = {
         NavigationBar {
             items.forEach { item ->
-                NavigationBarItem(selected = current == item.route, onClick = {
-                    nav.navigate(item.route) { launchSingleTop = true; popUpTo("home") { saveState = true }; restoreState = true }
-                }, icon = item.icon, label = { Text(item.label) })
+                NavigationBarItem(
+                    selected = current == item.route,
+                    onClick = {
+                        nav.navigate(item.route) {
+                            launchSingleTop = true
+                            popUpTo("home") { saveState = true }
+                            restoreState = true
+                        }
+                    },
+                    icon = item.icon,
+                    label = { Text(item.label) },
+                    modifier = Modifier.testTag("nav_${item.route}"),
+                )
             }
         }
     }) { insets ->
         NavHost(navController = nav, startDestination = "home", modifier = Modifier.padding(insets)) {
-            composable("home") { HomeScreen(onOpenEditor = { nav.navigate("editor") }, onOpenClipboard = { nav.navigate("clipboard") }) }
+            composable("home") {
+                HomeScreen(
+                    onOpenEditor = { nav.navigate("editor") },
+                    onOpenClipboard = { nav.navigate("clipboard") },
+                )
+            }
             composable("editor") { EditorScreen() }
             composable("clipboard") { ClipboardScreen() }
             composable("settings") { SettingsScreen() }
