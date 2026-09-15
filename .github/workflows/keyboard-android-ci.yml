@@ -51,7 +51,7 @@ jobs:
           if-no-files-found: ignore
 
   emulator-qa:
-    runs-on: macos-14
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -59,10 +59,19 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Enable KVM acceleration
+        shell: bash
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+            ls -l /dev/kvm
+          else
+            echo "/dev/kvm is not present on this runner"
+          fi
       - name: Locate and prepare Android SDK
         shell: bash
         run: |
-          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager 2>/dev/null | sort | tail -1)"
           test -n "$SDKMANAGER" || { echo "sdkmanager not found under $SDK_ROOT"; exit 1; }
           echo "Using $SDKMANAGER"
@@ -76,9 +85,12 @@ jobs:
         with:
           api-level: 36
           target: google_apis
-          arch: arm64-v8a
+          arch: x86_64
           profile: pixel_6
+          cores: 2
           disable-animations: true
+          disable-linux-hw-accel: false
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
           script: |
             gradle --no-daemon :app:connectedDebugAndroidTest :app:assembleDebug
             adb install -r app/build/outputs/apk/debug/app-debug.apk
