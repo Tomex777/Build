@@ -1,0 +1,20 @@
+Slumber 0.8.12 — production audio conversion UI
+
+Base: successful Slumber 0.8.11 audio-engine artifact from Actions run 34955720071.
+Branch: pianohub-ci only. main untouched.
+
+Adds:
+- real "Convert audio to lesson" action in My XMLs
+- Android OpenDocument audio picker with persistable read permission
+- persistent WorkManager polling so jobs remain visible after leaving/reopening Songs
+- user-facing stages are sourced directly from AudioLessonWorker progress
+- stage percentages are shown only when the worker reports a real completed/total measurement
+- active jobs can be cancelled
+- failed/cancelled jobs can be retried using locally persisted URI/display-name metadata
+- failed jobs can be dismissed without leaving dead UI cards
+- successful conversion refreshes My XMLs and reports the saved lesson title
+- honest production copy: piano/instrument-focused recordings are strongest; busy full mixes may be less reliable
+- no lyric claims for audio transcription
+- versionCode 24 / versionName 0.8.12
+
+The conversion result is saved through SlumberChartRepository as canonical local XML, so it immediately uses the existing Listen/Learn/Play Along/Perform flow and progress system.
