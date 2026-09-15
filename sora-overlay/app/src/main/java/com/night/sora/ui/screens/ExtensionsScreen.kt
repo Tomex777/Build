@@ -20,6 +20,10 @@ fun ExtensionsScreen(
     onRefresh: () -> Unit,
     onOpen: (InstalledExtension) -> Unit,
 ) {
+    val externalExtensions = extensions.filterNot { extension ->
+        extension.packageName == "com.night.sora" && extension.declaredId == "sora.core.jikan"
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -30,11 +34,11 @@ fun ExtensionsScreen(
         }
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(vertical = 10.dp)) {
-            if (extensions.isEmpty()) {
+            if (externalExtensions.isEmpty()) {
                 item { DenseRow("No compatible extensions", "Sora Core is running by itself.", Icons.Rounded.ExtensionOff) }
             }
-            items(extensions.size) { index ->
-                val extension = extensions[index]
+            items(externalExtensions.size) { index ->
+                val extension = externalExtensions[index]
                 DenseRow(
                     extension.declaredName,
                     extension.error ?: "${extension.descriptor?.sources?.size ?: 0} sources · API ${extension.apiVersion}",
