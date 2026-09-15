@@ -2,6 +2,9 @@
 
 package com.night.sora.ui.screens
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -21,6 +24,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -45,6 +51,7 @@ fun VideoPlayerScreen(
 ) {
     val context = LocalContext.current
     val view = LocalView.current
+    val activity = remember(context) { context.findActivity() }
     val streams = session.streams
     var selectedStream by remember { mutableIntStateOf(session.initialStream.coerceIn(0, (streams.size - 1).coerceAtLeast(0))) }
     var controlsVisible by remember { mutableStateOf(true) }
@@ -62,10 +69,17 @@ fun VideoPlayerScreen(
 
     BackHandler(onBack = onBack)
 
-    DisposableEffect(view, player) {
+    DisposableEffect(view, player, activity) {
         val previousKeepScreenOn = view.keepScreenOn
         view.keepScreenOn = true
+        val insetsController = activity?.window?.let { window ->
+            WindowCompat.getInsetsController(window, view).also { controller ->
+                controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                controller.hide(WindowInsetsCompat.Type.systemBars())
+            }
+        }
         onDispose {
+            insetsController?.show(WindowInsetsCompat.Type.systemBars())
             view.keepScreenOn = previousKeepScreenOn
             player.release()
         }
@@ -299,3 +313,9 @@ private fun formatPlayerTime(valueMs: Long): String {
 }
 
 private fun trimSpeed(value: Float): String = if (value % 1f == 0f) value.toInt().toString() else value.toString().trimEnd('0').trimEnd('.')
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
