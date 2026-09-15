@@ -1,0 +1,21 @@
+Slumber 0.8.9 MusicXML lyrics + templates checkpoint
+
+Base: green Slumber 0.8.8 integration build, Actions run 34942317024.
+Branch: pianohub-ci. main untouched.
+
+Changes:
+- Preserves MusicXML <lyric>, <syllabic>, and lyric text on imported notes.
+- Canonical Slumber XML serialization preserves lyric/syllabic metadata too.
+- Chord-aware ScoreMoment now carries the lyric for its shared onset.
+- Three-row Roll draws trusted imported lyric text beneath the matching musical moment.
+- My XMLs includes a compact MusicXML authoring guide.
+- Adds copyable valid MusicXML templates with lyrics and without lyrics.
+- Templates include a real <chord/> example.
+- Bumps version to 0.8.9 (versionCode 21).
+
+Pure Kotlin verification before checkpoint:
+- both templates parse through SlumberChartXml
+- lyric template preserves Hel / lo / day and syllabic begin / end / single
+- canonical serialize -> parse preserves lyric metadata
+- C4/E4/G4 remains one chord moment
+- no-lyrics template produces no fabricated lyrics
