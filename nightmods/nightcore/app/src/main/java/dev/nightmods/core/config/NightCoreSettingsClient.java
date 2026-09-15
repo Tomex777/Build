@@ -11,13 +11,14 @@ public final class NightCoreSettingsClient {
     private NightCoreSettingsClient() {}
 
     public static BubbleStyleConfig readBubbleStyle(Context context) {
-        if (context == null) return BubbleStyleConfig.defaults();
+        if (context == null) throw new IllegalArgumentException("Target context is required");
         Bundle result = context.getContentResolver().call(
                 SETTINGS_URI,
                 NightCoreSettingsProvider.METHOD_GET_BUBBLE_STYLE,
                 null,
                 null
         );
+        if (result == null) throw new IllegalStateException("Night Core settings provider returned no data");
         return BubbleStyleConfig.fromBundle(result);
     }
 }
