@@ -8,13 +8,16 @@ import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-/** Manager-side client for Night Core's deliberately narrow settings provider. */
+/** Manager-side client for Night Core's deliberately narrow settings/status provider. */
 public final class NightCoreBridge {
     public static final String PACKAGE_NAME = "dev.nightmods.core";
+    public static final String WHATSAPP_PACKAGE = "com.whatsapp";
+    public static final String INSTAGRAM_PACKAGE = "com.instagram.android";
     public static final String AUTHORITY = "dev.nightmods.core.settings";
     public static final Uri SETTINGS_URI = Uri.parse("content://" + AUTHORITY);
     private static final String METHOD_GET = "get_bubble_style";
     private static final String METHOD_SET = "set_bubble_style";
+    private static final String METHOD_GET_TARGET_STATUS = "get_target_status";
     public static final String KEY_ENABLED = "bubble_enabled";
     public static final String KEY_WHATSAPP = "target_whatsapp";
     public static final String KEY_INSTAGRAM = "target_instagram";
@@ -76,6 +79,24 @@ public final class NightCoreBridge {
     }
 
     @Nullable
+    public static TargetStatus loadTargetStatus(@NonNull Context context, @NonNull String packageName) {
+        if (!isInstalled(context)) return null;
+        try {
+            Bundle data = context.getContentResolver().call(
+                    SETTINGS_URI, METHOD_GET_TARGET_STATUS, packageName, null);
+            if (data == null) return null;
+            return new TargetStatus(
+                    packageName,
+                    data.getBoolean("installed", false),
+                    data.getString("version_name", ""),
+                    data.getLong("version_code", -1L),
+                    data.getString("compatibility", "UNKNOWN"));
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    @Nullable
     public static NightModsBackend.ModuleRow frameworkModule() {
         if (!NightModsBackend.isFrameworkActive()) return null;
         for (NightModsBackend.ModuleRow row : NightModsBackend.modules()) {
@@ -101,6 +122,23 @@ public final class NightCoreBridge {
             this.instagram = instagram;
             this.radius = radius;
             this.spacing = spacing;
+        }
+    }
+
+    public static final class TargetStatus {
+        public final String packageName;
+        public final boolean installed;
+        @NonNull public final String versionName;
+        public final long versionCode;
+        @NonNull public final String compatibility;
+
+        public TargetStatus(String packageName, boolean installed, @Nullable String versionName,
+                long versionCode, @Nullable String compatibility) {
+            this.packageName = packageName;
+            this.installed = installed;
+            this.versionName = versionName == null ? "" : versionName;
+            this.versionCode = versionCode;
+            this.compatibility = compatibility == null ? "UNKNOWN" : compatibility;
         }
     }
 }
