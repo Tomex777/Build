@@ -79,8 +79,11 @@ echo "screen_height_px=$SCREEN_HEIGHT ime_top_px=$IME_TOP ime_navigation_bar_hei
 Q_X=54
 W_X=161
 Q_ROW_LOCAL_Y=235
+SHIFT_X=68
 BACKSPACE_X=1006
 BACKSPACE_LOCAL_Y=492
+BOTTOM_LEFT_X=60
+SECOND_BOTTOM_X=190
 SPACE_X=545
 SPACE_LOCAL_Y=620
 TOOLBAR_EMOJI_X=174
@@ -89,7 +92,9 @@ EMOJI_FIRST_X=75
 EMOJI_FIRST_LOCAL_Y=196
 
 Q_Y=$(( IME_TOP + Q_ROW_LOCAL_Y ))
+SHIFT_Y=$(( IME_TOP + BACKSPACE_LOCAL_Y ))
 BACKSPACE_Y=$(( IME_TOP + BACKSPACE_LOCAL_Y ))
+BOTTOM_ROW_Y=$(( IME_TOP + SPACE_LOCAL_Y ))
 SPACE_Y=$(( IME_TOP + SPACE_LOCAL_Y ))
 TOOLBAR_Y=$(( IME_TOP + TOOLBAR_LOCAL_Y ))
 
@@ -154,13 +159,53 @@ adb pull /sdcard/after-emoji.xml after-emoji.xml
 assert_xml_text after-emoji.xml "🙂qCursor test: move the caret through this sentence"
 
 # Close the expanded emoji panel using the toolbar position in the expanded
-# window, then re-measure the normal IME before the repeat test.
+# window, then re-measure the normal IME before exercising keyboard layers.
 adb shell input tap "$TOOLBAR_EMOJI_X" "$EXPANDED_TOOLBAR_Y"
 sleep 1
 adb shell dumpsys input_method > input-method-normal.txt
 NORMAL_IME_TOP="$(ime_top_from_dump input-method-normal.txt)"
 Q_Y=$(( NORMAL_IME_TOP + Q_ROW_LOCAL_Y ))
+SHIFT_Y=$(( NORMAL_IME_TOP + BACKSPACE_LOCAL_Y ))
 BACKSPACE_Y=$(( NORMAL_IME_TOP + BACKSPACE_LOCAL_Y ))
+BOTTOM_ROW_Y=$(( NORMAL_IME_TOP + SPACE_LOCAL_Y ))
+
+# 123 is a real keyboard-mode key, not a substitute number row. Verify the
+# alphabet -> common symbols -> more symbols -> alphabet path and actual output.
+adb shell input tap "$BOTTOM_LEFT_X" "$BOTTOM_ROW_Y"
+sleep 1
+adb exec-out screencap -p > symbol-pane.png
+adb shell input tap "$Q_X" "$Q_Y"
+sleep 1
+adb shell uiautomator dump /sdcard/after-symbol-one.xml
+adb pull /sdcard/after-symbol-one.xml after-symbol-one.xml
+assert_xml_text after-symbol-one.xml "🙂1qCursor test: move the caret through this sentence"
+
+adb shell input tap "$SECOND_BOTTOM_X" "$BOTTOM_ROW_Y"
+sleep 1
+adb exec-out screencap -p > more-symbols-pane.png
+adb shell input tap "$Q_X" "$Q_Y"
+sleep 1
+adb shell uiautomator dump /sdcard/after-more-symbol.xml
+adb pull /sdcard/after-more-symbol.xml after-more-symbol.xml
+assert_xml_text after-more-symbol.xml "🙂1~qCursor test: move the caret through this sentence"
+
+# Return through the secondary-symbol 123 key to common symbols, then ABC back
+# to letters. A shifted Q proves the restored alphabet layer and Shift behavior.
+adb shell input tap "$SECOND_BOTTOM_X" "$BOTTOM_ROW_Y"
+sleep 1
+adb shell input tap "$BOTTOM_LEFT_X" "$BOTTOM_ROW_Y"
+sleep 1
+adb exec-out screencap -p > letters-restored.png
+adb shell input tap "$SHIFT_X" "$SHIFT_Y"
+adb shell input tap "$Q_X" "$Q_Y"
+sleep 1
+adb shell uiautomator dump /sdcard/after-shift.xml
+adb pull /sdcard/after-shift.xml after-shift.xml
+assert_xml_text after-shift.xml "🙂1~QqCursor test: move the caret through this sentence"
+
+# Remove the shifted probe so the repeat test starts from a predictable caret.
+adb shell input tap "$BACKSPACE_X" "$BACKSPACE_Y"
+sleep 1
 
 # Insert a safe run of q characters, then hold Backspace without movement. More
 # than one character must disappear, proving stationary repeat rather than a tap.
