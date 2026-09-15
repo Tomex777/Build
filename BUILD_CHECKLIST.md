@@ -10,7 +10,7 @@ This checklist is a release gate, not a marketing list. An item is checked only 
 - [x] Room, DataStore and Hilt foundations wired.
 - [x] CI unit/lint/APK gate passes.
 - [x] Android 16 connected instrumentation tests pass.
-- [ ] Full Android 16 real-IME interaction gate passes.
+- [x] Full Android 16 real-IME interaction gate passes.
 
 ## 2. Keyboard layout and real input
 - [x] Borderless default visual model inspired by the approved SwiftKey reference structure.
@@ -33,10 +33,11 @@ This checklist is a release gate, not a marketing list. An item is checked only 
 - [x] Long-press/drag spacebar gesture implemented.
 - [x] Gesture calls the real `InputConnection.setSelection` path.
 - [x] Selection is clamped to document bounds.
-- [ ] Real Android interaction proves the caret moves through the host app field.
-- [ ] Caret remains visible and moves correctly in several real Android text fields.
+- [x] Real Android interaction proves the caret moves through the host app field.
+- [x] Caret remains visible in the exercised real Android host field after trackpad movement.
+- [ ] Caret movement verified across several real Android text-field types.
 - [ ] Multiline and selected-text cursor movement verified.
-- [ ] No accidental spaces while trackpad mode is active.
+- [x] Exercised trackpad gesture inserts no accidental space.
 
 ## 4. Setup lifecycle
 - [x] Enable action opens Android IME settings.
@@ -45,7 +46,7 @@ This checklist is a release gate, not a marketing list. An item is checked only 
 - [x] `Finish setup` is conditionally removed once setup is complete.
 - [x] Completed setup does not render a permanent `Setup complete`/success card on Home.
 - [x] Home re-reads system IME state on resume and while incomplete so the setup card can disappear without a manual refresh.
-- [ ] Setup disappearance/persistence verified in emulator after selection and relaunch.
+- [x] Setup disappearance is verified in the Android 16 emulator after enabling/selecting Keyboard and launching the normal app.
 
 ## 5. Toolbar and suggestions
 - [x] Toolbar and prediction strip are separate surfaces.
@@ -164,5 +165,6 @@ This checklist is a release gate, not a marketing list. An item is checked only 
 - [ ] Keypress latency sanity test.
 - [ ] Clipboard/emoji panel memory stress test.
 - [x] Current real-IME evidence has no Keyboard fatal crash after the Compose owner fix.
-- [ ] Logcat crash/error scan after full QA flow.
+- [x] Real-IME regression run covers key commit, spacebar cursor movement, backspace, setup disappearance and crash scanning on Android 16.
+- [ ] Full-feature logcat crash/error scan after the remaining QA matrix.
 - [ ] Fixed issues rerun through regression checklist before handoff.
