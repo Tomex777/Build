@@ -1,1 +1,1 @@
-build real Core manga reader and PAGES handoff
+build reader player and direct built-in Jikan
