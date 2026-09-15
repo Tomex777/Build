@@ -20,6 +20,7 @@ import com.night.keyboard.ui.theme.KeyboardTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.*
+import kotlin.math.max
 
 @AndroidEntryPoint
 class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
@@ -69,18 +70,33 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
             setViewTreeSavedStateRegistryOwner(this@KeyboardInputMethodService)
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
 
-            // Gesture navigation can share the bottom of the IME window. Reserve
-            // whichever system region is larger so Spacebar and bottom-row actions
-            // never compete with the home gesture or a classic navigation bar.
+            // InputMethodService can consume the navigation-bar inset before it
+            // reaches the input child while still drawing its NavigationBarFrame
+            // over the bottom of that child. Prefer real compat insets when they are
+            // available, but keep the platform navigation-bar dimension as a floor.
+            // That makes the key rows end above the IME-owned gesture/3-button frame
+            // instead of letting Spacebar share the home-gesture touch region.
+            val navigationBarResource = resources.getIdentifier("navigation_bar_height", "dimen", "android")
+            val navigationBarFloorPx = if (navigationBarResource != 0) {
+                resources.getDimensionPixelSize(navigationBarResource)
+            } else {
+                0
+            }
             ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
-                val safeBottom = insets.getInsets(
+                val reportedBottom = insets.getInsets(
                     WindowInsetsCompat.Type.navigationBars() or
                         WindowInsetsCompat.Type.systemGestures(),
                 ).bottom
-                view.updatePadding(bottom = safeBottom)
+                view.updatePadding(bottom = max(reportedBottom, navigationBarFloorPx))
                 insets
             }
-            doOnAttach { ViewCompat.requestApplyInsets(it) }
+            doOnAttach { attached ->
+                // Apply the fallback immediately because an IME child may receive
+                // already-consumed bar insets, then let a real inset replace it if
+                // the window dispatches one after attachment.
+                attached.updatePadding(bottom = navigationBarFloorPx)
+                ViewCompat.requestApplyInsets(attached)
+            }
 
             setContent {
                 KeyboardTheme {
