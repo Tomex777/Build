@@ -7,7 +7,7 @@ on:
 
 jobs:
   core-without-extension:
-    name: Core APK (extension removed)
+    name: Core APK (extensions removed)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -39,23 +39,25 @@ jobs:
       - name: Make isolated Core copy
         run: |
           cp -R /tmp/sora-src/Sora_Android_v0_1 /tmp/sora-core
-          rm -rf /tmp/sora-core/test-extension
+          rm -rf /tmp/sora-core/test-extension /tmp/sora-core/live-extension
           sed -i '/include(":test-extension")/d' /tmp/sora-core/settings.gradle.kts
+          sed -i '/include(":live-extension")/d' /tmp/sora-core/settings.gradle.kts
           test ! -d /tmp/sora-core/test-extension
-          ! grep -R "com.night.sora.testextension\|DemoExtensionService\|DemoCatalog" /tmp/sora-core/app /tmp/sora-core/extension-api
-      - name: Build Sora Core with extension project absent
+          test ! -d /tmp/sora-core/live-extension
+          ! grep -R "com.night.sora.testextension\|com.night.sora.liveextension\|DemoExtensionService\|LiveExtensionService\|DemoCatalog\|LiveCatalog" /tmp/sora-core/app /tmp/sora-core/extension-api
+      - name: Build Sora Core with extension projects absent
         working-directory: /tmp/sora-core
         run: gradle --stacktrace :app:assembleDebug
       - name: Prepare Core artifact
-        run: cp /tmp/sora-core/app/build/outputs/apk/debug/app-debug.apk /tmp/Sora-Core-v0.2-ui-repair-debug.apk
+        run: cp /tmp/sora-core/app/build/outputs/apk/debug/app-debug.apk /tmp/Sora-Core-v0.3-live-sources-debug.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: sora-core-v0.2-ui-repair-apk
-          path: /tmp/Sora-Core-v0.2-ui-repair-debug.apk
+          name: sora-core-v0.3-live-sources-apk
+          path: /tmp/Sora-Core-v0.3-live-sources-debug.apk
           if-no-files-found: error
 
-  extension:
-    name: Test Extension APK
+  test-extension:
+    name: Demo Extension APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -80,13 +82,56 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
-      - name: Build external test extension
+      - name: Build demo extension
         working-directory: /tmp/sora-src/Sora_Android_v0_1
         run: gradle --stacktrace :test-extension:assembleDebug
-      - name: Prepare extension artifact
-        run: cp /tmp/sora-src/Sora_Android_v0_1/test-extension/build/outputs/apk/debug/test-extension-debug.apk /tmp/Sora-Test-Extension-v0.2-debug.apk
+      - name: Prepare demo artifact
+        run: cp /tmp/sora-src/Sora_Android_v0_1/test-extension/build/outputs/apk/debug/test-extension-debug.apk /tmp/Sora-Test-Extension-v0.3-debug.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: sora-test-extension-v0.2-apk
-          path: /tmp/Sora-Test-Extension-v0.2-debug.apk
+          name: sora-test-extension-v0.3-apk
+          path: /tmp/Sora-Test-Extension-v0.3-debug.apk
+          if-no-files-found: error
+
+  live-extension:
+    name: Live Sources Extension APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct committed Sora source
+        run: |
+          rm -rf /tmp/sora-src /tmp/sora.zip
+          cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/sora.zip
+          unzip -q /tmp/sora.zip -d /tmp/sora-src
+          ROOT=/tmp/sora-src/Sora_Android_v0_1
+          test -f "$ROOT/settings.gradle.kts"
+          cp -R sora-overlay/. "$ROOT/"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android 36 SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 12266719
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+      - name: Build live source extension
+        working-directory: /tmp/sora-src/Sora_Android_v0_1
+        run: gradle --stacktrace :live-extension:assembleDebug
+      - name: Smoke-check public catalog endpoints
+        continue-on-error: true
+        run: |
+          curl -fsSL --retry 2 --max-time 12 'https://api.jikan.moe/v4/top/anime?limit=1' | grep -q '"data"'
+          curl -fsSL --retry 2 --max-time 12 'https://api.tvmaze.com/search/shows?q=dark' | grep -q '"show"'
+          curl -fsSL --retry 2 --max-time 12 'https://itunes.apple.com/search?term=adele&media=music&entity=song&limit=1&country=US' | grep -q '"resultCount"'
+      - name: Prepare live extension artifact
+        run: cp /tmp/sora-src/Sora_Android_v0_1/live-extension/build/outputs/apk/debug/live-extension-debug.apk /tmp/Sora-Live-Sources-v0.3-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sora-live-sources-v0.3-apk
+          path: /tmp/Sora-Live-Sources-v0.3-debug.apk
           if-no-files-found: error
