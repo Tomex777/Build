@@ -41,6 +41,7 @@ jobs:
           patch -d later -p1 < .later-qa/patches/editor-layout-polish.patch
           patch -d later -p1 < .later-qa/patches/editor-title-compact-width.patch
           patch -d later -p1 < .later-qa/patches/seal-small-screen-scroll.patch
+          patch -d later -p1 < .later-qa/patches/editor-postfinal-polish.patch
 
           # QA-only instrumentation proving real rich-text selection/HTML mutation.
           patch -d later -p1 < .later-qa/patches/format-diagnostics.patch
@@ -50,6 +51,7 @@ jobs:
           grep -q 'EditorBodyQA' .github/scripts/later-editor-qa.sh
           grep -q 'seal-after-first-back' .github/scripts/later-editor-qa.sh
           grep -q 'LATER_EDITOR_QA_PASS' .github/scripts/later-editor-qa.sh
+          grep -q 'LATER_FORMAT_SCROLL_QA_PASS' .github/scripts/later-format-scroll-qa.sh
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -96,7 +98,7 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash .github/scripts/later-editor-qa.sh
+          script: bash .github/scripts/later-editor-qa.sh && bash .github/scripts/later-format-scroll-qa.sh
 
       - name: Build clean production package
         shell: bash
@@ -117,6 +119,14 @@ jobs:
           patch -d later-clean -p1 < .later-qa/patches/editor-layout-polish.patch
           patch -d later-clean -p1 < .later-qa/patches/editor-title-compact-width.patch
           patch -d later-clean -p1 < .later-qa/patches/seal-small-screen-scroll.patch
+          patch -d later-clean -p1 < .later-qa/patches/editor-postfinal-polish.patch
+
+          # Patch backup/reject files are build mechanics, not product source.
+          find later-clean -type f \( -name '*.orig' -o -name '*.rej' -o -name '*~' \) -delete
+          if find later-clean -type f \( -name '*.orig' -o -name '*.rej' -o -name '*~' \) | grep -q .; then
+            echo 'Patch backup files leaked into clean production source' >&2
+            exit 1
+          fi
 
           if grep -R -n 'LaterFormatQA' later-clean/app/src/main later-clean/app/src/test; then
             echo 'QA diagnostics leaked into clean production source' >&2
