@@ -2,6 +2,10 @@ name: Sora Android CI
 
 on:
   workflow_dispatch:
+  push:
+    branches: [sora-android-ci]
+    paths:
+      - 'sora-ci/v04-build-trigger.txt'
 
 jobs:
   core-without-extension:
@@ -18,10 +22,14 @@ jobs:
           ROOT=/tmp/sora-src/Sora_Android_v0_1
           test -f "$ROOT/settings.gradle.kts"
           cp -R sora-overlay/. "$ROOT/"
-          ! grep -E "Extension API v1|Files & screenshots|Open Media|Quick games" \
+          ! grep -E "Extension API v1|Files & screenshots|Open Media|Most Likely To|Who Knows Me Best" \
             "$ROOT/app/src/main/java/com/night/sora/ui/screens/HomeScreen.kt" \
             "$ROOT/app/src/main/java/com/night/sora/ui/screens/LibraryScreen.kt" \
             "$ROOT/app/src/main/java/com/night/sora/ui/screens/GamesScreen.kt"
+          grep -q 'Top 10' "$ROOT/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt"
+          grep -q 'Generated images' "$ROOT/app/src/main/java/com/night/sora/ui/screens/AiScreen.kt"
+          grep -q 'Files' "$ROOT/app/src/main/java/com/night/sora/ui/screens/AiScreen.kt"
+          grep -q 'Daily 5' "$ROOT/app/src/main/java/com/night/sora/ui/screens/GamesScreen.kt"
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -47,48 +55,11 @@ jobs:
         working-directory: /tmp/sora-core
         run: gradle --stacktrace :app:assembleDebug
       - name: Prepare Core artifact
-        run: cp /tmp/sora-core/app/build/outputs/apk/debug/app-debug.apk /tmp/Sora-Core-v0.4-ui-remake-debug.apk
+        run: cp /tmp/sora-core/app/build/outputs/apk/debug/app-debug.apk /tmp/Sora-Core-v0.4-html-remake-debug.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: sora-core-v0.4-ui-remake-apk
-          path: /tmp/Sora-Core-v0.4-ui-remake-debug.apk
-          if-no-files-found: error
-
-  test-extension:
-    name: Demo Extension APK
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - name: Reconstruct committed Sora source
-        run: |
-          rm -rf /tmp/sora-src /tmp/sora.zip
-          cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/sora.zip
-          unzip -q /tmp/sora.zip -d /tmp/sora-src
-          ROOT=/tmp/sora-src/Sora_Android_v0_1
-          test -f "$ROOT/settings.gradle.kts"
-          cp -R sora-overlay/. "$ROOT/"
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-      - name: Set up Android 36 SDK
-        uses: android-actions/setup-android@v3
-        with:
-          cmdline-tools-version: 12266719
-          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.5.0'
-      - name: Build demo extension
-        working-directory: /tmp/sora-src/Sora_Android_v0_1
-        run: gradle --stacktrace :test-extension:assembleDebug
-      - name: Prepare demo artifact
-        run: cp /tmp/sora-src/Sora_Android_v0_1/test-extension/build/outputs/apk/debug/test-extension-debug.apk /tmp/Sora-Test-Extension-v0.4-debug.apk
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sora-test-extension-v0.4-apk
-          path: /tmp/Sora-Test-Extension-v0.4-debug.apk
+          name: sora-core-v0.4-html-remake-apk
+          path: /tmp/Sora-Core-v0.4-html-remake-debug.apk
           if-no-files-found: error
 
   live-extension:
