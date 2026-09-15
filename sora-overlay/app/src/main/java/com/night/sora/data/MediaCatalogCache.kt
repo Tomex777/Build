@@ -24,7 +24,8 @@ data class CachedMediaRecord(
 class MediaCatalogCache(context: Context) {
     private val prefs = context.getSharedPreferences("sora_media_catalog_v1", Context.MODE_PRIVATE)
 
-    fun read(type: ContentType): List<CachedMediaRecord> = decode(prefs.getString(key(type), null))
+    fun read(type: ContentType): List<CachedMediaRecord> =
+        decode(prefs.getString(key(type), null)).filterNot(::isLegacyDiagnosticRecord)
 
     fun search(type: ContentType, query: String): List<CachedMediaRecord> {
         val q = query.trim().lowercase()
@@ -35,9 +36,10 @@ class MediaCatalogCache(context: Context) {
     }
 
     fun write(type: ContentType, rows: List<CachedMediaRecord>) {
-        if (rows.isEmpty()) return
+        val clean = rows.filterNot(::isLegacyDiagnosticRecord)
+        if (clean.isEmpty()) return
         val array = JSONArray()
-        rows.take(MAX_ROWS).forEach { row ->
+        clean.take(MAX_ROWS).forEach { row ->
             array.put(JSONObject().apply {
                 put("id", row.id)
                 put("title", row.title)
@@ -71,6 +73,14 @@ class MediaCatalogCache(context: Context) {
             }
         }.getOrDefault(emptyList())
     }
+
+    /**
+     * Migration cleanup for the old API-test APK. New diagnostic extensions are
+     * excluded before they reach the cache, but older builds may already have
+     * stored demo rows. Never surface those rows in the normal product UI.
+     */
+    private fun isLegacyDiagnosticRecord(row: CachedMediaRecord): Boolean =
+        row.extensionPackage.contains(".demo", ignoreCase = true)
 
     private fun key(type: ContentType) = "catalog_${type.name.lowercase()}"
 
