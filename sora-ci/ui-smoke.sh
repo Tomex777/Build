@@ -18,13 +18,11 @@ shot() {
   adb pull /sdcard/window.xml "$OUT/$name.xml" >/dev/null 2>&1 || true
 }
 
-tap_text() {
+tap_text_once() {
   local label="$1"
-  local attempt
-  for attempt in 1 2 3 4 5; do
-    adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
-    adb pull /sdcard/window.xml /tmp/window.xml >/dev/null 2>&1 || true
-    if python3 - "$label" <<'PY'
+  adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
+  adb pull /sdcard/window.xml /tmp/window.xml >/dev/null 2>&1 || true
+  python3 - "$label" <<'PY'
 import re, subprocess, sys, xml.etree.ElementTree as ET
 label=sys.argv[1]
 try:
@@ -52,7 +50,25 @@ if not points:
 x,y=points[0]
 subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
 PY
-    then
+}
+
+dismiss_system_dialogs() {
+  # Fresh GitHub emulators occasionally show a Pixel Launcher ANR over the app.
+  # It is unrelated to Sora; choose Wait and continue with the foreground app.
+  if tap_text_once 'Wait' >/dev/null 2>&1; then
+    sleep 2
+  fi
+  if tap_text_once 'OK' >/dev/null 2>&1; then
+    sleep 1
+  fi
+}
+
+tap_text() {
+  local label="$1"
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    dismiss_system_dialogs
+    if tap_text_once "$label"; then
       sleep 2
       return 0
     fi
@@ -68,10 +84,13 @@ cache_contains() {
   adb shell run-as com.night.sora cat shared_prefs/sora_media_catalog_v1.xml 2>/dev/null | grep -q "$token"
 }
 
+dismiss_system_dialogs
+
 # Core must render and populate Anime/Manga with no external APK installed.
 shot 00-core-only-home
 tap_text Media
 sleep 8
+dismiss_system_dialogs
 shot 01-core-only-anime-jikan
 if ! cache_contains 'jikan.anime'; then
   echo 'Built-in Jikan did not populate the Anime cache.' >&2
@@ -80,6 +99,7 @@ fi
 
 tap_text Manga
 sleep 8
+dismiss_system_dialogs
 shot 02-core-only-manga-jikan
 if ! cache_contains 'jikan.manga'; then
   echo 'Built-in Jikan did not populate the Manga cache.' >&2
@@ -102,6 +122,7 @@ sleep 1
 adb install -r "$SORA_ROOT/live-extension/build/outputs/apk/debug/live-extension-debug.apk"
 adb shell am start -W -n com.night.sora/.MainActivity
 sleep 5
+dismiss_system_dialogs
 
 tap_text Anime
 shot 03-anime-after-external-provider
