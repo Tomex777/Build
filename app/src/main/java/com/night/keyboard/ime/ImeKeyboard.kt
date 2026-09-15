@@ -24,6 +24,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -228,19 +230,19 @@ private fun OnlineToolPanel(title: String, message: String, serverUrl: String, s
 
 @Composable
 private fun EmojiPanel(controller: KeyboardController, onCommitted: () -> Unit) {
-    val entries = remember { listOf("🙂", "😄", "😍", "😎", "😔", "😢", "😠", "❤️", "✨", "☀️", "🌸", "🚀") }
     Row(
         Modifier.horizontalScroll(rememberScrollState()).padding(7.dp),
         horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        entries.forEach { emoji ->
+        KeyboardEmojiSamples.forEach { entry ->
             Surface(
-                onClick = { controller.commit(emoji); onCommitted() },
+                onClick = { controller.commit(entry.output); onCommitted() },
                 color = Color.Transparent,
                 shape = RoundedCornerShape(9.dp),
+                modifier = Modifier.semantics { contentDescription = entry.description },
             ) {
                 Box(Modifier.size(43.dp), contentAlignment = Alignment.Center) {
-                    Text(emoji, fontSize = 24.sp)
+                    KeyboardEmojiArtwork(entry.art, Modifier.size(35.dp))
                 }
             }
         }
