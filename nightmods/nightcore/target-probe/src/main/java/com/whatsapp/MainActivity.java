@@ -47,7 +47,9 @@ public final class MainActivity extends Activity {
                 }
             };
 
-            Intent request = new Intent(ACTION_GET_BUBBLE_STYLE).setComponent(SETTINGS_RECEIVER);
+            Intent request = new Intent(ACTION_GET_BUBBLE_STYLE)
+                    .setComponent(SETTINGS_RECEIVER)
+                    .addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
             Bundle options = BroadcastOptions.makeBasic()
                     .setDeferralPolicy(BroadcastOptions.DEFERRAL_POLICY_NONE)
                     .setShareIdentityEnabled(true)
