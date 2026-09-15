@@ -1,0 +1,21 @@
+--- a/.github/scripts/later-editor-qa.sh
++++ b/.github/scripts/later-editor-qa.sh
+@@ -118,6 +118,15 @@
+ dump editor-body; shot editor-body
+ assert_editor qa-evidence/editor-body.xml
+ 
++# Select the real body text before opening Format. This directly exercises
++# the selection-preservation bridge where underline/italic/quote failed before.
++click_text qa-evidence/editor-body.xml 'EditorBodyQA'
++sleep 0.5
++adb shell input keycombination KEYCODE_CTRL_LEFT KEYCODE_A
++sleep 0.5
++adb shell input keyevent 4
++sleep 0.5
++dump editor-body-selected
++
+ # Format Home: exercise the actual inline-format toggles and their selected state.
+-click_label qa-evidence/editor-body.xml 'Format'
++click_label qa-evidence/editor-body-selected.xml 'Format'
+ sleep 1
+ dump format-home; shot format-home
