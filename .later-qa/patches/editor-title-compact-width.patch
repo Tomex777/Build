@@ -4,7 +4,7 @@
      ) {
          val compact = maxWidth < 340.dp
 -        val titleWidth = if (compact) 112.dp else 148.dp
-+        val titleWidth = if (compact) 132.dp else 148.dp
++        val titleWidth = if (compact) 148.dp else 148.dp
          val moodSize = if (compact) 84.dp else 96.dp
          val headerHeight = if (compact) 124.dp else 132.dp
  
