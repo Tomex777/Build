@@ -1,5 +1,6 @@
 package org.lsposed.manager.nightmods.ui;
 
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -46,6 +47,7 @@ public final class NightModulesFragment extends BaseFragment implements ModuleUt
     private View emptyState;
     private TextView emptyTitle;
     private TextView emptyDetail;
+    private boolean nightCoreBootstrapStarted;
 
     @Nullable
     @Override
@@ -121,6 +123,7 @@ public final class NightModulesFragment extends BaseFragment implements ModuleUt
         boolean installed = NightCoreBridge.isInstalled(requireContext());
         firstPartySection.setVisibility(installed ? View.VISIBLE : View.GONE);
         if (!installed) return;
+        bootstrapNightCore();
         try {
             PackageManager pm = requireContext().getPackageManager();
             nightCoreIcon.setImageDrawable(pm.getApplicationIcon(NightCoreBridge.PACKAGE_NAME));
@@ -140,6 +143,17 @@ public final class NightModulesFragment extends BaseFragment implements ModuleUt
                     ? getString(R.string.night_core_framework_summary, state, targets)
                     : getString(R.string.night_core_framework_summary_version, state, targets, version));
         }
+    }
+
+    private void bootstrapNightCore() {
+        if (nightCoreBootstrapStarted) return;
+        Context appContext = requireContext().getApplicationContext();
+        if (!NightCoreBridge.isInstalled(appContext)) return;
+        nightCoreBootstrapStarted = true;
+        runAsync(() -> {
+            boolean ready = NightCoreBridge.loadBubbleStyle(appContext) != null;
+            if (!ready) runOnUiThread(() -> nightCoreBootstrapStarted = false);
+        });
     }
 
     private void openScopes(@NonNull NightModsBackend.ModuleRow row) {
