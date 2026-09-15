@@ -1,5 +1,6 @@
 package org.lsposed.manager.nightmods.ui;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
@@ -26,6 +27,8 @@ public final class NightCoreFragment extends BaseFragment implements ModuleUtil.
     private TextView engineDetail;
     private TextView moduleDetail;
     private TextView scopeDetail;
+    private TextView whatsappDetail;
+    private TextView instagramDetail;
     private SwitchMaterial moduleEnabled;
     private View scopeRow;
     private View bubbleStylerRow;
@@ -39,6 +42,8 @@ public final class NightCoreFragment extends BaseFragment implements ModuleUtil.
         engineDetail = root.findViewById(R.id.night_core_engine_detail);
         moduleDetail = root.findViewById(R.id.night_core_module_detail);
         scopeDetail = root.findViewById(R.id.night_core_scope_detail);
+        whatsappDetail = root.findViewById(R.id.night_core_whatsapp_detail);
+        instagramDetail = root.findViewById(R.id.night_core_instagram_detail);
         moduleEnabled = root.findViewById(R.id.night_core_module_enabled);
         scopeRow = root.findViewById(R.id.night_core_scope_row);
         bubbleStylerRow = root.findViewById(R.id.night_bubble_styler_row);
@@ -47,10 +52,17 @@ public final class NightCoreFragment extends BaseFragment implements ModuleUtil.
         bubbleStylerRow.setOnClickListener(v -> safeNavigate(R.id.action_night_core_to_bubble_styler));
         moduleUtil.addListener(this);
         render();
+        loadTargetStatuses();
         return root;
     }
 
-    @Override public void onResume() { super.onResume(); render(); }
+    @Override
+    public void onResume() {
+        super.onResume();
+        render();
+        loadTargetStatuses();
+    }
+
     @Override public void onModulesReloaded() { runOnUiThread(this::render); }
     @Override public void onSingleModuleReloaded(ModuleUtil.InstalledModule module) { runOnUiThread(this::render); }
 
@@ -86,6 +98,52 @@ public final class NightCoreFragment extends BaseFragment implements ModuleUtil.
         }
         bubbleStylerRow.setEnabled(installed);
         bubbleStylerRow.setAlpha(installed ? 1f : 0.45f);
+        if (!installed) {
+            whatsappDetail.setText(R.string.night_target_engine_unavailable);
+            instagramDetail.setText(R.string.night_target_engine_unavailable);
+        }
+    }
+
+    private void loadTargetStatuses() {
+        if (!isAdded()) return;
+        Context appContext = requireContext().getApplicationContext();
+        if (!NightCoreBridge.isInstalled(appContext)) return;
+        runAsync(() -> {
+            var whatsapp = NightCoreBridge.loadTargetStatus(appContext, NightCoreBridge.WHATSAPP_PACKAGE);
+            var instagram = NightCoreBridge.loadTargetStatus(appContext, NightCoreBridge.INSTAGRAM_PACKAGE);
+            runOnUiThread(() -> {
+                renderTargetStatus(whatsappDetail, whatsapp);
+                renderTargetStatus(instagramDetail, instagram);
+            });
+        });
+    }
+
+    private void renderTargetStatus(@Nullable TextView view, @Nullable NightCoreBridge.TargetStatus status) {
+        if (view == null) return;
+        if (status == null) {
+            view.setText(R.string.night_target_status_unavailable);
+            return;
+        }
+        if (!status.installed) {
+            view.setText(R.string.night_target_not_installed);
+            return;
+        }
+
+        boolean hasVersion = !TextUtils.isEmpty(status.versionName);
+        switch (status.compatibility) {
+            case "SUPPORTED" -> view.setText(hasVersion
+                    ? getString(R.string.night_target_supported_version, status.versionName)
+                    : getString(R.string.night_target_supported));
+            case "ANALYSIS_REQUIRED" -> view.setText(hasVersion
+                    ? getString(R.string.night_target_analysis_required_version, status.versionName)
+                    : getString(R.string.night_target_analysis_required));
+            case "UNSUPPORTED" -> view.setText(hasVersion
+                    ? getString(R.string.night_target_unsupported_version, status.versionName)
+                    : getString(R.string.night_target_unsupported));
+            default -> view.setText(hasVersion
+                    ? getString(R.string.night_target_unknown_version, status.versionName)
+                    : getString(R.string.night_target_status_unavailable));
+        }
     }
 
     private void setEnabled(boolean enabled) {
@@ -117,6 +175,8 @@ public final class NightCoreFragment extends BaseFragment implements ModuleUtil.
         engineDetail = null;
         moduleDetail = null;
         scopeDetail = null;
+        whatsappDetail = null;
+        instagramDetail = null;
         moduleEnabled = null;
         scopeRow = null;
         bubbleStylerRow = null;
