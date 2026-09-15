@@ -1,1 +1,1 @@
-build final Sora v0.4 built-in Jikan catalog and external-count cleanup
+build frozen Sora v0.4 catalog-source separation head
