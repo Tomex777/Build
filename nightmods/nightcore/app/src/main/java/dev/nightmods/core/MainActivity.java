@@ -29,9 +29,9 @@ public final class MainActivity extends Activity {
         version.setText(getString(R.string.engine_version_value, BuildConfig.VERSION_NAME));
 
         boolean managerInstalled = isPackageInstalled(NIGHT_MODS_PACKAGE);
-        managerStatus.setText(managerInstalled
+        managerStatus.setText(getString(managerInstalled
                 ? R.string.night_mods_detected
-                : R.string.night_mods_not_detected);
+                : R.string.night_mods_not_detected));
         openNightMods.setEnabled(managerInstalled);
         openNightMods.setOnClickListener(v -> openNightMods());
 
