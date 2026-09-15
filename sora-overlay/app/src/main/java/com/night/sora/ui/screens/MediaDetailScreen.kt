@@ -39,6 +39,8 @@ import com.night.sora.extension.api.ExtensionSessionContract
 import com.night.sora.extension.api.SourceDescriptor
 import com.night.sora.model.ContentType
 import com.night.sora.model.ExtensionMediaSelection
+import com.night.sora.model.PlaybackSession
+import com.night.sora.model.PlaybackStream
 import com.night.sora.model.ReaderPage
 import com.night.sora.model.ReaderSession
 import com.night.sora.ui.theme.*
@@ -62,6 +64,7 @@ fun MediaDetailScreen(
     isSaved: (ExtensionMediaSelection) -> Boolean,
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
     onOpenReader: (ReaderSession) -> Unit,
+    onOpenPlayer: (PlaybackSession) -> Unit,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -83,6 +86,7 @@ fun MediaDetailScreen(
     var browserBusy by remember { mutableStateOf(false) }
     var browserError by remember { mutableStateOf<String?>(null) }
     var readerError by remember { mutableStateOf<String?>(null) }
+    var playbackError by remember { mutableStateOf<String?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
     var refreshEpoch by remember { mutableIntStateOf(0) }
     var descending by remember(active.id, active.type) { mutableStateOf(active.type == ContentType.MANGA) }
@@ -152,6 +156,7 @@ fun MediaDetailScreen(
         sourceSearchError = null
         browserError = null
         readerError = null
+        playbackError = null
         searchSourceSelection(active, ext, source, manager) { found ->
             sourceSearchBusy = false
             if (found == null) {
@@ -214,18 +219,29 @@ fun MediaDetailScreen(
             return
         }
 
-        val method = when (active.type) {
-            ContentType.ANIME, ContentType.TV -> ExtensionContract.Method.STREAMS
-            else -> return
-        }
-        secondaryTitle = "${row.title} · Sources"
-        secondaryRows = listOf(DetailRow("loading", "Loading…", ""))
-        manager.call(
-            ext,
-            method,
-            JSONObject().put("sourceId", target.sourceId).put("id", row.id).toString(),
-        ) { result ->
-            secondaryRows = result.getOrNull()?.let { parseSecondary(method, it) }.orEmpty()
+        if (active.type == ContentType.ANIME || active.type == ContentType.TV) {
+            rowsLoading = true
+            manager.call(
+                ext,
+                ExtensionContract.Method.STREAMS,
+                JSONObject().put("sourceId", target.sourceId).put("id", row.id).toString(),
+            ) { result ->
+                rowsLoading = false
+                val streams = result.getOrNull()?.let(::parsePlaybackStreams).orEmpty()
+                if (streams.isNotEmpty()) {
+                    onOpenPlayer(
+                        PlaybackSession(
+                            title = active.title,
+                            episodeTitle = row.title,
+                            sourceName = consumptionSource?.name ?: ext.declaredName,
+                            streams = streams,
+                        )
+                    )
+                } else {
+                    playbackError = result.exceptionOrNull()?.message
+                        ?: "${ext.declaredName} returned no playable streams for ${row.title}."
+                }
+            }
         }
     }
 
@@ -239,6 +255,7 @@ fun MediaDetailScreen(
         secondaryTitle = ""
         browserError = null
         readerError = null
+        playbackError = null
 
         activeDisplayExtension?.let { ext ->
             manager.call(
@@ -316,6 +333,11 @@ fun MediaDetailScreen(
             }
             readerError?.let { message ->
                 item(key = "readerError") {
+                    Text(message, color = SoraDanger, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                }
+            }
+            playbackError?.let { message ->
+                item(key = "playbackError") {
                     Text(message, color = SoraDanger, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
                 }
             }
@@ -865,6 +887,39 @@ private fun parseRows(type: ContentType, raw: String): List<DetailRow> = runCatc
             }
         }
     }
+}.getOrDefault(emptyList())
+
+private fun parsePlaybackStreams(raw: String): List<PlaybackStream> = runCatching {
+    val array = JSONArray(raw)
+    buildList {
+        for (i in 0 until array.length()) {
+            val value = array.opt(i)
+            val stream = when (value) {
+                is JSONObject -> {
+                    val url = value.optString("url").trim()
+                    if (!url.startsWith("http://") && !url.startsWith("https://")) continue
+                    val headers = buildMap {
+                        value.optJSONObject("headers")?.let { obj ->
+                            obj.keys().forEach { key ->
+                                obj.optString(key).takeIf(String::isNotBlank)?.let { put(key, it) }
+                            }
+                        }
+                        value.optString("referer").takeIf(String::isNotBlank)?.let { putIfAbsent("Referer", it) }
+                        value.optString("userAgent").takeIf(String::isNotBlank)?.let { putIfAbsent("User-Agent", it) }
+                    }
+                    val label = value.optString("label").ifBlank {
+                        value.optString("quality").ifBlank { value.optString("name").ifBlank { "Stream ${i + 1}" } }
+                    }
+                    val mime = value.optString("mimeType").ifBlank { value.optString("contentType") }.takeIf(String::isNotBlank)
+                    PlaybackStream(label = label, url = url, headers = headers, mimeType = mime)
+                }
+                is String -> value.trim().takeIf { it.startsWith("http://") || it.startsWith("https://") }
+                    ?.let { PlaybackStream(label = "Stream ${i + 1}", url = it) }
+                else -> null
+            }
+            if (stream != null) add(stream)
+        }
+    }.distinctBy { it.url }
 }.getOrDefault(emptyList())
 
 private fun parseReaderPages(raw: String): List<ReaderPage> = runCatching {
