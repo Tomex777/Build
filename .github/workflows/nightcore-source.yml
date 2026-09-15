@@ -1,0 +1,36 @@
+name: Night Core Source Snapshot
+
+on:
+  push:
+    branches:
+      - nightmods-ci
+    paths:
+      - '.github/workflows/nightcore-source.yml'
+      - 'nightmods/nightcore-payload/**'
+  workflow_dispatch:
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore Night Core source
+        shell: bash
+        run: |
+          base64 --decode nightmods/nightcore-payload/nightcore.tar.xz.b64 > /tmp/nightcore.tar.xz
+          echo "4b35341bd845263bbd8cf616ce2e80c058fe318016b04b2d11724d52c115ef28  /tmp/nightcore.tar.xz" | sha256sum -c -
+          mkdir -p nightcore
+          tar -xJf /tmp/nightcore.tar.xz -C nightcore
+          test -f nightcore/settings.gradle.kts
+          test -f nightcore/app/build.gradle.kts
+          test -f nightcore/app/src/main/assets/xposed_init
+
+      - name: Upload Night Core source
+        uses: actions/upload-artifact@v4
+        with:
+          name: Night-Core-source
+          path: nightcore/**
+          if-no-files-found: error
