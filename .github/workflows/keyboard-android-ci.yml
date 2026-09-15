@@ -149,6 +149,27 @@ jobs:
             grep -q 'text="qCursor test: move the caret through this sentence"' after-backspace.xml
             adb exec-out screencap -p > ime-qa-after-input.png
 
+            # Find the top-most accessible Emoji control (the toolbar entry), open
+            # the real panel, and prove the picker exposes our vector artwork by its
+            # semantic name rather than a system-rendered emoji text node.
+            python3 -c 'import re,xml.etree.ElementTree as ET; ns=[n for n in ET.parse("ime-window.xml").iter() if n.attrib.get("content-desc")=="Emoji"]; pts=[]; [(pts.append((int(m.group(2)),(int(m.group(1))+int(m.group(3)))//2,(int(m.group(2))+int(m.group(4)))//2)) if (m:=re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",n.attrib.get("bounds",""))) else None) for n in ns]; assert pts, "Emoji control missing"; _,x,y=min(pts); open("emoji-toolbar-center.txt","w").write(f"{x} {y}")'
+            adb shell input tap $(cut -d' ' -f1 emoji-toolbar-center.txt) $(cut -d' ' -f2 emoji-toolbar-center.txt)
+            sleep 1
+            adb shell uiautomator dump /sdcard/emoji-panel.xml
+            adb pull /sdcard/emoji-panel.xml emoji-panel.xml
+            grep -q 'content-desc="Slight smile"' emoji-panel.xml
+            if grep -q 'text="🙂"' emoji-panel.xml; then echo "Emoji picker regressed to system glyph text rendering"; exit 1; fi
+            adb exec-out screencap -p > emoji-panel.png
+
+            # Tap the custom-drawn smile artwork using its accessibility bounds and
+            # prove it still commits the corresponding Unicode emoji to the host app.
+            python3 -c 'import re,xml.etree.ElementTree as ET; n=next(n for n in ET.parse("emoji-panel.xml").iter() if n.attrib.get("content-desc")=="Slight smile"); m=re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",n.attrib["bounds"]); assert m; x=(int(m.group(1))+int(m.group(3)))//2; y=(int(m.group(2))+int(m.group(4)))//2; open("emoji-smile-center.txt","w").write(f"{x} {y}")'
+            adb shell input tap $(cut -d' ' -f1 emoji-smile-center.txt) $(cut -d' ' -f2 emoji-smile-center.txt)
+            sleep 1
+            adb shell uiautomator dump /sdcard/after-emoji.xml
+            adb pull /sdcard/after-emoji.xml after-emoji.xml
+            grep -q 'text="🙂qCursor test: move the caret through this sentence"' after-emoji.xml
+
             # Setup is now genuinely complete. Launch the normal app and verify the
             # onboarding/success status cards do not occupy Home after setup.
             adb shell am start -W -n com.night.keyboard/.MainActivity
@@ -167,11 +188,14 @@ jobs:
           path: |
             ime-qa.png
             ime-qa-after-input.png
+            emoji-panel.png
             home-after-setup.png
             ime-window.xml
             after-q.xml
             after-cursor.xml
             after-backspace.xml
+            emoji-panel.xml
+            after-emoji.xml
             home-after-setup.xml
             input-method.txt
             logcat.txt
