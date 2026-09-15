@@ -1,1 +1,1 @@
-verify hardened smoke navigation, sticky headers, dead-space fix and Jikan
+verify explicit built-in Jikan cache population
