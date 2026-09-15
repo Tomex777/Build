@@ -111,7 +111,16 @@ jobs:
           )
 
           replace_once(
-              """dump editor-body-keyboard; shot editor-body-keyboard
+              """dump editor-body-keyboard
+          if ! grep -q 'text=\"EditorBodyQA\"' qa-evidence/editor-body-keyboard.xml; then
+            echo 'retrying body text after IME/focus settle'
+            adb shell input keycombination KEYCODE_CTRL_LEFT KEYCODE_A
+            sleep 0.3
+            adb shell input text 'EditorBodyQA'
+            sleep 1
+            dump editor-body-keyboard
+          fi
+          shot editor-body-keyboard
           assert_label qa-evidence/editor-body-keyboard.xml 'EditorBodyQA'
           adb shell input keyevent 4; sleep 1
           dump editor-body; shot editor-body
@@ -120,7 +129,16 @@ jobs:
           # Format Home: exercise the actual inline-format toggles and their selected state.
           click_label qa-evidence/editor-body.xml 'Format'
           """,
-              """dump editor-body-keyboard; shot editor-body-keyboard
+              """dump editor-body-keyboard
+          if ! grep -q 'text=\"EditorBodyQA\"' qa-evidence/editor-body-keyboard.xml; then
+            echo 'retrying body text after IME/focus settle'
+            adb shell input keycombination KEYCODE_CTRL_LEFT KEYCODE_A
+            sleep 0.3
+            adb shell input text 'EditorBodyQA'
+            sleep 1
+            dump editor-body-keyboard
+          fi
+          shot editor-body-keyboard
           assert_label qa-evidence/editor-body-keyboard.xml 'EditorBodyQA'
           assert_editor qa-evidence/editor-body-keyboard.xml
 
@@ -132,7 +150,7 @@ jobs:
           # Format Home: state/HTML diagnostics are authoritative for rich-text changes.
           click_label qa-evidence/editor-body-selected.xml 'Format'
           """,
-              'preserve body selection into format sheet',
+              'preserve robust body entry and selection into format sheet',
           )
 
           replace_once(
@@ -193,6 +211,7 @@ jobs:
           PY
 
           grep -q "for attempt in 1 2 3 4 5" .github/scripts/later-editor-qa.sh
+          grep -q "retrying title text" .github/scripts/later-editor-qa.sh
           grep -q "editor-body-selected" .github/scripts/later-editor-qa.sh
           grep -q "mood-after-first-back" .github/scripts/later-editor-qa.sh
           grep -q "LaterEditorQA'" .github/scripts/later-editor-qa.sh
