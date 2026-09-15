@@ -95,7 +95,7 @@ jobs:
             adb logcat -c
 
             # Product bootstrap: the real Night Mods package identity can read Night Core through the
-            # manager-only provider. This also establishes a normal receiver state for the security test.
+            # manager-only provider. This also verifies target-version metadata comes from Night Core.
             adb shell dumpsys package dev.nightmods.core > security-smoke/core-before-bootstrap.txt
             adb shell am start -W -n org.lsposed.manager/org.lsposed.manager.MainActivity | tee security-smoke/manager-start.txt
             sleep 1
@@ -126,6 +126,9 @@ jobs:
             adb logcat -b crash -d > security-smoke/crash.txt || true
 
             grep -q 'name="success" value="true"' security-smoke/manager-result.xml
+            grep -q 'name="whatsapp_installed" value="true"' security-smoke/manager-result.xml
+            grep -q '<string name="whatsapp_compatibility">ANALYSIS_REQUIRED</string>' security-smoke/manager-result.xml
+            grep -q 'name="instagram_installed" value="false"' security-smoke/manager-result.xml
             grep -q 'name="success" value="false"' security-smoke/attacker-result.xml
             ! grep -q 'name="protocol_version"' security-smoke/attacker-result.xml
             ! grep -q 'name="bubble_enabled"' security-smoke/attacker-result.xml
@@ -134,7 +137,7 @@ jobs:
             grep -q 'name="success" value="true"' security-smoke/allowed-result.xml
             grep -q 'name="protocol_version" value="1"' security-smoke/allowed-result.xml
             test -z "$(grep -E 'dev\.nightmods\.core|org\.lsposed\.manager|com\.whatsapp|dev\.nightmods\.attacker' security-smoke/crash.txt || true)"
-            echo 'Android 16 passed: manager bootstrap valid, foreign sender disclosed no settings, cold com.whatsapp read succeeded.'
+            echo 'Android 16 passed: manager metadata valid, foreign sender disclosed no settings, cold com.whatsapp read succeeded.'
 
       - name: Upload security evidence
         if: always()
