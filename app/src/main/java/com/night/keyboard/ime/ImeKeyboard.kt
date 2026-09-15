@@ -2,6 +2,8 @@
 
 package com.night.keyboard.ime
 
+import android.os.SystemClock
+import android.view.ViewConfiguration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -295,6 +297,7 @@ private fun KeyboardRows(
     onOpenEmoji: () -> Unit,
     onTextChanged: () -> Unit,
 ) {
+    var lastShiftTapAt by remember { mutableLongStateOf(0L) }
     rows.forEach { row ->
         Row(
             Modifier.fillMaxWidth().padding(bottom = theme.verticalGapDp.dp),
@@ -334,7 +337,20 @@ private fun KeyboardRows(
                         modifier = Modifier.weight(effectiveWeight),
                         onClick = {
                             when (key.special) {
-                                SpecialKey.SHIFT -> onShift(if (shift == ShiftState.OFF) ShiftState.ONCE else ShiftState.OFF)
+                                SpecialKey.SHIFT -> {
+                                    val now = SystemClock.uptimeMillis()
+                                    val doubleTapWindow = ViewConfiguration.getDoubleTapTimeout().toLong()
+                                    val isSecondTap = shift == ShiftState.ONCE &&
+                                        lastShiftTapAt > 0L &&
+                                        now - lastShiftTapAt <= doubleTapWindow
+                                    if (isSecondTap) {
+                                        lastShiftTapAt = 0L
+                                        onShift(ShiftState.LOCKED)
+                                    } else {
+                                        lastShiftTapAt = if (shift == ShiftState.OFF) now else 0L
+                                        onShift(if (shift == ShiftState.OFF) ShiftState.ONCE else ShiftState.OFF)
+                                    }
+                                }
                                 SpecialKey.ENTER -> { controller.enter(); onTextChanged() }
                                 SpecialKey.EMOJI -> onOpenEmoji()
                                 SpecialKey.NUMBERS -> onLayer(KeyboardLayer.SYMBOLS)
@@ -353,9 +369,6 @@ private fun KeyboardRows(
                                 }
                             }
                         },
-                        onDoubleClick = if (key.special == SpecialKey.SHIFT) {
-                            { onShift(if (shift == ShiftState.LOCKED) ShiftState.OFF else ShiftState.LOCKED) }
-                        } else null,
                         onLongClick = if (secondary != null && key.special == null) {
                             { controller.commit(secondary); onTextChanged() }
                         } else null,
@@ -374,7 +387,6 @@ private fun ImeKey(
     secondaryVisible: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
-    onDoubleClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
 ) {
     val haptic = LocalHapticFeedback.current
@@ -409,7 +421,6 @@ private fun ImeKey(
             )
             .combinedClickable(
                 onClick = onClick,
-                onDoubleClick = onDoubleClick,
                 onLongClick = onLongClick?.let { longClick ->
                     {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
