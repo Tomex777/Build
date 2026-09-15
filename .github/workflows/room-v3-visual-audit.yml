@@ -20,16 +20,26 @@ jobs:
         with:
           ref: room-visual-audit
 
-      - name: Prepare exact room v3 source
+      - name: Prepare exact corrected room v3 source
         run: |
           rm -rf /tmp/room-v3
           mkdir -p /tmp/room-v3/site/src
           cp room-visual-audit/v3-src/index.html /tmp/room-v3/site/index.html
           cp room-visual-audit/v3-src/room.css /tmp/room-v3/site/room.css
           cat room-visual-audit/v3-src/src/main.part1.js room-visual-audit/v3-src/src/main.part2.js > /tmp/room-v3/site/src/main.js
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/room-v3/site/src/main.js')
+          s=p.read_text()
+          s=s.replace("  const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.05, 80);\n  camera.position.set(6.15, 3.55, 6.75);", "  const portraitLayout = () => innerWidth < 620 || innerHeight > innerWidth * 1.45;\n  const camera = new THREE.PerspectiveCamera(portraitLayout() ? 58 : 48, innerWidth/innerHeight, 0.05, 80);\n  camera.position.set(...(portraitLayout() ? [7.25,4.10,9.30] : [6.15,3.55,6.75]));")
+          s=s.replace("  controls.maxDistance = 10.5;", "  controls.maxDistance = portraitLayout() ? 14.5 : 10.5;")
+          s=s.replace("  function resetView(){\n    const mobile = innerWidth < 620 || innerHeight > innerWidth * 1.45;\n    camera.position.set(mobile ? 5.35 : 6.15, mobile ? 3.05 : 3.55, mobile ? 6.35 : 6.75);\n    controls.target.set(.05,1.15,-.15);\n    controls.update();\n  }", "  function resetView(){\n    const mobile = portraitLayout();\n    camera.fov = mobile ? 58 : 48;\n    controls.maxDistance = mobile ? 14.5 : 10.5;\n    camera.position.set(...(mobile ? [7.25,4.10,9.30] : [6.15,3.55,6.75]));\n    controls.target.set(.05,1.15,-.15);\n    camera.updateProjectionMatrix();\n    controls.update();\n  }")
+          s=s.replace("  function resize(){\n    const w=innerWidth,h=innerHeight;\n    renderer.setSize(w,h,false);\n    camera.aspect=w/h;\n    camera.updateProjectionMatrix();\n  }", "  function resize(){\n    const w=innerWidth,h=innerHeight;\n    renderer.setSize(w,h,false);\n    camera.aspect=w/h;\n    camera.fov=portraitLayout()?58:48;\n    controls.maxDistance=portraitLayout()?14.5:10.5;\n    camera.updateProjectionMatrix();\n  }")
+          p.write_text(s)
+          PY
           echo "50b38293bede7efe2c57737927c5fc3dae4f5d863e61d66b1d0ec18fb3e040b1  /tmp/room-v3/site/index.html" | sha256sum -c -
           echo "68c08438a2b9d282c3b41c7f4f1e2eeff613c0e25118192c2f198d90456d4f0f  /tmp/room-v3/site/room.css" | sha256sum -c -
-          echo "113ecb279bd5bae0b3f25a80635144da8174fb2ed1ebd2855b39a02506c7c5c2  /tmp/room-v3/site/src/main.js" | sha256sum -c -
+          echo "cdd55d51d0caa3658ea08af4e5953c3c95a2c953fa33945ddfc248f245ec38bd  /tmp/room-v3/site/src/main.js" | sha256sum -c -
 
       - uses: actions/setup-node@v4
         with:
@@ -79,10 +89,7 @@ jobs:
             return {width:png.width,height:png.height,meanLuma:+mean.toFixed(2),stdLuma:+Math.sqrt(variance).toFixed(2),minLuma:+min.toFixed(2),maxLuma:+max.toFixed(2)};
           }
 
-          const browser=await chromium.launch({headless:true,args:[
-            '--use-angle=swiftshader','--enable-webgl','--ignore-gpu-blocklist',
-            '--disable-dev-shm-usage','--disable-gpu-vsync'
-          ]});
+          const browser=await chromium.launch({headless:true,args:['--use-angle=swiftshader','--enable-webgl','--ignore-gpu-blocklist','--disable-dev-shm-usage','--disable-gpu-vsync']});
 
           async function capture(page,file){
             const target=path.join(out,file);
@@ -98,47 +105,25 @@ jobs:
             page.on('console',m=>events.push({type:`console:${m.type()}`,text:m.text()}));
             page.on('pageerror',e=>{events.push({type:'pageerror',text:e.message});fatal=true;});
             page.on('requestfailed',r=>events.push({type:'requestfailed',text:`${r.url()} :: ${r.failure()?.errorText||''}`}));
-
             await page.goto('http://127.0.0.1:4175/',{waitUntil:'networkidle',timeout:90000});
             await page.waitForTimeout(2400);
             const runtime=await page.evaluate(()=>{
-              const c=document.querySelector('#scene');
-              const e=document.querySelector('#error');
-              const r=document.querySelector('#resetView');
-              const h=document.querySelector('#hint');
-              let gl=null;
-              try{ gl=c?.getContext('webgl2')||c?.getContext('webgl'); }catch(_){}
-              return {
-                title:document.title,
-                canvasWidth:c?.width||0,canvasHeight:c?.height||0,
-                cssWidth:c?.getBoundingClientRect().width||0,cssHeight:c?.getBoundingClientRect().height||0,
-                errorVisible:e?!e.hidden:null,errorText:e?.textContent||'',
-                resetVisible:!!r && getComputedStyle(r).display!=='none',
-                hintText:h?.textContent||'',webgl:!!gl,
-                renderer:gl?gl.getParameter(gl.RENDERER):null,
-                vendor:gl?gl.getParameter(gl.VENDOR):null
-              };
+              const c=document.querySelector('#scene'),e=document.querySelector('#error'),r=document.querySelector('#resetView'),h=document.querySelector('#hint');
+              let gl=null; try{gl=c?.getContext('webgl2')||c?.getContext('webgl')}catch(_){}
+              return {title:document.title,canvasWidth:c?.width||0,canvasHeight:c?.height||0,cssWidth:c?.getBoundingClientRect().width||0,cssHeight:c?.getBoundingClientRect().height||0,errorVisible:e?!e.hidden:null,errorText:e?.textContent||'',resetVisible:!!r&&getComputedStyle(r).display!=='none',hintText:h?.textContent||'',webgl:!!gl,renderer:gl?gl.getParameter(gl.RENDERER):null,vendor:gl?gl.getParameter(gl.VENDOR):null};
             });
             if(runtime.errorVisible||!runtime.webgl||runtime.canvasWidth<2||runtime.canvasHeight<2) fatal=true;
-
             const shots={};
             shots.initial=await capture(page,`${name}-initial.png`);
             if(!mobile){
               const x=Math.round(viewport.width*.56), y=Math.round(viewport.height*.50);
-              await page.mouse.move(x,y);
-              await page.mouse.down();
-              await page.mouse.move(x-135,y+28,{steps:12});
-              await page.mouse.up();
-              await page.waitForTimeout(500);
+              await page.mouse.move(x,y); await page.mouse.down(); await page.mouse.move(x-135,y+28,{steps:12}); await page.mouse.up(); await page.waitForTimeout(500);
               shots.orbited=await capture(page,`${name}-orbited.png`);
-              await page.keyboard.press('KeyL');
-              await page.waitForTimeout(450);
-              shots.lamp=await capture(page,`${name}-lamp-on.png`);
-              await page.keyboard.press('KeyR');
-              await page.waitForTimeout(450);
-              shots.reset=await capture(page,`${name}-reset.png`);
+              await page.keyboard.press('KeyL'); await page.waitForTimeout(450); shots.lamp=await capture(page,`${name}-lamp-on.png`);
+              await page.keyboard.press('KeyR'); await page.waitForTimeout(450); shots.reset=await capture(page,`${name}-reset.png`);
+            } else {
+              await page.locator('#resetView').tap(); await page.waitForTimeout(450); shots.reset=await capture(page,`${name}-reset.png`);
             }
-
             const meaningful=Object.values(shots).every(s=>s.stdLuma>7 && (s.maxLuma-s.minLuma)>45);
             if(!meaningful) fatal=true;
             cases.push({name,viewport,mobile,runtime,shots,meaningful,events});
@@ -148,7 +133,6 @@ jobs:
           await inspect('desktop-1280x800',{width:1280,height:800},false);
           await inspect('mobile-393x873',{width:393,height:873},true);
           await browser.close();
-
           fs.writeFileSync(path.join(out,'report.json'),JSON.stringify({fatal,cases},null,2));
           fs.writeFileSync(path.join(out,'browser.log'),cases.flatMap(x=>x.events.map(e=>`[${x.name}] ${e.type}: ${e.text}`)).join('\n'));
           if(fatal) process.exitCode=2;
@@ -166,13 +150,13 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add room-visual-audit/v3-output
           if ! git diff --cached --quiet; then
-            git commit -m "chore: update room v3 visual audit [skip ci]"
+            git commit -m "chore: update corrected room v3 visual audit [skip ci]"
             git push origin HEAD:room-visual-audit
           fi
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: room-v3-visual-audit
+          name: room-v3-visual-audit-corrected
           path: room-visual-audit/v3-output
           if-no-files-found: warn
