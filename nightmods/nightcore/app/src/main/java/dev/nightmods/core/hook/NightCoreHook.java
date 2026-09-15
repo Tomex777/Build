@@ -1,35 +1,91 @@
 package dev.nightmods.core.hook;
 
+import android.app.Application;
+import android.content.Context;
+
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
+import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
+import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 import dev.nightmods.core.config.BubbleStyleConfig;
+import dev.nightmods.core.config.NightCoreSettingsClient;
 import dev.nightmods.core.hook.adapters.InstagramAdapter;
 import dev.nightmods.core.hook.adapters.TargetAdapter;
 import dev.nightmods.core.hook.adapters.WhatsAppAdapter;
 
 /** One Night module, many target-app adapters. */
 public final class NightCoreHook implements IXposedHookLoadPackage {
+    private static final Set<String> HOOKED_PROCESSES = ConcurrentHashMap.newKeySet();
+
     private final List<TargetAdapter> adapters = List.of(new WhatsAppAdapter(), new InstagramAdapter());
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
         if (lpparam == null || lpparam.packageName == null) return;
-        BubbleStyleConfig config = BubbleStyleConfig.loadForHook();
-        if (!config.enabled) return;
+
+        TargetAdapter target = null;
         for (TargetAdapter adapter : adapters) {
-            if (!adapter.packageName().equals(lpparam.packageName) || !adapter.enabled(config)) continue;
-            XposedBridge.log("NightCore attached: " + adapter.displayName()
-                    + " package=" + lpparam.packageName + " process=" + lpparam.processName);
-            try {
-                adapter.attach(lpparam, config);
-            } catch (Throwable error) {
-                XposedBridge.log("NightCore adapter failed: " + adapter.displayName());
-                XposedBridge.log(error);
+            if (adapter.packageName().equals(lpparam.packageName)) {
+                target = adapter;
+                break;
             }
-            return;
+        }
+        if (target == null) return;
+
+        String processName = lpparam.processName == null ? lpparam.packageName : lpparam.processName;
+        String processKey = lpparam.packageName + "|" + processName;
+        if (!HOOKED_PROCESSES.add(processKey)) return;
+
+        TargetAdapter selectedAdapter = target;
+        try {
+            XposedHelpers.findAndHookMethod(
+                    Application.class,
+                    "attach",
+                    Context.class,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam<?> param) {
+                            Context context = param.args != null && param.args.length > 0
+                                    ? (Context) param.args[0]
+                                    : null;
+                            if (context == null) {
+                                XposedBridge.log("NightCore skipped: target context unavailable for "
+                                        + selectedAdapter.displayName());
+                                return;
+                            }
+
+                            final BubbleStyleConfig config;
+                            try {
+                                config = NightCoreSettingsClient.readBubbleStyle(context);
+                            } catch (Throwable error) {
+                                XposedBridge.log("NightCore skipped: settings unavailable for "
+                                        + selectedAdapter.displayName());
+                                XposedBridge.log(error);
+                                return;
+                            }
+
+                            if (!config.enabled || !selectedAdapter.enabled(config)) return;
+
+                            XposedBridge.log("NightCore attached: " + selectedAdapter.displayName()
+                                    + " package=" + lpparam.packageName + " process=" + processName);
+                            try {
+                                selectedAdapter.attach(lpparam, config);
+                            } catch (Throwable error) {
+                                XposedBridge.log("NightCore adapter failed: " + selectedAdapter.displayName());
+                                XposedBridge.log(error);
+                            }
+                        }
+                    }
+            );
+        } catch (Throwable error) {
+            HOOKED_PROCESSES.remove(processKey);
+            XposedBridge.log("NightCore lifecycle hook failed: " + target.displayName());
+            XposedBridge.log(error);
         }
     }
 }
