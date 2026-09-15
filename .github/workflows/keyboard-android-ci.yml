@@ -94,6 +94,13 @@ jobs:
           script: |
             gradle --no-daemon :app:connectedDebugAndroidTest :app:assembleDebug
             adb install -r app/build/outputs/apk/debug/app-debug.apk
+            # The hosted emulator advertises a QWERTY hardware keyboard even with
+            # enable-hw-keyboard=false. Android then suppresses the software IME by
+            # default. Enable the normal system setting used by physical-keyboard
+            # users so this job can exercise the actual input view without changing
+            # production InputMethodService behavior.
+            adb shell settings --user 0 put secure show_ime_with_hard_keyboard 1
+            echo "show_ime_with_hard_keyboard=$(adb shell settings --user 0 get secure show_ime_with_hard_keyboard | tr -d '\r')"
             adb shell ime enable com.night.keyboard/.ime.KeyboardInputMethodService
             adb shell ime set com.night.keyboard/.ime.KeyboardInputMethodService
             sleep 1
@@ -107,6 +114,7 @@ jobs:
             adb shell dumpsys input_method > input-method.txt
             adb logcat -d > logcat.txt
             grep -q "com.night.keyboard/.ime.KeyboardInputMethodService" input-method.txt
+            grep -q "mInputViewStarted=true" input-method.txt
             grep -q 'text="123"' ime-window.xml
             grep -q 'content-desc="Clipboard"' ime-window.xml
             if grep -E "FATAL EXCEPTION|AndroidRuntime" logcat.txt | grep -q "com.night.keyboard"; then
