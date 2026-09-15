@@ -37,11 +37,117 @@ jobs:
           patch -d later -p1 < .later-qa/patches/body-editor-empty.patch
           patch -d later -p1 < .later-qa/patches/body-placeholder-title.patch
           patch -d later -p1 < .later-qa/patches/editor-polish.patch
+          patch -d later -p1 < .later-qa/patches/editor-layout-polish.patch
           patch -d later -p1 < .later-qa/patches/format-diagnostics.patch
-          patch -p1 < .later-qa/patches/qa-format-selection.patch
-          sed -i '/assert_selected_desc "qa-evidence\/format-${style,,}-selected.xml" "$style"/d' .github/scripts/later-editor-qa.sh
-          sed -i '/assert_selected_ancestor_of_text "qa-evidence\/paragraph-${style,,}-selected.xml" "$style"/d' .github/scripts/later-editor-qa.sh
-          sed -i '/shot format-inline-selected/a adb logcat -d -s LaterFormatQA:I > qa-evidence/format-log.txt' .github/scripts/later-editor-qa.sh
+
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/scripts/later-editor-qa.sh')
+          text = path.read_text()
+
+          def replace_once(old: str, new: str, name: str) -> None:
+              global text
+              if text.count(old) != 1:
+                  raise SystemExit(f'{name}: expected exactly one match, found {text.count(old)}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              """assert_editor() {
+            local f=\"$1\"
+            for l in Seal Media Voice Attachment Sticker Format; do assert_label \"$f\" \"$l\"; done
+            assert_desc \"$f\" 'Go back'
+            assert_desc \"$f\" 'Change mood'
+          }
+
+          adb wait-for-device
+          """,
+              """assert_editor() {
+            local f=\"$1\"
+            for l in Seal Media Voice Attachment Sticker Format; do assert_label \"$f\" \"$l\"; done
+            assert_desc \"$f\" 'Go back'
+            assert_desc \"$f\" 'Change mood'
+          }
+
+          collect_evidence() {
+            adb logcat -d > qa-evidence/logcat.txt 2>/dev/null || true
+            adb logcat -b crash -d > qa-evidence/crash.txt 2>/dev/null || true
+            adb logcat -d -s LaterFormatQA:I > qa-evidence/format-log.txt 2>/dev/null || true
+          }
+          trap collect_evidence EXIT
+
+          adb wait-for-device
+          """,
+              'always-capture evidence',
+          )
+
+          replace_once(
+              """dump editor-body-keyboard; shot editor-body-keyboard
+          assert_label qa-evidence/editor-body-keyboard.xml 'EditorBodyQA'
+          adb shell input keyevent 4; sleep 1
+          dump editor-body; shot editor-body
+          assert_editor qa-evidence/editor-body.xml
+
+          # Format Home: exercise the actual inline-format toggles and their selected state.
+          click_label qa-evidence/editor-body.xml 'Format'
+          """,
+              """dump editor-body-keyboard; shot editor-body-keyboard
+          assert_label qa-evidence/editor-body-keyboard.xml 'EditorBodyQA'
+          assert_editor qa-evidence/editor-body-keyboard.xml
+
+          # Keep the real editor focus and selected body range alive while Format opens.
+          adb shell input keycombination KEYCODE_CTRL_LEFT KEYCODE_A
+          sleep 0.6
+          dump editor-body-selected; shot editor-body-selected
+
+          # Format Home: state/HTML diagnostics are authoritative for rich-text changes.
+          click_label qa-evidence/editor-body-selected.xml 'Format'
+          """,
+              'preserve body selection into format sheet',
+          )
+
+          replace_once(
+              """  dump \"format-${style,,}-selected\"
+            assert_selected_desc \"qa-evidence/format-${style,,}-selected.xml\" \"$style\"
+            cp \"qa-evidence/format-${style,,}-selected.xml\" qa-evidence/format-home.xml
+          done
+          shot format-inline-selected
+          """,
+              """  dump \"format-${style,,}-selected\"
+            cp \"qa-evidence/format-${style,,}-selected.xml\" qa-evidence/format-home.xml
+            adb logcat -d -s LaterFormatQA:I > qa-evidence/format-log.txt 2>/dev/null || true
+          done
+          shot format-inline-selected
+          """,
+              'use HTML diagnostics for inline formatting',
+          )
+
+          replace_once(
+              """  dump \"paragraph-${style,,}-selected\"
+            assert_selected_ancestor_of_text \"qa-evidence/paragraph-${style,,}-selected.xml\" \"$style\"
+            click_label \"qa-evidence/paragraph-${style,,}-selected.xml\" \"$style\"
+          """,
+              """  dump \"paragraph-${style,,}-selected\"
+            adb logcat -d -s LaterFormatQA:I > qa-evidence/format-log.txt 2>/dev/null || true
+            click_label \"qa-evidence/paragraph-${style,,}-selected.xml\" \"$style\"
+          """,
+              'use HTML diagnostics for paragraph formatting',
+          )
+
+          replace_once(
+              """assert_label qa-evidence/home-relaunch.xml 'EditorBodyQA'
+          click_text qa-evidence/home-relaunch.xml 'EditorBodyQA'
+          """,
+              """assert_label qa-evidence/home-relaunch.xml 'LaterEditorQA'
+          click_text qa-evidence/home-relaunch.xml 'LaterEditorQA'
+          """,
+              'draft card title-first assertion',
+          )
+
+          path.write_text(text)
+          PY
+
+          grep -q "editor-body-selected" .github/scripts/later-editor-qa.sh
+          grep -q "LaterEditorQA'" .github/scripts/later-editor-qa.sh
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
