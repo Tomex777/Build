@@ -1,7 +1,8 @@
 package dev.nightmods.core.config;
 
-import de.robv.android.xposed.XSharedPreferences;
+import android.os.Bundle;
 
+/** Immutable Bubble Styler settings shared by the manager bridge and target adapters. */
 public final class BubbleStyleConfig {
     public static final String PREFS = "night_core";
     public static final String KEY_ENABLED = "bubble_enabled";
@@ -24,15 +25,22 @@ public final class BubbleStyleConfig {
         this.spacing = spacing;
     }
 
-    public static BubbleStyleConfig loadForHook() {
-        XSharedPreferences prefs = new XSharedPreferences("dev.nightmods.core", PREFS);
-        prefs.reload();
+    public static BubbleStyleConfig defaults() {
+        return new BubbleStyleConfig(true, true, true, 20, 6);
+    }
+
+    public static BubbleStyleConfig fromBundle(Bundle bundle) {
+        if (bundle == null) return defaults();
         return new BubbleStyleConfig(
-                prefs.getBoolean(KEY_ENABLED, true),
-                prefs.getBoolean(KEY_WHATSAPP, true),
-                prefs.getBoolean(KEY_INSTAGRAM, true),
-                prefs.getInt(KEY_RADIUS, 20),
-                prefs.getInt(KEY_SPACING, 6)
+                bundle.getBoolean(KEY_ENABLED, true),
+                bundle.getBoolean(KEY_WHATSAPP, true),
+                bundle.getBoolean(KEY_INSTAGRAM, true),
+                clamp(bundle.getInt(KEY_RADIUS, 20), 0, 48),
+                clamp(bundle.getInt(KEY_SPACING, 6), 0, 24)
         );
+    }
+
+    private static int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 }
