@@ -1,0 +1,48 @@
+--- a/app/src/main/java/com/night/later/ui/editor/LaterRichText.kt
++++ b/app/src/main/java/com/night/later/ui/editor/LaterRichText.kt
+@@ -1,6 +1,7 @@
+ // LATER_V2_2_4_FORMAT_FOUNDATION_FIX_2026_09_07
+ package com.night.later.ui.editor
+ 
++import android.util.Log
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.border
+ import androidx.compose.foundation.clickable
+@@ -663,10 +664,18 @@
+     }
+ 
+     fun mutateFormat(action: RichTextState.() -> Unit) {
++        Log.i(
++            "LaterFormatQA",
++            "before panel=home snapshot=$selectionSnapshot live=${state.selection} html=${state.toHtml()}"
++        )
+         val keptSelection = state.mutateKeepingFormatSelection(
+             selection = selectionSnapshot,
+             action = action
+         )
++        Log.i(
++            "LaterFormatQA",
++            "after panel=home kept=$keptSelection live=${state.selection} html=${state.toHtml()}"
++        )
+         onSelectionSnapshotChanged(keptSelection)
+         onDocumentMutated()
+     }
+@@ -934,10 +943,18 @@
+     val currentLineHeight = state.currentParagraphStyle.lineHeight
+ 
+     fun mutateFormat(action: RichTextState.() -> Unit) {
++        Log.i(
++            "LaterFormatQA",
++            "before panel=paragraph snapshot=$selectionSnapshot live=${state.selection} html=${state.toHtml()}"
++        )
+         val keptSelection = state.mutateKeepingFormatSelection(
+             selection = selectionSnapshot,
+             action = action
+         )
++        Log.i(
++            "LaterFormatQA",
++            "after panel=paragraph kept=$keptSelection live=${state.selection} html=${state.toHtml()}"
++        )
+         onSelectionSnapshotChanged(keptSelection)
+         onDocumentMutated()
+     }
