@@ -7,30 +7,34 @@ object DemoCatalog {
     fun browse(type: String): String = JSONArray().apply {
         when (type) {
             "anime" -> {
-                put(item("anime-1", "Paper Moons", "12 episodes · Drama"))
-                put(item("anime-2", "Night Signal", "24 episodes · Mystery"))
-                put(item("anime-3", "Blue Terminal", "8 episodes · Sci-fi"))
+                put(item("anime-1", "Paper Moons", "12 episodes · Drama", "https://picsum.photos/seed/sora-anime-1/600/900"))
+                put(item("anime-2", "Night Signal", "24 episodes · Mystery", "https://picsum.photos/seed/sora-anime-2/600/900"))
+                put(item("anime-3", "Blue Terminal", "8 episodes · Sci-fi", "https://picsum.photos/seed/sora-anime-3/600/900"))
             }
             "manga" -> {
-                put(item("manga-1", "After Rain", "42 chapters · Ongoing"))
-                put(item("manga-2", "Glass City", "18 chapters · Drama"))
+                put(item("manga-1", "After Rain", "42 chapters · Ongoing", "https://picsum.photos/seed/sora-manga-1/600/900"))
+                put(item("manga-2", "Glass City", "18 chapters · Drama", "https://picsum.photos/seed/sora-manga-2/600/900"))
+                put(item("manga-3", "White Noise", "31 chapters · Mystery", "https://picsum.photos/seed/sora-manga-3/600/900"))
             }
             "movie" -> {
-                put(item("movie-1", "The Last Platform", "2h 06m · Thriller"))
-                put(item("movie-2", "Soft Static", "1h 48m · Drama"))
+                put(item("movie-1", "The Last Platform", "2h 06m · Thriller", "https://picsum.photos/seed/sora-movie-1/600/900"))
+                put(item("movie-2", "Soft Static", "1h 48m · Drama", "https://picsum.photos/seed/sora-movie-2/600/900"))
+                put(item("movie-3", "Southbound", "1h 56m · Mystery", "https://picsum.photos/seed/sora-movie-3/600/900"))
             }
             "tv" -> {
-                put(item("tv-1", "North Hall", "3 seasons · Mystery"))
-                put(item("tv-2", "Zero Floor", "2 seasons · Drama"))
+                put(item("tv-1", "North Hall", "3 seasons · Mystery", "https://picsum.photos/seed/sora-tv-1/600/900"))
+                put(item("tv-2", "Zero Floor", "2 seasons · Drama", "https://picsum.photos/seed/sora-tv-2/600/900"))
+                put(item("tv-3", "Long Weekend", "1 season · Comedy", "https://picsum.photos/seed/sora-tv-3/600/900"))
             }
             "music" -> {
-                put(item("track-1", "Low Light", "Aster · 3:42"))
-                put(item("track-2", "Wake Slowly", "Nami · 4:10"))
-                put(item("track-3", "Glassline", "Vela · 2:58"))
+                put(item("track-1", "Low Light", "Aster · 3:42", "https://picsum.photos/seed/sora-music-1/600/600"))
+                put(item("track-2", "Wake Slowly", "Nami · 4:10", "https://picsum.photos/seed/sora-music-2/600/600"))
+                put(item("track-3", "Glassline", "Vela · 2:58", "https://picsum.photos/seed/sora-music-3/600/600"))
             }
             "memes" -> {
-                put(item("meme-1", "When the build passes first try", "Developer memes"))
-                put(item("meme-2", "Me opening one more tab", "Internet culture"))
+                put(item("meme-1", "When the build passes first try", "Developer memes", "https://picsum.photos/seed/sora-meme-1/700/700"))
+                put(item("meme-2", "Me opening one more tab", "Internet culture", "https://picsum.photos/seed/sora-meme-2/700/700"))
+                put(item("meme-3", "The final final version", "Developer memes", "https://picsum.photos/seed/sora-meme-3/700/700"))
             }
         }
     }.toString()
@@ -50,7 +54,7 @@ object DemoCatalog {
     fun details(id: String): String = JSONObject().apply {
         put("id", id)
         put("title", id.replace('-', ' ').replaceFirstChar { it.uppercase() })
-        put("description", "Demo metadata supplied by a separately installed Sora extension.")
+        put("description", "Demo metadata supplied by a separately installed Sora extension. The screen and saved state are owned by Sora Core.")
         put("status", "available")
     }.toString()
 
@@ -84,8 +88,9 @@ object DemoCatalog {
 
     fun feed(): String = browse("memes")
 
-    private fun item(id: String, title: String, subtitle: String) = JSONObject()
+    private fun item(id: String, title: String, subtitle: String, artworkUrl: String) = JSONObject()
         .put("id", id)
         .put("title", title)
         .put("subtitle", subtitle)
+        .put("artworkUrl", artworkUrl)
 }

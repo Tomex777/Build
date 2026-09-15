@@ -29,6 +29,13 @@ data class AiMessage(
     enum class Role { USER, ASSISTANT }
 }
 
+data class AiConversation(
+    val id: Long,
+    val title: String,
+    val updatedAt: Long,
+    val messages: List<AiMessage>,
+)
+
 data class LibraryEntry(
     val id: String,
     val label: String,
@@ -39,6 +46,7 @@ data class LibraryEntry(
     val extensionPackage: String? = null,
     val contentType: ContentType? = null,
     val mediaSubtitle: String = "",
+    val artworkUrl: String? = null,
 ) {
     fun toMediaSelection(): ExtensionMediaSelection? {
         val itemId = mediaId ?: return null
@@ -52,6 +60,7 @@ data class LibraryEntry(
             type = type,
             title = label,
             subtitle = mediaSubtitle.ifBlank { detail },
+            artworkUrl = artworkUrl,
         )
     }
 }
@@ -73,4 +82,5 @@ data class ExtensionMediaSelection(
     val type: ContentType,
     val title: String,
     val subtitle: String,
+    val artworkUrl: String? = null,
 )
