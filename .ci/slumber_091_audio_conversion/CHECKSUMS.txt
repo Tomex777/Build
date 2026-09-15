@@ -1,0 +1,3 @@
+b4264b2108883583dba00cc294d02baa9d4b57c8c6fa23297af13b327fa05f8f  slumber-0.8.11-audio-engine.patch
+6b56a1ff2629b2f5f679cf8d9c6641c19c79daa53b92170fbed44ee8e57913ed  slumber-0.8.11-audio-engine.patch.gz
+43ab9805475bdd8731a47e7e458ab8dd8c33339da01742e0ebf19b676c85589b  slumber-0.8.11-audio-engine.patch.gz.b64
