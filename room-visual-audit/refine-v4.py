@@ -18,7 +18,7 @@ repl(
 )
 repl(
     '  const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.05, 80);\n  camera.position.set(6.15, 3.55, 6.75);',
-    '  const portraitLayout = () => innerWidth < 620 || innerHeight > innerWidth * 1.45;\n  const landscapeMobile = () => innerHeight < 500 && innerWidth > innerHeight;\n  const viewFov = () => portraitLayout() ? 57 : (landscapeMobile() ? 43 : 47);\n  const viewPos = () => portraitLayout() ? [6.95,4.85,8.25] : (landscapeMobile() ? [5.15,3.25,5.45] : [5.85,3.65,6.30]);\n  const viewMaxDistance = () => portraitLayout() ? 14.0 : (landscapeMobile() ? 9.0 : 10.0);\n  const camera = new THREE.PerspectiveCamera(viewFov(), innerWidth/innerHeight, 0.05, 80);\n  camera.position.set(...viewPos());',
+    '  const portraitLayout = () => innerWidth < 620 || innerHeight > innerWidth * 1.45;\n  const landscapeMobile = () => innerHeight < 500 && innerWidth > innerHeight;\n  const viewFov = () => portraitLayout() ? 57 : (landscapeMobile() ? 45 : 47);\n  const viewPos = () => portraitLayout() ? [6.95,4.85,8.25] : (landscapeMobile() ? [5.85,3.40,6.10] : [5.85,3.65,6.30]);\n  const viewMaxDistance = () => portraitLayout() ? 14.0 : (landscapeMobile() ? 10.0 : 10.0);\n  const camera = new THREE.PerspectiveCamera(viewFov(), innerWidth/innerHeight, 0.05, 80);\n  camera.position.set(...viewPos());',
     'camera'
 )
 repl('  controls.maxDistance = 10.5;', '  controls.maxDistance = viewMaxDistance();', 'max distance')
