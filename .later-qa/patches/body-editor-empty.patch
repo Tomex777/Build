@@ -1,0 +1,58 @@
+--- a/app/src/main/java/com/night/later/data/model/LaterRichTextDocumentCodec.kt
++++ b/app/src/main/java/com/night/later/data/model/LaterRichTextDocumentCodec.kt
+@@ -69,8 +69,14 @@
+ 
+         if (isNativeDocument(raw)) {
+             return runCatching {
+-                JSONObject(raw).optString(ENVELOPE_HTML_KEY, "")
+-                    .ifBlank { plainTextToHtml(fallbackPlainText) }
++                val root = JSONObject(raw)
++                val plain = root.optString(ENVELOPE_PLAIN_KEY, fallbackPlainText)
++                if (plain.isEmpty()) {
++                    ""
++                } else {
++                    root.optString(ENVELOPE_HTML_KEY, "")
++                        .ifBlank { plainTextToHtml(plain) }
++                }
+             }.getOrElse { plainTextToHtml(fallbackPlainText) }
+         }
+ 
+@@ -83,8 +89,9 @@
+     }
+ 
+     fun plainTextToHtml(text: String): String {
++        if (text.isEmpty()) return ""
++
+         val lines = text.split('\n', ignoreCase = false, limit = Int.MAX_VALUE)
+-        if (lines.isEmpty()) return "<p></p>"
+         return lines.joinToString(separator = "") { line ->
+             if (line.isEmpty()) "<p><br></p>" else "<p>${escapeHtml(line)}</p>"
+         }
+--- a/app/src/main/java/com/night/later/ui/editor/LaterRichText.kt
++++ b/app/src/main/java/com/night/later/ui/editor/LaterRichText.kt
+@@ -337,7 +337,7 @@
+                     if (
+                         showPlaceholder &&
+                         hydrated &&
+-                        state.annotatedString.text.isEmpty()
++                        state.annotatedString.text.isBlank()
+                     ) {
+                         Text(
+                             text = "Write to your future self…",
+--- a/app/src/test/java/com/night/later/data/model/LaterRichTextDocumentCodecTest.kt
++++ b/app/src/test/java/com/night/later/data/model/LaterRichTextDocumentCodecTest.kt
+@@ -21,6 +21,14 @@
+     }
+ 
+     @Test
++    fun `empty rich text stays truly empty`() {
++        val document = LaterRichTextDocumentCodec.plainTextDocument("")
++
++        assertEquals("", LaterRichTextDocumentCodec.plainText(document))
++        assertEquals("", LaterRichTextDocumentCodec.html(document))
++    }
++
++    @Test
+     fun `legacy TextKit document converts common formatting to html`() {
+         val legacy = """
+             {
