@@ -33,6 +33,17 @@ def replace_string_resource(path: Path, name: str, value: str) -> bool:
     return False
 
 
+def ensure_string_resource(path: Path, name: str, value: str) -> None:
+    text = path.read_text(encoding="utf-8")
+    pattern = rf'<string\s+name="{re.escape(name)}"[^>]*>.*?</string>'
+    replacement = f'<string name="{name}">{value}</string>'
+    if re.search(pattern, text, flags=re.S):
+        text = re.sub(pattern, replacement, text, count=1, flags=re.S)
+    else:
+        text = text.replace("</resources>", f"    {replacement}\n</resources>")
+    path.write_text(text, encoding="utf-8")
+
+
 def main() -> None:
     if len(sys.argv) != 2:
         raise SystemExit("Usage: apply_nightmods.py /path/to/LSPosed-ET")
@@ -42,6 +53,8 @@ def main() -> None:
     nav_menu = repo / "app/src/main/res/menu/navigation_menu.xml"
     strings = repo / "app/src/main/res/values/strings.xml"
     strings_untranslatable = repo / "app/src/main/res/values/strings_untranslatable.xml"
+    main_activity = repo / "app/src/main/java/org/lsposed/manager/ui/activity/MainActivity.java"
+    modules_fragment = repo / "app/src/main/java/org/lsposed/manager/ui/fragment/ModulesFragment.java"
     overlay = Path(__file__).parent / "overlay"
 
     for p in (
@@ -49,6 +62,8 @@ def main() -> None:
         nav_menu,
         strings,
         strings_untranslatable,
+        main_activity,
+        modules_fragment,
         repo / "app/src/main/java/org/lsposed/manager/ConfigManager.java",
     ):
         require(p)
@@ -91,6 +106,30 @@ def main() -> None:
 
     # Keep any optional full-name resource synchronized if upstream adds/uses it.
     replace_string_resource(strings, "app_name_full", "Night Mods")
+    ensure_string_resource(strings, "night_framework_unavailable", "Framework unavailable")
+
+    # Upstream removes most bottom-navigation destinations when the daemon is not
+    # connected. Night Mods keeps the complete application shell visible instead.
+    # Destinations that genuinely require the daemon/Magisk stay visible but disabled.
+    activity_text = main_activity.read_text(encoding="utf-8")
+    activity_text = replace_once(
+        activity_text,
+        r'''\s*if \(!ConfigManager\.isBinderAlive\(\)\) \{\s*nav\.getMenu\(\)\.removeItem\(R\.id\.logs_fragment\);\s*nav\.getMenu\(\)\.removeItem\(R\.id\.modules_nav\);\s*if \(!ConfigManager\.isMagiskInstalled\(\)\) \{\s*nav\.getMenu\(\)\.removeItem\(R\.id\.repo_nav\);\s*\}\s*\}''',
+        '''\n            var modulesItem = nav.getMenu().findItem(R.id.modules_nav);\n            var logsItem = nav.getMenu().findItem(R.id.logs_fragment);\n            var repoItem = nav.getMenu().findItem(R.id.repo_nav);\n            if (modulesItem != null) modulesItem.setEnabled(true);\n            if (logsItem != null) logsItem.setEnabled(ConfigManager.isBinderAlive());\n            if (repoItem != null) repoItem.setEnabled(ConfigManager.isMagiskInstalled());''',
+        "persistent Night Mods navigation",
+    )
+    main_activity.write_text(activity_text, encoding="utf-8")
+
+    # A disconnected framework is a real state, not "zero enabled modules". Keep
+    # the Modules screen usable, but surface the state and hide the unusable FAB.
+    modules_text = modules_fragment.read_text(encoding="utf-8")
+    modules_text = replace_once(
+        modules_text,
+        r'''private void updateModuleSummary\(\) \{\s*var moduleCount = moduleUtil\.getEnabledModulesCount\(\);\s*runOnUiThread\(\(\) -> \{\s*if \(binding != null\) \{\s*binding\.toolbar\.setSubtitle\(moduleCount == -1 \? getString\(R\.string\.loading\) : getResources\(\)\.getQuantityString\(R\.plurals\.modules_enabled_count, moduleCount, moduleCount\)\);\s*binding\.toolbarLayout\.setSubtitle\(binding\.toolbar\.getSubtitle\(\)\);\s*\}\s*\}\);\s*\}''',
+        '''private void updateModuleSummary() {\n        var moduleCount = moduleUtil.getEnabledModulesCount();\n        var binderAlive = ConfigManager.isBinderAlive();\n        runOnUiThread(() -> {\n            if (binding != null) {\n                if (!binderAlive) {\n                    binding.toolbar.setSubtitle(R.string.night_framework_unavailable);\n                    binding.fab.hide();\n                } else {\n                    binding.toolbar.setSubtitle(moduleCount == -1 ? getString(R.string.loading) : getResources().getQuantityString(R.plurals.modules_enabled_count, moduleCount, moduleCount));\n                    showFab();\n                }\n                binding.toolbarLayout.setSubtitle(binding.toolbar.getSubtitle());\n            }\n        });\n    }''',
+        "framework-aware module summary",
+    )
+    modules_fragment.write_text(modules_text, encoding="utf-8")
 
     for src in overlay.rglob("*"):
         if not src.is_file():
@@ -103,6 +142,7 @@ def main() -> None:
     print("Night Mods overlay applied successfully.")
     print("Preserved manager applicationId/package for LSPosed ET Binder compatibility.")
     print("Launcher label: Night Mods.")
+    print("Primary navigation stays visible even when the framework is unavailable.")
     print("Primary navigation: Modules -> Repository -> Logs -> Settings.")
 
 
