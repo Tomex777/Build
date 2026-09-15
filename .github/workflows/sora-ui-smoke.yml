@@ -54,7 +54,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
-            set -euo pipefail
+            set -eu
             adb install -r "$SORA_ROOT/app/build/outputs/apk/debug/app-debug.apk"
             adb install -r "$SORA_ROOT/live-extension/build/outputs/apk/debug/live-extension-debug.apk"
             adb shell am force-stop com.night.sora
@@ -68,7 +68,7 @@ jobs:
             }
 
             tap_text() {
-              local label="$1"
+              label="$1"
               adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1
               adb pull /sdcard/window.xml /tmp/window.xml >/dev/null 2>&1
               python3 - "$label" <<'PY'
