@@ -60,7 +60,7 @@ jobs:
 
       - name: Build Night Mods manager APK
         working-directory: lsposed-et
-        run: ./gradlew --no-daemon --stacktrace :app:assembleDebug
+        run: ./gradlew --no-daemon --stacktrace -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g" -Dorg.gradle.workers.max=2 :app:assembleDebug
 
       - name: Verify manager APK identity
         shell: bash
