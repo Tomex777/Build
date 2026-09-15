@@ -1,1 +1,1 @@
-build source session browser and detail webview wiring
+verify explicit built-in Jikan Core registration
