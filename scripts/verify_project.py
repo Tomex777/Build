@@ -39,7 +39,13 @@ editor_vm=text("app/src/main/java/com/night/keyboard/ui/screens/EditorViewModel.
 codec=text("core/data/src/main/java/com/night/keyboard/data/theme/ThemeCodec.kt")
 theme_dao=text("core/data/src/main/java/com/night/keyboard/data/theme/ThemeDao.kt")
 theme_repo=text("core/data/src/main/java/com/night/keyboard/data/theme/ThemeRepository.kt")
-check("spacebar cursor uses long-press drag", "detectDragGesturesAfterLongPress" in ime and "onCursor(direction)" in ime)
+check(
+    "spacebar cursor uses long-press drag",
+    "awaitEachGesture" in ime
+    and "longPressTimeoutMillis" in ime
+    and "trackpadActive" in ime
+    and "onCursor(direction)" in ime,
+)
 check("backspace has stationary hold-repeat behavior", "RepeatBackspaceKey" in ime and "delay(380)" in repeat_backspace and "delay(55)" in repeat_backspace)
 check("toolbar exposes focused AI trio", all(x in ime for x in ["Editor", "Tone", "Contextual Research"]))
 check("toolbar exposes clipboard and emoji", "ToolPanel.CLIPBOARD" in ime and "ToolPanel.EMOJI" in ime)
