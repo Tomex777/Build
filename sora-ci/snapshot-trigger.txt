@@ -1,1 +1,1 @@
-snapshot current Sora source after UI regression report
+snapshot current Sora source for built-in Jikan integration
