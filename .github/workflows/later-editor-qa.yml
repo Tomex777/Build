@@ -39,6 +39,7 @@ jobs:
           patch -d later -p1 < .later-qa/patches/editor-polish.patch
           patch -d later -p1 < .later-qa/patches/editor-layout-polish.patch
           patch -d later -p1 < .later-qa/patches/editor-title-compact-width.patch
+          patch -d later -p1 < .later-qa/patches/seal-small-screen-scroll.patch
           patch -d later -p1 < .later-qa/patches/format-diagnostics.patch
 
           python3 - <<'PY'
@@ -198,6 +199,43 @@ jobs:
           )
 
           replace_once(
+              """# Seal sheet should open but QA never seals the synthetic entry.
+          dump editor-before-seal
+          click_label qa-evidence/editor-before-seal.xml 'Seal'; sleep 1
+          dump seal; shot seal
+          assert_label qa-evidence/seal.xml 'Date'; assert_label qa-evidence/seal.xml 'Time'
+          assert_label qa-evidence/seal.xml 'Choose a time in the future.'; assert_label qa-evidence/seal.xml 'Seal capsule'
+          adb shell input keyevent 4; sleep 1
+          """,
+              """# Seal sheet should expose presets first, then every lower control by scrolling.
+          dump editor-before-seal
+          click_label qa-evidence/editor-before-seal.xml 'Seal'; sleep 1
+          dump seal; shot seal
+          assert_label qa-evidence/seal.xml 'When should this return?'
+          assert_label qa-evidence/seal.xml 'Choose when your future self gets access.'
+          for l in Tomorrow '1 week' '1 month' '1 year'; do assert_label qa-evidence/seal.xml \"$l\"; done
+          cat qa-evidence/seal.xml > qa-evidence/seal-scroll-history.txt
+          cp qa-evidence/seal.xml qa-evidence/seal-scrolled.xml
+          for i in 1 2 3 4; do
+            if grep -q 'text=\"Seal capsule\"' qa-evidence/seal-scrolled.xml; then break; fi
+            adb shell input swipe 160 600 160 360 500
+            sleep 0.6
+            dump seal-scrolled
+            cat qa-evidence/seal-scrolled.xml >> qa-evidence/seal-scroll-history.txt
+          done
+          shot seal-scrolled
+          grep -q 'text=\"Date\"' qa-evidence/seal-scroll-history.txt
+          grep -q 'text=\"Time\"' qa-evidence/seal-scroll-history.txt
+          grep -q \"You won't be able to open or edit this capsule until then.\" qa-evidence/seal-scroll-history.txt
+          grep -q 'text=\"Seal capsule\"' qa-evidence/seal-scroll-history.txt
+          adb shell input keyevent 4; sleep 1
+          dump editor-after-seal
+          assert_editor qa-evidence/editor-after-seal.xml
+          """,
+              'follow current seal sheet and compact scrolling',
+          )
+
+          replace_once(
               """assert_label qa-evidence/home-relaunch.xml 'EditorBodyQA'
           click_text qa-evidence/home-relaunch.xml 'EditorBodyQA'
           """,
@@ -214,6 +252,7 @@ jobs:
           grep -q "retrying title text" .github/scripts/later-editor-qa.sh
           grep -q "editor-body-selected" .github/scripts/later-editor-qa.sh
           grep -q "mood-after-first-back" .github/scripts/later-editor-qa.sh
+          grep -q "seal-scroll-history" .github/scripts/later-editor-qa.sh
           grep -q "LaterEditorQA'" .github/scripts/later-editor-qa.sh
 
       - name: Set up Java 21
