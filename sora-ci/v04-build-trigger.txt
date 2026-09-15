@@ -1,1 +1,1 @@
-build Sora v0.4 after extension-independent instant media cache
+build Sora v0.4 with built-in Jikan anime manga catalog
