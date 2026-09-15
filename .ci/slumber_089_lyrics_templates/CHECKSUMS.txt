@@ -1,0 +1,3 @@
+18c124edcee7ae0c488bb706d1eae67f677ce7d19afecb6f54197e6da927ddcc  lyrics_templates.patch
+735be695abed97bb7877b11e7f0a7b8821dd4ef633a63b7fca323335c4a27c4b  lyrics_templates.patch.gz
+fd05f9ea8c80e30daae6001f45763e5a908d249aa3b030888ec12c2a3b7369d0  lyrics_templates.patch.gz.b64
