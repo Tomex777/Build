@@ -1,1 +1,1 @@
-build reader player and direct built-in Jikan
+build movie fullscreen player and diagnostic source isolation
