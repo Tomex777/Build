@@ -35,6 +35,7 @@ import com.night.sora.extension.ExtensionManager
 import com.night.sora.extension.InstalledExtension
 import com.night.sora.extension.isCatalogProvider
 import com.night.sora.extension.api.ExtensionContract
+import com.night.sora.extension.api.ExtensionSessionContract
 import com.night.sora.extension.api.SourceDescriptor
 import com.night.sora.model.ContentType
 import com.night.sora.model.ExtensionMediaSelection
@@ -75,6 +76,9 @@ fun MediaDetailScreen(
     var sourcePickerOpen by remember { mutableStateOf(false) }
     var sourceSearchBusy by remember { mutableStateOf(false) }
     var sourceSearchError by remember { mutableStateOf<String?>(null) }
+    var browserSession by remember { mutableStateOf<SourceBrowserSession?>(null) }
+    var browserBusy by remember { mutableStateOf(false) }
+    var browserError by remember { mutableStateOf<String?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
     var refreshEpoch by remember { mutableIntStateOf(0) }
     var descending by remember(active.id, active.type) { mutableStateOf(active.type == ContentType.MANGA) }
@@ -89,6 +93,23 @@ fun MediaDetailScreen(
     val consumptionExtension = consumption?.let { chosen -> extensions.firstOrNull { it.packageName == chosen.extensionPackage } }
     val consumptionSource = consumptionExtension?.descriptor?.sources?.firstOrNull { it.id == consumption?.sourceId }
     val displayedSourceName = consumptionSource?.name ?: activeDisplaySource?.name ?: activeDisplayExtension?.declaredName ?: "Source unavailable"
+    val webViewAvailable = consumption != null && consumptionExtension != null && consumptionSource?.capabilities?.contains(ExtensionSessionContract.CAPABILITY_WEBVIEW) == true
+
+    val openSession = browserSession
+    if (openSession != null) {
+        val browserExtension = extensions.firstOrNull { it.packageName == openSession.extensionPackage }
+        if (browserExtension != null) {
+            SourceWebViewScreen(
+                session = openSession,
+                extension = browserExtension,
+                manager = manager,
+                onBack = { browserSession = null; refreshEpoch++ },
+            )
+        } else {
+            MissingExtensionScreen(onBack = { browserSession = null })
+        }
+        return
+    }
 
     fun effectiveBack() {
         if (secondaryRows.isNotEmpty()) {
@@ -125,6 +146,7 @@ fun MediaDetailScreen(
     fun chooseSource(ext: InstalledExtension, source: SourceDescriptor, dismissOnSuccess: Boolean = true) {
         sourceSearchBusy = true
         sourceSearchError = null
+        browserError = null
         searchSourceSelection(active, ext, source, manager) { found ->
             sourceSearchBusy = false
             if (found == null) {
@@ -134,6 +156,25 @@ fun MediaDetailScreen(
                 sourcePrefs.edit().putString(preferredSourceKey(active.type), "${ext.packageName}|${source.id}").apply()
                 if (dismissOnSuccess) sourcePickerOpen = false
             }
+        }
+    }
+
+    fun openBrowser() {
+        val target = consumption ?: return
+        val ext = consumptionExtension ?: return
+        val source = consumptionSource ?: return
+        if (ExtensionSessionContract.CAPABILITY_WEBVIEW !in source.capabilities) return
+        browserBusy = true
+        browserError = null
+        val payload = JSONObject()
+            .put("sourceId", target.sourceId)
+            .put("id", target.id)
+            .toString()
+        manager.call(ext, ExtensionSessionContract.METHOD_BROWSER_SESSION, payload) { result ->
+            browserBusy = false
+            val session = result.getOrNull()?.let { parseBrowserSession(it, target, ext, source) }
+            if (session != null) browserSession = session
+            else browserError = result.exceptionOrNull()?.message ?: "This source could not open its browser session."
         }
     }
 
@@ -164,6 +205,7 @@ fun MediaDetailScreen(
         counterpart = null
         secondaryRows = emptyList()
         secondaryTitle = ""
+        browserError = null
 
         activeDisplayExtension?.let { ext ->
             manager.call(
@@ -223,12 +265,21 @@ fun MediaDetailScreen(
                 DetailActionRow(
                     saved = isSaved(active),
                     hasConsumptionSource = consumption != null,
+                    browserEnabled = webViewAvailable && !browserBusy,
+                    browserBusy = browserBusy,
                     type = active.type,
                     counterpart = counterpart,
                     onLibrary = { onToggleSaved(active) },
                     onSource = { sourcePickerOpen = true },
                     onAdaptation = { counterpart?.let { active = it } },
+                    onWebView = ::openBrowser,
                 )
+            }
+
+            browserError?.let { message ->
+                item(key = "browserError") {
+                    Text(message, color = SoraDanger, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                }
             }
 
             item(key = "description") {
@@ -312,6 +363,13 @@ fun MediaDetailScreen(
                             leadingIcon = { Icon(Icons.Rounded.Source, null) },
                             onClick = { menuOpen = false; sourcePickerOpen = true },
                         )
+                        if (webViewAvailable) {
+                            DropdownMenuItem(
+                                text = { Text("Open web view") },
+                                leadingIcon = { Icon(Icons.Rounded.Public, null) },
+                                onClick = { menuOpen = false; openBrowser() },
+                            )
+                        }
                         DropdownMenuItem(
                             text = { Text("Refresh") },
                             leadingIcon = { Icon(Icons.Rounded.Refresh, null) },
@@ -436,11 +494,14 @@ private fun DetailInfoHeader(selection: ExtensionMediaSelection, metadata: Detai
 private fun DetailActionRow(
     saved: Boolean,
     hasConsumptionSource: Boolean,
+    browserEnabled: Boolean,
+    browserBusy: Boolean,
     type: ContentType,
     counterpart: ExtensionMediaSelection?,
     onLibrary: () -> Unit,
     onSource: () -> Unit,
     onAdaptation: () -> Unit,
+    onWebView: () -> Unit,
 ) {
     Row(Modifier.fillMaxWidth().padding(start = 16.dp, top = 8.dp, end = 16.dp)) {
         DetailActionButton(
@@ -464,6 +525,13 @@ private fun DetailActionRow(
                 onClick = onAdaptation,
             )
         }
+        DetailActionButton(
+            title = if (browserBusy) "Opening…" else "Web view",
+            icon = Icons.Rounded.Public,
+            highlighted = browserEnabled,
+            enabled = browserEnabled,
+            onClick = onWebView,
+        )
     }
 }
 
@@ -599,6 +667,34 @@ private fun parseMetadata(raw: String, fallback: String): DetailMetadata = runCa
         genres = genres,
     )
 }.getOrElse { DetailMetadata(fallback) }
+
+private fun parseBrowserSession(
+    raw: String,
+    active: ExtensionMediaSelection,
+    ext: InstalledExtension,
+    source: SourceDescriptor,
+): SourceBrowserSession? = runCatching {
+    val obj = JSONObject(raw)
+    val url = obj.optString("url")
+    if (!url.startsWith("http://") && !url.startsWith("https://")) return@runCatching null
+    val headersObject = obj.optJSONObject("headers")
+    val headers = buildMap {
+        if (headersObject != null) {
+            val keys = headersObject.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                headersObject.optString(key).takeIf(String::isNotBlank)?.let { put(key, it) }
+            }
+        }
+    }
+    SourceBrowserSession(
+        sourceId = source.id,
+        extensionPackage = ext.packageName,
+        url = url,
+        title = obj.optString("title", active.title).ifBlank { active.title },
+        headers = headers,
+    )
+}.getOrNull()
 
 private fun consumptionSourcesFor(extensions: List<InstalledExtension>, type: ContentType): List<Pair<InstalledExtension, SourceDescriptor>> {
     val key = detailTypeKey(type)
