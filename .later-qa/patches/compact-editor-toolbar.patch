@@ -1,0 +1,147 @@
+--- a/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
++++ b/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
+@@ -21,6 +21,7 @@
+ import androidx.compose.foundation.Image
+ import androidx.compose.foundation.layout.Arrangement
+ import androidx.compose.foundation.layout.Box
++import androidx.compose.foundation.layout.BoxWithConstraints
+ import androidx.compose.foundation.layout.Column
+ import androidx.compose.foundation.layout.PaddingValues
+ import androidx.compose.foundation.layout.Row
+@@ -1901,38 +1902,55 @@
+         tonalElevation = 2.dp,
+         color = MaterialTheme.colorScheme.surface
+     ) {
+-        Row(
+-            modifier = Modifier
+-                .fillMaxWidth()
+-                .padding(horizontal = 2.dp, vertical = 5.dp),
+-            horizontalArrangement = Arrangement.SpaceEvenly,
+-            verticalAlignment = Alignment.CenterVertically
++        BoxWithConstraints(
++            modifier = Modifier.fillMaxWidth()
+         ) {
+-            ToolbarButton(
+-                label = "Media",
+-                icon = Icons.Rounded.ImageIcon,
+-                onClick = onMedia
+-            )
+-            ToolbarButton(
+-                label = "Voice",
+-                icon = Icons.Rounded.Mic,
+-                onClick = onRecord
+-            )
+-            ToolbarButton(
+-                label = "Attachment",
+-                icon = Icons.Rounded.AttachFile,
+-                onClick = onAttachment
+-            )
+-            ToolbarButton(
+-                label = "Sticker",
+-                icon = Icons.Rounded.Star,
+-                onClick = onSticker
+-            )
+-            ToolbarButton(
+-                label = "Format",
+-                icon = Icons.Rounded.FormatSize,
+-                onClick = onFormat
+-            )
++            val compactToolbar =
++                maxWidth < 440.dp
++
++            Row(
++                modifier = Modifier
++                    .fillMaxWidth()
++                    .padding(horizontal = 2.dp, vertical = 5.dp),
++                horizontalArrangement = Arrangement.SpaceEvenly,
++                verticalAlignment = Alignment.CenterVertically
++            ) {
++                ToolbarButton(
++                    label = "Media",
++                    icon = Icons.Rounded.ImageIcon,
++                    onClick = onMedia,
++                    modifier = if (compactToolbar) Modifier.weight(1f) else Modifier,
++                    compact = compactToolbar
++                )
++                ToolbarButton(
++                    label = "Voice",
++                    icon = Icons.Rounded.Mic,
++                    onClick = onRecord,
++                    modifier = if (compactToolbar) Modifier.weight(1f) else Modifier,
++                    compact = compactToolbar
++                )
++                ToolbarButton(
++                    label = "Attachment",
++                    icon = Icons.Rounded.AttachFile,
++                    onClick = onAttachment,
++                    modifier = if (compactToolbar) Modifier.weight(1f) else Modifier,
++                    compact = compactToolbar
++                )
++                ToolbarButton(
++                    label = "Sticker",
++                    icon = Icons.Rounded.Star,
++                    onClick = onSticker,
++                    modifier = if (compactToolbar) Modifier.weight(1f) else Modifier,
++                    compact = compactToolbar
++                )
++                ToolbarButton(
++                    label = "Format",
++                    icon = Icons.Rounded.FormatSize,
++                    onClick = onFormat,
++                    modifier = if (compactToolbar) Modifier.weight(1f) else Modifier,
++                    compact = compactToolbar
++                )
++            }
+         }
+     }
+ }
+@@ -1943,30 +1961,37 @@
+     icon:
+         androidx.compose.ui.graphics
+             .vector.ImageVector,
+-    onClick: () -> Unit
++    onClick: () -> Unit,
++    modifier: Modifier = Modifier,
++    compact: Boolean = false
+ ) {
+     TextButton(
++        modifier = modifier,
+         onClick = onClick,
+         contentPadding =
+             PaddingValues(
+-                horizontal = 8.dp,
++                horizontal = if (compact) 1.dp else 8.dp,
+                 vertical = 6.dp
+             )
+     ) {
+-        Icon(
+-            imageVector = icon,
+-            contentDescription = null,
+-            modifier =
+-                Modifier.size(20.dp)
+-        )
++        if (!compact) {
++            Icon(
++                imageVector = icon,
++                contentDescription = null,
++                modifier =
++                    Modifier.size(20.dp)
++            )
+ 
+-        Spacer(
+-            Modifier.width(5.dp)
+-        )
++            Spacer(
++                Modifier.width(5.dp)
++            )
++        }
+ 
+         Text(
+             text = label,
+-            fontSize = 12.sp
++            fontSize = if (compact) 10.sp else 12.sp,
++            maxLines = 1,
++            softWrap = false
+         )
+     }
+ }
