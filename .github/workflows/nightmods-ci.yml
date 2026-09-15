@@ -85,18 +85,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Checkout libxposed API 100
-        uses: actions/checkout@v4
-        with:
-          repository: libxposed/api
-          ref: '100'
-          path: libxposed/api
-      - name: Checkout libxposed service 100
-        uses: actions/checkout@v4
-        with:
-          repository: libxposed/service
-          ref: '100'
-          path: libxposed/service
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
@@ -118,9 +106,7 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
       - name: Publish exact libxposed API/service 100 locally
         shell: bash
-        run: |
-          (cd libxposed/api && ./gradlew --no-daemon :api:publishApiPublicationToMavenLocal)
-          (cd libxposed/service && ./gradlew --no-daemon publishToMavenLocal)
+        run: bash nightmods/ci/prepare-libxposed-100.sh
       - name: Verify modern Night Core source contract
         shell: bash
         run: |
@@ -263,8 +249,6 @@ jobs:
             adb shell run-as dev.nightmods.core cat shared_prefs/night_core.xml | tee smoke/night-core-local-mirror.xml
             grep -q 'name="bubble_enabled" value="false"' smoke/night-core-local-mirror.xml
 
-            # Plain AOSP emulator has no LSPosed runtime, so it cannot execute the modern hook-side
-            # remote preference API. What it can prove is that target UIDs no longer read Night Core IPC.
             adb shell am force-stop com.whatsapp || true
             adb shell am start -W -n com.whatsapp/.MainActivity | tee smoke/target-start.txt
             sleep 1
