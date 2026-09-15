@@ -99,3 +99,20 @@ data class ReaderSession(
     val pages: List<ReaderPage>,
     val initialPage: Int = 0,
 )
+
+/** One concrete stream resolved by a watch source extension. */
+data class PlaybackStream(
+    val label: String,
+    val url: String,
+    val headers: Map<String, String> = emptyMap(),
+    val mimeType: String? = null,
+)
+
+/** Immutable hand-off from a source extension into Sora Core's video player. */
+data class PlaybackSession(
+    val title: String,
+    val episodeTitle: String,
+    val sourceName: String,
+    val streams: List<PlaybackStream>,
+    val initialStream: Int = 0,
+)
