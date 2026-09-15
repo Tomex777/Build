@@ -1,1 +1,1 @@
-verify Core-only built-in Jikan Anime and Manga catalog
+assert Core-only Jikan Anime and Manga cache population
