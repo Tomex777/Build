@@ -1,1 +1,1 @@
-assert Core-only Jikan Anime and Manga cache population
+verify sticky Home header, dead-space fix and built-in Jikan
