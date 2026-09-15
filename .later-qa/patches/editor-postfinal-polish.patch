@@ -1,0 +1,227 @@
+--- a/app/src/main/java/com/night/later/ui/editor/LaterEntryDecorations.kt
++++ b/app/src/main/java/com/night/later/ui/editor/LaterEntryDecorations.kt
+@@ -82,70 +82,110 @@
+             .atZone(ZoneId.systemDefault())
+     }
+ 
+-    Row(
++    BoxWithConstraints(
+         modifier = Modifier
+             .fillMaxWidth()
+-            .padding(start = 24.dp, end = 18.dp, top = 6.dp, bottom = 12.dp),
+-        verticalAlignment = Alignment.Top
++            .padding(start = 24.dp, end = 18.dp, top = 6.dp, bottom = 12.dp)
+     ) {
+-        Column(modifier = Modifier.weight(1f)) {
++        val compact = maxWidth < 340.dp
++        val titleWidth = if (compact) 160.dp else 148.dp
++        val titleFontSize = if (compact) 19.sp else 21.sp
++        val moodSize = if (compact) 84.dp else 96.dp
++        val headerHeight = if (compact) 124.dp else 132.dp
++
++        Box(
++            modifier = Modifier
++                .fillMaxWidth()
++                .height(headerHeight)
++        ) {
+             Row(
+-                verticalAlignment = Alignment.Bottom,
+-                horizontalArrangement = Arrangement.spacedBy(9.dp)
++                modifier = Modifier.fillMaxWidth(),
++                verticalAlignment = Alignment.Top
+             ) {
+-                Text(
+-                    text = moment.format(DateTimeFormatter.ofPattern("dd")),
+-                    color = paper.text,
+-                    fontFamily = FontFamily.Serif,
+-                    fontWeight = FontWeight.SemiBold,
+-                    fontSize = 42.sp,
+-                    lineHeight = 42.sp
+-                )
+-                Text(
+-                    text = moment.format(DateTimeFormatter.ofPattern("MMM yyyy · h:mm a")),
+-                    color = paper.muted,
+-                    fontSize = 12.sp,
+-                    fontWeight = FontWeight.Medium,
+-                    modifier = Modifier.padding(bottom = 5.dp)
+-                )
+-            }
++                Row(
++                    modifier = Modifier.weight(1f),
++                    verticalAlignment = Alignment.Top,
++                    horizontalArrangement = Arrangement.spacedBy(9.dp)
++                ) {
++                    Text(
++                        text = moment.format(DateTimeFormatter.ofPattern("dd")),
++                        color = paper.text,
++                        fontFamily = FontFamily.Serif,
++                        fontWeight = FontWeight.SemiBold,
++                        fontSize = 42.sp,
++                        lineHeight = 42.sp
++                    )
++                    Column(
++                        modifier = Modifier.padding(top = 4.dp),
++                        verticalArrangement = Arrangement.spacedBy(1.dp)
++                    ) {
++                        Text(
++                            text = moment.format(DateTimeFormatter.ofPattern("MMM yyyy")),
++                            color = paper.muted,
++                            fontSize = 12.sp,
++                            fontWeight = FontWeight.Medium,
++                            maxLines = 1
++                        )
++                        Text(
++                            text = moment.format(DateTimeFormatter.ofPattern("h:mm a")),
++                            color = paper.muted,
++                            fontSize = 12.sp,
++                            fontWeight = FontWeight.Medium,
++                            maxLines = 1
++                        )
++                    }
++                }
+ 
+-            if (title.isNotBlank()) {
+-                Spacer(Modifier.height(12.dp))
+-                Text(
+-                    text = title,
+-                    color = paper.text,
+-                    fontFamily = FontFamily.Serif,
+-                    fontWeight = FontWeight.SemiBold,
+-                    fontSize = 23.sp,
+-                    lineHeight = 29.sp,
+-                    modifier = Modifier.fillMaxWidth()
+-                )
+-                Spacer(Modifier.height(8.dp))
+-                Box(
+-                    Modifier
+-                        .fillMaxWidth()
+-                        .height(1.dp)
+-                        .background(paper.text.copy(alpha = 0.13f))
+-                )
+-            }
+-        }
++                Spacer(Modifier.width(10.dp))
+ 
+-        Spacer(Modifier.width(8.dp))
++                Column(
++                    modifier = Modifier.width(titleWidth),
++                    horizontalAlignment = Alignment.End
++                ) {
++                    if (title.isNotBlank()) {
++                        Text(
++                            text = title,
++                            color = paper.text,
++                            fontFamily = FontFamily.Serif,
++                            fontWeight = FontWeight.SemiBold,
++                            fontSize = titleFontSize,
++                            lineHeight = 25.sp,
++                            textAlign = TextAlign.End,
++                            maxLines = 1,
++                            modifier = Modifier
++                                .fillMaxWidth()
++                                .then(
++                                    if (compact) Modifier.padding(end = 2.dp)
++                                    else Modifier
++                                )
++                        )
++                    }
++                    Spacer(Modifier.height(7.dp))
++                    Box(
++                        Modifier
++                            .fillMaxWidth()
++                            .height(1.dp)
++                            .background(paper.text.copy(alpha = 0.13f))
++                    )
++                }
++            }
+ 
+-        moodId?.let { selectedMood ->
+             Box(
+-                modifier = Modifier.size(116.dp),
++                modifier = Modifier
++                    .align(Alignment.BottomEnd)
++                    .size(moodSize),
+                 contentAlignment = Alignment.Center
+             ) {
+-                LaterMoodArt(
+-                    moodId = selectedMood,
+-                    accent = paper.accent,
+-                    foreground = paper.text,
+-                    modifier = Modifier.size(104.dp)
+-                )
++                moodId?.let { selectedMood ->
++                    LaterMoodArt(
++                        moodId = selectedMood,
++                        accent = paper.accent,
++                        foreground = paper.text,
++                        modifier = Modifier.size(moodSize - 8.dp)
++                    )
++                }
+             }
+-        } ?: Spacer(Modifier.size(116.dp))
++        }
+     }
+ }
+ 
+--- a/app/src/main/java/com/night/later/ui/editor/LaterRichText.kt
++++ b/app/src/main/java/com/night/later/ui/editor/LaterRichText.kt
+@@ -5,6 +5,7 @@
+ import androidx.compose.foundation.border
+ import androidx.compose.foundation.clickable
+ import androidx.compose.foundation.horizontalScroll
++import androidx.compose.foundation.verticalScroll
+ import androidx.compose.foundation.layout.Arrangement
+ import androidx.compose.foundation.layout.Box
+ import androidx.compose.foundation.layout.Column
+@@ -584,25 +585,32 @@
+                 return@Column
+             }
+ 
+-            when (tab) {
+-                0 -> HomeFormatPanel(
+-                    state = state!!,
+-                    selectionSnapshot = workingSelection,
+-                    onSelectionSnapshotChanged = { workingSelection = it },
+-                    isQuote = isQuote,
+-                    paper = laterPaperStyle(paperId),
+-                    onDocumentMutated = onDocumentMutated,
+-                    onToggleQuote = onToggleQuote
+-                )
+-                1 -> ParagraphFormatPanel(
+-                    state = state!!,
+-                    selectionSnapshot = workingSelection,
+-                    onSelectionSnapshotChanged = { workingSelection = it },
+-                    isQuote = isQuote,
+-                    onDocumentMutated = onDocumentMutated,
+-                    onToggleQuote = onToggleQuote
+-                )
+-                else -> PaperFormatPanel(paperId, onPaperChanged)
++            Column(
++                modifier = Modifier
++                    .fillMaxWidth()
++                    .weight(1f, fill = false)
++                    .verticalScroll(rememberScrollState())
++            ) {
++                when (tab) {
++                    0 -> HomeFormatPanel(
++                        state = state!!,
++                        selectionSnapshot = workingSelection,
++                        onSelectionSnapshotChanged = { workingSelection = it },
++                        isQuote = isQuote,
++                        paper = laterPaperStyle(paperId),
++                        onDocumentMutated = onDocumentMutated,
++                        onToggleQuote = onToggleQuote
++                    )
++                    1 -> ParagraphFormatPanel(
++                        state = state!!,
++                        selectionSnapshot = workingSelection,
++                        onSelectionSnapshotChanged = { workingSelection = it },
++                        isQuote = isQuote,
++                        onDocumentMutated = onDocumentMutated,
++                        onToggleQuote = onToggleQuote
++                    )
++                    else -> PaperFormatPanel(paperId, onPaperChanged)
++                }
+             }
+         }
+     }
