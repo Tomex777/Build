@@ -1,0 +1,3 @@
+a8980be917f402e9edbb5354e15019b91af78361633cd6c6b250a00c50f623f2  slumber-0.8.14-learning-polish.patch
+9263f56c5096b7ee3bbdcc8e8d04dc9a2b2f0c6b8389d6ae047b485b9e152cff  slumber-0.8.14-learning-polish.patch.gz
+eb8c9fe463adfd0918aa4935b9bd674bb684a4444abbdc31422642b55f053b9f  learning_polish.patch.gz.b64
