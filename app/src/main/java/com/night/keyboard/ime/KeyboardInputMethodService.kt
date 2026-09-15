@@ -4,10 +4,10 @@ import android.content.ClipboardManager
 import android.inputmethodservice.InputMethodService
 import android.text.InputType
 import android.view.View
-import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.*
 import androidx.savedstate.*
 import com.night.keyboard.data.clipboard.ClipboardRepository
@@ -70,7 +70,9 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
             // Keep the bottom keyboard row above that reserved touch region instead
             // of letting the spacebar sit beneath the home gesture pill.
             setOnApplyWindowInsetsListener { view, insets ->
-                val navigation = insets.getInsets(WindowInsets.Type.navigationBars())
+                val navigation = WindowInsetsCompat
+                    .toWindowInsetsCompat(insets, view)
+                    .getInsets(WindowInsetsCompat.Type.navigationBars())
                 view.setPadding(0, 0, 0, navigation.bottom)
                 insets
             }
