@@ -1,1 +1,1 @@
-validate cached multi-provider media shell and no blocking source loader
+validate core-only media shell then hot provider arrival
