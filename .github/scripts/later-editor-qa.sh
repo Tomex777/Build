@@ -29,12 +29,12 @@ elif mode == 'label-exact':
     found = next((n for n in nodes if n.attrib.get('text') == needle or n.attrib.get('content-desc') == needle), None)
 elif mode == 'right-clickable-of-text':
     a = next((n for n in nodes if n.attrib.get('text') == needle), None)
-    if a and bounds(a):
+    if a is not None and bounds(a) is not None:
         _, ay1, ax2, ay2 = bounds(a)
         candidates = []
         for n in nodes:
             b = bounds(n)
-            if n.attrib.get('clickable') == 'true' and b:
+            if n.attrib.get('clickable') == 'true' and b is not None:
                 x1, y1, x2, y2 = b
                 if x1 >= ax2 and not (y2 < ay1 - 140 or y1 > ay2 + 140):
                     candidates.append(((x2-x1)*(y2-y1), x1, n))
@@ -42,17 +42,17 @@ elif mode == 'right-clickable-of-text':
             found = sorted(candidates, key=lambda t: (t[0], t[1]))[0][2]
 elif mode == 'first-clickable-below-text':
     a = next((n for n in nodes if n.attrib.get('text') == needle), None)
-    if a and bounds(a):
+    if a is not None and bounds(a) is not None:
         ay2 = bounds(a)[3]
         candidates = []
         for n in nodes:
             b = bounds(n)
-            if n.attrib.get('clickable') == 'true' and b and b[1] >= ay2:
+            if n.attrib.get('clickable') == 'true' and b is not None and b[1] >= ay2:
                 candidates.append((b[1], b[0], (b[2]-b[0])*(b[3]-b[1]), n))
         if candidates:
             found = sorted(candidates, key=lambda t: (t[0], t[1], t[2]))[0][3]
 
-if not found or not bounds(found):
+if found is None or bounds(found) is None:
     print(open(xml_path, encoding='utf-8').read())
     raise SystemExit(f'node not found: {mode} {needle}')
 
