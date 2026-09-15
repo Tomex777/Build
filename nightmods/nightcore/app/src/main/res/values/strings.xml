@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Night Core</string>
+    <string name="app_description">Night Mods cross-app UI engine</string>
+    <string name="bubble_styler">Bubble Styler</string>
+    <string name="targets">Targets</string>
+    <string name="whatsapp">WhatsApp</string>
+    <string name="instagram">Instagram</string>
+    <string name="enabled">Enabled</string>
+    <string name="corner_radius">Corner radius</string>
+    <string name="message_spacing">Message spacing</string>
+    <string name="status_ready">Architecture ready. App-specific bubble hooks require version analysis.</string>
+</resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="night_bg">#0B0C0A</color>
+    <color name="night_surface">#171812</color>
+    <color name="night_text">#F3F0E6</color>
+    <color name="night_muted">#A8A596</color>
+    <color name="night_accent">#D6A94C</color>
+    <color name="night_accent_2">#C95C4B</color>
+</resources>
