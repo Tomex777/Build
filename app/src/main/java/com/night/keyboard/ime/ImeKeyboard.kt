@@ -263,14 +263,16 @@ private fun SuggestionStrip(suggestions: List<String>, onSuggestion: (String) ->
 
 @Composable
 private fun NumberRow(controller: KeyboardController, onTextChanged: () -> Unit, theme: ThemeSnapshot) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(1.dp)) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(theme.horizontalGapDp.dp)) {
         "1234567890".forEach { c ->
+            val id = "number_$c"
+            val widthScale = theme.overrides[id]?.widthScale ?: 1f
             ImeKey(
-                key = KeySpec("number_$c", c.toString(), output = c.toString()),
+                key = KeySpec(id, c.toString(), output = c.toString()),
                 displayLabel = c.toString(),
                 theme = theme,
                 secondaryVisible = false,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(widthScale.coerceIn(.4f, 2.5f)),
                 onClick = { controller.commit(c.toString()); onTextChanged() },
             )
         }
@@ -292,8 +294,8 @@ private fun KeyboardRows(
 ) {
     rows.forEach { row ->
         Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(1.dp),
+            Modifier.fillMaxWidth().padding(bottom = theme.verticalGapDp.dp),
+            horizontalArrangement = Arrangement.spacedBy(theme.horizontalGapDp.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             row.forEach { key ->
@@ -304,12 +306,14 @@ private fun KeyboardRows(
                     rawOutput?.singleOrNull()?.isLetter() == true &&
                     shift != ShiftState.OFF
                 ) key.label.uppercase() else key.label
+                val widthScale = theme.overrides[key.id]?.widthScale ?: 1f
+                val effectiveWeight = (key.weight * widthScale).coerceAtLeast(.2f)
 
                 if (key.special == SpecialKey.SPACE) {
                     SpacebarKey(
                         key,
                         theme,
-                        Modifier.weight(key.weight),
+                        Modifier.weight(effectiveWeight),
                         onSpace = { controller.commit(" "); onTextChanged() },
                         onCursor = { controller.moveCursor(it) },
                     )
@@ -319,7 +323,7 @@ private fun KeyboardRows(
                         displayLabel = display,
                         theme = theme,
                         secondaryVisible = secondaryVisible,
-                        modifier = Modifier.weight(key.weight),
+                        modifier = Modifier.weight(effectiveWeight),
                         onClick = {
                             when (key.special) {
                                 SpecialKey.SHIFT -> onShift(if (shift == ShiftState.OFF) ShiftState.ONCE else ShiftState.OFF)
@@ -389,7 +393,7 @@ private fun ImeKey(
 
     Box(
         modifier
-            .height(50.dp)
+            .height((style.heightDp ?: theme.keyHeightDp).coerceIn(34f, 80f).dp)
             .padding(horizontal = 1.dp)
             .background(fill, RoundedCornerShape(radius))
             .then(
@@ -470,7 +474,7 @@ private fun SpacebarKey(
 
     Box(
         modifier
-            .height(50.dp)
+            .height((style.heightDp ?: theme.keyHeightDp).coerceIn(34f, 80f).dp)
             .padding(horizontal = 1.dp)
             .background(fill, RoundedCornerShape(radius))
             .pointerInput(Unit) {
