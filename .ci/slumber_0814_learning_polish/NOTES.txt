@@ -1,0 +1,18 @@
+Slumber 0.8.14 — learning path + full-song polish
+
+Base: successful Slumber 0.8.13 integration artifact from GitHub Actions run 34994294908.
+Branch: pianohub-ci only. main untouched.
+
+Changes:
+- Learn now presents four real playable Foundations: keyboard geography, steps/rhythm, true major triads, and two-hand coordination.
+- Fundamentals use the same chord-aware ExerciseScore engine as songs; triads and two-hand work contain simultaneous score moments.
+- Built-in official songs are converted from flat phrase-only data to timed chart data with section boundaries, so Learn follows the full song score and the three-row Roll progresses continuously through it.
+- Key label modes are production-correct: Off really hides all labels; C-only labels only C notes; Note + octave shows factual labels such as C♯4; Note names preserves accidentals.
+- Removes the keyboard’s hard-coded C markers that previously leaked through the Off setting.
+- Adds JVM regression tests for Fundamentals chord behavior, full-song Learn score continuity, and label modes.
+- Production fake-state grep remains part of CI.
+
+Version: 0.8.14 (versionCode 26), minSdk 26, targetSdk 36, compileSdk 37.
+
+Pure Kotlin pre-check: PASS — 4 Fundamentals, real triad/two-hand moments, 6 timed official songs, correct label modes.
+Patch SHA-256: a8980be917f402e9edbb5354e15019b91af78361633cd6c6b250a00c50f623f2
