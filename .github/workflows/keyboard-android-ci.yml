@@ -126,10 +126,14 @@ jobs:
             adb pull /sdcard/after-q.xml after-q.xml
             grep -q 'text="qCursor test: move the caret through this sentence"' after-q.xml
 
-            # Long-press/drag the real spacebar left. The caret starts after q; after
-            # the gesture it must be at index zero. Typing w then proves trackpad
-            # movement went through the host app's real InputConnection.
-            adb shell input swipe 545 2320 405 2320 900
+            # A normal `input swipe` starts moving immediately and never reproduces
+            # Compose's long-press gate. Generate one continuous pointer sequence:
+            # DOWN, hold beyond long-press timeout, MOVE left, then UP.
+            adb shell input motionevent DOWN 545 2320
+            sleep 0.7
+            adb shell input motionevent MOVE 405 2320
+            sleep 0.2
+            adb shell input motionevent UP 405 2320
             sleep 1
             adb shell input tap 161 1935
             sleep 1
