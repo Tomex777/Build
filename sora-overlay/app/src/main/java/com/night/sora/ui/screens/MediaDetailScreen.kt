@@ -39,6 +39,8 @@ import com.night.sora.extension.api.ExtensionSessionContract
 import com.night.sora.extension.api.SourceDescriptor
 import com.night.sora.model.ContentType
 import com.night.sora.model.ExtensionMediaSelection
+import com.night.sora.model.ReaderPage
+import com.night.sora.model.ReaderSession
 import com.night.sora.ui.theme.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -59,6 +61,7 @@ fun MediaDetailScreen(
     manager: ExtensionManager,
     isSaved: (ExtensionMediaSelection) -> Boolean,
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
+    onOpenReader: (ReaderSession) -> Unit,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -79,6 +82,7 @@ fun MediaDetailScreen(
     var browserSession by remember { mutableStateOf<SourceBrowserSession?>(null) }
     var browserBusy by remember { mutableStateOf(false) }
     var browserError by remember { mutableStateOf<String?>(null) }
+    var readerError by remember { mutableStateOf<String?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
     var refreshEpoch by remember { mutableIntStateOf(0) }
     var descending by remember(active.id, active.type) { mutableStateOf(active.type == ContentType.MANGA) }
@@ -147,6 +151,7 @@ fun MediaDetailScreen(
         sourceSearchBusy = true
         sourceSearchError = null
         browserError = null
+        readerError = null
         searchSourceSelection(active, ext, source, manager) { found ->
             sourceSearchBusy = false
             if (found == null) {
@@ -181,12 +186,39 @@ fun MediaDetailScreen(
     fun openChild(row: DetailRow) {
         val target = consumption ?: active.takeIf { selectionCanConsume(it, extensions) } ?: return
         val ext = extensions.firstOrNull { it.packageName == target.extensionPackage } ?: return
+        readerError = null
+
+        if (active.type == ContentType.MANGA) {
+            rowsLoading = true
+            manager.call(
+                ext,
+                ExtensionContract.Method.PAGES,
+                JSONObject().put("sourceId", target.sourceId).put("id", row.id).toString(),
+            ) { result ->
+                rowsLoading = false
+                val pages = result.getOrNull()?.let(::parseReaderPages).orEmpty()
+                if (pages.isNotEmpty()) {
+                    onOpenReader(
+                        ReaderSession(
+                            title = active.title,
+                            chapterTitle = row.title,
+                            sourceName = consumptionSource?.name ?: ext.declaredName,
+                            pages = pages,
+                        )
+                    )
+                } else {
+                    readerError = result.exceptionOrNull()?.message
+                        ?: "${ext.declaredName} returned no readable pages for ${row.title}."
+                }
+            }
+            return
+        }
+
         val method = when (active.type) {
             ContentType.ANIME, ContentType.TV -> ExtensionContract.Method.STREAMS
-            ContentType.MANGA -> ExtensionContract.Method.PAGES
             else -> return
         }
-        secondaryTitle = if (active.type == ContentType.MANGA) row.title else "${row.title} · Sources"
+        secondaryTitle = "${row.title} · Sources"
         secondaryRows = listOf(DetailRow("loading", "Loading…", ""))
         manager.call(
             ext,
@@ -206,6 +238,7 @@ fun MediaDetailScreen(
         secondaryRows = emptyList()
         secondaryTitle = ""
         browserError = null
+        readerError = null
 
         activeDisplayExtension?.let { ext ->
             manager.call(
@@ -278,6 +311,11 @@ fun MediaDetailScreen(
 
             browserError?.let { message ->
                 item(key = "browserError") {
+                    Text(message, color = SoraDanger, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                }
+            }
+            readerError?.let { message ->
+                item(key = "readerError") {
                     Text(message, color = SoraDanger, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
                 }
             }
@@ -825,6 +863,34 @@ private fun parseRows(type: ContentType, raw: String): List<DetailRow> = runCatc
                     add(DetailRow(id, title, subtitle))
                 }
             }
+        }
+    }
+}.getOrDefault(emptyList())
+
+private fun parseReaderPages(raw: String): List<ReaderPage> = runCatching {
+    val array = JSONArray(raw)
+    buildList {
+        for (i in 0 until array.length()) {
+            val value = array.opt(i)
+            val page = when (value) {
+                is JSONObject -> {
+                    val url = value.optString("url").trim()
+                    if (!url.startsWith("http://") && !url.startsWith("https://")) continue
+                    val headers = buildMap {
+                        value.optJSONObject("headers")?.let { obj ->
+                            obj.keys().forEach { key ->
+                                obj.optString(key).takeIf(String::isNotBlank)?.let { put(key, it) }
+                            }
+                        }
+                        value.optString("referer").takeIf(String::isNotBlank)?.let { putIfAbsent("Referer", it) }
+                        value.optString("userAgent").takeIf(String::isNotBlank)?.let { putIfAbsent("User-Agent", it) }
+                    }
+                    ReaderPage(url = url, headers = headers)
+                }
+                is String -> value.trim().takeIf { it.startsWith("http://") || it.startsWith("https://") }?.let { ReaderPage(it) }
+                else -> null
+            }
+            if (page != null) add(page)
         }
     }
 }.getOrDefault(emptyList())
