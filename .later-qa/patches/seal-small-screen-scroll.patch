@@ -1,0 +1,19 @@
+--- a/app/src/main/java/com/night/later/ui/editor/SealBottomSheet.kt
++++ b/app/src/main/java/com/night/later/ui/editor/SealBottomSheet.kt
+@@ -1,6 +1,8 @@
+ package com.night.later.ui.editor
+ 
+ import androidx.compose.foundation.clickable
++import androidx.compose.foundation.rememberScrollState
++import androidx.compose.foundation.verticalScroll
+ import androidx.compose.foundation.layout.Arrangement
+ import androidx.compose.foundation.layout.Box
+ import androidx.compose.foundation.layout.Column
+@@ -177,6 +179,7 @@
+         Column(
+             modifier = Modifier
+                 .fillMaxWidth()
++                .verticalScroll(rememberScrollState())
+                 .padding(
+                     start = 24.dp,
+                     end = 24.dp,
