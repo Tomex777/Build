@@ -8,11 +8,22 @@ import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
 
-/** Narrow IPC bridge between Night Mods / scoped target apps and Night Core settings. */
+import dev.nightmods.core.hook.adapters.InstagramAdapter;
+import dev.nightmods.core.hook.adapters.TargetAdapter;
+import dev.nightmods.core.hook.adapters.TargetAppInfo;
+import dev.nightmods.core.hook.adapters.WhatsAppAdapter;
+
+/** Narrow IPC bridge between Night Mods and Night Core settings/status. */
 public final class NightCoreSettingsProvider extends ContentProvider {
     public static final String AUTHORITY = "dev.nightmods.core.settings";
     public static final String METHOD_GET_BUBBLE_STYLE = "get_bubble_style";
     public static final String METHOD_SET_BUBBLE_STYLE = "set_bubble_style";
+    public static final String METHOD_GET_TARGET_STATUS = "get_target_status";
+
+    public static final String KEY_STATUS_INSTALLED = "installed";
+    public static final String KEY_STATUS_VERSION_NAME = "version_name";
+    public static final String KEY_STATUS_VERSION_CODE = "version_code";
+    public static final String KEY_STATUS_COMPATIBILITY = "compatibility";
 
     private static final String NIGHT_MODS_PACKAGE = "org.lsposed.manager";
     private static final String WHATSAPP_PACKAGE = "com.whatsapp";
@@ -51,7 +62,42 @@ public final class NightCoreSettingsProvider extends ContentProvider {
             return Bundle.EMPTY;
         }
 
+        if (METHOD_GET_TARGET_STATUS.equals(method)) {
+            enforceManagerCaller();
+            if (arg == null) throw new IllegalArgumentException("Missing target package");
+            return targetStatus(arg);
+        }
+
         throw new IllegalArgumentException("Unknown Night Core settings method: " + method);
+    }
+
+    private Bundle targetStatus(String packageName) {
+        var context = getContext();
+        if (context == null) throw new IllegalStateException("Night Core unavailable");
+
+        TargetAdapter adapter;
+        if (WHATSAPP_PACKAGE.equals(packageName)) {
+            adapter = new WhatsAppAdapter();
+        } else if (INSTAGRAM_PACKAGE.equals(packageName)) {
+            adapter = new InstagramAdapter();
+        } else {
+            throw new IllegalArgumentException("Unsupported Night Core target: " + packageName);
+        }
+
+        Bundle result = new Bundle();
+        try {
+            TargetAppInfo info = TargetAppInfo.resolve(context, packageName);
+            result.putBoolean(KEY_STATUS_INSTALLED, true);
+            result.putString(KEY_STATUS_VERSION_NAME, info.versionName);
+            result.putLong(KEY_STATUS_VERSION_CODE, info.versionCode);
+            result.putString(KEY_STATUS_COMPATIBILITY, adapter.compatibility(info).name());
+        } catch (PackageManager.NameNotFoundException ignored) {
+            result.putBoolean(KEY_STATUS_INSTALLED, false);
+            result.putString(KEY_STATUS_VERSION_NAME, "");
+            result.putLong(KEY_STATUS_VERSION_CODE, -1L);
+            result.putString(KEY_STATUS_COMPATIBILITY, "NOT_INSTALLED");
+        }
+        return result;
     }
 
     private void enforceReadCaller() {
@@ -60,6 +106,11 @@ public final class NightCoreSettingsProvider extends ContentProvider {
                 || callerHasPackage(WHATSAPP_PACKAGE)
                 || callerHasPackage(INSTAGRAM_PACKAGE)) return;
         throw new SecurityException("Caller is not allowed to read Night Core settings");
+    }
+
+    private void enforceManagerCaller() {
+        if (isOwnUid() || callerHasPackage(NIGHT_MODS_PACKAGE)) return;
+        throw new SecurityException("Caller is not allowed to read Night Core manager metadata");
     }
 
     private void enforceWriteCaller() {
