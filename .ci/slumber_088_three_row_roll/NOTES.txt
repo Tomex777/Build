@@ -1,0 +1,15 @@
+Slumber 0.8.8 three-row piano Roll checkpoint
+
+Base: green Slumber 0.8.7 integration build, Actions run 34941684693.
+Branch: pianohub-ci. main untouched.
+
+Changes:
+- Replaces the one-row flat Roll with a three-row previous/current/upcoming viewport.
+- Rows are built from chord-aware ExerciseScore moments rather than flattened notes.
+- Horizontal placement follows score beat time.
+- Bar width follows note duration.
+- Simultaneous chord tones share one horizontal moment and stack vertically.
+- Current row has strongest emphasis; previous and upcoming rows remain visible at lower emphasis.
+- Forward row changes slide the whole viewport upward; backward movement reverses direction.
+- Listen/demo playback tracks score-moment position for timed imported charts.
+- Bumps version to 0.8.8 (versionCode 20).
