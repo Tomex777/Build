@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - nightmods-ci
+      - nightmods-core-integration
   workflow_dispatch:
 
 jobs:
@@ -11,13 +12,12 @@ jobs:
     name: Build Night Mods manager
     runs-on: ubuntu-latest
     timeout-minutes: 60
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -36,7 +36,6 @@ jobs:
           "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
-          "$SDKMANAGER" --list_installed | grep -E 'platforms;android-36|build-tools;36.0.0|platform-tools'
 
       - name: Clone LSPosed ET
         shell: bash
@@ -55,7 +54,9 @@ jobs:
           python3 nightmods/manager-overlay/apply_nightmods.py lsposed-et
           grep -n 'startDestination="@id/modules_nav"' lsposed-et/app/src/main/res/navigation/main_nav.xml
           grep -n 'Night Mods' lsposed-et/app/src/main/res/values/strings_untranslatable.xml
-          test -f lsposed-et/app/src/main/java/org/lsposed/manager/nightmods/NightModsBackend.java
+          grep -n 'night_core_fragment' lsposed-et/app/src/main/res/navigation/modules_nav.xml
+          test -f lsposed-et/app/src/main/java/org/lsposed/manager/nightmods/NightCoreBridge.java
+          test -f lsposed-et/app/src/main/java/org/lsposed/manager/nightmods/ui/BubbleStylerFragment.java
 
       - name: Build Night Mods manager APK
         working-directory: lsposed-et
@@ -93,7 +94,6 @@ jobs:
     name: Build Night Core module
     runs-on: ubuntu-latest
     timeout-minutes: 35
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -121,29 +121,27 @@ jobs:
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
 
-      - name: Restore corrected Night Core source
+      - name: Verify Night Core source tree
         shell: bash
         run: |
-          base64 --decode nightmods/nightcore-payload/nightcore.tar.xz.b64 > /tmp/nightcore.tar.xz
-          echo "4b35341bd845263bbd8cf616ce2e80c058fe318016b04b2d11724d52c115ef28  /tmp/nightcore.tar.xz" | sha256sum -c -
-          mkdir -p nightcore
-          tar -xJf /tmp/nightcore.tar.xz -C nightcore
-          test -f nightcore/settings.gradle.kts
-          test -f nightcore/app/build.gradle.kts
-          test -f nightcore/app/src/main/assets/xposed_init
+          test -f nightmods/nightcore/settings.gradle.kts
+          test -f nightmods/nightcore/app/build.gradle.kts
+          test -f nightmods/nightcore/app/src/main/assets/xposed_init
+          test -f nightmods/nightcore/app/src/main/java/dev/nightmods/core/config/NightCoreSettingsProvider.java
 
       - name: Build and lint Night Core
-        working-directory: nightcore
+        working-directory: nightmods/nightcore
         run: gradle --no-daemon --stacktrace clean lintDebug assembleDebug
 
       - name: Verify Night Core APK
         shell: bash
         run: |
-          APK="$(find nightcore/app/build/outputs -type f -name '*.apk' -print -quit)"
+          APK="$(find nightmods/nightcore/app/build/outputs -type f -name '*.apk' -print -quit)"
           test -n "$APK"
           AAPT="${ANDROID_SDK_ROOT}/build-tools/36.0.0/aapt"
           "$AAPT" dump badging "$APK" | tee /tmp/nightcore-badging.txt
           grep -q "package: name='dev.nightmods.core'" /tmp/nightcore-badging.txt
+          grep -q "versionName='0.2.0'" /tmp/nightcore-badging.txt
           grep -q "application-label:'Night Core'" /tmp/nightcore-badging.txt
           unzip -p "$APK" assets/xposed_init | tee /tmp/xposed_init.txt
           grep -qx 'dev.nightmods.core.hook.NightCoreHook' /tmp/xposed_init.txt
@@ -151,13 +149,14 @@ jobs:
           grep -q 'xposedmodule' /tmp/nightcore-manifest.txt
           grep -q 'xposedsharedprefs' /tmp/nightcore-manifest.txt
           grep -q 'xposedscope' /tmp/nightcore-manifest.txt
+          grep -q 'dev.nightmods.core.settings' /tmp/nightcore-manifest.txt
           sha256sum "$APK"
 
       - name: Upload Night Core APK
         uses: actions/upload-artifact@v4
         with:
           name: Night-Core-debug-apk
-          path: nightcore/app/build/outputs/**/*.apk
+          path: nightmods/nightcore/app/build/outputs/**/*.apk
           if-no-files-found: error
 
       - name: Upload Night Core reports
@@ -165,7 +164,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Night-Core-build-reports
-          path: nightcore/app/build/reports/**
+          path: nightmods/nightcore/app/build/reports/**
           if-no-files-found: ignore
 
   android16-smoke:
@@ -175,7 +174,6 @@ jobs:
       - nightcore-build
     runs-on: ubuntu-latest
     timeout-minutes: 40
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -196,7 +194,6 @@ jobs:
         shell: bash
         run: |
           mkdir -p smoke
-          find nightmods-apk nightcore-apk -type f -name '*.apk' -print
           test -n "$(find nightmods-apk -type f -name '*.apk' -print -quit)"
           test -n "$(find nightcore-apk -type f -name '*.apk' -print -quit)"
 
@@ -208,7 +205,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm || true
           sudo chmod 666 /dev/kvm || true
 
-      - name: Boot Android 16 and launch both apps
+      - name: Boot Android 16 and verify manager-to-engine bridge
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
@@ -227,30 +224,54 @@ jobs:
 
             adb shell am force-stop org.lsposed.manager || true
             adb shell am start -W -n org.lsposed.manager/.ui.activity.MainActivity | tee smoke/manager-start.txt
-            sleep 7
+            sleep 5
             adb shell pidof org.lsposed.manager | tr -d '\r' | tee smoke/manager-process.txt
             test -s smoke/manager-process.txt
-            adb shell dumpsys activity activities > smoke/manager-activities.txt
-            grep -E 'mResumedActivity|topResumedActivity' smoke/manager-activities.txt | grep -q 'org.lsposed.manager'
             adb shell uiautomator dump /sdcard/nightmods-window.xml || true
             adb pull /sdcard/nightmods-window.xml smoke/nightmods-window.xml || true
+            grep -q 'Night Core' smoke/nightmods-window.xml
+            grep -q 'Modules' smoke/nightmods-window.xml
+            grep -q 'Repository' smoke/nightmods-window.xml
+            grep -q 'Logs' smoke/nightmods-window.xml
+            grep -q 'Settings' smoke/nightmods-window.xml
             adb exec-out screencap -p > smoke/nightmods-android16.png
+
+            adb shell am start -W -a android.intent.action.VIEW -d 'lsposed://night-core/bubble-styler' -n org.lsposed.manager/.ui.activity.MainActivity | tee smoke/bubble-start.txt
+            sleep 4
+            adb shell uiautomator dump /sdcard/nightmods-bubble.xml || true
+            adb pull /sdcard/nightmods-bubble.xml smoke/nightmods-bubble.xml || true
+            grep -q 'Bubble Styler' smoke/nightmods-bubble.xml
+            grep -q 'Night Core connected' smoke/nightmods-bubble.xml
+            grep -q 'WhatsApp' smoke/nightmods-bubble.xml
+            grep -q 'Instagram' smoke/nightmods-bubble.xml
+            adb exec-out screencap -p > smoke/nightmods-bubble-android16.png
+
+            python3 - <<'PY2' > /tmp/night-bubble-tap.txt
+            import re, xml.etree.ElementTree as ET
+            root = ET.parse('smoke/nightmods-bubble.xml').getroot()
+            for node in root.iter('node'):
+                if node.attrib.get('resource-id', '').endswith(':id/night_bubble_enabled'):
+                    x1, y1, x2, y2 = map(int, re.findall(r'\d+', node.attrib['bounds']))
+                    print((x1+x2)//2, (y1+y2)//2)
+                    break
+            PY2
+            read X Y < /tmp/night-bubble-tap.txt
+            adb shell input tap "$X" "$Y"
+            sleep 2
+            adb shell run-as dev.nightmods.core cat shared_prefs/night_core.xml | tee smoke/night-core-prefs.xml
+            grep -q 'name="bubble_enabled" value="false"' smoke/night-core-prefs.xml
 
             adb shell am force-stop dev.nightmods.core || true
             adb shell am start -W -n dev.nightmods.core/.MainActivity | tee smoke/nightcore-start.txt
-            sleep 5
+            sleep 3
             adb shell pidof dev.nightmods.core | tr -d '\r' | tee smoke/nightcore-process.txt
             test -s smoke/nightcore-process.txt
-            adb shell dumpsys activity activities > smoke/nightcore-activities.txt
-            grep -E 'mResumedActivity|topResumedActivity' smoke/nightcore-activities.txt | grep -q 'dev.nightmods.core'
-            adb shell uiautomator dump /sdcard/nightcore-window.xml || true
-            adb pull /sdcard/nightcore-window.xml smoke/nightcore-window.xml || true
             adb exec-out screencap -p > smoke/nightcore-android16.png
 
             adb logcat -d > smoke/logcat.txt
             adb logcat -b crash -d > smoke/crash.txt || true
             test -z "$(grep -E 'org\.lsposed\.manager|dev\.nightmods\.core' smoke/crash.txt || true)"
-            echo 'Android 16 manager + module smoke test passed.'
+            echo 'Android 16 Night Mods + Night Core bridge smoke test passed.'
 
       - name: Upload smoke evidence
         if: always()

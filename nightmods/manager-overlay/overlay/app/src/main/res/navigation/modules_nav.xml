@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:id="@+id/modules_nav" app:startDestination="@id/modules_fragment">
+    <fragment android:id="@+id/modules_fragment" android:name="org.lsposed.manager.nightmods.ui.NightModulesFragment" android:label="modules">
+        <action android:id="@+id/action_modules_fragment_to_app_list_fragment" app:destination="@id/app_list_fragment" app:enterAnim="@anim/fragment_enter" app:exitAnim="@anim/fragment_exit" app:popEnterAnim="@anim/fragment_enter_pop" app:popExitAnim="@anim/fragment_exit_pop" />
+        <action android:id="@+id/action_modules_fragment_to_night_core" app:destination="@id/night_core_fragment" app:enterAnim="@anim/fragment_enter" app:exitAnim="@anim/fragment_exit" app:popEnterAnim="@anim/fragment_enter_pop" app:popExitAnim="@anim/fragment_exit_pop" />
+    </fragment>
+    <fragment android:id="@+id/night_core_fragment" android:name="org.lsposed.manager.nightmods.ui.NightCoreFragment" android:label="night_core">
+        <deepLink app:uri="lsposed://night-core" />
+        <action android:id="@+id/action_night_core_to_bubble_styler" app:destination="@id/night_bubble_styler_fragment" app:enterAnim="@anim/fragment_enter" app:exitAnim="@anim/fragment_exit" app:popEnterAnim="@anim/fragment_enter_pop" app:popExitAnim="@anim/fragment_exit_pop" />
+        <action android:id="@+id/action_night_core_to_app_list" app:destination="@id/app_list_fragment" app:enterAnim="@anim/fragment_enter" app:exitAnim="@anim/fragment_exit" app:popEnterAnim="@anim/fragment_enter_pop" app:popExitAnim="@anim/fragment_exit_pop" />
+    </fragment>
+    <fragment android:id="@+id/night_bubble_styler_fragment" android:name="org.lsposed.manager.nightmods.ui.BubbleStylerFragment" android:label="bubble_styler">
+        <deepLink app:uri="lsposed://night-core/bubble-styler" />
+    </fragment>
+    <fragment android:id="@+id/app_list_fragment" android:name="org.lsposed.manager.ui.fragment.AppListFragment" android:label="app_list">
+        <argument android:name="modulePackageName" app:argType="string" />
+        <argument android:name="moduleUserId" app:argType="integer" />
+        <deepLink android:id="@+id/repo_item_deeplink" app:uri="lsposed://module?modulePackageName={modulePackageName}&amp;moduleUserId={moduleUserId}" />
+    </fragment>
+    <action android:id="@+id/action_app_list_fragment_to_modules_fragment" app:destination="@id/modules_fragment" app:enterAnim="@anim/fragment_enter" app:exitAnim="@anim/fragment_exit" app:popEnterAnim="@anim/fragment_enter_pop" app:popExitAnim="@anim/fragment_exit_pop" app:popUpTo="@id/main_fragment" app:popUpToInclusive="true" />
+</navigation>
