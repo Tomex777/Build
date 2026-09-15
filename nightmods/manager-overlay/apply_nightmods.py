@@ -150,6 +150,17 @@ def main() -> None:
         '''private void updateModuleSummary() {\n        var moduleCount = moduleUtil.getEnabledModulesCount();\n        var binderAlive = ConfigManager.isBinderAlive();\n        runOnUiThread(() -> {\n            if (binding != null) {\n                if (!binderAlive) {\n                    binding.toolbar.setSubtitle(R.string.night_framework_unavailable);\n                    binding.fab.hide();\n                } else {\n                    binding.toolbar.setSubtitle(moduleCount == -1 ? getString(R.string.loading) : getResources().getQuantityString(R.plurals.modules_enabled_count, moduleCount, moduleCount));\n                    showFab();\n                }\n                binding.toolbarLayout.setSubtitle(binding.toolbar.getSubtitle());\n            }\n        });\n    }''',
         "framework-aware module summary",
     )
+
+    # Safe Args names its generated directions class after the destination class.
+    # Once modules_fragment points at NightModulesFragment, the old fallback source
+    # must stop referencing ModulesFragmentDirections even though it is no longer the
+    # visible destination. Preserve the same action and arguments explicitly.
+    modules_text = replace_once(
+        modules_text,
+        r'''safeNavigate\(ModulesFragmentDirections\.actionModulesFragmentToAppListFragment\(item\.packageName, item\.userId\)\);''',
+        '''Bundle args = new Bundle();\n                    args.putString("modulePackageName", item.packageName);\n                    args.putInt("moduleUserId", item.userId);\n                    try {\n                        getNavController().navigate(R.id.action_modules_fragment_to_app_list_fragment, args);\n                    } catch (IllegalArgumentException ignored) {\n                        // Ignore duplicate/late taps while navigation is already changing.\n                    }''',
+        "fallback ModulesFragment navigation without Safe Args class",
+    )
     modules_fragment.write_text(modules_text, encoding="utf-8")
 
     for src in overlay.rglob("*"):
