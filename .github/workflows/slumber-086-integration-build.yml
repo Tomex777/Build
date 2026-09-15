@@ -64,7 +64,8 @@ jobs:
         run: |
           set -euo pipefail
           P="$GITHUB_WORKSPACE/.ci/slumber_085_production_purge/production_purge.patch.gz.b64"
-          echo 'f5b513c9e82dc4f8df64829fd5367319b7d65d494bfc8d3fdc558ad2719b6d03  '"$P" | sha256sum -c -
+          echo 'Stored transport wrapper hash:'
+          sha256sum "$P"
           base64 -d "$P" > /tmp/production_purge.patch.gz
           echo 'da1974f47072dceb6c31e9e8ccf1b92a64f3cd174f4c25022531e9514297fea8  /tmp/production_purge.patch.gz' | sha256sum -c -
           gzip -dc /tmp/production_purge.patch.gz > /tmp/production_purge.patch
@@ -82,7 +83,10 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/slumber
-          ! grep -R -nE 'coming soon|not available yet|engine boundary|model adapter|MIDI [0-9]+' app/src/main/java/com/night/pianohub || true
+          if grep -R -nE 'coming soon|not available yet|engine boundary|model adapter|MIDI [0-9]+' app/src/main/java/com/night/pianohub; then
+            echo 'Prototype/developer copy remains in production UI' >&2
+            exit 1
+          fi
           grep -R -q 'IncomingChartPreview' app/src/main/java/com/night/pianohub
           grep -R -q 'Add to My XMLs' app/src/main/java/com/night/pianohub
           test "$(grep -c 'minSdk = 26' app/build.gradle.kts)" -eq 1
