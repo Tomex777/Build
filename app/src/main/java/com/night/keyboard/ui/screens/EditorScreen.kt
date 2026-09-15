@@ -31,7 +31,23 @@ fun EditorScreen(viewModel: EditorViewModel = hiltViewModel()) {
     var hue by remember { mutableStateOf(214f) }
     var saturation by remember { mutableStateOf(.85f) }
     var lightness by remember { mutableStateOf(.62f) }
+    var baseHeight by remember { mutableFloatStateOf(theme.keyHeightDp) }
+    var horizontalGap by remember { mutableFloatStateOf(theme.horizontalGapDp) }
+    var verticalGap by remember { mutableFloatStateOf(theme.verticalGapDp) }
+    var selectedWidth by remember { mutableFloatStateOf(1f) }
+    var selectedHeight by remember { mutableFloatStateOf(theme.keyHeightDp) }
     val liveColor = hslToColor(hue, saturation, lightness)
+
+    LaunchedEffect(theme.keyHeightDp, theme.horizontalGapDp, theme.verticalGapDp) {
+        baseHeight = theme.keyHeightDp
+        horizontalGap = theme.horizontalGapDp
+        verticalGap = theme.verticalGapDp
+    }
+    LaunchedEffect(selected, theme.overrides, theme.keyHeightDp) {
+        val first = selected.firstOrNull()
+        selectedWidth = first?.let { theme.overrides[it]?.widthScale } ?: 1f
+        selectedHeight = first?.let { theme.overrides[it]?.heightDp } ?: theme.keyHeightDp
+    }
 
     androidx.compose.foundation.lazy.LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -44,11 +60,12 @@ fun EditorScreen(viewModel: EditorViewModel = hiltViewModel()) {
         }
         item {
             Card(colors = CardDefaults.cardColors(containerColor = Color(theme.backgroundArgb.toInt())), shape = RoundedCornerShape(22.dp)) {
-                Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(theme.verticalGapDp.dp)) {
                     KeyboardLayoutFactory.letterRows.forEach { row ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(theme.horizontalGapDp.dp)) {
                             row.forEach { key ->
-                                EditorKey(key, theme, key.id in selected, Modifier.weight(key.weight)) {
+                                val widthScale = theme.overrides[key.id]?.widthScale ?: 1f
+                                EditorKey(key, theme, key.id in selected, Modifier.weight((key.weight * widthScale).coerceAtLeast(.2f))) {
                                     selected = if (key.id in selected) selected - key.id else selected + key.id
                                 }
                             }
@@ -78,6 +95,71 @@ fun EditorScreen(viewModel: EditorViewModel = hiltViewModel()) {
                 AssistChip(onClick = { selected = "qwertyuiop".map(Char::toString).toSet() }, label = { Text("Top row") })
                 AssistChip(onClick = { selected = setOf("space") }, label = { Text("Spacebar") })
             }
+        }
+        item {
+            Text("Layout & density", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "Keyboard-only sizing. This does not change Android display DPI.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text("Base key height ${baseHeight.toInt()} dp", style = MaterialTheme.typography.labelMedium)
+            Slider(
+                value = baseHeight,
+                onValueChange = { value ->
+                    baseHeight = value
+                    viewModel.updateBase { it.copy(keyHeightDp = value) }
+                },
+                valueRange = 40f..68f,
+            )
+            Text("Horizontal gap ${"%.1f".format(horizontalGap)} dp", style = MaterialTheme.typography.labelMedium)
+            Slider(
+                value = horizontalGap,
+                onValueChange = { value ->
+                    horizontalGap = value
+                    viewModel.updateBase { it.copy(horizontalGapDp = value) }
+                },
+                valueRange = 0f..5f,
+            )
+            Text("Vertical gap ${"%.1f".format(verticalGap)} dp", style = MaterialTheme.typography.labelMedium)
+            Slider(
+                value = verticalGap,
+                onValueChange = { value ->
+                    verticalGap = value
+                    viewModel.updateBase { it.copy(verticalGapDp = value) }
+                },
+                valueRange = 0f..5f,
+            )
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            Text(
+                if (selected.isEmpty()) "Select one or more keys for per-key sizing" else "Selected key width ${"%.2f".format(selectedWidth)}×",
+                style = MaterialTheme.typography.labelMedium,
+            )
+            Slider(
+                value = selectedWidth,
+                onValueChange = { value ->
+                    selectedWidth = value
+                    viewModel.updateSelected(selected) { old -> old.copy(widthScale = value) }
+                },
+                valueRange = .55f..2f,
+                enabled = selected.isNotEmpty(),
+            )
+            Text("Selected key height ${selectedHeight.toInt()} dp", style = MaterialTheme.typography.labelMedium)
+            Slider(
+                value = selectedHeight,
+                onValueChange = { value ->
+                    selectedHeight = value
+                    viewModel.updateSelected(selected) { old -> old.copy(heightDp = value) }
+                },
+                valueRange = 34f..80f,
+                enabled = selected.isNotEmpty(),
+            )
+            Text(
+                "Per-key width and height are saved as overrides, so changing global density later will not erase custom-sized keys.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
         item {
             Text("Live HSL color", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -152,7 +234,7 @@ private fun EditorKey(key: KeySpec, theme: ThemeSnapshot, selected: Boolean, mod
 
     Box(
         modifier = modifier
-            .height(48.dp)
+            .height((style.heightDp ?: theme.keyHeightDp).coerceIn(34f, 80f).dp)
             .background(fill, RoundedCornerShape(radius))
             .then(if (borderWidth > 0.dp) Modifier.border(borderWidth, outline, RoundedCornerShape(radius)) else Modifier)
             .clickable(onClick = onClick),
