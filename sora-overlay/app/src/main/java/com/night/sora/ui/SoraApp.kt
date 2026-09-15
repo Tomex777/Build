@@ -31,6 +31,7 @@ import com.night.sora.data.CoreRepository
 import com.night.sora.extension.ExtensionManager
 import com.night.sora.extension.InstalledExtension
 import com.night.sora.model.ExtensionMediaSelection
+import com.night.sora.model.PlaybackSession
 import com.night.sora.model.ReaderSession
 import com.night.sora.ui.screens.*
 import com.night.sora.ui.theme.*
@@ -46,6 +47,7 @@ sealed interface AppScreen {
     data class ExtensionDetail(val extension: InstalledExtension) : AppScreen
     data class MediaDetails(val selection: ExtensionMediaSelection) : AppScreen
     data class Reader(val session: ReaderSession) : AppScreen
+    data class VideoPlayer(val session: PlaybackSession) : AppScreen
     data class NowPlaying(val track: ExtensionMediaSelection) : AppScreen
 }
 
@@ -158,9 +160,12 @@ fun SoraApp() {
             is AppScreen.MediaDetails -> MediaDetailScreen(
                 selection = current.selection, extensions = extensions, manager = extensionManager,
                 isSaved = repository::isSaved, onToggleSaved = repository::toggleSaved,
-                onOpenReader = { push(AppScreen.Reader(it)) }, onBack = ::pop,
+                onOpenReader = { push(AppScreen.Reader(it)) },
+                onOpenPlayer = { push(AppScreen.VideoPlayer(it)) },
+                onBack = ::pop,
             )
             is AppScreen.Reader -> ReaderScreen(current.session, onBack = ::pop)
+            is AppScreen.VideoPlayer -> VideoPlayerScreen(current.session, onBack = ::pop)
             is AppScreen.NowPlaying -> NowPlayingScreen(current.track, onBack = ::pop)
         }
     }
