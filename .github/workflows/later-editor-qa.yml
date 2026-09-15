@@ -34,6 +34,7 @@ jobs:
           sed -i 's/compileSdk = 36/compileSdk = 37/' later/app/build.gradle.kts
           grep -q 'compileSdk = 37' later/app/build.gradle.kts
           patch -d later -p1 < .later-qa/patches/compact-editor-toolbar.patch
+          patch -d later -p1 < .later-qa/patches/body-editor-empty.patch
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
