@@ -33,21 +33,43 @@ fun EditorScreen(viewModel: EditorViewModel = hiltViewModel()) {
     var lightness by remember { mutableStateOf(.62f) }
     val liveColor = hslToColor(hue, saturation, lightness)
 
-    androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { Text("Key editor", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black); Text("Tap keys or type characters below to select them instantly.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    androidx.compose.foundation.lazy.LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        item {
+            Text("Key editor", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
+            Text("Tap keys or type characters below to select them instantly.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         item {
             Card(colors = CardDefaults.cardColors(containerColor = Color(theme.backgroundArgb.toInt())), shape = RoundedCornerShape(22.dp)) {
                 Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     KeyboardLayoutFactory.letterRows.forEach { row ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                            row.forEach { key -> EditorKey(key, theme, key.id in selected, Modifier.weight(key.weight)) { selected = if (key.id in selected) selected - key.id else selected + key.id } }
+                            row.forEach { key ->
+                                EditorKey(key, theme, key.id in selected, Modifier.weight(key.weight)) {
+                                    selected = if (key.id in selected) selected - key.id else selected + key.id
+                                }
+                            }
                         }
                     }
                 }
             }
         }
         item {
-            OutlinedTextField(value = typed, onValueChange = { value -> typed = value.filter(Char::isLetter).lowercase(); selected = typed.map(Char::toString).toSet() }, modifier = Modifier.fillMaxWidth(), label = { Text("Type keys to select") }, placeholder = { Text("e.g. sybuaiwkve") }, supportingText = { Text("${selected.size} key${if (selected.size == 1) "" else "s"} selected") }, singleLine = true)
+            OutlinedTextField(
+                value = typed,
+                onValueChange = { value ->
+                    typed = value.filter(Char::isLetter).lowercase()
+                    selected = typed.map(Char::toString).toSet()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Type keys to select") },
+                placeholder = { Text("e.g. sybuaiwkve") },
+                supportingText = { Text("${selected.size} key${if (selected.size == 1) "" else "s"} selected") },
+                singleLine = true,
+            )
         }
         item {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -58,13 +80,31 @@ fun EditorScreen(viewModel: EditorViewModel = hiltViewModel()) {
             }
         }
         item {
-            Text("Live HSL color", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold); Spacer(Modifier.height(6.dp)); ColorPreview(liveColor)
+            Text("Live HSL color", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(6.dp))
+            ColorPreview(liveColor)
             Text("Hue ${hue.toInt()}°", style = MaterialTheme.typography.labelMedium)
-            Slider(value = hue, onValueChange = { value -> hue = value; val argb = hslToColor(value, saturation, lightness).toArgb().toLong() and 0xFFFFFFFFL; viewModel.updateSelected(selected) { old -> old.copy(fillArgb = argb, invisibleFill = false) } }, valueRange = 0f..360f)
+            Slider(
+                value = hue,
+                onValueChange = { value ->
+                    hue = value
+                    val argb = hslToColor(value, saturation, lightness).toArgb().toLong() and 0xFFFFFFFFL
+                    viewModel.updateSelected(selected) { old -> old.copy(fillArgb = argb, invisibleFill = false) }
+                },
+                valueRange = 0f..360f,
+            )
             Text("Saturation ${(saturation * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
-            Slider(value = saturation, onValueChange = { value -> saturation = value; val argb = hslToColor(hue, value, lightness).toArgb().toLong() and 0xFFFFFFFFL; viewModel.updateSelected(selected) { old -> old.copy(fillArgb = argb, invisibleFill = false) } })
+            Slider(value = saturation, onValueChange = { value ->
+                saturation = value
+                val argb = hslToColor(hue, value, lightness).toArgb().toLong() and 0xFFFFFFFFL
+                viewModel.updateSelected(selected) { old -> old.copy(fillArgb = argb, invisibleFill = false) }
+            })
             Text("Lightness ${(lightness * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
-            Slider(value = lightness, onValueChange = { value -> lightness = value; val argb = hslToColor(hue, saturation, value).toArgb().toLong() and 0xFFFFFFFFL; viewModel.updateSelected(selected) { old -> old.copy(fillArgb = argb, invisibleFill = false) } })
+            Slider(value = lightness, onValueChange = { value ->
+                lightness = value
+                val argb = hslToColor(hue, saturation, value).toArgb().toLong() and 0xFFFFFFFFL
+                viewModel.updateSelected(selected) { old -> old.copy(fillArgb = argb, invisibleFill = false) }
+            })
         }
         item {
             Text("Key style", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -76,9 +116,12 @@ fun EditorScreen(viewModel: EditorViewModel = hiltViewModel()) {
             }
         }
         item {
-            var radius by remember { mutableStateOf(theme.cornerRadiusDp) }; var labelSize by remember { mutableStateOf(theme.labelSizeSp) }
-            Text("Corner radius ${radius.toInt()} dp", style = MaterialTheme.typography.labelMedium); Slider(radius, { radius = it; viewModel.updateSelected(selected) { old -> old.copy(cornerRadiusDp = it) } }, valueRange = 0f..28f)
-            Text("Label size ${labelSize.toInt()} sp", style = MaterialTheme.typography.labelMedium); Slider(labelSize, { labelSize = it; viewModel.updateSelected(selected) { old -> old.copy(labelSizeSp = it) } }, valueRange = 12f..28f)
+            var radius by remember { mutableStateOf(theme.cornerRadiusDp) }
+            var labelSize by remember { mutableStateOf(theme.labelSizeSp) }
+            Text("Corner radius ${radius.toInt()} dp", style = MaterialTheme.typography.labelMedium)
+            Slider(radius, { radius = it; viewModel.updateSelected(selected) { old -> old.copy(cornerRadiusDp = it) } }, valueRange = 0f..28f)
+            Text("Label size ${labelSize.toInt()} sp", style = MaterialTheme.typography.labelMedium)
+            Slider(labelSize, { labelSize = it; viewModel.updateSelected(selected) { old -> old.copy(labelSizeSp = it) } }, valueRange = 12f..28f)
         }
         item {
             Text("Labels", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -93,25 +136,70 @@ fun EditorScreen(viewModel: EditorViewModel = hiltViewModel()) {
 
 @Composable
 private fun EditorKey(key: KeySpec, theme: ThemeSnapshot, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    val override = theme.overrides[key.id] ?: KeyStyleOverride()
-    val radius = (override.cornerRadiusDp ?: theme.cornerRadiusDp).dp
-    val borderEnabled = override.borderEnabled ?: theme.borderEnabled
-    val fill = when { override.invisibleFill == true -> Color.Transparent; override.fillArgb != null -> Color(override.fillArgb.toInt()).copy(alpha = override.fillAlpha ?: 1f); else -> Color(theme.keyFillArgb.toInt()) }
-    val label = Color((override.labelArgb ?: theme.keyLabelArgb).toInt())
-    val outline = if (selected) Color(theme.accentArgb.toInt()) else Color((override.borderArgb ?: theme.borderArgb).toInt())
-    val borderWidth = if (selected) 2.dp else if (borderEnabled) (override.borderWidthDp ?: theme.borderWidthDp).dp else 0.dp
-    Box(modifier = modifier.height(48.dp).background(fill, RoundedCornerShape(radius)).then(if (borderWidth > 0.dp) Modifier.border(borderWidth, outline, RoundedCornerShape(radius)) else Modifier).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
-        if (theme.secondaryCharactersVisible && key.secondary != null) Text(key.secondary, modifier = Modifier.align(Alignment.TopEnd).padding(top = 3.dp, end = 5.dp), color = Color(theme.secondaryLabelArgb.toInt()), fontSize = 8.sp)
-        Text(key.label, color = label, fontSize = (override.labelSizeSp ?: theme.labelSizeSp).sp, fontWeight = if (override.bold == true) FontWeight.Bold else FontWeight.Normal, fontStyle = if (override.italic == true) FontStyle.Italic else FontStyle.Normal)
+    val style = theme.overrides[key.id] ?: KeyStyleOverride()
+    val radius = (style.cornerRadiusDp ?: theme.cornerRadiusDp).dp
+    val borderEnabled = style.borderEnabled ?: theme.borderEnabled
+    val customFill = style.fillArgb
+    val fill = when {
+        style.invisibleFill == true -> Color.Transparent
+        customFill != null -> Color(customFill.toInt()).copy(alpha = style.fillAlpha ?: 1f)
+        else -> Color(theme.keyFillArgb.toInt())
+    }
+    val label = Color((style.labelArgb ?: theme.keyLabelArgb).toInt())
+    val outline = if (selected) Color(theme.accentArgb.toInt()) else Color((style.borderArgb ?: theme.borderArgb).toInt())
+    val borderWidth = if (selected) 2.dp else if (borderEnabled) (style.borderWidthDp ?: theme.borderWidthDp).dp else 0.dp
+    val secondary = key.secondary
+
+    Box(
+        modifier = modifier
+            .height(48.dp)
+            .background(fill, RoundedCornerShape(radius))
+            .then(if (borderWidth > 0.dp) Modifier.border(borderWidth, outline, RoundedCornerShape(radius)) else Modifier)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (theme.secondaryCharactersVisible && secondary != null) {
+            Text(
+                secondary,
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 3.dp, end = 5.dp),
+                color = Color(theme.secondaryLabelArgb.toInt()),
+                fontSize = 8.sp,
+            )
+        }
+        Text(
+            key.label,
+            color = label,
+            fontSize = (style.labelSizeSp ?: theme.labelSizeSp).sp,
+            fontWeight = if (style.bold == true) FontWeight.Bold else FontWeight.Normal,
+            fontStyle = if (style.italic == true) FontStyle.Italic else FontStyle.Normal,
+        )
     }
 }
 
-@Composable private fun ColorPreview(color: Color) { Row(verticalAlignment = Alignment.CenterVertically) { Box(Modifier.width(58.dp).height(34.dp).background(color, RoundedCornerShape(10.dp))); Spacer(Modifier.width(10.dp)); Text("#%08X".format(color.toArgb()), style = MaterialTheme.typography.bodySmall) } }
+@Composable
+private fun ColorPreview(color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.width(58.dp).height(34.dp).background(color, RoundedCornerShape(10.dp)))
+        Spacer(Modifier.width(10.dp))
+        Text("#%08X".format(color.toArgb()), style = MaterialTheme.typography.bodySmall)
+    }
+}
 
 private fun hslToColor(h: Float, s: Float, l: Float): Color {
     val hh = ((h % 360f) + 360f) % 360f / 360f
     if (s <= 0f) return Color(l, l, l, 1f)
-    val q = if (l < .5f) l * (1f + s) else l + s - l * s; val p = 2f * l - q
-    fun channel(tIn: Float): Float { var t = tIn; if (t < 0f) t += 1f; if (t > 1f) t -= 1f; return when { t < 1f/6f -> p + (q-p)*6f*t; t < .5f -> q; t < 2f/3f -> p + (q-p)*(2f/3f-t)*6f; else -> p } }
-    return Color(channel(hh + 1f/3f), channel(hh), channel(hh - 1f/3f), 1f)
+    val q = if (l < .5f) l * (1f + s) else l + s - l * s
+    val p = 2f * l - q
+    fun channel(tIn: Float): Float {
+        var t = tIn
+        if (t < 0f) t += 1f
+        if (t > 1f) t -= 1f
+        return when {
+            t < 1f / 6f -> p + (q - p) * 6f * t
+            t < .5f -> q
+            t < 2f / 3f -> p + (q - p) * (2f / 3f - t) * 6f
+            else -> p
+        }
+    }
+    return Color(channel(hh + 1f / 3f), channel(hh), channel(hh - 1f / 3f), 1f)
 }
