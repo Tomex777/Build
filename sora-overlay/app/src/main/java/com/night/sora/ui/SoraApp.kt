@@ -25,6 +25,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.night.sora.data.CoreRepository
 import com.night.sora.extension.ExtensionManager
 import com.night.sora.extension.InstalledExtension
@@ -64,6 +66,7 @@ fun SoraApp() {
     fun pop() { if (screenStack.isNotEmpty()) screenStack.removeAt(screenStack.lastIndex) }
 
     LaunchedEffect(Unit) { refreshExtensions() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refreshExtensions() }
     BackHandler(enabled = screenStack.isNotEmpty()) { pop() }
     BackHandler(enabled = screenStack.isEmpty() && tab != RootTab.HOME) { tab = RootTab.HOME }
 

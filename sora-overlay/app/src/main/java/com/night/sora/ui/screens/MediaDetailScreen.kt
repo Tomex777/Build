@@ -52,6 +52,7 @@ fun MediaDetailScreen(
     var secondaryTitle by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(true) }
     var menuOpen by remember { mutableStateOf(false) }
+    var sourcePickerOpen by remember { mutableStateOf(false) }
     var counterpart by remember { mutableStateOf<ExtensionMediaSelection?>(null) }
     var mangaLatestFirst by remember { mutableStateOf(true) }
 
@@ -104,8 +105,6 @@ fun MediaDetailScreen(
         }
     }
 
-    if (extension == null) { MissingExtensionScreen(onBack); return }
-
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 42.dp)) {
         item {
             Box(Modifier.fillMaxWidth().height(390.dp)) {
@@ -117,8 +116,19 @@ fun MediaDetailScreen(
                 Box(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(12.dp)) {
                     IconButton(onClick = { menuOpen = true }, modifier = Modifier.background(Color.Black.copy(alpha = .64f), CircleShape)) { Icon(Icons.Rounded.MoreVert, "Title options", tint = Color.White) }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        DropdownMenuItem(text = { Text("Change source") }, leadingIcon = { Icon(Icons.Rounded.Source, null) }, onClick = { menuOpen = false })
-                        DropdownMenuItem(text = { Text("Use ${extension.declaredName} by default") }, leadingIcon = { Icon(Icons.Rounded.CheckCircleOutline, null) }, onClick = { menuOpen = false })
+                        DropdownMenuItem(
+                            text = { Text("Change source") },
+                            leadingIcon = { Icon(Icons.Rounded.Source, null) },
+                            onClick = { menuOpen = false; sourcePickerOpen = true },
+                        )
+                        if (extension != null) {
+                            DropdownMenuItem(
+                                text = { Text("Using ${extension.declaredName}") },
+                                leadingIcon = { Icon(Icons.Rounded.CheckCircleOutline, null) },
+                                enabled = false,
+                                onClick = { menuOpen = false },
+                            )
+                        }
                     }
                 }
                 Column(Modifier.align(Alignment.BottomStart).padding(horizontal = 18.dp, vertical = 16.dp)) {
@@ -196,6 +206,44 @@ fun MediaDetailScreen(
             }
         }
     }
+
+    if (sourcePickerOpen) {
+        ModalBottomSheet(onDismissRequest = { sourcePickerOpen = false }, containerColor = SoraSurface) {
+            Text("Choose source", fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp))
+            val key = detailTypeKey(active.type)
+            val options = extensions.flatMap { ext ->
+                ext.descriptor?.sources.orEmpty()
+                    .filter { source -> ext.error == null && key in source.contentTypes }
+                    .map { source -> ext to source }
+            }
+            if (options.isEmpty()) {
+                Text("No alternative provider is installed yet.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp))
+            } else {
+                options.forEach { (ext, source) ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable {
+                            sourcePickerOpen = false
+                            val payload = JSONObject().put("sourceId", source.id).put("type", key).put("query", active.title).toString()
+                            manager.call(ext, ExtensionContract.Method.SEARCH, payload) { result ->
+                                result.getOrNull()?.let { raw ->
+                                    parseSourceSelection(raw, source.id, ext.packageName, active.type)?.let { active = it }
+                                }
+                            }
+                        }.padding(horizontal = 20.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Rounded.Source, null, tint = if (ext.packageName == active.extensionPackage && source.id == active.sourceId) SoraAccent else SoraMuted)
+                        Column(Modifier.weight(1f).padding(start = 13.dp)) {
+                            Text(source.name, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text(ext.declaredName, color = SoraMuted, fontSize = 10.sp)
+                        }
+                        if (ext.packageName == active.extensionPackage && source.id == active.sourceId) Icon(Icons.Rounded.Check, null, tint = SoraAccent)
+                    }
+                }
+            }
+            Spacer(Modifier.height(22.dp))
+        }
+    }
 }
 
 @Composable
@@ -232,28 +280,37 @@ fun MissingExtensionScreen(onBack: () -> Unit) {
 private fun findCounterpart(active: ExtensionMediaSelection, extensions: List<InstalledExtension>, manager: ExtensionManager, callback: (ExtensionMediaSelection?) -> Unit) {
     val opposite = if (active.type == ContentType.ANIME) ContentType.MANGA else if (active.type == ContentType.MANGA) ContentType.ANIME else return callback(null)
     val key = opposite.name.lowercase()
-    val ext = extensions.firstOrNull { it.error == null && it.descriptor?.sources?.any { source -> key in source.contentTypes } == true } ?: return callback(null)
-    val source = ext.descriptor!!.sources.first { key in it.contentTypes }
-    val payload = JSONObject().put("sourceId", source.id).put("type", key).put("query", active.title).toString()
-    manager.call(ext, ExtensionContract.Method.SEARCH, payload) { result ->
-        val found = result.getOrNull()?.let { raw ->
-            runCatching {
-                val arr = JSONArray(raw)
-                if (arr.length() == 0) null else {
-                    val normalized = active.title.lowercase().replace(Regex("[^a-z0-9]"), "")
+    val providers = extensions.flatMap { ext ->
+        ext.descriptor?.sources.orEmpty()
+            .filter { source -> ext.error == null && key in source.contentTypes }
+            .map { source -> ext to source }
+    }
+    if (providers.isEmpty()) return callback(null)
+
+    val normalized = active.title.lowercase().replace(Regex("[^a-z0-9]"), "")
+    fun tryProvider(index: Int) {
+        if (index >= providers.size) return callback(null)
+        val (ext, source) = providers[index]
+        val payload = JSONObject().put("sourceId", source.id).put("type", key).put("query", active.title).toString()
+        manager.call(ext, ExtensionContract.Method.SEARCH, payload) { result ->
+            val found = result.getOrNull()?.let { raw ->
+                runCatching {
+                    val arr = JSONArray(raw)
                     var best: JSONObject? = null
                     for (i in 0 until arr.length()) {
                         val item = arr.getJSONObject(i)
                         val name = item.optString("title").lowercase().replace(Regex("[^a-z0-9]"), "")
                         if (name == normalized || name.contains(normalized) || normalized.contains(name)) { best = item; break }
                     }
-                    val item = best ?: arr.optJSONObject(0)
-                    item?.let { ExtensionMediaSelection(it.optString("id"), source.id, ext.packageName, opposite, it.optString("title"), it.optString("subtitle"), detailArtwork(it)) }
-                }
-            }.getOrNull()
+                    (best ?: arr.optJSONObject(0))?.let {
+                        ExtensionMediaSelection(it.optString("id"), source.id, ext.packageName, opposite, it.optString("title"), it.optString("subtitle"), detailArtwork(it))
+                    }
+                }.getOrNull()
+            }
+            if (found != null) callback(found) else tryProvider(index + 1)
         }
-        callback(found)
     }
+    tryProvider(0)
 }
 
 private fun parseRows(type: ContentType, raw: String): List<DetailRow> = runCatching {
@@ -267,3 +324,24 @@ private fun parseSecondary(method: String, raw: String): List<DetailRow> = runCa
 private fun sectionTitle(type: ContentType) = when (type) { ContentType.ANIME, ContentType.TV -> "Episodes"; ContentType.MANGA -> "Chapters"; ContentType.MOVIE -> "Sources"; ContentType.MUSIC -> "Track"; ContentType.MEME -> "Post" }
 private fun childIcon(type: ContentType) = when (type) { ContentType.MANGA -> Icons.Rounded.Article; ContentType.MUSIC -> Icons.Rounded.Article; ContentType.MEME -> Icons.Rounded.Image; else -> Icons.Rounded.PlayArrow }
 private fun detailArtwork(item: JSONObject): String? = listOf("artworkUrl", "poster", "posterUrl", "image", "imageUrl", "thumbnail", "cover", "coverUrl").firstNotNullOfOrNull { key -> item.optString(key).takeIf { it.startsWith("http://") || it.startsWith("https://") } }
+
+
+private fun detailTypeKey(type: ContentType): String = when (type) {
+    ContentType.MOVIE -> "movie"
+    ContentType.MEME -> "memes"
+    else -> type.name.lowercase()
+}
+
+private fun parseSourceSelection(raw: String, sourceId: String, packageName: String, type: ContentType): ExtensionMediaSelection? = runCatching {
+    val array = JSONArray(raw)
+    val item = array.optJSONObject(0) ?: return@runCatching null
+    ExtensionMediaSelection(
+        id = item.optString("id"),
+        sourceId = sourceId,
+        extensionPackage = packageName,
+        type = type,
+        title = item.optString("title", "Untitled"),
+        subtitle = item.optString("subtitle"),
+        artworkUrl = detailArtwork(item),
+    )
+}.getOrNull()

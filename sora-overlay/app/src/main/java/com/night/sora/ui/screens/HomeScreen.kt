@@ -1,5 +1,9 @@
 package com.night.sora.ui.screens
 
+import android.net.ConnectivityManager
+import android.net.Network
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -25,6 +30,8 @@ import coil3.compose.AsyncImage
 import com.night.sora.extension.ExtensionManager
 import com.night.sora.extension.InstalledExtension
 import com.night.sora.extension.api.ExtensionContract
+import com.night.sora.data.CachedMediaRecord
+import com.night.sora.data.MediaCatalogCache
 import com.night.sora.model.ContentType
 import com.night.sora.model.ExtensionMediaSelection
 import com.night.sora.model.LibraryEntry
@@ -55,24 +62,41 @@ fun HomeScreen(
     onOpenBible: () -> Unit,
     onSearch: () -> Unit,
 ) {
-    var recommendations by remember { mutableStateOf<List<HomeBrowseCard>>(emptyList()) }
-    var music by remember { mutableStateOf<List<HomeBrowseCard>>(emptyList()) }
-    var memes by remember { mutableStateOf<List<HomeBrowseCard>>(emptyList()) }
+    val context = LocalContext.current
+    val mediaCache = remember { MediaCatalogCache(context.applicationContext) }
+    var networkEpoch by remember { mutableIntStateOf(0) }
+    var recommendations by remember {
+        mutableStateOf(
+            listOf(ContentType.ANIME, ContentType.MANGA, ContentType.MOVIE)
+                .flatMap { cachedHomeType(mediaCache, it).take(4) }
+        )
+    }
+    var music by remember { mutableStateOf(cachedHomeType(mediaCache, ContentType.MUSIC).take(8)) }
+    var memes by remember { mutableStateOf(cachedHomeType(mediaCache, ContentType.MEME).take(4)) }
 
-    LaunchedEffect(extensions) {
-        if (extensions.isEmpty()) return@LaunchedEffect
-        val result = mutableStateListOf<HomeBrowseCard>()
-        loadHomeType(extensions, manager, ContentType.ANIME) { cards ->
+    DisposableEffect(context) {
+        val connectivity = context.getSystemService(ConnectivityManager::class.java)
+        val mainHandler = Handler(Looper.getMainLooper())
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) { mainHandler.post { networkEpoch++ } }
+        }
+        val registered = runCatching { connectivity.registerDefaultNetworkCallback(callback); true }.getOrDefault(false)
+        onDispose { if (registered) runCatching { connectivity.unregisterNetworkCallback(callback) } }
+    }
+
+    LaunchedEffect(extensions, networkEpoch) {
+        val result = mutableStateListOf<HomeBrowseCard>().apply { addAll(recommendations) }
+        loadHomeType(extensions, manager, mediaCache, ContentType.ANIME) { cards ->
             result.removeAll { it.type == ContentType.ANIME }; result.addAll(cards.take(4)); recommendations = result.toList()
         }
-        loadHomeType(extensions, manager, ContentType.MANGA) { cards ->
+        loadHomeType(extensions, manager, mediaCache, ContentType.MANGA) { cards ->
             result.removeAll { it.type == ContentType.MANGA }; result.addAll(cards.take(4)); recommendations = result.toList()
         }
-        loadHomeType(extensions, manager, ContentType.MOVIE) { cards ->
+        loadHomeType(extensions, manager, mediaCache, ContentType.MOVIE) { cards ->
             result.removeAll { it.type == ContentType.MOVIE }; result.addAll(cards.take(4)); recommendations = result.toList()
         }
-        loadHomeType(extensions, manager, ContentType.MUSIC) { cards -> music = cards.take(8) }
-        loadHomeType(extensions, manager, ContentType.MEME) { cards -> memes = cards.take(4) }
+        loadHomeType(extensions, manager, mediaCache, ContentType.MUSIC) { cards -> music = cards.take(8) }
+        loadHomeType(extensions, manager, mediaCache, ContentType.MEME) { cards -> memes = cards.take(4) }
     }
 
     val continueEntries = entries.filter { it.contentType != null }.take(8)
@@ -120,10 +144,10 @@ fun HomeScreen(
             }
         }
 
-        item { HomeSectionHeader("For you", "Mixed from your library and sources", "Refresh") }
+        item { HomeSectionHeader("For you", "Picked from across Sora", "Refresh") }
         item {
             if (recommendations.isEmpty()) {
-                Text("Recommendations appear when sources are ready.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 18.dp))
+                Text("Your recommendations will fill in as Sora learns what you like.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 18.dp))
             } else {
                 LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(recommendations.take(10), key = { "${it.extensionPackage}:${it.sourceId}:${it.id}" }) { card ->
@@ -142,7 +166,7 @@ fun HomeScreen(
             }
         }
 
-        item { HomeSectionHeader("You probably needed this", "From your meme source", "More") }
+        item { HomeSectionHeader("You probably needed this", "Something from your feed", "More") }
         item { MemeStrip(memes.firstOrNull()) }
 
         item { HomeSectionHeader("Bible", "Continue your reading", "Open", onSee = onOpenBible) }
@@ -233,7 +257,7 @@ private fun MemeStrip(meme: HomeBrowseCard?) {
     Surface(color = Color(0xFFF0EDE5), contentColor = Color(0xFF141412), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
         Column {
             Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(if (meme != null) "source · now" else "meme source · waiting", color = Color(0xFF656158), fontSize = 11.sp)
+                Text(if (meme != null) "Sora · now" else "Sora · ready offline", color = Color(0xFF656158), fontSize = 11.sp)
                 Icon(Icons.Rounded.MoreHoriz, null, tint = Color(0xFF656158), modifier = Modifier.size(18.dp))
             }
             Text(meme?.title ?: "me opening Sora to continue one manga and somehow starting four things", fontSize = 18.sp, lineHeight = 21.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp))
@@ -250,23 +274,49 @@ private fun MemeStrip(meme: HomeBrowseCard?) {
     }
 }
 
-private fun loadHomeType(extensions: List<InstalledExtension>, manager: ExtensionManager, type: ContentType, callback: (List<HomeBrowseCard>) -> Unit) {
+private fun cachedHomeType(cache: MediaCatalogCache, type: ContentType): List<HomeBrowseCard> =
+    cache.read(type).map { row -> HomeBrowseCard(row.id, row.sourceId, row.extensionPackage, type, row.title, row.subtitle, row.artworkUrl) }
+
+private fun loadHomeType(
+    extensions: List<InstalledExtension>,
+    manager: ExtensionManager,
+    cache: MediaCatalogCache,
+    type: ContentType,
+    callback: (List<HomeBrowseCard>) -> Unit,
+) {
     val key = when (type) { ContentType.MOVIE -> "movie"; ContentType.MEME -> "memes"; else -> type.name.lowercase() }
-    val ext = extensions.firstOrNull { it.error == null && it.descriptor?.sources?.any { source -> key in source.contentTypes } == true } ?: return callback(emptyList())
-    val source = ext.descriptor!!.sources.first { key in it.contentTypes }
-    manager.call(ext, ExtensionContract.Method.BROWSE, JSONObject().put("sourceId", source.id).put("type", key).toString()) { result ->
-        val cards = result.getOrNull()?.let { raw ->
-            runCatching {
-                val array = JSONArray(raw)
-                buildList {
-                    for (i in 0 until array.length()) {
-                        val item = array.getJSONObject(i)
-                        add(HomeBrowseCard(item.optString("id"), source.id, ext.packageName, type, item.optString("title", "Untitled"), item.optString("subtitle"), homeArtwork(item)))
+    val cached = cachedHomeType(cache, type)
+    val providers = extensions.flatMap { ext ->
+        ext.descriptor?.sources.orEmpty()
+            .filter { source -> ext.error == null && key in source.contentTypes }
+            .map { source -> ext to source }
+    }
+    if (providers.isEmpty()) return callback(cached)
+
+    val collected = MutableList(providers.size) { emptyList<HomeBrowseCard>() }
+    var completed = 0
+    providers.forEachIndexed { index, (ext, source) ->
+        manager.call(ext, ExtensionContract.Method.BROWSE, JSONObject().put("sourceId", source.id).put("type", key).toString()) { result ->
+            collected[index] = result.getOrNull()?.let { raw ->
+                runCatching {
+                    val array = JSONArray(raw)
+                    buildList {
+                        for (i in 0 until array.length()) {
+                            val item = array.getJSONObject(i)
+                            add(HomeBrowseCard(item.optString("id"), source.id, ext.packageName, type, item.optString("title", "Untitled"), item.optString("subtitle"), homeArtwork(item)))
+                        }
                     }
-                }
-            }.getOrDefault(emptyList())
-        } ?: emptyList()
-        callback(cards)
+                }.getOrDefault(emptyList())
+            }.orEmpty()
+            completed++
+            if (completed == providers.size) {
+                val fresh = collected.flatten().distinctBy { it.title.trim().lowercase() }
+                if (fresh.isNotEmpty()) {
+                    cache.write(type, fresh.map { CachedMediaRecord(it.id, it.title, it.subtitle, it.artworkUrl, it.sourceId, it.extensionPackage) })
+                    callback(fresh)
+                } else callback(cached)
+            }
+        }
     }
 }
 

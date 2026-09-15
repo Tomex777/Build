@@ -2,6 +2,10 @@
 
 package com.night.sora.ui.screens
 
+import android.net.ConnectivityManager
+import android.net.Network
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -23,6 +27,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,6 +37,8 @@ import coil3.compose.AsyncImage
 import com.night.sora.extension.ExtensionManager
 import com.night.sora.extension.InstalledExtension
 import com.night.sora.extension.api.ExtensionContract
+import com.night.sora.data.CachedMediaRecord
+import com.night.sora.data.MediaCatalogCache
 import com.night.sora.model.ContentType
 import com.night.sora.model.ExtensionMediaSelection
 import com.night.sora.model.LibraryEntry
@@ -61,6 +68,9 @@ private data class BrowseCard(
     val extensionPackage: String,
 )
 
+private fun CachedMediaRecord.toBrowseCard() = BrowseCard(id, title, subtitle, artworkUrl, sourceId, extensionPackage)
+private fun BrowseCard.toCachedRecord() = CachedMediaRecord(id, title, subtitle, artworkUrl, sourceId, extensionPackage)
+
 @Composable
 fun MediaScreen(
     modifier: Modifier = Modifier,
@@ -75,18 +85,36 @@ fun MediaScreen(
     onOpenDetails: (ExtensionMediaSelection) -> Unit,
     onPlayMusic: (ExtensionMediaSelection) -> Unit,
 ) {
+    val context = LocalContext.current
+    val mediaCache = remember { MediaCatalogCache(context.applicationContext) }
     var destination by remember { mutableStateOf(MediaDestination.ANIME_MANGA) }
     var selectedType by remember { mutableStateOf(ContentType.ANIME) }
     var musicLocal by remember { mutableStateOf(MusicLocal.HOME) }
-    var rows by remember { mutableStateOf<List<BrowseCard>>(emptyList()) }
-    var loading by remember { mutableStateOf(false) }
+    var rows by remember { mutableStateOf(mediaCache.read(ContentType.ANIME).map { it.toBrowseCard() }) }
     var searchOpen by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var switchOpen by remember { mutableStateOf(false) }
-    var sourceMissing by remember { mutableStateOf(false) }
+    var networkEpoch by remember { mutableIntStateOf(0) }
 
     val engine = remember { MusicTasteEngine() }
     val rankedTaste = remember(listeningSignals) { engine.ranked(listeningSignals, System.currentTimeMillis()) }
+
+    DisposableEffect(context) {
+        val connectivity = context.getSystemService(ConnectivityManager::class.java)
+        val mainHandler = Handler(Looper.getMainLooper())
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                mainHandler.post { networkEpoch++ }
+            }
+        }
+        val registered = runCatching {
+            connectivity.registerDefaultNetworkCallback(callback)
+            true
+        }.getOrDefault(false)
+        onDispose {
+            if (registered) runCatching { connectivity.unregisterNetworkCallback(callback) }
+        }
+    }
 
     fun setDestination(next: MediaDestination) {
         destination = next
@@ -112,27 +140,51 @@ fun MediaScreen(
 
     fun load(search: String) {
         if (destination == MediaDestination.BIBLE) {
-            rows = emptyList(); loading = false; sourceMissing = false; return
+            rows = emptyList()
+            return
         }
-        val key = typeKey(selectedType)
-        val sourceExtension = extensions.firstOrNull { ext ->
-            ext.error == null && ext.descriptor?.sources?.any { key in it.contentTypes } == true
+
+        val requestType = selectedType
+        val requestDestination = destination
+        val requestQuery = search.trim()
+        val cached = if (requestQuery.isBlank()) mediaCache.read(requestType) else mediaCache.search(requestType, requestQuery)
+        rows = cached.map { it.toBrowseCard() }
+
+        val key = typeKey(requestType)
+        val providers = extensions.flatMap { ext ->
+            ext.descriptor?.sources.orEmpty()
+                .filter { source -> ext.error == null && key in source.contentTypes }
+                .map { source -> ext to source }
         }
-        if (sourceExtension == null) {
-            rows = emptyList(); loading = false; sourceMissing = extensionScanDone; return
-        }
-        val source = sourceExtension.descriptor!!.sources.first { key in it.contentTypes }
-        sourceMissing = false
-        loading = true
-        val method = if (search.isBlank()) ExtensionContract.Method.BROWSE else ExtensionContract.Method.SEARCH
-        val payload = JSONObject().put("sourceId", source.id).put("type", key).put("query", search.trim()).toString()
-        manager.call(sourceExtension, method, payload) { result ->
-            rows = result.getOrNull()?.let { parseBrowse(it, source.id, sourceExtension.packageName) } ?: emptyList()
-            loading = false
+        if (providers.isEmpty()) return
+
+        val method = if (requestQuery.isBlank()) ExtensionContract.Method.BROWSE else ExtensionContract.Method.SEARCH
+        val collected = MutableList(providers.size) { emptyList<BrowseCard>() }
+        var completed = 0
+
+        providers.forEachIndexed { index, (ext, source) ->
+            val payload = JSONObject()
+                .put("sourceId", source.id)
+                .put("type", key)
+                .put("query", requestQuery)
+                .toString()
+            manager.call(ext, method, payload) { result ->
+                collected[index] = result.getOrNull()?.let { parseBrowse(it, source.id, ext.packageName) }.orEmpty()
+                completed++
+                if (completed == providers.size) {
+                    val fresh = collected.flatten().distinctBy { it.title.trim().lowercase() }
+                    if (requestQuery.isBlank() && fresh.isNotEmpty()) {
+                        mediaCache.write(requestType, fresh.map { it.toCachedRecord() })
+                    }
+                    if (selectedType == requestType && destination == requestDestination && query.trim() == requestQuery) {
+                        if (fresh.isNotEmpty()) rows = fresh
+                    }
+                }
+            }
         }
     }
 
-    LaunchedEffect(selectedType, extensions, query, destination) {
+    LaunchedEffect(selectedType, extensions, query, destination, networkEpoch) {
         if (destination == MediaDestination.BIBLE) return@LaunchedEffect
         if (query.isNotBlank()) delay(250)
         load(query)
@@ -171,8 +223,6 @@ fun MediaScreen(
 
         when {
             destination == MediaDestination.BIBLE -> BibleHubContent(Modifier.fillMaxSize())
-            !extensionScanDone || loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            sourceMissing -> MissingMediaSource(selectedType.label, onOpenExtensions)
             query.isNotBlank() -> SearchResultsSurface(rows, selectedType, ::selection, onOpenDetails, onPlayMusic)
             destination == MediaDestination.ANIME_MANGA -> AnimeMangaSurface(
                 type = selectedType, rows = rows, libraryEntries = libraryEntries,
@@ -297,7 +347,7 @@ private fun AnimeMangaSurface(
         item {
             MediaSectionTitle(
                 if (type == ContentType.ANIME) "Because you watched ${selected?.title ?: "anime"}" else "Because you read ${selected?.title ?: "manga"}",
-                if (type == ContentType.ANIME) "More from your enabled anime sources" else "More from your enabled manga sources",
+                if (type == ContentType.ANIME) "More you might like" else "More you might like",
             )
             PortraitRail(rows.drop(1).ifEmpty { rows }, type, selection, onOpen)
         }
@@ -306,11 +356,11 @@ private fun AnimeMangaSurface(
             NewHotStack(rows.take(3), type, selection, onOpen)
         }
         item {
-            MediaSectionTitle("Top 10 ${type.label.lowercase()} today", if (type == ContentType.ANIME) "Trending across your enabled sources" else "Popular across your manga sources")
+            MediaSectionTitle("Top 10 ${type.label.lowercase()} today", if (type == ContentType.ANIME) "Trending now" else "Popular today")
             TopTenRail(rows, type, selection, onOpen)
         }
         item {
-            MediaSectionTitle(if (type == ContentType.ANIME) "New episodes" else "Recently updated", if (type == ContentType.ANIME) "Fresh from your sources" else "New chapters from your library")
+            MediaSectionTitle(if (type == ContentType.ANIME) "New episodes" else "Recently updated", if (type == ContentType.ANIME) "Fresh episodes" else "New chapters from your library")
             PortraitRail(rows.reversed(), type, selection, onOpen)
         }
         item {
@@ -337,7 +387,7 @@ private fun MovieTvSurface(
             StreamFeature(
                 card = selected,
                 kicker = if (type == ContentType.MOVIE) "Featured movie" else "Featured series",
-                body = selected.subtitle.ifBlank { "From your enabled sources" },
+                body = selected.subtitle.ifBlank { "Ready when you are" },
                 primaryLabel = "Play",
                 selection = selection(selected, type), isSaved = isSaved(selection(selected, type)), onToggleSaved = onToggleSaved, onOpen = onOpen,
             )
@@ -346,7 +396,7 @@ private fun MovieTvSurface(
             MediaSectionTitle("Continue watching", "Right where you stopped")
             if (continued.isNotEmpty()) ContinueLandscapeRail(continued, onOpen) else HintLine("Your movie and series progress will appear here.")
         }
-        item { MediaSectionTitle("Top 10 ${if (type == ContentType.MOVIE) "movies" else "series"} today", "Popular across your enabled sources"); TopTenRail(rows, type, selection, onOpen) }
+        item { MediaSectionTitle("Top 10 ${if (type == ContentType.MOVIE) "movies" else "series"} today", "Popular today"); TopTenRail(rows, type, selection, onOpen) }
         item { MediaSectionTitle("Trending now", "What people are watching"); PortraitRail(rows, type, selection, onOpen) }
         item { MediaSectionTitle("New & popular", "Fresh additions and returning favourites"); PortraitRail(rows.reversed(), type, selection, onOpen) }
         item { MediaSectionTitle("Browse by mood", "Pick a lane"); GenreRail(listOf("Thriller", "Drama", "Comedy", "Sci-fi", "Crime", "Documentary")) }
@@ -446,7 +496,7 @@ private fun MusicLibrary(rows: List<BrowseCard>, libraryEntries: List<LibraryEnt
 @Composable
 private fun MemeSurface(rows: List<BrowseCard>, selection: (BrowseCard, ContentType) -> ExtensionMediaSelection, onOpen: (ExtensionMediaSelection) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)) {
-        if (rows.isEmpty()) item { HintLine("Install a meme source to build this feed.") }
+        if (rows.isEmpty()) item { HintLine("Your feed will appear here as soon as new posts are available.") }
         items(rows, key = { it.id }) { card ->
             Surface(color = Color(0xFFF0EDE5), contentColor = Color(0xFF141412), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp).clickable { onOpen(selection(card, ContentType.MEME)) }) {
                 Column {
