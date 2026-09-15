@@ -15,7 +15,7 @@ permissions:
 jobs:
   editor-qa:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 50
 
     steps:
       - name: Checkout QA branch
@@ -97,6 +97,50 @@ jobs:
           disable-animations: true
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash .github/scripts/later-editor-qa.sh
+
+      - name: Build clean production package
+        shell: bash
+        run: |
+          set -euo pipefail
+          final_name='Later_V2_2_4_EDITOR_FINAL_2026-09-15'
+          rm -rf later-clean "$final_name" "${final_name}.zip" "${final_name}.apk"
+          mkdir -p later-clean
+          tar -xJf later-build.tar.xz -C later-clean
+          chmod +x later-clean/gradlew || true
+          sed -i 's/compileSdk = 36/compileSdk = 37/' later-clean/app/build.gradle.kts
+          grep -q 'compileSdk = 37' later-clean/app/build.gradle.kts
+
+          patch -d later-clean -p1 < .later-qa/patches/compact-editor-toolbar.patch
+          patch -d later-clean -p1 < .later-qa/patches/body-editor-empty.patch
+          patch -d later-clean -p1 < .later-qa/patches/body-placeholder-title.patch
+          patch -d later-clean -p1 < .later-qa/patches/editor-polish.patch
+          patch -d later-clean -p1 < .later-qa/patches/editor-layout-polish.patch
+          patch -d later-clean -p1 < .later-qa/patches/editor-title-compact-width.patch
+          patch -d later-clean -p1 < .later-qa/patches/seal-small-screen-scroll.patch
+
+          if grep -R -n 'LaterFormatQA' later-clean/app/src/main later-clean/app/src/test; then
+            echo 'QA diagnostics leaked into clean production source' >&2
+            exit 1
+          fi
+
+          gradle -p later-clean testDebugUnitTest assembleDebug --stacktrace --console=plain
+          cp later-clean/app/build/outputs/apk/debug/app-debug.apk "${final_name}.apk"
+
+          rm -rf later-clean/.gradle later-clean/build later-clean/app/build
+          mv later-clean "$final_name"
+          zip -qr "${final_name}.zip" "$final_name"
+          sha256sum "${final_name}.apk" "${final_name}.zip" > "${final_name}.sha256"
+          cat "${final_name}.sha256"
+
+      - name: Upload clean Later package
+        uses: actions/upload-artifact@v4
+        with:
+          name: later-editor-final-clean
+          if-no-files-found: error
+          path: |
+            Later_V2_2_4_EDITOR_FINAL_2026-09-15.apk
+            Later_V2_2_4_EDITOR_FINAL_2026-09-15.zip
+            Later_V2_2_4_EDITOR_FINAL_2026-09-15.sha256
 
       - name: Upload editor QA evidence
         if: always()
