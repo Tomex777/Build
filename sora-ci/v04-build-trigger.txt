@@ -1,1 +1,1 @@
-build Sora sticky headers and dead-space fix
+build Aniyomi-style details and source persistence
