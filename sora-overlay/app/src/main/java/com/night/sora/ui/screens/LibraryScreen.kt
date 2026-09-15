@@ -96,7 +96,7 @@ fun LibraryScreen(
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 130.dp),
+                contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(11.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
