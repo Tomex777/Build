@@ -46,6 +46,12 @@ check(
     and "trackpadActive" in ime
     and "onCursor(direction)" in ime,
 )
+check(
+    "shift first tap is immediate before double-tap caps lock",
+    "lastShiftTapAt" in ime
+    and "ViewConfiguration.getDoubleTapTimeout()" in ime
+    and "onDoubleClick" not in ime,
+)
 check("backspace has stationary hold-repeat behavior", "RepeatBackspaceKey" in ime and "delay(380)" in repeat_backspace and "delay(55)" in repeat_backspace)
 check("toolbar exposes focused AI trio", all(x in ime for x in ["Editor", "Tone", "Contextual Research"]))
 check("toolbar exposes clipboard and emoji", "ToolPanel.CLIPBOARD" in ime and "ToolPanel.EMOJI" in ime)
