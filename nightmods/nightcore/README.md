@@ -24,6 +24,8 @@ That is intentional. To implement real bubble styling safely, supply/inspect the
 
 Night Mods is the normal configuration surface. Night Core exposes a deliberately narrow provider so Night Mods can edit the same `night_core` preferences consumed by `XSharedPreferences`. The standalone Night Core activity remains only as a diagnostic fallback.
 
+Night Core deliberately uses the classic legacy `XSharedPreferences` storage contract: the app writes `night_core.xml` to its normal private `shared_prefs` directory, and LSPosed ET's hook-side `XSharedPreferences(packageName, prefFileName)` reader accesses that module-internal file through the framework service. We do not opt into the relocated `xposedsharedprefs`/API-93 preference directory.
+
 ## Why legacy Xposed entry is used in this first build
 
 LSPosed ET explicitly preserves legacy module compatibility, while its vendored modern API is API 100. The legacy entry keeps this proof-of-life project self-contained and buildable without bundling the framework's API AAR. The adapter boundary is API-agnostic, so the entry layer can be migrated to libxposed after the first device test without redesigning the product.
