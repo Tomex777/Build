@@ -55,18 +55,18 @@ PY
 assert_xml_text() {
   local file="$1"
   local expected="$2"
-  if ! grep -Fq "text=\"$expected\"" "$file"; then
-    echo "Expected UI text not found in $file: $expected"
-    python3 - "$file" <<'PY'
+  python3 - "$file" "$expected" <<'PY'
 import sys
 import xml.etree.ElementTree as ET
-for node in ET.parse(sys.argv[1]).iter():
-    text = node.attrib.get('text', '')
-    if text:
-        print(repr(text))
+path, expected = sys.argv[1], sys.argv[2]
+texts = [node.attrib.get('text', '') for node in ET.parse(path).iter()]
+if expected not in texts:
+    print(f'Expected UI text not found in {path}: {expected!r}')
+    for text in texts:
+        if text:
+            print(repr(text))
+    raise SystemExit(1)
 PY
-    exit 1
-  fi
 }
 
 IME_TOP="$(ime_top_from_dump input-method.txt)"
