@@ -10,4 +10,13 @@
     <string name="corner_radius">Corner radius</string>
     <string name="message_spacing">Message spacing</string>
     <string name="status_ready">Architecture ready. App-specific bubble hooks require version analysis.</string>
+    <string name="engine_version_value">Engine version · %1$s</string>
+    <string name="night_mods_detected">Night Mods detected · configuration is managed there</string>
+    <string name="night_mods_not_detected">Night Mods not detected</string>
+    <string name="target_supported">Supported</string>
+    <string name="target_analysis_required">Analysis required</string>
+    <string name="target_unsupported">Unsupported</string>
+    <string name="target_not_installed">Not installed</string>
+    <string name="target_status_unavailable">Status unavailable</string>
+    <string name="target_status_with_version">%1$s · %2$s</string>
 </resources>
