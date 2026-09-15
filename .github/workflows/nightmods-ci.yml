@@ -236,6 +236,9 @@ jobs:
             grep -q 'Settings' smoke/nightmods-window.xml
             adb exec-out screencap -p > smoke/nightmods-android16.png
 
+            # Cold-start the deep link because MainActivity is singleTop and upstream
+            # LSPosed does not re-dispatch Navigation deep links from onNewIntent().
+            adb shell am force-stop org.lsposed.manager || true
             adb shell am start -W -a android.intent.action.VIEW -d 'lsposed://night-core/bubble-styler' -n org.lsposed.manager/.ui.activity.MainActivity | tee smoke/bubble-start.txt
             sleep 4
             adb shell uiautomator dump /sdcard/nightmods-bubble.xml || true
