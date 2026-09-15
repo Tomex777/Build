@@ -33,7 +33,7 @@ private val soraGames = listOf(
 fun GamesScreen(modifier: Modifier = Modifier) {
     LazyColumn(
         modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 116.dp),
+        contentPadding = PaddingValues(bottom = 12.dp),
     ) {
         item {
             Column(Modifier.padding(start = 18.dp, end = 18.dp, top = 22.dp, bottom = 4.dp)) {
