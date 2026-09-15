@@ -92,36 +92,66 @@ jobs:
           disable-linux-hw-accel: false
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
           script: |
+            set -euo pipefail
             gradle --no-daemon :app:connectedDebugAndroidTest :app:assembleDebug
             adb install -r app/build/outputs/apk/debug/app-debug.apk
-            # The hosted emulator advertises a QWERTY hardware keyboard even with
-            # enable-hw-keyboard=false. Android then suppresses the software IME by
-            # default. Enable the normal system setting used by physical-keyboard
-            # users so this job can exercise the actual input view without changing
-            # production InputMethodService behavior.
+
+            # Hosted Android emulators still advertise a hardware QWERTY device.
+            # Turn on the ordinary Android "show on-screen keyboard" setting so CI
+            # exercises the production IME instead of changing app behavior for tests.
             adb shell settings --user 0 put secure show_ime_with_hard_keyboard 1
             echo "show_ime_with_hard_keyboard=$(adb shell settings --user 0 get secure show_ime_with_hard_keyboard | tr -d '\r')"
+
             adb shell ime enable com.night.keyboard/.ime.KeyboardInputMethodService
             adb shell ime set com.night.keyboard/.ime.KeyboardInputMethodService
-            sleep 1
-            DEFAULT_IME="$(adb shell settings --user 0 get secure default_input_method | tr -d '\r')"
-            echo "Secure default_input_method: $DEFAULT_IME"
             adb shell am start -W -n com.night.keyboard/.debug.ImeHarnessActivity
             sleep 4
-            adb shell uiautomator dump /sdcard/ime-window.xml
-            adb pull /sdcard/ime-window.xml ime-window.xml
-            adb exec-out screencap -p > ime-qa.png
+
             adb shell dumpsys input_method > input-method.txt
             adb logcat -d > logcat.txt
-            grep -q "com.night.keyboard/.ime.KeyboardInputMethodService" input-method.txt
-            grep -q "mInputViewStarted=true" input-method.txt
-            grep -q 'text="123"' ime-window.xml
-            grep -q 'content-desc="Clipboard"' ime-window.xml
+            adb exec-out screencap -p > ime-qa.png
+            adb shell uiautomator dump /sdcard/ime-window.xml
+            adb pull /sdcard/ime-window.xml ime-window.xml
+
+            # These are framework-level facts about the real InputMethodService window.
+            grep -q "mCurImeId=com.night.keyboard/.ime.KeyboardInputMethodService" input-method.txt
+            grep -q "mDecorViewVisible=true" input-method.txt
+            grep -q "mInputStarted=true mInputViewStarted=true" input-method.txt
+            grep -q "mIsInputViewShown=true" input-method.txt
+
             if grep -E "FATAL EXCEPTION|AndroidRuntime" logcat.txt | grep -q "com.night.keyboard"; then
               echo "Keyboard process crash detected in logcat"
-              grep -n -A20 -B5 "FATAL EXCEPTION" logcat.txt || true
+              grep -n -A24 -B6 "FATAL EXCEPTION" logcat.txt || true
               exit 1
             fi
+
+            # Prove the visible IME is connected to the focused app field by tapping
+            # the real Q key on the fixed Pixel 6/API 36 QA profile.
+            adb shell input tap 54 1935
+            sleep 1
+            adb shell uiautomator dump /sdcard/after-q.xml
+            adb pull /sdcard/after-q.xml after-q.xml
+            grep -q 'text="qCursor test: move the caret through this sentence"' after-q.xml
+
+            # Long-press/drag the real spacebar left. The caret begins immediately
+            # after q, so the gesture must move it to position zero. Typing w must
+            # therefore produce wq..., proving trackpad movement goes through the
+            # actual InputConnection rather than a visual-only cursor state.
+            adb shell input swipe 545 2320 405 2320 900
+            sleep 1
+            adb shell input tap 161 1935
+            sleep 1
+            adb shell uiautomator dump /sdcard/after-cursor.xml
+            adb pull /sdcard/after-cursor.xml after-cursor.xml
+            grep -q 'text="wqCursor test: move the caret through this sentence"' after-cursor.xml
+
+            # Tap the real backspace key once and verify deletion reaches the field.
+            adb shell input tap 1006 2192
+            sleep 1
+            adb shell uiautomator dump /sdcard/after-backspace.xml
+            adb pull /sdcard/after-backspace.xml after-backspace.xml
+            grep -q 'text="qCursor test: move the caret through this sentence"' after-backspace.xml
+            adb exec-out screencap -p > ime-qa-after-input.png
       - name: Upload emulator evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -129,7 +159,11 @@ jobs:
           name: keyboard-emulator-evidence
           path: |
             ime-qa.png
+            ime-qa-after-input.png
             ime-window.xml
+            after-q.xml
+            after-cursor.xml
+            after-backspace.xml
             input-method.txt
             logcat.txt
           if-no-files-found: warn
