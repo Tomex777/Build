@@ -122,6 +122,9 @@ jobs:
             ime-qa.png
             ime-qa-after-input.png
             emoji-panel.png
+            symbol-pane.png
+            more-symbols-pane.png
+            letters-restored.png
             after-repeat-backspace.png
             home-after-setup.png
             ime-window.xml
@@ -130,6 +133,9 @@ jobs:
             after-cursor.xml
             after-backspace.xml
             after-emoji.xml
+            after-symbol-one.xml
+            after-more-symbol.xml
+            after-shift.xml
             before-repeat-backspace.xml
             after-repeat-backspace.xml
             home-after-setup.xml
