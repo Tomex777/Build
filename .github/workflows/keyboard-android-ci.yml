@@ -71,12 +71,43 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
-      - name: Run Android 16 emulator tests
+      - name: Run Android 16 emulator tests and IME smoke test
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
           target: google_apis
-          arch: x86_64
+          arch: arm64-v8a
           profile: pixel_6
           disable-animations: true
-          script: gradle --no-daemon :app:connectedDebugAndroidTest
+          script: |
+            gradle --no-daemon :app:connectedDebugAndroidTest :app:assembleDebug
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb shell ime enable com.night.keyboard/.ime.KeyboardInputMethodService
+            adb shell ime set com.night.keyboard/.ime.KeyboardInputMethodService
+            DEFAULT_IME="$(adb shell settings get secure default_input_method | tr -d '\r')"
+            echo "Default IME: $DEFAULT_IME"
+            test "$DEFAULT_IME" = "com.night.keyboard/.ime.KeyboardInputMethodService"
+            adb shell am start -W -n com.night.keyboard/.debug.ImeHarnessActivity
+            sleep 4
+            adb shell uiautomator dump /sdcard/ime-window.xml
+            adb pull /sdcard/ime-window.xml ime-window.xml
+            adb exec-out screencap -p > ime-qa.png
+            adb shell dumpsys input_method > input-method.txt
+            adb logcat -d > logcat.txt
+            grep -q "com.night.keyboard/.ime.KeyboardInputMethodService" input-method.txt
+            if grep -E "FATAL EXCEPTION|AndroidRuntime" logcat.txt | grep -q "com.night.keyboard"; then
+              echo "Keyboard process crash detected in logcat"
+              grep -n -A20 -B5 "FATAL EXCEPTION" logcat.txt || true
+              exit 1
+            fi
+      - name: Upload emulator evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: keyboard-emulator-evidence
+          path: |
+            ime-qa.png
+            ime-window.xml
+            input-method.txt
+            logcat.txt
+          if-no-files-found: warn
