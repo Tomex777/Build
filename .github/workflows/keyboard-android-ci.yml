@@ -92,7 +92,7 @@ jobs:
           disable-linux-hw-accel: false
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
           script: |
-            set -euo pipefail
+            set -eu
             gradle --no-daemon :app:connectedDebugAndroidTest :app:assembleDebug
             adb install -r app/build/outputs/apk/debug/app-debug.apk
 
