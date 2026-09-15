@@ -112,6 +112,13 @@ jobs:
             adb shell uiautomator dump /sdcard/ime-window.xml
             adb pull /sdcard/ime-window.xml ime-window.xml
 
+            # The Android 16 gestural navigation frame is part of the IME window.
+            # Production now reserves that inset; offset the fixed-profile touch
+            # probes by the actual nav-frame height instead of baking it into tests.
+            NAV_HEIGHT=$(python3 -c 'import re; s=open("input-method.txt").read(); m=re.search(r"mNavigationBarFrame=.*?\s0,(\d+)-1080,(\d+)\}", s); print(int(m.group(2))-int(m.group(1)) if m else 0)')
+            echo "ime_navigation_bar_height_px=$NAV_HEIGHT"
+            key_y() { echo $(( $1 - NAV_HEIGHT )); }
+
             # Framework-level proof that the real InputMethodService window is live.
             grep -q "mCurImeId=com.night.keyboard/.ime.KeyboardInputMethodService" input-method.txt
             grep -q "mDecorViewVisible=true" input-method.txt
@@ -120,7 +127,7 @@ jobs:
             if grep -E "FATAL EXCEPTION|AndroidRuntime" logcat.txt | grep -q "com.night.keyboard"; then echo "Keyboard process crash detected in logcat"; grep -n -A24 -B6 "FATAL EXCEPTION" logcat.txt || true; exit 1; fi
 
             # Tap the real Q key and prove text reaches the focused host field.
-            adb shell input tap 54 1935
+            adb shell input tap 54 $(key_y 1935)
             sleep 1
             adb shell uiautomator dump /sdcard/after-q.xml
             adb pull /sdcard/after-q.xml after-q.xml
@@ -130,7 +137,8 @@ jobs:
             # `input swipe` is one continuous pointer stream with a stable down-time.
             # Keeping it down for 1200 ms crosses the production long-press gate and
             # leaves enough post-gate motion to exercise real Spacebar trackpad moves.
-            adb shell input swipe 545 2320 445 2320 1200
+            SPACE_Y=$(key_y 2320)
+            adb shell input swipe 545 "$SPACE_Y" 445 "$SPACE_Y" 1200
             sleep 1
             adb shell uiautomator dump /sdcard/after-trackpad.xml
             adb pull /sdcard/after-trackpad.xml after-trackpad.xml
@@ -139,14 +147,15 @@ jobs:
 
             # Commit W after the moved caret as a second end-to-end proof. No space
             # may have leaked from the trackpad gesture.
-            adb shell input tap 161 1935
+            adb shell input tap 161 $(key_y 1935)
             sleep 1
             adb shell uiautomator dump /sdcard/after-cursor.xml
             adb pull /sdcard/after-cursor.xml after-cursor.xml
             grep -q 'text="wqCursor test: move the caret through this sentence"' after-cursor.xml
 
             # Tap the real backspace key once and prove deletion reaches the host field.
-            adb shell input tap 1006 2192
+            BACKSPACE_Y=$(key_y 2192)
+            adb shell input tap 1006 "$BACKSPACE_Y"
             sleep 1
             adb shell uiautomator dump /sdcard/after-backspace.xml
             adb pull /sdcard/after-backspace.xml after-backspace.xml
@@ -157,27 +166,27 @@ jobs:
             # host hierarchy on API 36. Exercise its visible toolbar directly on the
             # fixed Pixel 6 QA profile, capture visual evidence, then tap the first
             # custom-drawn smile entry and prove it commits its Unicode output.
-            adb shell input tap 134 1607
+            adb shell input tap 134 $(key_y 1607)
             sleep 1
             adb exec-out screencap -p > emoji-panel.png
-            adb shell input tap 75 1685
+            adb shell input tap 75 $(key_y 1685)
             sleep 1
             adb shell uiautomator dump /sdcard/after-emoji.xml
             adb pull /sdcard/after-emoji.xml after-emoji.xml
             grep -q 'text="🙂qCursor test: move the caret through this sentence"' after-emoji.xml
 
             # Close the expanded emoji panel. Its extra height shifts the toolbar
-            # upward on the fixed profile, so use the captured panel-state toolbar Y.
-            adb shell input tap 134 1555
+            # upward on the fixed profile, so use the panel-state toolbar baseline.
+            adb shell input tap 134 $(key_y 1555)
             sleep 1
 
             # Insert a safe run of q characters, then hold the real Backspace in one
             # continuous stationary swipe. At least two characters must disappear.
-            for i in 1 2 3 4 5 6 7 8; do adb shell input tap 54 1935; done
+            for i in 1 2 3 4 5 6 7 8; do adb shell input tap 54 $(key_y 1935); done
             sleep 1
             adb shell uiautomator dump /sdcard/before-repeat-backspace.xml
             adb pull /sdcard/before-repeat-backspace.xml before-repeat-backspace.xml
-            adb shell input swipe 1006 2192 1006 2192 720
+            adb shell input swipe 1006 "$BACKSPACE_Y" 1006 "$BACKSPACE_Y" 720
             sleep 1
             adb shell uiautomator dump /sdcard/after-repeat-backspace.xml
             adb pull /sdcard/after-repeat-backspace.xml after-repeat-backspace.xml
