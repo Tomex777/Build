@@ -35,7 +35,8 @@ public final class NightCoreSettingsClient {
         if (context == null) throw new IllegalArgumentException("Target context is required");
 
         Intent request = new Intent(NightCoreSettingsReceiver.ACTION_GET_BUBBLE_STYLE)
-                .setComponent(SETTINGS_RECEIVER);
+                .setComponent(SETTINGS_RECEIVER)
+                .addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
         Bundle options = BroadcastOptions.makeBasic()
                 .setDeferralPolicy(BroadcastOptions.DEFERRAL_POLICY_NONE)
                 .setShareIdentityEnabled(true)
