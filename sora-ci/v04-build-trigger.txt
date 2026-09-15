@@ -1,1 +1,1 @@
-build Sora v0.4 with built-in Jikan anime manga catalog
+build final Sora v0.4 built-in Jikan catalog and external-count cleanup
