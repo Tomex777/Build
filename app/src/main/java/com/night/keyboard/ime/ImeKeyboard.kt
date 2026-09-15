@@ -5,7 +5,8 @@ package com.night.keyboard.ime
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -466,7 +467,6 @@ private fun SpacebarKey(
     onSpace: () -> Unit,
     onCursor: (Int) -> Boolean,
 ) {
-    var accumulated by remember { mutableFloatStateOf(0f) }
     var tracking by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
     val style = theme.overrides[key.id] ?: KeyStyleOverride()
@@ -482,28 +482,64 @@ private fun SpacebarKey(
             .height((style.heightDp ?: theme.keyHeightDp).coerceIn(34f, 80f).dp)
             .padding(horizontal = 1.dp)
             .background(fill, RoundedCornerShape(radius))
-            .pointerInput(Unit) {
-                detectDragGesturesAfterLongPress(
-                    onDragStart = {
-                        tracking = true
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    },
-                    onDragEnd = { tracking = false; accumulated = 0f },
-                    onDragCancel = { tracking = false; accumulated = 0f },
-                ) { change, drag ->
-                    change.consume()
-                    accumulated += drag.x
-                    val stepPx = 18.dp.toPx()
-                    while (abs(accumulated) >= stepPx) {
-                        val direction = if (accumulated > 0) 1 else -1
-                        if (onCursor(direction)) {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            .semantics { contentDescription = "Spacebar" }
+            .pointerInput(onSpace, onCursor) {
+                val stepPx = 18.dp.toPx()
+                val longPressMillis = viewConfiguration.longPressTimeoutMillis
+                val touchSlop = viewConfiguration.touchSlop
+
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val pointerId = down.id
+                    val downTime = down.uptimeMillis
+                    val startX = down.position.x
+                    val startY = down.position.y
+                    var previousX = down.position.x
+                    var accumulated = 0f
+                    var trackpadActive = false
+                    var maxMovement = 0f
+
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+                        val elapsed = change.uptimeMillis - downTime
+                        maxMovement = maxOf(
+                            maxMovement,
+                            abs(change.position.x - startX),
+                            abs(change.position.y - startY),
+                        )
+
+                        val dx = change.position.x - previousX
+                        if (!trackpadActive && elapsed >= longPressMillis && change.pressed) {
+                            trackpadActive = true
+                            tracking = true
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         }
-                        accumulated -= direction * stepPx
+
+                        if (trackpadActive && change.pressed) {
+                            accumulated += dx
+                            while (abs(accumulated) >= stepPx) {
+                                val direction = if (accumulated > 0f) 1 else -1
+                                if (onCursor(direction)) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                                accumulated -= direction * stepPx
+                            }
+                            change.consume()
+                        }
+
+                        previousX = change.position.x
+                        if (!change.pressed) {
+                            if (!trackpadActive && elapsed < longPressMillis && maxMovement <= touchSlop) {
+                                onSpace()
+                            }
+                            break
+                        }
                     }
+
+                    tracking = false
                 }
-            }
-            .combinedClickable(onClick = { if (!tracking) onSpace() }),
+            },
         contentAlignment = Alignment.Center,
     ) {
         Text(
