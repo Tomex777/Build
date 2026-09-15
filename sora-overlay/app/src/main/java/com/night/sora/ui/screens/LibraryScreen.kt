@@ -10,11 +10,13 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -24,15 +26,10 @@ import coil3.compose.AsyncImage
 import com.night.sora.model.ContentType
 import com.night.sora.model.ExtensionMediaSelection
 import com.night.sora.model.LibraryEntry
-import com.night.sora.ui.theme.SoraMuted
-import com.night.sora.ui.theme.SoraSurface
+import com.night.sora.ui.theme.*
 
-private enum class LibraryFilter(val label: String) {
-    ALL("All"),
-    ANIME_MANGA("Anime & Manga"),
-    MOVIES_TV("Movies & TV"),
-    MUSIC("Music"),
-    FILES("Files"),
+private enum class LibraryType(val label: String) {
+    ALL("All"), ANIME("Anime"), MANGA("Manga"), MOVIE("Movies"), SERIES("Series"), MUSIC("Music")
 }
 
 @Composable
@@ -40,93 +37,99 @@ fun LibraryScreen(
     modifier: Modifier = Modifier,
     entries: List<LibraryEntry>,
     onOpenMedia: (ExtensionMediaSelection) -> Unit,
+    onSearch: () -> Unit = {},
 ) {
-    var filter by remember { mutableStateOf(LibraryFilter.ALL) }
-    val mediaEntries = entries.filter { entry ->
-        when (filter) {
-            LibraryFilter.ALL -> entry.contentType != null
-            LibraryFilter.ANIME_MANGA -> entry.contentType == ContentType.ANIME || entry.contentType == ContentType.MANGA
-            LibraryFilter.MOVIES_TV -> entry.contentType == ContentType.MOVIE || entry.contentType == ContentType.TV
-            LibraryFilter.MUSIC -> entry.contentType == ContentType.MUSIC
-            LibraryFilter.FILES -> entry.contentType == null && entry.kind.equals("File", true)
-        }
+    var filter by remember { mutableStateOf(LibraryType.ALL) }
+    var activeOnly by remember { mutableStateOf(false) }
+    var sortTitle by remember { mutableStateOf(false) }
+
+    val visible = remember(entries, filter, activeOnly, sortTitle) {
+        entries.filter { entry ->
+            val typeMatch = when (filter) {
+                LibraryType.ALL -> entry.contentType != null
+                LibraryType.ANIME -> entry.contentType == ContentType.ANIME
+                LibraryType.MANGA -> entry.contentType == ContentType.MANGA
+                LibraryType.MOVIE -> entry.contentType == ContentType.MOVIE
+                LibraryType.SERIES -> entry.contentType == ContentType.TV
+                LibraryType.MUSIC -> entry.contentType == ContentType.MUSIC
+            }
+            val activeMatch = !activeOnly || entry.detail.contains("Episode", true) || entry.detail.contains("Chapter", true) || entry.detail.contains("left", true) || entry.detail.contains("new", true)
+            typeMatch && activeMatch
+        }.let { list -> if (sortTitle) list.sortedBy { it.label.lowercase() } else list }
     }
 
     Column(modifier.fillMaxSize()) {
-        Column(Modifier.padding(start = 18.dp, end = 18.dp, top = 22.dp, bottom = 8.dp)) {
-            Text("Library", fontSize = 30.sp, fontWeight = FontWeight.Bold)
-            Text("Everything you chose to keep.", color = SoraMuted, fontSize = 13.sp)
+        Row(
+            Modifier.fillMaxWidth().statusBarsPadding().height(56.dp).padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Library", fontSize = 23.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f).padding(start = 8.dp))
+            IconButton(onClick = onSearch) { Icon(Icons.Rounded.Search, "Search library") }
+            IconButton(onClick = { activeOnly = !activeOnly }) { Icon(Icons.Rounded.FilterList, "Filter library", tint = if (activeOnly) SoraAccent else SoraText) }
+            IconButton(onClick = { sortTitle = !sortTitle }) { Icon(Icons.Rounded.Sort, "Sort library", tint = if (sortTitle) SoraAccent else SoraText) }
         }
 
         LazyRow(
             contentPadding = PaddingValues(horizontal = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            items(LibraryFilter.entries.size) { index ->
-                val item = LibraryFilter.entries[index]
-                FilterChip(
-                    selected = filter == item,
-                    onClick = { filter = item },
-                    label = { Text(item.label) },
-                )
+            items(LibraryType.entries.size) { index ->
+                val item = LibraryType.entries[index]
+                Column(Modifier.clickable { filter = item }.padding(vertical = 9.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(item.label, color = if (filter == item) SoraText else SoraMuted, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+                    if (filter == item) Box(Modifier.padding(top = 7.dp).height(2.dp).width(24.dp).background(SoraAccent, RoundedCornerShape(99.dp)))
+                }
             }
         }
+        HorizontalDivider(color = Color.White.copy(alpha = .045f))
 
-        Spacer(Modifier.height(12.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 13.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("${visible.size} item${if (visible.size == 1) "" else "s"}", color = SoraMuted, fontSize = 9.sp)
+            Text(if (sortTitle) "Title A–Z" else "Last updated", color = SoraMuted, fontSize = 9.sp)
+        }
 
-        if (mediaEntries.isEmpty()) {
+        if (visible.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(36.dp)) {
-                    Icon(Icons.Rounded.Folder, null, modifier = Modifier.size(42.dp), tint = SoraMuted)
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        if (filter == LibraryFilter.FILES) "No files yet" else "Nothing saved here yet",
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        if (filter == LibraryFilter.FILES) "Files you add to Sora will live here."
-                        else "Add titles from Media and they will show up here.",
-                        color = SoraMuted,
-                        fontSize = 12.sp,
-                        lineHeight = 17.sp,
-                    )
-                }
+                Text("No saved items in this filter.", color = SoraMuted, fontSize = 11.sp)
             }
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                columns = GridCells.Fixed(2),
                 modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 130.dp),
+                horizontalArrangement = Arrangement.spacedBy(11.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                items(mediaEntries, key = { it.id }) { entry ->
-                    LibraryCard(entry) { entry.toMediaSelection()?.let(onOpenMedia) }
-                }
+                items(visible, key = { it.id }) { entry -> LibraryGridItem(entry) { entry.toMediaSelection()?.let(onOpenMedia) } }
             }
         }
     }
 }
 
 @Composable
-private fun LibraryCard(entry: LibraryEntry, onClick: () -> Unit) {
+private fun LibraryGridItem(entry: LibraryEntry, onClick: () -> Unit) {
+    val isMusic = entry.contentType == ContentType.MUSIC
     Column(Modifier.clickable(onClick = onClick)) {
         Box(
-            Modifier.fillMaxWidth().aspectRatio(2f / 3f).background(SoraSurface, RoundedCornerShape(5.dp)),
-            contentAlignment = Alignment.Center,
+            Modifier.fillMaxWidth().aspectRatio(if (isMusic) 1f else 2f / 3f)
+                .clip(RoundedCornerShape(8.dp)).background(Color(0xFF24231F)),
         ) {
-            if (!entry.artworkUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = entry.artworkUrl,
-                    contentDescription = entry.label,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
+            if (!entry.artworkUrl.isNullOrBlank()) AsyncImage(entry.artworkUrl, entry.label, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            Surface(color = Color(0xE611110F), shape = RoundedCornerShape(5.dp), modifier = Modifier.padding(7.dp).align(Alignment.TopStart)) {
+                Text(
+                    when (entry.contentType) { ContentType.TV -> "SERIES"; ContentType.MUSIC -> if (entry.kind.contains("playlist", true)) "PLAYLIST" else "MUSIC"; else -> entry.kind.uppercase() },
+                    color = SoraText, fontSize = 7.sp, fontWeight = FontWeight.Black, letterSpacing = .5.sp,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
                 )
-            } else {
-                Text(entry.label.take(1).uppercase(), fontSize = 28.sp, color = SoraMuted, fontWeight = FontWeight.Bold)
+            }
+            if (entry.detail.contains("new", true)) {
+                Box(Modifier.align(Alignment.TopEnd).padding(7.dp).size(21.dp).background(SoraAccent, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) { Text("1", color = SoraAccentInk, fontSize = 8.sp, fontWeight = FontWeight.Black) }
+            }
+            if (entry.detail.contains("left", true) || entry.detail.contains("Episode", true) || entry.detail.contains("Chapter", true)) {
+                LinearProgressIndicator(progress = { .58f }, modifier = Modifier.align(Alignment.BottomCenter).padding(7.dp).fillMaxWidth().height(3.dp), color = SoraAccent, trackColor = Color(0xFF5B5850))
             }
         }
-        Text(entry.label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 5.dp))
-        Text(entry.kind, color = SoraMuted, fontSize = 9.sp, maxLines = 1)
+        Text(entry.label, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 1.dp, top = 7.dp))
+        Text(entry.detail, color = SoraMuted, fontSize = 8.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 1.dp))
     }
 }
