@@ -1,0 +1,1 @@
+exclude diagnostic extensions from normal source UX
