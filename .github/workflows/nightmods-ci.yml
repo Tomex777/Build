@@ -121,13 +121,18 @@ jobs:
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
 
-      - name: Verify Night Core source tree
+      - name: Verify Night Core source tree and preference contract
         shell: bash
         run: |
+          MANIFEST=nightmods/nightcore/app/src/main/AndroidManifest.xml
+          PREFS=nightmods/nightcore/app/src/main/java/dev/nightmods/core/config/NightCorePreferences.java
           test -f nightmods/nightcore/settings.gradle.kts
           test -f nightmods/nightcore/app/build.gradle.kts
           test -f nightmods/nightcore/app/src/main/assets/xposed_init
           test -f nightmods/nightcore/app/src/main/java/dev/nightmods/core/config/NightCoreSettingsProvider.java
+          grep -q 'android:name="xposedminversion" android:value="92"' "$MANIFEST"
+          ! grep -q 'xposedsharedprefs' "$MANIFEST"
+          grep -q 'Context.MODE_PRIVATE' "$PREFS"
 
       - name: Build and lint Night Core
         working-directory: nightmods/nightcore
@@ -147,9 +152,10 @@ jobs:
           grep -qx 'dev.nightmods.core.hook.NightCoreHook' /tmp/xposed_init.txt
           "$AAPT" dump xmltree "$APK" AndroidManifest.xml > /tmp/nightcore-manifest.txt
           grep -q 'xposedmodule' /tmp/nightcore-manifest.txt
-          grep -q 'xposedsharedprefs' /tmp/nightcore-manifest.txt
+          grep -q 'xposedminversion' /tmp/nightcore-manifest.txt
           grep -q 'xposedscope' /tmp/nightcore-manifest.txt
           grep -q 'dev.nightmods.core.settings' /tmp/nightcore-manifest.txt
+          ! grep -q 'xposedsharedprefs' /tmp/nightcore-manifest.txt
           sha256sum "$APK"
 
       - name: Upload Night Core APK
@@ -236,8 +242,6 @@ jobs:
             grep -q 'Settings' smoke/nightmods-window.xml
             adb exec-out screencap -p > smoke/nightmods-android16.png
 
-            # Cold-start the deep link because MainActivity is singleTop and upstream
-            # LSPosed does not re-dispatch Navigation deep links from onNewIntent().
             adb shell am force-stop org.lsposed.manager || true
             adb shell am start -W -a android.intent.action.VIEW -d 'lsposed://night-core/bubble-styler' -n org.lsposed.manager/.ui.activity.MainActivity | tee smoke/bubble-start.txt
             sleep 4
