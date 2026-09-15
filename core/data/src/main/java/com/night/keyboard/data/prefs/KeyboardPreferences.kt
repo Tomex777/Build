@@ -55,13 +55,39 @@ class KeyboardPreferences @Inject constructor(@ApplicationContext private val co
         )
     }
 
-    suspend fun setDefaultRetention(value: RetentionPreset) = context.keyboardDataStore.edit { it[Keys.defaultRetention] = value.name }
-    suspend fun setMaxHistory(value: Int) = context.keyboardDataStore.edit { it[Keys.maxHistory] = value }
-    suspend fun setKeepPinnedAtTop(value: Boolean) = context.keyboardDataStore.edit { it[Keys.keepPinnedAtTop] = value }
-    suspend fun setNumberRow(value: Boolean) = context.keyboardDataStore.edit { it[Keys.numberRow] = value }
-    suspend fun setAutocorrect(value: Boolean) = context.keyboardDataStore.edit { it[Keys.autocorrect] = value }
-    suspend fun setSuggestions(value: Boolean) = context.keyboardDataStore.edit { it[Keys.suggestions] = value }
-    suspend fun setHaptics(value: Boolean) = context.keyboardDataStore.edit { it[Keys.haptics] = value }
-    suspend fun setSecondaryCharacters(value: Boolean) = context.keyboardDataStore.edit { it[Keys.secondaryCharacters] = value }
-    suspend fun setServerUrl(value: String) = context.keyboardDataStore.edit { it[Keys.serverUrl] = value.trim() }
+    suspend fun setDefaultRetention(value: RetentionPreset) {
+        context.keyboardDataStore.edit { it[Keys.defaultRetention] = value.name }
+    }
+
+    suspend fun setMaxHistory(value: Int) {
+        context.keyboardDataStore.edit { it[Keys.maxHistory] = value }
+    }
+
+    suspend fun setKeepPinnedAtTop(value: Boolean) {
+        context.keyboardDataStore.edit { it[Keys.keepPinnedAtTop] = value }
+    }
+
+    suspend fun setNumberRow(value: Boolean) {
+        context.keyboardDataStore.edit { it[Keys.numberRow] = value }
+    }
+
+    suspend fun setAutocorrect(value: Boolean) {
+        context.keyboardDataStore.edit { it[Keys.autocorrect] = value }
+    }
+
+    suspend fun setSuggestions(value: Boolean) {
+        context.keyboardDataStore.edit { it[Keys.suggestions] = value }
+    }
+
+    suspend fun setHaptics(value: Boolean) {
+        context.keyboardDataStore.edit { it[Keys.haptics] = value }
+    }
+
+    suspend fun setSecondaryCharacters(value: Boolean) {
+        context.keyboardDataStore.edit { it[Keys.secondaryCharacters] = value }
+    }
+
+    suspend fun setServerUrl(value: String) {
+        context.keyboardDataStore.edit { it[Keys.serverUrl] = value.trim() }
+    }
 }
