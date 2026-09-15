@@ -1,0 +1,129 @@
+{
+  "fatal": false,
+  "cases": [
+    {
+      "name": "desktop-1280x800",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "mobile": false,
+      "runtime": {
+        "canvasWidth": 1280,
+        "canvasHeight": 800,
+        "errorVisible": false,
+        "errorText": "",
+        "resetVisible": true,
+        "webgl": true
+      },
+      "shots": {
+        "initial": {
+          "width": 1280,
+          "height": 800,
+          "meanLuma": 173.49,
+          "stdLuma": 31.16,
+          "minLuma": 19.72,
+          "maxLuma": 251.35
+        },
+        "orbited": {
+          "width": 1280,
+          "height": 800,
+          "meanLuma": 172.01,
+          "stdLuma": 30.93,
+          "minLuma": 17.72,
+          "maxLuma": 250.13
+        },
+        "lamp": {
+          "width": 1280,
+          "height": 800,
+          "meanLuma": 173.11,
+          "stdLuma": 30.96,
+          "minLuma": 17.72,
+          "maxLuma": 250.34
+        },
+        "reset": {
+          "width": 1280,
+          "height": 800,
+          "meanLuma": 173.28,
+          "stdLuma": 31.27,
+          "minLuma": 19.72,
+          "maxLuma": 249.27
+        }
+      },
+      "meaningful": true,
+      "events": []
+    },
+    {
+      "name": "mobile-393x873",
+      "viewport": {
+        "width": 393,
+        "height": 873
+      },
+      "mobile": true,
+      "runtime": {
+        "canvasWidth": 393,
+        "canvasHeight": 873,
+        "errorVisible": false,
+        "errorText": "",
+        "resetVisible": true,
+        "webgl": true
+      },
+      "shots": {
+        "initial": {
+          "width": 393,
+          "height": 873,
+          "meanLuma": 176.08,
+          "stdLuma": 36.3,
+          "minLuma": 23.57,
+          "maxLuma": 252.14
+        },
+        "reset": {
+          "width": 393,
+          "height": 873,
+          "meanLuma": 175.03,
+          "stdLuma": 35.63,
+          "minLuma": 23.5,
+          "maxLuma": 252.21
+        }
+      },
+      "meaningful": true,
+      "events": []
+    },
+    {
+      "name": "mobile-landscape-873x393",
+      "viewport": {
+        "width": 873,
+        "height": 393
+      },
+      "mobile": true,
+      "runtime": {
+        "canvasWidth": 873,
+        "canvasHeight": 393,
+        "errorVisible": false,
+        "errorText": "",
+        "resetVisible": true,
+        "webgl": true
+      },
+      "shots": {
+        "initial": {
+          "width": 873,
+          "height": 393,
+          "meanLuma": 171.83,
+          "stdLuma": 27.65,
+          "minLuma": 21.5,
+          "maxLuma": 251.35
+        },
+        "reset": {
+          "width": 873,
+          "height": 393,
+          "meanLuma": 170.75,
+          "stdLuma": 26.56,
+          "minLuma": 18.64,
+          "maxLuma": 252.06
+        }
+      },
+      "meaningful": true,
+      "events": []
+    }
+  ]
+}
