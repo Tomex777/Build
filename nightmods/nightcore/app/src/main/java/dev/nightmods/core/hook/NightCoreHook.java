@@ -59,32 +59,52 @@ public final class NightCoreHook implements IXposedHookLoadPackage {
                                 return;
                             }
 
-                            final BubbleStyleConfig config;
-                            try {
-                                config = NightCoreSettingsClient.readBubbleStyle(context);
-                            } catch (Throwable error) {
-                                XposedBridge.log("NightCore skipped: settings unavailable for "
-                                        + selectedAdapter.displayName());
-                                XposedBridge.log(error);
-                                return;
-                            }
+                            Context appContext = context.getApplicationContext();
+                            if (appContext == null) appContext = context;
+                            Context settingsContext = appContext;
 
-                            if (!config.enabled || !selectedAdapter.enabled(config)) return;
-
-                            XposedBridge.log("NightCore attached: " + selectedAdapter.displayName()
-                                    + " package=" + lpparam.packageName + " process=" + processName);
-                            try {
-                                selectedAdapter.attach(lpparam, config);
-                            } catch (Throwable error) {
-                                XposedBridge.log("NightCore adapter failed: " + selectedAdapter.displayName());
-                                XposedBridge.log(error);
-                            }
+                            Thread loader = new Thread(() -> loadAndAttach(
+                                    settingsContext,
+                                    selectedAdapter,
+                                    lpparam,
+                                    processName
+                            ), "NightCoreSettings-" + selectedAdapter.packageName());
+                            loader.setDaemon(true);
+                            loader.start();
                         }
                     }
             );
         } catch (Throwable error) {
             HOOKED_PROCESSES.remove(processKey);
             XposedBridge.log("NightCore lifecycle hook failed: " + target.displayName());
+            XposedBridge.log(error);
+        }
+    }
+
+    private static void loadAndAttach(
+            Context context,
+            TargetAdapter selectedAdapter,
+            XC_LoadPackage.LoadPackageParam lpparam,
+            String processName
+    ) {
+        final BubbleStyleConfig config;
+        try {
+            config = NightCoreSettingsClient.readBubbleStyle(context);
+        } catch (Throwable error) {
+            XposedBridge.log("NightCore skipped: settings unavailable for "
+                    + selectedAdapter.displayName());
+            XposedBridge.log(error);
+            return;
+        }
+
+        if (!config.enabled || !selectedAdapter.enabled(config)) return;
+
+        XposedBridge.log("NightCore attached: " + selectedAdapter.displayName()
+                + " package=" + lpparam.packageName + " process=" + processName);
+        try {
+            selectedAdapter.attach(lpparam, config);
+        } catch (Throwable error) {
+            XposedBridge.log("NightCore adapter failed: " + selectedAdapter.displayName());
             XposedBridge.log(error);
         }
     }
