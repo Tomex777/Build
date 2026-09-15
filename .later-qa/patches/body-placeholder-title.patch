@@ -1,0 +1,15 @@
+--- a/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
++++ b/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
+@@ -1483,9 +1483,8 @@
+                                     LaterRichTextBlockEditor(
+                                         block = block,
+                                         paper = paperStyle,
+                                         showPlaceholder =
+-                                            !hasContent &&
+-                                                block.id == firstEditableTextBlockId &&
+-                                                block.text.orEmpty().isEmpty(),
++                                            block.id == firstEditableTextBlockId &&
++                                                block.text.orEmpty().isBlank(),
+                                         onFocused = { state ->
+                                             activeTextState = state
+                                             activeTextBlockId = block.id
