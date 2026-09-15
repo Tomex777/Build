@@ -218,22 +218,18 @@ jobs:
           disable-animations: true
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
-            set -eu
-            MANAGER_APK="$(find nightmods-apk -type f -name '*.apk' -print -quit)"
-            CORE_APK="$(find nightcore-apk -type f -name '*.apk' -print -quit)"
             adb wait-for-device
             adb shell getprop ro.build.version.sdk | tr -d '\r' | tee smoke/sdk.txt
             test "$(cat smoke/sdk.txt)" = "36"
-            adb install -r "$MANAGER_APK"
-            adb install -r "$CORE_APK"
+            adb install -r "$(find nightmods-apk -type f -name '*.apk' -print -quit)"
+            adb install -r "$(find nightcore-apk -type f -name '*.apk' -print -quit)"
             adb logcat -c
 
             adb shell am force-stop org.lsposed.manager || true
             adb shell am start -W -n org.lsposed.manager/.ui.activity.MainActivity | tee smoke/manager-start.txt
             sleep 7
-            MANAGER_PID="$(adb shell pidof org.lsposed.manager | tr -d '\r')"
-            echo "manager_pid=$MANAGER_PID" | tee smoke/manager-process.txt
-            test -n "$MANAGER_PID"
+            adb shell pidof org.lsposed.manager | tr -d '\r' | tee smoke/manager-process.txt
+            test -s smoke/manager-process.txt
             adb shell dumpsys activity activities > smoke/manager-activities.txt
             grep -E 'mResumedActivity|topResumedActivity' smoke/manager-activities.txt | grep -q 'org.lsposed.manager'
             adb shell uiautomator dump /sdcard/nightmods-window.xml || true
@@ -243,9 +239,8 @@ jobs:
             adb shell am force-stop dev.nightmods.core || true
             adb shell am start -W -n dev.nightmods.core/.MainActivity | tee smoke/nightcore-start.txt
             sleep 5
-            CORE_PID="$(adb shell pidof dev.nightmods.core | tr -d '\r')"
-            echo "nightcore_pid=$CORE_PID" | tee smoke/nightcore-process.txt
-            test -n "$CORE_PID"
+            adb shell pidof dev.nightmods.core | tr -d '\r' | tee smoke/nightcore-process.txt
+            test -s smoke/nightcore-process.txt
             adb shell dumpsys activity activities > smoke/nightcore-activities.txt
             grep -E 'mResumedActivity|topResumedActivity' smoke/nightcore-activities.txt | grep -q 'dev.nightmods.core'
             adb shell uiautomator dump /sdcard/nightcore-window.xml || true
@@ -254,11 +249,7 @@ jobs:
 
             adb logcat -d > smoke/logcat.txt
             adb logcat -b crash -d > smoke/crash.txt || true
-            if grep -E -q 'org\.lsposed\.manager|dev\.nightmods\.core' smoke/crash.txt; then
-              echo 'Night Mods or Night Core produced an Android crash entry.' >&2
-              cat smoke/crash.txt >&2
-              exit 1
-            fi
+            test -z "$(grep -E 'org\.lsposed\.manager|dev\.nightmods\.core' smoke/crash.txt || true)"
             echo 'Android 16 manager + module smoke test passed.'
 
       - name: Upload smoke evidence
