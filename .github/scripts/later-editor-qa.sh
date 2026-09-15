@@ -129,18 +129,38 @@ assert_label qa-evidence/editor-initial.xml 'Write to your future self'
 assert_label qa-evidence/editor-initial.xml 'New capsule'
 
 click_text qa-evidence/editor-initial.xml 'Title'
+sleep 1
 adb shell input text 'LaterEditorQA'
 sleep 1
-dump editor-title-keyboard; shot editor-title-keyboard
+dump editor-title-keyboard
+if ! grep -q 'text="LaterEditorQA"' qa-evidence/editor-title-keyboard.xml; then
+  echo 'retrying title text after IME/focus settle'
+  adb shell input keycombination KEYCODE_CTRL_LEFT KEYCODE_A
+  sleep 0.3
+  adb shell input text 'LaterEditorQA'
+  sleep 1
+  dump editor-title-keyboard
+fi
+shot editor-title-keyboard
 assert_label qa-evidence/editor-title-keyboard.xml 'LaterEditorQA'
 assert_label qa-evidence/editor-title-keyboard.xml 'Write to your future self'
 adb shell input keyevent 4; sleep 1
 
 dump editor-pre-body
 click_contains qa-evidence/editor-pre-body.xml 'Write to your future self'
+sleep 1
 adb shell input text 'EditorBodyQA'
 sleep 1
-dump editor-body-keyboard; shot editor-body-keyboard
+dump editor-body-keyboard
+if ! grep -q 'text="EditorBodyQA"' qa-evidence/editor-body-keyboard.xml; then
+  echo 'retrying body text after IME/focus settle'
+  adb shell input keycombination KEYCODE_CTRL_LEFT KEYCODE_A
+  sleep 0.3
+  adb shell input text 'EditorBodyQA'
+  sleep 1
+  dump editor-body-keyboard
+fi
+shot editor-body-keyboard
 assert_label qa-evidence/editor-body-keyboard.xml 'EditorBodyQA'
 adb shell input keyevent 4; sleep 1
 dump editor-body; shot editor-body
