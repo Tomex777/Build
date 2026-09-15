@@ -1,0 +1,97 @@
+{
+  "fatal": false,
+  "cases": [
+    {
+      "name": "desktop-1280x800",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "mobile": false,
+      "runtime": {
+        "title": "Room Study — Three.js",
+        "canvasWidth": 1280,
+        "canvasHeight": 800,
+        "cssWidth": 1280,
+        "cssHeight": 800,
+        "errorVisible": false,
+        "errorText": "",
+        "resetVisible": true,
+        "hintText": "Drag to orbit · pinch to zoom · tap the desk lamp",
+        "webgl": true,
+        "renderer": "WebKit WebGL",
+        "vendor": "WebKit"
+      },
+      "shots": {
+        "initial": {
+          "width": 1280,
+          "height": 800,
+          "meanLuma": 185.22,
+          "stdLuma": 27.12,
+          "minLuma": 23.72,
+          "maxLuma": 254.86
+        },
+        "orbited": {
+          "width": 1280,
+          "height": 800,
+          "meanLuma": 184.91,
+          "stdLuma": 25.32,
+          "minLuma": 17.57,
+          "maxLuma": 254.93
+        },
+        "lamp": {
+          "width": 1280,
+          "height": 800,
+          "meanLuma": 185.54,
+          "stdLuma": 25.23,
+          "minLuma": 26.43,
+          "maxLuma": 254.93
+        },
+        "reset": {
+          "width": 1280,
+          "height": 800,
+          "meanLuma": 185.58,
+          "stdLuma": 26,
+          "minLuma": 21.72,
+          "maxLuma": 254.86
+        }
+      },
+      "meaningful": true,
+      "events": []
+    },
+    {
+      "name": "mobile-393x873",
+      "viewport": {
+        "width": 393,
+        "height": 873
+      },
+      "mobile": true,
+      "runtime": {
+        "title": "Room Study — Three.js",
+        "canvasWidth": 393,
+        "canvasHeight": 873,
+        "cssWidth": 393,
+        "cssHeight": 873,
+        "errorVisible": false,
+        "errorText": "",
+        "resetVisible": true,
+        "hintText": "Drag to orbit · pinch to zoom · tap the desk lamp",
+        "webgl": true,
+        "renderer": "WebKit WebGL",
+        "vendor": "WebKit"
+      },
+      "shots": {
+        "initial": {
+          "width": 393,
+          "height": 873,
+          "meanLuma": 188.11,
+          "stdLuma": 39.13,
+          "minLuma": 19.72,
+          "maxLuma": 254.86
+        }
+      },
+      "meaningful": true,
+      "events": []
+    }
+  ]
+}
