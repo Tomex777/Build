@@ -43,9 +43,10 @@ fun RepeatBackspaceKey(
     val style = theme.overrides[key.id] ?: KeyStyleOverride()
     val radius = (style.cornerRadiusDp ?: theme.cornerRadiusDp).dp
     val borderEnabled = style.borderEnabled ?: theme.borderEnabled
+    val customFill = style.fillArgb
     val fill = when {
         style.invisibleFill == true -> Color.Transparent
-        style.fillArgb != null -> Color(style.fillArgb.toInt()).copy(alpha = style.fillAlpha ?: 1f)
+        customFill != null -> Color(customFill.toInt()).copy(alpha = style.fillAlpha ?: 1f)
         else -> Color(theme.keyFillArgb.toInt())
     }
     val labelColor = Color((style.labelArgb ?: theme.keyLabelArgb).toInt())
