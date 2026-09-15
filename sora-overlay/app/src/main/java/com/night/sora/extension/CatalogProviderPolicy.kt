@@ -1,5 +1,9 @@
 package com.night.sora.extension
 
+/** True only for extensions installed to exercise Sora's contract/tests. */
+fun InstalledExtension.isDiagnosticProvider(): Boolean =
+    descriptor?.capabilities?.contains("diagnostic") == true
+
 /**
  * Only providers explicitly declaring the `catalog` capability may populate
  * Sora's discovery/search shelves. A normal watch/read source extension can be
@@ -12,4 +16,4 @@ package com.night.sora.extension
 fun InstalledExtension.isCatalogProvider(): Boolean =
     error == null &&
         descriptor?.capabilities?.contains("catalog") == true &&
-        descriptor.capabilities.contains("diagnostic") != true
+        !isDiagnosticProvider()
