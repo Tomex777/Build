@@ -84,3 +84,18 @@ data class ExtensionMediaSelection(
     val subtitle: String,
     val artworkUrl: String? = null,
 )
+
+/** A page resolved by a manga source extension. Core owns rendering only. */
+data class ReaderPage(
+    val url: String,
+    val headers: Map<String, String> = emptyMap(),
+)
+
+/** Immutable hand-off from an external manga source into Sora Core's reader. */
+data class ReaderSession(
+    val title: String,
+    val chapterTitle: String,
+    val sourceName: String,
+    val pages: List<ReaderPage>,
+    val initialPage: Int = 0,
+)
