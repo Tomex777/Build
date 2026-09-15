@@ -6,8 +6,7 @@ on:
     paths:
       - ".github/workflows/slumber-086-integration-build.yml"
       - ".ci/slumber_085_final_scope/**"
-      - ".ci/slumber_085_production_purge/**"
-      - ".ci/slumber_085_minsdk26.patch"
+      - ".ci/slumber_086_production_merge/**"
 
 permissions:
   actions: read
@@ -33,63 +32,48 @@ jobs:
           test -n "$SRC"
           tar -xzf "$SRC" -C /tmp/slumber
 
-      - name: Reconstruct and verify frozen-scope patch
+      - name: Apply verified frozen-scope source
         shell: bash
         run: |
           set -euo pipefail
           D="$GITHUB_WORKSPACE/.ci/slumber_085_final_scope"
-          echo '64ac905d963f655e0c3ff26a8bdbbd2edacb881a5805cd3c92790f704527753c  final.patch.gz.b64.part00' > /tmp/split.sha
-          echo 'b2cd3350a21c3fe2b8dd6fed776c67adc9daa9d755990e9744abb8433d40b82f  final.patch.gz.b64.part01' >> /tmp/split.sha
-          echo 'c89fcd1cb75aa637d5f28a69764e5ba26ec2668ce40d270143c02d3cb14fc2a5  final.patch.gz.b64.part02' >> /tmp/split.sha
-          cat "$D/final.patch.gz.b64.part03a" "$D/final.patch.gz.b64.part03b" > /tmp/final.patch.gz.b64.part03
-          echo 'cd1fcf5f41bce58e177c02246570337426355919bd81f7ad2db0e7fd2851261d  /tmp/final.patch.gz.b64.part03' > /tmp/part03.sha
-          (cd "$D" && sha256sum -c /tmp/split.sha)
-          sha256sum -c /tmp/part03.sha
-          echo 'c7d3d6ba475e2ebf4c99e526f77c1a5a17de59d056f79a578df8dbb858d949c5  final.patch.gz.b64.part04' > /tmp/rest.sha
-          echo '12ca62adb4f244435dfe710d5ac6a8f957c05905e1e458b5658e8b6ef74b475a  final.patch.gz.b64.part05' >> /tmp/rest.sha
-          echo 'ff860f9e31d2232b47c56acd0fcc6aed7b1b59e726d7091108262fb4514e2cb1  final.patch.gz.b64.part06' >> /tmp/rest.sha
-          (cd "$D" && sha256sum -c /tmp/rest.sha)
-          cat "$D/final.patch.gz.b64.part00" "$D/final.patch.gz.b64.part01" "$D/final.patch.gz.b64.part02" /tmp/final.patch.gz.b64.part03 "$D/final.patch.gz.b64.part04" "$D/final.patch.gz.b64.part05" "$D/final.patch.gz.b64.part06" > /tmp/final.patch.gz.b64
-          echo '8133f27d9d76d002967f1c53d0a0b27cf89eec9f31cb24ff2188e70951ec504b  /tmp/final.patch.gz.b64' | sha256sum -c -
-          base64 -d /tmp/final.patch.gz.b64 > /tmp/final.patch.gz
-          echo 'f400e43bb8385ddbc9abefefa801fe8b115456b351effa1e278ea1f3ed250421  /tmp/final.patch.gz' | sha256sum -c -
-          gzip -dc /tmp/final.patch.gz > /tmp/final.patch
+          cat "$D/final.patch.gz.b64.part00" "$D/final.patch.gz.b64.part01" "$D/final.patch.gz.b64.part02" "$D/final.patch.gz.b64.part03a" "$D/final.patch.gz.b64.part03b" "$D/final.patch.gz.b64.part04" "$D/final.patch.gz.b64.part05" "$D/final.patch.gz.b64.part06" > /tmp/final.b64
+          echo '8133f27d9d76d002967f1c53d0a0b27cf89eec9f31cb24ff2188e70951ec504b  /tmp/final.b64' | sha256sum -c -
+          base64 -d /tmp/final.b64 > /tmp/final.gz
+          echo 'f400e43bb8385ddbc9abefefa801fe8b115456b351effa1e278ea1f3ed250421  /tmp/final.gz' | sha256sum -c -
+          gzip -dc /tmp/final.gz > /tmp/final.patch
           echo '42b4f12ec7496c52712154594c31ca39bfe8f43addc7edaab84acefa37c23fa1  /tmp/final.patch' | sha256sum -c -
           cd /tmp/slumber
           patch --dry-run -p1 < /tmp/final.patch
           patch -p1 < /tmp/final.patch
 
-      - name: Apply production purge and Android 8 floor
+      - name: Apply reconciled 0.8.6 production patch
         shell: bash
         run: |
           set -euo pipefail
-          P="$GITHUB_WORKSPACE/.ci/slumber_085_production_purge/production_purge.patch.gz.b64"
-          echo 'Stored transport wrapper hash:'
-          sha256sum "$P"
-          base64 -d "$P" > /tmp/production_purge.patch.gz
-          echo 'da1974f47072dceb6c31e9e8ccf1b92a64f3cd174f4c25022531e9514297fea8  /tmp/production_purge.patch.gz' | sha256sum -c -
-          gzip -dc /tmp/production_purge.patch.gz > /tmp/production_purge.patch
-          echo '067e70f4b9cc54e91e926c51f89168d648fa1746c9fc7b41a841d7f810654a99  /tmp/production_purge.patch' | sha256sum -c -
+          D="$GITHUB_WORKSPACE/.ci/slumber_086_production_merge"
+          cat "$D"/production_merge.patch.gz.b64.part* > /tmp/merge.b64
+          base64 -d /tmp/merge.b64 > /tmp/merge.gz
+          echo '4907d3d93f76b970dab78e40a56ae68ae139a9a60725a7c66fe7dc9b12ac28fe  /tmp/merge.gz' | sha256sum -c -
+          gzip -dc /tmp/merge.gz > /tmp/merge.patch
+          echo 'de599aad03175f399fa77e23054ab640d9fbb9d037df71f7aff89bb5fd988924  /tmp/merge.patch' | sha256sum -c -
           cd /tmp/slumber
-          patch --dry-run -p1 < /tmp/production_purge.patch
-          patch -p1 < /tmp/production_purge.patch
-          patch --dry-run -p1 < "$GITHUB_WORKSPACE/.ci/slumber_085_minsdk26.patch"
-          patch -p1 < "$GITHUB_WORKSPACE/.ci/slumber_085_minsdk26.patch"
-          sed -i 's/versionCode = 17/versionCode = 18/' app/build.gradle.kts
-          sed -i 's/versionName = "0.8.5"/versionName = "0.8.6"/' app/build.gradle.kts
+          patch --dry-run -p1 < /tmp/merge.patch
+          patch -p1 < /tmp/merge.patch
 
       - name: Production surface sanity checks
         shell: bash
         run: |
           set -euo pipefail
           cd /tmp/slumber
-          if grep -R -nE 'coming soon|not available yet|engine boundary|model adapter|MIDI [0-9]+' app/src/main/java/com/night/pianohub; then
-            echo 'Prototype/developer copy remains in production UI' >&2
+          if grep -R -nEi 'streakDays|effectiveMethods|songStudioMode|songPipelinePrepared|prepare lesson|not available yet|engine boundary|model adapter|coming soon|MIDI [0-9]+' app/src/main/java/com/night/pianohub; then
+            echo 'Prototype or fake production state remains' >&2
             exit 1
           fi
           grep -R -q 'IncomingChartPreview' app/src/main/java/com/night/pianohub
           grep -R -q 'Add to My XMLs' app/src/main/java/com/night/pianohub
-          test "$(grep -c 'minSdk = 26' app/build.gradle.kts)" -eq 1
+          grep -q 'minSdk = 26' app/build.gradle.kts
+          grep -q 'versionName = "0.8.6"' app/build.gradle.kts
 
       - uses: actions/setup-java@v4
         with:
