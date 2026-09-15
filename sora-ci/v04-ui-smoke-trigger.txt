@@ -1,0 +1,1 @@
+run emulator smoke for v0.4 HTML-derived Compose UI
