@@ -1,0 +1,18 @@
+Slumber 0.8.10 — MIDI + real song progress
+
+Base: successful Slumber 0.8.9 integration source from Actions run 34942984822.
+Branch: pianohub-ci only. main untouched.
+
+Adds:
+- Standard MIDI File 0/1 import with running status, tempo maps, note pairing, same-onset chord preservation, lyrics and piano-channel filtering
+- MIDI is converted locally to Slumber's canonical XML library so all imported scores use the same practice engine
+- persistent per-song Learn progress, best accuracy/timing/chord-sync scores and Perform mastery
+- Learn is the only mode that advances learned percentage; Play Along cannot fake learning/mastery
+- Perform mastery gate requires completion, >=95% accuracy, >=88% timing, zero misses, <=1 extra, and >=85% chord sync when chords exist
+- Fix This drills do not advance whole-song progress
+- Songs cards expose real learned/best/mastered state
+- cultural-tradition default tuning is production-safe 12-TET; selecting Indian/Arabic/Egyptian no longer globally retunes the piano
+- Auto key labels show factual note+octave until an explicit lesson tonic exists
+- versionCode 22 / versionName 0.8.10
+
+Pure Kotlin compiler/tests were run before checkpointing. Android integration is verified separately by GitHub Actions.
