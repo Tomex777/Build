@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import re
 import sys
 import xml.etree.ElementTree as ET
 
@@ -34,12 +33,17 @@ check("global keyboard density model exists", all(x in models for x in ["keyHeig
 ime=text("app/src/main/java/com/night/keyboard/ime/ImeKeyboard.kt")
 icons=text("app/src/main/java/com/night/keyboard/ime/KeyboardIcons.kt")
 emoji_art=text("app/src/main/java/com/night/keyboard/ime/EmojiArtwork.kt")
+repeat_backspace=text("app/src/main/java/com/night/keyboard/ime/RepeatBackspaceKey.kt")
 editor=text("app/src/main/java/com/night/keyboard/ui/screens/EditorScreen.kt")
+editor_vm=text("app/src/main/java/com/night/keyboard/ui/screens/EditorViewModel.kt")
 codec=text("core/data/src/main/java/com/night/keyboard/data/theme/ThemeCodec.kt")
+theme_dao=text("core/data/src/main/java/com/night/keyboard/data/theme/ThemeDao.kt")
+theme_repo=text("core/data/src/main/java/com/night/keyboard/data/theme/ThemeRepository.kt")
 check("spacebar cursor uses long-press drag", "detectDragGesturesAfterLongPress" in ime and "onCursor(direction)" in ime)
+check("backspace has stationary hold-repeat behavior", "RepeatBackspaceKey" in ime and "delay(380)" in repeat_backspace and "delay(55)" in repeat_backspace)
 check("toolbar exposes focused AI trio", all(x in ime for x in ["Editor", "Tone", "Contextual Research"]))
 check("toolbar exposes clipboard and emoji", "ToolPanel.CLIPBOARD" in ime and "ToolPanel.EMOJI" in ime)
-check("IME uses Keyboard-owned vector family", "KeyboardIcons.Clipboard" in ime and "KeyboardIcons.Backspace" in ime and "androidx.compose.material.icons" not in ime)
+check("IME uses Keyboard-owned vector family", "KeyboardIcons.Clipboard" in ime and "KeyboardIcons.Backspace" in repeat_backspace and "androidx.compose.material.icons" not in ime)
 check("custom icon family uses common optical geometry", "strokeLineWidth = 1.8f" in icons and "viewportWidth = 24f" in icons and "StrokeCap.Round" in icons)
 check("SVG icon master exists", (root/"design/icons/keyboard-icons.svg").exists())
 check("emoji picker renders Keyboard-owned artwork", "KeyboardEmojiSamples.forEach" in ime and "KeyboardEmojiArtwork(entry.art" in ime)
@@ -51,6 +55,10 @@ check("per-key sizing affects real IME", "effectiveWeight" in ime and "style.hei
 check("editor exposes per-key sizing", "Selected key width" in editor and "Selected key height" in editor)
 check("density controls affect editor preview", "Base key height" in editor and "horizontalGapDp" in editor and "verticalGapDp" in editor)
 check("theme codec persists sizing", all(x in codec for x in ["widthScale", "heightDp", "keyHeightDp", "horizontalGapDp", "verticalGapDp"]))
+check("editor updates working state synchronously", "edits.value = snapshot" in editor_vm and "MutableStateFlow<ThemeSnapshot?>" in editor_vm)
+check("editor slider saves are coalesced", "debounce(120)" in editor_vm and "BufferOverflow.DROP_OLDEST" in editor_vm)
+check("active theme replacement is transactional", "@Transaction" in theme_dao and "replaceActive" in theme_dao and "dao.replaceActive(entity)" in theme_repo)
+check("theme saves are serialized", "Mutex()" in theme_repo and "withLock" in theme_repo)
 
 home=text("app/src/main/java/com/night/keyboard/ui/screens/HomeScreen.kt")
 check("setup is conditional on real system state", "if (!setup.complete)" in home)
