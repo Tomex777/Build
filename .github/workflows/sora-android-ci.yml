@@ -61,6 +61,7 @@ jobs:
           name: sora-core-v0.4-html-remake-apk
           path: /tmp/Sora-Core-v0.4-html-remake-debug.apk
           if-no-files-found: error
+          retention-days: 3
 
   live-extension:
     name: Live Sources Extension APK
@@ -104,3 +105,4 @@ jobs:
           name: sora-live-sources-v0.4-apk
           path: /tmp/Sora-Live-Sources-v0.4-debug.apk
           if-no-files-found: error
+          retention-days: 3
