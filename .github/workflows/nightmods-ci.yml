@@ -79,6 +79,7 @@ jobs:
           name: Night-Mods-debug-apk
           path: lsposed-et/app/build/outputs/**/*.apk
           if-no-files-found: error
+          retention-days: 3
 
       - name: Upload manager reports
         if: always()
@@ -89,6 +90,7 @@ jobs:
             lsposed-et/app/build/reports/**
             lsposed-et/app/build/outputs/logs/**
           if-no-files-found: ignore
+          retention-days: 1
 
   nightcore-build:
     name: Build Night Core module
@@ -158,6 +160,7 @@ jobs:
           name: Night-Core-debug-apk
           path: nightmods/nightcore/app/build/outputs/**/*.apk
           if-no-files-found: error
+          retention-days: 3
 
       - name: Upload Night Core reports
         if: always()
@@ -166,6 +169,7 @@ jobs:
           name: Night-Core-build-reports
           path: nightmods/nightcore/app/build/reports/**
           if-no-files-found: ignore
+          retention-days: 1
 
   android16-smoke:
     name: Android 16 smoke test
@@ -236,8 +240,6 @@ jobs:
             grep -q 'Settings' smoke/nightmods-window.xml
             adb exec-out screencap -p > smoke/nightmods-android16.png
 
-            # Cold-start the deep link because MainActivity is singleTop and upstream
-            # LSPosed does not re-dispatch Navigation deep links from onNewIntent().
             adb shell am force-stop org.lsposed.manager || true
             adb shell am start -W -a android.intent.action.VIEW -d 'lsposed://night-core/bubble-styler' -n org.lsposed.manager/.ui.activity.MainActivity | tee smoke/bubble-start.txt
             sleep 4
@@ -275,3 +277,4 @@ jobs:
           name: Night-Mods-Android16-smoke
           path: smoke/**
           if-no-files-found: warn
+          retention-days: 1
