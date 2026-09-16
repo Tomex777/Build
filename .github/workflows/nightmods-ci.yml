@@ -68,6 +68,7 @@ jobs:
           name: Night-Mods-debug-apk
           path: lsposed-et/app/build/outputs/**/*.apk
           if-no-files-found: error
+          retention-days: 3
       - name: Upload manager reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -77,6 +78,7 @@ jobs:
             lsposed-et/app/build/reports/**
             lsposed-et/app/build/outputs/logs/**
           if-no-files-found: ignore
+          retention-days: 1
 
   nightcore-build:
     name: Build modern Night Core module
@@ -164,12 +166,14 @@ jobs:
           name: Night-Core-debug-apk
           path: nightmods/nightcore/app/build/outputs/**/*.apk
           if-no-files-found: error
+          retention-days: 3
       - name: Upload target probe APK
         uses: actions/upload-artifact@v4
         with:
           name: Night-Core-target-probe-apk
           path: nightmods/nightcore/target-probe/build/outputs/**/*.apk
           if-no-files-found: error
+          retention-days: 3
       - name: Upload Night Core reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -177,6 +181,7 @@ jobs:
           name: Night-Core-build-reports
           path: nightmods/nightcore/app/build/reports/**
           if-no-files-found: ignore
+          retention-days: 1
 
   android16-smoke:
     name: Android 16 manager bridge smoke test
@@ -273,3 +278,4 @@ jobs:
           name: Night-Mods-Android16-smoke
           path: smoke/**
           if-no-files-found: warn
+          retention-days: 1
