@@ -47,6 +47,12 @@ jobs:
       - name: Build portable Windows executable
         run: npm run dist:win
 
+      - name: Packaged app runs generated JavaScript module
+        shell: pwsh
+        run: |
+          & ".\release\win-unpacked\Bailey Host.exe" --ci-module-smoke
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Packaged app installs Lia engine
         shell: pwsh
         run: |
