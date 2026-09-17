@@ -31,7 +31,7 @@ Bailey Host → Studio → **Open modules folder** opens this location. Studio c
     "command": "python",
     "args": ["main.py"]
   },
-  "capabilities": ["commands", "settings", "events", "jobs", "storage"],
+  "capabilities": ["commands", "settings", "events", "jobs", "storage", "services"],
   "settings": [
     {
       "key": "currency",
@@ -62,7 +62,7 @@ Bailey Host → Studio → **Open modules folder** opens this location. Studio c
 
 `runtime.command` is launched directly without a shell.
 
-Supported capability names are currently `commands`, `settings`, `events`, `jobs`, `storage`, and `services`. `events`, `jobs`, and `storage` are active in Protocol 1. `services` is reserved for the next host-service layer.
+Supported capability names are currently `commands`, `settings`, `events`, `jobs`, `storage`, and `services`. `events`, `jobs`, `storage`, and `services` are active in Protocol 1.
 
 ### Runtime choices
 
@@ -184,6 +184,70 @@ A module that does not declare `storage` does not receive `BAILEY_MODULE_DATA_DI
 
 This dedicated folder is an ownership convention, not an operating-system sandbox. External modules are ordinary local processes and should still be treated as trusted code. The important boundary is that Bailey does not hand them its Lia socket or WhatsApp authentication state.
 
+## Host services
+
+A module that declares `services` can make a request back into Bailey while it is processing a command, event, or job. This is the shared-service boundary for capabilities that should be owned by Bailey or reused by many modules.
+
+The module writes a `host.call` line to stdout:
+
+```json
+{"protocol":1,"id":"call-42","type":"host.call","service":"host","method":"info","params":{}}
+```
+
+Bailey answers on the module's stdin:
+
+```json
+{"protocol":1,"type":"host.result","replyTo":"call-42","ok":true,"result":{"protocol":1,"moduleId":"economy","moduleName":"Economy","capabilities":["commands","services"]}}
+```
+
+A service failure is returned to the module rather than crashing the host:
+
+```json
+{"protocol":1,"type":"host.result","replyTo":"call-42","ok":false,"error":"Unknown host service: blob.put"}
+```
+
+Protocol rules for services:
+
+- The module must declare `services` before Bailey accepts `host.call` messages from it.
+- A `host.call` has its own `id`; do not reuse the outer command/event/job request id.
+- The module may issue a host call while the original Bailey request is still pending. It should keep enough local state to resume the original request after `host.result` arrives.
+- Module workers must distinguish normal Bailey inputs such as `command.execute` from `host.result` messages on stdin.
+- Bailey's built-in `host.info` service exposes basic module/protocol metadata and the storage path when the module also has `storage`.
+- Additional services are registered by Bailey under explicit service + method names. This is where shared cloud/blob, media, indexing, or other host-owned adapters can be added without exposing the WhatsApp engine internals.
+
+Minimal Python shape:
+
+```python
+# inside your JSONL loop, after receiving a Bailey command request
+call_id = "my-service-call"
+send({
+    "protocol": 1,
+    "id": call_id,
+    "type": "host.call",
+    "service": "host",
+    "method": "info",
+    "params": {}
+})
+
+# later, another stdin line arrives:
+# {"type":"host.result","replyTo":"my-service-call", ...}
+```
+
+Minimal JavaScript shape:
+
+```js
+process.stdout.write(JSON.stringify({
+  protocol: 1,
+  id: "my-service-call",
+  type: "host.call",
+  service: "host",
+  method: "info",
+  params: {}
+}) + "\n");
+```
+
+Cloud/blob providers are not implicitly exposed just because `services` is enabled. A concrete adapter must be registered by Bailey first, which keeps provider credentials and behavior behind an intentional host boundary.
+
 ## Response
 
 Write one JSON object followed by a newline to stdout:
@@ -216,5 +280,6 @@ For failures:
 - One line on stdout must contain one complete JSON protocol message.
 - Event handlers should return quickly. Use jobs for scheduled/background work instead of blocking message events.
 - Put persistent module-owned files inside `BAILEY_MODULE_DATA_DIR` when the module declares `storage`.
+- Use `host.call` for registered shared services instead of reaching into Bailey's internal engine objects.
 
-The protocol stays intentionally small. Richer host services and cloud/blob adapters can be layered on without tying module code to a specific WhatsApp-engine fork.
+The protocol stays intentionally small. Concrete cloud/blob adapters and richer media services can now be layered on the host-service RPC without tying module code to a specific WhatsApp-engine fork.
