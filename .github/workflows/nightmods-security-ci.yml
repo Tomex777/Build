@@ -63,6 +63,7 @@ jobs:
           "$AAPT" dump badging "$TARGET" | grep -q "package: name='com.whatsapp'"
           "$AAPT" dump badging "$ATTACKER" | grep -q "package: name='dev.nightmods.attacker'"
           "$AAPT" dump badging "$FRAMEWORK" | grep -q "package: name='dev.nightmods.frameworkprobe'"
+          unzip -p "$CORE" META-INF/xposed/scope.list | grep -qx 'com.android.systemui'
           sha256sum "$CORE" "$MANAGER" "$TARGET" "$ATTACKER" "$FRAMEWORK" | tee security-apk-sha256.txt
       - name: Enable KVM
         shell: bash
@@ -97,8 +98,8 @@ jobs:
             adb shell run-as dev.nightmods.frameworkprobe cat shared_prefs/framework_probe.xml | tee security-smoke/framework-bind-result.xml
             grep -q 'name="bound" value="true"' security-smoke/framework-bind-result.xml
 
-            # The manager writes distinctive values through Night Core; Night Core must synchronously
-            # mirror them into the framework-owned remote store rather than target-app IPC.
+            # The manager writes distinctive Bubble Styler and SystemUI values through Night Core;
+            # both capability groups must synchronously commit to the framework-owned remote store.
             adb shell am start -W -n org.lsposed.manager/org.lsposed.manager.MainActivity | tee security-smoke/manager-start.txt
             sleep 1
             adb shell run-as org.lsposed.manager cat shared_prefs/night_core_manager_probe.xml | tee security-smoke/manager-result.xml
@@ -108,48 +109,65 @@ jobs:
             grep -q 'name="target_instagram" value="false"' security-smoke/manager-result.xml
             grep -q 'name="bubble_radius" value="31"' security-smoke/manager-result.xml
             grep -q 'name="bubble_spacing" value="9"' security-smoke/manager-result.xml
+            grep -q 'name="systemui_enabled" value="true"' security-smoke/manager-result.xml
+            grep -q 'name="statusbar_padding_enabled" value="true"' security-smoke/manager-result.xml
+            grep -q 'name="statusbar_padding_dp" value="11"' security-smoke/manager-result.xml
+            grep -q 'name="systemui_installed" value="true"' security-smoke/manager-result.xml
+            grep -q '<string name="systemui_compatibility">ANALYSIS_REQUIRED</string>' security-smoke/manager-result.xml
 
-            adb shell run-as dev.nightmods.frameworkprobe cat shared_prefs/framework_remote_night_core.xml | tee security-smoke/framework-remote-before-kill.xml
-            grep -q 'name="bubble_enabled" value="false"' security-smoke/framework-remote-before-kill.xml
-            grep -q 'name="target_whatsapp" value="true"' security-smoke/framework-remote-before-kill.xml
-            grep -q 'name="target_instagram" value="false"' security-smoke/framework-remote-before-kill.xml
-            grep -q 'name="bubble_radius" value="31"' security-smoke/framework-remote-before-kill.xml
-            grep -q 'name="bubble_spacing" value="9"' security-smoke/framework-remote-before-kill.xml
+            adb shell run-as dev.nightmods.frameworkprobe cat shared_prefs/framework_remote_night_core.xml | tee security-smoke/framework-remote-before-stop.xml
+            grep -q 'name="bubble_enabled" value="false"' security-smoke/framework-remote-before-stop.xml
+            grep -q 'name="target_whatsapp" value="true"' security-smoke/framework-remote-before-stop.xml
+            grep -q 'name="target_instagram" value="false"' security-smoke/framework-remote-before-stop.xml
+            grep -q 'name="bubble_radius" value="31"' security-smoke/framework-remote-before-stop.xml
+            grep -q 'name="bubble_spacing" value="9"' security-smoke/framework-remote-before-stop.xml
+            grep -q 'name="systemui_enabled" value="true"' security-smoke/framework-remote-before-stop.xml
+            grep -q 'name="statusbar_padding_enabled" value="true"' security-smoke/framework-remote-before-stop.xml
+            grep -q 'name="statusbar_padding_dp" value="11"' security-smoke/framework-remote-before-stop.xml
 
-            # Target and attacker identities still cannot read the manager-only provider.
+            # Target and attacker identities must be denied from both Bubble and SystemUI settings.
             adb shell am start -W -n com.whatsapp/com.whatsapp.MainActivity | tee security-smoke/target-start.txt
             sleep 1
             adb shell run-as com.whatsapp cat shared_prefs/night_core_probe.xml | tee security-smoke/target-result.xml
             grep -q 'name="access_denied" value="true"' security-smoke/target-result.xml
             grep -q 'name="settings_disclosed" value="false"' security-smoke/target-result.xml
+            grep -q 'name="bubble_access_denied" value="true"' security-smoke/target-result.xml
+            grep -q 'name="systemui_access_denied" value="true"' security-smoke/target-result.xml
+            grep -q 'name="bubble_settings_disclosed" value="false"' security-smoke/target-result.xml
+            grep -q 'name="systemui_settings_disclosed" value="false"' security-smoke/target-result.xml
             grep -q 'SecurityException' security-smoke/target-result.xml
-            ! grep -q 'bubble_enabled' security-smoke/target-result.xml
 
             adb shell am start -W -n dev.nightmods.attacker/com.whatsapp.MainActivity | tee security-smoke/attacker-start.txt
             sleep 1
             adb shell run-as dev.nightmods.attacker cat shared_prefs/night_core_probe.xml | tee security-smoke/attacker-result.xml
             grep -q 'name="access_denied" value="true"' security-smoke/attacker-result.xml
             grep -q 'name="settings_disclosed" value="false"' security-smoke/attacker-result.xml
+            grep -q 'name="bubble_access_denied" value="true"' security-smoke/attacker-result.xml
+            grep -q 'name="systemui_access_denied" value="true"' security-smoke/attacker-result.xml
+            grep -q 'name="bubble_settings_disclosed" value="false"' security-smoke/attacker-result.xml
+            grep -q 'name="systemui_settings_disclosed" value="false"' security-smoke/attacker-result.xml
             grep -q 'SecurityException' security-smoke/attacker-result.xml
 
-            # Genuine process-death guarantee: after Night Core dies, read the settings from the
-            # framework-owned probe store without touching any Night Core component, and prove the
-            # Night Core process remains dead throughout that read.
-            adb shell pidof dev.nightmods.core | tee security-smoke/core-pid-before-kill.txt
-            adb shell am kill dev.nightmods.core || true
+            # Deterministic Android 16 process-death guarantee. `stop-app` stops the app and its
+            # services without the package-stopped/alarms side effects of force-stop. The framework
+            # store must remain readable while Night Core is absent and that read must not wake it.
+            adb shell pidof dev.nightmods.core | tee security-smoke/core-pid-before-stop.txt
+            adb shell am stop-app dev.nightmods.core
             sleep 1
-            adb shell pidof dev.nightmods.core | tee security-smoke/core-pid-after-kill.txt || true
-            test ! -s security-smoke/core-pid-after-kill.txt
+            adb shell pidof dev.nightmods.core | tee security-smoke/core-pid-after-stop.txt || true
+            test ! -s security-smoke/core-pid-after-stop.txt
 
-            adb shell run-as dev.nightmods.frameworkprobe cat shared_prefs/framework_remote_night_core.xml | tee security-smoke/framework-remote-after-kill.xml
-            cmp security-smoke/framework-remote-before-kill.xml security-smoke/framework-remote-after-kill.xml
-            grep -q 'name="bubble_radius" value="31"' security-smoke/framework-remote-after-kill.xml
+            adb shell run-as dev.nightmods.frameworkprobe cat shared_prefs/framework_remote_night_core.xml | tee security-smoke/framework-remote-after-stop.xml
+            cmp security-smoke/framework-remote-before-stop.xml security-smoke/framework-remote-after-stop.xml
+            grep -q 'name="bubble_radius" value="31"' security-smoke/framework-remote-after-stop.xml
+            grep -q 'name="systemui_enabled" value="true"' security-smoke/framework-remote-after-stop.xml
+            grep -q 'name="statusbar_padding_enabled" value="true"' security-smoke/framework-remote-after-stop.xml
+            grep -q 'name="statusbar_padding_dp" value="11"' security-smoke/framework-remote-after-stop.xml
             adb shell pidof dev.nightmods.core | tee security-smoke/core-pid-after-framework-read.txt || true
             test ! -s security-smoke/core-pid-after-framework-read.txt
 
-            # A manager read is allowed to cold-start Night Core even before the framework service
-            # has been re-delivered. This is deliberately read-only: a write must not claim success
-            # until the new Night Core process has a framework Binder again.
+            # A manager provider read may cold-start Night Core. It must recover both capability
+            # groups from the local mirror without falsely requiring a framework write.
             adb shell run-as org.lsposed.manager rm -f shared_prefs/night_core_manager_probe.xml || true
             adb shell am force-stop org.lsposed.manager || true
             adb shell am start -W -n org.lsposed.manager/org.lsposed.manager.MainActivity --ez read_only true | tee security-smoke/manager-cold-read-start.txt
@@ -158,12 +176,14 @@ jobs:
             grep -q 'name="success" value="true"' security-smoke/manager-cold-read-result.xml
             grep -q '<string name="mode">read_only</string>' security-smoke/manager-cold-read-result.xml
             grep -q 'name="bubble_radius" value="31"' security-smoke/manager-cold-read-result.xml
+            grep -q 'name="systemui_enabled" value="true"' security-smoke/manager-cold-read-result.xml
+            grep -q 'name="statusbar_padding_enabled" value="true"' security-smoke/manager-cold-read-result.xml
+            grep -q 'name="statusbar_padding_dp" value="11"' security-smoke/manager-cold-read-result.xml
             adb shell pidof dev.nightmods.core | tee security-smoke/core-pid-after-manager-read.txt
             test -s security-smoke/core-pid-after-manager-read.txt
 
             # A real LSPosed framework re-delivers its service Binder to a new module process. Re-run
-            # the exact API-100 binder delivery in the CI framework stub, then prove manager writes
-            # become hook-effective again rather than succeeding against the local mirror only.
+            # the exact API-100 binder delivery, then prove both settings groups become hook-effective.
             adb shell am start -W -n dev.nightmods.frameworkprobe/.MainActivity | tee security-smoke/framework-rebind.txt
             sleep 1
             adb shell run-as dev.nightmods.frameworkprobe cat shared_prefs/framework_probe.xml | tee security-smoke/framework-rebind-result.xml
@@ -176,13 +196,18 @@ jobs:
             adb shell run-as org.lsposed.manager cat shared_prefs/night_core_manager_probe.xml | tee security-smoke/manager-after-rebind-result.xml
             grep -q 'name="success" value="true"' security-smoke/manager-after-rebind-result.xml
             grep -q '<string name="mode">write</string>' security-smoke/manager-after-rebind-result.xml
+            grep -q 'name="systemui_enabled" value="true"' security-smoke/manager-after-rebind-result.xml
+            grep -q 'name="statusbar_padding_dp" value="11"' security-smoke/manager-after-rebind-result.xml
             adb shell run-as dev.nightmods.frameworkprobe cat shared_prefs/framework_remote_night_core.xml | tee security-smoke/framework-remote-after-rebind.xml
             grep -q 'name="bubble_radius" value="31"' security-smoke/framework-remote-after-rebind.xml
+            grep -q 'name="systemui_enabled" value="true"' security-smoke/framework-remote-after-rebind.xml
+            grep -q 'name="statusbar_padding_enabled" value="true"' security-smoke/framework-remote-after-rebind.xml
+            grep -q 'name="statusbar_padding_dp" value="11"' security-smoke/framework-remote-after-rebind.xml
 
             adb logcat -d > security-smoke/logcat.txt
             adb logcat -b crash -d > security-smoke/crash.txt || true
             test -z "$(grep -E 'dev\.nightmods\.core|org\.lsposed\.manager|com\.whatsapp|dev\.nightmods\.attacker|dev\.nightmods\.frameworkprobe' security-smoke/crash.txt || true)"
-            echo 'Android 16 passed: manager provider authorization enforced and API-100 framework remote settings survive Night Core process death.'
+            echo 'Android 16 passed: Bubble + SystemUI provider authorization enforced and API-100 framework remote settings survive Night Core process death.'
       - name: Upload security evidence
         if: always()
         uses: actions/upload-artifact@v4
