@@ -1,1 +1,1 @@
-2026-09-17 verify hardened Sora music listening events, queue selection, replay tracking, and honest recency on branch head.
+2026-09-17 verify truthful Jikan popular/upcoming/top feeds and non-misleading Movies/TV catalog sections on branch head.
