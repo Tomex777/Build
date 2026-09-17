@@ -1,1 +1,1 @@
-2026-09-17 compile YouTube Music browser session with PAPISID normalization, VISITOR_DATA capture, and signed-in WEB_REMIX fallback.
+2026-09-17 compile coherent YouTube Music auth session with browser cookies, VISITOR_DATA, DATASYNC_ID, secure PAPISID normalization, and authenticated WEB_REMIX fallback.
