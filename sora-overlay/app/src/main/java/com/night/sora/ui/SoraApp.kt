@@ -159,6 +159,7 @@ fun SoraApp() {
                 RootTab.MEDIA -> MediaScreen(
                     modifier = Modifier.padding(padding), extensions = extensions, extensionScanDone = extensionScanDone,
                     manager = extensionManager, libraryEntries = repository.library, listeningSignals = repository.listeningSignals,
+                    progressEntries = repository.mediaProgress,
                     isSaved = repository::isSaved, onToggleSaved = repository::toggleSaved,
                     onOpenExtensions = { push(AppScreen.Extensions) }, onOpenDetails = ::openMedia,
                     onPlayMusic = { track, queue -> musicPlayer.play(track, queue, extensions) },
@@ -226,8 +227,24 @@ fun SoraApp() {
                 onOpenPlayer = { push(AppScreen.VideoPlayer(it)) },
                 onBack = ::pop,
             )
-            is AppScreen.Reader -> ReaderScreen(current.session, onBack = ::pop)
-            is AppScreen.VideoPlayer -> VideoPlayerScreen(current.session, onBack = ::pop)
+            is AppScreen.Reader -> ReaderScreen(
+                current.session,
+                onBack = ::pop,
+                onProgress = { session, page, total ->
+                    session.media?.let { media ->
+                        repository.recordMediaProgress(media, session.itemId, session.chapterTitle, page.toLong(), total.toLong())
+                    }
+                },
+            )
+            is AppScreen.VideoPlayer -> VideoPlayerScreen(
+                current.session,
+                onBack = ::pop,
+                onProgress = { session, position, total ->
+                    session.media?.let { media ->
+                        repository.recordMediaProgress(media, session.itemId, session.episodeTitle, position, total)
+                    }
+                },
+            )
             AppScreen.NowPlaying -> NowPlayingScreen(player = musicPlayer, isSaved = repository::isSaved, onToggleSaved = repository::toggleSaved, onBack = ::pop)
         }
     }

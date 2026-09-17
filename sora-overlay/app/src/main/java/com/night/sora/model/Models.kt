@@ -65,6 +65,34 @@ data class LibraryEntry(
     }
 }
 
+data class MediaProgressEntry(
+    val mediaId: String,
+    val sourceId: String,
+    val extensionPackage: String,
+    val contentType: ContentType,
+    val title: String,
+    val itemId: String,
+    val itemLabel: String,
+    val position: Long,
+    val total: Long,
+    val subtitle: String = "",
+    val artworkUrl: String? = null,
+    val updatedAt: Long = System.currentTimeMillis(),
+) {
+    val progress: Float
+        get() = if (total > 0L) (position.toFloat() / total.toFloat()).coerceIn(0f, 1f) else 0f
+
+    fun toMediaSelection() = ExtensionMediaSelection(
+        id = mediaId,
+        sourceId = sourceId,
+        extensionPackage = extensionPackage,
+        type = contentType,
+        title = title,
+        subtitle = subtitle,
+        artworkUrl = artworkUrl,
+    )
+}
+
 data class ListeningSignal(
     val artistId: String,
     val artistName: String,
@@ -124,6 +152,8 @@ data class ReaderSession(
     val sourceName: String,
     val pages: List<ReaderPage>,
     val initialPage: Int = 0,
+    val media: ExtensionMediaSelection? = null,
+    val itemId: String = "",
 )
 
 /** One concrete stream resolved by a watch source extension. */
@@ -141,4 +171,7 @@ data class PlaybackSession(
     val sourceName: String,
     val streams: List<PlaybackStream>,
     val initialStream: Int = 0,
+    val initialPositionMs: Long = 0L,
+    val media: ExtensionMediaSelection? = null,
+    val itemId: String = "",
 )

@@ -14,6 +14,7 @@ import com.night.sora.model.ContentType
 import com.night.sora.model.ExtensionMediaSelection
 import com.night.sora.model.LibraryEntry
 import com.night.sora.model.ListeningSignal
+import com.night.sora.model.MediaProgressEntry
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -25,6 +26,7 @@ class CoreRepository(context: Context) {
         private set
     val library = mutableStateListOf<LibraryEntry>()
     val listeningSignals = mutableStateListOf<ListeningSignal>()
+    val mediaProgress = mutableStateListOf<MediaProgressEntry>()
     val downloads = mutableStateListOf<DownloadEntry>()
     val activitySignals = mutableStateListOf<ActivitySignal>()
 
@@ -35,6 +37,7 @@ class CoreRepository(context: Context) {
         loadConversationsOrMigrateMessages()
         loadLibrary()
         loadListeningSignals()
+        loadMediaProgress()
         loadDownloads()
         loadActivitySignals()
         sanitizeOldFoundationLibraryRows()
@@ -166,6 +169,40 @@ class CoreRepository(context: Context) {
         activitySignals.add(0, ActivitySignal(now, selection.type, selection.title, action, now))
         while (activitySignals.size > 500) activitySignals.removeLast()
         persistActivitySignals()
+    }
+
+    fun recordMediaProgress(
+        selection: ExtensionMediaSelection,
+        itemId: String,
+        itemLabel: String,
+        position: Long,
+        total: Long,
+    ) {
+        if (selection.type !in setOf(ContentType.ANIME, ContentType.MANGA, ContentType.MOVIE, ContentType.TV)) return
+        if (total <= 0L) return
+        val safePosition = position.coerceIn(0L, total)
+        if (safePosition <= 0L) return
+        val entry = MediaProgressEntry(
+            mediaId = selection.id,
+            sourceId = selection.sourceId,
+            extensionPackage = selection.extensionPackage,
+            contentType = selection.type,
+            title = selection.title,
+            itemId = itemId.ifBlank { selection.id },
+            itemLabel = itemLabel.ifBlank { selection.title },
+            position = safePosition,
+            total = total,
+            subtitle = selection.subtitle,
+            artworkUrl = selection.artworkUrl,
+            updatedAt = System.currentTimeMillis(),
+        )
+        val index = mediaProgress.indexOfFirst {
+            it.mediaId == selection.id && it.sourceId == selection.sourceId && it.extensionPackage == selection.extensionPackage
+        }
+        if (index >= 0) mediaProgress.removeAt(index)
+        mediaProgress.add(0, entry)
+        while (mediaProgress.size > 100) mediaProgress.removeLast()
+        persistMediaProgress()
     }
 
     fun upsertDownload(entry: DownloadEntry) {
@@ -346,6 +383,51 @@ class CoreRepository(context: Context) {
         prefs.edit().putString(KEY_LISTENING, array.toString()).apply()
     }
 
+    private fun loadMediaProgress() {
+        val raw = prefs.getString(KEY_MEDIA_PROGRESS, null) ?: return
+        runCatching {
+            val array = JSONArray(raw)
+            for (i in 0 until array.length()) {
+                val item = array.getJSONObject(i)
+                mediaProgress += MediaProgressEntry(
+                    mediaId = item.getString("mediaId"),
+                    sourceId = item.getString("sourceId"),
+                    extensionPackage = item.getString("extensionPackage"),
+                    contentType = ContentType.valueOf(item.getString("contentType")),
+                    title = item.getString("title"),
+                    itemId = item.optString("itemId"),
+                    itemLabel = item.optString("itemLabel"),
+                    position = item.optLong("position"),
+                    total = item.optLong("total"),
+                    subtitle = item.optString("subtitle"),
+                    artworkUrl = item.optNullableString("artworkUrl"),
+                    updatedAt = item.optLong("updatedAt"),
+                )
+            }
+        }
+    }
+
+    private fun persistMediaProgress() {
+        val array = JSONArray()
+        mediaProgress.take(100).forEach { entry ->
+            array.put(JSONObject().apply {
+                put("mediaId", entry.mediaId)
+                put("sourceId", entry.sourceId)
+                put("extensionPackage", entry.extensionPackage)
+                put("contentType", entry.contentType.name)
+                put("title", entry.title)
+                put("itemId", entry.itemId)
+                put("itemLabel", entry.itemLabel)
+                put("position", entry.position)
+                put("total", entry.total)
+                put("subtitle", entry.subtitle)
+                putNullable("artworkUrl", entry.artworkUrl)
+                put("updatedAt", entry.updatedAt)
+            })
+        }
+        prefs.edit().putString(KEY_MEDIA_PROGRESS, array.toString()).apply()
+    }
+
     private fun loadDownloads() {
         val raw = prefs.getString(KEY_DOWNLOADS, null) ?: return
         runCatching {
@@ -432,6 +514,7 @@ class CoreRepository(context: Context) {
         const val KEY_CONVERSATIONS = "ai_conversations_v2"
         const val KEY_LIBRARY = "library_v1"
         const val KEY_LISTENING = "listening_v1"
+        const val KEY_MEDIA_PROGRESS = "media_progress_v1"
         const val KEY_DOWNLOADS = "downloads_v1"
         const val KEY_ACTIVITY = "activity_v1"
     }

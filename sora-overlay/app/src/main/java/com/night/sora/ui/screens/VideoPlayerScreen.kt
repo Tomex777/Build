@@ -48,6 +48,7 @@ import kotlin.math.roundToLong
 fun VideoPlayerScreen(
     session: PlaybackSession,
     onBack: () -> Unit,
+    onProgress: (PlaybackSession, Long, Long) -> Unit = { _, _, _ -> },
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -57,7 +58,7 @@ fun VideoPlayerScreen(
     var controlsVisible by remember { mutableStateOf(true) }
     var streamMenuOpen by remember { mutableStateOf(false) }
     var speedMenuOpen by remember { mutableStateOf(false) }
-    var positionMs by remember { mutableLongStateOf(0L) }
+    var positionMs by remember(session) { mutableLongStateOf(session.initialPositionMs.coerceAtLeast(0L)) }
     var durationMs by remember { mutableLongStateOf(0L) }
     var bufferedPercent by remember { mutableIntStateOf(0) }
     var isPlaying by remember { mutableStateOf(false) }
@@ -115,6 +116,15 @@ fun VideoPlayerScreen(
             playbackState = player.playbackState
             playbackError = player.playerError?.message ?: playbackError
             delay(250)
+        }
+    }
+
+    LaunchedEffect(player, session) {
+        while (isActive) {
+            delay(1_000)
+            val current = player.currentPosition.coerceAtLeast(0L)
+            val total = player.duration.takeIf { it != C.TIME_UNSET && it > 0L } ?: 0L
+            if (current > 0L && total > 0L) onProgress(session, current, total)
         }
     }
 

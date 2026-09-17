@@ -216,6 +216,8 @@ fun MediaDetailScreen(
                 sourceName = consumptionSource?.name ?: consumptionExtension?.declaredName ?: "Movie source",
                 streams = movieStreams,
                 initialStream = index,
+                media = active,
+                itemId = active.id,
             )
         )
     }
@@ -241,6 +243,8 @@ fun MediaDetailScreen(
                             chapterTitle = row.title,
                             sourceName = consumptionSource?.name ?: ext.declaredName,
                             pages = pages,
+                            media = active,
+                            itemId = row.id,
                         )
                     )
                 } else {
@@ -267,6 +271,8 @@ fun MediaDetailScreen(
                             episodeTitle = row.title,
                             sourceName = consumptionSource?.name ?: ext.declaredName,
                             streams = streams,
+                            media = active,
+                            itemId = row.id,
                         )
                     )
                 } else {

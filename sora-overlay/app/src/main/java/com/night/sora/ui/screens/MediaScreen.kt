@@ -44,6 +44,7 @@ import com.night.sora.model.ContentType
 import com.night.sora.model.ExtensionMediaSelection
 import com.night.sora.model.LibraryEntry
 import com.night.sora.model.ListeningSignal
+import com.night.sora.model.MediaProgressEntry
 import com.night.sora.recommendation.MusicTasteEngine
 import com.night.sora.ui.theme.*
 import kotlinx.coroutines.delay
@@ -80,6 +81,7 @@ fun MediaScreen(
     manager: ExtensionManager,
     libraryEntries: List<LibraryEntry>,
     listeningSignals: List<ListeningSignal>,
+    progressEntries: List<MediaProgressEntry>,
     isSaved: (ExtensionMediaSelection) -> Boolean,
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
     onOpenExtensions: () -> Unit,
@@ -271,11 +273,11 @@ fun MediaScreen(
             query.isNotBlank() -> SearchResultsSurface(rows, selectedType, ::selection, onOpenDetails, onPlayMusic)
             destination == MediaDestination.ANIME_MANGA -> AnimeMangaSurface(
                 type = selectedType, rows = rows, popularRows = popularRows, upcomingRows = upcomingRows, topRows = topRows,
-                libraryEntries = libraryEntries, selection = ::selection, isSaved = isSaved,
+                libraryEntries = libraryEntries, progressEntries = progressEntries, selection = ::selection, isSaved = isSaved,
                 onToggleSaved = onToggleSaved, onOpen = onOpenDetails,
             )
             destination == MediaDestination.MOVIES_TV -> MovieTvSurface(
-                type = selectedType, rows = rows, libraryEntries = libraryEntries,
+                type = selectedType, rows = rows, libraryEntries = libraryEntries, progressEntries = progressEntries,
                 selection = ::selection, isSaved = isSaved, onToggleSaved = onToggleSaved, onOpen = onOpenDetails,
             )
             destination == MediaDestination.MUSIC -> MusicSurface(
@@ -375,6 +377,7 @@ private fun AnimeMangaSurface(
     upcomingRows: List<BrowseCard>,
     topRows: List<BrowseCard>,
     libraryEntries: List<LibraryEntry>,
+    progressEntries: List<MediaProgressEntry>,
     selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
     isSaved: (ExtensionMediaSelection) -> Boolean,
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
@@ -382,6 +385,7 @@ private fun AnimeMangaSurface(
 ) {
     val selected = rows.firstOrNull() ?: popularRows.firstOrNull() ?: topRows.firstOrNull()
     val saved = libraryEntries.filter { it.contentType == type }
+    val continued = progressEntries.filter { it.contentType == type }.sortedByDescending { it.updatedAt }
     val currentLabel = if (type == ContentType.ANIME) "Airing now" else "Publishing now"
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
         if (selected == null) item { EmptyFeatureShell(type) }
@@ -399,6 +403,13 @@ private fun AnimeMangaSurface(
                 onToggleSaved = onToggleSaved,
                 onOpen = onOpen,
             )
+        }
+        if (continued.isNotEmpty()) item {
+            MediaSectionTitle(
+                if (type == ContentType.ANIME) "Continue watching" else "Continue reading",
+                "Real progress from your last session",
+            )
+            ProgressLandscapeRail(continued, onOpen)
         }
         item {
             MediaSectionTitle("In your library", if (type == ContentType.ANIME) "Anime you saved in Sora" else "Manga you saved in Sora")
@@ -429,6 +440,7 @@ private fun MovieTvSurface(
     type: ContentType,
     rows: List<BrowseCard>,
     libraryEntries: List<LibraryEntry>,
+    progressEntries: List<MediaProgressEntry>,
     selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
     isSaved: (ExtensionMediaSelection) -> Boolean,
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
@@ -436,6 +448,7 @@ private fun MovieTvSurface(
 ) {
     val selected = rows.firstOrNull()
     val saved = libraryEntries.filter { it.contentType == type }
+    val continued = progressEntries.filter { it.contentType == type }.sortedByDescending { it.updatedAt }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
         if (selected == null) item { EmptyFeatureShell(type) }
         if (selected != null) item {
@@ -446,6 +459,10 @@ private fun MovieTvSurface(
                 primaryLabel = "Open",
                 selection = selection(selected, type), isSaved = isSaved(selection(selected, type)), onToggleSaved = onToggleSaved, onOpen = onOpen,
             )
+        }
+        if (continued.isNotEmpty()) item {
+            MediaSectionTitle("Continue watching", "Real playback progress from your last session")
+            ProgressLandscapeRail(continued, onOpen)
         }
         item {
             MediaSectionTitle("In your library", "${if (type == ContentType.MOVIE) "Movies" else "Series"} you saved in Sora")
@@ -742,6 +759,33 @@ private fun TopTenRail(rows: List<BrowseCard>, type: ContentType, selection: (Br
                     Text("${ranked.index + 1}", color = Color(0xFF6F6C64), fontSize = 70.sp, lineHeight = 70.sp, fontWeight = FontWeight.Black, letterSpacing = (-5).sp)
                     Poster(ranked.value.artworkUrl, ranked.value.title, Modifier.width(96.dp).fillMaxHeight(), 5)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProgressLandscapeRail(entries: List<MediaProgressEntry>, onOpen: (ExtensionMediaSelection) -> Unit) {
+    LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+        items(entries.take(8), key = { "progress-${it.extensionPackage}-${it.sourceId}-${it.mediaId}" }) { entry ->
+            Column(Modifier.width(190.dp).clickable { onOpen(entry.toMediaSelection()) }) {
+                Box(Modifier.fillMaxWidth().height(107.dp).clip(RoundedCornerShape(7.dp)).background(SoraSurface)) {
+                    if (!entry.artworkUrl.isNullOrBlank()) AsyncImage(entry.artworkUrl, entry.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    LinearProgressIndicator(
+                        progress = { entry.progress },
+                        modifier = Modifier.fillMaxWidth().height(3.dp).align(Alignment.BottomCenter),
+                        color = SoraAccent,
+                        trackColor = Color(0xFF555248),
+                    )
+                }
+                Text(entry.title, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
+                Text(
+                    "${entry.itemLabel} · ${(entry.progress * 100f).toInt().coerceIn(0, 100)}%",
+                    color = SoraMuted,
+                    fontSize = 9.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }

@@ -51,6 +51,7 @@ enum class ReaderMode(val label: String) {
 fun ReaderScreen(
     session: ReaderSession,
     onBack: () -> Unit,
+    onProgress: (ReaderSession, Int, Int) -> Unit = { _, _, _ -> },
 ) {
     val pages = session.pages
     if (pages.isEmpty()) {
@@ -86,6 +87,9 @@ fun ReaderScreen(
     }
     LaunchedEffect(pagerState.currentPage, mode) {
         if (mode == ReaderMode.PAGED) currentPage = pagerState.currentPage.coerceIn(0, pages.lastIndex)
+    }
+    LaunchedEffect(currentPage, pages.size, session) {
+        if (pages.isNotEmpty()) onProgress(session, currentPage + 1, pages.size)
     }
 
     fun jumpTo(index: Int) {
