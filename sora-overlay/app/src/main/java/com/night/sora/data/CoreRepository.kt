@@ -3,8 +3,10 @@ package com.night.sora.data
 import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.setValue
+import com.night.sora.model.AiAttachment
 import com.night.sora.model.AiConversation
 import com.night.sora.model.DownloadStatus
 import com.night.sora.model.DownloadEntry
@@ -22,6 +24,7 @@ class CoreRepository(context: Context) {
     private val prefs = context.getSharedPreferences("sora_core", Context.MODE_PRIVATE)
 
     val aiConversations = mutableStateListOf<AiConversation>()
+    private val aiDrafts = mutableStateMapOf<Long, String>()
     var activeAiConversationId by mutableLongStateOf(0L)
         private set
     val library = mutableStateListOf<LibraryEntry>()
@@ -33,8 +36,12 @@ class CoreRepository(context: Context) {
     val activeAiMessages: List<AiMessage>
         get() = aiConversations.firstOrNull { it.id == activeAiConversationId }?.messages.orEmpty()
 
+    val activeAiDraft: String
+        get() = aiDrafts[activeAiConversationId].orEmpty()
+
     init {
         loadConversationsOrMigrateMessages()
+        loadAiDrafts()
         loadLibrary()
         loadListeningSignals()
         loadMediaProgress()
@@ -78,14 +85,19 @@ class CoreRepository(context: Context) {
         }
     }
 
-    fun sendAiText(text: String) {
-        val clean = text.trim()
-        if (clean.isEmpty()) return
-        appendAiMessage(AiMessage(System.currentTimeMillis(), AiMessage.Role.USER, clean))
+    fun setActiveAiDraft(text: String) {
+        val id = activeAiConversationId
+        if (id == 0L) return
+        if (text.isBlank()) aiDrafts.remove(id) else aiDrafts[id] = text
+        persistAiDrafts()
     }
 
-    fun sendVoicePlaceholder() {
-        appendAiMessage(AiMessage(System.currentTimeMillis(), AiMessage.Role.USER, "Voice message"))
+    fun sendAiText(text: String, attachments: List<AiAttachment> = emptyList()) {
+        val clean = text.trim()
+        if (clean.isEmpty() && attachments.isEmpty()) return
+        appendAiMessage(AiMessage(System.currentTimeMillis(), AiMessage.Role.USER, clean, attachments))
+        aiDrafts.remove(activeAiConversationId)
+        persistAiDrafts()
     }
 
     private fun appendAiMessage(message: AiMessage) {
@@ -95,12 +107,15 @@ class CoreRepository(context: Context) {
             index = aiConversations.indexOfFirst { it.id == activeAiConversationId }
         }
         val current = aiConversations[index]
-        val firstUserText = (current.messages + message)
-            .firstOrNull { it.role == AiMessage.Role.USER && it.text.isNotBlank() }
-            ?.text
+        val firstUserTitle = (current.messages + message)
+            .firstOrNull { it.role == AiMessage.Role.USER }
+            ?.let { userMessage ->
+                userMessage.text.takeIf(String::isNotBlank)
+                    ?: userMessage.attachments.firstOrNull()?.name
+            }
             ?.take(42)
         aiConversations[index] = current.copy(
-            title = firstUserText ?: current.title,
+            title = firstUserTitle ?: current.title,
             updatedAt = System.currentTimeMillis(),
             messages = current.messages + message,
         )
@@ -251,10 +266,22 @@ class CoreRepository(context: Context) {
                     val messageArray = item.optJSONArray("messages") ?: JSONArray()
                     for (j in 0 until messageArray.length()) {
                         val message = messageArray.getJSONObject(j)
+                        val attachments = buildList {
+                            val attachmentArray = message.optJSONArray("attachments") ?: JSONArray()
+                            for (k in 0 until attachmentArray.length()) {
+                                val attachment = attachmentArray.optJSONObject(k) ?: continue
+                                val uri = attachment.optString("uri")
+                                val name = attachment.optString("name")
+                                if (uri.isNotBlank() && name.isNotBlank()) {
+                                    add(AiAttachment(uri, name, attachment.optNullableString("mimeType")))
+                                }
+                            }
+                        }
                         messages += AiMessage(
                             id = message.getLong("id"),
                             role = AiMessage.Role.valueOf(message.getString("role")),
                             text = message.getString("text"),
+                            attachments = attachments,
                         )
                     }
                     aiConversations += AiConversation(
@@ -292,10 +319,19 @@ class CoreRepository(context: Context) {
         aiConversations.sortedByDescending { it.updatedAt }.forEach { conversation ->
             val messages = JSONArray()
             conversation.messages.forEach { message ->
+                val attachments = JSONArray()
+                message.attachments.forEach { attachment ->
+                    attachments.put(JSONObject().apply {
+                        put("uri", attachment.uri)
+                        put("name", attachment.name)
+                        putNullable("mimeType", attachment.mimeType)
+                    })
+                }
                 messages.put(JSONObject().apply {
                     put("id", message.id)
                     put("role", message.role.name)
                     put("text", message.text)
+                    put("attachments", attachments)
                 })
             }
             array.put(JSONObject().apply {
@@ -309,6 +345,25 @@ class CoreRepository(context: Context) {
             KEY_CONVERSATIONS,
             JSONObject().put("activeId", activeAiConversationId).put("conversations", array).toString(),
         ).apply()
+    }
+
+    private fun loadAiDrafts() {
+        val raw = prefs.getString(KEY_AI_DRAFTS, null) ?: return
+        runCatching {
+            val root = JSONObject(raw)
+            val keys = root.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val id = key.toLongOrNull() ?: continue
+                root.optString(key).takeIf(String::isNotBlank)?.let { aiDrafts[id] = it }
+            }
+        }
+    }
+
+    private fun persistAiDrafts() {
+        val root = JSONObject()
+        aiDrafts.forEach { (id, draft) -> if (draft.isNotBlank()) root.put(id.toString(), draft) }
+        prefs.edit().putString(KEY_AI_DRAFTS, root.toString()).apply()
     }
 
     private fun loadLibrary() {
@@ -520,6 +575,7 @@ class CoreRepository(context: Context) {
     private companion object {
         const val KEY_MESSAGES = "ai_messages_v1"
         const val KEY_CONVERSATIONS = "ai_conversations_v2"
+        const val KEY_AI_DRAFTS = "ai_drafts_v1"
         const val KEY_LIBRARY = "library_v1"
         const val KEY_LISTENING = "listening_v1"
         const val KEY_MEDIA_PROGRESS = "media_progress_v1"

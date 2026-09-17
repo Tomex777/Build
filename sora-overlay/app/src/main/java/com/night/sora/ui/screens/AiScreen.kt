@@ -2,6 +2,10 @@
 
 package com.night.sora.ui.screens
 
+import android.content.Intent
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,11 +21,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.night.sora.model.AiAttachment
 import com.night.sora.model.AiConversation
 import com.night.sora.model.AiMessage
 import com.night.sora.ui.theme.*
@@ -34,18 +40,37 @@ fun AiScreen(
     conversations: List<AiConversation>,
     activeConversationId: Long,
     messages: List<AiMessage>,
+    draft: String,
+    onDraft: (String) -> Unit,
     onSelectConversation: (Long) -> Unit,
     onNewConversation: () -> Unit,
-    onSendText: (String) -> Unit,
-    onSendVoice: () -> Unit,
+    onSendText: (String, List<AiAttachment>) -> Unit,
     onBack: () -> Unit,
 ) {
+    val context = LocalContext.current
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var target by remember { mutableStateOf(AiDrawerTarget.CHAT) }
-    var draft by remember { mutableStateOf("") }
-    var recording by remember { mutableStateOf(false) }
-    var stopped by remember { mutableStateOf(false) }
+    var pendingAttachments by remember(activeConversationId) { mutableStateOf<List<AiAttachment>>(emptyList()) }
+    val files = remember(conversations) {
+        conversations.flatMap { it.messages }.flatMap { it.attachments }.distinctBy { it.uri }
+    }
+    val attachmentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            val mimeType = context.contentResolver.getType(uri)
+            val name = runCatching {
+                context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
+                }
+            }.getOrNull().orEmpty().ifBlank { uri.lastPathSegment ?: "Attachment" }
+            val attachment = AiAttachment(uri.toString(), name, mimeType)
+            if (pendingAttachments.none { it.uri == attachment.uri }) pendingAttachments = pendingAttachments + attachment
+        }
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -100,26 +125,24 @@ fun AiScreen(
                             when (target) { AiDrawerTarget.CHAT -> "Sora AI"; AiDrawerTarget.GENERATED_IMAGES -> "Generated images"; AiDrawerTarget.FILES -> "Files" },
                             fontSize = 15.sp, fontWeight = FontWeight.ExtraBold,
                         )
-                        if (target == AiDrawerTarget.CHAT) Text("DeepSeek · automatic tools", color = SoraMuted, fontSize = 8.sp)
+                        if (target == AiDrawerTarget.CHAT) Text("Local history · AI provider not connected", color = SoraMuted, fontSize = 8.sp)
                     }
                     IconButton(onClick = onBack) { Icon(Icons.Rounded.Close, "Close") }
                 }
             },
             bottomBar = {
                 if (target == AiDrawerTarget.CHAT) {
-                    if (recording) VoiceComposer(
-                        stopped = stopped,
-                        onCancel = { recording = false; stopped = false },
-                        onStop = { stopped = true },
-                        onSend = { recording = false; stopped = false; onSendVoice() },
-                    ) else ChatComposer(
+                    ChatComposer(
                         draft = draft,
-                        onDraft = { draft = it },
-                        onAttach = { },
-                        onMic = { recording = true },
+                        attachments = pendingAttachments,
+                        onDraft = onDraft,
+                        onAttach = { attachmentLauncher.launch(arrayOf("*/*")) },
+                        onRemoveAttachment = { remove -> pendingAttachments = pendingAttachments.filterNot { it.uri == remove.uri } },
                         onSend = {
-                            val clean = draft.trim()
-                            if (clean.isNotEmpty()) { onSendText(clean); draft = "" }
+                            if (draft.isNotBlank() || pendingAttachments.isNotEmpty()) {
+                                onSendText(draft, pendingAttachments)
+                                pendingAttachments = emptyList()
+                            }
                         },
                     )
                 }
@@ -132,7 +155,7 @@ fun AiScreen(
                     onSuggestion = { draft = it },
                 )
                 AiDrawerTarget.GENERATED_IMAGES -> AiLibraryEmpty(Modifier.padding(padding), Icons.Rounded.Image, "Generated images", "Images you create with Sora stay here, beside your AI history.")
-                AiDrawerTarget.FILES -> AiLibraryEmpty(Modifier.padding(padding), Icons.Rounded.Folder, "Files", "Files you attach or keep for Sora will appear here.")
+                AiDrawerTarget.FILES -> AiFilesSurface(Modifier.padding(padding), files)
             }
         }
     }
@@ -158,7 +181,7 @@ private fun ChatThread(modifier: Modifier, messages: List<AiMessage>, onSuggesti
                         SuggestionChip("Find a manga") { onSuggestion("Find this manga for me.") }
                         SuggestionChip("Create something") { onSuggestion("Create an image for me.") }
                         SuggestionChip("Search something") { onSuggestion("Search this for me.") }
-                        SuggestionChip("Explain my last passage") { onSuggestion("Explain what I last read in the Bible.") }
+                        SuggestionChip("Explain a Bible passage") { onSuggestion("Explain this Bible passage for me.") }
                     }
                 }
             }
@@ -167,7 +190,14 @@ private fun ChatThread(modifier: Modifier, messages: List<AiMessage>, onSuggesti
             Row(Modifier.fillMaxWidth(), horizontalArrangement = if (message.role == AiMessage.Role.USER) Arrangement.End else Arrangement.Start) {
                 if (message.role == AiMessage.Role.USER) {
                     Surface(color = SoraSurfaceRaised, shape = RoundedCornerShape(20.dp, 20.dp, 6.dp, 20.dp)) {
-                        Text(message.text, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.widthIn(max = 310.dp).padding(horizontal = 14.dp, vertical = 11.dp))
+                        Column(Modifier.widthIn(max = 310.dp).padding(horizontal = 14.dp, vertical = 11.dp)) {
+                            if (message.text.isNotBlank()) Text(message.text, fontSize = 14.sp, lineHeight = 20.sp)
+                            if (message.attachments.isNotEmpty()) {
+                                Column(Modifier.padding(top = if (message.text.isNotBlank()) 8.dp else 0.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    message.attachments.forEach { attachment -> MessageAttachmentRow(attachment) }
+                                }
+                            }
+                        }
                     }
                 } else {
                     Text(message.text, fontSize = 14.sp, lineHeight = 22.sp, color = Color(0xFFDFDCD4), modifier = Modifier.widthIn(max = 720.dp).padding(vertical = 4.dp))
@@ -190,13 +220,27 @@ private fun SuggestionChip(text: String, onClick: () -> Unit) {
 @Composable
 private fun ChatComposer(
     draft: String,
+    attachments: List<AiAttachment>,
     onDraft: (String) -> Unit,
     onAttach: () -> Unit,
-    onMic: () -> Unit,
+    onRemoveAttachment: (AiAttachment) -> Unit,
     onSend: () -> Unit,
 ) {
     Surface(color = SoraBg) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = 10.dp, vertical = 8.dp)) {
+            if (attachments.isNotEmpty()) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp)) {
+                    attachments.forEach { attachment ->
+                        InputChip(
+                            selected = false,
+                            onClick = { },
+                            label = { Text(attachment.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            leadingIcon = { Icon(Icons.Rounded.AttachFile, null, modifier = Modifier.size(16.dp)) },
+                            trailingIcon = { IconButton(onClick = { onRemoveAttachment(attachment) }, modifier = Modifier.size(24.dp)) { Icon(Icons.Rounded.Close, "Remove ${attachment.name}", modifier = Modifier.size(15.dp)) } },
+                        )
+                    }
+                }
+            }
             Surface(
                 color = Color(0xFF181816),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .08f)),
@@ -215,30 +259,50 @@ private fun ChatComposer(
                             decorationBox = { inner -> if (draft.isEmpty()) Text("Message Sora…", color = SoraMuted, fontSize = 14.sp); inner() },
                         )
                     }
-                    if (draft.isBlank()) IconButton(onClick = onMic, modifier = Modifier.size(38.dp)) { Icon(Icons.Rounded.Mic, "Voice", modifier = Modifier.size(20.dp)) }
-                    else FilledIconButton(onClick = onSend, modifier = Modifier.size(38.dp), colors = IconButtonDefaults.filledIconButtonColors(containerColor = SoraText, contentColor = Color.Black)) { Icon(Icons.Rounded.ArrowUpward, "Send", modifier = Modifier.size(19.dp)) }
+                    FilledIconButton(
+                        onClick = onSend,
+                        enabled = draft.isNotBlank() || attachments.isNotEmpty(),
+                        modifier = Modifier.size(38.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(containerColor = SoraText, contentColor = Color.Black),
+                    ) { Icon(Icons.Rounded.ArrowUpward, "Save message", modifier = Modifier.size(19.dp)) }
                 }
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = 7.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(5.dp).background(SoraAccent, CircleShape))
-                Text("Sora decides what capability is needed", color = SoraMuted, fontSize = 8.sp, modifier = Modifier.padding(start = 6.dp))
+                Text("Messages are stored locally until an AI provider is connected", color = SoraMuted, fontSize = 8.sp, modifier = Modifier.padding(start = 6.dp))
             }
         }
     }
 }
 
 @Composable
-private fun VoiceComposer(stopped: Boolean, onCancel: () -> Unit, onStop: () -> Unit, onSend: () -> Unit) {
-    Surface(color = SoraBg) {
-        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onCancel) { Text("Cancel") }
-            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.GraphicEq, null, tint = SoraAccent)
-                Text(if (stopped) "Ready to send" else "Recording", fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 8.dp))
+private fun MessageAttachmentRow(attachment: AiAttachment) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Rounded.AttachFile, null, tint = SoraMuted, modifier = Modifier.size(17.dp))
+        Column(Modifier.padding(start = 7.dp)) {
+            Text(attachment.name, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            attachment.mimeType?.takeIf(String::isNotBlank)?.let { Text(it, color = SoraMuted, fontSize = 8.sp) }
+        }
+    }
+}
+
+@Composable
+private fun AiFilesSurface(modifier: Modifier, files: List<AiAttachment>) {
+    if (files.isEmpty()) {
+        AiLibraryEmpty(modifier, Icons.Rounded.Folder, "Files", "Documents you attach to a chat will appear here.")
+        return
+    }
+    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(files, key = { it.uri }) { attachment ->
+            Surface(color = SoraSurface, shape = RoundedCornerShape(14.dp)) {
+                Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.InsertDriveFile, null, tint = SoraMuted)
+                    Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                        Text(attachment.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(attachment.mimeType ?: "Document", color = SoraMuted, fontSize = 9.sp, maxLines = 1)
+                    }
+                }
             }
-            if (!stopped) FilledTonalIconButton(onClick = onStop) { Icon(Icons.Rounded.Stop, "Stop") }
-            Spacer(Modifier.width(6.dp))
-            FilledIconButton(onClick = onSend, colors = IconButtonDefaults.filledIconButtonColors(containerColor = SoraText, contentColor = Color.Black)) { Icon(Icons.Rounded.ArrowUpward, "Send") }
         }
     }
 }

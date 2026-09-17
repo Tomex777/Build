@@ -208,7 +208,7 @@ fun SoraApp() {
         if (showAiQuick) {
             AiQuickSheet(
                 onDismiss = { showAiQuick = false },
-                onSend = repository::sendAiText,
+                onSend = { repository.sendAiText(it) },
                 onExpand = { showAiQuick = false; push(AppScreen.Ai) },
             )
         }
@@ -216,9 +216,11 @@ fun SoraApp() {
         when (current) {
             AppScreen.Ai -> AiScreen(
                 conversations = repository.aiConversations, activeConversationId = repository.activeAiConversationId,
-                messages = repository.activeAiMessages, onSelectConversation = repository::selectAiConversation,
-                onNewConversation = repository::newAiConversation, onSendText = repository::sendAiText,
-                onSendVoice = repository::sendVoicePlaceholder, onBack = ::pop,
+                messages = repository.activeAiMessages, draft = repository.activeAiDraft,
+                onDraft = repository::setActiveAiDraft, onSelectConversation = repository::selectAiConversation,
+                onNewConversation = repository::newAiConversation,
+                onSendText = { text, attachments -> repository.sendAiText(text, attachments) },
+                onBack = ::pop,
             )
             AppScreen.Extensions -> ExtensionsScreen(extensions = extensions, onBack = ::pop, onRefresh = ::refreshExtensions, onOpen = { push(AppScreen.ExtensionDetail(it)) })
             AppScreen.Bible -> BibleScreen(onBack = ::pop)
@@ -337,20 +339,19 @@ private fun AiQuickSheet(onDismiss: () -> Unit, onSend: (String) -> Unit, onExpa
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color(0xFF161614)) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 14.dp).padding(bottom = 14.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) { Text("Sora AI", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold); Text("DeepSeek · context on", color = SoraMuted, fontSize = 9.sp) }
+                Column(Modifier.weight(1f)) { Text("Sora AI", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold); Text("Local chat · AI provider not connected", color = SoraMuted, fontSize = 9.sp) }
                 TextButton(onClick = onExpand) { Text("Full chat") }
                 IconButton(onClick = onDismiss) { Icon(Icons.Rounded.Close, "Close") }
             }
-            Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(6.dp).background(SoraAccent, RoundedCornerShape(99.dp))); Text("Looking at Sora · library available", color = SoraMuted, fontSize = 9.sp, modifier = Modifier.padding(start = 7.dp)) }
+            Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(6.dp).background(SoraAccent, RoundedCornerShape(99.dp))); Text("Messages stay local until a provider is connected", color = SoraMuted, fontSize = 9.sp, modifier = Modifier.padding(start = 7.dp)) }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.padding(vertical = 7.dp)) {
                 QuickSuggestion("What should I continue tonight?") { draft = "What should I continue tonight?" }
                 QuickSuggestion("Find me another manga") { draft = "Find me a manga based on what I like." }
                 QuickSuggestion("Give me something funny") { draft = "Show me something funny." }
-                QuickSuggestion("Explain my last passage") { draft = "Explain what I last read in the Bible." }
+                QuickSuggestion("Explain a Bible passage") { draft = "Explain this Bible passage for me." }
             }
             Surface(color = SoraSurface, border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .08f)), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                 Row(Modifier.padding(horizontal = 7.dp, vertical = 7.dp), verticalAlignment = Alignment.Bottom) {
-                    IconButton(onClick = {}, modifier = Modifier.size(38.dp)) { Icon(Icons.Rounded.Add, "Attach") }
                     Box(Modifier.weight(1f).padding(vertical = 9.dp)) {
                         BasicTextField(
                             value = draft, onValueChange = { draft = it }, minLines = 1, maxLines = 4,
@@ -358,7 +359,6 @@ private fun AiQuickSheet(onDismiss: () -> Unit, onSend: (String) -> Unit, onExpa
                             decorationBox = { inner -> if (draft.isEmpty()) Text("Ask Sora anything…", color = SoraMuted, fontSize = 14.sp); inner() },
                         )
                     }
-                    IconButton(onClick = {}, modifier = Modifier.size(38.dp)) { Icon(Icons.Rounded.Mic, "Voice") }
                     FilledIconButton(
                         onClick = { val clean = draft.trim(); if (clean.isNotEmpty()) { onSend(clean); draft = ""; onExpand() } },
                         modifier = Modifier.size(38.dp), colors = IconButtonDefaults.filledIconButtonColors(containerColor = SoraText, contentColor = Color.Black),

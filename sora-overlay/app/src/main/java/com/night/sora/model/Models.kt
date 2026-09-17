@@ -21,10 +21,17 @@ data class MediaItem(
     val metadata: Map<String, String> = emptyMap(),
 )
 
+data class AiAttachment(
+    val uri: String,
+    val name: String,
+    val mimeType: String? = null,
+)
+
 data class AiMessage(
     val id: Long,
     val role: Role,
     val text: String,
+    val attachments: List<AiAttachment> = emptyList(),
 ) {
     enum class Role { USER, ASSISTANT }
 }
