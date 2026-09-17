@@ -12,6 +12,14 @@ export interface ExternalModuleCommandManifest {
   aliases?: string[];
 }
 
+export interface ExternalModuleJobManifest {
+  id: string;
+  /** Fixed interval used by Bailey's local scheduler. Minimum: 5 seconds. */
+  intervalSeconds: number;
+  /** Run once immediately when the module scheduler starts. */
+  runOnStart?: boolean;
+}
+
 export interface ExternalModuleRuntimeManifest {
   /** Executable available on the host, e.g. python, node, java, or a compiled binary. */
   command: string;
@@ -27,6 +35,7 @@ export interface ExternalModuleManifest {
   description?: string;
   runtime: ExternalModuleRuntimeManifest;
   commands?: ExternalModuleCommandManifest[];
+  jobs?: ExternalModuleJobManifest[];
   settings?: ModuleSettingDefinition[];
   capabilities?: ExternalModuleCapability[];
 }
@@ -62,17 +71,26 @@ export interface ExternalEventRequest {
   context: ExternalMessageEventContext;
 }
 
+export interface ExternalJobRequest {
+  protocol: typeof BAILEY_MODULE_PROTOCOL;
+  id: string;
+  type: "job.execute";
+  jobId: string;
+  scheduledAt: number;
+}
+
 export interface ExternalLifecycleRequest {
   protocol: typeof BAILEY_MODULE_PROTOCOL;
   id: string;
   type: "lifecycle.start" | "lifecycle.stop";
 }
 
-export type ExternalModuleRequest = ExternalCommandRequest | ExternalEventRequest | ExternalLifecycleRequest;
+export type ExternalModuleRequest = ExternalCommandRequest | ExternalEventRequest | ExternalJobRequest | ExternalLifecycleRequest;
 
 export type ExternalModuleAction =
   | { type: "reply"; text: string }
   | { type: "react"; emoji: string }
+  | { type: "send"; remoteJid: string; text: string }
   | { type: "log"; level?: "debug" | "info" | "warn" | "error"; message: string };
 
 export interface ExternalModuleResponse {
@@ -86,6 +104,8 @@ export interface ExternalModuleResponse {
 const MODULE_ID = /^[a-z0-9][a-z0-9.-]*$/;
 const COMMAND_NAME = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 const CAPABILITIES = new Set<ExternalModuleCapability>(["commands", "settings", "events", "jobs", "services"]);
+const MIN_JOB_INTERVAL_SECONDS = 5;
+const MAX_JOB_INTERVAL_SECONDS = 30 * 24 * 60 * 60;
 
 export function parseExternalModuleManifest(raw: unknown): ExternalModuleManifest {
   if (!raw || typeof raw !== "object") throw new Error("Module manifest must be a JSON object.");
@@ -124,6 +144,22 @@ export function parseExternalModuleManifest(raw: unknown): ExternalModuleManifes
       if (seen.has(normalized)) throw new Error(`Duplicate external command trigger: ${name}.`);
       seen.add(normalized);
     }
+  }
+
+  const seenJobs = new Set<string>();
+  for (const job of input.jobs ?? []) {
+    if (!job || typeof job !== "object") throw new Error("Module jobs must be objects.");
+    if (typeof job.id !== "string" || !COMMAND_NAME.test(job.id)) throw new Error("Job id is invalid.");
+    if (seenJobs.has(job.id.toLowerCase())) throw new Error(`Duplicate job id: ${job.id}.`);
+    seenJobs.add(job.id.toLowerCase());
+    if (!Number.isInteger(job.intervalSeconds) || job.intervalSeconds < MIN_JOB_INTERVAL_SECONDS || job.intervalSeconds > MAX_JOB_INTERVAL_SECONDS) {
+      throw new Error(`Job ${job.id} intervalSeconds must be an integer between ${MIN_JOB_INTERVAL_SECONDS} and ${MAX_JOB_INTERVAL_SECONDS}.`);
+    }
+    if (job.runOnStart !== undefined && typeof job.runOnStart !== "boolean") throw new Error(`Job ${job.id} runOnStart must be a boolean.`);
+  }
+
+  if ((input.jobs?.length ?? 0) > 0 && !(input.capabilities ?? []).includes("jobs")) {
+    throw new Error("A module with jobs must declare the jobs capability.");
   }
 
   return input as ExternalModuleManifest;
