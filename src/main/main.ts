@@ -30,6 +30,7 @@ let chatController: ChatController;
 let engineManager: EngineManager;
 let externalModuleManager: ExternalModuleManager | undefined;
 let externalModuleErrors: Array<{ folder: string; error: string }> = [];
+const externalModuleIds = new Set<string>();
 const openedEditorFiles = new Set<string>();
 const EDITABLE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs", ".json", ".py", ".md", ".txt", ".yaml", ".yml", ".toml"]);
 const MAX_EDITOR_BYTES = 2 * 1024 * 1024;
@@ -261,6 +262,42 @@ function modulesRoot(): string {
   return join(app.getPath("userData"), "modules");
 }
 
+async function reloadExternalModules() {
+  await externalModuleManager?.stopAll();
+  for (const moduleId of externalModuleIds) registry.unregister(moduleId);
+  externalModuleIds.clear();
+  externalModuleErrors = [];
+
+  const manager = new ExternalModuleManager(modulesRoot(), (moduleId) => {
+    const definitions = effectiveConfigDefinitions().filter((definition) => definition.moduleId === moduleId);
+    return configStore.toEnvironment(definitions);
+  });
+  const external = await manager.load();
+  externalModuleErrors = [...external.errors];
+
+  for (const definition of external.definitions) {
+    try {
+      registry.register(definition);
+      externalModuleIds.add(definition.id);
+    } catch (error) {
+      externalModuleErrors.push({
+        folder: definition.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  externalModuleManager = manager;
+  if (externalModuleErrors.length) {
+    for (const failure of externalModuleErrors) console.warn(`[module:${failure.folder}] ${failure.error}`);
+  }
+
+  return {
+    loaded: [...externalModuleIds],
+    errors: externalModuleErrors,
+  };
+}
+
 function broadcastEngineStatus(): void {
   const window = mainWindow;
   if (window && !window.isDestroyed()) {
@@ -407,6 +444,7 @@ function registerIpc(): void {
   ipcMain.handle("bailey:studio-open-file", () => openEditorFile());
   ipcMain.handle("bailey:studio-save-file", (_event, path: string, content: string) => saveEditorFile(path, content));
   ipcMain.handle("bailey:studio-open-modules-folder", () => openModulesFolder());
+  ipcMain.handle("bailey:studio-reload-modules", () => reloadExternalModules());
 
   ipcMain.handle("bailey:engine-status", () => engineManager.status());
   ipcMain.handle("bailey:engine-check-latest", () => engineManager.checkLatest());
@@ -438,26 +476,7 @@ app.whenReady().then(async () => {
   commandStore = new JsonCommandStore(join(app.getPath("userData"), "commands.json"));
   chatStore = new JsonChatStore(join(app.getPath("userData"), "chats.json"));
   await Promise.all([configStore.load(), commandStore.load(), chatStore.load()]);
-
-  externalModuleManager = new ExternalModuleManager(modulesRoot(), (moduleId) => {
-    const definitions = effectiveConfigDefinitions().filter((definition) => definition.moduleId === moduleId);
-    return configStore.toEnvironment(definitions);
-  });
-  const external = await externalModuleManager.load();
-  externalModuleErrors = external.errors;
-  for (const definition of external.definitions) {
-    try {
-      registry.register(definition);
-    } catch (error) {
-      externalModuleErrors.push({
-        folder: definition.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-  if (externalModuleErrors.length) {
-    for (const failure of externalModuleErrors) console.warn(`[module:${failure.folder}] ${failure.error}`);
-  }
+  await reloadExternalModules();
 
   engineManager = new EngineManager(
     join(app.getPath("userData"), "engines"),
