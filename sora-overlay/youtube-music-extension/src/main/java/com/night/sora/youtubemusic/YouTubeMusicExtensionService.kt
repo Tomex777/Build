@@ -46,6 +46,11 @@ class YouTubeMusicExtensionService : Service() {
         ),
     )
 
+    override fun onCreate() {
+        super.onCreate()
+        YouTubeMusicCatalog.initialize(applicationContext)
+    }
+
     private val messenger = Messenger(object : Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
             if (msg.what != ExtensionContract.MSG_REQUEST) return
