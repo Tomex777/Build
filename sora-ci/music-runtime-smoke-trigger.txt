@@ -1,0 +1,1 @@
+2026-09-17 deterministic Sora Music runtime smoke: demo source + ExoPlayer test MP3 + Pixel 7 transport/background/recreation.
