@@ -1,0 +1,1 @@
+2026-09-17 prove seeded Movie timestamp resume and Manga page resume through exact consumption sources.
