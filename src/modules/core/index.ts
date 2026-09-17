@@ -53,7 +53,8 @@ export const coreModule = defineModule({
       section: "Help",
       description: "Show commands grouped by module and section.",
       execute: async (context) => {
-        await context.reply("Bailey menu is still starting.");
+        const section = context.args.join(" ").trim();
+        await context.showMenu(section || undefined);
       },
     }),
     defineCommand({
