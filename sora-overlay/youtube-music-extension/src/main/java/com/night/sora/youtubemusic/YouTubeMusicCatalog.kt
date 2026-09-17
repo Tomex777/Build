@@ -1,13 +1,16 @@
 package com.night.sora.youtubemusic
 
+import android.util.Log
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
+import com.metrolist.innertube.models.YouTubeClient
 import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_MUSIC
 import org.json.JSONArray
 import org.json.JSONObject
 
 object YouTubeMusicCatalog {
     private const val SOURCE_ID = "youtube.music"
+    private const val TAG = "SoraYouTubeMusic"
 
     suspend fun browse(sourceId: String): String {
         requireSource(sourceId)
@@ -60,12 +63,17 @@ object YouTubeMusicCatalog {
             videoId = id,
             client = ANDROID_MUSIC,
         ).getOrThrow()
-        if (response.playabilityStatus.status != "OK") {
-            error(response.playabilityStatus.reason ?: "YouTube Music returned ${response.playabilityStatus.status}")
+        val status = response.playabilityStatus.status
+        val formats = response.streamingData?.adaptiveFormats.orEmpty()
+        Log.i(
+            TAG,
+            "streams id=$id status=$status reason=${response.playabilityStatus.reason.orEmpty()} adaptive=${formats.size}",
+        )
+        if (status != "OK") {
+            error(response.playabilityStatus.reason ?: "YouTube Music returned $status")
         }
 
-        val audio = response.streamingData?.adaptiveFormats
-            .orEmpty()
+        val audio = formats
             .asSequence()
             .filter { it.isAudio && it.isOriginal && !it.url.isNullOrBlank() }
             .sortedByDescending { format ->
@@ -74,14 +82,24 @@ object YouTubeMusicCatalog {
             }
             .toList()
 
+        Log.i(
+            TAG,
+            "streams id=$id directAudio=${audio.size} mime=${audio.firstOrNull()?.mimeType.orEmpty()}",
+        )
         if (audio.isEmpty()) error("YouTube Music returned no direct audio stream on the native fast path")
 
         return JSONArray().apply {
             audio.forEach { format ->
+                val url = format.url.orEmpty()
+                val headers = YouTubeClient.forStreamUrl(url).mediaHeaders()
+                val headersJson = JSONObject().apply {
+                    headers.forEach { (name, value) -> put(name, value) }
+                }
                 put(
                     JSONObject()
                         .put("label", qualityLabel(format.mimeType, format.averageBitrate ?: format.bitrate))
-                        .put("url", format.url)
+                        .put("url", url)
+                        .put("headers", headersJson)
                         .put("mimeType", format.mimeType.substringBefore(';'))
                         .put("bitrate", format.averageBitrate ?: format.bitrate)
                         .put("durationMs", format.approxDurationMs?.toLongOrNull() ?: 0L)
