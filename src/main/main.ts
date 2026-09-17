@@ -6,6 +6,7 @@ import { JsonChatStore } from "../core/chat-store";
 import { JsonCommandStore, type VisualCommandPatch } from "../core/command-store";
 import { JsonConfigStore, type SecretCodec } from "../core/config-store";
 import { buildCommandMenu } from "../core/menu-builder";
+import type { BaileyCommandAction, CommandContext } from "../core/module";
 import { ModuleRegistry } from "../core/registry";
 import type { IncomingEngineMessage } from "../engine/contracts";
 import { EngineManager } from "../engine/engine-manager";
@@ -213,9 +214,10 @@ function currentMenu(sectionFilter?: string): string {
   });
 }
 
-async function runDeclarativeActions(actions: Array<{ type: "reply"; text: string }>, remoteJid: string): Promise<void> {
+async function runDeclarativeActions(actions: BaileyCommandAction[], context: Pick<CommandContext, "reply" | "react">): Promise<void> {
   for (const action of actions) {
-    if (action.type === "reply") await engineManager.sendText(remoteJid, action.text);
+    if (action.type === "reply") await context.reply(action.text);
+    if (action.type === "react") await context.react(action.emoji);
   }
 }
 
@@ -231,7 +233,7 @@ async function dispatchIncomingMessage(message: IncomingEngineMessage): Promise<
   if (!resolved) return;
   if (!moduleEnabled(resolved.module.id) || !commandEnabled(resolved.module.id, resolved.command.id)) return;
 
-  const context = {
+  const context: CommandContext = {
     remoteJid: message.remoteJid,
     senderJid: message.participant ?? message.remoteJid,
     text: message.text,
@@ -242,7 +244,7 @@ async function dispatchIncomingMessage(message: IncomingEngineMessage): Promise<
   };
 
   if (resolved.command.actions?.length) {
-    await runDeclarativeActions(resolved.command.actions, message.remoteJid);
+    await runDeclarativeActions(resolved.command.actions, context);
   } else if (resolved.command.execute) {
     await resolved.command.execute(context);
   }
@@ -282,6 +284,7 @@ function effectiveModules() {
       editable: command.editable,
       origin: command.origin,
       replyText: command.replyText,
+      reactionEmoji: command.reactionEmoji,
     })),
   }));
 }
