@@ -1,1 +1,1 @@
-2026-09-17 rerun deterministic Music playback regression with catalog-aware CI fixture.
+2026-09-17 final deterministic Music regression after Spotui Home alignment and strict one-selected-source playback/download guard.
