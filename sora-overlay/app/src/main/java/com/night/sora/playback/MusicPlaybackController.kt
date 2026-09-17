@@ -159,6 +159,12 @@ class MusicPlaybackController(
         playQueueIndex(index)
     }
 
+    fun selectQueueIndex(index: Int) {
+        if (index !in queue.indices || index == currentIndex) return
+        emitSkipIfStarted(currentTrack)
+        playQueueIndex(index)
+    }
+
     fun playQueueIndex(index: Int) {
         if (index !in queue.indices) return
         currentIndex = index
@@ -174,7 +180,10 @@ class MusicPlaybackController(
 
     fun togglePlayPause() {
         if (currentTrack == null) return
-        if (player.playbackState == Player.STATE_ENDED) player.seekTo(0L)
+        if (player.playbackState == Player.STATE_ENDED) {
+            startedEventTrackKey = null
+            player.seekTo(0L)
+        }
         if (player.isPlaying || player.playWhenReady) player.pause() else player.play()
     }
 

@@ -225,7 +225,7 @@ fun NowPlayingScreen(
                     player.queue.forEachIndexed { index, item ->
                         Row(
                             Modifier.fillMaxWidth().clickable {
-                                player.playQueueIndex(index)
+                                player.selectQueueIndex(index)
                                 queueOpen = false
                             }.padding(horizontal = 18.dp, vertical = 9.dp),
                             verticalAlignment = Alignment.CenterVertically,

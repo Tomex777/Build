@@ -155,7 +155,7 @@ class CoreRepository(context: Context) {
             completions = current.completions + if (completed) 1 else 0,
             skips = current.skips + if (skipped) 1 else 0,
             saved = saved ?: current.saved,
-            lastPlayedEpochMs = System.currentTimeMillis(),
+            lastPlayedEpochMs = if (countPlay && !skipped) System.currentTimeMillis() else current.lastPlayedEpochMs,
         )
         if (index >= 0) listeningSignals[index] = updated else listeningSignals += updated
         persistListeningSignals()
