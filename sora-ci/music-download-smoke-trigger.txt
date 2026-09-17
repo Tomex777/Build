@@ -1,0 +1,1 @@
+Run deterministic Music download proof: required headers, real bytes/progress, persisted complete state, server-off local playback, and physical file deletion.
