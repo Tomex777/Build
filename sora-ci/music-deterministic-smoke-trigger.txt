@@ -1,1 +1,1 @@
-2026-09-17 final deterministic Music regression after source guard, resolver race fix, audio focus, noisy handling, and wake mode.
+2026-09-17 rerun deterministic Music proof on final hardened head; verify current Media fallback navigation.
