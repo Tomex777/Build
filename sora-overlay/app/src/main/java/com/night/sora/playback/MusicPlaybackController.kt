@@ -35,6 +35,14 @@ import org.json.JSONObject
 
 enum class MusicRepeatMode { OFF, ALL, ONE }
 
+enum class MusicListeningEventType { STARTED, COMPLETED, SKIPPED }
+
+data class MusicListeningEvent(
+    val serial: Long,
+    val track: ExtensionMediaSelection,
+    val type: MusicListeningEventType,
+)
+
 class MusicPlaybackController(
     context: Context,
     private val manager: ExtensionManager,
@@ -59,6 +67,8 @@ class MusicPlaybackController(
         .setMediaSourceFactory(DefaultMediaSourceFactory(resolvingDataSourceFactory))
         .build()
     private var requestSerial = 0L
+    private var listeningEventSerial = 0L
+    private var startedEventTrackKey: String? = null
     private var baseQueue: List<ExtensionMediaSelection> = emptyList()
     private var extensions: List<InstalledExtension> = emptyList()
 
@@ -86,6 +96,8 @@ class MusicPlaybackController(
         private set
     var errorMessage by mutableStateOf<String?>(null)
         private set
+    var listeningEvent by mutableStateOf<MusicListeningEvent?>(null)
+        private set
     var lyricsText by mutableStateOf<String?>(null)
         private set
     var lyricsLoading by mutableStateOf(false)
@@ -95,6 +107,15 @@ class MusicPlaybackController(
         player.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(playing: Boolean) {
                 isPlaying = playing
+                if (playing) {
+                    currentTrack?.let { track ->
+                        val key = track.identityKey()
+                        if (startedEventTrackKey != key) {
+                            startedEventTrackKey = key
+                            emitListeningEvent(track, MusicListeningEventType.STARTED)
+                        }
+                    }
+                }
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -143,6 +164,7 @@ class MusicPlaybackController(
         currentIndex = index
         val track = queue[index]
         currentTrack = track
+        startedEventTrackKey = null
         positionMs = 0L
         durationMs = 0L
         errorMessage = null
@@ -163,7 +185,10 @@ class MusicPlaybackController(
             repeatMode == MusicRepeatMode.ALL -> 0
             else -> -1
         }
-        if (next >= 0) playQueueIndex(next)
+        if (next >= 0) {
+            if (next != currentIndex) emitSkipIfStarted(currentTrack)
+            playQueueIndex(next)
+        }
     }
 
     fun skipPrevious() {
@@ -177,6 +202,7 @@ class MusicPlaybackController(
             repeatMode == MusicRepeatMode.ALL -> queue.lastIndex
             else -> 0
         }
+        if (previous != currentIndex) emitSkipIfStarted(currentTrack)
         playQueueIndex(previous)
     }
 
@@ -286,8 +312,14 @@ class MusicPlaybackController(
     }
 
     private fun handleEnded() {
+        currentTrack?.let { track ->
+            if (startedEventTrackKey == track.identityKey()) {
+                emitListeningEvent(track, MusicListeningEventType.COMPLETED)
+            }
+        }
         when (repeatMode) {
             MusicRepeatMode.ONE -> {
+                startedEventTrackKey = null
                 player.seekTo(0L)
                 player.play()
             }
@@ -298,6 +330,20 @@ class MusicPlaybackController(
                 if (currentIndex < queue.lastIndex) playQueueIndex(currentIndex + 1)
             }
         }
+    }
+
+    private fun emitSkipIfStarted(track: ExtensionMediaSelection?) {
+        if (track == null) return
+        if (startedEventTrackKey != track.identityKey()) return
+        emitListeningEvent(track, MusicListeningEventType.SKIPPED)
+    }
+
+    private fun emitListeningEvent(track: ExtensionMediaSelection, type: MusicListeningEventType) {
+        listeningEvent = MusicListeningEvent(
+            serial = ++listeningEventSerial,
+            track = track,
+            type = type,
+        )
     }
 
     private fun parseStreams(raw: String): List<PlaybackStream> = runCatching {

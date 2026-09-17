@@ -36,6 +36,7 @@ import com.night.sora.extension.InstalledExtension
 import com.night.sora.model.ExtensionMediaSelection
 import com.night.sora.model.PlaybackSession
 import com.night.sora.model.ReaderSession
+import com.night.sora.playback.MusicListeningEventType
 import com.night.sora.playback.MusicPlaybackController
 import com.night.sora.playback.MusicPlaybackRuntime
 import com.night.sora.ui.screens.*
@@ -85,15 +86,28 @@ fun SoraApp() {
     LaunchedEffect(Unit) { refreshExtensions() }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refreshExtensions() }
     LaunchedEffect(extensions) { musicPlayer.updateExtensions(extensions) }
-    LaunchedEffect(
-        musicPlayer.currentTrack?.extensionPackage,
-        musicPlayer.currentTrack?.sourceId,
-        musicPlayer.currentTrack?.id,
-    ) {
-        musicPlayer.currentTrack?.let { track ->
-            repository.recordActivity(track, "played")
-            val artistName = track.subtitle.substringBefore(" · ").ifBlank { track.title }
-            repository.recordListening(artistName.trim().lowercase(), artistName)
+    LaunchedEffect(musicPlayer.listeningEvent?.serial) {
+        val event = musicPlayer.listeningEvent ?: return@LaunchedEffect
+        val track = event.track
+        val artistName = track.subtitle.substringBefore(" · ").ifBlank { track.title }
+        val artistId = artistName.trim().lowercase()
+        when (event.type) {
+            MusicListeningEventType.STARTED -> {
+                repository.recordActivity(track, "played")
+                repository.recordListening(artistId, artistName)
+            }
+            MusicListeningEventType.COMPLETED -> repository.recordListening(
+                artistId = artistId,
+                artistName = artistName,
+                completed = true,
+                countPlay = false,
+            )
+            MusicListeningEventType.SKIPPED -> repository.recordListening(
+                artistId = artistId,
+                artistName = artistName,
+                skipped = true,
+                countPlay = false,
+            )
         }
     }
     BackHandler(enabled = screenStack.isNotEmpty()) { pop() }

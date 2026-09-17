@@ -128,6 +128,15 @@ class CoreRepository(context: Context) {
             )
         }
         persistLibrary()
+        if (selection.type == ContentType.MUSIC) {
+            val artistName = selection.subtitle.substringBefore(" · ").ifBlank { selection.title }
+            recordListening(
+                artistId = artistName.trim().lowercase(),
+                artistName = artistName,
+                saved = index < 0,
+                countPlay = false,
+            )
+        }
     }
 
     fun recordListening(
@@ -136,12 +145,13 @@ class CoreRepository(context: Context) {
         completed: Boolean = false,
         skipped: Boolean = false,
         saved: Boolean? = null,
+        countPlay: Boolean = true,
     ) {
         val index = listeningSignals.indexOfFirst { it.artistId == artistId }
         val current = if (index >= 0) listeningSignals[index] else ListeningSignal(artistId, artistName)
         val updated = current.copy(
             artistName = artistName,
-            plays = current.plays + if (!skipped) 1 else 0,
+            plays = current.plays + if (countPlay && !skipped) 1 else 0,
             completions = current.completions + if (completed) 1 else 0,
             skips = current.skips + if (skipped) 1 else 0,
             saved = saved ?: current.saved,
