@@ -38,7 +38,7 @@
             <h1>Dashboard</h1>
             <p>Keep the bot alive locally, inspect the WhatsApp engine, and control what modules can do.</p>
           </div>
-          <span class="version" id="version">v0.2.0</span>
+          <span class="version" id="version">v0.3.0</span>
         </header>
 
         <div class="metric-grid">
@@ -55,7 +55,7 @@
           <article class="metric-card">
             <span>Modules</span>
             <strong id="module-count">0</strong>
-            <small>Loaded through the Bailey module registry.</small>
+            <small id="command-count-detail">0 commands loaded.</small>
           </article>
         </div>
 
@@ -94,7 +94,7 @@
                 <h2>Lia Baileys</h2>
                 <p id="engine-package">@itsliaaa/baileys</p>
               </div>
-              <span class="pill" id="engine-api">Engine API v1</span>
+              <span class="pill" id="engine-api">Engine bridge</span>
             </div>
             <div class="engine-version-row">
               <div><span>Installed</span><strong id="engine-current">Not installed</strong></div>
@@ -102,7 +102,7 @@
               <div><span>Previous</span><strong id="engine-previous">None</strong></div>
             </div>
             <div class="action-row">
-              <button class="primary-button" id="engine-install">Install Lia engine</button>
+              <button class="primary-button" id="engine-install">Install engine</button>
               <button class="secondary-button" id="engine-update" disabled>Update</button>
               <button class="secondary-button" id="engine-rollback" disabled>Roll back</button>
             </div>
@@ -145,18 +145,18 @@
         </div>
       </section>
 
-      <section class="view" id="view-modules">
+      <section class="view view-wide" id="view-modules">
         <header class="page-header">
           <div>
             <p class="eyebrow">CAPABILITIES</p>
             <h1>Modules</h1>
-            <p>Commands and features register here without modifying the desktop UI.</p>
+            <p>Commands are grouped into sections. Click an editable command to change it with the same visual model used to create commands.</p>
           </div>
         </header>
         <div id="module-list" class="stack"></div>
       </section>
 
-      <section class="view" id="view-configuration">
+      <section class="view view-wide" id="view-configuration">
         <header class="page-header">
           <div>
             <p class="eyebrow">SETTINGS</p>
@@ -169,6 +169,59 @@
       </section>
     </main>
   </div>
+
+  <dialog id="command-editor" class="command-editor">
+    <form id="command-editor-form">
+      <div class="dialog-header">
+        <div>
+          <p class="eyebrow">VISUAL COMMAND</p>
+          <h2 id="command-editor-title">Edit command</h2>
+          <p>Edit this command without writing code. Changes are stored separately from Bailey’s shipped defaults.</p>
+        </div>
+        <button type="button" class="icon-button" id="command-editor-close" aria-label="Close command editor">×</button>
+      </div>
+
+      <div class="editor-grid">
+        <label class="field field-trigger">
+          <span>Command trigger</span>
+          <div class="prefix-field"><span id="command-prefix-preview">.</span><input id="command-name" autocomplete="off" required /></div>
+          <small>The prefix comes from Configuration and is not part of the command name.</small>
+        </label>
+
+        <label class="field">
+          <span>Section</span>
+          <input id="command-section" autocomplete="off" required />
+          <small>This grouping is reused by Modules and the generated menu.</small>
+        </label>
+
+        <label class="field editor-span-2">
+          <span>Aliases</span>
+          <input id="command-aliases" autocomplete="off" placeholder="p, alive" />
+          <small>Comma-separated. Do not include the command prefix.</small>
+        </label>
+
+        <label class="field editor-span-2">
+          <span>Description</span>
+          <input id="command-description" autocomplete="off" required />
+        </label>
+
+        <label class="field editor-span-2">
+          <span>Reply</span>
+          <textarea id="command-reply" rows="5" required></textarea>
+          <small>For this visual command, Bailey replies with this text when the command runs.</small>
+        </label>
+      </div>
+
+      <p id="command-editor-error" class="editor-error" role="alert"></p>
+      <div class="dialog-actions">
+        <button type="button" class="danger-quiet-button" id="command-reset">Reset to default</button>
+        <div class="dialog-actions-right">
+          <button type="button" class="secondary-button" id="command-cancel">Cancel</button>
+          <button type="submit" class="primary-button">Save command</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
 
   <script src="./renderer.js"></script>
 </body>
