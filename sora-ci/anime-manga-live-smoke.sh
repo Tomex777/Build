@@ -2,7 +2,9 @@
 set -euo pipefail
 
 OUT=/tmp/sora-anime-manga-live
+FULL_LIVE_MARKER="$OUT/FULL_LIVE_PASS"
 mkdir -p "$OUT"
+rm -f "$FULL_LIVE_MARKER"
 
 adb uninstall com.night.sora >/dev/null 2>&1 || true
 adb install -r "$SORA_ROOT/app/build/outputs/apk/debug/app-debug.apk"
@@ -173,12 +175,16 @@ tap_text Media
 wait_for_node 'Anime & Manga' 12
 shot 01-anime-initial
 
-# A failed preflight does not mean every Jikan endpoint stays down. Validate
-# each tab independently: either it exposes real Jikan rows, or it shows the
-# honest retryable unavailable state. This degraded-path pass never authorizes
-# the workflow to commit the implementation as fully live-validated.
-if [[ "${JIKAN_HEALTHY:-0}" != "1" ]]; then
+# The curl probe is diagnostic only. When it reports degraded Jikan, first
+# verify each tab independently. If both tabs have recovered by emulator time,
+# immediately retry this same script in strict full-live mode. A failed strict
+# attempt is treated as an upstream-degraded pass and never creates the marker.
+if [[ "${JIKAN_HEALTHY:-0}" != "1" && "${FORCE_FULL_LIVE:-0}" != "1" ]]; then
+  anime_recovered=0
+  manga_recovered=0
+
   if wait_for_catalog_state 50; then
+    anime_recovered=1
     wait_for_node 'Airing now' 45
     shot 02-anime-partial-recovery
   else
@@ -191,6 +197,7 @@ if [[ "${JIKAN_HEALTHY:-0}" != "1" ]]; then
   wait_for_node Manga 10
   tap_text Manga
   if wait_for_catalog_state 60; then
+    manga_recovered=1
     wait_for_node 'Publishing now' 45
     shot 03-manga-partial-recovery
   else
@@ -200,12 +207,23 @@ if [[ "${JIKAN_HEALTHY:-0}" != "1" ]]; then
     shot 03-manga-outage
   fi
 
+  if [[ "$anime_recovered" -eq 1 && "$manga_recovered" -eq 1 ]]; then
+    echo 'Both tabs recovered despite the failed preflight; attempting the strict full live flow.'
+    if FORCE_FULL_LIVE=1 bash "$0"; then
+      echo 'Opportunistic full live Anime/Manga validation passed.'
+      exit 0
+    fi
+    echo 'Full live attempt did not stay healthy; preserving degraded-path pass without validation marker.'
+    shot 04-opportunistic-live-incomplete
+  fi
+
   echo 'Sora Anime/Manga degraded-Jikan emulator smoke passed; full live-data gate remains pending.'
   exit 0
 fi
 
-# Live Jikan must populate the Anime surface. The Details CTA only exists once
-# a real catalog row is present; skeletons do not expose fake controls.
+# Strict full live gate. It is reached either because preflight was healthy or
+# because both catalog tabs recovered inside the emulator and requested an
+# opportunistic end-to-end retry.
 wait_for_node Details 45
 wait_for_node 'Airing now' 45
 shot 02-anime-live-home
@@ -232,7 +250,7 @@ tap_text Manga
 wait_for_node Chapters 35
 shot 05-verified-manga-counterpart
 
-# Return to Media, leave search, then validate the cold-start Manga feed.
+# Return to Media, leave search, then validate the Manga feed.
 adb shell input keyevent KEYCODE_BACK
 sleep 2
 wait_for_node 'Close search' 12
@@ -259,4 +277,5 @@ shot 08-manga-detail
 wait_for_node 'No reading source selected' 20
 shot 09-manga-no-source
 
-echo 'Sora live Anime/Manga emulator smoke passed.'
+touch "$FULL_LIVE_MARKER"
+echo 'Sora live Anime/Manga emulator smoke passed with full end-to-end validation.'
