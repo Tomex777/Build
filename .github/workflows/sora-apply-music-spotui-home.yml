@@ -1,0 +1,33 @@
+name: Apply Sora Spotui Music Home
+
+on:
+  push:
+    branches: [sora-android-ci]
+    paths:
+      - 'sora-ci/music-spotui-home-trigger.txt'
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Align Music Home to Spotui truthfulness
+        run: python sora-ci/patch_music_spotui_home.py
+      - name: Verify no false personalization or invented Discover hero
+        run: |
+          grep -q 'Popular right now' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+          grep -q 'actual listening history' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+          ! grep -q 'Something new for tonight' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+          ! grep -q 'MusicLocal.DISCOVER' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+      - name: Commit Music Home alignment
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+          git commit -m 'align Sora music home with Spotui feed behavior'
+          git push
