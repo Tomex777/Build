@@ -1,1 +1,1 @@
-2026-09-17 compile authenticated YouTube Music browser-session resolver and generic extension session UI.
+2026-09-17 compile authenticated YouTube Music session path with secure PAPISID normalization and extension browser UI.
