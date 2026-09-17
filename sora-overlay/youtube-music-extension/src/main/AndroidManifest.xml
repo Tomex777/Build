@@ -1,0 +1,21 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:allowBackup="false"
+        android:label="Sora YouTube Music"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+        <service
+            android:name=".YouTubeMusicExtensionService"
+            android:exported="true"
+            android:process=":sora_youtube_music">
+            <intent-filter>
+                <action android:name="com.night.sora.extension.BIND" />
+            </intent-filter>
+            <meta-data android:name="sora.extension.id" android:value="night.sora.youtube.music" />
+            <meta-data android:name="sora.extension.name" android:value="Sora YouTube Music" />
+            <meta-data android:name="sora.extension.apiVersion" android:value="1" />
+        </service>
+    </application>
+</manifest>
