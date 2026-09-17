@@ -270,9 +270,21 @@ jobs:
             adb shell pidof dev.nightmods.core | tee smoke/nightcore-process.txt
             test -s smoke/nightcore-process.txt
             adb exec-out screencap -p > smoke/nightcore-android16.png
+
+            adb shell uiautomator dump /sdcard/nightcore-status.xml || true
+            adb pull /sdcard/nightcore-status.xml smoke/nightcore-status.xml || true
+            grep -q 'Open Night Mods' smoke/nightcore-status.xml
+            python3 -c "import re,xml.etree.ElementTree as ET; root=ET.parse('smoke/nightcore-status.xml').getroot(); node=next(n for n in root.iter('node') if n.attrib.get('resource-id','').endswith(':id/open_night_mods')); x1,y1,x2,y2=map(int,re.findall(r'\\d+',node.attrib['bounds'])); print((x1+x2)//2,(y1+y2)//2)" > /tmp/open-night-mods-tap.txt
+            adb shell input tap $(cat /tmp/open-night-mods-tap.txt)
+            sleep 4
+            adb shell uiautomator dump /sdcard/nightmods-from-core.xml || true
+            adb pull /sdcard/nightmods-from-core.xml smoke/nightmods-from-core.xml || true
+            grep -q 'Night Core' smoke/nightmods-from-core.xml
+            grep -q 'Bubble Styler' smoke/nightmods-from-core.xml
+
             adb logcat -b crash -d > smoke/crash.txt || true
             test -z "$(grep -E 'org\.lsposed\.manager|dev\.nightmods\.core|com\.whatsapp' smoke/crash.txt || true)"
-            echo 'Android 16 manager/local-mirror bridge passed; target provider access denied as designed.'
+            echo 'Android 16 manager/local-mirror bridge passed; Night Core direct handoff opened the Night Core detail route; target provider access denied as designed.'
       - name: Upload smoke evidence
         if: always()
         uses: actions/upload-artifact@v4
