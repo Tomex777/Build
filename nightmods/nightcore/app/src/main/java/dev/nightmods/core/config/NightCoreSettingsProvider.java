@@ -9,6 +9,7 @@ import android.os.Binder;
 import android.os.Bundle;
 
 import dev.nightmods.core.hook.adapters.InstagramAdapter;
+import dev.nightmods.core.hook.adapters.SystemUiAdapter;
 import dev.nightmods.core.hook.adapters.TargetAdapter;
 import dev.nightmods.core.hook.adapters.TargetAppInfo;
 import dev.nightmods.core.hook.adapters.WhatsAppAdapter;
@@ -18,6 +19,8 @@ public final class NightCoreSettingsProvider extends ContentProvider {
     public static final String AUTHORITY = "dev.nightmods.core.settings";
     public static final String METHOD_GET_BUBBLE_STYLE = "get_bubble_style";
     public static final String METHOD_SET_BUBBLE_STYLE = "set_bubble_style";
+    public static final String METHOD_GET_SYSTEM_UI = "get_system_ui";
+    public static final String METHOD_SET_SYSTEM_UI = "set_system_ui";
     public static final String METHOD_GET_TARGET_STATUS = "get_target_status";
 
     public static final String KEY_STATUS_INSTALLED = "installed";
@@ -26,6 +29,7 @@ public final class NightCoreSettingsProvider extends ContentProvider {
     public static final String KEY_STATUS_COMPATIBILITY = "compatibility";
 
     private static final String NIGHT_MODS_PACKAGE = "org.lsposed.manager";
+    private static final String SYSTEM_UI_PACKAGE = "com.android.systemui";
     private static final String WHATSAPP_PACKAGE = "com.whatsapp";
     private static final String INSTAGRAM_PACKAGE = "com.instagram.android";
 
@@ -50,7 +54,21 @@ public final class NightCoreSettingsProvider extends ContentProvider {
             enforceManagerCaller();
             if (extras == null) throw new IllegalArgumentException("Missing settings bundle");
             if (!NightCoreServiceStore.write(context, BubbleStyleConfig.fromBundle(extras))) {
-                throw new IllegalStateException("Night Core could not persist settings");
+                throw new IllegalStateException("Night Core could not persist Bubble Styler settings");
+            }
+            return Bundle.EMPTY;
+        }
+
+        if (METHOD_GET_SYSTEM_UI.equals(method)) {
+            enforceManagerCaller();
+            return NightCoreServiceStore.readSystemUi(context).toBundle();
+        }
+
+        if (METHOD_SET_SYSTEM_UI.equals(method)) {
+            enforceManagerCaller();
+            if (extras == null) throw new IllegalArgumentException("Missing SystemUI settings bundle");
+            if (!NightCoreServiceStore.writeSystemUi(context, SystemUiConfig.fromBundle(extras))) {
+                throw new IllegalStateException("Night Core could not persist SystemUI settings");
             }
             return Bundle.EMPTY;
         }
@@ -69,7 +87,9 @@ public final class NightCoreSettingsProvider extends ContentProvider {
         if (context == null) throw new IllegalStateException("Night Core unavailable");
 
         TargetAdapter adapter;
-        if (WHATSAPP_PACKAGE.equals(packageName)) {
+        if (SYSTEM_UI_PACKAGE.equals(packageName)) {
+            adapter = new SystemUiAdapter();
+        } else if (WHATSAPP_PACKAGE.equals(packageName)) {
             adapter = new WhatsAppAdapter();
         } else if (INSTAGRAM_PACKAGE.equals(packageName)) {
             adapter = new InstagramAdapter();
