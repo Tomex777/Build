@@ -1,1 +1,1 @@
-2026-09-17 rerun deterministic Music playback regression after completing one-source selection and real offline downloads.
+2026-09-17 rerun deterministic Music playback regression with catalog-aware CI fixture.
