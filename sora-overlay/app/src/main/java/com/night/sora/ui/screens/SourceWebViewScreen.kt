@@ -33,6 +33,7 @@ import com.night.sora.extension.ExtensionManager
 import com.night.sora.extension.InstalledExtension
 import com.night.sora.extension.api.ExtensionSessionContract
 import com.night.sora.ui.theme.*
+import org.json.JSONArray
 import org.json.JSONObject
 
 /** A source-owned page opened in Sora's manual login/challenge browser. */
@@ -42,6 +43,7 @@ data class SourceBrowserSession(
     val url: String,
     val title: String,
     val headers: Map<String, String> = emptyMap(),
+    val sessionScripts: Map<String, String> = emptyMap(),
 )
 
 @Composable
@@ -53,6 +55,7 @@ fun SourceWebViewScreen(
 ) {
     val context = LocalContext.current
     val cookieManager = remember { CookieManager.getInstance() }
+    val sessionValues = remember(session.url, session.sourceId) { mutableStateMapOf<String, String>() }
     var currentUrl by remember(session.url) { mutableStateOf(session.url) }
     var pageTitle by remember(session.title) { mutableStateOf(session.title) }
     var progress by remember { mutableIntStateOf(0) }
@@ -72,8 +75,10 @@ fun SourceWebViewScreen(
             .put("url", url)
             .put("cookieHeader", cookieManager.getCookie(url).orEmpty())
             .put("userAgent", webView?.settings?.userAgentString.orEmpty())
-            .toString()
-        manager.call(extension, ExtensionSessionContract.METHOD_STORE_SESSION, payload) { }
+        sessionValues.forEach { (key, value) ->
+            if (key.isNotBlank() && value.isNotBlank()) payload.put(key, value)
+        }
+        manager.call(extension, ExtensionSessionContract.METHOD_STORE_SESSION, payload.toString()) { }
     }
 
     fun closeBrowser() {
@@ -168,6 +173,7 @@ fun SourceWebViewScreen(
                                         menuOpen = false
                                         clearCookiesForUrl(cookieManager, currentUrl)
                                         cookieManager.flush()
+                                        sessionValues.clear()
                                         webViewRef?.reload()
                                     },
                                 )
@@ -257,6 +263,15 @@ fun SourceWebViewScreen(
                             view?.evaluateJavascript(
                                 "(function(){try{return !!window._cf_chl_opt || (document.body && document.body.innerText.indexOf('Ray ID') >= 0);}catch(e){return false;}})()"
                             ) { raw -> cloudflarePage = raw == "true" }
+                            session.sessionScripts.forEach { (key, script) ->
+                                if (key.isNotBlank() && script.isNotBlank()) {
+                                    view?.evaluateJavascript(script) { raw ->
+                                        decodeJavascriptString(raw).takeIf(String::isNotBlank)?.let { value ->
+                                            sessionValues[key] = value
+                                        }
+                                    }
+                                }
+                            }
                             cookieManager.flush()
                         }
 
@@ -285,6 +300,12 @@ fun SourceWebViewScreen(
             update = { webViewRef = it },
         )
     }
+}
+
+private fun decodeJavascriptString(raw: String?): String {
+    val value = raw?.trim().orEmpty()
+    if (value.isBlank() || value == "null" || value == "undefined") return ""
+    return runCatching { JSONArray("[$value]").optString(0) }.getOrDefault("")
 }
 
 private fun clearCookiesForUrl(cookieManager: CookieManager, url: String) {
