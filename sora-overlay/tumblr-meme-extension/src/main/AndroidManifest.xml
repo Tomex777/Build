@@ -1,0 +1,24 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="false"
+        android:label="Sora Tumblr Memes"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+        <meta-data
+            android:name="sora.tumblr.apiKey"
+            android:value="${tumblrApiKey}" />
+
+        <service
+            android:name=".TumblrMemeExtensionService"
+            android:exported="true"
+            android:process=":sora_tumblr_meme_extension">
+            <intent-filter>
+                <action android:name="com.night.sora.extension.BIND" />
+            </intent-filter>
+            <meta-data android:name="sora.extension.id" android:value="night.sora.memes.tumblr" />
+            <meta-data android:name="sora.extension.name" android:value="Tumblr Memes" />
+            <meta-data android:name="sora.extension.apiVersion" android:value="1" />
+        </service>
+    </application>
+</manifest>
