@@ -30,6 +30,11 @@
 
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="20dp" android:paddingTop="20dp" android:paddingEnd="20dp" android:paddingBottom="8dp" android:text="@string/night_targets" android:textAllCaps="true" android:textColor="?attr/colorPrimary" android:textSize="12sp" android:textStyle="bold" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="68dp" android:gravity="center_vertical" android:orientation="vertical" android:paddingStart="20dp" android:paddingEnd="20dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/night_system_ui" android:textSize="16sp" />
+                <TextView android:id="@+id/night_core_system_ui_detail" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="@string/night_target_checking" android:textColor="?android:attr/textColorSecondary" android:textSize="13sp" />
+            </LinearLayout>
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginStart="20dp" android:background="?android:attr/listDivider" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="68dp" android:gravity="center_vertical" android:orientation="vertical" android:paddingStart="20dp" android:paddingEnd="20dp">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/night_whatsapp" android:textSize="16sp" />
                 <TextView android:id="@+id/night_core_whatsapp_detail" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="@string/night_target_checking" android:textColor="?android:attr/textColorSecondary" android:textSize="13sp" />
             </LinearLayout>
@@ -40,6 +45,11 @@
             </LinearLayout>
 
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="20dp" android:paddingTop="20dp" android:paddingEnd="20dp" android:paddingBottom="8dp" android:text="@string/night_capabilities" android:textAllCaps="true" android:textColor="?attr/colorPrimary" android:textSize="12sp" android:textStyle="bold" />
+            <LinearLayout android:id="@+id/night_status_bar_tweaks_row" android:layout_width="match_parent" android:layout_height="76dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true" android:gravity="center_vertical" android:orientation="vertical" android:paddingStart="20dp" android:paddingEnd="20dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/night_status_bar_tweaks" android:textSize="16sp" android:textStyle="bold" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="@string/night_status_bar_tweaks_summary" android:textColor="?android:attr/textColorSecondary" android:textSize="13sp" />
+            </LinearLayout>
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginStart="20dp" android:background="?android:attr/listDivider" />
             <LinearLayout android:id="@+id/night_bubble_styler_row" android:layout_width="match_parent" android:layout_height="76dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true" android:gravity="center_vertical" android:orientation="vertical" android:paddingStart="20dp" android:paddingEnd="20dp">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/night_bubble_styler" android:textSize="16sp" android:textStyle="bold" />
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="@string/night_bubble_targets_summary" android:textColor="?android:attr/textColorSecondary" android:textSize="13sp" />
