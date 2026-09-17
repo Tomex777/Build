@@ -3,6 +3,7 @@ import { copyFile, mkdir, rm } from "node:fs/promises";
 
 await rm("dist", { recursive: true, force: true });
 await mkdir("dist/main", { recursive: true });
+await mkdir("dist/engine", { recursive: true });
 await mkdir("dist/renderer", { recursive: true });
 
 await build({
@@ -12,7 +13,7 @@ await build({
   platform: "node",
   format: "cjs",
   target: "node22",
-  external: ["electron"],
+  external: ["electron", "npm", "npm/*"],
   sourcemap: true,
 });
 
@@ -24,6 +25,16 @@ await build({
   format: "cjs",
   target: "node22",
   external: ["electron"],
+  sourcemap: true,
+});
+
+await build({
+  entryPoints: ["src/engine/worker.ts"],
+  outfile: "dist/engine/worker.cjs",
+  bundle: true,
+  platform: "node",
+  format: "cjs",
+  target: "node22",
   sourcemap: true,
 });
 

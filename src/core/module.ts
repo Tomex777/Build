@@ -1,6 +1,8 @@
 import type { ModuleSettingDefinition } from "../shared/config-schema";
 
 export interface CommandContext {
+  remoteJid: string;
+  senderJid?: string;
   text: string;
   args: string[];
   reply(text: string): Promise<void>;

@@ -1,8 +1,8 @@
 {
   "name": "bailey-host",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "A local desktop host for WhatsApp bots, modules and typed configuration.",
+  "description": "A local desktop host for WhatsApp bots, modules and replaceable WhatsApp engines.",
   "main": "dist/main/main.cjs",
   "scripts": {
     "build": "node scripts/build.mjs",
@@ -10,7 +10,11 @@
     "test": "vitest run",
     "start": "npm run build && electron .",
     "smoke": "npm run build && electron . --ci-smoke",
+    "engine:smoke": "npm run build && electron . --ci-engine-smoke",
     "dist:win": "npm run build && electron-builder --win nsis portable --x64 --publish never"
+  },
+  "dependencies": {
+    "npm": "^11.6.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
@@ -29,6 +33,10 @@
     "files": [
       "dist/**/*",
       "package.json"
+    ],
+    "asarUnpack": [
+      "dist/engine/**/*",
+      "node_modules/**/*"
     ],
     "win": {
       "target": [

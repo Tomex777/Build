@@ -4,7 +4,7 @@ import { setting } from "../../shared/config-schema";
 export const coreModule = defineModule({
   id: "core",
   name: "Core",
-  version: "0.1.0",
+  version: "0.2.0",
   description: "Base Bailey Host behaviour and bot defaults.",
   settings: [
     setting.text("prefix", "Command prefix", ".", {
@@ -49,11 +49,18 @@ export const coreModule = defineModule({
   commands: [
     defineCommand({
       name: "status",
-      description: "Show host and WhatsApp connection status.",
+      description: "Show that Bailey Host and the WhatsApp engine are responsive.",
+      async execute(ctx) {
+        await ctx.reply("Bailey Host is online.");
+      },
     }),
     defineCommand({
       name: "ping",
       description: "Check that the bot runtime is responsive.",
+      aliases: ["p"],
+      async execute(ctx) {
+        await ctx.reply("Pong.");
+      },
     }),
   ],
 });

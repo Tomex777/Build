@@ -1,5 +1,10 @@
 import type { ConfigDefinition } from "../shared/config-schema";
-import type { BaileyModuleDefinition } from "./module";
+import type { BaileyCommandDefinition, BaileyModuleDefinition } from "./module";
+
+export interface ResolvedCommand {
+  module: BaileyModuleDefinition;
+  command: BaileyCommandDefinition;
+}
 
 export class ModuleRegistry {
   private readonly modules = new Map<string, BaileyModuleDefinition>();
@@ -17,6 +22,11 @@ export class ModuleRegistry {
       const canonical = command.name.toLowerCase();
       if (commandNames.has(canonical)) throw new Error(`Duplicate command ${command.name} in ${module.id}`);
       commandNames.add(canonical);
+      for (const alias of command.aliases ?? []) {
+        const aliasKey = alias.toLowerCase();
+        if (commandNames.has(aliasKey)) throw new Error(`Duplicate command alias ${alias} in ${module.id}`);
+        commandNames.add(aliasKey);
+      }
     }
 
     this.modules.set(module.id, module);
@@ -24,6 +34,18 @@ export class ModuleRegistry {
 
   list(): BaileyModuleDefinition[] {
     return [...this.modules.values()];
+  }
+
+  resolveCommand(name: string): ResolvedCommand | undefined {
+    const target = name.toLowerCase();
+    for (const module of this.modules.values()) {
+      for (const command of module.commands ?? []) {
+        if (command.name.toLowerCase() === target || (command.aliases ?? []).some((alias) => alias.toLowerCase() === target)) {
+          return { module, command };
+        }
+      }
+    }
+    return undefined;
   }
 
   getConfigDefinitions(): ConfigDefinition[] {

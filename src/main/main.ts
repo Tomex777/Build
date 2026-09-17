@@ -1,7 +1,10 @@
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, safeStorage, Tray } from "electron";
 import { join } from "node:path";
+import { baileyMarkDataUrl } from "../brand/logo";
 import { JsonConfigStore, type SecretCodec } from "../core/config-store";
 import { ModuleRegistry } from "../core/registry";
+import type { IncomingEngineMessage } from "../engine/contracts";
+import { EngineManager } from "../engine/engine-manager";
 import { coreModule } from "../modules/core";
 
 const registry = new ModuleRegistry();
@@ -11,8 +14,7 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 let configStore: JsonConfigStore;
-
-const trayPng = "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAByElEQVR4nMVXv0tCURT+fIibNiRBrqEPhbJCRKKQXIJaC3Fp0Kmp7AdBi3+GQ0tBf4AQgoOUYRHkojb52s0GjbTBBLFB3kt6P7z3+p7vbPdezvm+e75z7g+Lc841gInGmQkOAFYWJ6FWUV3z8H6qWBZSCbRAJyFDJAELOKmfZgZYgZVMLRuqGdATXCueIgG9wbXimt6GMgJG7V4tPqe1OA0SpktAfBJmszkkj89l8zabDU7nLHw+L2KxPWysr1ERkDLAmv5er4d6/R35/B0SiQNkMrdEfiIeswSv1RcItQoK9zl4vbw0f3V9QxVn4hpwueYR2QxL41brc7oEGo0PFB6K0nhlme42ZLqOAWBxKSibC4WCSKUuqOLo2oaC8IZyuTodAmIRlkpFxOP7AIb6HyXP0Gy26AnQvmREm3E4cHpyCKt1qGa3+4PHp+exfiKebhIMBn/Piu9Oh9iPuQhF+2q3kU5fot/vS3M872Ej4OH9xCeiUhcAQCQSRiCwquk7KrcsAzQkAIDjONjtdrjdC9jZ3kI0uksMDqi8CY28lv8TUCxC1o6gBVclYAQJtXhEH5NJJBm3EaJzgDUbJH7EX7NRM+VvaJT9AqAlmD649V6VAAAAAElFTkSuQmCC";
+let engineManager: EngineManager;
 
 function createSecretCodec(): SecretCodec {
   return {
@@ -29,15 +31,20 @@ function createSecretCodec(): SecretCodec {
   };
 }
 
+function logoImage() {
+  return nativeImage.createFromDataURL(baileyMarkDataUrl());
+}
+
 function createWindow(show = true): BrowserWindow {
   const window = new BrowserWindow({
-    width: 1120,
-    height: 760,
-    minWidth: 900,
-    minHeight: 620,
+    width: 1160,
+    height: 780,
+    minWidth: 940,
+    minHeight: 640,
     show: false,
     backgroundColor: "#111315",
     title: "Bailey Host",
+    icon: logoImage(),
     webPreferences: {
       preload: join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -67,8 +74,7 @@ function showMainWindow(): void {
 }
 
 function createTray(): void {
-  const image = nativeImage.createFromDataURL(`data:image/png;base64,${trayPng}`);
-  tray = new Tray(image.resize({ width: 16, height: 16 }));
+  tray = new Tray(logoImage().resize({ width: 16, height: 16 }));
   tray.setToolTip("Bailey Host");
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: "Open Bailey Host", click: showMainWindow },
@@ -84,10 +90,56 @@ function createTray(): void {
   tray.on("double-click", showMainWindow);
 }
 
+function getSetting(key: string): string | number | boolean | undefined {
+  const definition = registry.findConfigDefinition(key);
+  return definition ? configStore.get(definition) : undefined;
+}
+
+function moduleEnabled(moduleId: string): boolean {
+  return Boolean(getSetting(`modules.${moduleId}.enabled`) ?? true);
+}
+
+function commandEnabled(moduleId: string, commandName: string): boolean {
+  return Boolean(getSetting(`modules.${moduleId}.commands.${commandName}.enabled`) ?? true);
+}
+
+async function dispatchIncomingMessage(message: IncomingEngineMessage): Promise<void> {
+  if (message.fromMe || !message.text?.trim()) return;
+  const prefix = String(getSetting("modules.core.settings.prefix") ?? ".");
+  if (!message.text.startsWith(prefix)) return;
+
+  const body = message.text.slice(prefix.length).trim();
+  if (!body) return;
+  const [commandName, ...args] = body.split(/\s+/);
+  const resolved = registry.resolveCommand(commandName);
+  if (!resolved?.command.execute) return;
+  if (!moduleEnabled(resolved.module.id) || !commandEnabled(resolved.module.id, resolved.command.name)) return;
+
+  await resolved.command.execute({
+    remoteJid: message.remoteJid,
+    senderJid: message.participant ?? message.remoteJid,
+    text: message.text,
+    args,
+    reply: async (text) => engineManager.sendText(message.remoteJid, text),
+    react: async (emoji) => engineManager.react(message.remoteJid, message.key, emoji),
+  });
+}
+
+function workerPath(): string {
+  if (app.isPackaged) {
+    return join(process.resourcesPath, "app.asar.unpacked", "dist", "engine", "worker.cjs");
+  }
+  return join(__dirname, "../engine/worker.cjs");
+}
+
+function broadcastEngineStatus(): void {
+  if (!mainWindow?.isDestroyed()) mainWindow.webContents.send("bailey:engine-status", engineManager.status());
+}
+
 function registerIpc(): void {
   ipcMain.handle("bailey:get-state", () => ({
-    runtime: "stopped",
-    whatsapp: "not-connected",
+    runtime: engineManager.status().runtime,
+    whatsapp: engineManager.status().whatsapp,
     moduleCount: registry.list().length,
     version: app.getVersion(),
   }));
@@ -125,10 +177,24 @@ function registerIpc(): void {
 
     return { ok: true };
   });
+
+  ipcMain.handle("bailey:engine-status", () => engineManager.status());
+  ipcMain.handle("bailey:engine-check-latest", () => engineManager.checkLatest());
+  ipcMain.handle("bailey:engine-install-default", () => engineManager.installDefault());
+  ipcMain.handle("bailey:engine-install-version", (_event, version: string) => engineManager.installVersion(version));
+  ipcMain.handle("bailey:engine-update", () => engineManager.update());
+  ipcMain.handle("bailey:engine-rollback", () => engineManager.rollback());
+  ipcMain.handle("bailey:engine-start", () => engineManager.start());
+  ipcMain.handle("bailey:engine-stop", () => engineManager.stop());
+  ipcMain.handle("bailey:engine-pair", (_event, phoneNumber: string) => {
+    engineManager.requestPairingCode(phoneNumber);
+    return engineManager.status();
+  });
 }
 
 app.on("before-quit", () => {
   isQuitting = true;
+  void engineManager?.stop();
 });
 
 app.whenReady().then(async () => {
@@ -140,6 +206,17 @@ app.whenReady().then(async () => {
   );
   await configStore.load();
 
+  engineManager = new EngineManager(
+    join(app.getPath("userData"), "engines"),
+    workerPath(),
+    process.execPath,
+  );
+  await engineManager.initialize();
+  engineManager.on("status", broadcastEngineStatus);
+  engineManager.on("message", (message: IncomingEngineMessage) => {
+    void dispatchIncomingMessage(message).catch((error) => console.error("Command dispatch failed", error));
+  });
+
   const autoStart = registry.findConfigDefinition("modules.core.settings.autoStart");
   if (autoStart) app.setLoginItemSettings({ openAtLogin: Boolean(configStore.get(autoStart)) });
 
@@ -147,9 +224,22 @@ app.whenReady().then(async () => {
   createTray();
 
   const ciSmoke = process.argv.includes("--ci-smoke");
-  mainWindow = createWindow(!ciSmoke);
+  const ciEngineSmoke = process.argv.includes("--ci-engine-smoke");
+  mainWindow = createWindow(!ciSmoke && !ciEngineSmoke);
 
-  if (ciSmoke) {
+  if (ciEngineSmoke) {
+    try {
+      await engineManager.installDefault();
+      console.log(`ENGINE_SMOKE_OK:${engineManager.status().activeVersion}`);
+      isQuitting = true;
+      app.quit();
+    } catch (error) {
+      console.error(error);
+      process.exitCode = 1;
+      isQuitting = true;
+      app.quit();
+    }
+  } else if (ciSmoke) {
     mainWindow.webContents.once("did-finish-load", () => setTimeout(() => {
       isQuitting = true;
       app.quit();

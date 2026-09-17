@@ -10,7 +10,7 @@
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-mark">B</div>
+        <div class="brand-mark" data-bailey-mark></div>
         <div>
           <strong>Bailey</strong>
           <span>Host</span>
@@ -19,13 +19,14 @@
 
       <nav id="nav">
         <button class="nav-item active" data-view="dashboard">Dashboard</button>
+        <button class="nav-item" data-view="engine">WhatsApp Engine</button>
         <button class="nav-item" data-view="modules">Modules</button>
         <button class="nav-item" data-view="configuration">Configuration</button>
       </nav>
 
       <div class="sidebar-foot">
-        <span class="status-dot"></span>
-        <span>Local host</span>
+        <span class="status-dot" id="sidebar-status-dot"></span>
+        <span id="sidebar-status-text">Local host</span>
       </div>
     </aside>
 
@@ -35,45 +36,113 @@
           <div>
             <p class="eyebrow">OVERVIEW</p>
             <h1>Dashboard</h1>
-            <p>One place to keep the bot alive, inspect it, and control what it can do.</p>
+            <p>Keep the bot alive locally, inspect the WhatsApp engine, and control what modules can do.</p>
           </div>
-          <span class="version" id="version">v0.1.0</span>
+          <span class="version" id="version">v0.2.0</span>
         </header>
 
         <div class="metric-grid">
           <article class="metric-card">
             <span>Runtime</span>
             <strong id="runtime-state">Stopped</strong>
-            <small>Baileys adapter comes next.</small>
+            <small id="runtime-detail">Engine process is not running.</small>
           </article>
           <article class="metric-card">
             <span>WhatsApp</span>
             <strong id="whatsapp-state">Not connected</strong>
-            <small>No account session is stored yet.</small>
+            <small id="whatsapp-detail">Pair your account from WhatsApp Engine.</small>
           </article>
           <article class="metric-card">
             <span>Modules</span>
             <strong id="module-count">0</strong>
-            <small>Loaded from the Bailey module registry.</small>
+            <small>Loaded through the Bailey module registry.</small>
           </article>
         </div>
 
         <article class="panel">
           <div class="panel-heading">
             <div>
-              <h2>Host runtime</h2>
-              <p>The desktop shell is ready. Runtime controls will connect here.</p>
+              <h2>Local host</h2>
+              <p>The desktop shell and WhatsApp engine have separate lifecycles.</p>
             </div>
-            <span class="pill muted">Foundation</span>
+            <span class="pill">Always local</span>
           </div>
           <div class="empty-runtime">
-            <div class="runtime-icon">B</div>
+            <div class="runtime-icon" data-bailey-mark></div>
             <div>
-              <strong>Bailey Host is running locally</strong>
-              <p>Closing this window leaves the host in the system tray. The WhatsApp adapter is intentionally not connected in this first foundation build.</p>
+              <strong>Closing this window does not stop Bailey</strong>
+              <p>The host stays in the system tray. Updating Lia Baileys restarts only the WhatsApp engine process, not the desktop application.</p>
             </div>
           </div>
         </article>
+      </section>
+
+      <section class="view" id="view-engine">
+        <header class="page-header">
+          <div>
+            <p class="eyebrow">WHATSAPP</p>
+            <h1>Engine</h1>
+            <p>Lia Baileys is installed separately from Bailey Host, so it can update or roll back without reinstalling this app.</p>
+          </div>
+          <button class="secondary-button" id="engine-check">Check for update</button>
+        </header>
+
+        <div class="engine-grid">
+          <article class="panel engine-card">
+            <div class="panel-heading">
+              <div>
+                <h2>Lia Baileys</h2>
+                <p id="engine-package">@itsliaaa/baileys</p>
+              </div>
+              <span class="pill" id="engine-api">Engine API v1</span>
+            </div>
+            <div class="engine-version-row">
+              <div><span>Installed</span><strong id="engine-current">Not installed</strong></div>
+              <div><span>Latest</span><strong id="engine-latest">Unknown</strong></div>
+              <div><span>Previous</span><strong id="engine-previous">None</strong></div>
+            </div>
+            <div class="action-row">
+              <button class="primary-button" id="engine-install">Install Lia engine</button>
+              <button class="secondary-button" id="engine-update" disabled>Update</button>
+              <button class="secondary-button" id="engine-rollback" disabled>Roll back</button>
+            </div>
+            <p class="action-message" id="engine-action-message"></p>
+          </article>
+
+          <article class="panel engine-card">
+            <div class="panel-heading">
+              <div>
+                <h2>Runtime</h2>
+                <p>The engine runs in its own process and keeps auth outside version folders.</p>
+              </div>
+              <span class="connection-badge" id="engine-runtime-badge">Stopped</span>
+            </div>
+            <div class="action-row">
+              <button class="primary-button" id="engine-start">Start engine</button>
+              <button class="secondary-button" id="engine-stop" disabled>Stop</button>
+            </div>
+          </article>
+
+          <article class="panel engine-card pair-card">
+            <div class="panel-heading">
+              <div>
+                <h2>Pair WhatsApp</h2>
+                <p>Enter your WhatsApp number with country code. Session files survive engine updates and rollback.</p>
+              </div>
+              <span class="connection-badge" id="engine-wa-badge">Not connected</span>
+            </div>
+            <div class="pair-row">
+              <input id="pair-phone" inputmode="tel" autocomplete="tel" placeholder="234…" />
+              <button class="primary-button" id="pair-button">Get pairing code</button>
+            </div>
+            <div class="pairing-code-wrap" id="pairing-code-wrap" hidden>
+              <span>Pairing code</span>
+              <strong id="pairing-code"></strong>
+              <small>WhatsApp → Linked devices → Link a device → Link with phone number.</small>
+            </div>
+            <p class="action-message error" id="engine-error"></p>
+          </article>
+        </div>
       </section>
 
       <section class="view" id="view-modules">
@@ -92,7 +161,7 @@
           <div>
             <p class="eyebrow">SETTINGS</p>
             <h1>Configuration</h1>
-            <p>These controls are generated from module code. ENV-backed settings keep their environment variable mapping.</p>
+            <p>Controls are generated from module code. ENV-backed values keep their environment variable mapping.</p>
           </div>
           <span id="save-status" class="save-status">Saved locally</span>
         </header>
