@@ -1,5 +1,6 @@
 import type { ConfigDefinition } from "../shared/config-schema";
 import type { BaileyCommandDefinition, BaileyModuleDefinition } from "./module";
+import { commandId } from "./module";
 
 export interface ResolvedCommand {
   module: BaileyModuleDefinition;
@@ -18,7 +19,12 @@ export class ModuleRegistry {
     }
 
     const commandNames = new Set<string>();
+    const commandIds = new Set<string>();
     for (const command of module.commands ?? []) {
+      const id = commandId(command).toLowerCase();
+      if (commandIds.has(id)) throw new Error(`Duplicate command id ${id} in ${module.id}`);
+      commandIds.add(id);
+
       const canonical = command.name.toLowerCase();
       if (commandNames.has(canonical)) throw new Error(`Duplicate command ${command.name} in ${module.id}`);
       commandNames.add(canonical);
@@ -34,6 +40,14 @@ export class ModuleRegistry {
 
   list(): BaileyModuleDefinition[] {
     return [...this.modules.values()];
+  }
+
+  findModule(moduleId: string): BaileyModuleDefinition | undefined {
+    return this.modules.get(moduleId);
+  }
+
+  findCommand(moduleId: string, id: string): BaileyCommandDefinition | undefined {
+    return this.modules.get(moduleId)?.commands?.find((command) => commandId(command) === id);
   }
 
   resolveCommand(name: string): ResolvedCommand | undefined {
@@ -72,11 +86,12 @@ export class ModuleRegistry {
       }
 
       for (const command of module.commands ?? []) {
+        const id = commandId(command);
         definitions.push({
-          key: `modules.${module.id}.commands.${command.name}.enabled`,
+          key: `modules.${module.id}.commands.${id}.enabled`,
           moduleId: module.id,
           section: `${module.name} · Commands`,
-          label: `.${command.name}`,
+          label: command.name,
           type: "toggle",
           defaultValue: command.enabledByDefault ?? true,
           description: command.description,
