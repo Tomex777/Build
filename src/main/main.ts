@@ -1,5 +1,5 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, Tray } from "electron";
-import { readFile, writeFile } from "node:fs/promises";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, shell, Tray } from "electron";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { baileyMarkDataUrl } from "../brand/logo";
 import { JsonCommandStore, type VisualCommandPatch } from "../core/command-store";
@@ -7,6 +7,7 @@ import { JsonConfigStore, type SecretCodec } from "../core/config-store";
 import { ModuleRegistry } from "../core/registry";
 import type { IncomingEngineMessage } from "../engine/contracts";
 import { EngineManager } from "../engine/engine-manager";
+import { ExternalModuleManager } from "../external/external-module-manager";
 import { coreModule } from "../modules/core";
 import { myCommandsModule } from "../modules/my-commands";
 import type { ConfigDefinition } from "../shared/config-schema";
@@ -21,6 +22,8 @@ let isQuitting = false;
 let configStore: JsonConfigStore;
 let commandStore: JsonCommandStore;
 let engineManager: EngineManager;
+let externalModuleManager: ExternalModuleManager | undefined;
+let externalModuleErrors: Array<{ folder: string; error: string }> = [];
 const openedEditorFiles = new Set<string>();
 const EDITABLE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs", ".json", ".py", ".md", ".txt", ".yaml", ".yml", ".toml"]);
 const MAX_EDITOR_BYTES = 2 * 1024 * 1024;
@@ -230,6 +233,10 @@ function workerPath(): string {
   return join(__dirname, "../engine/worker.cjs");
 }
 
+function modulesRoot(): string {
+  return join(app.getPath("userData"), "modules");
+}
+
 function broadcastEngineStatus(): void {
   const window = mainWindow;
   if (window && !window.isDestroyed()) {
@@ -302,12 +309,21 @@ async function saveEditorFile(path: string, content: string) {
   return { ok: true };
 }
 
+async function openModulesFolder() {
+  const path = modulesRoot();
+  await mkdir(path, { recursive: true });
+  const error = await shell.openPath(path);
+  if (error) throw new Error(error);
+  return { ok: true, path };
+}
+
 function registerIpc(): void {
   ipcMain.handle("bailey:get-state", () => ({
     runtime: engineManager.status().runtime,
     whatsapp: engineManager.status().whatsapp,
     moduleCount: registry.list().length,
     commandCount: commandStore.list(registry.list()).length,
+    moduleLoadErrors: externalModuleErrors.length,
     version: app.getVersion(),
   }));
 
@@ -362,6 +378,7 @@ function registerIpc(): void {
 
   ipcMain.handle("bailey:studio-open-file", () => openEditorFile());
   ipcMain.handle("bailey:studio-save-file", (_event, path: string, content: string) => saveEditorFile(path, content));
+  ipcMain.handle("bailey:studio-open-modules-folder", () => openModulesFolder());
 
   ipcMain.handle("bailey:engine-status", () => engineManager.status());
   ipcMain.handle("bailey:engine-check-latest", () => engineManager.checkLatest());
@@ -380,6 +397,7 @@ function registerIpc(): void {
 app.on("before-quit", () => {
   isQuitting = true;
   void engineManager?.stop();
+  void externalModuleManager?.stopAll();
 });
 
 app.whenReady().then(async () => {
@@ -391,6 +409,26 @@ app.whenReady().then(async () => {
   );
   commandStore = new JsonCommandStore(join(app.getPath("userData"), "commands.json"));
   await Promise.all([configStore.load(), commandStore.load()]);
+
+  externalModuleManager = new ExternalModuleManager(modulesRoot(), (moduleId) => {
+    const definitions = effectiveConfigDefinitions().filter((definition) => definition.moduleId === moduleId);
+    return configStore.toEnvironment(definitions);
+  });
+  const external = await externalModuleManager.load();
+  externalModuleErrors = external.errors;
+  for (const definition of external.definitions) {
+    try {
+      registry.register(definition);
+    } catch (error) {
+      externalModuleErrors.push({
+        folder: definition.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  if (externalModuleErrors.length) {
+    for (const failure of externalModuleErrors) console.warn(`[module:${failure.folder}] ${failure.error}`);
+  }
 
   engineManager = new EngineManager(
     join(app.getPath("userData"), "engines"),
