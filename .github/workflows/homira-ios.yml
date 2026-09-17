@@ -22,11 +22,6 @@ jobs:
         working-directory: homira-ios
         run: xcodegen generate
 
-      - name: Pick simulator SDK
-        id: sdk
-        run: |
-          echo "sdk=$(xcrun --sdk iphonesimulator --show-sdk-path)" >> "$GITHUB_OUTPUT"
-
       - name: Build iOS simulator app
         working-directory: homira-ios
         run: |
@@ -35,5 +30,39 @@ jobs:
             -scheme Homira \
             -sdk iphonesimulator \
             -configuration Debug \
+            -derivedDataPath "$RUNNER_TEMP/HomiraDerivedData" \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+      - name: Boot iPhone simulator
+        id: simulator
+        shell: bash
+        run: |
+          DEVICE_ID="$(xcrun simctl list devices available | grep -E 'iPhone [0-9]+' | head -n 1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')"
+          if [ -z "$DEVICE_ID" ]; then
+            echo "No available iPhone simulator found"
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "device_id=$DEVICE_ID" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$DEVICE_ID" || true
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+
+      - name: Launch Homira and capture screenshot
+        shell: bash
+        run: |
+          APP_PATH="$RUNNER_TEMP/HomiraDerivedData/Build/Products/Debug-iphonesimulator/Homira.app"
+          DEVICE_ID="${{ steps.simulator.outputs.device_id }}"
+          test -d "$APP_PATH"
+          xcrun simctl install "$DEVICE_ID" "$APP_PATH"
+          xcrun simctl launch "$DEVICE_ID" com.night.homira
+          sleep 3
+          mkdir -p homira-ios/screenshots
+          xcrun simctl io "$DEVICE_ID" screenshot homira-ios/screenshots/homira-iphone-calls.png
+
+      - name: Upload iPhone screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: homira-iphone-screenshot
+          path: homira-ios/screenshots/homira-iphone-calls.png
+          if-no-files-found: error
