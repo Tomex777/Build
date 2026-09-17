@@ -44,6 +44,14 @@ function messageText(message: any): string | undefined {
     ?? undefined;
 }
 
+function messageTimestamp(value: any): number {
+  if (typeof value === "number") return value > 10_000_000_000 ? value : value * 1000;
+  if (typeof value === "bigint") return Number(value) * 1000;
+  if (value && typeof value.toNumber === "function") return Number(value.toNumber()) * 1000;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? (numeric > 10_000_000_000 ? numeric : numeric * 1000) : Date.now();
+}
+
 async function connect(): Promise<void> {
   try {
     const modulePath = pathToFileURL(join(engineDir, "node_modules", "@itsliaaa", "baileys", "lib", "index.js")).href;
@@ -97,12 +105,14 @@ async function connect(): Promise<void> {
         emit({
           type: "message",
           message: {
+            id: message.key.id ?? undefined,
             remoteJid: message.key.remoteJid,
             fromMe: Boolean(message.key.fromMe),
             participant: message.key.participant ?? undefined,
             text: messageText(message),
             key: message.key,
             pushName: message.pushName ?? undefined,
+            timestamp: messageTimestamp(message.messageTimestamp),
           },
         });
       }
@@ -128,7 +138,6 @@ process.on("message", async (raw: EngineWorkerCommand) => {
           emit({ type: "pairing-code", code });
           pairingRequested = true;
         } catch {
-          // The socket may still be establishing its noise session; connection.update retries it.
           pairingRequested = false;
         }
         void localRequire;
