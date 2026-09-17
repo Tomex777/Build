@@ -6,7 +6,7 @@ import { JsonChatStore } from "../core/chat-store";
 import { JsonCommandStore, type VisualCommandPatch } from "../core/command-store";
 import { JsonConfigStore, type SecretCodec } from "../core/config-store";
 import { buildCommandMenu } from "../core/menu-builder";
-import type { BaileyCommandAction, CommandContext } from "../core/module";
+import type { BaileyCommandAction, CommandContext, MessageEventContext } from "../core/module";
 import { ModuleRegistry } from "../core/registry";
 import type { IncomingEngineMessage } from "../engine/contracts";
 import { EngineManager } from "../engine/engine-manager";
@@ -220,6 +220,33 @@ async function runDeclarativeActions(actions: BaileyCommandAction[], context: Pi
     if (action.type === "reply") await context.reply(action.text);
     if (action.type === "react") await context.react(action.emoji);
   }
+}
+
+function messageEventContext(message: IncomingEngineMessage): MessageEventContext {
+  return {
+    remoteJid: message.remoteJid,
+    senderJid: message.participant ?? message.remoteJid,
+    text: message.text,
+    pushName: message.pushName,
+    timestamp: message.timestamp,
+    reply: async (text: string) => engineManager.sendText(message.remoteJid, text),
+    react: async (emoji: string) => engineManager.react(message.remoteJid, message.key, emoji),
+  };
+}
+
+async function dispatchModuleMessageEvents(message: IncomingEngineMessage): Promise<void> {
+  if (message.fromMe) return;
+  const listeners = registry.list().filter((module) => module.onMessage && moduleEnabled(module.id));
+  if (!listeners.length) return;
+
+  const context = messageEventContext(message);
+  const results = await Promise.allSettled(listeners.map((module) => module.onMessage!(context)));
+  results.forEach((result, index) => {
+    if (result.status === "rejected") {
+      const module = listeners[index];
+      console.error(`[module:${module.id}] message event failed`, result.reason);
+    }
+  });
 }
 
 async function dispatchIncomingMessage(message: IncomingEngineMessage): Promise<void> {
@@ -489,6 +516,7 @@ app.whenReady().then(async () => {
   engineManager.on("status", broadcastEngineStatus);
   engineManager.on("message", (message: IncomingEngineMessage) => {
     void chatController.ingest(message).catch((error) => console.error("Chat persistence failed", error));
+    void dispatchModuleMessageEvents(message).catch((error) => console.error("Module event dispatch failed", error));
     void dispatchIncomingMessage(message).catch((error) => console.error("Command dispatch failed", error));
   });
 
