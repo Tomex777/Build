@@ -1,1 +1,1 @@
-2026-09-17 verify true latest Sora head after semantic feeds, truthful media UI, deterministic Music fixture work, feed forwarding, and detail source-menu cleanup.
+2026-09-17 verify latest Sora media head after relation-backed counterparts and semantic catalog feeds.
