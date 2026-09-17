@@ -75,6 +75,32 @@ data class ListeningSignal(
     val lastPlayedEpochMs: Long = 0L,
 )
 
+
+
+enum class DownloadStatus { QUEUED, DOWNLOADING, PAUSED, COMPLETED, FAILED }
+
+data class DownloadEntry(
+    val id: String,
+    val title: String,
+    val itemLabel: String,
+    val contentType: ContentType,
+    val artworkUrl: String? = null,
+    val sourceName: String = "",
+    val bytesDownloaded: Long = 0L,
+    val totalBytes: Long = 0L,
+    val status: DownloadStatus = DownloadStatus.QUEUED,
+    val filePath: String? = null,
+    val updatedAt: Long = System.currentTimeMillis(),
+)
+
+data class ActivitySignal(
+    val id: Long,
+    val contentType: ContentType,
+    val title: String,
+    val action: String,
+    val occurredAt: Long,
+)
+
 data class ExtensionMediaSelection(
     val id: String,
     val sourceId: String,

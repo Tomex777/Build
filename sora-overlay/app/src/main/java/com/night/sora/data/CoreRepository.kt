@@ -6,6 +6,9 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.setValue
 import com.night.sora.model.AiConversation
+import com.night.sora.model.DownloadStatus
+import com.night.sora.model.DownloadEntry
+import com.night.sora.model.ActivitySignal
 import com.night.sora.model.AiMessage
 import com.night.sora.model.ContentType
 import com.night.sora.model.ExtensionMediaSelection
@@ -22,6 +25,8 @@ class CoreRepository(context: Context) {
         private set
     val library = mutableStateListOf<LibraryEntry>()
     val listeningSignals = mutableStateListOf<ListeningSignal>()
+    val downloads = mutableStateListOf<DownloadEntry>()
+    val activitySignals = mutableStateListOf<ActivitySignal>()
 
     val activeAiMessages: List<AiMessage>
         get() = aiConversations.firstOrNull { it.id == activeAiConversationId }?.messages.orEmpty()
@@ -30,6 +35,8 @@ class CoreRepository(context: Context) {
         loadConversationsOrMigrateMessages()
         loadLibrary()
         loadListeningSignals()
+        loadDownloads()
+        loadActivitySignals()
         sanitizeOldFoundationLibraryRows()
 
         if (aiConversations.isEmpty()) {
@@ -142,6 +149,36 @@ class CoreRepository(context: Context) {
         )
         if (index >= 0) listeningSignals[index] = updated else listeningSignals += updated
         persistListeningSignals()
+    }
+
+    fun recordActivity(selection: ExtensionMediaSelection, action: String) {
+        val now = System.currentTimeMillis()
+        activitySignals.add(0, ActivitySignal(now, selection.type, selection.title, action, now))
+        while (activitySignals.size > 500) activitySignals.removeLast()
+        persistActivitySignals()
+    }
+
+    fun upsertDownload(entry: DownloadEntry) {
+        val index = downloads.indexOfFirst { it.id == entry.id }
+        if (index >= 0) downloads[index] = entry else downloads.add(0, entry)
+        persistDownloads()
+    }
+
+    fun setDownloadStatus(id: String, status: DownloadStatus) {
+        val index = downloads.indexOfFirst { it.id == id }
+        if (index < 0) return
+        downloads[index] = downloads[index].copy(status = status, updatedAt = System.currentTimeMillis())
+        persistDownloads()
+    }
+
+    fun removeDownload(id: String) {
+        downloads.removeAll { it.id == id }
+        persistDownloads()
+    }
+
+    fun clearCompletedDownloads() {
+        downloads.removeAll { it.status == DownloadStatus.COMPLETED }
+        persistDownloads()
     }
 
     private fun sanitizeOldFoundationLibraryRows() {
@@ -299,6 +336,80 @@ class CoreRepository(context: Context) {
         prefs.edit().putString(KEY_LISTENING, array.toString()).apply()
     }
 
+    private fun loadDownloads() {
+        val raw = prefs.getString(KEY_DOWNLOADS, null) ?: return
+        runCatching {
+            val array = JSONArray(raw)
+            for (i in 0 until array.length()) {
+                val item = array.getJSONObject(i)
+                downloads += DownloadEntry(
+                    id = item.getString("id"),
+                    title = item.getString("title"),
+                    itemLabel = item.optString("itemLabel"),
+                    contentType = ContentType.valueOf(item.getString("contentType")),
+                    artworkUrl = item.optNullableString("artworkUrl"),
+                    sourceName = item.optString("sourceName"),
+                    bytesDownloaded = item.optLong("bytesDownloaded"),
+                    totalBytes = item.optLong("totalBytes"),
+                    status = runCatching { DownloadStatus.valueOf(item.getString("status")) }.getOrDefault(DownloadStatus.QUEUED),
+                    filePath = item.optNullableString("filePath"),
+                    updatedAt = item.optLong("updatedAt"),
+                )
+            }
+        }
+    }
+
+    private fun persistDownloads() {
+        val array = JSONArray()
+        downloads.forEach { entry ->
+            array.put(JSONObject().apply {
+                put("id", entry.id)
+                put("title", entry.title)
+                put("itemLabel", entry.itemLabel)
+                put("contentType", entry.contentType.name)
+                putNullable("artworkUrl", entry.artworkUrl)
+                put("sourceName", entry.sourceName)
+                put("bytesDownloaded", entry.bytesDownloaded)
+                put("totalBytes", entry.totalBytes)
+                put("status", entry.status.name)
+                putNullable("filePath", entry.filePath)
+                put("updatedAt", entry.updatedAt)
+            })
+        }
+        prefs.edit().putString(KEY_DOWNLOADS, array.toString()).apply()
+    }
+
+    private fun loadActivitySignals() {
+        val raw = prefs.getString(KEY_ACTIVITY, null) ?: return
+        runCatching {
+            val array = JSONArray(raw)
+            for (i in 0 until array.length()) {
+                val item = array.getJSONObject(i)
+                activitySignals += ActivitySignal(
+                    id = item.getLong("id"),
+                    contentType = ContentType.valueOf(item.getString("contentType")),
+                    title = item.getString("title"),
+                    action = item.optString("action", "opened"),
+                    occurredAt = item.optLong("occurredAt", item.getLong("id")),
+                )
+            }
+        }
+    }
+
+    private fun persistActivitySignals() {
+        val array = JSONArray()
+        activitySignals.take(500).forEach { signal ->
+            array.put(JSONObject().apply {
+                put("id", signal.id)
+                put("contentType", signal.contentType.name)
+                put("title", signal.title)
+                put("action", signal.action)
+                put("occurredAt", signal.occurredAt)
+            })
+        }
+        prefs.edit().putString(KEY_ACTIVITY, array.toString()).apply()
+    }
+
     private fun JSONObject.optNullableString(key: String): String? =
         if (!has(key) || isNull(key)) null else optString(key).takeIf { it.isNotBlank() }
 
@@ -311,5 +422,7 @@ class CoreRepository(context: Context) {
         const val KEY_CONVERSATIONS = "ai_conversations_v2"
         const val KEY_LIBRARY = "library_v1"
         const val KEY_LISTENING = "listening_v1"
+        const val KEY_DOWNLOADS = "downloads_v1"
+        const val KEY_ACTIVITY = "activity_v1"
     }
 }

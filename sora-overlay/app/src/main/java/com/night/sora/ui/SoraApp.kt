@@ -28,6 +28,7 @@ import coil3.compose.AsyncImage
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.night.sora.data.CoreRepository
+import com.night.sora.data.MediaCatalogCache
 import com.night.sora.extension.ExtensionManager
 import com.night.sora.extension.InstalledExtension
 import com.night.sora.model.ExtensionMediaSelection
@@ -44,6 +45,9 @@ sealed interface AppScreen {
     data object Ai : AppScreen
     data object Extensions : AppScreen
     data object Bible : AppScreen
+    data object Downloads : AppScreen
+    data object Statistics : AppScreen
+    data object DataStorage : AppScreen
     data class ExtensionDetail(val extension: InstalledExtension) : AppScreen
     data class MediaDetails(val selection: ExtensionMediaSelection) : AppScreen
     data class Reader(val session: ReaderSession) : AppScreen
@@ -55,6 +59,7 @@ sealed interface AppScreen {
 fun SoraApp() {
     val context = LocalContext.current
     val repository = remember { CoreRepository(context.applicationContext) }
+    val mediaCatalogCache = remember { MediaCatalogCache(context.applicationContext) }
     val extensionManager = remember { ExtensionManager(context.applicationContext) }
     var tab by remember { mutableStateOf(RootTab.HOME) }
     val screenStack = remember { mutableStateListOf<AppScreen>() }
@@ -68,6 +73,10 @@ fun SoraApp() {
     }
     fun push(screen: AppScreen) { screenStack += screen }
     fun pop() { if (screenStack.isNotEmpty()) screenStack.removeAt(screenStack.lastIndex) }
+    fun openMedia(selection: ExtensionMediaSelection) {
+        repository.recordActivity(selection, "opened")
+        push(AppScreen.MediaDetails(selection))
+    }
 
     LaunchedEffect(Unit) { refreshExtensions() }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refreshExtensions() }
@@ -113,7 +122,7 @@ fun SoraApp() {
                     entries = repository.library,
                     extensions = extensions,
                     manager = extensionManager,
-                    onOpenSelection = { push(AppScreen.MediaDetails(it)) },
+                    onOpenSelection = ::openMedia,
                     onOpenBible = { push(AppScreen.Bible) },
                     onSearch = { tab = RootTab.MEDIA },
                 )
@@ -121,12 +130,16 @@ fun SoraApp() {
                     modifier = Modifier.padding(padding), extensions = extensions, extensionScanDone = extensionScanDone,
                     manager = extensionManager, libraryEntries = repository.library, listeningSignals = repository.listeningSignals,
                     isSaved = repository::isSaved, onToggleSaved = repository::toggleSaved,
-                    onOpenExtensions = { push(AppScreen.Extensions) }, onOpenDetails = { push(AppScreen.MediaDetails(it)) },
-                    onPlayMusic = { track -> nowPlaying = track; repository.recordListening(track.id, track.subtitle.substringBefore(" · ").ifBlank { track.title }) },
+                    onOpenExtensions = { push(AppScreen.Extensions) }, onOpenDetails = ::openMedia,
+                    onPlayMusic = { track ->
+                        nowPlaying = track
+                        repository.recordActivity(track, "played")
+                        repository.recordListening(track.id, track.subtitle.substringBefore(" · ").ifBlank { track.title })
+                    },
                 )
                 RootTab.LIBRARY -> LibraryScreen(
                     modifier = Modifier.padding(padding), entries = repository.library,
-                    onOpenMedia = { push(AppScreen.MediaDetails(it)) }, onSearch = { tab = RootTab.MEDIA },
+                    onOpenMedia = ::openMedia, onSearch = { tab = RootTab.MEDIA },
                 )
                 RootTab.GAMES -> GamesScreen(Modifier.padding(padding))
                 RootTab.MORE -> MoreScreen(
@@ -134,7 +147,12 @@ fun SoraApp() {
                     extensionCount = extensions.count {
                         it.error == null && !(it.packageName == "com.night.sora" && it.declaredId == "sora.core.jikan")
                     },
+                    activeDownloadCount = repository.downloads.count { it.status != com.night.sora.model.DownloadStatus.COMPLETED },
+                    completedDownloadCount = repository.downloads.count { it.status == com.night.sora.model.DownloadStatus.COMPLETED },
                     onExtensions = { push(AppScreen.Extensions) },
+                    onDownloads = { push(AppScreen.Downloads) },
+                    onStatistics = { push(AppScreen.Statistics) },
+                    onDataStorage = { push(AppScreen.DataStorage) },
                 )
             }
         }
@@ -156,6 +174,24 @@ fun SoraApp() {
             )
             AppScreen.Extensions -> ExtensionsScreen(extensions = extensions, onBack = ::pop, onRefresh = ::refreshExtensions, onOpen = { push(AppScreen.ExtensionDetail(it)) })
             AppScreen.Bible -> BibleScreen(onBack = ::pop)
+            AppScreen.Downloads -> DownloadsScreen(
+                downloads = repository.downloads,
+                onBack = ::pop,
+                onStatus = repository::setDownloadStatus,
+                onRemove = repository::removeDownload,
+                onClearCompleted = repository::clearCompletedDownloads,
+            )
+            AppScreen.Statistics -> StatisticsScreen(
+                library = repository.library,
+                activity = repository.activitySignals,
+                listeningSignals = repository.listeningSignals,
+                onBack = ::pop,
+            )
+            AppScreen.DataStorage -> DataStorageScreen(
+                downloads = repository.downloads,
+                onClearCatalogCache = mediaCatalogCache::clear,
+                onBack = ::pop,
+            )
             is AppScreen.ExtensionDetail -> ExtensionDetailScreen(current.extension, onBack = ::pop)
             is AppScreen.MediaDetails -> MediaDetailScreen(
                 selection = current.selection, extensions = extensions, manager = extensionManager,

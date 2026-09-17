@@ -35,6 +35,10 @@ class MediaCatalogCache(context: Context) {
         }
     }
 
+    fun clear() {
+        prefs.edit().clear().apply()
+    }
+
     fun write(type: ContentType, rows: List<CachedMediaRecord>) {
         val clean = rows.filterNot(::isLegacyDiagnosticRecord)
         if (clean.isEmpty()) return
