@@ -1,1 +1,1 @@
-2026-09-17 isolated pinned Spotui Innertube YouTube Music extension compile probe.
+2026-09-17T05:05:00+01:00 retry isolated pinned Spotui Innertube YouTube Music extension compile probe with dependency JitPack fixed.
