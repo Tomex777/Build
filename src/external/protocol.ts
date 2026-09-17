@@ -2,6 +2,8 @@ import type { ModuleSettingDefinition } from "../shared/config-schema";
 
 export const BAILEY_MODULE_PROTOCOL = 1 as const;
 
+export type ExternalModuleCapability = "commands" | "settings" | "events" | "jobs" | "services";
+
 export interface ExternalModuleCommandManifest {
   id: string;
   name: string;
@@ -26,7 +28,7 @@ export interface ExternalModuleManifest {
   runtime: ExternalModuleRuntimeManifest;
   commands?: ExternalModuleCommandManifest[];
   settings?: ModuleSettingDefinition[];
-  capabilities?: Array<"commands" | "settings" | "events" | "jobs" | "services">;
+  capabilities?: ExternalModuleCapability[];
 }
 
 export interface ExternalCommandContext {
@@ -34,6 +36,14 @@ export interface ExternalCommandContext {
   senderJid?: string;
   text: string;
   args: string[];
+}
+
+export interface ExternalMessageEventContext {
+  remoteJid: string;
+  senderJid?: string;
+  text?: string;
+  pushName?: string;
+  timestamp?: number;
 }
 
 export interface ExternalCommandRequest {
@@ -44,13 +54,21 @@ export interface ExternalCommandRequest {
   context: ExternalCommandContext;
 }
 
+export interface ExternalEventRequest {
+  protocol: typeof BAILEY_MODULE_PROTOCOL;
+  id: string;
+  type: "event.dispatch";
+  event: "message.received";
+  context: ExternalMessageEventContext;
+}
+
 export interface ExternalLifecycleRequest {
   protocol: typeof BAILEY_MODULE_PROTOCOL;
   id: string;
   type: "lifecycle.start" | "lifecycle.stop";
 }
 
-export type ExternalModuleRequest = ExternalCommandRequest | ExternalLifecycleRequest;
+export type ExternalModuleRequest = ExternalCommandRequest | ExternalEventRequest | ExternalLifecycleRequest;
 
 export type ExternalModuleAction =
   | { type: "reply"; text: string }
@@ -67,6 +85,7 @@ export interface ExternalModuleResponse {
 
 const MODULE_ID = /^[a-z0-9][a-z0-9.-]*$/;
 const COMMAND_NAME = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+const CAPABILITIES = new Set<ExternalModuleCapability>(["commands", "settings", "events", "jobs", "services"]);
 
 export function parseExternalModuleManifest(raw: unknown): ExternalModuleManifest {
   if (!raw || typeof raw !== "object") throw new Error("Module manifest must be a JSON object.");
@@ -78,6 +97,18 @@ export function parseExternalModuleManifest(raw: unknown): ExternalModuleManifes
   if (!input.runtime || typeof input.runtime.command !== "string" || !input.runtime.command.trim()) throw new Error("Module runtime.command is required.");
   if (input.runtime.args !== undefined && (!Array.isArray(input.runtime.args) || input.runtime.args.some((arg) => typeof arg !== "string"))) {
     throw new Error("Module runtime.args must be an array of strings.");
+  }
+
+  if (input.capabilities !== undefined) {
+    if (!Array.isArray(input.capabilities)) throw new Error("Module capabilities must be an array.");
+    const seenCapabilities = new Set<string>();
+    for (const capability of input.capabilities) {
+      if (typeof capability !== "string" || !CAPABILITIES.has(capability as ExternalModuleCapability)) {
+        throw new Error(`Unsupported module capability: ${String(capability)}.`);
+      }
+      if (seenCapabilities.has(capability)) throw new Error(`Duplicate module capability: ${capability}.`);
+      seenCapabilities.add(capability);
+    }
   }
 
   const seen = new Set<string>();
