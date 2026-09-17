@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, type OpenDialog
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { baileyMarkDataUrl } from "../brand/logo";
+import { JsonChatStore } from "../core/chat-store";
 import { JsonCommandStore, type VisualCommandPatch } from "../core/command-store";
 import { JsonConfigStore, type SecretCodec } from "../core/config-store";
 import { ModuleRegistry } from "../core/registry";
@@ -11,6 +12,7 @@ import { ExternalModuleManager } from "../external/external-module-manager";
 import { coreModule } from "../modules/core";
 import { myCommandsModule } from "../modules/my-commands";
 import type { ConfigDefinition } from "../shared/config-schema";
+import { ChatController } from "./chat-controller";
 
 const registry = new ModuleRegistry();
 registry.register(coreModule);
@@ -21,6 +23,8 @@ let tray: Tray | null = null;
 let isQuitting = false;
 let configStore: JsonConfigStore;
 let commandStore: JsonCommandStore;
+let chatStore: JsonChatStore;
+let chatController: ChatController;
 let engineManager: EngineManager;
 let externalModuleManager: ExternalModuleManager | undefined;
 let externalModuleErrors: Array<{ folder: string; error: string }> = [];
@@ -411,7 +415,8 @@ app.whenReady().then(async () => {
     createSecretCodec(),
   );
   commandStore = new JsonCommandStore(join(app.getPath("userData"), "commands.json"));
-  await Promise.all([configStore.load(), commandStore.load()]);
+  chatStore = new JsonChatStore(join(app.getPath("userData"), "chats.json"));
+  await Promise.all([configStore.load(), commandStore.load(), chatStore.load()]);
 
   externalModuleManager = new ExternalModuleManager(modulesRoot(), (moduleId) => {
     const definitions = effectiveConfigDefinitions().filter((definition) => definition.moduleId === moduleId);
@@ -439,8 +444,11 @@ app.whenReady().then(async () => {
     process.execPath,
   );
   await engineManager.initialize();
+  chatController = new ChatController(chatStore, engineManager, () => mainWindow);
+  chatController.registerIpc();
   engineManager.on("status", broadcastEngineStatus);
   engineManager.on("message", (message: IncomingEngineMessage) => {
+    void chatController.ingest(message).catch((error) => console.error("Chat persistence failed", error));
     void dispatchIncomingMessage(message).catch((error) => console.error("Command dispatch failed", error));
   });
 
