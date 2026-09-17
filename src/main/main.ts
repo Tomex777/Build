@@ -133,7 +133,10 @@ function workerPath(): string {
 }
 
 function broadcastEngineStatus(): void {
-  if (!mainWindow?.isDestroyed()) mainWindow.webContents.send("bailey:engine-status", engineManager.status());
+  const window = mainWindow;
+  if (window && !window.isDestroyed()) {
+    window.webContents.send("bailey:engine-status", engineManager.status());
+  }
 }
 
 function registerIpc(): void {
