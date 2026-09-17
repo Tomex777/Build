@@ -37,6 +37,7 @@ import com.night.sora.model.ExtensionMediaSelection
 import com.night.sora.model.PlaybackSession
 import com.night.sora.model.ReaderSession
 import com.night.sora.playback.MusicPlaybackController
+import com.night.sora.playback.MusicPlaybackRuntime
 import com.night.sora.ui.screens.*
 import com.night.sora.ui.theme.*
 
@@ -64,7 +65,7 @@ fun SoraApp() {
     val repository = remember { CoreRepository(context.applicationContext) }
     val mediaCatalogCache = remember { MediaCatalogCache(context.applicationContext) }
     val extensionManager = remember { ExtensionManager(context.applicationContext) }
-    val musicPlayer = remember { MusicPlaybackController(context.applicationContext, extensionManager) }
+    val musicPlayer = remember { MusicPlaybackRuntime.get(context.applicationContext, extensionManager) }
     var tab by remember { mutableStateOf(RootTab.HOME) }
     val screenStack = remember { mutableStateListOf<AppScreen>() }
     var extensions by remember { mutableStateOf<List<InstalledExtension>>(emptyList()) }

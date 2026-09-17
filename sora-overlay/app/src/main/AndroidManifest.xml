@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <queries>
         <intent>
             <action android:name="com.night.sora.extension.BIND" />
@@ -22,6 +24,15 @@
             <meta-data android:name="sora.extension.id" android:value="sora.core.jikan" />
             <meta-data android:name="sora.extension.name" android:value="Sora Anime &amp; Manga Catalog" />
             <meta-data android:name="sora.extension.apiVersion" android:value="1" />
+        </service>
+
+        <service
+            android:name=".playback.MusicPlaybackService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
         </service>
 
         <activity

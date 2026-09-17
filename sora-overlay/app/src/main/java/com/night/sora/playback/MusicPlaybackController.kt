@@ -33,8 +33,9 @@ class MusicPlaybackController(
     context: Context,
     private val manager: ExtensionManager,
 ) {
+    private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val player = ExoPlayer.Builder(context.applicationContext).build()
+    private val player = ExoPlayer.Builder(appContext).build()
     private var requestSerial = 0L
     private var baseQueue: List<ExtensionMediaSelection> = emptyList()
     private var extensions: List<InstalledExtension> = emptyList()
@@ -100,11 +101,14 @@ class MusicPlaybackController(
         extensions = value
     }
 
+    fun sessionPlayer(): Player = player
+
     fun play(
         track: ExtensionMediaSelection,
         sourceQueue: List<ExtensionMediaSelection>,
         availableExtensions: List<InstalledExtension> = extensions,
     ) {
+        MusicPlaybackService.ensureStarted(appContext)
         updateExtensions(availableExtensions)
         baseQueue = normalizeQueue(sourceQueue, track)
         queue = if (shuffleEnabled) shuffledAround(track, baseQueue) else baseQueue
