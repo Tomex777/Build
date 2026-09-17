@@ -19,15 +19,19 @@ describe("Bailey external module protocol", () => {
       name: "Economy",
       version: "1.0.0",
       runtime: { command: "python", args: ["main.py"] },
-      capabilities: ["commands", "events"],
+      capabilities: ["commands", "events", "jobs"],
       commands: [
         { id: "balance", name: "balance", section: "Economy", description: "Show a balance." },
+      ],
+      jobs: [
+        { id: "interest", intervalSeconds: 3600, runOnStart: true },
       ],
     });
 
     expect(manifest.runtime.command).toBe("python");
     expect(manifest.commands?.[0]?.name).toBe("balance");
     expect(manifest.capabilities).toContain("events");
+    expect(manifest.jobs?.[0]?.id).toBe("interest");
   });
 
   it("rejects unknown capabilities instead of silently accepting them", () => {
@@ -39,6 +43,17 @@ describe("Bailey external module protocol", () => {
       runtime: { command: "python", args: ["main.py"] },
       capabilities: ["telepathy"],
     })).toThrow("Unsupported module capability");
+  });
+
+  it("requires the jobs capability when jobs are declared", () => {
+    expect(() => parseExternalModuleManifest({
+      protocol: 1,
+      id: "bad-jobs",
+      name: "Bad jobs",
+      version: "1.0.0",
+      runtime: { command: "python", args: ["main.py"] },
+      jobs: [{ id: "tick", intervalSeconds: 60 }],
+    })).toThrow("must declare the jobs capability");
   });
 
   it("runs a module as a child process and applies returned Bailey actions", async () => {
@@ -155,6 +170,76 @@ input.on("line", (line) => {
 
     expect(replies).toEqual(["event:normal message"]);
     expect(reactions).toEqual(["👀"]);
+    await manager.stopAll();
+  });
+
+  it("executes module jobs and routes outbound sends through Bailey", async () => {
+    const root = await mkdtemp(join(tmpdir(), "bailey-external-jobs-"));
+    tempDirs.push(root);
+    const moduleDir = join(root, "scheduler");
+    await mkdir(moduleDir, { recursive: true });
+
+    await writeFile(join(moduleDir, "bailey.module.json"), JSON.stringify({
+      protocol: 1,
+      id: "scheduler",
+      name: "Scheduler",
+      version: "1.0.0",
+      runtime: { command: process.execPath, args: ["worker.mjs"] },
+      capabilities: ["jobs"],
+      jobs: [{ id: "tick", intervalSeconds: 60 }],
+    }, null, 2));
+
+    await writeFile(join(moduleDir, "worker.mjs"), `
+import readline from "node:readline";
+const input = readline.createInterface({ input: process.stdin });
+input.on("line", (line) => {
+  const request = JSON.parse(line);
+  if (request.type !== "job.execute") return;
+  process.stdout.write(JSON.stringify({
+    protocol: 1,
+    replyTo: request.id,
+    ok: true,
+    actions: [
+      { type: "send", remoteJid: "updates@g.us", text: request.jobId + ":" + request.scheduledAt }
+    ]
+  }) + "\\n");
+});
+`);
+
+    const manager = new ExternalModuleManager(root, () => ({}));
+    const loaded = await manager.load();
+    expect(loaded.errors).toEqual([]);
+
+    const sent: Array<{ remoteJid: string; text: string }> = [];
+    manager.setHostSendText(async (remoteJid, text) => {
+      sent.push({ remoteJid, text });
+    });
+    await manager.executeJob("scheduler", "tick", 999);
+
+    expect(sent).toEqual([{ remoteJid: "updates@g.us", text: "tick:999" }]);
+    await manager.stopAll();
+  });
+
+  it("does not execute jobs while their module is disabled", async () => {
+    const root = await mkdtemp(join(tmpdir(), "bailey-disabled-job-"));
+    tempDirs.push(root);
+    const moduleDir = join(root, "disabled");
+    await mkdir(moduleDir, { recursive: true });
+
+    await writeFile(join(moduleDir, "bailey.module.json"), JSON.stringify({
+      protocol: 1,
+      id: "disabled",
+      name: "Disabled",
+      version: "1.0.0",
+      runtime: { command: process.execPath, args: ["worker.mjs"] },
+      capabilities: ["jobs"],
+      jobs: [{ id: "tick", intervalSeconds: 60 }],
+    }, null, 2));
+    await writeFile(join(moduleDir, "worker.mjs"), "throw new Error('should not start');\n");
+
+    const manager = new ExternalModuleManager(root, () => ({}), () => false);
+    await manager.load();
+    await expect(manager.executeJob("disabled", "tick", 999)).resolves.toBeUndefined();
     await manager.stopAll();
   });
 });
