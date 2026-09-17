@@ -1,41 +1,92 @@
 # Night Core
 
-Night Core is the first-party Xposed module behind Night Mods.
+Night Core is the first-party Xposed capability engine behind Night Mods.
 
-## Why one module can target multiple apps
+Night Mods remains the normal user-facing configuration surface. Night Core is a separate APK and should not grow a duplicate settings UI.
 
-The module entry point routes the loaded package to a per-app adapter. The user-facing feature is `Bubble Styler`; WhatsApp and Instagram are just two different implementations underneath it.
+## Architecture
 
+Night Core has one modern libxposed module entry and routes supported target packages to per-app adapters:
+
+```text
+Night Mods
+  -> Night Core
+       -> Bubble Styler
+            -> WhatsAppAdapter
+            -> InstagramAdapter
 ```
-Bubble Styler
-  -> WhatsAppAdapter
-  -> InstagramAdapter
+
+The product feature is `Bubble Styler`; WhatsApp and Instagram are separate target implementations underneath it. This keeps the UI and feature model target-neutral.
+
+## Hook entry
+
+Night Core uses the libxposed API-100 module entry:
+
+```text
+dev.nightmods.core.hook.NightCoreHook
 ```
 
-This prevents the UI/product from becoming WhatsApp-specific.
+The entry is declared through `META-INF/xposed/java_init.list`; the old `assets/xposed_init` legacy entry is no longer used.
 
-## Current proof-of-life behavior
+For WhatsApp or Instagram, the module waits for `Application.attach(Context)`, reads the framework-owned remote preferences through API 100, resolves the exact target version, checks adapter compatibility, and only then allows the adapter to attach.
 
-When the module is enabled and scoped to WhatsApp or Instagram, the entry layer waits for the target application's `Application.attach(Context)` lifecycle point, reads the current Bubble Styler settings, then hands the immutable config to the matching adapter. The adapters still only write a NightCore proof-of-life line to the LSPosed log; no guessed bubble hook is installed yet.
+Settings retrieval is performed off the target app's main thread so target startup is not blocked by preference loading.
 
-That is intentional. To implement real bubble styling safely, inspect the exact WhatsApp and Instagram versions installed on the test phone, locate stable view/resource/method hook points, then implement each adapter separately.
+## Version gating
 
-## Settings ownership and Android 16 transport
+Unknown WhatsApp and Instagram builds are intentionally not hooked.
 
-Night Mods is the normal configuration surface. Night Core owns the private `night_core` SharedPreferences file. Neither Night Mods nor a hooked target process reads that file directly across UIDs.
+Current adapters return `ANALYSIS_REQUIRED` until an exact target APK/version has been inspected and explicitly added as supported. Do not add guessed or obfuscated class names from another build.
 
-Night Core exposes a deliberately narrow exported provider:
+A real Bubble Styler hook is therefore still pending exact target analysis. The current adapters do not claim actual WhatsApp or Instagram bubble styling works.
 
-- Night Mods (`org.lsposed.manager`) and Night Core itself may read settings.
-- Scoped target packages (`com.whatsapp` and `com.instagram.android`) may read settings.
-- Only Night Mods and Night Core may write settings.
-- Hook-side reads happen after the target has a real Android `Context` and use `ContentResolver.call(...)` over provider IPC.
-- If settings IPC is unavailable, Night Core fails closed and does not attach the feature with guessed/default state.
+## Settings ownership
 
-This avoids depending on cross-UID reads of `/data/data/dev.nightmods.core/shared_prefs`, and it avoids LSPosed's relocated legacy `xposedsharedprefs` path. The standalone Night Core activity remains only as a diagnostic fallback.
+The editable settings are:
 
-`target-probe` is a CI-only Android app using the `com.whatsapp` application ID. It has no package-visibility exception or privileged access; Android 16 smoke tests use it to prove that a separate target-like UID can read the exact settings written through Night Mods. It is not a Night Mods product artifact.
+- `bubble_enabled`
+- `target_whatsapp`
+- `target_instagram`
+- `bubble_radius`
+- `bubble_spacing`
 
-## Why legacy Xposed entry is used in this first build
+Night Core owns the local app-side mirror. Night Mods writes through Night Core's manager-only provider; Night Mods does not maintain a duplicate settings database.
 
-LSPosed ET explicitly preserves legacy module compatibility, while its vendored modern API is API 100. The legacy entry keeps this proof-of-life project self-contained and buildable without bundling the framework's API AAR. The adapter boundary is API-agnostic, so the entry layer can be migrated to libxposed after the first rooted-device test without redesigning the product.
+The provider is not a hook-side transport. Target applications and unrelated UIDs are denied manager settings access.
+
+## libxposed API-100 framework preference transport
+
+Night Core synchronizes the editable local mirror with the libxposed API/service-100 remote preference store.
+
+```text
+Night Mods
+  -> Night Core manager provider
+  -> NightCoreServiceStore
+  -> libxposed service API 100 remote preferences
+  -> LSPosed framework-owned store
+  -> NightCoreHook.getRemotePreferences(...)
+  -> WhatsApp / Instagram adapter
+```
+
+The app side uses `XposedServiceHelper` / `XposedService.getRemotePreferences(...)` to write the framework store. The hook side uses `XposedModule.getRemotePreferences(...)` and does not call back into the Night Core Android app process.
+
+This is the process-death guarantee Night Core needs: once a setting has been committed to the framework store, killing `dev.nightmods.core` does not remove the hook-visible copy and a hooked target does not need to wake the Night Core Android process to read it.
+
+A manager write is only reported as successful after both the local mirror and the framework remote preference commit succeed. If the framework Binder is temporarily unavailable, the local value is retained as pending but the write is not falsely reported as hook-effective. When the API-100 service Binder is delivered again, Night Core synchronizes the pending state.
+
+## Android 16 CI coverage
+
+The CI probes are test-only APKs and are not Night Mods product artifacts:
+
+- `manager-probe` uses package `org.lsposed.manager` and exercises the manager provider contract.
+- `target-probe` uses package `com.whatsapp` and proves a target-like UID cannot read the manager provider.
+- `attacker-probe` reuses the same request code under package `dev.nightmods.attacker` and proves authorization is based on Android caller identity rather than request content.
+- `framework-probe` implements the exact API-100 service AIDL and provides an external framework-owned preference store for Android 16 process-death testing.
+
+The security workflow writes distinctive Bubble Styler values, verifies they reach the framework-owned store, kills the Night Core Android process, verifies the remote settings remain unchanged while Night Core stays dead, and then models API-100 Binder redelivery to the restarted module app process.
+
+## Standalone launcher
+
+The standalone Night Core activity is an engine/status page only. It shows engine version, Night Mods detection, and target adapter state.
+
+Its **Open Night Mods** action opens the explicit `lsposed://night-core` deep link scoped to `org.lsposed.manager`, with launcher fallback only when the deep link cannot be handled.
