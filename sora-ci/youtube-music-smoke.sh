@@ -34,6 +34,50 @@ dump_ui() {
   adb pull /sdcard/window.xml /tmp/window.xml >/dev/null 2>&1 || true
 }
 
+ensure_sora_foreground() {
+  if ! adb shell dumpsys activity activities | grep -q 'mResumedActivity.*com.night.sora'; then
+    adb shell am start -W -n com.night.sora/.MainActivity >/dev/null 2>&1 || true
+    sleep 2
+  fi
+}
+
+tap_text_once() {
+  local label="$1"
+  dump_ui
+  python3 - "$label" <<'PY'
+import re, subprocess, sys, xml.etree.ElementTree as ET
+label=sys.argv[1]
+try:
+    root=ET.parse('/tmp/window.xml').getroot()
+except Exception:
+    raise SystemExit(2)
+exact=[]; partial=[]
+for node in root.iter('node'):
+    text=(node.attrib.get('text') or '').strip()
+    desc=(node.attrib.get('content-desc') or '').strip()
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+    if not m: continue
+    x1,y1,x2,y2=map(int,m.groups())
+    point=((x1+x2)//2,(y1+y2)//2)
+    if text == label or desc == label: exact.append(point)
+    elif label in text or label in desc: partial.append(point)
+points=exact or partial
+if not points: raise SystemExit(1)
+x,y=points[0]
+subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
+PY
+}
+
+dismiss_system_dialogs() {
+  if tap_text_once 'Wait' >/dev/null 2>&1; then
+    sleep 2
+  fi
+  if tap_text_once 'OK' >/dev/null 2>&1; then
+    sleep 1
+  fi
+  ensure_sora_foreground
+}
+
 log_state() {
   local reason="$1"
   echo "--- YouTube Music smoke diagnostics: $reason ---" >&2
@@ -53,7 +97,10 @@ node_exists() {
   python3 - "$label" <<'PY'
 import sys, xml.etree.ElementTree as ET
 label=sys.argv[1]
-root=ET.parse('/tmp/window.xml').getroot()
+try:
+    root=ET.parse('/tmp/window.xml').getroot()
+except Exception:
+    raise SystemExit(1)
 for node in root.iter('node'):
     if (node.attrib.get('text') or '').strip() == label or (node.attrib.get('content-desc') or '').strip() == label:
         raise SystemExit(0)
@@ -66,6 +113,7 @@ wait_for_node() {
   local timeout="${2:-30}"
   local elapsed=0
   while (( elapsed < timeout )); do
+    dismiss_system_dialogs
     if node_exists "$label" >/dev/null 2>&1; then
       echo "UI node '$label' available after ${elapsed}s"
       return 0
@@ -76,30 +124,6 @@ wait_for_node() {
   log_state "timed out waiting for $label"
   shot "failure-${label//[^A-Za-z0-9]/_}"
   return 1
-}
-
-tap_text_once() {
-  local label="$1"
-  dump_ui
-  python3 - "$label" <<'PY'
-import re, subprocess, sys, xml.etree.ElementTree as ET
-label=sys.argv[1]
-root=ET.parse('/tmp/window.xml').getroot()
-exact=[]; partial=[]
-for node in root.iter('node'):
-    text=(node.attrib.get('text') or '').strip()
-    desc=(node.attrib.get('content-desc') or '').strip()
-    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
-    if not m: continue
-    x1,y1,x2,y2=map(int,m.groups())
-    point=((x1+x2)//2,(y1+y2)//2)
-    if text == label or desc == label: exact.append(point)
-    elif label in text or label in desc: partial.append(point)
-points=exact or partial
-if not points: raise SystemExit(1)
-x,y=points[0]
-subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
-PY
 }
 
 tap_root_media() {
@@ -114,6 +138,7 @@ tap_text() {
   local label="$1"
   local attempt
   for attempt in 1 2 3 4 5; do
+    dismiss_system_dialogs
     if tap_text_once "$label" >/dev/null 2>&1; then
       sleep 2
       return 0
@@ -121,6 +146,7 @@ tap_text() {
     sleep 1
   done
   if [[ "$label" == "Media" ]]; then
+    ensure_sora_foreground
     tap_root_media
     return 0
   fi
@@ -129,6 +155,7 @@ tap_text() {
 }
 
 tap_first_music_tile() {
+  dismiss_system_dialogs
   dump_ui
   python3 <<'PY'
 import re, subprocess, xml.etree.ElementTree as ET
@@ -152,10 +179,12 @@ PY
 
 # Confirm the external service is installed and discoverable.
 adb shell dumpsys package com.night.sora.ext.youtube.music | grep -q 'YouTubeMusicExtensionService'
+dismiss_system_dialogs
 shot 00-home
 
 tap_text Media
 sleep 2
+dismiss_system_dialogs
 # Open the media switcher from whichever Anime/Manga label is visible, then choose Music.
 if tap_text_once 'Anime & Manga' >/dev/null 2>&1; then
   sleep 1
@@ -168,6 +197,7 @@ tap_text Music
 
 # YouTube Music browse is network-backed; allow a little longer than the normal UI smoke.
 sleep 10
+dismiss_system_dialogs
 shot 01-youtube-music-home
 
 tap_first_music_tile
@@ -186,6 +216,7 @@ adb shell input keyevent KEYCODE_MEDIA_PAUSE
 sleep 2
 adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
 sleep 3
+dismiss_system_dialogs
 wait_for_node Play 12
 shot 04-system-paused
 
