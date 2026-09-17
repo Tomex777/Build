@@ -1,0 +1,35 @@
+name: Apply Sora Meme Recovery + Library
+
+on:
+  push:
+    branches: [sora-memes-bible-ci]
+    paths:
+      - 'sora-ci/meme-recovery-library-trigger.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sora-memes-bible-ci
+      - name: Apply meme recovery and library polish
+        run: python3 sora-ci/apply-meme-recovery-library.py
+      - name: Verify focused changes
+        run: |
+          grep -q 'onRetry = { load(query) }' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+          grep -q 'Text("Retry")' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+          grep -q 'LibraryType.MEMES -> entry.contentType == ContentType.MEME' sora-overlay/app/src/main/java/com/night/sora/ui/screens/LibraryScreen.kt
+          grep -q 'ContentType.MEME -> "MEME"' sora-overlay/app/src/main/java/com/night/sora/ui/screens/LibraryScreen.kt
+      - name: Commit focused changes
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt sora-overlay/app/src/main/java/com/night/sora/ui/screens/LibraryScreen.kt
+          git diff --cached --quiet && exit 0
+          git commit -m 'finish meme recovery and saved library flow'
+          git push origin HEAD:sora-memes-bible-ci
