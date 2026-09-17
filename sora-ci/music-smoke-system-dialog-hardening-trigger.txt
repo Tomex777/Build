@@ -1,1 +1,1 @@
-2026-09-17 isolate deterministic Music smoke from Pixel Launcher ANR overlays and background Sora through Android Settings instead.
+2026-09-17 rerun deterministic Music smoke launcher isolation after fixing the strict patch matcher.
