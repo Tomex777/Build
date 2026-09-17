@@ -36,6 +36,7 @@ import com.night.sora.data.MediaCatalogCache
 import com.night.sora.model.ContentType
 import com.night.sora.model.ExtensionMediaSelection
 import com.night.sora.model.MediaProgressEntry
+import com.night.sora.model.ListeningSignal
 import com.night.sora.ui.theme.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -57,6 +58,7 @@ private data class HomeBrowseCard(
 fun HomeScreen(
     modifier: Modifier = Modifier,
     progressEntries: List<MediaProgressEntry>,
+    listeningSignals: List<ListeningSignal>,
     extensions: List<InstalledExtension>,
     manager: ExtensionManager,
     onOpenSelection: (ExtensionMediaSelection) -> Unit,
@@ -105,6 +107,17 @@ fun HomeScreen(
         .filter { it.progress < .999f }
         .sortedByDescending { it.updatedAt }
         .take(8)
+    val recentMusic = remember(music, listeningSignals) {
+        val artistOrder = listeningSignals
+            .filter { it.lastPlayedEpochMs > 0L }
+            .sortedByDescending { it.lastPlayedEpochMs }
+            .mapIndexed { index, signal -> signal.artistName.trim().lowercase() to index }
+            .toMap()
+        music
+            .filter { card -> card.subtitle.substringBefore(" · ").trim().lowercase() in artistOrder }
+            .sortedBy { card -> artistOrder[card.subtitle.substringBefore(" · ").trim().lowercase()] ?: Int.MAX_VALUE }
+            .take(8)
+    }
     val greeting = when (LocalTime.now().hour) {
         in 5..11 -> "Good morning"
         in 12..16 -> "Good afternoon"
@@ -139,7 +152,7 @@ fun HomeScreen(
                 )
             }
 
-            item { HomeSectionHeader("Continue", "Pick up exactly where you stopped", "History") }
+            item { HomeSectionHeader("Continue", "Pick up exactly where you stopped") }
             item {
                 if (continueEntries.isEmpty()) {
                     Text("Nothing in progress yet.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp))
@@ -155,10 +168,10 @@ fun HomeScreen(
                 }
             }
 
-            item { HomeSectionHeader("For you", "Picked from across Sora", "Refresh") }
+            item { HomeSectionHeader("Explore", "Fresh picks from across Sora") }
             item {
                 if (recommendations.isEmpty()) {
-                    Text("Your recommendations will fill in as Sora learns what you like.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 18.dp))
+                    Text("Fresh catalog picks will appear here when sources are available.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 18.dp))
                 } else {
                     LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(recommendations.take(10), key = { "${it.extensionPackage}:${it.sourceId}:${it.id}" }) { card ->
@@ -168,19 +181,23 @@ fun HomeScreen(
                 }
             }
 
-            item { HomeSectionHeader("Recently played", "Music stays with you across Sora", "Library") }
-            item {
-                LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(music.take(8), key = { "music-${it.id}" }) { card ->
-                        HomeSquareTile(card) { onOpenSelection(card.selection()) }
+            if (recentMusic.isNotEmpty()) {
+                item { HomeSectionHeader("Recently played", "From your actual listening history") }
+                item {
+                    LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        items(recentMusic, key = { "music-${it.id}" }) { card ->
+                            HomeSquareTile(card) { onOpenSelection(card.selection()) }
+                        }
                     }
                 }
             }
 
-            item { HomeSectionHeader("You probably needed this", "Something from your feed", "More") }
-            item { MemeStrip(memes.firstOrNull()) }
+            if (memes.isNotEmpty()) {
+                item { HomeSectionHeader("From your meme feed", "A fresh item from your active source") }
+                item { MemeStrip(memes.first()) { onOpenSelection(memes.first().selection()) } }
+            }
 
-            item { HomeSectionHeader("Bible", "Continue your reading", "Open", onSee = onOpenBible) }
+            item { HomeSectionHeader("Bible", "Featured passage", "Open", onSee = onOpenBible) }
             item {
                 Surface(
                     color = Color(0xFF151513),
@@ -189,9 +206,9 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).clickable(onClick = onOpenBible),
                 ) {
                     Column(Modifier.padding(18.dp)) {
-                        Text("John 1 · verse 5", color = SoraAccent, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = .7.sp)
+                        Text("John 1:5", color = SoraAccent, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = .7.sp)
                         Text("“The light shines in the darkness, and the darkness has not overcome it.”", fontSize = 19.sp, lineHeight = 27.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 9.dp))
-                        Text("Last read · John 1:1–5", color = SoraMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp))
+                        Text("Open Bible to read in context", color = SoraMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp))
                     }
                 }
             }
@@ -208,13 +225,15 @@ private fun SoraMark() {
 }
 
 @Composable
-private fun HomeSectionHeader(title: String, subtitle: String, see: String, onSee: () -> Unit = {}) {
+private fun HomeSectionHeader(title: String, subtitle: String, see: String? = null, onSee: (() -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 12.dp, top = 24.dp, bottom = 10.dp), verticalAlignment = Alignment.Bottom) {
         Column(Modifier.weight(1f)) {
             Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Text(subtitle, color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
         }
-        TextButton(onClick = onSee, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)) { Text(see, color = SoraMuted, fontSize = 12.sp) }
+        if (see != null && onSee != null) {
+            TextButton(onClick = onSee, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)) { Text(see, color = SoraMuted, fontSize = 12.sp) }
+        }
     }
 }
 
@@ -265,23 +284,21 @@ private fun HomeSquareTile(card: HomeBrowseCard, onClick: () -> Unit) {
 }
 
 @Composable
-private fun MemeStrip(meme: HomeBrowseCard?) {
-    Surface(color = Color(0xFFF0EDE5), contentColor = Color(0xFF141412), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
+private fun MemeStrip(meme: HomeBrowseCard, onClick: () -> Unit) {
+    Surface(
+        color = Color(0xFFF0EDE5),
+        contentColor = Color(0xFF141412),
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).clickable(onClick = onClick),
+    ) {
         Column {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(if (meme != null) "Sora · now" else "Sora · ready offline", color = Color(0xFF656158), fontSize = 11.sp)
-                Icon(Icons.Rounded.MoreHoriz, null, tint = Color(0xFF656158), modifier = Modifier.size(18.dp))
-            }
-            Text(meme?.title ?: "me opening Sora to continue one manga and somehow starting four things", fontSize = 18.sp, lineHeight = 21.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp))
+            Text("Sora · meme feed", color = Color(0xFF656158), fontSize = 11.sp, modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp))
+            Text(meme.title, fontSize = 18.sp, lineHeight = 21.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp))
             Box(Modifier.fillMaxWidth().height(170.dp).background(Color(0xFFC5C0B3)), contentAlignment = Alignment.Center) {
-                if (!meme?.artworkUrl.isNullOrBlank()) AsyncImage(meme?.artworkUrl, meme?.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                if (!meme.artworkUrl.isNullOrBlank()) AsyncImage(meme.artworkUrl, meme.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 else Icon(Icons.Rounded.TagFaces, null, modifier = Modifier.size(66.dp), tint = Color(0xFF5C594F))
             }
-            Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("♡ Save", color = Color(0xFF6D685D), fontSize = 12.sp)
-                Text("↗ Share", color = Color(0xFF6D685D), fontSize = 12.sp)
-                Text("Less like this", color = Color(0xFF6D685D), fontSize = 12.sp)
-            }
+            Text("Open", color = Color(0xFF6D685D), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp))
         }
     }
 }

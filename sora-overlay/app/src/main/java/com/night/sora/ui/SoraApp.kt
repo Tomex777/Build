@@ -150,6 +150,7 @@ fun SoraApp() {
                 RootTab.HOME -> HomeScreen(
                     modifier = Modifier.padding(padding),
                     progressEntries = repository.mediaProgress,
+                    listeningSignals = repository.listeningSignals,
                     extensions = extensions,
                     manager = extensionManager,
                     onOpenSelection = ::openMedia,
