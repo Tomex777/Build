@@ -1,0 +1,35 @@
+name: Apply Sora Meme Truthful States
+
+on:
+  push:
+    branches: [sora-memes-bible-ci]
+    paths:
+      - 'sora-ci/meme-truthful-states-trigger.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sora-memes-bible-ci
+      - name: Apply truthful meme states
+        run: python3 sora-ci/apply-meme-truthful-states.py
+      - name: Verify truthful meme states
+        run: |
+          grep -q 'var memeLoading' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+          grep -q 'No meme source installed' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+          grep -q 'Meme feed unavailable' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+          grep -q 'var memes by remember { mutableStateOf<List<HomeBrowseCard>>(emptyList()) }' sora-overlay/app/src/main/java/com/night/sora/ui/screens/HomeScreen.kt
+      - name: Commit truthful meme states
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt sora-overlay/app/src/main/java/com/night/sora/ui/screens/HomeScreen.kt
+          git diff --cached --quiet && exit 0
+          git commit -m 'make meme loading and errors truthful'
+          git push origin HEAD:sora-memes-bible-ci
