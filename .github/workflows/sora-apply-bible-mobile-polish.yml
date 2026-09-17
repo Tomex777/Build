@@ -1,0 +1,33 @@
+name: Apply Sora Bible Mobile Polish
+
+on:
+  push:
+    branches: [sora-memes-bible-ci]
+    paths:
+      - 'sora-ci/bible-mobile-polish-trigger.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sora-memes-bible-ci
+      - name: Apply Bible mobile polish
+        run: python3 sora-ci/apply-bible-mobile-polish.py
+      - name: Verify Bible mobile polish
+        run: |
+          grep -q 'BackHandler(enabled = route != BibleRoute.Hub)' sora-overlay/app/src/main/java/com/night/sora/ui/screens/BibleScreen.kt
+          grep -q 'horizontalScroll(rememberScrollState())' sora-overlay/app/src/main/java/com/night/sora/ui/screens/BibleScreen.kt
+      - name: Commit Bible mobile polish
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add sora-overlay/app/src/main/java/com/night/sora/ui/screens/BibleScreen.kt
+          git diff --cached --quiet && exit 0
+          git commit -m 'polish Bible mobile navigation'
+          git push origin HEAD:sora-memes-bible-ci
