@@ -1,1 +1,1 @@
-2026-09-17 rerun YouTube Music playback on AOSP emulator after removing Pixel Launcher ANR source.
+2026-09-17 rerun YouTube Music with bounded native client fallbacks and preserved resolver logs.
