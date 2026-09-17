@@ -1,1 +1,1 @@
-2026-09-17 compile combined Sora head with truthful Home/media progress, Jikan relations, persistent AI drafts, and real document attachments.
+2026-09-17 rebuild combined Sora head after fixing persistent AI draft suggestion callback.
