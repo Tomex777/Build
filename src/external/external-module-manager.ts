@@ -21,6 +21,7 @@ interface PendingRequest {
 
 interface LoadedModule {
   directory: string;
+  dataDirectory?: string;
   manifest: ExternalModuleManifest;
   process?: ChildProcessWithoutNullStreams;
   stdoutBuffer: string;
@@ -46,6 +47,7 @@ export class ExternalModuleManager {
     private readonly modulesRoot: string,
     private readonly getEnvironment: (moduleId: string) => Record<string, string>,
     private readonly isModuleEnabled: (moduleId: string) => boolean = () => true,
+    private readonly dataRoot: string = join(modulesRoot, ".data"),
   ) {}
 
   setHostSendText(handler: HostSendText): void {
@@ -65,7 +67,9 @@ export class ExternalModuleManager {
         const raw = await readFile(join(directory, "bailey.module.json"), "utf8");
         const manifest = parseExternalModuleManifest(JSON.parse(raw));
         if (this.modules.has(manifest.id)) throw new Error(`Duplicate external module id: ${manifest.id}`);
-        const loaded: LoadedModule = { directory, manifest, stdoutBuffer: "", pending: new Map() };
+        const dataDirectory = manifest.capabilities?.includes("storage") ? join(this.dataRoot, manifest.id) : undefined;
+        if (dataDirectory) await mkdir(dataDirectory, { recursive: true });
+        const loaded: LoadedModule = { directory, dataDirectory, manifest, stdoutBuffer: "", pending: new Map() };
         this.modules.set(manifest.id, loaded);
         definitions.push(this.toDefinition(loaded));
       } catch (error) {
@@ -117,6 +121,7 @@ export class ExternalModuleManager {
           ...process.env,
           ...this.getEnvironment(moduleId),
           ...(useEmbeddedNode ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
+          ...(loaded.dataDirectory ? { BAILEY_MODULE_DATA_DIR: loaded.dataDirectory } : {}),
           BAILEY_MODULE_ID: moduleId,
           BAILEY_MODULE_PROTOCOL: String(BAILEY_MODULE_PROTOCOL),
         },
