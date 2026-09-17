@@ -92,7 +92,8 @@ fun SoraApp() {
     ) {
         musicPlayer.currentTrack?.let { track ->
             repository.recordActivity(track, "played")
-            repository.recordListening(track.id, track.subtitle.substringBefore(" · ").ifBlank { track.title })
+            val artistName = track.subtitle.substringBefore(" · ").ifBlank { track.title }
+            repository.recordListening(artistName.trim().lowercase(), artistName)
         }
     }
     BackHandler(enabled = screenStack.isNotEmpty()) { pop() }
