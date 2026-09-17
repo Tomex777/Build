@@ -3,13 +3,22 @@ set -euo pipefail
 
 OUT=/tmp/sora-youtube-music-smoke
 mkdir -p "$OUT"
+LIVE_LOGCAT_PID=""
 
 capture_logs() {
   adb logcat -d -t 2500 2>/dev/null \
     | grep -Ei 'com\.night\.sora|SoraYouTubeMusic|youtube|innertube|googlevideo|ExoPlayer|PlaybackException|HttpDataSource|AndroidRuntime|FATAL EXCEPTION' \
     | tail -n 500 > "$OUT/youtube-music-logcat.txt" || true
 }
-trap capture_logs EXIT
+
+cleanup() {
+  if [[ -n "${LIVE_LOGCAT_PID:-}" ]]; then
+    kill "$LIVE_LOGCAT_PID" >/dev/null 2>&1 || true
+    wait "$LIVE_LOGCAT_PID" >/dev/null 2>&1 || true
+  fi
+  capture_logs
+}
+trap cleanup EXIT
 
 adb uninstall com.night.sora.ext.live >/dev/null 2>&1 || true
 adb uninstall com.night.sora.ext.demo >/dev/null 2>&1 || true
@@ -85,7 +94,10 @@ log_state() {
   adb shell dumpsys activity services com.night.sora | grep -E 'MusicPlaybackService|ServiceRecord' >&2 || true
   adb shell dumpsys media_session | grep -A8 -B3 'com.night.sora' >&2 || true
   capture_logs
-  tail -n 220 "$OUT/youtube-music-logcat.txt" >&2 2>/dev/null || true
+  echo "--- resolver live log ---" >&2
+  grep -Ei 'SoraYouTubeMusic|googlevideo|ExoPlayer|PlaybackException|HttpDataSource|STREAMS|player start|player result|resolved|timeout-or-null|no native' "$OUT/resolver-live-logcat.txt" 2>/dev/null | tail -n 180 >&2 || true
+  echo "--- recent filtered log ---" >&2
+  tail -n 120 "$OUT/youtube-music-logcat.txt" >&2 2>/dev/null || true
   dump_ui
   cat /tmp/window.xml >&2 2>/dev/null || true
   echo "--- end diagnostics ---" >&2
@@ -200,9 +212,15 @@ sleep 10
 dismiss_system_dialogs
 shot 01-youtube-music-home
 
+# Preserve the resolver window independently of uiautomator spam. This starts
+# immediately before the track tap and remains live until the smoke exits.
+adb logcat -c || true
+adb logcat -v threadtime > "$OUT/resolver-live-logcat.txt" 2>&1 &
+LIVE_LOGCAT_PID=$!
+
 tap_first_music_tile
-wait_for_node 'Mini player' 35
-wait_for_node Pause 35
+wait_for_node 'Mini player' 20
+wait_for_node Pause 40
 shot 02-youtube-music-playing
 
 # Prove Core is playing through the shared Media3 session and survives backgrounding.
