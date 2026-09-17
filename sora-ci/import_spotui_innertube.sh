@@ -36,7 +36,7 @@ val newPipeExtractorStripped = tasks.register<org.gradle.api.tasks.bundling.Jar>
     destinationDirectory.set(layout.buildDirectory.dir("stripped-libs"))
     from(provider { newPipeExtractorRaw.map { zipTree(it) } }) {
         exclude("org/schabi/newpipe/extractor/utils/Utils.class")
-        exclude("org/schabi/newpipe/extractor/utils/Utils$*.class")
+        exclude("org/schabi/newpipe/extractor/utils/Utils\$*.class")
     }
 }
 
