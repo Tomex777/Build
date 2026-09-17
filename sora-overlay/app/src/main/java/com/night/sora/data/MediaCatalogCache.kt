@@ -14,18 +14,32 @@ data class CachedMediaRecord(
     val extensionPackage: String,
 )
 
+data class CachedMediaSnapshot(
+    val rows: List<CachedMediaRecord>,
+    val fetchedAt: Long = 0L,
+) {
+    fun isStale(now: Long = System.currentTimeMillis(), maxAgeMs: Long = DEFAULT_MAX_AGE_MS): Boolean =
+        fetchedAt <= 0L || now - fetchedAt > maxAgeMs
+
+    companion object {
+        const val DEFAULT_MAX_AGE_MS = 6L * 60L * 60L * 1000L
+    }
+}
+
 /**
  * Sora-owned last-good catalog cache.
  *
- * Extensions can disappear, fail, or be offline without taking the UI away.
- * This cache stores only structured catalog metadata that Sora has already
- * received; provider code and credentials never enter Core storage.
+ * Only structured catalog metadata already returned by a real provider is
+ * stored here. Feed timestamps let the UI say when it is rendering saved data
+ * instead of implying a stale snapshot was freshly fetched.
  */
 class MediaCatalogCache(context: Context) {
     private val prefs = context.getSharedPreferences("sora_media_catalog_v1", Context.MODE_PRIVATE)
 
-    fun read(type: ContentType): List<CachedMediaRecord> =
-        decode(prefs.getString(key(type), null)).filterNot(::isLegacyDiagnosticRecord)
+    fun read(type: ContentType): List<CachedMediaRecord> = readSnapshot(type).rows
+
+    fun readSnapshot(type: ContentType, feed: String = DEFAULT_FEED): CachedMediaSnapshot =
+        decodeSnapshot(prefs.getString(key(type, feed), null))
 
     fun search(type: ContentType, query: String): List<CachedMediaRecord> {
         val q = query.trim().lowercase()
@@ -39,7 +53,9 @@ class MediaCatalogCache(context: Context) {
         prefs.edit().clear().apply()
     }
 
-    fun write(type: ContentType, rows: List<CachedMediaRecord>) {
+    fun write(type: ContentType, rows: List<CachedMediaRecord>) = write(type, DEFAULT_FEED, rows)
+
+    fun write(type: ContentType, feed: String, rows: List<CachedMediaRecord>, fetchedAt: Long = System.currentTimeMillis()) {
         val clean = rows.filterNot(::isLegacyDiagnosticRecord)
         if (clean.isEmpty()) return
         val array = JSONArray()
@@ -53,42 +69,58 @@ class MediaCatalogCache(context: Context) {
                 put("extensionPackage", row.extensionPackage)
             })
         }
-        prefs.edit().putString(key(type), array.toString()).apply()
+        val root = JSONObject()
+            .put("fetchedAt", fetchedAt)
+            .put("items", array)
+        prefs.edit().putString(key(type, feed), root.toString()).apply()
     }
 
-    private fun decode(raw: String?): List<CachedMediaRecord> {
-        if (raw.isNullOrBlank()) return emptyList()
+    private fun decodeSnapshot(raw: String?): CachedMediaSnapshot {
+        if (raw.isNullOrBlank()) return CachedMediaSnapshot(emptyList())
         return runCatching {
-            val array = JSONArray(raw)
-            buildList {
-                for (index in 0 until array.length()) {
-                    val item = array.getJSONObject(index)
-                    add(
-                        CachedMediaRecord(
-                            id = item.optString("id"),
-                            title = item.optString("title", "Untitled"),
-                            subtitle = item.optString("subtitle"),
-                            artworkUrl = item.optString("artworkUrl").takeIf { it.isNotBlank() && it != "null" },
-                            sourceId = item.optString("sourceId"),
-                            extensionPackage = item.optString("extensionPackage"),
-                        )
-                    )
-                }
+            if (raw.trimStart().startsWith("[")) {
+                // Backward compatibility with the old untimestamped v1 cache.
+                CachedMediaSnapshot(decodeRows(JSONArray(raw)).filterNot(::isLegacyDiagnosticRecord), 0L)
+            } else {
+                val root = JSONObject(raw)
+                CachedMediaSnapshot(
+                    rows = decodeRows(root.optJSONArray("items") ?: JSONArray()).filterNot(::isLegacyDiagnosticRecord),
+                    fetchedAt = root.optLong("fetchedAt", 0L),
+                )
             }
-        }.getOrDefault(emptyList())
+        }.getOrDefault(CachedMediaSnapshot(emptyList()))
     }
 
-    /**
-     * Migration cleanup for the old API-test APK. New diagnostic extensions are
-     * excluded before they reach the cache, but older builds may already have
-     * stored demo rows. Never surface those rows in the normal product UI.
-     */
+    private fun decodeRows(array: JSONArray): List<CachedMediaRecord> = buildList {
+        for (index in 0 until array.length()) {
+            val item = array.optJSONObject(index) ?: continue
+            val id = item.optString("id")
+            val title = item.optString("title")
+            if (id.isBlank() || title.isBlank()) continue
+            add(
+                CachedMediaRecord(
+                    id = id,
+                    title = title,
+                    subtitle = item.optString("subtitle"),
+                    artworkUrl = item.optString("artworkUrl").takeIf { it.isNotBlank() && it != "null" },
+                    sourceId = item.optString("sourceId"),
+                    extensionPackage = item.optString("extensionPackage"),
+                )
+            )
+        }
+    }
+
     private fun isLegacyDiagnosticRecord(row: CachedMediaRecord): Boolean =
         row.extensionPackage.contains(".demo", ignoreCase = true)
 
-    private fun key(type: ContentType) = "catalog_${type.name.lowercase()}"
+    private fun key(type: ContentType, feed: String): String {
+        val cleanFeed = feed.trim().lowercase().replace(Regex("[^a-z0-9_-]"), "_").ifBlank { DEFAULT_FEED }
+        val base = "catalog_${type.name.lowercase()}"
+        return if (cleanFeed == DEFAULT_FEED) base else "${base}_$cleanFeed"
+    }
 
     private companion object {
         const val MAX_ROWS = 80
+        const val DEFAULT_FEED = "default"
     }
 }

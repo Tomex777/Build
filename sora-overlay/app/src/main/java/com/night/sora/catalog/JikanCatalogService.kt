@@ -87,12 +87,18 @@ class JikanCatalogService : Service() {
                                     JSONObject().apply {
                                         put("id", details.id)
                                         put("title", details.title)
+                                        put("alternateTitle", details.alternateTitle)
                                         put("subtitle", details.subtitle)
                                         put("description", details.synopsis)
                                         put("artworkUrl", details.artworkUrl ?: JSONObject.NULL)
                                         put("score", details.score ?: JSONObject.NULL)
                                         put("status", details.status)
                                         put("genres", JSONArray(details.genres))
+                                        put("year", details.year ?: JSONObject.NULL)
+                                        put("season", details.season)
+                                        put("episodes", details.episodes ?: JSONObject.NULL)
+                                        put("chapters", details.chapters ?: JSONObject.NULL)
+                                        put("volumes", details.volumes ?: JSONObject.NULL)
                                     }.toString(),
                                 )
                             },

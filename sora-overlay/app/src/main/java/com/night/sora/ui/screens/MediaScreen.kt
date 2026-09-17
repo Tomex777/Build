@@ -71,6 +71,7 @@ private data class BrowseCard(
 )
 
 private fun CachedMediaRecord.toBrowseCard() = BrowseCard(id, title, subtitle, artworkUrl, sourceId, extensionPackage)
+private fun com.night.sora.data.CachedMediaSnapshot?.orEmptySnapshot() = this ?: com.night.sora.data.CachedMediaSnapshot(emptyList())
 private fun BrowseCard.toCachedRecord() = CachedMediaRecord(id, title, subtitle, artworkUrl, sourceId, extensionPackage)
 
 @Composable
@@ -96,12 +97,19 @@ fun MediaScreen(
     var musicLocal by remember { mutableStateOf(MusicLocal.HOME) }
     var rows by remember { mutableStateOf(mediaCache.read(ContentType.ANIME).map { it.toBrowseCard() }) }
     var popularRows by remember { mutableStateOf<List<BrowseCard>>(emptyList()) }
+    var seasonRows by remember { mutableStateOf<List<BrowseCard>>(emptyList()) }
     var upcomingRows by remember { mutableStateOf<List<BrowseCard>>(emptyList()) }
     var topRows by remember { mutableStateOf<List<BrowseCard>>(emptyList()) }
+    var discoverRows by remember { mutableStateOf<List<BrowseCard>>(emptyList()) }
     var searchOpen by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var switchOpen by remember { mutableStateOf(false) }
     var networkEpoch by remember { mutableIntStateOf(0) }
+    var refreshEpoch by remember { mutableIntStateOf(0) }
+    var primaryLoading by remember { mutableStateOf(false) }
+    var primaryError by remember { mutableStateOf<String?>(null) }
+    var primaryCacheFetchedAt by remember { mutableLongStateOf(0L) }
+    var feedFailures by remember { mutableIntStateOf(0) }
 
     val engine = remember { MusicTasteEngine() }
     val rankedTaste = remember(listeningSignals) { engine.ranked(listeningSignals, System.currentTimeMillis()) }
@@ -145,40 +153,95 @@ fun MediaScreen(
         artworkUrl = card.artworkUrl,
     )
 
-    fun loadJikanFeed(feed: String, requestType: ContentType, onResult: (List<BrowseCard>) -> Unit) {
-        if (requestType != ContentType.ANIME && requestType != ContentType.MANGA) {
-            onResult(emptyList())
-            return
-        }
+    fun jikanSource(requestType: ContentType): Pair<InstalledExtension, com.night.sora.extension.api.SourceDescriptor>? {
+        if (requestType != ContentType.ANIME && requestType != ContentType.MANGA) return null
         val key = typeKey(requestType)
-        val ext = extensions.firstOrNull { it.error == null && it.declaredId == "sora.core.jikan" }
-        val source = ext?.descriptor?.sources?.firstOrNull { key in it.contentTypes }
-        if (ext == null || source == null) {
-            onResult(emptyList())
+        val ext = extensions.firstOrNull { it.error == null && it.declaredId == "sora.core.jikan" } ?: return null
+        val source = ext.descriptor?.sources?.firstOrNull { key in it.contentTypes } ?: return null
+        return ext to source
+    }
+
+    fun loadJikanFeed(feed: String, requestType: ContentType, onResult: (Result<List<BrowseCard>>) -> Unit) {
+        val pair = jikanSource(requestType)
+        if (pair == null) {
+            onResult(Result.failure(IllegalStateException("Sora Anime & Manga catalog is unavailable")))
             return
         }
+        val (ext, source) = pair
         val payload = JSONObject()
             .put("sourceId", source.id)
-            .put("type", key)
+            .put("type", typeKey(requestType))
             .put("feed", feed)
             .toString()
         manager.call(ext, ExtensionContract.Method.BROWSE, payload) { result ->
-            onResult(result.getOrNull()?.let { parseBrowse(it, source.id, ext.packageName) }.orEmpty())
+            onResult(result.mapCatching { parseBrowse(it, source.id, ext.packageName) })
         }
     }
 
     fun load(search: String) {
         if (destination == MediaDestination.BIBLE) {
             rows = emptyList()
+            primaryLoading = false
+            primaryError = null
             return
         }
 
         val requestType = selectedType
         val requestDestination = destination
         val requestQuery = search.trim()
+
+        if (requestType == ContentType.ANIME || requestType == ContentType.MANGA) {
+            val pair = jikanSource(requestType)
+            val cached = if (requestQuery.isBlank()) {
+                val current = mediaCache.readSnapshot(requestType, "current")
+                if (current.rows.isNotEmpty()) current else mediaCache.readSnapshot(requestType)
+            } else null
+
+            if (requestQuery.isBlank()) {
+                rows = cached.orEmptySnapshot().rows.map { it.toBrowseCard() }
+                primaryCacheFetchedAt = cached?.fetchedAt ?: 0L
+            } else {
+                rows = emptyList()
+                primaryCacheFetchedAt = 0L
+            }
+            primaryLoading = true
+            primaryError = null
+
+            if (pair == null) {
+                primaryLoading = false
+                primaryError = "The built-in Jikan catalog is unavailable."
+                return
+            }
+            val (ext, source) = pair
+            val method = if (requestQuery.isBlank()) ExtensionContract.Method.BROWSE else ExtensionContract.Method.SEARCH
+            val payload = JSONObject()
+                .put("sourceId", source.id)
+                .put("type", typeKey(requestType))
+                .put("query", requestQuery)
+                .toString()
+            manager.call(ext, method, payload) { result ->
+                if (selectedType != requestType || destination != requestDestination || query.trim() != requestQuery) return@call
+                primaryLoading = false
+                result.mapCatching { parseBrowse(it, source.id, ext.packageName) }
+                    .onSuccess { fresh ->
+                        rows = fresh
+                        primaryError = null
+                        if (requestQuery.isBlank() && fresh.isNotEmpty()) {
+                            mediaCache.write(requestType, "current", fresh.map { it.toCachedRecord() })
+                            primaryCacheFetchedAt = System.currentTimeMillis()
+                        }
+                    }
+                    .onFailure { error ->
+                        primaryError = error.message ?: "Could not refresh the catalog."
+                    }
+            }
+            return
+        }
+
+        primaryLoading = false
+        primaryError = null
         val cached = if (requestQuery.isBlank()) mediaCache.read(requestType) else mediaCache.search(requestType, requestQuery)
         rows = cached.map { it.toBrowseCard() }
-
         val key = typeKey(requestType)
         val providers = extensions.flatMap { ext ->
             ext.descriptor?.sources.orEmpty()
@@ -190,50 +253,58 @@ fun MediaScreen(
         val method = if (requestQuery.isBlank()) ExtensionContract.Method.BROWSE else ExtensionContract.Method.SEARCH
         val collected = MutableList(providers.size) { emptyList<BrowseCard>() }
         var completed = 0
-
         providers.forEachIndexed { index, (ext, source) ->
-            val payload = JSONObject()
-                .put("sourceId", source.id)
-                .put("type", key)
-                .put("query", requestQuery)
-                .toString()
+            val payload = JSONObject().put("sourceId", source.id).put("type", key).put("query", requestQuery).toString()
             manager.call(ext, method, payload) { result ->
                 collected[index] = result.getOrNull()?.let { parseBrowse(it, source.id, ext.packageName) }.orEmpty()
                 completed++
                 if (completed == providers.size) {
                     val fresh = collected.flatten().distinctBy { it.title.trim().lowercase() }
-                    if (requestQuery.isBlank() && fresh.isNotEmpty()) {
-                        mediaCache.write(requestType, fresh.map { it.toCachedRecord() })
-                    }
-                    if (selectedType == requestType && destination == requestDestination && query.trim() == requestQuery) {
-                        if (fresh.isNotEmpty()) rows = fresh
-                    }
+                    if (requestQuery.isBlank() && fresh.isNotEmpty()) mediaCache.write(requestType, fresh.map { it.toCachedRecord() })
+                    if (selectedType == requestType && destination == requestDestination && query.trim() == requestQuery && fresh.isNotEmpty()) rows = fresh
                 }
             }
         }
     }
 
-    LaunchedEffect(selectedType, extensions, query, destination, networkEpoch) {
+    LaunchedEffect(selectedType, extensions, query, destination, networkEpoch, refreshEpoch) {
         if (destination == MediaDestination.BIBLE) return@LaunchedEffect
         if (query.isNotBlank()) delay(250)
         load(query)
     }
 
-    LaunchedEffect(selectedType, extensions, destination, networkEpoch) {
+    LaunchedEffect(selectedType, extensions, destination, networkEpoch, refreshEpoch) {
         popularRows = emptyList()
+        seasonRows = emptyList()
         upcomingRows = emptyList()
         topRows = emptyList()
+        discoverRows = emptyList()
+        feedFailures = 0
         if (destination != MediaDestination.ANIME_MANGA) return@LaunchedEffect
         if (selectedType != ContentType.ANIME && selectedType != ContentType.MANGA) return@LaunchedEffect
         val requestType = selectedType
-        loadJikanFeed("popular", requestType) { result ->
-            if (destination == MediaDestination.ANIME_MANGA && selectedType == requestType) popularRows = result
+
+        fun refreshFeed(feed: String, setRows: (List<BrowseCard>) -> Unit) {
+            val snapshot = mediaCache.readSnapshot(requestType, feed)
+            if (snapshot.rows.isNotEmpty()) setRows(snapshot.rows.map { it.toBrowseCard() })
+            loadJikanFeed(feed, requestType) { result ->
+                if (destination != MediaDestination.ANIME_MANGA || selectedType != requestType) return@loadJikanFeed
+                result.onSuccess { fresh ->
+                    if (fresh.isNotEmpty()) {
+                        setRows(fresh)
+                        mediaCache.write(requestType, feed, fresh.map { it.toCachedRecord() })
+                    }
+                }.onFailure { feedFailures++ }
+            }
         }
-        loadJikanFeed("upcoming", requestType) { result ->
-            if (destination == MediaDestination.ANIME_MANGA && selectedType == requestType) upcomingRows = result
-        }
-        loadJikanFeed("top", requestType) { result ->
-            if (destination == MediaDestination.ANIME_MANGA && selectedType == requestType) topRows = result
+
+        refreshFeed("popular") { popularRows = it }
+        refreshFeed("top") { topRows = it }
+        if (requestType == ContentType.ANIME) {
+            refreshFeed("season") { seasonRows = it }
+            refreshFeed("upcoming") { upcomingRows = it }
+        } else {
+            refreshFeed("recent") { discoverRows = it }
         }
     }
 
@@ -271,11 +342,16 @@ fun MediaScreen(
 
         when {
             destination == MediaDestination.BIBLE -> BibleHubContent(Modifier.fillMaxSize())
-            query.isNotBlank() -> SearchResultsSurface(rows, selectedType, ::selection, onOpenDetails, onPlayMusic)
+            query.isNotBlank() -> SearchResultsSurface(
+                rows = rows, type = selectedType, query = query, loading = primaryLoading, error = primaryError,
+                selection = ::selection, onOpen = onOpenDetails, onPlayMusic = onPlayMusic, onRetry = { refreshEpoch++ },
+            )
             destination == MediaDestination.ANIME_MANGA -> AnimeMangaSurface(
-                type = selectedType, rows = rows, popularRows = popularRows, upcomingRows = upcomingRows, topRows = topRows,
+                type = selectedType, rows = rows, popularRows = popularRows, seasonRows = seasonRows,
+                upcomingRows = upcomingRows, topRows = topRows, discoverRows = discoverRows,
+                loading = primaryLoading, error = primaryError, cacheFetchedAt = primaryCacheFetchedAt, feedFailures = feedFailures,
                 libraryEntries = libraryEntries, progressEntries = progressEntries, selection = ::selection, isSaved = isSaved,
-                onToggleSaved = onToggleSaved, onOpen = onOpenDetails, onResume = onResumeProgress,
+                onToggleSaved = onToggleSaved, onOpen = onOpenDetails, onResume = onResumeProgress, onRetry = { refreshEpoch++ },
             )
             destination == MediaDestination.MOVIES_TV -> MovieTvSurface(
                 type = selectedType, rows = rows, libraryEntries = libraryEntries, progressEntries = progressEntries,
@@ -376,8 +452,14 @@ private fun AnimeMangaSurface(
     type: ContentType,
     rows: List<BrowseCard>,
     popularRows: List<BrowseCard>,
+    seasonRows: List<BrowseCard>,
     upcomingRows: List<BrowseCard>,
     topRows: List<BrowseCard>,
+    discoverRows: List<BrowseCard>,
+    loading: Boolean,
+    error: String?,
+    cacheFetchedAt: Long,
+    feedFailures: Int,
     libraryEntries: List<LibraryEntry>,
     progressEntries: List<MediaProgressEntry>,
     selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
@@ -385,51 +467,75 @@ private fun AnimeMangaSurface(
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
     onOpen: (ExtensionMediaSelection) -> Unit,
     onResume: (MediaProgressEntry) -> Unit,
+    onRetry: () -> Unit,
 ) {
-    val selected = rows.firstOrNull() ?: popularRows.firstOrNull() ?: topRows.firstOrNull()
+    val selected = rows.firstOrNull() ?: seasonRows.firstOrNull() ?: popularRows.firstOrNull() ?: topRows.firstOrNull()
     val saved = libraryEntries.filter { it.contentType == type }
-    val continued = progressEntries.filter { it.contentType == type && it.progress < .999f }.sortedByDescending { it.updatedAt }
+    val continued = progressEntries
+        .filter { it.contentType == type && it.progress > 0f && it.progress < .999f }
+        .sortedByDescending { it.updatedAt }
     val currentLabel = if (type == ContentType.ANIME) "Airing now" else "Publishing now"
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
-        if (selected == null) item { EmptyFeatureShell(type) }
-        if (selected != null) item {
-            val selectedMedia = selection(selected, type)
-            StreamFeature(
-                card = selected,
-                kicker = currentLabel,
-                body = selected.subtitle.ifBlank {
-                    if (type == ContentType.ANIME) "Currently airing in the Sora catalog." else "Currently publishing in the Sora catalog."
-                },
-                primaryLabel = "Open",
-                selection = selectedMedia,
-                isSaved = isSaved(selectedMedia),
-                onToggleSaved = onToggleSaved,
-                onOpen = onOpen,
-            )
+    val notice = when {
+        error != null && rows.isNotEmpty() -> "Could not refresh. Showing saved catalog data${cacheAgeSuffix(cacheFetchedAt)}."
+        loading && rows.isNotEmpty() -> "Refreshing saved catalog data${cacheAgeSuffix(cacheFetchedAt)}…"
+        feedFailures > 0 && selected != null -> "Some discovery sections couldn't refresh. Showing the catalog data currently available."
+        else -> null
+    }
+
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 18.dp)) {
+        if (notice != null) item { CatalogNotice(notice) }
+        when {
+            selected != null -> item {
+                val selectedMedia = selection(selected, type)
+                StreamFeature(
+                    card = selected,
+                    kicker = currentLabel,
+                    body = selected.subtitle,
+                    primaryLabel = "Details",
+                    selection = selectedMedia,
+                    isSaved = isSaved(selectedMedia),
+                    onToggleSaved = onToggleSaved,
+                    onOpen = onOpen,
+                )
+            }
+            loading -> item { EmptyFeatureShell(type) }
+            error != null -> item { CatalogFailure(error, onRetry) }
+            else -> item { CatalogFailure("No live ${type.label.lowercase()} catalog items were returned.", onRetry) }
         }
+
         if (continued.isNotEmpty()) item {
-            MediaSectionTitle(
-                if (type == ContentType.ANIME) "Continue watching" else "Continue reading",
-                "Real progress from your last session",
-            )
+            MediaSectionTitle(if (type == ContentType.ANIME) "Continue watching" else "Continue reading", "Resume exactly where you stopped")
             ProgressLandscapeRail(continued, onResume)
         }
-        item {
-            MediaSectionTitle("In your library", if (type == ContentType.ANIME) "Anime you saved in Sora" else "Manga you saved in Sora")
-            if (saved.isNotEmpty()) ContinueLandscapeRail(saved, onOpen)
-            else HintLine(if (type == ContentType.ANIME) "Saved anime will appear here." else "Saved manga will appear here.")
+
+        if (saved.isNotEmpty()) item {
+            MediaSectionTitle("In your library", if (type == ContentType.ANIME) "Anime you saved" else "Manga you saved")
+            ContinueLandscapeRail(saved, onOpen)
         }
-        if (popularRows.isNotEmpty()) item {
-            MediaSectionTitle("Popular now", if (type == ContentType.ANIME) "Popular anime from the catalog" else "Popular manga from the catalog")
+
+        if (type == ContentType.ANIME && seasonRows.isNotEmpty()) item {
+            MediaSectionTitle("Popular this season", "Currently airing seasonal Anime from Jikan")
+            PortraitRail(seasonRows, type, selection, onOpen)
+        }
+        if (type == ContentType.MANGA && popularRows.isNotEmpty()) item {
+            MediaSectionTitle("Popular manga", "Popular Manga from the live catalog")
             PortraitRail(popularRows, type, selection, onOpen)
         }
-        if (upcomingRows.isNotEmpty()) item {
-            MediaSectionTitle(if (type == ContentType.ANIME) "Upcoming anime" else "Upcoming manga", "Titles coming next")
-            NewHotStack(upcomingRows.take(4), type, selection, onOpen)
+        if (type == ContentType.ANIME && popularRows.isNotEmpty()) item {
+            MediaSectionTitle("Popular anime", "Popular Anime from the live catalog")
+            PortraitRail(popularRows, type, selection, onOpen)
         }
         if (topRows.isNotEmpty()) item {
-            MediaSectionTitle("Top 10 ${type.label.lowercase()}", "Highest-ranked titles from the catalog")
+            MediaSectionTitle("Top 10 ${type.label.lowercase()}", "Highest-ranked titles returned by Jikan")
             TopTenRail(topRows.take(10), type, selection, onOpen)
+        }
+        if (type == ContentType.ANIME && upcomingRows.isNotEmpty()) item {
+            MediaSectionTitle("Upcoming anime", "Upcoming titles from Jikan")
+            NewHotStack(upcomingRows.take(5), type, selection, onOpen)
+        }
+        if (type == ContentType.MANGA && discoverRows.isNotEmpty()) item {
+            MediaSectionTitle("Recently started", "Manga ordered by start date from Jikan")
+            PortraitRail(discoverRows, type, selection, onOpen)
         }
         if (rows.isNotEmpty()) item {
             MediaSectionTitle(currentLabel, if (type == ContentType.ANIME) "Anime currently airing" else "Manga currently publishing")
@@ -651,52 +757,72 @@ private fun MemeSurface(rows: List<BrowseCard>, selection: (BrowseCard, ContentT
 }
 
 @Composable
-private fun SearchResultsSurface(rows: List<BrowseCard>, type: ContentType, selection: (BrowseCard, ContentType) -> ExtensionMediaSelection, onOpen: (ExtensionMediaSelection) -> Unit, onPlayMusic: (ExtensionMediaSelection, List<ExtensionMediaSelection>) -> Unit) {
+private fun SearchResultsSurface(
+    rows: List<BrowseCard>,
+    type: ContentType,
+    query: String,
+    loading: Boolean,
+    error: String?,
+    selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
+    onOpen: (ExtensionMediaSelection) -> Unit,
+    onPlayMusic: (ExtensionMediaSelection, List<ExtensionMediaSelection>) -> Unit,
+    onRetry: () -> Unit,
+) {
     val musicQueue = remember(rows, type) { if (type == ContentType.MUSIC) rows.map { selection(it, type) } else emptyList() }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
-        item { MediaSectionTitle("Results", type.label) }
-        items(rows, key = { it.id }) { card ->
-            Row(Modifier.fillMaxWidth().clickable { if (type == ContentType.MUSIC) onPlayMusic(selection(card, type), musicQueue) else onOpen(selection(card, type)) }.padding(horizontal = 18.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Poster(card.artworkUrl, card.title, Modifier.size(width = 58.dp, height = if (type == ContentType.MUSIC) 58.dp else 76.dp), if (type == ContentType.MUSIC) 7 else 5)
-                Column(Modifier.weight(1f).padding(horizontal = 12.dp)) { Text(type.label.uppercase(), color = SoraAccent, fontSize = 8.sp, fontWeight = FontWeight.Black); Text(card.title, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1); Text(card.subtitle, color = SoraMuted, fontSize = 10.sp, maxLines = 1) }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 18.dp)) {
+        item { MediaSectionTitle("Search", "${type.label} · ${query.trim()}") }
+        when {
+            loading && rows.isEmpty() -> items(6) { SearchResultSkeleton(type) }
+            error != null && rows.isEmpty() -> item { CatalogFailure(error, onRetry) }
+            !loading && rows.isEmpty() -> item {
+                Text("No ${type.label.lowercase()} results for “${query.trim()}”.", color = SoraMuted, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 24.dp))
+            }
+        }
+        items(rows, key = { "search-${type.name}-${it.id}" }) { card ->
+            Row(
+                Modifier.fillMaxWidth().clickable {
+                    if (type == ContentType.MUSIC) onPlayMusic(selection(card, type), musicQueue) else onOpen(selection(card, type))
+                }.padding(horizontal = 18.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Poster(card.artworkUrl, card.title, Modifier.size(width = 58.dp, height = if (type == ContentType.MUSIC) 58.dp else 82.dp), if (type == ContentType.MUSIC) 7 else 6)
+                Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                    Text(type.label.uppercase(), color = SoraAccent, fontSize = 8.sp, fontWeight = FontWeight.Black, letterSpacing = .8.sp)
+                    Text(card.title, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    if (card.subtitle.isNotBlank()) Text(card.subtitle, color = SoraMuted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Icon(Icons.Rounded.ChevronRight, null, tint = SoraFaint, modifier = Modifier.size(18.dp))
             }
         }
     }
 }
 
 @Composable
-private fun EmptyFeatureShell(type: ContentType) {
-    val kicker = when (type) {
-        ContentType.ANIME -> "FEATURED ANIME"
-        ContentType.MANGA -> "FEATURED MANGA"
-        ContentType.MOVIE -> "FEATURED MOVIE"
-        ContentType.TV -> "FEATURED SERIES"
-        ContentType.MUSIC -> "FEATURED MUSIC"
-        ContentType.MEME -> "FEATURED"
+private fun SearchResultSkeleton(type: ContentType) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(width = 58.dp, height = if (type == ContentType.MUSIC) 58.dp else 82.dp).background(SoraSurfaceHigh, RoundedCornerShape(6.dp)))
+        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+            Box(Modifier.width(52.dp).height(7.dp).background(SoraSurface, RoundedCornerShape(4.dp)))
+            Box(Modifier.padding(top = 8.dp).fillMaxWidth(.72f).height(11.dp).background(SoraSurfaceHigh, RoundedCornerShape(5.dp)))
+            Box(Modifier.padding(top = 7.dp).fillMaxWidth(.44f).height(8.dp).background(SoraSurface, RoundedCornerShape(4.dp)))
+        }
     }
+}
+
+@Composable
+private fun EmptyFeatureShell(type: ContentType) {
     Box(
-        Modifier.fillMaxWidth().height(260.dp)
-            .background(Brush.verticalGradient(listOf(Color(0xFF262621), Color(0xFF171714), SoraBg)))
+        Modifier.fillMaxWidth().height(360.dp)
+            .background(Brush.verticalGradient(listOf(Color(0xFF252520), Color(0xFF171714), SoraBg)))
     ) {
         Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
-            Text(kicker, color = SoraAccent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
-            Box(Modifier.padding(top = 10.dp).width(236.dp).height(28.dp).background(SoraSurfaceHigh, RoundedCornerShape(6.dp)))
-            Box(Modifier.padding(top = 9.dp).width(292.dp).height(10.dp).background(SoraSurfaceHigh, RoundedCornerShape(5.dp)))
-            Box(Modifier.padding(top = 6.dp).width(220.dp).height(10.dp).background(SoraSurfaceHigh, RoundedCornerShape(5.dp)))
-            Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Surface(color = Color.White.copy(alpha = .12f), shape = RoundedCornerShape(6.dp)) {
-                    Row(Modifier.padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(if (type == ContentType.MANGA) Icons.Rounded.MenuBook else Icons.Rounded.PlayArrow, null, tint = SoraMuted, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(if (type == ContentType.MANGA) "Read" else "Continue", color = SoraMuted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-                Surface(color = SoraSurfaceHigh, shape = RoundedCornerShape(6.dp)) {
-                    Row(Modifier.padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Add, null, tint = SoraMuted, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp)); Text("Library", color = SoraMuted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
+            Box(Modifier.width(84.dp).height(8.dp).background(SoraSurfaceHigh, RoundedCornerShape(4.dp)))
+            Box(Modifier.padding(top = 12.dp).width(244.dp).height(30.dp).background(SoraSurfaceHigh, RoundedCornerShape(6.dp)))
+            Box(Modifier.padding(top = 10.dp).width(290.dp).height(10.dp).background(SoraSurfaceHigh, RoundedCornerShape(5.dp)))
+            Box(Modifier.padding(top = 7.dp).width(214.dp).height(10.dp).background(SoraSurface, RoundedCornerShape(5.dp)))
+            Row(Modifier.padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.width(106.dp).height(42.dp).background(Color.White.copy(alpha = .10f), RoundedCornerShape(7.dp)))
+                Box(Modifier.width(106.dp).height(42.dp).background(SoraSurfaceHigh, RoundedCornerShape(7.dp)))
             }
         }
     }
@@ -712,7 +838,7 @@ private fun StreamFeature(card: BrowseCard, kicker: String, body: String, primar
             Text(card.title, fontSize = 31.sp, lineHeight = 33.sp, fontWeight = FontWeight.Black, maxLines = 2, modifier = Modifier.padding(top = 7.dp))
             Text(body, color = Color.White.copy(alpha = .78f), fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 5.dp))
             Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { onOpen(selection) }, colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black), shape = RoundedCornerShape(6.dp)) { Icon(if (selection.type == ContentType.MANGA) Icons.Rounded.MenuBook else Icons.Rounded.PlayArrow, null); Spacer(Modifier.width(5.dp)); Text(primaryLabel, fontWeight = FontWeight.Bold) }
+                Button(onClick = { onOpen(selection) }, colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black), shape = RoundedCornerShape(6.dp)) { Icon(Icons.Rounded.Info, null); Spacer(Modifier.width(5.dp)); Text(primaryLabel, fontWeight = FontWeight.Bold) }
                 FilledTonalButton(onClick = { onToggleSaved(selection) }, shape = RoundedCornerShape(6.dp), colors = ButtonDefaults.filledTonalButtonColors(containerColor = Color(0xCC282824), contentColor = Color.White)) { Icon(if (isSaved) Icons.Rounded.Check else Icons.Rounded.Add, null); Spacer(Modifier.width(5.dp)); Text("Library") }
             }
         }
@@ -811,29 +937,16 @@ private fun ContinueLandscapeRail(entries: List<LibraryEntry>, onOpen: (Extensio
 
 @Composable
 private fun NewHotStack(rows: List<BrowseCard>, type: ContentType, selection: (BrowseCard, ContentType) -> ExtensionMediaSelection, onOpen: (ExtensionMediaSelection) -> Unit) {
-    Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (rows.isEmpty()) {
-            repeat(3) { index ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.width(47.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("SOON", color = SoraFaint, fontSize = 8.sp, fontWeight = FontWeight.Black)
-                        Text("${index + 1}", color = SoraFaint, fontSize = 19.sp, fontWeight = FontWeight.Black)
-                    }
-                    Box(Modifier.size(width = 54.dp, height = 74.dp).background(SoraSurfaceHigh, RoundedCornerShape(6.dp)))
-                    Column(Modifier.weight(1f).padding(start = 11.dp)) {
-                        Box(Modifier.width(64.dp).height(7.dp).background(SoraSurfaceHigh, RoundedCornerShape(4.dp)))
-                        Box(Modifier.padding(top = 8.dp).fillMaxWidth(.62f).height(10.dp).background(SoraSurfaceHigh, RoundedCornerShape(4.dp)))
-                        Box(Modifier.padding(top = 6.dp).fillMaxWidth(.42f).height(7.dp).background(SoraSurface, RoundedCornerShape(4.dp)))
-                    }
+    Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        rows.forEach { card ->
+            Row(Modifier.fillMaxWidth().clickable { onOpen(selection(card, type)) }, verticalAlignment = Alignment.CenterVertically) {
+                Poster(card.artworkUrl, card.title, Modifier.size(width = 62.dp, height = 88.dp), 6)
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text("UPCOMING", color = SoraAccent, fontSize = 8.sp, fontWeight = FontWeight.Black, letterSpacing = .8.sp)
+                    Text(card.title, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp))
+                    if (card.subtitle.isNotBlank()) Text(card.subtitle, color = SoraMuted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp))
                 }
-            }
-        } else {
-            rows.forEachIndexed { index, card ->
-                Row(Modifier.fillMaxWidth().clickable { onOpen(selection(card, type)) }, verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.width(47.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text("SOON", color = SoraMuted, fontSize = 8.sp, fontWeight = FontWeight.Black); Text("${index + 1}", fontSize = 19.sp, fontWeight = FontWeight.Black) }
-                    Poster(card.artworkUrl, card.title, Modifier.size(width = 54.dp, height = 74.dp), 6)
-                    Column(Modifier.weight(1f).padding(start = 11.dp)) { Text(if (index == 0) "NEW NOW" else "COMING SOON", color = SoraAccent, fontSize = 8.sp, fontWeight = FontWeight.Black); Text(card.title, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1); Text(card.subtitle, color = SoraMuted, fontSize = 9.sp, maxLines = 1) }
-                }
+                Icon(Icons.Rounded.ChevronRight, null, tint = SoraFaint, modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -971,6 +1084,35 @@ private fun Poster(url: String?, title: String, modifier: Modifier, radius: Int)
 
 @Composable
 private fun MissingMediaSource(label: String, onOpenExtensions: () -> Unit) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(28.dp)) { Icon(Icons.Rounded.ExtensionOff, null, tint = SoraMuted, modifier = Modifier.size(38.dp)); Text("No $label source installed", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp)); Text("Add one from More → Extensions.", color = SoraMuted, fontSize = 11.sp); TextButton(onClick = onOpenExtensions) { Text("Manage extensions") } } } }
+
+@Composable
+private fun CatalogNotice(text: String) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Rounded.CloudOff, null, tint = SoraMuted, modifier = Modifier.size(16.dp))
+        Text(text, color = SoraMuted, fontSize = 10.sp, lineHeight = 14.sp, modifier = Modifier.padding(start = 8.dp))
+    }
+}
+
+@Composable
+private fun CatalogFailure(message: String, onRetry: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 24.dp)) {
+        Icon(Icons.Rounded.CloudOff, null, tint = SoraMuted, modifier = Modifier.size(28.dp))
+        Text("Catalog unavailable", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
+        Text(message, color = SoraMuted, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 5.dp))
+        TextButton(onClick = onRetry, contentPadding = PaddingValues(vertical = 8.dp)) { Text("Retry") }
+    }
+}
+
+private fun cacheAgeSuffix(fetchedAt: Long): String {
+    if (fetchedAt <= 0L) return ""
+    val minutes = ((System.currentTimeMillis() - fetchedAt).coerceAtLeast(0L) / 60_000L)
+    return when {
+        minutes < 1 -> " from moments ago"
+        minutes < 60 -> " from ${minutes}m ago"
+        minutes < 1_440 -> " from ${minutes / 60}h ago"
+        else -> " from ${minutes / 1_440}d ago"
+    }
+}
 
 @Composable
 private fun HintLine(text: String) { Text(text, color = SoraMuted, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp)) }

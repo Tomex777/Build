@@ -52,9 +52,15 @@ private data class DetailRow(val id: String, val title: String, val subtitle: St
 
 private data class DetailMetadata(
     val description: String,
+    val alternateTitle: String = "",
     val status: String = "",
     val score: String = "",
     val genres: List<String> = emptyList(),
+    val year: Int? = null,
+    val season: String = "",
+    val episodes: Int? = null,
+    val chapters: Int? = null,
+    val volumes: Int? = null,
 )
 
 @Composable
@@ -84,6 +90,7 @@ fun MediaDetailScreen(
     var sourcePickerOpen by remember { mutableStateOf(false) }
     var sourceSearchBusy by remember { mutableStateOf(false) }
     var sourceSearchError by remember { mutableStateOf<String?>(null) }
+    var sourceResolutionMessage by remember { mutableStateOf<String?>(null) }
     var browserSession by remember { mutableStateOf<SourceBrowserSession?>(null) }
     var browserBusy by remember { mutableStateOf(false) }
     var browserError by remember { mutableStateOf<String?>(null) }
@@ -174,12 +181,15 @@ fun MediaDetailScreen(
         browserError = null
         readerError = null
         playbackError = null
+        sourceResolutionMessage = null
         searchSourceSelection(active, ext, source, manager) { found ->
             sourceSearchBusy = false
             if (found == null) {
-                sourceSearchError = "${source.name} did not return a match for ${active.title}."
+                sourceSearchError = "${source.name} did not return an exact title match for ${active.title}."
+                sourceResolutionMessage = "That source could not verify an exact match for this title. Choose another source manually."
             } else {
                 consumption = found
+                sourceResolutionMessage = null
                 sourcePrefs.edit().putString(preferredSourceKey(active.type), "${ext.packageName}|${source.id}").apply()
                 if (dismissOnSuccess) sourcePickerOpen = false
             }
@@ -330,7 +340,14 @@ fun MediaDetailScreen(
             }
             if (option != null) {
                 searchSourceSelection(requested, option.first, option.second, manager) { found ->
-                    if (found != null && active.id == requested.id && active.type == requested.type) consumption = found
+                    if (active.id == requested.id && active.type == requested.type) {
+                        if (found != null) {
+                            consumption = found
+                            sourceResolutionMessage = null
+                        } else {
+                            sourceResolutionMessage = "Your default source (${option.second.name}) could not verify this title. Choose a source manually."
+                        }
+                    }
                 }
             }
         }
@@ -359,13 +376,10 @@ fun MediaDetailScreen(
             item(key = "actions") {
                 DetailActionRow(
                     saved = isSaved(active),
-                    browserEnabled = webViewAvailable && !browserBusy,
-                    browserBusy = browserBusy,
                     type = active.type,
                     counterpart = counterpart,
                     onLibrary = { onToggleSaved(active) },
                     onAdaptation = { counterpart?.let { active = it } },
-                    onWebView = ::openBrowser,
                 )
             }
 
@@ -424,6 +438,7 @@ fun MediaDetailScreen(
                         NoConsumptionSource(
                             type = active.type,
                             hasOptions = sourceOptions.isNotEmpty(),
+                            message = sourceResolutionMessage,
                             onChooseSource = { sourcePickerOpen = true },
                         )
                     }
@@ -576,7 +591,22 @@ private fun DetailInfoHeader(selection: ExtensionMediaSelection, metadata: Detai
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(selection.title, fontSize = 22.sp, lineHeight = 26.sp, fontWeight = FontWeight.SemiBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                if (selection.subtitle.isNotBlank()) Text(selection.subtitle, color = SoraMuted, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (metadata.alternateTitle.isNotBlank()) {
+                    Text(metadata.alternateTitle, color = SoraMuted, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+                val facts = buildList {
+                    metadata.year?.let { add(it.toString()) }
+                    metadata.season.takeIf(String::isNotBlank)?.replaceFirstChar { it.uppercase() }?.let(::add)
+                    when (selection.type) {
+                        ContentType.ANIME -> metadata.episodes?.let { add("$it episodes") }
+                        ContentType.MANGA -> {
+                            metadata.chapters?.let { add("$it chapters") }
+                            metadata.volumes?.let { add("$it volumes") }
+                        }
+                        else -> Unit
+                    }
+                }
+                if (facts.isNotEmpty()) Text(facts.joinToString(" · "), color = SoraMuted, fontSize = 12.sp, maxLines = 2)
                 if (metadata.score.isNotBlank()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Rounded.Star, null, tint = SoraAccent, modifier = Modifier.size(16.dp))
@@ -587,10 +617,6 @@ private fun DetailInfoHeader(selection: ExtensionMediaSelection, metadata: Detai
                     Icon(statusIcon(metadata.status), null, tint = SoraMuted, modifier = Modifier.size(16.dp))
                     Text(metadata.status.ifBlank { "Unknown status" }, color = SoraMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 4.dp))
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Public, null, tint = SoraMuted, modifier = Modifier.size(16.dp))
-                    Text(sourceName, color = SoraMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 4.dp))
-                }
             }
         }
     }
@@ -599,13 +625,10 @@ private fun DetailInfoHeader(selection: ExtensionMediaSelection, metadata: Detai
 @Composable
 private fun DetailActionRow(
     saved: Boolean,
-    browserEnabled: Boolean,
-    browserBusy: Boolean,
     type: ContentType,
     counterpart: ExtensionMediaSelection?,
     onLibrary: () -> Unit,
     onAdaptation: () -> Unit,
-    onWebView: () -> Unit,
 ) {
     Row(Modifier.fillMaxWidth().padding(start = 16.dp, top = 8.dp, end = 16.dp)) {
         DetailActionButton(
@@ -622,14 +645,9 @@ private fun DetailActionRow(
                 enabled = counterpart != null,
                 onClick = onAdaptation,
             )
+        } else {
+            Spacer(Modifier.weight(1f))
         }
-        DetailActionButton(
-            title = if (browserBusy) "Opening…" else "Web view",
-            icon = Icons.Rounded.Public,
-            highlighted = browserEnabled,
-            enabled = browserEnabled,
-            onClick = onWebView,
-        )
     }
 }
 
@@ -674,7 +692,9 @@ private fun DetailDescription(metadata: DetailMetadata, fallback: String, expand
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 items(metadata.genres, key = { it }) { genre ->
-                    SuggestionChip(onClick = {}, label = { Text(genre, fontSize = 11.sp) })
+                    Surface(color = SoraSurfaceHigh, shape = RoundedCornerShape(999.dp)) {
+                        Text(genre, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
+                    }
                 }
             }
         }
@@ -728,12 +748,12 @@ private fun SecondaryListRow(row: DetailRow, type: ContentType) {
 }
 
 @Composable
-private fun NoConsumptionSource(type: ContentType, hasOptions: Boolean, onChooseSource: () -> Unit) {
+private fun NoConsumptionSource(type: ContentType, hasOptions: Boolean, message: String? = null, onChooseSource: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp)) {
         Text("No ${consumptionNoun(type)} source selected", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
         Text(
-            if (hasOptions) "The catalog supplies the title metadata. Choose an installed source for the actual ${consumptionVerb(type)} data."
-            else "The catalog supplies the title metadata. Install a compatible source extension to load actual ${consumptionVerb(type)} data.",
+            message ?: if (hasOptions) "Choose an installed source for the actual ${consumptionVerb(type)} data."
+            else "Install a compatible source extension to load actual ${consumptionVerb(type)} data.",
             color = SoraMuted,
             fontSize = 12.sp,
             lineHeight = 17.sp,
@@ -759,9 +779,15 @@ private fun parseMetadata(raw: String, fallback: String): DetailMetadata = runCa
     val score = obj.optDouble("score").takeUnless { it.isNaN() || it <= 0.0 }?.let { String.format("%.1f", it) }.orEmpty()
     DetailMetadata(
         description = obj.optString("description", fallback),
+        alternateTitle = obj.optString("alternateTitle"),
         status = obj.optString("status"),
         score = score,
         genres = genres,
+        year = obj.optInt("year", 0).takeIf { it > 0 },
+        season = obj.optString("season"),
+        episodes = obj.optInt("episodes", 0).takeIf { it > 0 },
+        chapters = obj.optInt("chapters", 0).takeIf { it > 0 },
+        volumes = obj.optInt("volumes", 0).takeIf { it > 0 },
     )
 }.getOrElse { DetailMetadata(fallback) }
 
@@ -837,16 +863,27 @@ private fun parseBestSourceSelection(raw: String, sourceId: String, packageName:
     val array = JSONArray(raw)
     if (array.length() == 0) return@runCatching null
     val target = normalizeTitle(active.title)
-    var best: JSONObject? = null
+    if (target.isBlank()) return@runCatching null
+
+    fun names(item: JSONObject): List<String> = buildList {
+        listOf("title", "alternateTitle", "englishTitle", "romajiTitle").forEach { key ->
+            item.optString(key).takeIf(String::isNotBlank)?.let(::add)
+        }
+        val aliases = item.optJSONArray("aliases")
+        if (aliases != null) for (index in 0 until aliases.length()) {
+            aliases.optString(index).takeIf(String::isNotBlank)?.let(::add)
+        }
+    }
+
+    var exact: JSONObject? = null
     for (i in 0 until array.length()) {
         val item = array.optJSONObject(i) ?: continue
-        val candidate = normalizeTitle(item.optString("title"))
-        if (candidate == target || candidate.contains(target) || target.contains(candidate)) {
-            best = item
+        if (names(item).any { normalizeTitle(it) == target }) {
+            exact = item
             break
         }
     }
-    val item = best ?: array.optJSONObject(0) ?: return@runCatching null
+    val item = exact ?: return@runCatching null
     ExtensionMediaSelection(
         id = item.optString("id"),
         sourceId = sourceId,
@@ -859,41 +896,12 @@ private fun parseBestSourceSelection(raw: String, sourceId: String, packageName:
 }.getOrNull()
 
 private fun findCounterpart(active: ExtensionMediaSelection, extensions: List<InstalledExtension>, manager: ExtensionManager, callback: (ExtensionMediaSelection?) -> Unit) {
-    val opposite = if (active.type == ContentType.ANIME) ContentType.MANGA else if (active.type == ContentType.MANGA) ContentType.ANIME else return callback(null)
-
-    if (manager.findBuiltInJikanCounterpart(active) { result -> callback(result.getOrNull()) }) return
-    val key = opposite.name.lowercase()
-    val providers = extensions.flatMap { ext ->
-        ext.descriptor?.sources.orEmpty()
-            .filter { source -> ext.isCatalogProvider() && key in source.contentTypes }
-            .map { source -> ext to source }
+    if (active.type != ContentType.ANIME && active.type != ContentType.MANGA) return callback(null)
+    // Only Jikan's explicit Adaptation relation is trusted. A title search is not
+    // evidence that two works are counterparts and can link the wrong series.
+    if (!manager.findBuiltInJikanCounterpart(active) { result -> callback(result.getOrNull()) }) {
+        callback(null)
     }
-    if (providers.isEmpty()) return callback(null)
-
-    val normalized = normalizeTitle(active.title)
-    fun tryProvider(index: Int) {
-        if (index >= providers.size) return callback(null)
-        val (ext, source) = providers[index]
-        val payload = JSONObject().put("sourceId", source.id).put("type", key).put("query", active.title).toString()
-        manager.call(ext, ExtensionContract.Method.SEARCH, payload) { result ->
-            val found = result.getOrNull()?.let { raw ->
-                runCatching {
-                    val arr = JSONArray(raw)
-                    var best: JSONObject? = null
-                    for (i in 0 until arr.length()) {
-                        val item = arr.getJSONObject(i)
-                        val name = normalizeTitle(item.optString("title"))
-                        if (name == normalized || name.contains(normalized) || normalized.contains(name)) { best = item; break }
-                    }
-                    best?.let {
-                        ExtensionMediaSelection(it.optString("id"), source.id, ext.packageName, opposite, it.optString("title"), it.optString("subtitle"), detailArtwork(it))
-                    }
-                }.getOrNull()
-            }
-            if (found != null) callback(found) else tryProvider(index + 1)
-        }
-    }
-    tryProvider(0)
 }
 
 private fun parseRows(type: ContentType, raw: String): List<DetailRow> = runCatching {

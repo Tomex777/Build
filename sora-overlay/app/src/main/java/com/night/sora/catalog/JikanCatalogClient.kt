@@ -33,12 +33,18 @@ class JikanCatalogClient {
         val id: String,
         val type: ContentType,
         val title: String,
+        val alternateTitle: String,
         val subtitle: String,
         val synopsis: String,
         val artworkUrl: String?,
         val score: Double?,
         val status: String,
         val genres: List<String>,
+        val year: Int?,
+        val season: String,
+        val episodes: Int?,
+        val chapters: Int?,
+        val volumes: Int?,
     )
 
     fun browse(type: ContentType, feed: String = "", callback: (Result<List<CatalogItem>>) -> Unit) {
@@ -47,12 +53,14 @@ class JikanCatalogClient {
         val endpoint = when (type) {
             ContentType.ANIME -> when (cleanFeed) {
                 "popular" -> "$BASE_URL/top/anime?filter=bypopularity&limit=25&sfw=true"
+                "season" -> "$BASE_URL/seasons/now?limit=25&sfw=true"
                 "upcoming" -> "$BASE_URL/top/anime?filter=upcoming&limit=25&sfw=true"
                 "top" -> "$BASE_URL/top/anime?limit=25&sfw=true"
                 else -> "$BASE_URL/top/anime?filter=airing&limit=25&sfw=true"
             }
             ContentType.MANGA -> when (cleanFeed) {
                 "popular" -> "$BASE_URL/top/manga?filter=bypopularity&limit=25"
+                "recent" -> "$BASE_URL/manga?order_by=start_date&sort=desc&limit=25"
                 "upcoming" -> "$BASE_URL/top/manga?filter=upcoming&limit=25"
                 "top" -> "$BASE_URL/top/manga?limit=25"
                 else -> "$BASE_URL/top/manga?filter=publishing&limit=25"
@@ -79,7 +87,10 @@ class JikanCatalogClient {
 
     fun details(type: ContentType, id: String, callback: (Result<CatalogDetails>) -> Unit) {
         requireJikanType(type)
-        val endpoint = "$BASE_URL/${pathFor(type)}/${id.trim()}"
+        // Jikan's /full object carries the same core metadata plus the exact
+        // MAL relationship graph. Using it keeps details and relationship
+        // truth anchored to one canonical response instead of extra calls.
+        val endpoint = "$BASE_URL/${pathFor(type)}/${id.trim()}/full"
         request(endpoint) { result ->
             callback(result.mapCatching { root -> parseDetails(root.getJSONObject("data"), type) })
         }
@@ -88,52 +99,72 @@ class JikanCatalogClient {
     fun counterpart(type: ContentType, id: String, callback: (Result<CatalogItem?>) -> Unit) {
         requireJikanType(type)
         val opposite = if (type == ContentType.ANIME) ContentType.MANGA else ContentType.ANIME
-        val endpoint = "$BASE_URL/${pathFor(type)}/${id.trim()}/relations"
-        request(endpoint) { result ->
-            result.fold(
+        val cleanId = id.trim()
+
+        fun finish(related: Pair<Int, String>?) {
+            if (related == null) {
+                callback(Result.success(null))
+                return
+            }
+            details(opposite, related.first.toString()) { detailResult ->
+                callback(
+                    detailResult.map { detail ->
+                        CatalogItem(
+                            id = detail.id,
+                            type = opposite,
+                            title = detail.title.ifBlank { related.second },
+                            subtitle = detail.subtitle,
+                            artworkUrl = detail.artworkUrl,
+                        )
+                    }
+                )
+            }
+        }
+
+        // Prefer the canonical full object because it already includes Jikan's
+        // MAL relations. The dedicated relations endpoint is only a fallback
+        // for transient/full-endpoint failures. Both paths accept Adaptation
+        // only; Sora never guesses counterparts by title.
+        val fullEndpoint = "$BASE_URL/${pathFor(type)}/$cleanId/full"
+        request(fullEndpoint) { fullResult ->
+            fullResult.fold(
                 onSuccess = { root ->
-                    val related = findOppositeRelation(root.optJSONArray("data") ?: JSONArray(), opposite)
-                    if (related == null) {
-                        callback(Result.success(null))
-                    } else {
-                        details(opposite, related.first.toString()) { detailResult ->
-                            callback(
-                                detailResult.map { detail ->
-                                    CatalogItem(
-                                        id = detail.id,
-                                        type = opposite,
-                                        title = detail.title.ifBlank { related.second },
-                                        subtitle = detail.subtitle,
-                                        artworkUrl = detail.artworkUrl,
-                                    )
-                                }
-                            )
-                        }
+                    val item = root.optJSONObject("data") ?: JSONObject()
+                    val relations = item.optJSONArray("relations") ?: JSONArray()
+                    finish(findOppositeRelation(relations, opposite))
+                },
+                onFailure = { fullError ->
+                    val relationsEndpoint = "$BASE_URL/${pathFor(type)}/$cleanId/relations"
+                    request(relationsEndpoint) { relationsResult ->
+                        relationsResult.fold(
+                            onSuccess = { root ->
+                                finish(findOppositeRelation(root.optJSONArray("data") ?: JSONArray(), opposite))
+                            },
+                            onFailure = { relationsError ->
+                                relationsError.addSuppressed(fullError)
+                                callback(Result.failure(relationsError))
+                            },
+                        )
                     }
                 },
-                onFailure = { callback(Result.failure(it)) },
             )
         }
     }
 
     private fun findOppositeRelation(data: JSONArray, opposite: ContentType): Pair<Int, String>? {
         val targetType = if (opposite == ContentType.ANIME) "anime" else "manga"
-        var fallback: Pair<Int, String>? = null
         for (i in 0 until data.length()) {
             val relation = data.optJSONObject(i) ?: continue
-            val relationName = relation.optString("relation")
+            if (!relation.optString("relation").equals("Adaptation", ignoreCase = true)) continue
             val entries = relation.optJSONArray("entry") ?: continue
             for (j in 0 until entries.length()) {
                 val entry = entries.optJSONObject(j) ?: continue
                 if (!entry.optString("type").equals(targetType, ignoreCase = true)) continue
                 val id = entry.optInt("mal_id", -1)
-                if (id <= 0) continue
-                val pair = id to entry.optString("name")
-                if (relationName.equals("Adaptation", ignoreCase = true)) return pair
-                if (fallback == null) fallback = pair
+                if (id > 0) return id to entry.optString("name")
             }
         }
-        return fallback
+        return null
     }
 
     private fun parseList(root: JSONObject, type: ContentType): List<CatalogItem> {
@@ -168,16 +199,34 @@ class JikanCatalogClient {
                 array.optJSONObject(i)?.optString("name")?.takeIf(String::isNotBlank)?.let(::add)
             }
         }
+        val title = preferredTitle(item)
+        val originalTitle = item.optString("title").takeUnless { it == "null" }.orEmpty().trim()
+        val japaneseTitle = item.optString("title_japanese").takeUnless { it == "null" }.orEmpty().trim()
+        val alternateTitle = listOf(originalTitle, japaneseTitle)
+            .firstOrNull { it.isNotBlank() && !it.equals(title, ignoreCase = true) }
+            .orEmpty()
+        val directYear = item.optInt("year", 0).takeIf { it > 0 }
+        val publishedYear = item.optJSONObject("published")
+            ?.optJSONObject("prop")
+            ?.optJSONObject("from")
+            ?.optInt("year", 0)
+            ?.takeIf { it > 0 }
         return CatalogDetails(
             id = id,
             type = type,
-            title = preferredTitle(item),
+            title = title,
+            alternateTitle = alternateTitle,
             subtitle = subtitle(item, type),
             synopsis = item.optString("synopsis").takeUnless { it == "null" }.orEmpty(),
             artworkUrl = image(item),
             score = item.optDouble("score").takeUnless { it.isNaN() || it <= 0.0 },
             status = item.optString("status").takeUnless { it == "null" }.orEmpty(),
             genres = genres,
+            year = directYear ?: publishedYear,
+            season = item.optString("season").takeUnless { it == "null" }.orEmpty(),
+            episodes = item.optInt("episodes", 0).takeIf { it > 0 },
+            chapters = item.optInt("chapters", 0).takeIf { it > 0 },
+            volumes = item.optInt("volumes", 0).takeIf { it > 0 },
         )
     }
 
@@ -223,7 +272,7 @@ class JikanCatalogClient {
 
     private fun requestJsonWithRetry(url: String): JSONObject {
         var lastError: Throwable? = null
-        repeat(2) { attempt ->
+        repeat(MAX_REQUEST_ATTEMPTS) { attempt ->
             try {
                 throttle()
                 val connection = URL(url).openConnection() as HttpURLConnection
@@ -233,22 +282,35 @@ class JikanCatalogClient {
                 connection.setRequestProperty("Accept", "application/json")
                 connection.setRequestProperty("User-Agent", "Sora-Android/0.4")
                 val code = connection.responseCode
-                if (code == 429 && attempt == 0) {
-                    connection.disconnect()
-                    Thread.sleep(1_100)
-                    return@repeat
-                }
                 val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-                val body = BufferedReader(InputStreamReader(stream)).use { it.readText() }
+                val body = stream?.let { input ->
+                    BufferedReader(InputStreamReader(input)).use { reader -> reader.readText() }
+                }.orEmpty()
+                val retryAfterSeconds = connection.getHeaderField("Retry-After")?.toLongOrNull()
                 connection.disconnect()
-                if (code !in 200..299) error("Jikan HTTP $code")
-                return JSONObject(body)
+
+                if (code in 200..299) return JSONObject(body)
+
+                val retryable = code == 408 || code == 425 || code == 429 || code in 500..599
+                if (!retryable || attempt == MAX_REQUEST_ATTEMPTS - 1) {
+                    error("Jikan HTTP $code")
+                }
+
+                lastError = IllegalStateException("Jikan HTTP $code")
+                val serverDelayMs = retryAfterSeconds?.times(1_000L)
+                Thread.sleep(serverDelayMs ?: retryDelayMs(attempt))
             } catch (t: Throwable) {
                 lastError = t
-                if (attempt == 0) Thread.sleep(450)
+                if (attempt < MAX_REQUEST_ATTEMPTS - 1) Thread.sleep(retryDelayMs(attempt))
             }
         }
         throw lastError ?: IllegalStateException("Jikan request failed")
+    }
+
+    private fun retryDelayMs(attempt: Int): Long = when (attempt) {
+        0 -> 900L
+        1 -> 1_800L
+        else -> 3_000L
     }
 
     private fun throttle() {
@@ -278,6 +340,7 @@ class JikanCatalogClient {
 
         private const val BASE_URL = "https://api.jikan.moe/v4"
         private const val MIN_REQUEST_GAP_MS = 380L
+        private const val MAX_REQUEST_ATTEMPTS = 3
         private val executor = Executors.newSingleThreadExecutor()
         private val main = Handler(Looper.getMainLooper())
         private val rateLock = Any()
