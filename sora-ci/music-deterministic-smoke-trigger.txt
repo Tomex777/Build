@@ -1,1 +1,1 @@
-2026-09-17 rerun deterministic Sora Music smoke with CI-only catalog promotion and stable ExoPlayer MP3 fixture, current workflow.
+2026-09-17 rerun deterministic Music smoke with standard Previous restart semantics accounted for.
