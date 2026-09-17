@@ -4,12 +4,12 @@ import { setting } from "../../shared/config-schema";
 export const coreModule = defineModule({
   id: "core",
   name: "Core",
-  version: "0.2.0",
+  version: "0.3.0",
   description: "Base Bailey Host behaviour and bot defaults.",
   settings: [
     setting.text("prefix", "Command prefix", ".", {
       env: "BAILEY_PREFIX",
-      description: "Prefix used before commands, for example .status.",
+      description: "Prefix shown and parsed before every command trigger.",
       placeholder: ".",
     }),
     setting.text("owner", "Owner number / JID", "", {
@@ -48,19 +48,19 @@ export const coreModule = defineModule({
   ],
   commands: [
     defineCommand({
+      id: "status",
       name: "status",
+      section: "Runtime",
       description: "Show that Bailey Host and the WhatsApp engine are responsive.",
-      async execute(ctx) {
-        await ctx.reply("Bailey Host is online.");
-      },
+      actions: [{ type: "reply", text: "Bailey Host is online." }],
     }),
     defineCommand({
+      id: "ping",
       name: "ping",
+      section: "Runtime",
       description: "Check that the bot runtime is responsive.",
       aliases: ["p"],
-      async execute(ctx) {
-        await ctx.reply("Pong.");
-      },
+      actions: [{ type: "reply", text: "Pong." }],
     }),
   ],
 });
