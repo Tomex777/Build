@@ -20,6 +20,16 @@ export class ModuleRegistry {
 
     const commandNames = new Set<string>();
     const commandIds = new Set<string>();
+    const existingTriggers = new Map<string, string>();
+    for (const existingModule of this.modules.values()) {
+      for (const existing of existingModule.commands ?? []) {
+        existingTriggers.set(existing.name.toLowerCase(), `${existingModule.name}:${existing.name}`);
+        for (const alias of existing.aliases ?? []) {
+          existingTriggers.set(alias.toLowerCase(), `${existingModule.name}:${existing.name}`);
+        }
+      }
+    }
+
     for (const command of module.commands ?? []) {
       if (!command.actions?.length && !command.execute) {
         throw new Error(`Command ${command.name} in ${module.id} must define actions or execute()`);
@@ -31,10 +41,15 @@ export class ModuleRegistry {
 
       const canonical = command.name.toLowerCase();
       if (commandNames.has(canonical)) throw new Error(`Duplicate command ${command.name} in ${module.id}`);
+      const existing = existingTriggers.get(canonical);
+      if (existing) throw new Error(`Command trigger ${command.name} in ${module.id} is already used by ${existing}`);
       commandNames.add(canonical);
+
       for (const alias of command.aliases ?? []) {
         const aliasKey = alias.toLowerCase();
         if (commandNames.has(aliasKey)) throw new Error(`Duplicate command alias ${alias} in ${module.id}`);
+        const existingAlias = existingTriggers.get(aliasKey);
+        if (existingAlias) throw new Error(`Command alias ${alias} in ${module.id} is already used by ${existingAlias}`);
         commandNames.add(aliasKey);
       }
     }
