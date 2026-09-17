@@ -1,0 +1,1 @@
+2026-09-17 wire More > Player & reader to real default Anime/Manga/Movie/TV source preferences already used by title details.
