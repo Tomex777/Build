@@ -18,4 +18,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "NightCore"
-include(":app", ":target-probe", ":attacker-probe", ":manager-probe")
+include(":app", ":target-probe", ":attacker-probe", ":manager-probe", ":framework-probe")
