@@ -27,10 +27,12 @@ public final class NightCoreFragment extends BaseFragment implements ModuleUtil.
     private TextView engineDetail;
     private TextView moduleDetail;
     private TextView scopeDetail;
+    private TextView systemUiDetail;
     private TextView whatsappDetail;
     private TextView instagramDetail;
     private SwitchMaterial moduleEnabled;
     private View scopeRow;
+    private View statusBarTweaksRow;
     private View bubbleStylerRow;
 
     @Nullable
@@ -42,13 +44,16 @@ public final class NightCoreFragment extends BaseFragment implements ModuleUtil.
         engineDetail = root.findViewById(R.id.night_core_engine_detail);
         moduleDetail = root.findViewById(R.id.night_core_module_detail);
         scopeDetail = root.findViewById(R.id.night_core_scope_detail);
+        systemUiDetail = root.findViewById(R.id.night_core_system_ui_detail);
         whatsappDetail = root.findViewById(R.id.night_core_whatsapp_detail);
         instagramDetail = root.findViewById(R.id.night_core_instagram_detail);
         moduleEnabled = root.findViewById(R.id.night_core_module_enabled);
         scopeRow = root.findViewById(R.id.night_core_scope_row);
+        statusBarTweaksRow = root.findViewById(R.id.night_status_bar_tweaks_row);
         bubbleStylerRow = root.findViewById(R.id.night_bubble_styler_row);
         setupToolbar(toolbar, null, R.string.night_core, -1);
         scopeRow.setOnClickListener(v -> openScopes());
+        statusBarTweaksRow.setOnClickListener(v -> safeNavigate(R.id.action_night_core_to_status_bar_tweaks));
         bubbleStylerRow.setOnClickListener(v -> safeNavigate(R.id.action_night_core_to_bubble_styler));
         moduleUtil.addListener(this);
         render();
@@ -96,9 +101,12 @@ public final class NightCoreFragment extends BaseFragment implements ModuleUtil.
             scopeRow.setEnabled(true);
             moduleEnabled.setOnCheckedChangeListener((button, checked) -> setEnabled(checked));
         }
+        statusBarTweaksRow.setEnabled(installed);
+        statusBarTweaksRow.setAlpha(installed ? 1f : 0.45f);
         bubbleStylerRow.setEnabled(installed);
         bubbleStylerRow.setAlpha(installed ? 1f : 0.45f);
         if (!installed) {
+            systemUiDetail.setText(R.string.night_target_engine_unavailable);
             whatsappDetail.setText(R.string.night_target_engine_unavailable);
             instagramDetail.setText(R.string.night_target_engine_unavailable);
         }
@@ -109,9 +117,11 @@ public final class NightCoreFragment extends BaseFragment implements ModuleUtil.
         Context appContext = requireContext().getApplicationContext();
         if (!NightCoreBridge.isInstalled(appContext)) return;
         runAsync(() -> {
+            var systemUi = NightCoreBridge.loadTargetStatus(appContext, NightCoreBridge.SYSTEM_UI_PACKAGE);
             var whatsapp = NightCoreBridge.loadTargetStatus(appContext, NightCoreBridge.WHATSAPP_PACKAGE);
             var instagram = NightCoreBridge.loadTargetStatus(appContext, NightCoreBridge.INSTAGRAM_PACKAGE);
             runOnUiThread(() -> {
+                renderTargetStatus(systemUiDetail, systemUi);
                 renderTargetStatus(whatsappDetail, whatsapp);
                 renderTargetStatus(instagramDetail, instagram);
             });
@@ -175,10 +185,12 @@ public final class NightCoreFragment extends BaseFragment implements ModuleUtil.
         engineDetail = null;
         moduleDetail = null;
         scopeDetail = null;
+        systemUiDetail = null;
         whatsappDetail = null;
         instagramDetail = null;
         moduleEnabled = null;
         scopeRow = null;
+        statusBarTweaksRow = null;
         bubbleStylerRow = null;
         super.onDestroyView();
     }
