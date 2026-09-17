@@ -34,8 +34,7 @@
       "target": [
         "nsis",
         "portable"
-      ],
-      "artifactName": "Bailey-Host-${version}-${arch}.${ext}"
+      ]
     },
     "nsis": {
       "oneClick": false,
