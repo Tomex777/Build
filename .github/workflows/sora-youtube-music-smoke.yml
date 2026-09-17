@@ -1,0 +1,74 @@
+name: Sora YouTube Music Runtime Smoke
+
+on:
+  push:
+    branches: [sora-android-ci]
+    paths:
+      - 'sora-ci/youtube-music-smoke-trigger.txt'
+  workflow_dispatch:
+
+jobs:
+  emulator-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Import pinned Spotui Innertube into runner workspace
+        run: bash sora-ci/import_spotui_innertube.sh
+      - name: Reconstruct Sora source with isolated YouTube modules
+        run: |
+          rm -rf /tmp/sora-yt-runtime /tmp/sora.zip /tmp/sora-youtube-music-smoke
+          cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/sora.zip
+          unzip -q /tmp/sora.zip -d /tmp/sora-yt-runtime
+          ROOT=/tmp/sora-yt-runtime/Sora_Android_v0_1
+          cp -R sora-overlay/. "$ROOT/"
+          python3 - "$ROOT/settings.gradle.kts" <<'PY'
+          from pathlib import Path
+          import sys
+          p=Path(sys.argv[1]); s=p.read_text()
+          start=s.find('dependencyResolutionManagement {')
+          if start < 0: raise SystemExit('dependencyResolutionManagement block not found')
+          tail=s[start:]
+          if 'maven("https://jitpack.io")' not in tail:
+              needle='        mavenCentral()\n'; pos=tail.find(needle)
+              if pos < 0: raise SystemExit('dependency-resolution mavenCentral() not found')
+              at=start+pos+len(needle)
+              s=s[:at]+'        maven("https://jitpack.io")\n'+s[at:]
+          if 'include(":youtube-innertube")' not in s:
+              s += '\ninclude(":youtube-innertube")\ninclude(":youtube-music-extension")\n'
+          p.write_text(s)
+          PY
+          echo "SORA_YT_ROOT=$ROOT" >> "$GITHUB_ENV"
+          mkdir -p /tmp/sora-youtube-music-smoke
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+      - name: Build Core and YouTube Music extension
+        working-directory: ${{ env.SORA_YT_ROOT }}
+        run: gradle --stacktrace :app:assembleDebug :youtube-music-extension:assembleDebug
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Launch and prove YouTube Music playback
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash "$GITHUB_WORKSPACE/sora-ci/youtube-music-smoke.sh"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sora-youtube-music-runtime-smoke
+          path: /tmp/sora-youtube-music-smoke
+          if-no-files-found: warn
+          retention-days: 2
