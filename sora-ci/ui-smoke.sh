@@ -83,8 +83,6 @@ PY
 }
 
 dismiss_system_dialogs() {
-  # Fresh GitHub emulators occasionally show a Pixel Launcher/system ANR over Sora.
-  # It is unrelated to Sora; choose Wait/OK and bring Sora back to the foreground.
   if tap_text_once 'Wait' >/dev/null 2>&1; then
     sleep 2
   fi
@@ -169,7 +167,6 @@ jikan_host_reachable() {
 
 dismiss_system_dialogs
 
-# Core must render and populate Anime/Manga with no external APK installed.
 shot 00-core-only-home
 tap_text Media
 if ! wait_for_cache 'jikan.anime' 35; then
@@ -204,10 +201,8 @@ for file in "$OUT/01-core-only-anime-jikan.xml" "$OUT/02-core-only-manga-jikan.x
   fi
 done
 
-# Built-in Jikan remains registered inside Core itself for contract parity/diagnostics.
 adb shell dumpsys package com.night.sora | grep -q 'JikanCatalogService'
 
-# Verify the remaining external provider can arrive later without changing shell ownership.
 adb shell input keyevent KEYCODE_HOME
 sleep 1
 adb install -r "$SORA_ROOT/live-extension/build/outputs/apk/debug/live-extension-debug.apk"
@@ -239,10 +234,25 @@ shot 08-games
 tap_text More
 shot 09-more
 
+tap_text Downloads
+shot 10-downloads
+adb shell input keyevent KEYCODE_BACK
+sleep 2
+
+tap_text Statistics
+shot 11-statistics
+adb shell input keyevent KEYCODE_BACK
+sleep 2
+
+tap_text 'Data & storage'
+shot 12-data-storage
+adb shell input keyevent KEYCODE_BACK
+sleep 2
+
 tap_text 'Open Sora AI'
-shot 10-ai-quick-sheet
+shot 13-ai-quick-sheet
 
 tap_text 'Full chat'
-shot 11-ai-full
+shot 14-ai-full
 
 adb shell dumpsys activity activities | grep -q 'com.night.sora'
