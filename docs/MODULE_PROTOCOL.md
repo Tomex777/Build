@@ -2,7 +2,7 @@
 
 Bailey Host owns the WhatsApp connection. Code-backed modules run as separate processes and communicate with Bailey over newline-delimited JSON (JSONL) on stdin/stdout.
 
-This keeps modules independent of Lia Baileys internals and allows modules to be written in Python, Node.js, Java, Go, Rust, or any runtime that can read and write JSON lines.
+This keeps modules independent of Lia Baileys internals and allows modules to be written in Python, JavaScript, Java, Go, Rust, or any runtime that can read and write JSON lines.
 
 ## Module folder
 
@@ -16,7 +16,7 @@ modules/
     └── ...
 ```
 
-Bailey Host → Studio → **Open modules folder** opens this location.
+Bailey Host → Studio → **Open modules folder** opens this location. Studio can also create a starter module for you, including its manifest, worker file and README.
 
 ## Manifest
 
@@ -53,7 +53,27 @@ Bailey Host → Studio → **Open modules folder** opens this location.
 }
 ```
 
-`runtime.command` is launched directly without a shell. Bailey does not bundle Python; `python` must be available on the machine for a Python module. Compiled modules can point at their own executable instead.
+`runtime.command` is launched directly without a shell.
+
+### Runtime choices
+
+For Python, use:
+
+```json
+{"command":"python","args":["main.py"]}
+```
+
+Bailey does not bundle Python, so `python` must be available on the computer.
+
+For JavaScript, Bailey Studio uses the reserved runtime command `bailey-node`:
+
+```json
+{"command":"bailey-node","args":["main.mjs"]}
+```
+
+`bailey-node` runs the module with the Node runtime embedded in Bailey Host/Electron. The user does not need a separate Node.js installation. Do not create an executable named `bailey-node`; it is a Bailey Host runtime alias.
+
+Other runtimes can point `runtime.command` at an installed command such as `java`, or at a compiled executable shipped inside the module folder.
 
 Settings declared in the manifest automatically appear under **Configuration**. If a setting declares `env`, Bailey injects its current value into the module process environment when it starts. Secret settings use Bailey's secure-storage path and are not displayed back in plain text.
 
@@ -95,4 +115,4 @@ For failures:
 - Keep protocol messages on stdout. Use stderr for diagnostic output; Bailey records it as module diagnostics.
 - One line on stdout must contain one complete JSON protocol message.
 
-The protocol is intentionally small. Future versions can add media actions, richer storage APIs, events, scheduled jobs, and services without tying module code to a specific WhatsApp-engine fork.
+The protocol is intentionally small. Future versions can add media actions, richer storage APIs, events, scheduled jobs and services without tying module code to a specific WhatsApp-engine fork.
