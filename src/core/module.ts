@@ -7,6 +7,8 @@ export interface CommandContext {
   args: string[];
   reply(text: string): Promise<void>;
   react(emoji: string): Promise<void>;
+  /** Render Bailey's current command menu using effective modules, sections, prefix and enabled state. */
+  showMenu(sectionFilter?: string): Promise<void>;
 }
 
 export interface ReplyCommandAction {
