@@ -2,6 +2,8 @@
 set -euo pipefail
 
 API_DIR="$HOME/.m2/repository/io/github/libxposed/api/100"
+INTERFACE_DIR="$HOME/.m2/repository/io/github/libxposed/interface/100"
+SERVICE_DIR="$HOME/.m2/repository/io/github/libxposed/service/100-1.0.0"
 SERVICE_ROOT="libxposed/service"
 # The upstream libxposed/service ref `100` disappeared in September 2026. This is the
 # preserved upstream API-100 commit (LoveSy, 2023-10-09) from a public fork retaining
@@ -11,7 +13,7 @@ SERVICE_REPOSITORY="fakepepsilol/libxposed.service"
 SERVICE_COMMIT="4351a735755c86c031a977a62e52005b23048c4d"
 
 rm -rf "$SERVICE_ROOT"
-mkdir -p "$API_DIR" libxposed
+mkdir -p "$API_DIR" "$INTERFACE_DIR" "$SERVICE_DIR" libxposed
 
 # The preserved API-100 service compiles against Android 34 / Build Tools 34.0.0.
 # Keep this prerequisite with the dependency preparation itself so every CI consumer
@@ -53,12 +55,60 @@ grep -q 'void onServiceBind' \
 grep -q 'void onServiceDied' \
   "$SERVICE_ROOT/service/src/main/java/io/github/libxposed/service/XposedServiceHelper.java"
 
+# Build only the binary AARs. The historical publication also attaches Dokka-generated
+# Javadoc jars; that documentation task is broken on current GitHub runners and is not
+# needed by Night Core. Installing the exact binary coordinates ourselves avoids letting
+# a documentation tool decide whether the API-100 runtime dependency is reproducible.
 (
   cd "$SERVICE_ROOT"
-  ./gradlew --no-daemon publishToMavenLocal
+  ./gradlew --no-daemon :interface:bundleReleaseAar :service:bundleReleaseAar
 )
 
-# Fail early if either exact API-100 coordinate was installed/published.
+INTERFACE_AAR="$(find "$SERVICE_ROOT/interface/build/outputs/aar" -maxdepth 1 -type f -name '*release.aar' -print -quit)"
+SERVICE_AAR="$(find "$SERVICE_ROOT/service/build/outputs/aar" -maxdepth 1 -type f -name '*release.aar' -print -quit)"
+test -n "$INTERFACE_AAR"
+test -n "$SERVICE_AAR"
+cp "$INTERFACE_AAR" "$INTERFACE_DIR/interface-100.aar"
+cp "$SERVICE_AAR" "$SERVICE_DIR/service-100-1.0.0.aar"
+
+cat > "$INTERFACE_DIR/interface-100.pom" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>io.github.libxposed</groupId>
+  <artifactId>interface</artifactId>
+  <version>100</version>
+  <packaging>aar</packaging>
+</project>
+POM
+
+cat > "$SERVICE_DIR/service-100-1.0.0.pom" <<'POM'
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>io.github.libxposed</groupId>
+  <artifactId>service</artifactId>
+  <version>100-1.0.0</version>
+  <packaging>aar</packaging>
+  <dependencies>
+    <dependency>
+      <groupId>io.github.libxposed</groupId>
+      <artifactId>interface</artifactId>
+      <version>100</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>
+POM
+
+# Fail early unless every exact API-100 coordinate needed by Night Core is installed.
 test -f "$API_DIR/api-100.aar"
 test -f "$API_DIR/api-100.pom"
-test -d "$HOME/.m2/repository/io/github/libxposed/service/100-1.0.0"
+test -f "$INTERFACE_DIR/interface-100.aar"
+test -f "$INTERFACE_DIR/interface-100.pom"
+test -f "$SERVICE_DIR/service-100-1.0.0.aar"
+test -f "$SERVICE_DIR/service-100-1.0.0.pom"
