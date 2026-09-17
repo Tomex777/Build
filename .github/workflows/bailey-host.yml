@@ -1,0 +1,55 @@
+name: Bailey Host CI
+
+on:
+  push:
+    branches: [bailey-host-ci]
+  pull_request:
+    branches: [bailey-host-ci]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-and-package:
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package.json
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build desktop app
+        run: npm run build
+
+      - name: Electron smoke launch
+        run: npm run smoke
+
+      - name: Build Windows installer and portable executable
+        run: npm run dist:win
+
+      - name: Upload Windows builds
+        uses: actions/upload-artifact@v4
+        with:
+          name: bailey-host-windows
+          path: |
+            release/*.exe
+            release/*.blockmap
+          if-no-files-found: error
+          retention-days: 14

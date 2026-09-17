@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bailey Host</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">B</div>
+        <div>
+          <strong>Bailey</strong>
+          <span>Host</span>
+        </div>
+      </div>
+
+      <nav id="nav">
+        <button class="nav-item active" data-view="dashboard">Dashboard</button>
+        <button class="nav-item" data-view="modules">Modules</button>
+        <button class="nav-item" data-view="configuration">Configuration</button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <span class="status-dot"></span>
+        <span>Local host</span>
+      </div>
+    </aside>
+
+    <main class="content">
+      <section class="view active" id="view-dashboard">
+        <header class="page-header">
+          <div>
+            <p class="eyebrow">OVERVIEW</p>
+            <h1>Dashboard</h1>
+            <p>One place to keep the bot alive, inspect it, and control what it can do.</p>
+          </div>
+          <span class="version" id="version">v0.1.0</span>
+        </header>
+
+        <div class="metric-grid">
+          <article class="metric-card">
+            <span>Runtime</span>
+            <strong id="runtime-state">Stopped</strong>
+            <small>Baileys adapter comes next.</small>
+          </article>
+          <article class="metric-card">
+            <span>WhatsApp</span>
+            <strong id="whatsapp-state">Not connected</strong>
+            <small>No account session is stored yet.</small>
+          </article>
+          <article class="metric-card">
+            <span>Modules</span>
+            <strong id="module-count">0</strong>
+            <small>Loaded from the Bailey module registry.</small>
+          </article>
+        </div>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Host runtime</h2>
+              <p>The desktop shell is ready. Runtime controls will connect here.</p>
+            </div>
+            <span class="pill muted">Foundation</span>
+          </div>
+          <div class="empty-runtime">
+            <div class="runtime-icon">B</div>
+            <div>
+              <strong>Bailey Host is running locally</strong>
+              <p>Closing this window leaves the host in the system tray. The WhatsApp adapter is intentionally not connected in this first foundation build.</p>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="view" id="view-modules">
+        <header class="page-header">
+          <div>
+            <p class="eyebrow">CAPABILITIES</p>
+            <h1>Modules</h1>
+            <p>Commands and features register here without modifying the desktop UI.</p>
+          </div>
+        </header>
+        <div id="module-list" class="stack"></div>
+      </section>
+
+      <section class="view" id="view-configuration">
+        <header class="page-header">
+          <div>
+            <p class="eyebrow">SETTINGS</p>
+            <h1>Configuration</h1>
+            <p>These controls are generated from module code. ENV-backed settings keep their environment variable mapping.</p>
+          </div>
+          <span id="save-status" class="save-status">Saved locally</span>
+        </header>
+        <div id="config-sections" class="stack"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="./renderer.js"></script>
+</body>
+</html>
