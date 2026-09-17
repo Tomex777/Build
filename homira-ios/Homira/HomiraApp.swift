@@ -4,7 +4,7 @@ import SwiftUI
 struct HomiraApp: App {
     var body: some Scene {
         WindowGroup {
-            RootView()
+            ProductionRootView()
                 .preferredColorScheme(.dark)
         }
     }
