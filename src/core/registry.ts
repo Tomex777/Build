@@ -21,6 +21,10 @@ export class ModuleRegistry {
     const commandNames = new Set<string>();
     const commandIds = new Set<string>();
     for (const command of module.commands ?? []) {
+      if (!command.actions?.length && !command.execute) {
+        throw new Error(`Command ${command.name} in ${module.id} must define actions or execute()`);
+      }
+
       const id = commandId(command).toLowerCase();
       if (commandIds.has(id)) throw new Error(`Duplicate command id ${id} in ${module.id}`);
       commandIds.add(id);
