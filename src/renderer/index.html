@@ -162,7 +162,7 @@
           <div>
             <p class="eyebrow">BUILD</p>
             <h1>Studio</h1>
-            <p>Create commands without code, or open module source files when you need full control.</p>
+            <p>Create commands without code, or build full modules in whatever language fits the job.</p>
           </div>
         </header>
 
@@ -178,18 +178,40 @@
 
           <article class="panel studio-card">
             <div>
-              <span class="studio-kicker">CODE</span>
+              <span class="studio-kicker">EDITOR</span>
               <h2>Open a file</h2>
-              <p>Open TypeScript, JavaScript, Python, JSON, YAML, TOML or text files in Bailey Studio.</p>
+              <p>Choose a TypeScript, JavaScript, Python, JSON, YAML, TOML or text file with the normal Windows file picker.</p>
             </div>
             <button class="secondary-button" id="studio-open-file">Open file…</button>
           </article>
 
+          <article class="panel studio-card studio-card-wide module-guide-card">
+            <div>
+              <span class="studio-kicker">CODE MODULES</span>
+              <h2>Python, Node, Java, Go, Rust — Bailey does not care</h2>
+              <p>Each code module lives in its own folder with a <code>bailey.module.json</code>. Bailey starts the runtime without a shell and talks to it through Module Protocol 1 over JSON lines. The module never needs direct access to Lia or your WhatsApp auth files.</p>
+            </div>
+            <pre class="manifest-example"><code>{
+  "protocol": 1,
+  "id": "economy",
+  "name": "Economy",
+  "version": "1.0.0",
+  "runtime": { "command": "python", "args": ["main.py"] },
+  "commands": [
+    { "id": "balance", "name": "balance", "section": "Economy", "description": "Show a balance" }
+  ]
+}</code></pre>
+            <div class="module-guide-actions">
+              <button class="secondary-button" id="studio-open-modules-folder">Open modules folder</button>
+              <span>Restart Bailey Host after adding a new code module.</span>
+            </div>
+          </article>
+
           <article class="panel studio-card studio-card-wide">
             <div>
-              <span class="studio-kicker">MODULES</span>
-              <h2>One module can do much more than commands</h2>
-              <p>A module can group commands, settings, background work, event handlers and services. The runtime language is an implementation detail; Bailey keeps the WhatsApp engine behind its own API.</p>
+              <span class="studio-kicker">LARGE MODULES</span>
+              <h2>A module is not just one command</h2>
+              <p>An economy system, anime/manga system, Blob Storage integration or AI subsystem can own many commands and settings and can later expose events, jobs and long-running services through the same module protocol.</p>
             </div>
             <div class="studio-tags">
               <span class="pill">Commands</span><span class="pill">Settings / ENV</span><span class="pill">Events</span><span class="pill">Jobs</span><span class="pill">Services</span>
@@ -284,14 +306,12 @@
       <div class="file-workspace">
         <textarea id="file-content" spellcheck="false" aria-label="File content"></textarea>
         <aside class="editor-help">
-          <strong>Bailey module API</strong>
-          <p>Code-backed modules should talk to Bailey through its module API instead of importing the WhatsApp engine directly.</p>
-          <code>reply</code>
-          <code>react</code>
-          <code>config</code>
-          <code>storage</code>
-          <code>events</code>
-          <small>Language-aware completion and module-protocol helpers will build on this editor.</small>
+          <strong>Bailey Module Protocol</strong>
+          <p>WhatsApp stays behind Bailey. Code modules receive structured requests and return safe actions.</p>
+          <code>{ "type": "command.execute" }</code>
+          <code>{ "type": "reply", "text": "Hi" }</code>
+          <code>{ "type": "react", "emoji": "✅" }</code>
+          <small>Ctrl+S saves. The editor only writes back to files you explicitly opened through Bailey Studio.</small>
         </aside>
       </div>
       <div class="dialog-actions">
