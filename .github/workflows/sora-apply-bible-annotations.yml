@@ -1,0 +1,36 @@
+name: Apply Sora Bible Annotations
+
+on:
+  push:
+    branches: [sora-memes-bible-ci]
+    paths:
+      - 'sora-ci/bible-annotations-trigger.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sora-memes-bible-ci
+      - name: Apply Bible annotations
+        run: python3 sora-ci/apply-bible-annotations.py
+      - name: Verify focused Bible annotations
+        run: |
+          grep -q 'fun annotations()' sora-overlay/app/src/main/java/com/night/sora/data/BibleRepository.kt
+          grep -q 'fun toggleHighlight' sora-overlay/app/src/main/java/com/night/sora/data/BibleRepository.kt
+          grep -q 'fun saveNote' sora-overlay/app/src/main/java/com/night/sora/data/BibleRepository.kt
+          grep -q 'Text(if (annotation?.highlighted == true) "Unhighlight" else "Highlight")' sora-overlay/app/src/main/java/com/night/sora/ui/screens/BibleScreen.kt
+          grep -q 'OutlinedTextField(' sora-overlay/app/src/main/java/com/night/sora/ui/screens/BibleScreen.kt
+      - name: Commit Bible annotations
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add sora-overlay/app/src/main/java/com/night/sora/data/BibleRepository.kt sora-overlay/app/src/main/java/com/night/sora/ui/screens/BibleScreen.kt
+          git diff --cached --quiet && exit 0
+          git commit -m 'add Bible verse highlights and notes'
+          git push origin HEAD:sora-memes-bible-ci
