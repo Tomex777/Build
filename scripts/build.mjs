@@ -48,5 +48,15 @@ await build({
   sourcemap: true,
 });
 
+await build({
+  entryPoints: ["src/renderer/studio-extras.ts"],
+  outfile: "dist/renderer/studio-extras.js",
+  bundle: true,
+  platform: "browser",
+  format: "iife",
+  target: "chrome140",
+  sourcemap: true,
+});
+
 await copyFile("src/renderer/index.html", "dist/renderer/index.html");
 await copyFile("src/renderer/styles.css", "dist/renderer/styles.css");
