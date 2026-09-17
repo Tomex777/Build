@@ -1,0 +1,31 @@
+{
+  "protocol": 1,
+  "id": "python-example",
+  "name": "Python Example",
+  "version": "1.0.0",
+  "description": "Minimal external Bailey module written in Python.",
+  "runtime": {
+    "command": "python",
+    "args": ["main.py"]
+  },
+  "capabilities": ["commands", "settings"],
+  "settings": [
+    {
+      "key": "greeting",
+      "label": "Greeting",
+      "type": "text",
+      "defaultValue": "Hello",
+      "env": "PYTHON_EXAMPLE_GREETING",
+      "description": "Text used by the Python reply."
+    }
+  ],
+  "commands": [
+    {
+      "id": "pyhello",
+      "name": "pyhello",
+      "section": "Examples",
+      "description": "Reply from a Python Bailey module.",
+      "aliases": ["pyhi"]
+    }
+  ]
+}
