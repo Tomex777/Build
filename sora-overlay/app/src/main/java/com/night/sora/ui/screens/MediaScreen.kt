@@ -537,7 +537,7 @@ private fun EmptyFeatureShell(type: ContentType) {
         ContentType.MEME -> "FEATURED"
     }
     Box(
-        Modifier.fillMaxWidth().height(420.dp)
+        Modifier.fillMaxWidth().height(260.dp)
             .background(Brush.verticalGradient(listOf(Color(0xFF262621), Color(0xFF171714), SoraBg)))
     ) {
         Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {

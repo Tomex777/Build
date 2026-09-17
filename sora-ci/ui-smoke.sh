@@ -162,26 +162,37 @@ wait_for_cache() {
   return 1
 }
 
+jikan_host_reachable() {
+  curl -fsS --max-time 12 --retry 2 --retry-delay 1 --retry-all-errors \
+    'https://api.jikan.moe/v4/top/anime?filter=airing&limit=1&sfw=true' >/dev/null 2>&1
+}
+
 dismiss_system_dialogs
 
 # Core must render and populate Anime/Manga with no external APK installed.
 shot 00-core-only-home
 tap_text Media
 if ! wait_for_cache 'jikan.anime' 35; then
-  echo 'Built-in Jikan did not populate the Anime cache.' >&2
-  log_ui_state 'missing jikan.anime cache'
-  shot 01-failure-anime-jikan
-  exit 1
+  if jikan_host_reachable; then
+    echo 'Built-in Jikan did not populate the Anime cache while Jikan was reachable.' >&2
+    log_ui_state 'missing jikan.anime cache'
+    shot 01-failure-anime-jikan
+    exit 1
+  fi
+  echo 'Jikan is externally unavailable; keeping the UI smoke focused on Sora rendering and navigation.' >&2
 fi
 dismiss_system_dialogs
 shot 01-core-only-anime-jikan
 
 tap_text Manga
 if ! wait_for_cache 'jikan.manga' 35; then
-  echo 'Built-in Jikan did not populate the Manga cache.' >&2
-  log_ui_state 'missing jikan.manga cache'
-  shot 02-failure-manga-jikan
-  exit 1
+  if jikan_host_reachable; then
+    echo 'Built-in Jikan did not populate the Manga cache while Jikan was reachable.' >&2
+    log_ui_state 'missing jikan.manga cache'
+    shot 02-failure-manga-jikan
+    exit 1
+  fi
+  echo 'Jikan is externally unavailable; keeping the UI smoke focused on Sora rendering and navigation.' >&2
 fi
 dismiss_system_dialogs
 shot 02-core-only-manga-jikan

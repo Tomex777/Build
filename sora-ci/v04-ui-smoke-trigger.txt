@@ -1,1 +1,1 @@
-verify direct Jikan with bounded cache polling and current media stack
+2026-09-17T02:33:05Z runtime-hardening
