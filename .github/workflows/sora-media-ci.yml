@@ -22,6 +22,7 @@ jobs:
           python3 sora-ci/repair-sora-anime-manga-patch.py
           python3 sora-ci/patch-sora-anime-manga-flow.py
           python3 sora-ci/patch-sora-jikan-resilience.py
+          python3 sora-ci/patch-sora-jikan-full-relations.py
           python3 sora-ci/patch-sora-media-outage-polish.py
           # The repair is only a build-time normalizer for the patch draft.
           git checkout -- sora-ci/patch-sora-anime-manga-flow.py
@@ -43,6 +44,9 @@ jobs:
           grep -q 'equals("Adaptation", ignoreCase = true)' "$JIKAN"
           grep -q 'MAX_REQUEST_ATTEMPTS = 3' "$JIKAN"
           grep -q 'code in 500..599' "$JIKAN"
+          grep -q 'fullEndpoint = .*full' "$JIKAN"
+          grep -q 'optJSONArray("relations")' "$JIKAN"
+          grep -q 'relationsEndpoint' "$JIKAN"
           grep -q 'exact title match' "$DETAIL"
           ! grep -q 'best ?: array.optJSONObject(0)' "$DETAIL"
           ! grep -q 'name.contains(normalized)' "$DETAIL"
