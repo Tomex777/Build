@@ -1,1 +1,1 @@
-2026-09-17 rerun real Music download, restart, source-server-gone, offline playback proof with KVM enabled.
+2026-09-17 rerun Music offline proof with direct MediaSession PLAYING assertion after source-server shutdown.
