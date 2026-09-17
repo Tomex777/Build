@@ -13,6 +13,7 @@ import com.night.sora.extension.api.SourceDescriptor
 import com.night.sora.extension.api.extensionDescriptorFromJson
 import com.night.sora.extension.api.toJson
 import com.night.sora.model.ContentType
+import com.night.sora.model.ExtensionMediaSelection
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -129,6 +130,35 @@ class ExtensionManager(private val context: Context) {
         } else {
             ExtensionClient(context, extension.component).call(method, payloadJson, callback)
         }
+    }
+
+    fun findBuiltInJikanCounterpart(
+        selection: ExtensionMediaSelection,
+        callback: (Result<ExtensionMediaSelection?>) -> Unit,
+    ): Boolean {
+        val isJikanSelection = selection.extensionPackage == context.packageName &&
+            selection.sourceId in setOf(JikanCatalogClient.ANIME_SOURCE, JikanCatalogClient.MANGA_SOURCE) &&
+            (selection.type == ContentType.ANIME || selection.type == ContentType.MANGA)
+        if (!isJikanSelection) return false
+
+        jikanClient.counterpart(selection.type, selection.id) { result ->
+            callback(
+                result.map { item ->
+                    item?.let {
+                        ExtensionMediaSelection(
+                            id = it.id,
+                            sourceId = JikanCatalogClient.sourceFor(it.type),
+                            extensionPackage = context.packageName,
+                            type = it.type,
+                            title = it.title,
+                            subtitle = it.subtitle,
+                            artworkUrl = it.artworkUrl,
+                        )
+                    }
+                }
+            )
+        }
+        return true
     }
 
     private fun isBuiltInJikan(extension: InstalledExtension): Boolean =

@@ -847,6 +847,8 @@ private fun parseBestSourceSelection(raw: String, sourceId: String, packageName:
 
 private fun findCounterpart(active: ExtensionMediaSelection, extensions: List<InstalledExtension>, manager: ExtensionManager, callback: (ExtensionMediaSelection?) -> Unit) {
     val opposite = if (active.type == ContentType.ANIME) ContentType.MANGA else if (active.type == ContentType.MANGA) ContentType.ANIME else return callback(null)
+
+    if (manager.findBuiltInJikanCounterpart(active) { result -> callback(result.getOrNull()) }) return
     val key = opposite.name.lowercase()
     val providers = extensions.flatMap { ext ->
         ext.descriptor?.sources.orEmpty()
@@ -870,7 +872,7 @@ private fun findCounterpart(active: ExtensionMediaSelection, extensions: List<In
                         val name = normalizeTitle(item.optString("title"))
                         if (name == normalized || name.contains(normalized) || normalized.contains(name)) { best = item; break }
                     }
-                    (best ?: arr.optJSONObject(0))?.let {
+                    best?.let {
                         ExtensionMediaSelection(it.optString("id"), source.id, ext.packageName, opposite, it.optString("title"), it.optString("subtitle"), detailArtwork(it))
                     }
                 }.getOrNull()
