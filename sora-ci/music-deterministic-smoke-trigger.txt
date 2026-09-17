@@ -1,1 +1,1 @@
-2026-09-17 prove Sora Music player, queue, Media3 background session, and activity recreation with deterministic demo audio.
+2026-09-17 rerun deterministic Sora Music smoke with CI-only catalog promotion and stable ExoPlayer MP3 fixture.
