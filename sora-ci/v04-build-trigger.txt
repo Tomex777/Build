@@ -1,1 +1,1 @@
-2026-09-17 build complete Music pass: one source, real offline downloads, local-first playback, truthful download UI, extension install toolbar.
+2026-09-17 final Music build after Spotui Home truthfulness and strict one-selected-source playback/download guard.
