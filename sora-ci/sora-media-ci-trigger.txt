@@ -1,1 +1,1 @@
-run 4 - live Anime/Manga flow validation with resilient Jikan handling
+run 5 - separate Jikan outage validation from true live Anime/Manga gate
