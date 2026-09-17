@@ -92,12 +92,37 @@ PY
   sleep 2
 }
 
+tap_bottom_nav() {
+  local label="$1"
+  dump_ui
+  python3 - "$label" <<'PY'
+import re, subprocess, sys, xml.etree.ElementTree as ET
+label=sys.argv[1]
+root=ET.parse('/tmp/window.xml').getroot()
+points=[]
+for node in root.iter('node'):
+    text=(node.attrib.get('text') or '').strip()
+    desc=(node.attrib.get('content-desc') or '').strip()
+    if text != label and desc != label:
+        continue
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+    if not m: continue
+    x1,y1,x2,y2=map(int,m.groups())
+    points.append(((y1+y2)//2,(x1+x2)//2))
+if not points:
+    raise SystemExit(1)
+y,x=max(points)
+subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
+PY
+  sleep 2
+}
+
 # Ensure the external source is installed and discoverable before touching UI.
 adb shell dumpsys package com.night.sora.ext.youtube.music | grep -q 'YouTubeMusicExtensionService'
 shot 00-home
 
 wait_for_node More 20
-tap_text More
+tap_bottom_nav More
 wait_for_node Extensions 20
 tap_text Extensions
 wait_for_node 'Sora YouTube Music' 30
