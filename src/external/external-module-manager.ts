@@ -32,7 +32,7 @@ export interface ExternalModuleLoadResult {
   errors: Array<{ folder: string; error: string }>;
 }
 
-type HostSendText = (remoteJid: string, text: string) => Promise<void>;
+type HostSendText = (remoteJid: string, text: string) => void | Promise<void>;
 type TriggerContext = Pick<CommandContext | MessageEventContext, "reply" | "react">;
 
 export class ExternalModuleManager {
