@@ -1,1 +1,1 @@
-2026-09-17 verify real-data Music UI, authenticated YouTube session plumbing, and actionable playback errors.
+2026-09-17 verify hardened Sora music listening events, queue selection, replay tracking, and honest recency on branch head.
