@@ -243,6 +243,42 @@ object YouTubeMusicCatalog {
             }
         }
 
+        // Spotui also carries NewPipe's StreamInfo extractor. Its extraction path is
+        // independent of the Innertube response above, so let it make one final
+        // anonymous attempt when YouTube has challenged every API client. Keeping it
+        // last avoids replacing URLs that were already minted for a known client.
+        Log.i(TAG, "newpipe start id=$id")
+        val extracted = runCatching { NewPipeExtractor.newPipePlayer(id) }
+        val newPipeStreams = extracted.getOrNull().orEmpty()
+        if (newPipeStreams.isNotEmpty()) {
+            val audioStreams = newPipeStreams.mapNotNull { (itag, url) ->
+                val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return@mapNotNull null
+                val mime = uri.getQueryParameter("mime").orEmpty()
+                val isKnownAudioItag = itag in setOf(139, 140, 141, 249, 250, 251, 256, 258, 325, 328)
+                if (!mime.startsWith("audio/", ignoreCase = true) && !isKnownAudioItag) {
+                    return@mapNotNull null
+                }
+                NewPipeAudioStream(
+                    itag = itag,
+                    url = url,
+                    mimeType = mime.ifBlank { mimeTypeForAudioItag(itag) },
+                    bitrate = bitrateForAudioItag(itag),
+                    durationMs = ((uri.getQueryParameter("dur")?.toDoubleOrNull() ?: 0.0) * 1000.0).toLong(),
+                )
+            }.sortedByDescending { it.bitrate }
+
+            if (audioStreams.isNotEmpty()) {
+                Log.i(TAG, "newpipe resolved id=$id streams=${audioStreams.size} itags=${audioStreams.joinToString { it.itag.toString() }}")
+                return newPipeStreamsJson(audioStreams)
+            }
+            failures += "NewPipe: streams found but none identified as audio"
+            Log.w(TAG, "newpipe returned streams but no audio id=$id total=${newPipeStreams.size}")
+        } else {
+            val reason = extracted.exceptionOrNull()?.message.orEmpty().ifBlank { "no streams" }
+            failures += "NewPipe: $reason"
+            Log.w(TAG, "newpipe failed id=$id reason=$reason", extracted.exceptionOrNull())
+        }
+
         error("No YouTube Music playback path resolved direct audio: ${failures.joinToString("; ")}")
     }
 
@@ -284,6 +320,47 @@ object YouTubeMusicCatalog {
         }
     }.toString()
 
+    private fun newPipeStreamsJson(audio: List<NewPipeAudioStream>): String = JSONArray().apply {
+        audio.forEach { stream ->
+            val headersJson = JSONObject().apply {
+                YouTubeClient.forStreamUrl(stream.url).mediaHeaders().forEach { (name, value) -> put(name, value) }
+            }
+            put(
+                JSONObject()
+                    .put("label", qualityLabel(stream.mimeType, stream.bitrate))
+                    .put("url", stream.url)
+                    .put("headers", headersJson)
+                    .put("mimeType", stream.mimeType.substringBefore(';'))
+                    .put("bitrate", stream.bitrate)
+                    .put("durationMs", stream.durationMs)
+            )
+        }
+    }.toString()
+
+    private data class NewPipeAudioStream(
+        val itag: Int,
+        val url: String,
+        val mimeType: String,
+        val bitrate: Int,
+        val durationMs: Long,
+    )
+
+    private fun mimeTypeForAudioItag(itag: Int): String = when (itag) {
+        139, 140, 141, 256, 258, 325, 328 -> "audio/mp4"
+        else -> "audio/webm"
+    }
+
+    private fun bitrateForAudioItag(itag: Int): Int = when (itag) {
+        139 -> 48_000
+        249 -> 50_000
+        250 -> 70_000
+        140 -> 128_000
+        251 -> 160_000
+        141, 256 -> 256_000
+        258, 325, 328 -> 320_000
+        else -> 128_000
+    }
+
     private suspend fun ensureVisitorData() {
         if (YouTube.visitorData.isNullOrBlank()) {
             YouTube.visitorData = YouTube.visitorData().getOrNull()
@@ -296,8 +373,8 @@ object YouTubeMusicCatalog {
 
     private fun qualityLabel(mimeType: String, bitrate: Int): String {
         val codec = when {
-            mimeType.contains("opus", ignoreCase = true) -> "Opus"
-            mimeType.contains("mp4a", ignoreCase = true) -> "AAC"
+            mimeType.contains("opus", ignoreCase = true) || mimeType.contains("webm", ignoreCase = true) -> "Opus"
+            mimeType.contains("mp4a", ignoreCase = true) || mimeType.contains("mp4", ignoreCase = true) -> "AAC"
             else -> "Audio"
         }
         val kbps = (bitrate / 1000).coerceAtLeast(1)
