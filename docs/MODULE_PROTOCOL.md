@@ -31,7 +31,7 @@ Bailey Host → Studio → **Open modules folder** opens this location. Studio c
     "command": "python",
     "args": ["main.py"]
   },
-  "capabilities": ["commands", "settings", "events", "jobs"],
+  "capabilities": ["commands", "settings", "events", "jobs", "storage"],
   "settings": [
     {
       "key": "currency",
@@ -62,7 +62,7 @@ Bailey Host → Studio → **Open modules folder** opens this location. Studio c
 
 `runtime.command` is launched directly without a shell.
 
-Supported capability names are currently `commands`, `settings`, `events`, `jobs`, and `services`. `events` and `jobs` are active in Protocol 1. `services` is reserved for the next host-service layer.
+Supported capability names are currently `commands`, `settings`, `events`, `jobs`, `storage`, and `services`. `events`, `jobs`, and `storage` are active in Protocol 1. `services` is reserved for the next host-service layer.
 
 ### Runtime choices
 
@@ -148,6 +148,42 @@ A job has no triggering chat, so it should not return `reply` or `react`. To sen
 
 This is useful for episode checks, scheduled economy processing, cleanup/sync tasks, reminders, and notification modules.
 
+## Persistent module storage
+
+A module that declares the `storage` capability receives a persistent folder path in the `BAILEY_MODULE_DATA_DIR` environment variable before its worker starts.
+
+Use that directory for module-owned data such as:
+
+- SQLite databases and economy state
+- anime/manga tracking state and caches
+- downloaded metadata or generated indexes
+- temporary or durable media-processing files
+- JSON or other local application data
+
+The data directory is separate from the module's code directory and from Bailey's WhatsApp auth/session data. It survives module process restarts and Bailey module reloads, so replacing or editing module code does not reset the module's state.
+
+JavaScript example:
+
+```js
+import { join } from "node:path";
+
+const databasePath = join(process.env.BAILEY_MODULE_DATA_DIR, "economy.sqlite");
+```
+
+Python example:
+
+```python
+import os
+from pathlib import Path
+
+data_dir = Path(os.environ["BAILEY_MODULE_DATA_DIR"])
+database_path = data_dir / "economy.sqlite"
+```
+
+A module that does not declare `storage` does not receive `BAILEY_MODULE_DATA_DIR`.
+
+This dedicated folder is an ownership convention, not an operating-system sandbox. External modules are ordinary local processes and should still be treated as trusted code. The important boundary is that Bailey does not hand them its Lia socket or WhatsApp authentication state.
+
 ## Response
 
 Write one JSON object followed by a newline to stdout:
@@ -179,5 +215,6 @@ For failures:
 - Keep protocol messages on stdout. Use stderr for diagnostic output; Bailey records it as module diagnostics.
 - One line on stdout must contain one complete JSON protocol message.
 - Event handlers should return quickly. Use jobs for scheduled/background work instead of blocking message events.
+- Put persistent module-owned files inside `BAILEY_MODULE_DATA_DIR` when the module declares `storage`.
 
-The protocol stays intentionally small. Media actions, host services, and richer storage APIs can be layered on without tying module code to a specific WhatsApp-engine fork.
+The protocol stays intentionally small. Richer host services and cloud/blob adapters can be layered on without tying module code to a specific WhatsApp-engine fork.
