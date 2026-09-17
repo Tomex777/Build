@@ -1,1 +1,1 @@
-2026-09-17 final offline Music proof after Spotui Home alignment and strict selected-source guard: headers, bytes, persistence, local playback, deletion.
+2026-09-17 final offline Music proof after source guard, resolver race fix, audio focus, noisy handling, and wake mode.
