@@ -35,7 +35,7 @@ import com.night.sora.data.CachedMediaRecord
 import com.night.sora.data.MediaCatalogCache
 import com.night.sora.model.ContentType
 import com.night.sora.model.ExtensionMediaSelection
-import com.night.sora.model.LibraryEntry
+import com.night.sora.model.MediaProgressEntry
 import com.night.sora.ui.theme.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -56,10 +56,11 @@ private data class HomeBrowseCard(
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    entries: List<LibraryEntry>,
+    progressEntries: List<MediaProgressEntry>,
     extensions: List<InstalledExtension>,
     manager: ExtensionManager,
     onOpenSelection: (ExtensionMediaSelection) -> Unit,
+    onResumeProgress: (MediaProgressEntry) -> Unit,
     onOpenBible: () -> Unit,
     onSearch: () -> Unit,
 ) {
@@ -100,7 +101,10 @@ fun HomeScreen(
         loadHomeType(extensions, manager, mediaCache, ContentType.MEME) { cards -> memes = cards.take(4) }
     }
 
-    val continueEntries = entries.filter { it.contentType != null }.take(8)
+    val continueEntries = progressEntries
+        .filter { it.progress < .999f }
+        .sortedByDescending { it.updatedAt }
+        .take(8)
     val greeting = when (LocalTime.now().hour) {
         in 5..11 -> "Good morning"
         in 12..16 -> "Good afternoon"
@@ -141,8 +145,11 @@ fun HomeScreen(
                     Text("Nothing in progress yet.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp))
                 } else {
                     LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        items(continueEntries, key = { it.id }) { entry ->
-                            ContinueCard(entry) { entry.toMediaSelection()?.let(onOpenSelection) }
+                        items(
+                            continueEntries,
+                            key = { "${it.extensionPackage}:${it.sourceId}:${it.mediaId}:${it.itemId}" },
+                        ) { entry ->
+                            ContinueCard(entry) { onResumeProgress(entry) }
                         }
                     }
                 }
@@ -212,21 +219,21 @@ private fun HomeSectionHeader(title: String, subtitle: String, see: String, onSe
 }
 
 @Composable
-private fun ContinueCard(entry: LibraryEntry, onClick: () -> Unit) {
+private fun ContinueCard(entry: MediaProgressEntry, onClick: () -> Unit) {
     Row(Modifier.width(286.dp).height(154.dp).clip(RoundedCornerShape(18.dp)).background(SoraSurface).clickable(onClick = onClick)) {
         Box(Modifier.fillMaxHeight().width(118.dp).background(Color(0xFF2A2925)), contentAlignment = Alignment.Center) {
-            if (!entry.artworkUrl.isNullOrBlank()) AsyncImage(entry.artworkUrl, entry.label, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-            else Text(entry.label.take(1), fontSize = 36.sp, fontWeight = FontWeight.Black, color = SoraMuted)
+            if (!entry.artworkUrl.isNullOrBlank()) AsyncImage(entry.artworkUrl, entry.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            else Text(entry.title.take(1), fontSize = 36.sp, fontWeight = FontWeight.Black, color = SoraMuted)
         }
         Column(Modifier.fillMaxHeight().weight(1f).padding(13.dp)) {
-            Text(entry.kind.uppercase(), color = SoraAccent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = .7.sp)
-            Text(entry.label, fontSize = 17.sp, lineHeight = 19.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 7.dp))
-            Text(entry.detail, color = SoraMuted, fontSize = 10.sp, lineHeight = 14.sp, maxLines = 2, modifier = Modifier.padding(top = 4.dp))
+            Text(entry.contentType.label.uppercase(), color = SoraAccent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = .7.sp)
+            Text(entry.title, fontSize = 17.sp, lineHeight = 19.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 7.dp))
+            Text(entry.itemLabel, color = SoraMuted, fontSize = 10.sp, lineHeight = 14.sp, maxLines = 2, modifier = Modifier.padding(top = 4.dp))
             Spacer(Modifier.weight(1f))
-            LinearProgressIndicator(progress = { .62f }, modifier = Modifier.fillMaxWidth().height(3.dp), color = SoraAccent, trackColor = Color(0xFF49473F))
+            LinearProgressIndicator(progress = { entry.progress }, modifier = Modifier.fillMaxWidth().height(3.dp), color = SoraAccent, trackColor = Color(0xFF49473F))
             Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(22.dp).background(SoraAccent, CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Rounded.PlayArrow, null, tint = SoraAccentInk, modifier = Modifier.size(13.dp)) }
-                Text("Resume", fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 6.dp))
+                Text("Resume · ${(entry.progress * 100).toInt()}%", fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 6.dp))
             }
         }
     }

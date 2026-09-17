@@ -149,10 +149,20 @@ fun SoraApp() {
             when (tab) {
                 RootTab.HOME -> HomeScreen(
                     modifier = Modifier.padding(padding),
-                    entries = repository.library,
+                    progressEntries = repository.mediaProgress,
                     extensions = extensions,
                     manager = extensionManager,
                     onOpenSelection = ::openMedia,
+                    onResumeProgress = { entry ->
+                        resumeMediaProgress(
+                            entry = entry,
+                            extensions = extensions,
+                            manager = extensionManager,
+                            onOpenReader = { push(AppScreen.Reader(it)) },
+                            onOpenPlayer = { push(AppScreen.VideoPlayer(it)) },
+                            onFallback = ::openMedia,
+                        )
+                    },
                     onOpenBible = { push(AppScreen.Bible) },
                     onSearch = { tab = RootTab.MEDIA },
                 )
