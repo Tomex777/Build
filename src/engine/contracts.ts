@@ -28,12 +28,14 @@ export interface EngineStatus {
 }
 
 export interface IncomingEngineMessage {
+  id?: string;
   remoteJid: string;
   fromMe: boolean;
   participant?: string;
   text?: string;
   key: unknown;
   pushName?: string;
+  timestamp?: number;
 }
 
 export type EngineWorkerEvent =
