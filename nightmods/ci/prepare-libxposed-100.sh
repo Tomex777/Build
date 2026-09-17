@@ -57,8 +57,7 @@ grep -q 'void onServiceDied' \
 
 # Build only the binary AARs. The historical publication also attaches Dokka-generated
 # Javadoc jars; that documentation task is broken on current GitHub runners and is not
-# needed by Night Core. Installing the exact binary coordinates ourselves avoids letting
-# a documentation tool decide whether the API-100 runtime dependency is reproducible.
+# needed by Night Core.
 (
   cd "$SERVICE_ROOT"
   ./gradlew --no-daemon :interface:bundleReleaseAar :service:bundleReleaseAar
@@ -68,8 +67,16 @@ INTERFACE_AAR="$(find "$SERVICE_ROOT/interface/build/outputs/aar" -maxdepth 1 -t
 SERVICE_AAR="$(find "$SERVICE_ROOT/service/build/outputs/aar" -maxdepth 1 -type f -name '*release.aar' -print -quit)"
 test -n "$INTERFACE_AAR"
 test -n "$SERVICE_AAR"
-cp "$INTERFACE_AAR" "$INTERFACE_DIR/interface-100.aar"
+
+# API-100's historical interface and service Android libraries both declare the namespace
+# io.github.libxposed.service. AGP 9 rejects two Android libraries with the same namespace.
+# The interface module only contributes generated Binder classes, so expose its exact
+# classes.jar as a plain Maven JAR. This preserves the API-100 Binder implementation while
+# keeping only the service AAR's Android manifest/provider in Night Core.
+unzip -p "$INTERFACE_AAR" classes.jar > "$INTERFACE_DIR/interface-100.jar"
 cp "$SERVICE_AAR" "$SERVICE_DIR/service-100-1.0.0.aar"
+
+test -s "$INTERFACE_DIR/interface-100.jar"
 
 cat > "$INTERFACE_DIR/interface-100.pom" <<'POM'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -80,7 +87,7 @@ cat > "$INTERFACE_DIR/interface-100.pom" <<'POM'
   <groupId>io.github.libxposed</groupId>
   <artifactId>interface</artifactId>
   <version>100</version>
-  <packaging>aar</packaging>
+  <packaging>jar</packaging>
 </project>
 POM
 
@@ -108,7 +115,7 @@ POM
 # Fail early unless every exact API-100 coordinate needed by Night Core is installed.
 test -f "$API_DIR/api-100.aar"
 test -f "$API_DIR/api-100.pom"
-test -f "$INTERFACE_DIR/interface-100.aar"
+test -f "$INTERFACE_DIR/interface-100.jar"
 test -f "$INTERFACE_DIR/interface-100.pom"
 test -f "$SERVICE_DIR/service-100-1.0.0.aar"
 test -f "$SERVICE_DIR/service-100-1.0.0.pom"
