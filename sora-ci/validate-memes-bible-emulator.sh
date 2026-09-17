@@ -12,6 +12,7 @@ adb shell settings put global animator_duration_scale 0
 adb shell settings put system font_scale 1.0
 
 adb install -r "$ROOT/meme-extension/build/outputs/apk/debug/meme-extension-debug.apk"
+adb install -r "$ROOT/tumblr-meme-extension/build/outputs/apk/debug/tumblr-meme-extension-debug.apk"
 adb install -r "$ROOT/app/build/outputs/apk/debug/app-debug.apk"
 adb shell am force-stop com.night.sora
 adb shell am start -n com.night.sora/.MainActivity
@@ -75,14 +76,12 @@ shot "01-home-top"
 # Home -> Bible truthfulness entry.
 if tap_text_scroll "Open Bible" up; then
   shot "02-home-bible-entry"
-  # The previous tap may have opened it already.
   sleep 2
 else
   echo "Could not find Home Bible entry" >&2
   exit 1
 fi
 
-# If still on Home because the matched node was non-clickable, tap again.
 dump_ui
 if coords_for "Bible reader" >/dev/null 2>&1 || coords_for "Continue reading" >/dev/null 2>&1 || coords_for "Books" >/dev/null 2>&1; then
   :
@@ -108,19 +107,41 @@ tap_text "1"
 sleep 4
 shot "06-bible-reader"
 
+# Verse interaction sheet, highlighting, and note editor.
+if tap_text "In the beginning"; then
+  sleep 1
+  shot "07-bible-verse-actions"
+  if tap_text "Highlight"; then
+    adb shell input keyevent 4
+    sleep 1
+    shot "08-bible-highlighted"
+    if tap_text "In the beginning"; then
+      if tap_text "Add note"; then
+        sleep 1
+        shot "09-bible-note-editor"
+        adb shell input keyevent 4
+        sleep 1
+      fi
+    fi
+  fi
+else
+  echo "Could not open verse actions" >&2
+  exit 1
+fi
+
 # Bookmark a real verse if available.
 if tap_text "Bookmark verse"; then
   sleep 1
-  shot "07-bible-bookmarked"
+  shot "10-bible-bookmarked"
 fi
 
 # Validate internal system-back behavior: Reader -> Chapters -> Hub -> Sora.
 adb shell input keyevent 4
 sleep 1
-shot "08-bible-back-to-chapters"
+shot "11-bible-back-to-chapters"
 adb shell input keyevent 4
 sleep 1
-shot "09-bible-back-to-hub"
+shot "12-bible-back-to-hub"
 adb shell input keyevent 4
 sleep 1
 
@@ -129,17 +150,40 @@ tap_text "Media"
 sleep 1
 tap_text "Anime & Manga"
 sleep 1
-shot "10-media-switcher"
+shot "13-media-switcher"
 tap_text "Memes"
 sleep 5
-shot "11-memes-feed-or-state"
+shot "14-memes-feed-or-state"
 
-# If Reddit is reachable from this emulator, open a live post.
+# If live providers are unavailable, recovery actions must exist. Otherwise open a live post.
 if tap_text "Open post"; then
   sleep 3
-  shot "12-meme-detail"
+  shot "15-meme-detail"
+  adb shell input keyevent 4
+  sleep 1
 else
-  echo "No live meme post opened; retaining truthful feed/unavailable screenshot."
+  dump_ui
+  if coords_for "Retry" >/dev/null 2>&1 && coords_for "Sources" >/dev/null 2>&1; then
+    shot "15-meme-recovery-actions"
+  else
+    echo "Meme feed unavailable without Retry/Sources recovery" >&2
+    exit 1
+  fi
+fi
+
+# Saved memes must have a first-class Library filter.
+tap_text "Library"
+sleep 1
+shot "16-library-before-meme-filter"
+adb shell input swipe 950 190 150 190 400
+sleep 1
+dump_ui
+if coords_for "Memes" >/dev/null 2>&1; then
+  tap_text "Memes"
+  shot "17-library-memes-filter"
+else
+  echo "Library Memes filter not reachable" >&2
+  exit 1
 fi
 
 dump_ui
