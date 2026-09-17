@@ -31,7 +31,7 @@ Bailey Host → Studio → **Open modules folder** opens this location. Studio c
     "command": "python",
     "args": ["main.py"]
   },
-  "capabilities": ["commands", "settings", "events"],
+  "capabilities": ["commands", "settings", "events", "jobs"],
   "settings": [
     {
       "key": "currency",
@@ -49,13 +49,20 @@ Bailey Host → Studio → **Open modules folder** opens this location. Studio c
       "description": "Show your balance.",
       "aliases": ["bal"]
     }
+  ],
+  "jobs": [
+    {
+      "id": "interest",
+      "intervalSeconds": 3600,
+      "runOnStart": true
+    }
   ]
 }
 ```
 
 `runtime.command` is launched directly without a shell.
 
-Supported capability names are currently `commands`, `settings`, `events`, `jobs`, and `services`. `events` is active in Protocol 1 now. `jobs` and `services` are reserved capability names for the next host layers; declaring them does not yet create schedules or service endpoints by itself.
+Supported capability names are currently `commands`, `settings`, `events`, `jobs`, and `services`. `events` and `jobs` are active in Protocol 1. `services` is reserved for the next host-service layer.
 
 ### Runtime choices
 
@@ -113,6 +120,34 @@ Example no-op event response:
 {"protocol":1,"replyTo":"request-id","ok":true,"actions":[]}
 ```
 
+## Scheduled jobs
+
+A module that declares the `jobs` capability may add fixed-interval jobs to its manifest. `intervalSeconds` must be an integer from 5 seconds through 30 days.
+
+Bailey sends a job request like this:
+
+```json
+{"protocol":1,"id":"request-id","type":"job.execute","jobId":"interest","scheduledAt":1789674000000}
+```
+
+`scheduledAt` is a Unix timestamp in milliseconds. Set `runOnStart` to `true` when a job should also run once as Bailey starts the scheduler.
+
+Job behavior:
+
+- Bailey owns the timers; the module does not need its own background scheduler.
+- Disabled modules do not execute jobs.
+- Bailey skips a new run when the same module/job pair is still running from its previous interval.
+- Reloading modules stops old timers before new module definitions are loaded.
+- Jobs begin only after Bailey's WhatsApp host is initialized, so outbound sends remain host-controlled.
+
+A job has no triggering chat, so it should not return `reply` or `react`. To send a proactive WhatsApp message, return a `send` action with the target JID:
+
+```json
+{"protocol":1,"replyTo":"request-id","ok":true,"actions":[{"type":"send","remoteJid":"1203630...@g.us","text":"Daily update is ready."}]}
+```
+
+This is useful for episode checks, scheduled economy processing, cleanup/sync tasks, reminders, and notification modules.
+
 ## Response
 
 Write one JSON object followed by a newline to stdout:
@@ -125,9 +160,10 @@ Supported actions in Protocol 1 today:
 
 - `{"type":"reply","text":"..."}` — reply to the triggering chat.
 - `{"type":"react","emoji":"✅"}` — react to the triggering message.
+- `{"type":"send","remoteJid":"...","text":"..."}` — ask Bailey to send a new text message to a specific WhatsApp JID.
 - `{"type":"log","level":"info","message":"..."}` — write a module log line. `level` may be `debug`, `info`, `warn`, or `error`.
 
-The same action format is used for command responses and event responses. Bailey remains the only layer that performs WhatsApp actions.
+Bailey remains the only layer that performs WhatsApp actions. External modules never receive the Lia socket or auth state.
 
 For failures:
 
@@ -142,6 +178,6 @@ For failures:
 - Treat request context as data and return actions for Bailey to perform.
 - Keep protocol messages on stdout. Use stderr for diagnostic output; Bailey records it as module diagnostics.
 - One line on stdout must contain one complete JSON protocol message.
-- Event handlers should return quickly. Long-running work belongs in the upcoming jobs/services layers rather than blocking message-event responses.
+- Event handlers should return quickly. Use jobs for scheduled/background work instead of blocking message events.
 
-The protocol stays intentionally small. Media actions, scheduled jobs, host services, and richer storage APIs can be layered on without tying module code to a specific WhatsApp-engine fork.
+The protocol stays intentionally small. Media actions, host services, and richer storage APIs can be layered on without tying module code to a specific WhatsApp-engine fork.
