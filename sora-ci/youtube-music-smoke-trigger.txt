@@ -1,1 +1,1 @@
-2026-09-17 compile authenticated YouTube Music session path with secure PAPISID normalization and extension browser UI.
+2026-09-17 compile YouTube Music browser session with PAPISID normalization, VISITOR_DATA capture, and signed-in WEB_REMIX fallback.
