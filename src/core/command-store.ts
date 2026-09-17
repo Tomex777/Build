@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { BaileyCommandAction, BaileyCommandDefinition, BaileyModuleDefinition } from "./module";
@@ -16,13 +17,27 @@ export interface EffectiveCommand extends BaileyCommandDefinition {
   section: string;
   aliases: string[];
   editable: boolean;
+  origin: "shipped" | "custom";
   replyText?: string;
 }
 
-interface StoredDocument {
+interface StoredCustomCommand extends VisualCommandPatch {
+  id: string;
+  moduleId: string;
+}
+
+interface StoredDocumentV1 {
   version: 1;
   commands: Record<string, VisualCommandPatch>;
 }
+
+interface StoredDocumentV2 {
+  version: 2;
+  commands: Record<string, VisualCommandPatch>;
+  customCommands: Record<string, StoredCustomCommand>;
+}
+
+type StoredDocument = StoredDocumentV2;
 
 function commandKey(moduleId: string, id: string): string {
   return `${moduleId}.${id}`;
@@ -61,21 +76,42 @@ function normalizeAliases(value: unknown): string[] {
   return output;
 }
 
+function normalizePatch(raw: VisualCommandPatch): VisualCommandPatch {
+  const name = normalizeName(raw.name);
+  const aliases = normalizeAliases(raw.aliases).filter((alias) => alias !== name);
+  const section = normalizeSection(raw.section);
+  const description = normalizeDescription(raw.description);
+  const replyText = String(raw.replyText ?? "").trim();
+  if (!replyText || replyText.length > 4096) throw new Error("Reply text must be 1–4096 characters.");
+  return { name, aliases, section, description, replyText };
+}
+
 function replyFromActions(actions?: BaileyCommandAction[]): string | undefined {
   if (!actions || actions.length !== 1 || actions[0]?.type !== "reply") return undefined;
   return actions[0].text;
 }
 
+function customKey(moduleId: string, id: string): string {
+  return `${moduleId}:${id}`;
+}
+
 export class JsonCommandStore {
-  private document: StoredDocument = { version: 1, commands: {} };
+  private document: StoredDocument = { version: 2, commands: {}, customCommands: {} };
 
   constructor(private readonly filePath: string) {}
 
   async load(): Promise<void> {
     try {
       const raw = await readFile(this.filePath, "utf8");
-      const parsed = JSON.parse(raw) as StoredDocument;
-      if (parsed.version !== 1 || typeof parsed.commands !== "object") throw new Error("Unsupported Bailey command format");
+      const parsed = JSON.parse(raw) as StoredDocumentV1 | StoredDocumentV2;
+      if (parsed.version === 1 && typeof parsed.commands === "object") {
+        this.document = { version: 2, commands: parsed.commands ?? {}, customCommands: {} };
+        await this.flush();
+        return;
+      }
+      if (parsed.version !== 2 || typeof parsed.commands !== "object" || typeof parsed.customCommands !== "object") {
+        throw new Error("Unsupported Bailey command format");
+      }
       this.document = parsed;
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
@@ -98,16 +134,37 @@ export class JsonCommandStore {
       description: override?.description ?? command.description,
       aliases: override?.aliases ?? command.aliases ?? [],
       editable,
+      origin: "shipped",
       replyText,
       actions: editable && replyText !== undefined ? [{ type: "reply", text: replyText }] : command.actions,
     };
   }
 
+  private effectiveCustom(record: StoredCustomCommand): EffectiveCommand {
+    return {
+      id: record.id,
+      name: record.name,
+      section: record.section,
+      description: record.description,
+      aliases: record.aliases,
+      editable: true,
+      origin: "custom",
+      replyText: record.replyText,
+      actions: [{ type: "reply", text: record.replyText ?? "" }],
+    };
+  }
+
   list(modules: BaileyModuleDefinition[]): Array<{ module: BaileyModuleDefinition; command: EffectiveCommand }> {
-    return modules.flatMap((module) => (module.commands ?? []).map((command) => ({
+    const shipped = modules.flatMap((module) => (module.commands ?? []).map((command) => ({
       module,
       command: this.effective(module, command),
     })));
+    const byId = new Map(modules.map((module) => [module.id, module]));
+    const custom = Object.values(this.document.customCommands).flatMap((record) => {
+      const module = byId.get(record.moduleId);
+      return module ? [{ module, command: this.effectiveCustom(record) }] : [];
+    });
+    return [...shipped, ...custom];
   }
 
   resolve(modules: BaileyModuleDefinition[], trigger: string): { module: BaileyModuleDefinition; command: EffectiveCommand } | undefined {
@@ -119,26 +176,64 @@ export class JsonCommandStore {
     return this.effective(module, command);
   }
 
+  getById(modules: BaileyModuleDefinition[], moduleId: string, id: string): EffectiveCommand | undefined {
+    return this.list(modules).find(({ module, command }) => module.id === moduleId && command.id === id)?.command;
+  }
+
+  async create(modules: BaileyModuleDefinition[], moduleId: string, raw: VisualCommandPatch): Promise<EffectiveCommand> {
+    if (!modules.some((module) => module.id === moduleId)) throw new Error("Module not found.");
+    const patch = normalizePatch(raw);
+    const id = `user-${randomUUID()}`;
+    this.document.customCommands[customKey(moduleId, id)] = { id, moduleId, ...patch };
+    await this.flush();
+    return this.effectiveCustom(this.document.customCommands[customKey(moduleId, id)]);
+  }
+
+  async updateById(modules: BaileyModuleDefinition[], moduleId: string, id: string, raw: VisualCommandPatch): Promise<EffectiveCommand> {
+    const custom = this.document.customCommands[customKey(moduleId, id)];
+    if (custom) {
+      const patch = normalizePatch(raw);
+      this.document.customCommands[customKey(moduleId, id)] = { ...custom, ...patch };
+      await this.flush();
+      return this.effectiveCustom(this.document.customCommands[customKey(moduleId, id)]);
+    }
+
+    const module = modules.find((candidate) => candidate.id === moduleId);
+    const command = module?.commands?.find((candidate) => commandId(candidate) === id);
+    if (!module || !command) throw new Error("Command not found.");
+    return this.update(module, command, raw);
+  }
+
   async update(module: BaileyModuleDefinition, command: BaileyCommandDefinition, raw: VisualCommandPatch): Promise<EffectiveCommand> {
     const current = this.effective(module, command);
     if (!current.editable) throw new Error("This command is code-backed and cannot be edited in the visual editor yet.");
-
-    const name = normalizeName(raw.name);
-    const aliases = normalizeAliases(raw.aliases).filter((alias) => alias !== name);
-    const section = normalizeSection(raw.section);
-    const description = normalizeDescription(raw.description);
-    const replyText = String(raw.replyText ?? "").trim();
-    if (!replyText || replyText.length > 4096) throw new Error("Reply text must be 1–4096 characters.");
-
-    this.document.commands[commandKey(module.id, current.id)] = { name, aliases, section, description, replyText };
+    const patch = normalizePatch(raw);
+    this.document.commands[commandKey(module.id, current.id)] = patch;
     await this.flush();
     return this.effective(module, command);
+  }
+
+  async resetById(modules: BaileyModuleDefinition[], moduleId: string, id: string): Promise<EffectiveCommand> {
+    if (this.document.customCommands[customKey(moduleId, id)]) {
+      throw new Error("Commands you created do not have shipped defaults. Delete the command instead.");
+    }
+    const module = modules.find((candidate) => candidate.id === moduleId);
+    const command = module?.commands?.find((candidate) => commandId(candidate) === id);
+    if (!module || !command) throw new Error("Command not found.");
+    return this.reset(module, command);
   }
 
   async reset(module: BaileyModuleDefinition, command: BaileyCommandDefinition): Promise<EffectiveCommand> {
     delete this.document.commands[commandKey(module.id, commandId(command))];
     await this.flush();
     return this.effective(module, command);
+  }
+
+  async deleteById(moduleId: string, id: string): Promise<void> {
+    const key = customKey(moduleId, id);
+    if (!this.document.customCommands[key]) throw new Error("Only commands created in Studio can be deleted.");
+    delete this.document.customCommands[key];
+    await this.flush();
   }
 
   private async flush(): Promise<void> {
