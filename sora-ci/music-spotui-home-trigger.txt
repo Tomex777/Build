@@ -1,0 +1,1 @@
+Align Sora Music Home with the pinned Spotui feed behavior: no invented Discover hero and no Made for You label before real listening history exists.
