@@ -1,0 +1,37 @@
+name: Apply Sora Music Completion
+
+on:
+  push:
+    branches: [sora-android-ci]
+    paths:
+      - 'sora-ci/music-complete-trigger.txt'
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply Music core/download changes
+        run: python sora-ci/patch_music_download_core.py
+      - name: Apply Music source/UI wiring
+        run: python sora-ci/patch_music_download_ui.py
+      - name: Verify intended contracts
+        run: |
+          grep -q 'class MusicDownloadManager' sora-overlay/app/src/main/java/com/night/sora/download/MusicDownloadManager.kt
+          grep -q 'preferred_music' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+          grep -q 'ContentType.MUSIC, "Music"' sora-overlay/app/src/main/java/com/night/sora/ui/screens/PlayerReaderSettingsScreen.kt
+          grep -q 'downloadEntry = musicDownloads::entryFor' sora-overlay/app/src/main/java/com/night/sora/ui/SoraApp.kt
+          grep -q 'ExtensionInstallButton()' sora-overlay/app/src/main/java/com/night/sora/ui/screens/ExtensionsScreen.kt
+          ! grep -q 'onStatus(entry.id, DownloadStatus.PAUSED)' sora-overlay/app/src/main/java/com/night/sora/ui/screens/MoreScreen.kt
+      - name: Commit completion pass
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add sora-overlay
+          git commit -m 'complete Sora music downloads and source selection'
+          git push
