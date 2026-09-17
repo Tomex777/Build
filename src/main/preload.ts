@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld("bailey", {
   openModulesFolder: () => ipcRenderer.invoke("bailey:studio-open-modules-folder"),
   createModule: (input: unknown) => ipcRenderer.invoke("bailey:studio-create-module", input),
   showModule: (moduleId: string) => ipcRenderer.invoke("bailey:studio-show-module", moduleId),
+  reloadModules: () => ipcRenderer.invoke("bailey:studio-reload-modules"),
   listChats: (query = "") => ipcRenderer.invoke("bailey:chats-list", query),
   getChatMessages: (remoteJid: string, limit = 200) => ipcRenderer.invoke("bailey:chat-messages", remoteJid, limit),
   sendChatMessage: (remoteJid: string, text: string) => ipcRenderer.invoke("bailey:chat-send", remoteJid, text),
