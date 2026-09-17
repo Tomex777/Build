@@ -90,14 +90,17 @@ export class ExternalModuleManager {
     if (!loaded) throw new Error(`External module is not loaded: ${moduleId}`);
     if (loaded.process && !loaded.process.killed) return loaded.process;
 
+    const useEmbeddedNode = loaded.manifest.runtime.command === "bailey-node";
+    const executable = useEmbeddedNode ? process.execPath : loaded.manifest.runtime.command;
     const child = spawn(
-      loaded.manifest.runtime.command,
+      executable,
       loaded.manifest.runtime.args ?? [],
       {
         cwd: loaded.directory,
         env: {
           ...process.env,
           ...this.getEnvironment(moduleId),
+          ...(useEmbeddedNode ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
           BAILEY_MODULE_ID: moduleId,
           BAILEY_MODULE_PROTOCOL: String(BAILEY_MODULE_PROTOCOL),
         },
