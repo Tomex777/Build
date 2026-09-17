@@ -1,0 +1,59 @@
+name: Cortex Agent
+
+on:
+  push:
+    branches: [cortex-android-live]
+    paths:
+      - 'cortex-agent/**'
+      - '.github/workflows/cortex-agent.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Syntax check
+        run: node --check cortex-agent/index.js
+      - name: Start Cortex Agent
+        shell: bash
+        run: |
+          mkdir -p /tmp/night
+          CORTEX_AGENT_TOKEN='test-token-12345678901234567890' \
+          NIGHT_ROOT=/tmp/night \
+          NIGHT_SERVICE=night.service \
+          HOST=127.0.0.1 \
+          PORT=47831 \
+          node cortex-agent/index.js >/tmp/cortex-agent.log 2>&1 &
+          echo $! >/tmp/cortex-agent.pid
+          for i in {1..20}; do
+            if curl -fsS -H 'Authorization: Bearer test-token-12345678901234567890' http://127.0.0.1:47831/api/cortex/host/status >/tmp/status.json; then
+              exit 0
+            fi
+            sleep 0.5
+          done
+          cat /tmp/cortex-agent.log
+          exit 1
+      - name: Verify authenticated file API
+        shell: bash
+        run: |
+          AUTH='Authorization: Bearer test-token-12345678901234567890'
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"path":"index.js","content":"console.log(\"night\")\n"}' \
+            http://127.0.0.1:47831/api/cortex/host/files/content >/tmp/write.json
+          curl -fsS -H "$AUTH" 'http://127.0.0.1:47831/api/cortex/host/files/content?path=index.js' >/tmp/read.json
+          curl -fsS -H "$AUTH" 'http://127.0.0.1:47831/api/cortex/host/files?path=/' >/tmp/list.json
+          grep -q 'console.log' /tmp/read.json
+          grep -q 'index.js' /tmp/list.json
+      - name: Reject unauthenticated requests
+        shell: bash
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:47831/api/cortex/host/status)
+          test "$code" = '401'
+      - name: Stop Cortex Agent
+        if: always()
+        run: kill "$(cat /tmp/cortex-agent.pid)" 2>/dev/null || true
