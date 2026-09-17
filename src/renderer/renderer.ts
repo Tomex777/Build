@@ -31,6 +31,7 @@ interface EffectiveCommand {
   editable: boolean;
   origin: "shipped" | "custom";
   replyText?: string;
+  reactionEmoji?: string;
 }
 
 interface ModuleView {
@@ -52,6 +53,7 @@ interface VisualCommandPatch {
   aliases: string[];
   description: string;
   replyText: string;
+  reactionEmoji?: string;
 }
 
 interface StudioFile {
@@ -301,6 +303,7 @@ async function openCommandEditor(moduleId: string, commandId: string): Promise<v
   document.querySelector<HTMLInputElement>("#command-aliases")!.value = command.aliases.join(", ");
   document.querySelector<HTMLInputElement>("#command-description")!.value = command.description;
   document.querySelector<HTMLTextAreaElement>("#command-reply")!.value = command.replyText ?? "";
+  document.querySelector<HTMLInputElement>("#command-reaction")!.value = command.reactionEmoji ?? "";
   document.querySelector<HTMLElement>("#command-editor-error")!.textContent = "";
   commandDialog.showModal();
   document.querySelector<HTMLInputElement>("#command-name")!.focus();
@@ -318,6 +321,7 @@ function openCreateCommandEditor(): void {
   document.querySelector<HTMLInputElement>("#command-aliases")!.value = "";
   document.querySelector<HTMLInputElement>("#command-description")!.value = "";
   document.querySelector<HTMLTextAreaElement>("#command-reply")!.value = "";
+  document.querySelector<HTMLInputElement>("#command-reaction")!.value = "";
   document.querySelector<HTMLElement>("#command-editor-error")!.textContent = "";
   commandDialog.showModal();
   document.querySelector<HTMLInputElement>("#command-name")!.focus();
@@ -340,6 +344,7 @@ function commandPatchFromForm(): VisualCommandPatch {
     aliases: document.querySelector<HTMLInputElement>("#command-aliases")!.value.split(",").map((value) => value.trim()).filter(Boolean),
     description: document.querySelector<HTMLInputElement>("#command-description")!.value,
     replyText: document.querySelector<HTMLTextAreaElement>("#command-reply")!.value,
+    reactionEmoji: document.querySelector<HTMLInputElement>("#command-reaction")!.value,
   };
 }
 
