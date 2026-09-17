@@ -141,14 +141,16 @@ tap_text 'Offline Proof'
 wait_node 'Mini player' 20
 tap_text 'Mini player'
 wait_node Downloaded 15
-wait_node Downloaded 15
 wait_node Pause 20
-# Source label is set by MusicPlaybackController only on the verified local path.
-wait_node Downloaded 15
+# MusicPlaybackController sets this exact stream label only after selecting the verified local file.
+wait_node Offline 15
 shot 04-offline-local-playback
 
-# Remove the local file through the real player action and verify bytes are gone.
-tap_text Downloaded
+# Remove through the real overflow action; this avoids confusing the Downloaded source label
+# with the Downloaded secondary action.
+tap_text 'Track options'
+wait_node 'Remove download' 15
+tap_text 'Remove download'
 wait_node Download 20
 sleep 2
 adb shell 'find /sdcard/Android/data/com.night.sora/files/Music/downloads -type f -size +0c 2>/dev/null' > "$OUT/files-after-delete.txt" || true
