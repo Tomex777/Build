@@ -240,6 +240,7 @@ fun MediaScreen(
             searchOpen = searchOpen,
             query = query,
             selectedType = selectedType,
+            searchEnabled = destination != MediaDestination.BIBLE,
             onSwitch = { switchOpen = true },
             onOpenSearch = { searchOpen = true },
             onCloseSearch = { searchOpen = false; query = "" },
@@ -317,6 +318,7 @@ private fun MediaTopBar(
     searchOpen: Boolean,
     query: String,
     selectedType: ContentType,
+    searchEnabled: Boolean,
     onSwitch: () -> Unit,
     onOpenSearch: () -> Unit,
     onCloseSearch: () -> Unit,
@@ -326,7 +328,7 @@ private fun MediaTopBar(
         Modifier.fillMaxWidth().statusBarsPadding().height(58.dp).padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (searchOpen) {
+        if (searchOpen && searchEnabled) {
             IconButton(onClick = onCloseSearch) { Icon(Icons.Rounded.ArrowBack, "Close search") }
             Box(Modifier.weight(1f).background(SoraSurfaceHigh, RoundedCornerShape(14.dp)).padding(horizontal = 13.dp, vertical = 10.dp)) {
                 BasicTextField(
@@ -343,7 +345,9 @@ private fun MediaTopBar(
                 Icon(Icons.Rounded.KeyboardArrowDown, null, modifier = Modifier.size(20.dp))
             }
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = onOpenSearch) { Icon(Icons.Rounded.Search, "Search $title") }
+            if (searchEnabled) {
+                IconButton(onClick = onOpenSearch) { Icon(Icons.Rounded.Search, "Search $title") }
+            }
         }
     }
 }

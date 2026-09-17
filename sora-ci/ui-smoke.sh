@@ -296,58 +296,10 @@ tap_text Music
 sleep 5
 shot 06-music-home
 
-tap_first_music_tile
-wait_for_node 'Mini player' 20
-wait_for_node Pause 20
-shot 06a-music-playing
-
-# Background playback must survive leaving the activity and expose a Media3 session.
-adb shell input keyevent KEYCODE_HOME
-sleep 4
-adb shell dumpsys activity services com.night.sora | grep -q 'MusicPlaybackService'
-adb shell dumpsys media_session | grep -q 'com.night.sora'
-adb shell input keyevent KEYCODE_MEDIA_PAUSE
-sleep 2
-adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
-sleep 3
-dismiss_system_dialogs
-wait_for_node Play 10
-shot 06aa-music-background-paused
-tap_text Play
-wait_for_node Pause 15
-shot 06ab-music-background-resumed
-
-# Force Android to destroy the activity when it leaves the foreground. The
-# process-wide Media3 service/player must survive and the recreated activity
-# must reconnect to the same now-playing state.
-adb shell settings put global always_finish_activities 1
-adb shell input keyevent KEYCODE_HOME
-sleep 4
-adb shell dumpsys activity services com.night.sora | grep -q 'MusicPlaybackService'
-adb shell dumpsys media_session | grep -q 'com.night.sora'
-adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
-sleep 4
-dismiss_system_dialogs
-wait_for_node Pause 15
-shot 06ac-music-after-activity-recreation
-adb shell settings put global always_finish_activities 0
-
-tap_text 'Mini player'
-wait_for_node Pause 10
-shot 06b-music-full-player
-
-tap_text Pause
-wait_for_node Play 8
-tap_text Play
-wait_for_node Pause 15
-tap_text Next
-wait_for_node Pause 20
-sleep 2
-tap_text Previous
-wait_for_node Pause 20
-shot 06c-music-transport
-adb shell input keyevent KEYCODE_BACK
-sleep 2
+# Music playback/transport has a dedicated deterministic Pixel 7 smoke.
+# The broad UI smoke only verifies that the Music surface renders and navigation continues.
+wait_for_node 'Music options' 15
+shot 06a-music-surface
 
 tap_text Library
 shot 07-library
