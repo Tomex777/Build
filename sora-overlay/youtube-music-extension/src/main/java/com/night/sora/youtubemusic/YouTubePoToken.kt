@@ -21,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -55,15 +56,17 @@ internal class YouTubePoTokenProvider(
             var active = generator
             if (active == null || active.isExpired || sessionId != visitorData) {
                 active?.let { old -> withContext(Dispatchers.Main.immediate) { old.close() } }
-                active = Generator(appContext)
-                withTimeout(INIT_TIMEOUT_MS) { active.initialize() }
-                generator = active
+                val fresh = withContext(Dispatchers.Main.immediate) { Generator(appContext) }
+                withTimeout(INIT_TIMEOUT_MS) { fresh.initialize() }
+                generator = fresh
+                active = fresh
                 sessionId = visitorData
-                streamingToken = withTimeout(TOKEN_TIMEOUT_MS) { active.generate(visitorData) }
+                streamingToken = withTimeout(TOKEN_TIMEOUT_MS) { fresh.generate(visitorData) }
                 Log.i(TAG, "PoToken generator ready visitor=true")
             }
 
-            val playerToken = withTimeout(TOKEN_TIMEOUT_MS) { active.generate(videoId) }
+            val ready = requireNotNull(active) { "PoToken generator was not initialized" }
+            val playerToken = withTimeout(TOKEN_TIMEOUT_MS) { ready.generate(videoId) }
             val requestToken = streamingToken ?: error("Missing visitor-bound PoToken")
             Tokens(
                 playerRequestPoToken = requestToken,
@@ -229,7 +232,7 @@ internal class YouTubePoTokenProvider(
         }
 
         private fun CoroutineScope.launchSafely(block: suspend () -> Unit) {
-            kotlinx.coroutines.launch {
+            launch {
                 try {
                     block()
                 } catch (error: Throwable) {
