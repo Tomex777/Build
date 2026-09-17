@@ -1,1 +1,1 @@
-Run phone walkthrough and capture the searchable Bible version bottom sheet.
+Run phone walkthrough after prioritizing selected and English Bible versions.
