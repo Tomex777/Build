@@ -82,7 +82,7 @@ class YouTubeMusicExtensionService : Service() {
                             ExtensionSessionContract.METHOD_BROWSER_SESSION -> YouTubeMusicCatalog.browserSession(sourceId)
                             ExtensionSessionContract.METHOD_STORE_SESSION -> YouTubeMusicCatalog.storeSession(
                                 sourceId = sourceId,
-                                cookieHeader = payload.optString("cookieHeader"),
+                                cookieHeader = normalizeYouTubeCookieHeader(payload.optString("cookieHeader")),
                                 userAgent = payload.optString("userAgent"),
                             )
                             ExtensionContract.Method.EPISODES,
