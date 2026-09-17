@@ -13,7 +13,7 @@ permissions:
 jobs:
   verify-and-package:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
 
     steps:
       - name: Checkout
@@ -46,6 +46,12 @@ jobs:
 
       - name: Build Windows installer and portable executable
         run: npm run dist:win
+
+      - name: Packaged app installs Lia engine
+        shell: pwsh
+        run: |
+          & ".\release\win-unpacked\Bailey Host.exe" --ci-engine-smoke
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload Windows builds
         uses: actions/upload-artifact@v4
