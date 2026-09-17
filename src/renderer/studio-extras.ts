@@ -12,6 +12,11 @@ interface ModuleCreateResult {
   runtime: "python" | "javascript";
 }
 
+interface ModuleReloadResult {
+  loaded: string[];
+  errors: Array<{ folder: string; error: string }>;
+}
+
 const bailey = (window as unknown as {
   bailey: {
     openModulesFolder(): Promise<{ ok: boolean; path: string }>;
@@ -24,8 +29,15 @@ const bailey = (window as unknown as {
       firstSection?: string;
     }): Promise<ModuleCreateResult>;
     showModule(moduleId: string): Promise<{ ok: boolean; directory: string }>;
+    reloadModules(): Promise<ModuleReloadResult>;
   };
 }).bailey;
+
+const returnView = sessionStorage.getItem("bailey-return-view");
+if (returnView) {
+  sessionStorage.removeItem("bailey-return-view");
+  queueMicrotask(() => document.querySelector<HTMLButtonElement>(`.nav-item[data-view="${returnView}"]`)?.click());
+}
 
 const replyField = document.querySelector<HTMLTextAreaElement>("#command-reply")?.closest("label.field");
 if (replyField && !document.querySelector("#command-reaction")) {
@@ -57,6 +69,11 @@ function slugify(value: string): string {
     .slice(0, 64);
 }
 
+function reloadRendererTo(view: "studio" | "modules"): void {
+  sessionStorage.setItem("bailey-return-view", view);
+  window.location.reload();
+}
+
 function installModuleWizard(): void {
   const grid = document.querySelector<HTMLElement>("#view-studio .studio-grid");
   if (!grid || document.querySelector("#studio-create-module")) return;
@@ -82,7 +99,7 @@ function installModuleWizard(): void {
         <div>
           <p class="eyebrow">MODULE STUDIO</p>
           <h2>Create module</h2>
-          <p>Bailey creates the folder, manifest and starter worker. You can edit the generated files immediately afterwards.</p>
+          <p>Bailey creates the folder, manifest and starter worker, then loads the module without restarting WhatsApp or the host.</p>
         </div>
         <button type="button" class="icon-button" id="module-wizard-close" aria-label="Close module wizard">×</button>
       </div>
@@ -118,7 +135,7 @@ function installModuleWizard(): void {
         <label class="field editor-span-2">
           <span>Section</span>
           <input id="module-section" autocomplete="off" placeholder="General" />
-          <small>This becomes the command’s initial .menu section.</small>
+          <small>This becomes the command’s initial menu section.</small>
         </label>
 
         <label class="field editor-span-2">
@@ -187,17 +204,20 @@ function installModuleWizard(): void {
       runtime,
       firstCommand: dialog.querySelector<HTMLInputElement>("#module-command")!.value,
       firstSection: sectionInput.value || nameInput.value,
-    }).then((result) => {
+    }).then(async (result) => {
       createdModuleId = result.id;
-      status.textContent = `Created ${result.name}. Restart Bailey Host to load the new module.`;
-      status.className = "save-status";
+      status.textContent = `Created ${result.name}. Loading module…`;
+      status.className = "save-status saving";
       openCreated.hidden = false;
-      createButton.textContent = "Created";
+      const reload = await bailey.reloadModules();
+      const failure = reload.errors.find((item) => item.folder === result.id);
+      if (failure) throw new Error(`Module was created but could not load: ${failure.error}`);
+      reloadRendererTo("modules");
     }).catch((error) => {
       status.textContent = error instanceof Error ? error.message : String(error);
       status.className = "editor-error";
       createButton.disabled = false;
-      createButton.textContent = "Create module";
+      createButton.textContent = createdModuleId ? "Created" : "Create module";
     });
   });
 
@@ -213,6 +233,31 @@ function installModuleWizard(): void {
 installModuleWizard();
 
 const modulesFolderButton = document.querySelector<HTMLButtonElement>("#studio-open-modules-folder");
+if (modulesFolderButton && !document.querySelector("#studio-reload-modules")) {
+  const reloadButton = document.createElement("button");
+  reloadButton.type = "button";
+  reloadButton.className = "secondary-button";
+  reloadButton.id = "studio-reload-modules";
+  reloadButton.textContent = "Reload modules";
+  modulesFolderButton.after(reloadButton);
+
+  reloadButton.addEventListener("click", () => {
+    reloadButton.disabled = true;
+    reloadButton.textContent = "Reloading…";
+    void bailey.reloadModules().then((result) => {
+      if (result.errors.length) {
+        const summary = result.errors.map((item) => `${item.folder}: ${item.error}`).join("\n");
+        window.alert(`Some modules could not load:\n${summary}`);
+      }
+      reloadRendererTo("studio");
+    }).catch((error) => {
+      window.alert(error instanceof Error ? error.message : String(error));
+      reloadButton.disabled = false;
+      reloadButton.textContent = "Reload modules";
+    });
+  });
+}
+
 modulesFolderButton?.addEventListener("click", () => {
   modulesFolderButton.disabled = true;
   void bailey.openModulesFolder().catch((error) => {
