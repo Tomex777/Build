@@ -1,1 +1,1 @@
-2026-09-17 rerun deterministic Music smoke with truly rapid double-Previous transport press.
+2026-09-17 rerun deterministic Music smoke after fixing asynchronous double-Previous transport race.
