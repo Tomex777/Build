@@ -43,12 +43,12 @@ jobs:
         shell: bash
         run: bash nightmods/ci/prepare-libxposed-100.sh
 
-      - name: Clone pinned LSPosed ET
+      - name: Clone LSPosed ET snapshot
         shell: bash
         run: |
-          git clone https://github.com/EzequielDevTeam/LSPosed-ET.git lsposed-et
+          git clone --depth 1 --branch master https://github.com/EzequielDevTeam/LSPosed-ET.git lsposed-et
           cd lsposed-et
-          git checkout 22ff70d96190af6aad722c3731504fd26cf7299b
+          git rev-parse HEAD | tee ../matched-lsposed-et-source.txt
           git config --global --add safe.directory '*'
           git submodule update --init --depth 1
           git -C external/lsplant rm -q --cached -r test || true
@@ -93,5 +93,6 @@ jobs:
             matched-output-sha256.txt
             matched-manager-badging.txt
             matched-framework-files.txt
+            matched-lsposed-et-source.txt
           if-no-files-found: error
           retention-days: 3
