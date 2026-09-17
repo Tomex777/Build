@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, shell, Tray } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, type OpenDialogOptions, safeStorage, shell, Tray } from "electron";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { baileyMarkDataUrl } from "../brand/logo";
@@ -283,9 +283,9 @@ function editorLanguage(path: string): string {
 }
 
 async function openEditorFile() {
-  const options = {
+  const options: OpenDialogOptions = {
     title: "Open code or module file",
-    properties: ["openFile"] as const,
+    properties: ["openFile"],
     filters: [
       { name: "Bailey editable files", extensions: [...EDITABLE_EXTENSIONS].map((value) => value.slice(1)) },
       { name: "All files", extensions: ["*"] },
