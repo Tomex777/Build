@@ -38,26 +38,23 @@ await build({
   sourcemap: true,
 });
 
-await build({
-  entryPoints: ["src/renderer/renderer.ts"],
-  outfile: "dist/renderer/renderer.js",
-  bundle: true,
-  platform: "browser",
-  format: "iife",
-  target: "chrome140",
-  sourcemap: true,
-});
-
-await build({
-  entryPoints: ["src/renderer/studio-extras.ts"],
-  outfile: "dist/renderer/studio-extras.js",
-  bundle: true,
-  platform: "browser",
-  format: "iife",
-  target: "chrome140",
-  sourcemap: true,
-});
+for (const [entry, outfile] of [
+  ["src/renderer/renderer.ts", "dist/renderer/renderer.js"],
+  ["src/renderer/studio-extras.ts", "dist/renderer/studio-extras.js"],
+  ["src/renderer/chats.ts", "dist/renderer/chats.js"],
+]) {
+  await build({
+    entryPoints: [entry],
+    outfile,
+    bundle: true,
+    platform: "browser",
+    format: "iife",
+    target: "chrome140",
+    sourcemap: true,
+  });
+}
 
 await copyFile("src/renderer/index.html", "dist/renderer/index.html");
 await copyFile("src/renderer/styles.css", "dist/renderer/styles.css");
 await copyFile("src/renderer/studio.css", "dist/renderer/studio.css");
+await copyFile("src/renderer/chats.css", "dist/renderer/chats.css");
