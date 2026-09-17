@@ -50,6 +50,7 @@ class YouTubeMusicExtensionService : Service() {
     override fun onCreate() {
         super.onCreate()
         YouTubeMusicCatalog.initialize(applicationContext)
+        YouTubeMusicSession.restore(applicationContext)
     }
 
     private val messenger = Messenger(object : Handler(Looper.getMainLooper()) {
@@ -79,12 +80,20 @@ class YouTubeMusicExtensionService : Service() {
                             ExtensionContract.Method.SEARCH -> YouTubeMusicCatalog.search(sourceId, payload.optString("query"))
                             ExtensionContract.Method.DETAILS -> YouTubeMusicCatalog.details(sourceId, id)
                             ExtensionContract.Method.STREAMS -> YouTubeMusicCatalog.streams(sourceId, id)
-                            ExtensionSessionContract.METHOD_BROWSER_SESSION -> YouTubeMusicCatalog.browserSession(sourceId)
-                            ExtensionSessionContract.METHOD_STORE_SESSION -> YouTubeMusicCatalog.storeSession(
-                                sourceId = sourceId,
-                                cookieHeader = normalizeYouTubeCookieHeader(payload.optString("cookieHeader")),
-                                userAgent = payload.optString("userAgent"),
-                            )
+                            ExtensionSessionContract.METHOD_BROWSER_SESSION -> {
+                                require(sourceId == "youtube.music") { "Unsupported YouTube Music source: $sourceId" }
+                                YouTubeMusicSession.browserSession()
+                            }
+                            ExtensionSessionContract.METHOD_STORE_SESSION -> {
+                                val stored = YouTubeMusicCatalog.storeSession(
+                                    sourceId = sourceId,
+                                    cookieHeader = normalizeYouTubeCookieHeader(payload.optString("cookieHeader")),
+                                    userAgent = payload.optString("userAgent"),
+                                )
+                                val signedIn = runCatching { JSONObject(stored).optBoolean("signedIn") }.getOrDefault(false)
+                                YouTubeMusicSession.storePageContext(applicationContext, payload, signedIn)
+                                stored
+                            }
                             ExtensionContract.Method.EPISODES,
                             ExtensionContract.Method.CHAPTERS,
                             ExtensionContract.Method.PAGES,
