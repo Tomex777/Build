@@ -31,7 +31,9 @@ android {
 }
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2026.08.00")
+    // Compose 1.12+ requires compileSdk 37. The June 2026 stable BOM
+    // stays on the Compose 1.11 line, which is compatible with API 36.
+    val composeBom = platform("androidx.compose:compose-bom:2026.06.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
