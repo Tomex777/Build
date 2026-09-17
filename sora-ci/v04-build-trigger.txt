@@ -1,1 +1,1 @@
-2026-09-17T03:37:30Z media3-background-session-build
+2026-09-17 verify real-data Music UI, authenticated YouTube session plumbing, and actionable playback errors.
