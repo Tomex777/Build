@@ -55,12 +55,18 @@ describe("JsonCommandStore", () => {
       description: "Check whether Bailey is alive.",
       aliases: ["ping"],
       replyText: "Still here.",
+      reactionEmoji: "✅",
     });
 
     expect(edited.id).toBe("ping");
     expect(edited.name).toBe("alive");
     expect(edited.section).toBe("Health");
     expect(edited.replyText).toBe("Still here.");
+    expect(edited.reactionEmoji).toBe("✅");
+    expect(edited.actions).toEqual([
+      { type: "react", emoji: "✅" },
+      { type: "reply", text: "Still here." },
+    ]);
     expect(commandStore.resolve([moduleDefinition], "alive")?.command.id).toBe("ping");
     expect(commandStore.resolve([moduleDefinition], "ping")?.command.id).toBe("ping");
   });
@@ -74,12 +80,14 @@ describe("JsonCommandStore", () => {
       description: "Check whether Bailey is alive.",
       aliases: [],
       replyText: "Still here.",
+      reactionEmoji: "🔥",
     });
 
     const reset = await commandStore.reset(moduleDefinition, command);
     expect(reset.name).toBe("ping");
     expect(reset.section).toBe("Runtime");
     expect(reset.replyText).toBe("Pong.");
+    expect(reset.reactionEmoji).toBeUndefined();
   });
 
   it("creates, reopens, edits and deletes a Studio command", async () => {
@@ -90,10 +98,12 @@ describe("JsonCommandStore", () => {
       description: "Say hello.",
       aliases: ["hi"],
       replyText: "Hello!",
+      reactionEmoji: "👋",
     });
 
     expect(created.origin).toBe("custom");
     expect(created.editable).toBe(true);
+    expect(created.reactionEmoji).toBe("👋");
     expect(commandStore.getById(modules, "my-commands", created.id)?.name).toBe("hello");
     expect(commandStore.resolve(modules, "hi")?.command.id).toBe(created.id);
 
@@ -103,12 +113,14 @@ describe("JsonCommandStore", () => {
       description: "Send a greeting.",
       aliases: ["hello"],
       replyText: "Hey there!",
+      reactionEmoji: "❤️",
     });
 
     expect(edited.id).toBe(created.id);
     expect(edited.name).toBe("greet");
     expect(edited.section).toBe("Social");
     expect(edited.replyText).toBe("Hey there!");
+    expect(edited.reactionEmoji).toBe("❤️");
     expect(commandStore.resolve(modules, "greet")?.command.id).toBe(created.id);
 
     await commandStore.deleteById("my-commands", created.id);
