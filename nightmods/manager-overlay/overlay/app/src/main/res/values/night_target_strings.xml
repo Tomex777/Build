@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="night_system_ui">System UI</string>
     <string name="night_whatsapp">WhatsApp</string>
     <string name="night_instagram">Instagram</string>
     <string name="night_target_checking">Checking compatibility…</string>
@@ -13,4 +14,16 @@
     <string name="night_target_unsupported">Unsupported version</string>
     <string name="night_target_unsupported_version">%1$s · Unsupported</string>
     <string name="night_target_unknown_version">%1$s · Compatibility unknown</string>
+
+    <string name="night_status_bar_tweaks">Status Bar Tweaks</string>
+    <string name="night_status_bar_tweaks_summary">Phone-level System UI · status bar</string>
+    <string name="night_system_ui_enabled">Enable System UI tweaks</string>
+    <string name="night_system_ui_enabled_summary">Off by default. Night Core will not change System UI until enabled.</string>
+    <string name="night_status_bar_section">Status bar</string>
+    <string name="night_status_bar_padding">Side padding</string>
+    <string name="night_status_bar_padding_summary">Add space to the left and right status-bar icon areas.</string>
+    <string name="night_status_bar_padding_value">Extra padding · %1$d dp</string>
+    <string name="night_status_bar_padding_default_value">Extra padding · 8 dp</string>
+    <string name="night_status_bar_restart_note">Restart System UI or reboot after changing these settings so the hook reloads them.</string>
+    <string name="night_system_ui_analysis_note">First implementation: Samsung Android 16. Night Core checks the live SystemUI class and method structure before installing the padding hook; mismatches fail closed.</string>
 </resources>
