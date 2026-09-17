@@ -1,14 +1,21 @@
 package com.night.sora.youtubemusic
 
 import android.util.Log
+import com.metrolist.innertube.NewPipeExtractor
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YouTubeClient
 import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_MUSIC
+import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_NO_SDK
 import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_43_32
 import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_65_10
+import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_VR_NO_AUTH
 import com.metrolist.innertube.models.YouTubeClient.Companion.IOS
 import com.metrolist.innertube.models.YouTubeClient.Companion.IOS_RECENT
+import com.metrolist.innertube.models.YouTubeClient.Companion.IPADOS
+import com.metrolist.innertube.models.YouTubeClient.Companion.MOBILE
+import com.metrolist.innertube.models.YouTubeClient.Companion.TVHTML5
+import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
@@ -18,12 +25,24 @@ object YouTubeMusicCatalog {
     private const val TAG = "SoraYouTubeMusic"
     private const val PLAYER_ATTEMPT_TIMEOUT_MS = 15_000L
 
+    /**
+     * Keep the cheap direct-url path first, but walk the extra anonymous identities
+     * already carried by the pinned Spotui Innertube snapshot before escalating to
+     * cipher / PoToken / SABR machinery. GitHub-hosted runners can be challenged on
+     * one client identity while another still receives an ordinary player response.
+     */
     private val nativePlaybackClients = listOf(
         ANDROID_MUSIC,
-        IOS_RECENT,
-        IOS,
+        ANDROID_NO_SDK,
+        ANDROID_VR_NO_AUTH,
         ANDROID_VR_1_65_10,
         ANDROID_VR_1_43_32,
+        TVHTML5,
+        IOS_RECENT,
+        IOS,
+        IPADOS,
+        VISIONOS,
+        MOBILE,
     )
 
     suspend fun browse(sourceId: String): String {
@@ -76,6 +95,14 @@ object YouTubeMusicCatalog {
         requireSource(sourceId)
         ensureVisitorData()
 
+        val signatureTimestamp = runCatching {
+            NewPipeExtractor.getSignatureTimestamp(id).getOrNull()
+        }.getOrNull()
+        Log.i(
+            TAG,
+            "resolver context id=$id visitor=${!YouTube.visitorData.isNullOrBlank()} signatureTimestamp=${signatureTimestamp ?: "none"}",
+        )
+
         val failures = mutableListOf<String>()
         for (client in nativePlaybackClients) {
             val identity = "${client.clientName}/${client.clientVersion}"
@@ -84,6 +111,7 @@ object YouTubeMusicCatalog {
                 YouTube.player(
                     videoId = id,
                     client = client,
+                    signatureTimestamp = signatureTimestamp.takeIf { client.useSignatureTimestamp },
                     authenticated = false,
                 ).getOrNull()
             }
@@ -134,9 +162,11 @@ object YouTubeMusicCatalog {
             return JSONArray().apply {
                 audio.forEach { format ->
                     val url = format.url.orEmpty()
-                    val headers = YouTubeClient.forStreamUrl(url).mediaHeaders()
+                    // Preserve the exact identity that minted this URL. The generic
+                    // Core stream contract transports these headers without knowing
+                    // anything YouTube-specific.
                     val headersJson = JSONObject().apply {
-                        headers.forEach { (name, value) -> put(name, value) }
+                        client.mediaHeaders().forEach { (name, value) -> put(name, value) }
                     }
                     put(
                         JSONObject()
@@ -153,7 +183,7 @@ object YouTubeMusicCatalog {
             }
         }
 
-        error("No native YouTube Music client returned direct audio: ${failures.joinToString("; ")}")
+        error("No anonymous YouTube Music client returned direct audio: ${failures.joinToString("; ")}")
     }
 
     private suspend fun ensureVisitorData() {
