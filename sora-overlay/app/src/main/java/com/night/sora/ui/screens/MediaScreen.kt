@@ -301,6 +301,15 @@ fun MediaScreen(
 
         when {
             destination == MediaDestination.BIBLE -> BibleHubContent(Modifier.fillMaxSize(), onOpen = onOpenBible)
+            destination == MediaDestination.MEMES -> MemeSurface(
+                rows = rows,
+                selection = ::selection,
+                onOpen = onOpenDetails,
+                loading = memeLoading,
+                error = memeError,
+                onRetry = { load(query) },
+                onOpenExtensions = onOpenExtensions,
+            )
             query.isNotBlank() -> SearchResultsSurface(rows, selectedType, ::selection, onOpenDetails, onPlayMusic)
             destination == MediaDestination.ANIME_MANGA -> AnimeMangaSurface(
                 type = selectedType, rows = rows, popularRows = popularRows, upcomingRows = upcomingRows, topRows = topRows,
@@ -316,14 +325,6 @@ fun MediaScreen(
                 panel = musicLocal, rows = rows, libraryEntries = libraryEntries, rankedTaste = rankedTaste,
                 selection = ::selection, onPlay = onPlayMusic, onOpen = onOpenDetails,
                 onOpenExtensions = onOpenExtensions, onSelectPanel = { musicLocal = it },
-            )
-            destination == MediaDestination.MEMES -> MemeSurface(
-                rows = rows,
-                selection = ::selection,
-                onOpen = onOpenDetails,
-                loading = memeLoading,
-                error = memeError,
-                onOpenExtensions = onOpenExtensions,
             )
         }
     }
@@ -677,6 +678,7 @@ private fun MemeSurface(
     onOpen: (ExtensionMediaSelection) -> Unit,
     loading: Boolean,
     error: String?,
+    onRetry: () -> Unit,
     onOpenExtensions: () -> Unit,
 ) {
     if (rows.isEmpty() && loading) {
@@ -689,16 +691,24 @@ private fun MemeSurface(
         return
     }
     if (rows.isEmpty()) {
+        val missingSource = error?.contains("installed", ignoreCase = true) == true
+        val noSearchResults = error?.contains("matched your search", ignoreCase = true) == true
+        val emptyFeed = error?.contains("No image posts", ignoreCase = true) == true
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 28.dp)) {
                 Icon(
-                    if (error?.contains("installed", ignoreCase = true) == true) Icons.Rounded.ExtensionOff else Icons.Rounded.CloudOff,
+                    if (missingSource) Icons.Rounded.ExtensionOff else if (noSearchResults) Icons.Rounded.SearchOff else Icons.Rounded.CloudOff,
                     null,
                     tint = SoraMuted,
                     modifier = Modifier.size(40.dp),
                 )
                 Text(
-                    if (error?.contains("installed", ignoreCase = true) == true) "No meme source installed" else "Meme feed unavailable",
+                    when {
+                        missingSource -> "No meme source installed"
+                        noSearchResults -> "No meme results"
+                        emptyFeed -> "Nothing new right now"
+                        else -> "Meme feed unavailable"
+                    },
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 12.dp),
@@ -710,8 +720,23 @@ private fun MemeSurface(
                     lineHeight = 16.sp,
                     modifier = Modifier.padding(top = 5.dp),
                 )
-                if (error?.contains("installed", ignoreCase = true) == true) {
-                    TextButton(onClick = onOpenExtensions, modifier = Modifier.padding(top = 8.dp)) { Text("Manage extensions") }
+                Row(
+                    Modifier.padding(top = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (!missingSource) {
+                        TextButton(onClick = onRetry) {
+                            Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text("Retry")
+                        }
+                    }
+                    TextButton(onClick = onOpenExtensions) {
+                        Icon(Icons.Rounded.Extension, null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text(if (missingSource) "Manage extensions" else "Sources")
+                    }
                 }
             }
         }

@@ -29,7 +29,7 @@ import com.night.sora.model.LibraryEntry
 import com.night.sora.ui.theme.*
 
 private enum class LibraryType(val label: String) {
-    ALL("All"), ANIME("Anime"), MANGA("Manga"), MOVIE("Movies"), SERIES("Series"), MUSIC("Music")
+    ALL("All"), ANIME("Anime"), MANGA("Manga"), MOVIE("Movies"), SERIES("Series"), MUSIC("Music"), MEMES("Memes")
 }
 
 @Composable
@@ -52,6 +52,7 @@ fun LibraryScreen(
                 LibraryType.MOVIE -> entry.contentType == ContentType.MOVIE
                 LibraryType.SERIES -> entry.contentType == ContentType.TV
                 LibraryType.MUSIC -> entry.contentType == ContentType.MUSIC
+                LibraryType.MEMES -> entry.contentType == ContentType.MEME
             }
             val activeMatch = !activeOnly || entry.detail.contains("Episode", true) || entry.detail.contains("Chapter", true) || entry.detail.contains("left", true) || entry.detail.contains("new", true)
             typeMatch && activeMatch
@@ -108,16 +109,16 @@ fun LibraryScreen(
 
 @Composable
 private fun LibraryGridItem(entry: LibraryEntry, onClick: () -> Unit) {
-    val isMusic = entry.contentType == ContentType.MUSIC
+    val squareArtwork = entry.contentType == ContentType.MUSIC || entry.contentType == ContentType.MEME
     Column(Modifier.clickable(onClick = onClick)) {
         Box(
-            Modifier.fillMaxWidth().aspectRatio(if (isMusic) 1f else 2f / 3f)
+            Modifier.fillMaxWidth().aspectRatio(if (squareArtwork) 1f else 2f / 3f)
                 .clip(RoundedCornerShape(8.dp)).background(Color(0xFF24231F)),
         ) {
             if (!entry.artworkUrl.isNullOrBlank()) AsyncImage(entry.artworkUrl, entry.label, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             Surface(color = Color(0xE611110F), shape = RoundedCornerShape(5.dp), modifier = Modifier.padding(7.dp).align(Alignment.TopStart)) {
                 Text(
-                    when (entry.contentType) { ContentType.TV -> "SERIES"; ContentType.MUSIC -> if (entry.kind.contains("playlist", true)) "PLAYLIST" else "MUSIC"; else -> entry.kind.uppercase() },
+                    when (entry.contentType) { ContentType.TV -> "SERIES"; ContentType.MUSIC -> if (entry.kind.contains("playlist", true)) "PLAYLIST" else "MUSIC"; ContentType.MEME -> "MEME"; else -> entry.kind.uppercase() },
                     color = SoraText, fontSize = 7.sp, fontWeight = FontWeight.Black, letterSpacing = .5.sp,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
                 )
