@@ -3,6 +3,9 @@ import { contextBridge, ipcRenderer } from "electron";
 contextBridge.exposeInMainWorld("bailey", {
   getState: () => ipcRenderer.invoke("bailey:get-state"),
   getModules: () => ipcRenderer.invoke("bailey:get-modules"),
+  getCommand: (moduleId: string, commandId: string) => ipcRenderer.invoke("bailey:get-command", moduleId, commandId),
+  updateCommand: (moduleId: string, commandId: string, patch: unknown) => ipcRenderer.invoke("bailey:update-command", moduleId, commandId, patch),
+  resetCommand: (moduleId: string, commandId: string) => ipcRenderer.invoke("bailey:reset-command", moduleId, commandId),
   getConfig: () => ipcRenderer.invoke("bailey:get-config"),
   setConfig: (key: string, value: unknown) => ipcRenderer.invoke("bailey:set-config", key, value),
   getEngineStatus: () => ipcRenderer.invoke("bailey:engine-status"),
