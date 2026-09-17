@@ -19,13 +19,27 @@ jobs:
 
       - name: Apply focused Anime Manga patch
         run: |
-          python3 sora-ci/repair-sora-anime-manga-patch.py
-          python3 sora-ci/patch-sora-anime-manga-flow.py
-          python3 sora-ci/patch-sora-jikan-resilience.py
-          python3 sora-ci/patch-sora-jikan-full-relations.py
+          set -euo pipefail
+          MEDIA='sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt'
+          JIKAN='sora-overlay/app/src/main/java/com/night/sora/catalog/JikanCatalogClient.kt'
+          CACHE='sora-overlay/app/src/main/java/com/night/sora/data/MediaCatalogCache.kt'
+
+          if grep -q 'CachedMediaSnapshot' "$CACHE" && \
+             grep -q 'fullEndpoint = .*full' "$JIKAN" && \
+             grep -q 'SearchResultSkeleton' "$MEDIA"; then
+            echo 'Anime/Manga implementation already promoted; skipping one-time migration patches.'
+          else
+            python3 sora-ci/repair-sora-anime-manga-patch.py
+            python3 sora-ci/patch-sora-anime-manga-flow.py
+            python3 sora-ci/patch-sora-jikan-resilience.py
+            python3 sora-ci/patch-sora-jikan-full-relations.py
+            # The repair is only a build-time normalizer for the patch draft.
+            git checkout -- sora-ci/patch-sora-anime-manga-flow.py
+          fi
+
+          # This small polish patch is intentionally idempotent and remains safe
+          # to apply after the implementation has already been promoted.
           python3 sora-ci/patch-sora-media-outage-polish.py
-          # The repair is only a build-time normalizer for the patch draft.
-          git checkout -- sora-ci/patch-sora-anime-manga-flow.py
 
       - name: Enforce Anime Manga truthfulness and scope
         run: |
@@ -40,6 +54,8 @@ jobs:
           grep -q 'Showing saved catalog data' "$MEDIA"
           grep -q 'feedFailures > 0 && selected != null' "$MEDIA"
           grep -q 'SearchResultSkeleton' "$MEDIA"
+          grep -q 'Jikan did not return live' "$MEDIA"
+          ! grep -q 'primaryError = error.message' "$MEDIA"
           grep -q 'CachedMediaSnapshot' "$CACHE"
           grep -q 'equals("Adaptation", ignoreCase = true)' "$JIKAN"
           grep -q 'MAX_REQUEST_ATTEMPTS = 3' "$JIKAN"
