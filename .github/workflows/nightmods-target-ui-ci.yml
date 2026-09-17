@@ -5,6 +5,9 @@ on:
     branches:
       - nightmods-ci
     paths:
+      - 'nightmods/nightcore/**'
+      - 'nightmods/ci/prepare-libxposed-100.sh'
+      - 'nightmods/manager-overlay/**'
       - '.github/workflows/nightmods-target-ui-ci.yml'
   workflow_dispatch:
 
@@ -16,20 +19,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Checkout libxposed API 100
-        uses: actions/checkout@v4
-        with:
-          repository: libxposed/api
-          ref: '100'
-          path: libxposed/api
-
-      - name: Checkout libxposed service 100
-        uses: actions/checkout@v4
-        with:
-          repository: libxposed/service
-          ref: '100'
-          path: libxposed/service
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -55,9 +44,7 @@ jobs:
 
       - name: Publish exact libxposed API/service 100 locally
         shell: bash
-        run: |
-          (cd libxposed/api && ./gradlew --no-daemon :api:publishApiPublicationToMavenLocal)
-          (cd libxposed/service && ./gradlew --no-daemon publishToMavenLocal)
+        run: bash nightmods/ci/prepare-libxposed-100.sh
 
       - name: Build Night Mods manager
         shell: bash
