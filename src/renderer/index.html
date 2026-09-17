@@ -21,6 +21,7 @@
         <button class="nav-item active" data-view="dashboard">Dashboard</button>
         <button class="nav-item" data-view="engine">WhatsApp Engine</button>
         <button class="nav-item" data-view="modules">Modules</button>
+        <button class="nav-item" data-view="studio">Studio</button>
         <button class="nav-item" data-view="configuration">Configuration</button>
       </nav>
 
@@ -38,7 +39,7 @@
             <h1>Dashboard</h1>
             <p>Keep the bot alive locally, inspect the WhatsApp engine, and control what modules can do.</p>
           </div>
-          <span class="version" id="version">v0.3.0</span>
+          <span class="version" id="version">v0.4.0</span>
         </header>
 
         <div class="metric-grid">
@@ -71,7 +72,7 @@
             <div class="runtime-icon" data-bailey-mark></div>
             <div>
               <strong>Closing this window does not stop Bailey</strong>
-              <p>The host stays in the system tray. Updating Lia Baileys restarts only the WhatsApp engine process, not the desktop application.</p>
+              <p>The host stays in the system tray. Updating the WhatsApp engine restarts only the engine process, not the desktop application.</p>
             </div>
           </div>
         </article>
@@ -82,7 +83,7 @@
           <div>
             <p class="eyebrow">WHATSAPP</p>
             <h1>Engine</h1>
-            <p>Lia Baileys is installed separately from Bailey Host, so it can update or roll back without reinstalling this app.</p>
+            <p>The WhatsApp engine is installed separately from Bailey Host, so it can update or roll back without reinstalling this app.</p>
           </div>
           <button class="secondary-button" id="engine-check">Check for update</button>
         </header>
@@ -91,10 +92,10 @@
           <article class="panel engine-card">
             <div class="panel-heading">
               <div>
-                <h2>Lia Baileys</h2>
+                <h2>WhatsApp engine</h2>
                 <p id="engine-package">@itsliaaa/baileys</p>
               </div>
-              <span class="pill" id="engine-api">Engine bridge</span>
+              <span class="pill" id="engine-api">Managed engine</span>
             </div>
             <div class="engine-version-row">
               <div><span>Installed</span><strong id="engine-current">Not installed</strong></div>
@@ -150,10 +151,51 @@
           <div>
             <p class="eyebrow">CAPABILITIES</p>
             <h1>Modules</h1>
-            <p>Commands are grouped into sections. Click an editable command to change it with the same visual model used to create commands.</p>
+            <p>Commands are grouped into sections. Click a visual command to edit it the same way it was created.</p>
           </div>
         </header>
         <div id="module-list" class="stack"></div>
+      </section>
+
+      <section class="view view-wide" id="view-studio">
+        <header class="page-header">
+          <div>
+            <p class="eyebrow">BUILD</p>
+            <h1>Studio</h1>
+            <p>Create commands without code, or open module source files when you need full control.</p>
+          </div>
+        </header>
+
+        <div class="studio-grid">
+          <article class="panel studio-card">
+            <div>
+              <span class="studio-kicker">NO CODE</span>
+              <h2>Create a command</h2>
+              <p>Build a command visually. Bailey stores it outside the packaged app so app updates do not overwrite it.</p>
+            </div>
+            <button class="primary-button" id="studio-create-command">Create command</button>
+          </article>
+
+          <article class="panel studio-card">
+            <div>
+              <span class="studio-kicker">CODE</span>
+              <h2>Open a file</h2>
+              <p>Open TypeScript, JavaScript, Python, JSON, YAML, TOML or text files in Bailey Studio.</p>
+            </div>
+            <button class="secondary-button" id="studio-open-file">Open file…</button>
+          </article>
+
+          <article class="panel studio-card studio-card-wide">
+            <div>
+              <span class="studio-kicker">MODULES</span>
+              <h2>One module can do much more than commands</h2>
+              <p>A module can group commands, settings, background work, event handlers and services. The runtime language is an implementation detail; Bailey keeps the WhatsApp engine behind its own API.</p>
+            </div>
+            <div class="studio-tags">
+              <span class="pill">Commands</span><span class="pill">Settings / ENV</span><span class="pill">Events</span><span class="pill">Jobs</span><span class="pill">Services</span>
+            </div>
+          </article>
+        </div>
       </section>
 
       <section class="view view-wide" id="view-configuration">
@@ -161,9 +203,12 @@
           <div>
             <p class="eyebrow">SETTINGS</p>
             <h1>Configuration</h1>
-            <p>Controls are generated from module code. ENV-backed values keep their environment variable mapping.</p>
+            <p>Controls are generated from module schemas. ENV-backed values keep their environment-variable mapping.</p>
           </div>
-          <span id="save-status" class="save-status">Saved locally</span>
+          <div class="autosave-state">
+            <strong>Changes save automatically</strong>
+            <span id="save-status" class="save-status">All changes saved</span>
+          </div>
         </header>
         <div id="config-sections" class="stack"></div>
       </section>
@@ -176,7 +221,7 @@
         <div>
           <p class="eyebrow">VISUAL COMMAND</p>
           <h2 id="command-editor-title">Edit command</h2>
-          <p>Edit this command without writing code. Changes are stored separately from Bailey’s shipped defaults.</p>
+          <p id="command-editor-copy">Edit this command without writing code. Changes are stored separately from Bailey’s shipped defaults.</p>
         </div>
         <button type="button" class="icon-button" id="command-editor-close" aria-label="Close command editor">×</button>
       </div>
@@ -208,19 +253,55 @@
         <label class="field editor-span-2">
           <span>Reply</span>
           <textarea id="command-reply" rows="5" required></textarea>
-          <small>For this visual command, Bailey replies with this text when the command runs.</small>
+          <small>This first visual action sends a text reply. More visual actions will build on the same command model.</small>
         </label>
       </div>
 
       <p id="command-editor-error" class="editor-error" role="alert"></p>
       <div class="dialog-actions">
-        <button type="button" class="danger-quiet-button" id="command-reset">Reset to default</button>
+        <div>
+          <button type="button" class="danger-quiet-button" id="command-reset">Reset to default</button>
+          <button type="button" class="danger-quiet-button" id="command-delete" hidden>Delete command</button>
+        </div>
         <div class="dialog-actions-right">
           <button type="button" class="secondary-button" id="command-cancel">Cancel</button>
-          <button type="submit" class="primary-button">Save command</button>
+          <button type="submit" class="primary-button" id="command-save">Save command</button>
         </div>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="file-editor" class="file-editor">
+    <div class="file-editor-shell">
+      <div class="dialog-header file-editor-header">
+        <div>
+          <p class="eyebrow" id="file-language">CODE</p>
+          <h2 id="file-name">File</h2>
+          <p id="file-path"></p>
+        </div>
+        <button type="button" class="icon-button" id="file-editor-close" aria-label="Close file editor">×</button>
+      </div>
+      <div class="file-workspace">
+        <textarea id="file-content" spellcheck="false" aria-label="File content"></textarea>
+        <aside class="editor-help">
+          <strong>Bailey module API</strong>
+          <p>Code-backed modules should talk to Bailey through its module API instead of importing the WhatsApp engine directly.</p>
+          <code>reply</code>
+          <code>react</code>
+          <code>config</code>
+          <code>storage</code>
+          <code>events</code>
+          <small>Language-aware completion and module-protocol helpers will build on this editor.</small>
+        </aside>
+      </div>
+      <div class="dialog-actions">
+        <span id="file-save-status" class="save-status">No unsaved changes</span>
+        <div class="dialog-actions-right">
+          <button type="button" class="secondary-button" id="file-cancel">Close</button>
+          <button type="button" class="primary-button" id="file-save">Save file</button>
+        </div>
+      </div>
+    </div>
   </dialog>
 
   <script src="./renderer.js"></script>
