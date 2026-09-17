@@ -1,1 +1,1 @@
-2026-09-17 rerun YouTube Music with launcher disabled, bounded native fallbacks, and preserved resolver logs.
+2026-09-17 probe broader anonymous YouTube client identities after runner LOGIN_REQUIRED challenge.
