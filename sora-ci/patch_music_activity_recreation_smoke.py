@@ -12,9 +12,8 @@ if "always_finish_activities" not in text:
 
     anchor = """tap_text Play
 wait_for_node Pause 15
-shot 06ab-music-background-resumed
 
-# Full-player transport controls still use the same Core-owned state.
+tap_text 'Mini player'
 """
     insert = """tap_text Play
 wait_for_node Pause 15
@@ -35,10 +34,10 @@ wait_for_node Pause 15
 shot 06ac-music-after-activity-recreation
 adb shell settings put global always_finish_activities 0
 
-# Full-player transport controls still use the same Core-owned state.
+tap_text 'Mini player'
 """
     if anchor not in text:
-        raise SystemExit('background-resume anchor not found')
+        raise SystemExit('current background-resume anchor not found')
     text = text.replace(anchor, insert, 1)
 
 path.write_text(text)
