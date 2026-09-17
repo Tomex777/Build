@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { mkdir, readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
-import type { BaileyModuleDefinition, CommandContext } from "../core/module";
+import type { BaileyModuleDefinition, CommandContext, MessageEventContext } from "../core/module";
 import { defineCommand, defineModule } from "../core/module";
 import {
   BAILEY_MODULE_PROTOCOL,
@@ -68,6 +68,7 @@ export class ExternalModuleManager {
 
   private toDefinition(loaded: LoadedModule): BaileyModuleDefinition {
     const { manifest } = loaded;
+    const listensForEvents = manifest.capabilities?.includes("events") ?? false;
     return defineModule({
       id: manifest.id,
       name: manifest.name,
@@ -82,6 +83,9 @@ export class ExternalModuleManager {
         aliases: command.aliases ?? [],
         execute: async (context) => this.executeCommand(manifest.id, command.id, context),
       })),
+      onMessage: listensForEvents
+        ? async (context) => this.dispatchMessageEvent(manifest.id, context)
+        : undefined,
     });
   }
 
@@ -190,20 +194,11 @@ export class ExternalModuleManager {
     });
   }
 
-  async executeCommand(moduleId: string, commandId: string, context: CommandContext): Promise<void> {
-    const actions = await this.request(moduleId, {
-      protocol: BAILEY_MODULE_PROTOCOL,
-      id: randomUUID(),
-      type: "command.execute",
-      commandId,
-      context: {
-        remoteJid: context.remoteJid,
-        senderJid: context.senderJid,
-        text: context.text,
-        args: context.args,
-      },
-    });
-
+  private async applyActions(
+    moduleId: string,
+    actions: ExternalModuleAction[],
+    context: Pick<CommandContext | MessageEventContext, "reply" | "react">,
+  ): Promise<void> {
     for (const action of actions) {
       switch (action.type) {
         case "reply":
@@ -217,6 +212,43 @@ export class ExternalModuleManager {
           break;
       }
     }
+  }
+
+  async executeCommand(moduleId: string, commandId: string, context: CommandContext): Promise<void> {
+    const actions = await this.request(moduleId, {
+      protocol: BAILEY_MODULE_PROTOCOL,
+      id: randomUUID(),
+      type: "command.execute",
+      commandId,
+      context: {
+        remoteJid: context.remoteJid,
+        senderJid: context.senderJid,
+        text: context.text,
+        args: context.args,
+      },
+    });
+    await this.applyActions(moduleId, actions, context);
+  }
+
+  async dispatchMessageEvent(moduleId: string, context: MessageEventContext): Promise<void> {
+    const loaded = this.modules.get(moduleId);
+    if (!loaded) throw new Error(`External module is not loaded: ${moduleId}`);
+    if (!(loaded.manifest.capabilities?.includes("events") ?? false)) return;
+
+    const actions = await this.request(moduleId, {
+      protocol: BAILEY_MODULE_PROTOCOL,
+      id: randomUUID(),
+      type: "event.dispatch",
+      event: "message.received",
+      context: {
+        remoteJid: context.remoteJid,
+        senderJid: context.senderJid,
+        text: context.text,
+        pushName: context.pushName,
+        timestamp: context.timestamp,
+      },
+    });
+    await this.applyActions(moduleId, actions, context);
   }
 
   async stopAll(): Promise<void> {
