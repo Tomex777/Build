@@ -21,6 +21,54 @@ dump_ui() {
   adb pull /sdcard/window.xml /tmp/sora-media-window.xml >/dev/null 2>&1 || true
 }
 
+# Hosted Android emulators can surface launcher/System UI ANR dialogs during
+# cold boot even while Sora is healthy underneath. Dismiss only non-Sora
+# system dialogs; a Sora ANR remains a hard test failure.
+dismiss_emulator_system_dialogs() {
+  dump_ui
+  python3 <<'PY'
+import re, subprocess, sys, xml.etree.ElementTree as ET
+
+path='/tmp/sora-media-window.xml'
+try:
+    root=ET.parse(path).getroot()
+except Exception:
+    raise SystemExit(0)
+
+titles=[]
+for node in root.iter('node'):
+    text=(node.attrib.get('text') or '').strip()
+    low=text.lower()
+    if "isn't responding" in low or 'is not responding' in low or 'keeps stopping' in low:
+        titles.append(text)
+
+if not titles:
+    raise SystemExit(0)
+
+title=titles[0]
+if 'sora' in title.lower():
+    print(f'Real Sora system error dialog detected: {title}', file=sys.stderr)
+    raise SystemExit(2)
+
+for label in ('Wait', 'Close app'):
+    for node in root.iter('node'):
+        text=(node.attrib.get('text') or '').strip()
+        desc=(node.attrib.get('content-desc') or '').strip()
+        if text != label and desc != label:
+            continue
+        m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+        if not m:
+            continue
+        x1,y1,x2,y2=map(int,m.groups())
+        print(f"Dismissing emulator-only system dialog '{title}' via '{label}'")
+        subprocess.check_call(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)])
+        raise SystemExit(0)
+
+print(f'Emulator system dialog could not be dismissed: {title}', file=sys.stderr)
+raise SystemExit(1)
+PY
+}
+
 node_exists() {
   local label="$1"
   dump_ui
@@ -38,6 +86,11 @@ PY
 wait_for_node() {
   local label="$1" timeout="${2:-35}" elapsed=0
   while (( elapsed < timeout )); do
+    if ! dismiss_emulator_system_dialogs; then
+      echo "A real Sora/system dialog blocked '$label'" >&2
+      shot "failure-system-dialog-${label//[^A-Za-z0-9]/_}"
+      return 1
+    fi
     if node_exists "$label"; then
       echo "Found '$label' after ${elapsed}s"
       return 0
@@ -57,6 +110,10 @@ wait_for_node() {
 wait_for_catalog_state() {
   local timeout="${1:-50}" elapsed=0
   while (( elapsed < timeout )); do
+    if ! dismiss_emulator_system_dialogs; then
+      shot failure-system-dialog-catalog-state
+      return 1
+    fi
     if node_exists Details; then
       echo "Catalog recovered with real rows after ${elapsed}s"
       return 0
@@ -75,6 +132,10 @@ wait_for_catalog_state() {
 
 tap_text() {
   local label="$1"
+  if ! dismiss_emulator_system_dialogs; then
+    echo "A real Sora/system dialog blocked tap '$label'" >&2
+    return 1
+  fi
   dump_ui
   python3 - "$label" <<'PY'
 import re, subprocess, sys, xml.etree.ElementTree as ET
@@ -107,7 +168,7 @@ input_query() {
 }
 
 # Root -> Media. This is a cold-start run with no seeded catalog or progress.
-wait_for_node Media 12
+wait_for_node Media 20
 tap_text Media
 wait_for_node 'Anime & Manga' 12
 shot 01-anime-initial
