@@ -17,6 +17,7 @@ cleanup() {
     wait "$LIVE_LOGCAT_PID" >/dev/null 2>&1 || true
   fi
   capture_logs
+  adb shell pm enable com.android.launcher3 >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -27,6 +28,14 @@ adb uninstall com.night.sora >/dev/null 2>&1 || true
 
 adb install -r "$SORA_YT_ROOT/app/build/outputs/apk/debug/app-debug.apk"
 adb install -r "$SORA_YT_ROOT/youtube-music-extension/build/outputs/apk/debug/youtube-music-extension-debug.apk"
+
+# The headless API 35 image intermittently lets Quickstep/Launcher3 ANR and
+# steal accessibility focus from Sora. This smoke does not need a launcher,
+# so disable it before opening Sora. We use Android Settings later when we
+# need to put Sora in the background.
+adb shell am force-stop com.android.launcher3 >/dev/null 2>&1 || true
+adb shell pm disable-user --user 0 com.android.launcher3 >/dev/null 2>&1 || true
+
 adb shell am force-stop com.night.sora
 adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
 sleep 6
@@ -223,8 +232,10 @@ wait_for_node 'Mini player' 20
 wait_for_node Pause 40
 shot 02-youtube-music-playing
 
-# Prove Core is playing through the shared Media3 session and survives backgrounding.
-adb shell input keyevent KEYCODE_HOME
+# Prove Core is playing through the shared Media3 session and survives being
+# backgrounded. Use Settings instead of HOME so the disabled launcher cannot
+# interfere with this headless smoke.
+adb shell am start -W -a android.settings.SETTINGS >/dev/null
 sleep 4
 adb shell dumpsys activity services com.night.sora | grep -q 'MusicPlaybackService'
 adb shell dumpsys media_session | grep -q 'com.night.sora'
