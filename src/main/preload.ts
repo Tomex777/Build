@@ -13,6 +13,14 @@ contextBridge.exposeInMainWorld("bailey", {
   openStudioFile: () => ipcRenderer.invoke("bailey:studio-open-file"),
   saveStudioFile: (path: string, content: string) => ipcRenderer.invoke("bailey:studio-save-file", path, content),
   openModulesFolder: () => ipcRenderer.invoke("bailey:studio-open-modules-folder"),
+  listChats: (query = "") => ipcRenderer.invoke("bailey:chats-list", query),
+  getChatMessages: (remoteJid: string, limit = 200) => ipcRenderer.invoke("bailey:chat-messages", remoteJid, limit),
+  sendChatMessage: (remoteJid: string, text: string) => ipcRenderer.invoke("bailey:chat-send", remoteJid, text),
+  onChatMessage: (listener: (message: unknown) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, message: unknown) => listener(message);
+    ipcRenderer.on("bailey:chat-message", handler);
+    return () => ipcRenderer.removeListener("bailey:chat-message", handler);
+  },
   getEngineStatus: () => ipcRenderer.invoke("bailey:engine-status"),
   checkEngineLatest: () => ipcRenderer.invoke("bailey:engine-check-latest"),
   installDefaultEngine: () => ipcRenderer.invoke("bailey:engine-install-default"),
