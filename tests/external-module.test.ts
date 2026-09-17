@@ -307,4 +307,76 @@ input.on("line", (line) => {
     expect(await runCount()).toBe("2");
     expect(await readFile(join(dataRoot, "keeper", "counter.txt"), "utf8")).toBe("2");
   });
+
+  it("allows a services-enabled module to call Bailey while its command request is still pending", async () => {
+    const root = await mkdtemp(join(tmpdir(), "bailey-external-services-"));
+    tempDirs.push(root);
+    const moduleDir = join(root, "caller");
+    await mkdir(moduleDir, { recursive: true });
+
+    await writeFile(join(moduleDir, "bailey.module.json"), JSON.stringify({
+      protocol: 1,
+      id: "caller",
+      name: "Caller",
+      version: "1.0.0",
+      runtime: { command: process.execPath, args: ["worker.mjs"] },
+      capabilities: ["commands", "services"],
+      commands: [
+        { id: "service", name: "service", section: "Services", description: "Call a Bailey host service." },
+      ],
+    }, null, 2));
+
+    await writeFile(join(moduleDir, "worker.mjs"), `
+import readline from "node:readline";
+const input = readline.createInterface({ input: process.stdin });
+let pendingCommand;
+input.on("line", (line) => {
+  const message = JSON.parse(line);
+  if (message.type === "command.execute") {
+    pendingCommand = message;
+    process.stdout.write(JSON.stringify({
+      protocol: 1,
+      id: "service-call-1",
+      type: "host.call",
+      service: "text",
+      method: "upper",
+      params: { text: message.context.args.join(" ") }
+    }) + "\\n");
+    return;
+  }
+  if (message.type === "host.result" && message.replyTo === "service-call-1") {
+    process.stdout.write(JSON.stringify({
+      protocol: 1,
+      replyTo: pendingCommand.id,
+      ok: message.ok,
+      error: message.error,
+      actions: message.ok ? [{ type: "reply", text: message.result.text + ":" + message.result.moduleId }] : []
+    }) + "\\n");
+  }
+});
+`);
+
+    const manager = new ExternalModuleManager(root, () => ({}));
+    manager.registerService("text", "upper", (params, context) => {
+      const value = params && typeof params === "object" && "text" in params
+        ? String((params as { text: unknown }).text)
+        : "";
+      return { text: value.toUpperCase(), moduleId: context.moduleId };
+    });
+    const loaded = await manager.load();
+    expect(loaded.errors).toEqual([]);
+
+    const replies: string[] = [];
+    await loaded.definitions[0].commands![0].execute!({
+      remoteJid: "123@s.whatsapp.net",
+      text: ".service hello bailey",
+      args: ["hello", "bailey"],
+      reply: async (text) => { replies.push(text); },
+      react: async () => {},
+      showMenu: async () => {},
+    });
+
+    expect(replies).toEqual(["HELLO BAILEY:caller"]);
+    await manager.stopAll();
+  });
 });
