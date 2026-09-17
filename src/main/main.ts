@@ -1,16 +1,19 @@
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, safeStorage, Tray } from "electron";
-import { join } from "node:path";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, Tray } from "electron";
+import { readFile, writeFile } from "node:fs/promises";
+import { basename, extname, join } from "node:path";
 import { baileyMarkDataUrl } from "../brand/logo";
 import { JsonCommandStore, type VisualCommandPatch } from "../core/command-store";
 import { JsonConfigStore, type SecretCodec } from "../core/config-store";
-import { commandId } from "../core/module";
 import { ModuleRegistry } from "../core/registry";
 import type { IncomingEngineMessage } from "../engine/contracts";
 import { EngineManager } from "../engine/engine-manager";
 import { coreModule } from "../modules/core";
+import { myCommandsModule } from "../modules/my-commands";
+import type { ConfigDefinition } from "../shared/config-schema";
 
 const registry = new ModuleRegistry();
 registry.register(coreModule);
+registry.register(myCommandsModule);
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -18,6 +21,9 @@ let isQuitting = false;
 let configStore: JsonConfigStore;
 let commandStore: JsonCommandStore;
 let engineManager: EngineManager;
+const openedEditorFiles = new Set<string>();
+const EDITABLE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs", ".json", ".py", ".md", ".txt", ".yaml", ".yml", ".toml"]);
+const MAX_EDITOR_BYTES = 2 * 1024 * 1024;
 
 function createSecretCodec(): SecretCodec {
   return {
@@ -66,6 +72,9 @@ function createWindow(show = true): BrowserWindow {
       window.hide();
     }
   });
+  window.webContents.on("before-input-event", (_event, input) => {
+    if (input.key === "Escape" && window.isFullScreen()) window.setFullScreen(false);
+  });
 
   return window;
 }
@@ -74,6 +83,39 @@ function showMainWindow(): void {
   if (!mainWindow) mainWindow = createWindow();
   mainWindow.show();
   mainWindow.focus();
+}
+
+function createApplicationMenu(): void {
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    {
+      label: "Bailey",
+      submenu: [
+        { label: "Open Bailey Host", click: showMainWindow },
+        { label: "Hide to tray", click: () => mainWindow?.hide() },
+        { type: "separator" },
+        {
+          label: "Quit Bailey Host",
+          accelerator: "Alt+F4",
+          click: () => {
+            isQuitting = true;
+            app.quit();
+          },
+        },
+      ],
+    },
+    {
+      label: "View",
+      submenu: [
+        { role: "reload" },
+        { type: "separator" },
+        { role: "resetZoom" },
+        { role: "zoomIn" },
+        { role: "zoomOut" },
+        { type: "separator" },
+        { role: "togglefullscreen", accelerator: "F11" },
+      ],
+    },
+  ]));
 }
 
 function createTray(): void {
@@ -93,13 +135,50 @@ function createTray(): void {
   tray.on("double-click", showMainWindow);
 }
 
-function getSetting(key: string): string | number | boolean | undefined {
-  const definition = registry.findConfigDefinition(key);
-  return definition ? configStore.get(definition) : undefined;
+function commandPrefix(): string {
+  const definition = registry.findConfigDefinition("modules.core.settings.prefix");
+  return definition ? String(configStore.get(definition) ?? ".") : ".";
 }
 
-function commandPrefix(): string {
-  return String(getSetting("modules.core.settings.prefix") ?? ".");
+function effectiveConfigDefinitions(): ConfigDefinition[] {
+  const prefix = commandPrefix();
+  const definitions = registry.getConfigDefinitions().map((definition) => {
+    const match = definition.key.match(/^modules\.([^.]+)\.commands\.([^.]+)\.enabled$/);
+    if (!match) return definition;
+    const effective = commandStore.getById(registry.list(), match[1], match[2]);
+    if (!effective) return definition;
+    return {
+      ...definition,
+      label: `${prefix}${effective.name}`,
+      description: effective.description,
+    };
+  });
+
+  const knownKeys = new Set(definitions.map((definition) => definition.key));
+  for (const { module, command } of commandStore.list(registry.list())) {
+    const key = `modules.${module.id}.commands.${command.id}.enabled`;
+    if (knownKeys.has(key)) continue;
+    definitions.push({
+      key,
+      moduleId: module.id,
+      section: `${module.name} · Commands`,
+      label: `${prefix}${command.name}`,
+      type: "toggle",
+      defaultValue: true,
+      description: command.description,
+    });
+    knownKeys.add(key);
+  }
+  return definitions;
+}
+
+function findEffectiveConfigDefinition(key: string): ConfigDefinition | undefined {
+  return effectiveConfigDefinitions().find((definition) => definition.key === key);
+}
+
+function getSetting(key: string): string | number | boolean | undefined {
+  const definition = findEffectiveConfigDefinition(key);
+  return definition ? configStore.get(definition) : undefined;
 }
 
 function moduleEnabled(moduleId: string): boolean {
@@ -110,7 +189,7 @@ function commandEnabled(moduleId: string, id: string): boolean {
   return Boolean(getSetting(`modules.${moduleId}.commands.${id}.enabled`) ?? true);
 }
 
-async function runDeclarativeActions(actions: NonNullable<ReturnType<JsonCommandStore["effective"]>["actions"]>, remoteJid: string): Promise<void> {
+async function runDeclarativeActions(actions: Array<{ type: "reply"; text: string }>, remoteJid: string): Promise<void> {
   for (const action of actions) {
     if (action.type === "reply") await engineManager.sendText(remoteJid, action.text);
   }
@@ -159,41 +238,68 @@ function broadcastEngineStatus(): void {
 }
 
 function effectiveModules() {
+  const commands = commandStore.list(registry.list());
   return registry.list().map((module) => ({
     id: module.id,
     name: module.name,
     version: module.version,
     description: module.description,
-    commands: (module.commands ?? []).map((command) => {
-      const effective = commandStore.effective(module, command);
-      return {
-        id: effective.id,
-        name: effective.name,
-        section: effective.section,
-        aliases: effective.aliases,
-        description: effective.description,
-        editable: effective.editable,
-        replyText: effective.replyText,
-      };
-    }),
+    commands: commands.filter((entry) => entry.module.id === module.id).map(({ command }) => ({
+      id: command.id,
+      name: command.name,
+      section: command.section,
+      aliases: command.aliases,
+      description: command.description,
+      editable: command.editable,
+      origin: command.origin,
+      replyText: command.replyText,
+    })),
   }));
 }
 
-function effectiveConfigDefinitions() {
-  const prefix = commandPrefix();
-  return registry.getConfigDefinitions().map((definition) => {
-    const match = definition.key.match(/^modules\.([^.]+)\.commands\.([^.]+)\.enabled$/);
-    if (!match) return definition;
-    const module = registry.findModule(match[1]);
-    const command = module ? registry.findCommand(module.id, match[2]) : undefined;
-    if (!module || !command) return definition;
-    const effective = commandStore.effective(module, command);
-    return {
-      ...definition,
-      label: `${prefix}${effective.name}`,
-      description: effective.description,
-    };
+function assertUniqueCommand(patch: VisualCommandPatch, ignore?: { moduleId: string; id: string }): void {
+  const requested = [patch.name, ...(patch.aliases ?? [])].map((value) => String(value).trim().toLowerCase()).filter(Boolean);
+  const duplicate = commandStore.list(registry.list()).find(({ module, command }) => {
+    if (ignore && module.id === ignore.moduleId && command.id === ignore.id) return false;
+    const names = [command.name, ...command.aliases].map((value) => value.toLowerCase());
+    return requested.some((value) => names.includes(value));
   });
+  if (duplicate) throw new Error(`That trigger or alias is already used by ${commandPrefix()}${duplicate.command.name}.`);
+}
+
+function editorLanguage(path: string): string {
+  const extension = extname(path).toLowerCase();
+  return ({
+    ".ts": "TypeScript", ".tsx": "TypeScript", ".js": "JavaScript", ".mjs": "JavaScript", ".cjs": "JavaScript",
+    ".py": "Python", ".json": "JSON", ".yaml": "YAML", ".yml": "YAML", ".toml": "TOML", ".md": "Markdown", ".txt": "Text",
+  } as Record<string, string>)[extension] ?? "Text";
+}
+
+async function openEditorFile() {
+  const result = await dialog.showOpenDialog(mainWindow ?? undefined, {
+    title: "Open code or module file",
+    properties: ["openFile"],
+    filters: [
+      { name: "Bailey editable files", extensions: [...EDITABLE_EXTENSIONS].map((value) => value.slice(1)) },
+      { name: "All files", extensions: ["*"] },
+    ],
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  const path = result.filePaths[0];
+  const extension = extname(path).toLowerCase();
+  if (!EDITABLE_EXTENSIONS.has(extension)) throw new Error("Bailey Studio cannot safely edit that file type yet.");
+  const raw = await readFile(path);
+  if (raw.byteLength > MAX_EDITOR_BYTES) throw new Error("That file is larger than Bailey Studio's 2 MB editor limit.");
+  openedEditorFiles.add(path);
+  return { path, name: basename(path), language: editorLanguage(path), content: raw.toString("utf8") };
+}
+
+async function saveEditorFile(path: string, content: string) {
+  if (!openedEditorFiles.has(path)) throw new Error("Reopen this file through Bailey Studio before saving it.");
+  if (!EDITABLE_EXTENSIONS.has(extname(path).toLowerCase())) throw new Error("Bailey Studio cannot save that file type.");
+  if (Buffer.byteLength(content, "utf8") > MAX_EDITOR_BYTES) throw new Error("The edited file is larger than Bailey Studio's 2 MB editor limit.");
+  await writeFile(path, content, "utf8");
+  return { ok: true };
 }
 
 function registerIpc(): void {
@@ -211,33 +317,25 @@ function registerIpc(): void {
   }));
 
   ipcMain.handle("bailey:get-command", (_event, moduleId: string, id: string) => {
-    const module = registry.findModule(moduleId);
-    const command = registry.findCommand(moduleId, id);
-    if (!module || !command) throw new Error("Command not found.");
-    return commandStore.get(module, command);
+    const command = commandStore.getById(registry.list(), moduleId, id);
+    if (!command) throw new Error("Command not found.");
+    return command;
+  });
+
+  ipcMain.handle("bailey:create-command", async (_event, patch: VisualCommandPatch) => {
+    assertUniqueCommand(patch);
+    return commandStore.create(registry.list(), "my-commands", patch);
   });
 
   ipcMain.handle("bailey:update-command", async (_event, moduleId: string, id: string, patch: VisualCommandPatch) => {
-    const module = registry.findModule(moduleId);
-    const command = registry.findCommand(moduleId, id);
-    if (!module || !command) throw new Error("Command not found.");
-
-    const duplicate = commandStore.list(registry.list()).find(({ module: candidateModule, command: candidate }) => {
-      if (candidateModule.id === moduleId && candidate.id === id) return false;
-      const names = [candidate.name, ...candidate.aliases].map((value) => value.toLowerCase());
-      const requested = [patch.name, ...(patch.aliases ?? [])].map((value) => String(value).toLowerCase());
-      return requested.some((value) => names.includes(value));
-    });
-    if (duplicate) throw new Error(`That trigger or alias is already used by ${commandPrefix()}${duplicate.command.name}.`);
-
-    return commandStore.update(module, command, patch);
+    assertUniqueCommand(patch, { moduleId, id });
+    return commandStore.updateById(registry.list(), moduleId, id, patch);
   });
 
-  ipcMain.handle("bailey:reset-command", async (_event, moduleId: string, id: string) => {
-    const module = registry.findModule(moduleId);
-    const command = registry.findCommand(moduleId, id);
-    if (!module || !command) throw new Error("Command not found.");
-    return commandStore.reset(module, command);
+  ipcMain.handle("bailey:reset-command", (_event, moduleId: string, id: string) => commandStore.resetById(registry.list(), moduleId, id));
+  ipcMain.handle("bailey:delete-command", async (_event, moduleId: string, id: string) => {
+    await commandStore.deleteById(moduleId, id);
+    return { ok: true };
   });
 
   ipcMain.handle("bailey:get-config", () => {
@@ -249,7 +347,7 @@ function registerIpc(): void {
   });
 
   ipcMain.handle("bailey:set-config", async (_event, key: string, value: unknown) => {
-    const definition = registry.findConfigDefinition(key);
+    const definition = findEffectiveConfigDefinition(key);
     if (!definition) throw new Error(`Unknown Bailey setting: ${key}`);
     if (definition.type === "secret" && value === "") return { ok: true, unchanged: true };
 
@@ -261,6 +359,9 @@ function registerIpc(): void {
 
     return { ok: true };
   });
+
+  ipcMain.handle("bailey:studio-open-file", () => openEditorFile());
+  ipcMain.handle("bailey:studio-save-file", (_event, path: string, content: string) => saveEditorFile(path, content));
 
   ipcMain.handle("bailey:engine-status", () => engineManager.status());
   ipcMain.handle("bailey:engine-check-latest", () => engineManager.checkLatest());
@@ -306,6 +407,7 @@ app.whenReady().then(async () => {
   if (autoStart) app.setLoginItemSettings({ openAtLogin: Boolean(configStore.get(autoStart)) });
 
   registerIpc();
+  createApplicationMenu();
   createTray();
 
   const ciSmoke = process.argv.includes("--ci-smoke");
