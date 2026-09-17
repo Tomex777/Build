@@ -6,8 +6,10 @@ import type { BaileyModuleDefinition, CommandContext, MessageEventContext } from
 import { defineCommand, defineModule } from "../core/module";
 import {
   BAILEY_MODULE_PROTOCOL,
+  parseExternalHostCall,
   parseExternalModuleManifest,
   parseExternalModuleResponse,
+  type ExternalHostResult,
   type ExternalModuleAction,
   type ExternalModuleManifest,
   type ExternalModuleRequest,
@@ -33,13 +35,29 @@ export interface ExternalModuleLoadResult {
   errors: Array<{ folder: string; error: string }>;
 }
 
+export interface ExternalHostServiceContext {
+  moduleId: string;
+  moduleName: string;
+  capabilities: readonly string[];
+  dataDirectory?: string;
+}
+
+export type ExternalHostServiceHandler = (
+  params: unknown,
+  context: ExternalHostServiceContext,
+) => unknown | Promise<unknown>;
+
 type HostSendText = (remoteJid: string, text: string) => void | Promise<void>;
 type TriggerContext = Pick<CommandContext | MessageEventContext, "reply" | "react">;
+
+const SERVICE_NAME = /^[a-z0-9][a-z0-9.-]{0,63}$/;
+const SERVICE_METHOD = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 
 export class ExternalModuleManager {
   private readonly modules = new Map<string, LoadedModule>();
   private readonly jobTimers = new Map<string, NodeJS.Timeout>();
   private readonly runningJobs = new Set<string>();
+  private readonly services = new Map<string, ExternalHostServiceHandler>();
   private hostSendText?: HostSendText;
   private jobsStarted = false;
 
@@ -48,10 +66,26 @@ export class ExternalModuleManager {
     private readonly getEnvironment: (moduleId: string) => Record<string, string>,
     private readonly isModuleEnabled: (moduleId: string) => boolean = () => true,
     private readonly dataRoot: string = join(modulesRoot, ".data"),
-  ) {}
+  ) {
+    this.registerService("host", "info", (_params, context) => ({
+      protocol: BAILEY_MODULE_PROTOCOL,
+      moduleId: context.moduleId,
+      moduleName: context.moduleName,
+      capabilities: context.capabilities,
+      dataDirectory: context.dataDirectory,
+    }));
+  }
 
   setHostSendText(handler: HostSendText): void {
     this.hostSendText = handler;
+  }
+
+  registerService(service: string, method: string, handler: ExternalHostServiceHandler): void {
+    if (!SERVICE_NAME.test(service)) throw new Error(`Invalid host service name: ${service}`);
+    if (!SERVICE_METHOD.test(method)) throw new Error(`Invalid host service method: ${method}`);
+    const key = `${service}:${method}`;
+    if (this.services.has(key)) throw new Error(`Host service already registered: ${service}.${method}`);
+    this.services.set(key, handler);
   }
 
   async load(): Promise<ExternalModuleLoadResult> {
@@ -143,7 +177,7 @@ export class ExternalModuleManager {
         const line = loaded.stdoutBuffer.slice(0, newline).trim();
         loaded.stdoutBuffer = loaded.stdoutBuffer.slice(newline + 1);
         if (!line) continue;
-        this.handleResponse(loaded, line);
+        void this.handleOutput(loaded, child, line);
       }
     });
 
@@ -174,9 +208,16 @@ export class ExternalModuleManager {
     return child;
   }
 
-  private handleResponse(loaded: LoadedModule, line: string): void {
+  private async handleOutput(loaded: LoadedModule, child: ChildProcessWithoutNullStreams, line: string): Promise<void> {
     try {
-      const response = parseExternalModuleResponse(JSON.parse(line));
+      const raw = JSON.parse(line) as unknown;
+      if (raw && typeof raw === "object" && (raw as { type?: unknown }).type === "host.call") {
+        const call = parseExternalHostCall(raw);
+        await this.handleHostCall(loaded, child, call.id, call.service, call.method, call.params);
+        return;
+      }
+
+      const response = parseExternalModuleResponse(raw);
       const pending = loaded.pending.get(response.replyTo);
       if (!pending) return;
       clearTimeout(pending.timer);
@@ -189,6 +230,71 @@ export class ExternalModuleManager {
     } catch (error) {
       console.warn(`[module:${loaded.manifest.id}] Ignored invalid protocol output: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  private async handleHostCall(
+    loaded: LoadedModule,
+    child: ChildProcessWithoutNullStreams,
+    callId: string,
+    service: string,
+    method: string,
+    params: unknown,
+  ): Promise<void> {
+    if (!(loaded.manifest.capabilities?.includes("services") ?? false)) {
+      await this.writeHostResult(child, {
+        protocol: BAILEY_MODULE_PROTOCOL,
+        type: "host.result",
+        replyTo: callId,
+        ok: false,
+        error: `${loaded.manifest.id} must declare the services capability before calling host services.`,
+      });
+      return;
+    }
+
+    const handler = this.services.get(`${service}:${method}`);
+    if (!handler) {
+      await this.writeHostResult(child, {
+        protocol: BAILEY_MODULE_PROTOCOL,
+        type: "host.result",
+        replyTo: callId,
+        ok: false,
+        error: `Unknown host service: ${service}.${method}`,
+      });
+      return;
+    }
+
+    try {
+      const result = await handler(params, {
+        moduleId: loaded.manifest.id,
+        moduleName: loaded.manifest.name,
+        capabilities: loaded.manifest.capabilities ?? [],
+        dataDirectory: loaded.dataDirectory,
+      });
+      await this.writeHostResult(child, {
+        protocol: BAILEY_MODULE_PROTOCOL,
+        type: "host.result",
+        replyTo: callId,
+        ok: true,
+        result,
+      });
+    } catch (error) {
+      await this.writeHostResult(child, {
+        protocol: BAILEY_MODULE_PROTOCOL,
+        type: "host.result",
+        replyTo: callId,
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  private async writeHostResult(child: ChildProcessWithoutNullStreams, result: ExternalHostResult): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      child.stdin.write(`${JSON.stringify(result)}\n`, "utf8", (error) => {
+        if (error) reject(error);
+        else resolve();
+      });
+    });
   }
 
   private request(moduleId: string, request: ExternalModuleRequest): Promise<ExternalModuleAction[]> {
