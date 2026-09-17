@@ -42,6 +42,7 @@ fun MoreScreen(
     onDownloads: () -> Unit,
     onStatistics: () -> Unit,
     onDataStorage: () -> Unit,
+    onPlayerReader: () -> Unit,
 ) {
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
@@ -72,7 +73,7 @@ fun MoreScreen(
         item { MoreSectionLabel("SOURCES & PLAYBACK") }
         item { MoreRow("Extensions", "$extensionCount compatible installed", Icons.Rounded.Extension, onClick = onExtensions) }
         item { MoreDivider() }
-        item { MoreRow("Player & reader", "Playback, subtitles and reading behavior", Icons.Rounded.Tune) }
+        item { MoreRow("Player & reader", "Default watch and read sources", Icons.Rounded.Tune, onClick = onPlayerReader) }
 
         item { MoreSectionLabel("SORA") }
         item { MoreRow("AI & models", "Providers, voice and generated media", Icons.Rounded.AutoAwesome) }

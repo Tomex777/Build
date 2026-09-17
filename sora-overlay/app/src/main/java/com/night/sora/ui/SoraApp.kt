@@ -53,6 +53,7 @@ sealed interface AppScreen {
     data object Downloads : AppScreen
     data object Statistics : AppScreen
     data object DataStorage : AppScreen
+    data object PlayerReaderSettings : AppScreen
     data class ExtensionDetail(val extension: InstalledExtension) : AppScreen
     data class MediaDetails(val selection: ExtensionMediaSelection) : AppScreen
     data class Reader(val session: ReaderSession) : AppScreen
@@ -201,6 +202,7 @@ fun SoraApp() {
                     onDownloads = { push(AppScreen.Downloads) },
                     onStatistics = { push(AppScreen.Statistics) },
                     onDataStorage = { push(AppScreen.DataStorage) },
+                    onPlayerReader = { push(AppScreen.PlayerReaderSettings) },
                 )
             }
         }
@@ -240,6 +242,10 @@ fun SoraApp() {
             AppScreen.DataStorage -> DataStorageScreen(
                 downloads = repository.downloads,
                 onClearCatalogCache = mediaCatalogCache::clear,
+                onBack = ::pop,
+            )
+            AppScreen.PlayerReaderSettings -> PlayerReaderSettingsScreen(
+                extensions = extensions,
                 onBack = ::pop,
             )
             is AppScreen.ExtensionDetail -> ExtensionDetailScreen(current.extension, onBack = ::pop)
