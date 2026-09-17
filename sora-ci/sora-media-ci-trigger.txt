@@ -1,1 +1,1 @@
-run 9 - reuse Jikan full relations and revalidate Anime Manga
+run 10 - promote build-validated Anime Manga implementation and retain strict live status
