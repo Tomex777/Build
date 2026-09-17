@@ -15,14 +15,17 @@ public final class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         var prefs = getSharedPreferences("night_core_manager_probe", MODE_PRIVATE);
+        boolean readOnly = getIntent().getBooleanExtra("read_only", false);
         try {
-            Bundle desired = new Bundle();
-            desired.putBoolean("bubble_enabled", false);
-            desired.putBoolean("target_whatsapp", true);
-            desired.putBoolean("target_instagram", false);
-            desired.putInt("bubble_radius", 31);
-            desired.putInt("bubble_spacing", 9);
-            getContentResolver().call(SETTINGS_URI, METHOD_SET, null, desired);
+            if (!readOnly) {
+                Bundle desired = new Bundle();
+                desired.putBoolean("bubble_enabled", false);
+                desired.putBoolean("target_whatsapp", true);
+                desired.putBoolean("target_instagram", false);
+                desired.putInt("bubble_radius", 31);
+                desired.putInt("bubble_spacing", 9);
+                getContentResolver().call(SETTINGS_URI, METHOD_SET, null, desired);
+            }
 
             Bundle result = getContentResolver().call(SETTINGS_URI, METHOD_GET, null, null);
             if (result == null) throw new IllegalStateException("Night Core returned no settings");
@@ -38,6 +41,7 @@ public final class MainActivity extends Activity {
             prefs.edit()
                     .clear()
                     .putBoolean("success", true)
+                    .putString("mode", readOnly ? "read_only" : "write")
                     .putBoolean("bubble_enabled", result.getBoolean("bubble_enabled", true))
                     .putBoolean("target_whatsapp", result.getBoolean("target_whatsapp", false))
                     .putBoolean("target_instagram", result.getBoolean("target_instagram", true))
@@ -53,6 +57,7 @@ public final class MainActivity extends Activity {
             prefs.edit()
                     .clear()
                     .putBoolean("success", false)
+                    .putString("mode", readOnly ? "read_only" : "write")
                     .putString("error", error.getClass().getName() + ": " + error.getMessage())
                     .commit();
         } finally {

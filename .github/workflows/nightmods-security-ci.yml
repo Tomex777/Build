@@ -103,6 +103,7 @@ jobs:
             sleep 1
             adb shell run-as org.lsposed.manager cat shared_prefs/night_core_manager_probe.xml | tee security-smoke/manager-result.xml
             grep -q 'name="success" value="true"' security-smoke/manager-result.xml
+            grep -q '<string name="mode">write</string>' security-smoke/manager-result.xml
             grep -q 'name="bubble_enabled" value="false"' security-smoke/manager-result.xml
             grep -q 'name="target_instagram" value="false"' security-smoke/manager-result.xml
             grep -q 'name="bubble_radius" value="31"' security-smoke/manager-result.xml
@@ -146,16 +147,37 @@ jobs:
             adb shell pidof dev.nightmods.core | tee security-smoke/core-pid-after-framework-read.txt || true
             test ! -s security-smoke/core-pid-after-framework-read.txt
 
-            # The manager-only provider is still allowed to cold-start Night Core when the user opens
-            # Night Mods. This is separate from target hook reads, which use the framework store.
+            # A manager read is allowed to cold-start Night Core even before the framework service
+            # has been re-delivered. This is deliberately read-only: a write must not claim success
+            # until the new Night Core process has a framework Binder again.
             adb shell run-as org.lsposed.manager rm -f shared_prefs/night_core_manager_probe.xml || true
             adb shell am force-stop org.lsposed.manager || true
-            adb shell am start -W -n org.lsposed.manager/org.lsposed.manager.MainActivity | tee security-smoke/manager-cold-start.txt
+            adb shell am start -W -n org.lsposed.manager/org.lsposed.manager.MainActivity --ez read_only true | tee security-smoke/manager-cold-read-start.txt
             sleep 1
-            adb shell run-as org.lsposed.manager cat shared_prefs/night_core_manager_probe.xml | tee security-smoke/manager-cold-result.xml
-            grep -q 'name="success" value="true"' security-smoke/manager-cold-result.xml
-            adb shell pidof dev.nightmods.core | tee security-smoke/core-pid-after-manager.txt
-            test -s security-smoke/core-pid-after-manager.txt
+            adb shell run-as org.lsposed.manager cat shared_prefs/night_core_manager_probe.xml | tee security-smoke/manager-cold-read-result.xml
+            grep -q 'name="success" value="true"' security-smoke/manager-cold-read-result.xml
+            grep -q '<string name="mode">read_only</string>' security-smoke/manager-cold-read-result.xml
+            grep -q 'name="bubble_radius" value="31"' security-smoke/manager-cold-read-result.xml
+            adb shell pidof dev.nightmods.core | tee security-smoke/core-pid-after-manager-read.txt
+            test -s security-smoke/core-pid-after-manager-read.txt
+
+            # A real LSPosed framework re-delivers its service Binder to a new module process. Re-run
+            # the exact API-100 binder delivery in the CI framework stub, then prove manager writes
+            # become hook-effective again rather than succeeding against the local mirror only.
+            adb shell am start -W -n dev.nightmods.frameworkprobe/.MainActivity | tee security-smoke/framework-rebind.txt
+            sleep 1
+            adb shell run-as dev.nightmods.frameworkprobe cat shared_prefs/framework_probe.xml | tee security-smoke/framework-rebind-result.xml
+            grep -q 'name="bound" value="true"' security-smoke/framework-rebind-result.xml
+
+            adb shell run-as org.lsposed.manager rm -f shared_prefs/night_core_manager_probe.xml || true
+            adb shell am force-stop org.lsposed.manager || true
+            adb shell am start -W -n org.lsposed.manager/org.lsposed.manager.MainActivity | tee security-smoke/manager-after-rebind-start.txt
+            sleep 1
+            adb shell run-as org.lsposed.manager cat shared_prefs/night_core_manager_probe.xml | tee security-smoke/manager-after-rebind-result.xml
+            grep -q 'name="success" value="true"' security-smoke/manager-after-rebind-result.xml
+            grep -q '<string name="mode">write</string>' security-smoke/manager-after-rebind-result.xml
+            adb shell run-as dev.nightmods.frameworkprobe cat shared_prefs/framework_remote_night_core.xml | tee security-smoke/framework-remote-after-rebind.xml
+            grep -q 'name="bubble_radius" value="31"' security-smoke/framework-remote-after-rebind.xml
 
             adb logcat -d > security-smoke/logcat.txt
             adb logcat -b crash -d > security-smoke/crash.txt || true
