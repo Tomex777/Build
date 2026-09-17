@@ -18,7 +18,11 @@ const demo = defineModule({
       { label: "Fast", value: "fast" },
     ]),
   ],
-  commands: [defineCommand({ name: "hello", description: "Say hello" })],
+  commands: [defineCommand({
+    name: "hello",
+    description: "Say hello",
+    actions: [{ type: "reply", text: "Hello." }],
+  })],
 });
 
 describe("Bailey config schema", () => {
