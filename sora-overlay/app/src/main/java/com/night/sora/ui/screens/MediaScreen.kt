@@ -417,10 +417,6 @@ private fun AnimeMangaSurface(
             MediaSectionTitle(currentLabel, if (type == ContentType.ANIME) "Anime currently airing" else "Manga currently publishing")
             PortraitRail(rows, type, selection, onOpen)
         }
-        item {
-            MediaSectionTitle("Browse by mood", "Explore a genre from Search")
-            GenreRail(if (type == ContentType.ANIME) listOf("Dark", "Funny", "Psychological", "Adventure", "Romance", "Slice of life") else listOf("Drama", "Psychological", "Action", "Romance", "Mystery", "Slice of life"))
-        }
     }
 }
 
@@ -456,7 +452,6 @@ private fun MovieTvSurface(
             item { MediaSectionTitle("More to watch", "More titles from the same source"); PortraitRail(rows.drop(6).ifEmpty { rows }, type, selection, onOpen) }
             item { MediaSectionTitle("10 picks", "A quick shortlist from your source"); TopTenRail(rows.take(10), type, selection, onOpen) }
         }
-        item { MediaSectionTitle("Browse by mood", "Explore a genre from Search"); GenreRail(listOf("Thriller", "Drama", "Comedy", "Sci-fi", "Crime", "Documentary")) }
     }
 }
 
@@ -755,7 +750,6 @@ private fun ContinueLandscapeRail(entries: List<LibraryEntry>, onOpen: (Extensio
             Column(Modifier.width(190.dp).clickable { entry.toMediaSelection()?.let(onOpen) }) {
                 Box(Modifier.fillMaxWidth().height(107.dp).clip(RoundedCornerShape(7.dp)).background(SoraSurface)) {
                     if (!entry.artworkUrl.isNullOrBlank()) AsyncImage(entry.artworkUrl, entry.label, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                    LinearProgressIndicator(progress = { .58f }, modifier = Modifier.fillMaxWidth().height(3.dp).align(Alignment.BottomCenter), color = SoraAccent, trackColor = Color(0xFF555248))
                 }
                 Text(entry.label, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.padding(top = 6.dp)); Text(entry.detail, color = SoraMuted, fontSize = 9.sp, maxLines = 1)
             }
@@ -770,8 +764,8 @@ private fun NewHotStack(rows: List<BrowseCard>, type: ContentType, selection: (B
             repeat(3) { index ->
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.width(47.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("SEP", color = SoraFaint, fontSize = 8.sp, fontWeight = FontWeight.Black)
-                        Text("${14 + index * 2}", color = SoraFaint, fontSize = 19.sp, fontWeight = FontWeight.Black)
+                        Text("SOON", color = SoraFaint, fontSize = 8.sp, fontWeight = FontWeight.Black)
+                        Text("${index + 1}", color = SoraFaint, fontSize = 19.sp, fontWeight = FontWeight.Black)
                     }
                     Box(Modifier.size(width = 54.dp, height = 74.dp).background(SoraSurfaceHigh, RoundedCornerShape(6.dp)))
                     Column(Modifier.weight(1f).padding(start = 11.dp)) {
@@ -784,7 +778,7 @@ private fun NewHotStack(rows: List<BrowseCard>, type: ContentType, selection: (B
         } else {
             rows.forEachIndexed { index, card ->
                 Row(Modifier.fillMaxWidth().clickable { onOpen(selection(card, type)) }, verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.width(47.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text("SEP", color = SoraMuted, fontSize = 8.sp, fontWeight = FontWeight.Black); Text("${14 + index * 2}", fontSize = 19.sp, fontWeight = FontWeight.Black) }
+                    Column(Modifier.width(47.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text("SOON", color = SoraMuted, fontSize = 8.sp, fontWeight = FontWeight.Black); Text("${index + 1}", fontSize = 19.sp, fontWeight = FontWeight.Black) }
                     Poster(card.artworkUrl, card.title, Modifier.size(width = 54.dp, height = 74.dp), 6)
                     Column(Modifier.weight(1f).padding(start = 11.dp)) { Text(if (index == 0) "NEW NOW" else "COMING SOON", color = SoraAccent, fontSize = 8.sp, fontWeight = FontWeight.Black); Text(card.title, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1); Text(card.subtitle, color = SoraMuted, fontSize = 9.sp, maxLines = 1) }
                 }
