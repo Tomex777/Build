@@ -60,7 +60,7 @@ enum class MediaDestination(val label: String, val icon: ImageVector) {
     BIBLE("Bible", Icons.Rounded.MenuBook),
 }
 
-private enum class MusicLocal(val label: String) { HOME("Home"), DISCOVER("Discover"), LIBRARY("Your Music") }
+private enum class MusicLocal(val label: String) { HOME("Home"), LIBRARY("Your Music") }
 
 private data class BrowseCard(
     val id: String,
@@ -510,8 +510,7 @@ private fun MusicSurface(
     val queue = remember(rows) { rows.map { selection(it, ContentType.MUSIC) } }
     val playFromQueue: (ExtensionMediaSelection) -> Unit = { track -> onPlay(track, queue) }
     when (panel) {
-        MusicLocal.HOME -> MusicHome(rows, rankedTaste, selection, playFromQueue, onOpen, onOpenExtensions, onSelectPanel)
-        MusicLocal.DISCOVER -> MusicDiscover(rows, selection, playFromQueue)
+        MusicLocal.HOME -> MusicHome(rows, rankedTaste, selection, playFromQueue, onOpenExtensions, onSelectPanel)
         MusicLocal.LIBRARY -> MusicLibrary(libraryEntries, playFromQueue)
     }
 }
@@ -520,7 +519,7 @@ private fun MusicSurface(
 private fun MusicHome(
     rows: List<BrowseCard>, rankedTaste: List<ListeningSignal>,
     selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
-    onPlay: (ExtensionMediaSelection) -> Unit, onOpen: (ExtensionMediaSelection) -> Unit,
+    onPlay: (ExtensionMediaSelection) -> Unit,
     onOpenExtensions: () -> Unit, onSelectPanel: (MusicLocal) -> Unit,
 ) {
     var optionsOpen by remember { mutableStateOf(false) }
@@ -548,11 +547,6 @@ private fun MusicHome(
                     IconButton(onClick = { optionsOpen = true }) { Icon(Icons.Rounded.MoreVert, "Music options") }
                     DropdownMenu(expanded = optionsOpen, onDismissRequest = { optionsOpen = false }) {
                         DropdownMenuItem(
-                            text = { Text("Discover") },
-                            leadingIcon = { Icon(Icons.Rounded.Explore, null) },
-                            onClick = { optionsOpen = false; onSelectPanel(MusicLocal.DISCOVER) },
-                        )
-                        DropdownMenuItem(
                             text = { Text("Your Music") },
                             leadingIcon = { Icon(Icons.Rounded.LibraryMusic, null) },
                             onClick = { optionsOpen = false; onSelectPanel(MusicLocal.LIBRARY) },
@@ -568,8 +562,11 @@ private fun MusicHome(
             }
         }
         item { MusicQuickGrid(rows.take(6), selection, onPlay) }
-        if (rankedRows.isNotEmpty()) {
-            item { MusicSectionTitle("Made for you", if (rankedTaste.isEmpty()) "Fresh picks from your music source" else "Ordered from your listening history", null) }
+        if (rankedTaste.isEmpty() && rows.isNotEmpty()) {
+            item { MusicSectionTitle("Popular right now", "Live picks from your selected music source", null) }
+            item { MusicSquareRail(rows.take(8), selection, onPlay) }
+        } else if (rankedRows.isNotEmpty()) {
+            item { MusicSectionTitle("Made for you", "Ordered from your actual listening history", null) }
             item { MusicSquareRail(rankedRows.take(8), selection, onPlay) }
         }
         if (recentRows.isNotEmpty()) {
@@ -579,30 +576,6 @@ private fun MusicHome(
         if (rankedTaste.isNotEmpty()) {
             item { MusicSectionTitle("Your top artists", "Based on your listening history", null); ArtistRail(rankedRows) }
             item { MusicSectionTitle("Your rotation", "Artists and songs you return to", null); MusicTrackList(rankedRows.take(8), selection, onPlay) }
-        }
-    }
-}
-
-@Composable
-private fun MusicDiscover(rows: List<BrowseCard>, selection: (BrowseCard, ContentType) -> ExtensionMediaSelection, onPlay: (ExtensionMediaSelection) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
-        item {
-            Surface(color = Color(0xFF242118), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth().padding(18.dp)) {
-                Column(Modifier.padding(20.dp)) {
-                    Text("DISCOVER", color = SoraAccent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
-                    Text("Something new for tonight.", fontSize = 27.sp, lineHeight = 29.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 16.dp))
-                    Text("Fresh music from your installed source, ready to explore.", color = SoraMuted, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 8.dp))
-                    Button(onClick = { rows.firstOrNull()?.let { onPlay(selection(it, ContentType.MUSIC)) } }, enabled = rows.isNotEmpty(), shape = RoundedCornerShape(10.dp), modifier = Modifier.padding(top = 18.dp)) {
-                        Icon(Icons.Rounded.PlayArrow, null); Spacer(Modifier.width(5.dp)); Text("Play from Discover")
-                    }
-                }
-            }
-        }
-        if (rows.isEmpty()) {
-            item { HintLine("Install or refresh a Music source to fill Discover.") }
-        } else {
-            item { MusicSectionTitle("Fresh picks", "Music returned by your active source", null); MusicSquareRail(rows, selection, onPlay) }
-            item { MusicSectionTitle("Top songs", "From the current source feed", null); MusicTrackList(rows.take(10), selection, onPlay, numbered = true) }
         }
     }
 }
