@@ -12,7 +12,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import io.github.libxposed.api.XposedInterface;
 import io.github.libxposed.api.XposedModule;
 import dev.nightmods.core.config.BubbleStyleConfig;
+import dev.nightmods.core.config.NightCoreConfig;
 import dev.nightmods.core.hook.adapters.InstagramAdapter;
+import dev.nightmods.core.hook.adapters.SystemUiAdapter;
 import dev.nightmods.core.hook.adapters.TargetAdapter;
 import dev.nightmods.core.hook.adapters.TargetAppInfo;
 import dev.nightmods.core.hook.adapters.TargetCompatibility;
@@ -22,7 +24,10 @@ public final class NightCoreHook extends XposedModule {
     private static volatile NightCoreHook activeInstance;
 
     private final Set<String> hookedPackages = ConcurrentHashMap.newKeySet();
-    private final List<TargetAdapter> adapters = List.of(new WhatsAppAdapter(), new InstagramAdapter());
+    private final List<TargetAdapter> adapters = List.of(
+            new SystemUiAdapter(),
+            new WhatsAppAdapter(),
+            new InstagramAdapter());
     private final String processName;
     private volatile TargetAdapter pendingAdapter;
     private volatile ClassLoader pendingClassLoader;
@@ -88,7 +93,7 @@ public final class NightCoreHook extends XposedModule {
     }
 
     private void loadAndAttach(Context context, TargetAdapter selectedAdapter, ClassLoader classLoader) {
-        final BubbleStyleConfig config;
+        final NightCoreConfig config;
         try {
             SharedPreferences preferences = getRemotePreferences(BubbleStyleConfig.PREFS);
             if (preferences == null) {
@@ -96,13 +101,13 @@ public final class NightCoreHook extends XposedModule {
                         + selectedAdapter.displayName());
                 return;
             }
-            config = BubbleStyleConfig.fromPreferences(preferences);
+            config = NightCoreConfig.fromPreferences(preferences);
         } catch (Throwable error) {
             log("NightCore skipped: framework settings unavailable for "
                     + selectedAdapter.displayName(), error);
             return;
         }
-        if (!config.enabled || !selectedAdapter.enabled(config)) return;
+        if (!selectedAdapter.enabled(config)) return;
 
         final TargetAppInfo appInfo;
         try {
@@ -113,12 +118,15 @@ public final class NightCoreHook extends XposedModule {
             return;
         }
         TargetCompatibility compatibility = selectedAdapter.compatibility(appInfo);
-        if (compatibility != TargetCompatibility.SUPPORTED) {
+        boolean analysisAttach = compatibility == TargetCompatibility.ANALYSIS_REQUIRED
+                && selectedAdapter.attachWhenAnalysisRequired();
+        if (compatibility != TargetCompatibility.SUPPORTED && !analysisAttach) {
             log("NightCore skipped UI hooks: " + selectedAdapter.displayName()
                     + " compatibility=" + compatibility + " " + appInfo.describe());
             return;
         }
         log("NightCore attaching: " + selectedAdapter.displayName()
+                + " compatibility=" + compatibility
                 + " " + appInfo.describe() + " process=" + processName);
         try {
             selectedAdapter.attach(context, this, classLoader, config, appInfo);
