@@ -5,6 +5,7 @@ import { baileyMarkDataUrl } from "../brand/logo";
 import { JsonChatStore } from "../core/chat-store";
 import { JsonCommandStore, type VisualCommandPatch } from "../core/command-store";
 import { JsonConfigStore, type SecretCodec } from "../core/config-store";
+import { buildCommandMenu } from "../core/menu-builder";
 import { ModuleRegistry } from "../core/registry";
 import type { IncomingEngineMessage } from "../engine/contracts";
 import { EngineManager } from "../engine/engine-manager";
@@ -196,6 +197,22 @@ function commandEnabled(moduleId: string, id: string): boolean {
   return Boolean(getSetting(`modules.${moduleId}.commands.${id}.enabled`) ?? true);
 }
 
+function currentMenu(sectionFilter?: string): string {
+  const entries = commandStore.list(registry.list()).map(({ module, command }) => ({
+    moduleId: module.id,
+    moduleName: module.name,
+    section: command.section,
+    name: command.name,
+    description: command.description,
+    enabled: moduleEnabled(module.id) && commandEnabled(module.id, command.id),
+  }));
+  return buildCommandMenu({
+    prefix: commandPrefix(),
+    entries,
+    sectionFilter,
+  });
+}
+
 async function runDeclarativeActions(actions: Array<{ type: "reply"; text: string }>, remoteJid: string): Promise<void> {
   for (const action of actions) {
     if (action.type === "reply") await engineManager.sendText(remoteJid, action.text);
@@ -221,6 +238,7 @@ async function dispatchIncomingMessage(message: IncomingEngineMessage): Promise<
     args,
     reply: async (text: string) => engineManager.sendText(message.remoteJid, text),
     react: async (emoji: string) => engineManager.react(message.remoteJid, message.key, emoji),
+    showMenu: async (sectionFilter?: string) => engineManager.sendText(message.remoteJid, currentMenu(sectionFilter)),
   };
 
   if (resolved.command.actions?.length) {
