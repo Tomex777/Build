@@ -13,10 +13,17 @@ android {
         versionCode = 1
         versionName = "0.1.0"
     }
+
+    compileOptions {
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
 }
 
 dependencies {
     implementation(project(":extension-api"))
     implementation(project(":youtube-innertube"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
 }
