@@ -1,0 +1,32 @@
+name: Apply Sora Music Active Source Guard
+
+on:
+  push:
+    branches: [sora-android-ci]
+    paths:
+      - 'sora-ci/music-active-source-guard-trigger.txt'
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Enforce selected Music source at playback and download boundaries
+        run: python sora-ci/patch_music_active_source_guard.py
+      - name: Verify guard
+        run: |
+          grep -q 'different Music source' sora-overlay/app/src/main/java/com/night/sora/playback/MusicPlaybackController.kt
+          grep -q 'fun canUseSource' sora-overlay/app/src/main/java/com/night/sora/download/MusicDownloadManager.kt
+          grep -q 'Switch source' sora-overlay/app/src/main/java/com/night/sora/ui/screens/NowPlayingScreen.kt
+      - name: Commit source guard
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add sora-overlay
+          git commit -m 'enforce selected Sora music source end to end'
+          git push
