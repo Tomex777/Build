@@ -18,7 +18,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Install Android SDK 37
+      - name: Install Android SDK 36
         shell: bash
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
@@ -26,7 +26,7 @@ jobs:
             SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           fi
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-37" "build-tools;36.0.0"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.6.0'
