@@ -85,7 +85,6 @@ fun SoraApp() {
     LaunchedEffect(Unit) { refreshExtensions() }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refreshExtensions() }
     LaunchedEffect(extensions) { musicPlayer.updateExtensions(extensions) }
-    DisposableEffect(musicPlayer) { onDispose { musicPlayer.release() } }
     LaunchedEffect(
         musicPlayer.currentTrack?.extensionPackage,
         musicPlayer.currentTrack?.sourceId,
