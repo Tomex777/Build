@@ -1,3 +1,5 @@
+import "./chats";
+
 const studioStyles = document.createElement("link");
 studioStyles.rel = "stylesheet";
 studioStyles.href = "./studio.css";
