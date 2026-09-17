@@ -1,6 +1,6 @@
 {
   "name": "bailey-host",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "description": "A local desktop host for WhatsApp bots, modules and replaceable WhatsApp engines.",
   "main": "dist/main/main.cjs",
