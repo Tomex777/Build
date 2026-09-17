@@ -160,11 +160,19 @@ private fun parseExtensionBrowserSession(
             if (key.isNotBlank() && value.isNotBlank()) put(key, value)
         }
     }
+    val scriptsJson = json.optJSONObject("sessionScripts")
+    val sessionScripts = buildMap {
+        scriptsJson?.keys()?.forEach { key ->
+            val script = scriptsJson.optString(key).trim()
+            if (key.isNotBlank() && script.isNotBlank()) put(key, script)
+        }
+    }
     SourceBrowserSession(
         sourceId = sourceId,
         extensionPackage = extensionPackage,
         url = url,
         title = json.optString("title").ifBlank { fallbackTitle },
         headers = headers,
+        sessionScripts = sessionScripts,
     )
 }.getOrNull()
