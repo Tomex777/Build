@@ -11,6 +11,16 @@ export interface CommandContext {
   showMenu(sectionFilter?: string): Promise<void>;
 }
 
+export interface MessageEventContext {
+  remoteJid: string;
+  senderJid?: string;
+  text?: string;
+  pushName?: string;
+  timestamp?: number;
+  reply(text: string): Promise<void>;
+  react(emoji: string): Promise<void>;
+}
+
 export interface ReplyCommandAction {
   type: "reply";
   text: string;
@@ -47,6 +57,8 @@ export interface BaileyModuleDefinition {
   enabledByDefault?: boolean;
   settings?: ModuleSettingDefinition[];
   commands?: BaileyCommandDefinition[];
+  /** Optional passive hook for ordinary incoming WhatsApp messages. */
+  onMessage?: (context: MessageEventContext) => Promise<void>;
 }
 
 export function commandId(command: BaileyCommandDefinition): string {
