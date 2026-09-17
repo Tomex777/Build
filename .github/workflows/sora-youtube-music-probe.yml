@@ -27,12 +27,23 @@ jobs:
           import sys
           p=Path(sys.argv[1])
           s=p.read_text()
-          if 'maven("https://jitpack.io")' not in s:
-              s=s.replace('        mavenCentral()\n', '        mavenCentral()\n        maven("https://jitpack.io")\n', 1)
+          marker='dependencyResolutionManagement {'
+          start=s.find(marker)
+          if start < 0:
+              raise SystemExit('dependencyResolutionManagement block not found')
+          tail=s[start:]
+          if 'maven("https://jitpack.io")' not in tail:
+              needle='        mavenCentral()\n'
+              pos=tail.find(needle)
+              if pos < 0:
+                  raise SystemExit('dependency-resolution mavenCentral() not found')
+              insert_at=start + pos + len(needle)
+              s=s[:insert_at] + '        maven("https://jitpack.io")\n' + s[insert_at:]
           if 'include(":youtube-innertube")' not in s:
               s += '\ninclude(":youtube-innertube")\ninclude(":youtube-music-extension")\n'
           p.write_text(s)
           PY
+          grep -A12 'dependencyResolutionManagement' "$ROOT/settings.gradle.kts"
           echo "SORA_YT_ROOT=$ROOT" >> "$GITHUB_ENV"
       - uses: actions/setup-java@v5
         with:
