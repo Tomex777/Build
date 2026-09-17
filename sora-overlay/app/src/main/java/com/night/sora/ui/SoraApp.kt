@@ -33,6 +33,7 @@ import com.night.sora.data.CoreRepository
 import com.night.sora.data.MediaCatalogCache
 import com.night.sora.extension.ExtensionManager
 import com.night.sora.extension.InstalledExtension
+import com.night.sora.model.ContentType
 import com.night.sora.model.ExtensionMediaSelection
 import com.night.sora.model.PlaybackSession
 import com.night.sora.model.ReaderSession
@@ -56,6 +57,7 @@ sealed interface AppScreen {
     data object PlayerReaderSettings : AppScreen
     data class ExtensionDetail(val extension: InstalledExtension) : AppScreen
     data class MediaDetails(val selection: ExtensionMediaSelection) : AppScreen
+    data class MemeDetails(val selection: ExtensionMediaSelection) : AppScreen
     data class Reader(val session: ReaderSession) : AppScreen
     data class VideoPlayer(val session: PlaybackSession) : AppScreen
     data object NowPlaying : AppScreen
@@ -81,7 +83,8 @@ fun SoraApp() {
     fun pop() { if (screenStack.isNotEmpty()) screenStack.removeAt(screenStack.lastIndex) }
     fun openMedia(selection: ExtensionMediaSelection) {
         repository.recordActivity(selection, "opened")
-        push(AppScreen.MediaDetails(selection))
+        if (selection.type == ContentType.MEME) push(AppScreen.MemeDetails(selection))
+        else push(AppScreen.MediaDetails(selection))
     }
 
     LaunchedEffect(Unit) { refreshExtensions() }
@@ -174,6 +177,7 @@ fun SoraApp() {
                     progressEntries = repository.mediaProgress,
                     isSaved = repository::isSaved, onToggleSaved = repository::toggleSaved,
                     onOpenExtensions = { push(AppScreen.Extensions) }, onOpenDetails = ::openMedia,
+                    onOpenBible = { push(AppScreen.Bible) },
                     onResumeProgress = { entry ->
                         resumeMediaProgress(
                             entry = entry,
@@ -249,6 +253,14 @@ fun SoraApp() {
                 onBack = ::pop,
             )
             is AppScreen.ExtensionDetail -> ExtensionDetailScreen(current.extension, onBack = ::pop)
+            is AppScreen.MemeDetails -> MemeDetailScreen(
+                selection = current.selection,
+                extensions = extensions,
+                manager = extensionManager,
+                isSaved = repository::isSaved,
+                onToggleSaved = repository::toggleSaved,
+                onBack = ::pop,
+            )
             is AppScreen.MediaDetails -> MediaDetailScreen(
                 selection = current.selection, extensions = extensions, manager = extensionManager,
                 isSaved = repository::isSaved, onToggleSaved = repository::toggleSaved,

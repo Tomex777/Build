@@ -616,7 +616,7 @@ private fun BibleErrorState(message: String, onRetry: () -> Unit) {
 
 /** Small embedded entry point used by Media until the full Bible route is opened. */
 @Composable
-fun BibleHubContent(modifier: Modifier = Modifier) {
+fun BibleHubContent(modifier: Modifier = Modifier, onOpen: () -> Unit) {
     Column(
         modifier.fillMaxSize().padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -624,6 +624,11 @@ fun BibleHubContent(modifier: Modifier = Modifier) {
     ) {
         Icon(Icons.Rounded.MenuBook, null, tint = SoraAccent, modifier = Modifier.size(44.dp))
         Text("Bible reader", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 12.dp))
-        Text("Open Bible from Home for chapters, versions, bookmarks, and reading position.", color = SoraMuted, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 6.dp))
+        Text("Choose a book and translation, keep your place, and bookmark verses.", color = SoraMuted, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 6.dp))
+        Button(onClick = onOpen, modifier = Modifier.padding(top = 18.dp), shape = RoundedCornerShape(10.dp)) {
+            Text("Open Bible")
+            Spacer(Modifier.width(6.dp))
+            Icon(Icons.Rounded.KeyboardArrowRight, null, modifier = Modifier.size(18.dp))
+        }
     }
 }

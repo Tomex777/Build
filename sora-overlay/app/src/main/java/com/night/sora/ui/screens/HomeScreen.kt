@@ -31,6 +31,7 @@ import com.night.sora.extension.ExtensionManager
 import com.night.sora.extension.InstalledExtension
 import com.night.sora.extension.isCatalogProvider
 import com.night.sora.extension.api.ExtensionContract
+import com.night.sora.data.BibleRepository
 import com.night.sora.data.CachedMediaRecord
 import com.night.sora.data.MediaCatalogCache
 import com.night.sora.model.ContentType
@@ -68,6 +69,9 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val mediaCache = remember { MediaCatalogCache(context.applicationContext) }
+    val bibleRepository = remember { BibleRepository(context.applicationContext) }
+    val lastBibleReading = bibleRepository.lastReading()
+    val bibleTranslation = bibleRepository.selectedTranslation()
     var networkEpoch by remember { mutableIntStateOf(0) }
     var recommendations by remember {
         mutableStateOf(
@@ -197,7 +201,14 @@ fun HomeScreen(
                 item { MemeStrip(memes.first()) { onOpenSelection(memes.first().selection()) } }
             }
 
-            item { HomeSectionHeader("Bible", "Featured passage", "Open", onSee = onOpenBible) }
+            item {
+                HomeSectionHeader(
+                    "Bible",
+                    if (lastBibleReading != null) "Continue your reading" else "Read in your chosen translation",
+                    "Open",
+                    onSee = onOpenBible,
+                )
+            }
             item {
                 Surface(
                     color = Color(0xFF151513),
@@ -205,10 +216,24 @@ fun HomeScreen(
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .08f)),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).clickable(onClick = onOpenBible),
                 ) {
-                    Column(Modifier.padding(18.dp)) {
-                        Text("John 1:5", color = SoraAccent, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = .7.sp)
-                        Text("“The light shines in the darkness, and the darkness has not overcome it.”", fontSize = 19.sp, lineHeight = 27.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 9.dp))
-                        Text("Open Bible to read in context", color = SoraMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp))
+                    Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(44.dp).background(SoraSurfaceHigh, RoundedCornerShape(13.dp)), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Rounded.MenuBook, null, tint = SoraAccent)
+                        }
+                        Column(Modifier.weight(1f).padding(horizontal = 13.dp)) {
+                            Text(
+                                if (lastBibleReading != null) "${lastBibleReading.book} ${lastBibleReading.chapter}:${lastBibleReading.verse}" else "Open Bible",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                if (lastBibleReading != null) "Resume · ${bibleTranslation.shortLabel}" else "Choose a book · ${bibleTranslation.shortLabel}",
+                                color = SoraMuted,
+                                fontSize = 10.sp,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
+                        Icon(Icons.Rounded.KeyboardArrowRight, null, tint = SoraMuted)
                     }
                 }
             }

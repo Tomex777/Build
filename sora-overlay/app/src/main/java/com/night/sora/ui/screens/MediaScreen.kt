@@ -86,6 +86,7 @@ fun MediaScreen(
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
     onOpenExtensions: () -> Unit,
     onOpenDetails: (ExtensionMediaSelection) -> Unit,
+    onOpenBible: () -> Unit,
     onResumeProgress: (MediaProgressEntry) -> Unit,
     onPlayMusic: (ExtensionMediaSelection, List<ExtensionMediaSelection>) -> Unit,
 ) {
@@ -270,7 +271,7 @@ fun MediaScreen(
         }
 
         when {
-            destination == MediaDestination.BIBLE -> BibleHubContent(Modifier.fillMaxSize())
+            destination == MediaDestination.BIBLE -> BibleHubContent(Modifier.fillMaxSize(), onOpen = onOpenBible)
             query.isNotBlank() -> SearchResultsSurface(rows, selectedType, ::selection, onOpenDetails, onPlayMusic)
             destination == MediaDestination.ANIME_MANGA -> AnimeMangaSurface(
                 type = selectedType, rows = rows, popularRows = popularRows, upcomingRows = upcomingRows, topRows = topRows,
@@ -643,7 +644,10 @@ private fun MemeSurface(rows: List<BrowseCard>, selection: (BrowseCard, ContentT
                     Row(Modifier.fillMaxWidth().padding(13.dp), horizontalArrangement = Arrangement.SpaceBetween) { Text(card.subtitle.ifBlank { "meme source" }, fontSize = 11.sp, color = Color(0xFF656158)); Icon(Icons.Rounded.MoreHoriz, null) }
                     Text(card.title, fontSize = 18.sp, lineHeight = 21.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp))
                     Box(Modifier.fillMaxWidth().height(260.dp).background(Color(0xFFC5C0B3))) { if (!card.artworkUrl.isNullOrBlank()) AsyncImage(card.artworkUrl, card.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
-                    Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) { Text("♡ Save", fontSize = 12.sp); Text("↗ Share", fontSize = 12.sp); Text("Less like this", fontSize = 12.sp) }
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Open post", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Icon(Icons.Rounded.KeyboardArrowRight, null, modifier = Modifier.size(18.dp))
+                    }
                 }
             }
         }
