@@ -10,6 +10,7 @@ export interface VisualCommandPatch {
   description: string;
   aliases: string[];
   replyText?: string;
+  reactionEmoji?: string;
 }
 
 export interface EffectiveCommand extends BaileyCommandDefinition {
@@ -19,6 +20,7 @@ export interface EffectiveCommand extends BaileyCommandDefinition {
   editable: boolean;
   origin: "shipped" | "custom";
   replyText?: string;
+  reactionEmoji?: string;
 }
 
 interface StoredCustomCommand extends VisualCommandPatch {
@@ -76,6 +78,13 @@ function normalizeAliases(value: unknown): string[] {
   return output;
 }
 
+function normalizeReaction(value: unknown): string | undefined {
+  const reaction = String(value ?? "").trim();
+  if (!reaction) return undefined;
+  if (reaction.length > 32) throw new Error("Reaction must be a short emoji or emoji sequence.");
+  return reaction;
+}
+
 function normalizePatch(raw: VisualCommandPatch): VisualCommandPatch {
   const name = normalizeName(raw.name);
   const aliases = normalizeAliases(raw.aliases).filter((alias) => alias !== name);
@@ -83,12 +92,34 @@ function normalizePatch(raw: VisualCommandPatch): VisualCommandPatch {
   const description = normalizeDescription(raw.description);
   const replyText = String(raw.replyText ?? "").trim();
   if (!replyText || replyText.length > 4096) throw new Error("Reply text must be 1–4096 characters.");
-  return { name, aliases, section, description, replyText };
+  const reactionEmoji = normalizeReaction(raw.reactionEmoji);
+  return { name, aliases, section, description, replyText, reactionEmoji };
 }
 
-function replyFromActions(actions?: BaileyCommandAction[]): string | undefined {
-  if (!actions || actions.length !== 1 || actions[0]?.type !== "reply") return undefined;
-  return actions[0].text;
+function visualActionState(actions?: BaileyCommandAction[]): { replyText: string; reactionEmoji?: string } | undefined {
+  if (!actions?.length) return undefined;
+  let replyText: string | undefined;
+  let reactionEmoji: string | undefined;
+  for (const action of actions) {
+    if (action.type === "reply") {
+      if (replyText !== undefined) return undefined;
+      replyText = action.text;
+    } else if (action.type === "react") {
+      if (reactionEmoji !== undefined) return undefined;
+      reactionEmoji = action.emoji;
+    } else {
+      return undefined;
+    }
+  }
+  if (replyText === undefined) return undefined;
+  return { replyText, reactionEmoji };
+}
+
+function actionsFromVisual(replyText: string, reactionEmoji?: string): BaileyCommandAction[] {
+  const actions: BaileyCommandAction[] = [];
+  if (reactionEmoji) actions.push({ type: "react", emoji: reactionEmoji });
+  actions.push({ type: "reply", text: replyText });
+  return actions;
 }
 
 function customKey(moduleId: string, id: string): string {
@@ -122,9 +153,10 @@ export class JsonCommandStore {
   effective(module: BaileyModuleDefinition, command: BaileyCommandDefinition): EffectiveCommand {
     const id = commandId(command);
     const override = this.document.commands[commandKey(module.id, id)];
-    const defaultReply = replyFromActions(command.actions);
-    const editable = defaultReply !== undefined && !command.execute;
-    const replyText = override?.replyText ?? defaultReply;
+    const defaultVisual = visualActionState(command.actions);
+    const editable = defaultVisual !== undefined && !command.execute;
+    const replyText = override?.replyText ?? defaultVisual?.replyText;
+    const reactionEmoji = override ? normalizeReaction(override.reactionEmoji) : defaultVisual?.reactionEmoji;
 
     return {
       ...command,
@@ -136,11 +168,14 @@ export class JsonCommandStore {
       editable,
       origin: "shipped",
       replyText,
-      actions: editable && replyText !== undefined ? [{ type: "reply", text: replyText }] : command.actions,
+      reactionEmoji,
+      actions: editable && replyText !== undefined ? actionsFromVisual(replyText, reactionEmoji) : command.actions,
     };
   }
 
   private effectiveCustom(record: StoredCustomCommand): EffectiveCommand {
+    const replyText = record.replyText ?? "";
+    const reactionEmoji = normalizeReaction(record.reactionEmoji);
     return {
       id: record.id,
       name: record.name,
@@ -149,8 +184,9 @@ export class JsonCommandStore {
       aliases: record.aliases,
       editable: true,
       origin: "custom",
-      replyText: record.replyText,
-      actions: [{ type: "reply", text: record.replyText ?? "" }],
+      replyText,
+      reactionEmoji,
+      actions: actionsFromVisual(replyText, reactionEmoji),
     };
   }
 
