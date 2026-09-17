@@ -1,1 +1,1 @@
-run 2 - live Anime/Manga flow validation after patch repair
+run 3 - live Anime/Manga flow validation after Android SDK setup fix
