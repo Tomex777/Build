@@ -1,1 +1,1 @@
-2026-09-17 rebuild combined Sora head after fixing persistent AI draft suggestion callback.
+2026-09-17 build complete Music pass: one source, real offline downloads, local-first playback, truthful download UI, extension install toolbar.
