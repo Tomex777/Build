@@ -264,6 +264,9 @@ class MusicPlaybackController(
     }
 
     private fun resolveAndPlay(track: ExtensionMediaSelection) {
+        // Every track selection invalidates older asynchronous resolver callbacks,
+        // including when this selection can play immediately from a local download.
+        val requestId = ++requestSerial
         offlineResolver?.invoke(track)?.let { path ->
             val file = File(path)
             if (file.isFile && file.length() > 0L) { playLocal(track, file); return }
@@ -277,7 +280,6 @@ class MusicPlaybackController(
         sourceName = extension.descriptor?.sources?.firstOrNull { it.id == track.sourceId }?.name
             ?: extension.declaredName
         isLoading = true
-        val requestId = ++requestSerial
         val payload = JSONObject().put("sourceId", track.sourceId).put("id", track.id).toString()
         manager.call(extension, ExtensionContract.Method.STREAMS, payload) { result ->
             scope.launch {
