@@ -19,6 +19,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,6 +36,7 @@ import com.night.sora.extension.InstalledExtension
 import com.night.sora.model.ExtensionMediaSelection
 import com.night.sora.model.PlaybackSession
 import com.night.sora.model.ReaderSession
+import com.night.sora.playback.MusicPlaybackController
 import com.night.sora.ui.screens.*
 import com.night.sora.ui.theme.*
 
@@ -52,7 +55,7 @@ sealed interface AppScreen {
     data class MediaDetails(val selection: ExtensionMediaSelection) : AppScreen
     data class Reader(val session: ReaderSession) : AppScreen
     data class VideoPlayer(val session: PlaybackSession) : AppScreen
-    data class NowPlaying(val track: ExtensionMediaSelection) : AppScreen
+    data object NowPlaying : AppScreen
 }
 
 @Composable
@@ -61,12 +64,12 @@ fun SoraApp() {
     val repository = remember { CoreRepository(context.applicationContext) }
     val mediaCatalogCache = remember { MediaCatalogCache(context.applicationContext) }
     val extensionManager = remember { ExtensionManager(context.applicationContext) }
+    val musicPlayer = remember { MusicPlaybackController(context.applicationContext, extensionManager) }
     var tab by remember { mutableStateOf(RootTab.HOME) }
     val screenStack = remember { mutableStateListOf<AppScreen>() }
     var extensions by remember { mutableStateOf<List<InstalledExtension>>(emptyList()) }
     var extensionScanDone by remember { mutableStateOf(false) }
     var showAiQuick by remember { mutableStateOf(false) }
-    var nowPlaying by remember { mutableStateOf<ExtensionMediaSelection?>(null) }
 
     fun refreshExtensions() {
         extensionManager.discover { extensions = it; extensionScanDone = true }
@@ -80,6 +83,18 @@ fun SoraApp() {
 
     LaunchedEffect(Unit) { refreshExtensions() }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refreshExtensions() }
+    LaunchedEffect(extensions) { musicPlayer.updateExtensions(extensions) }
+    DisposableEffect(musicPlayer) { onDispose { musicPlayer.release() } }
+    LaunchedEffect(
+        musicPlayer.currentTrack?.extensionPackage,
+        musicPlayer.currentTrack?.sourceId,
+        musicPlayer.currentTrack?.id,
+    ) {
+        musicPlayer.currentTrack?.let { track ->
+            repository.recordActivity(track, "played")
+            repository.recordListening(track.id, track.subtitle.substringBefore(" · ").ifBlank { track.title })
+        }
+    }
     BackHandler(enabled = screenStack.isNotEmpty()) { pop() }
     BackHandler(enabled = screenStack.isEmpty() && tab != RootTab.HOME) { tab = RootTab.HOME }
 
@@ -89,7 +104,7 @@ fun SoraApp() {
             containerColor = SoraBg,
             bottomBar = {
                 Column(Modifier.background(SoraBg)) {
-                    nowPlaying?.let { track -> MiniPlayer(track, onOpen = { push(AppScreen.NowPlaying(track)) }) }
+                    musicPlayer.currentTrack?.let { MiniPlayer(musicPlayer, onOpen = { push(AppScreen.NowPlaying) }) }
                     NavigationBar(containerColor = SoraBg, tonalElevation = 0.dp) {
                         RootTab.entries.forEach { item ->
                             NavigationBarItem(
@@ -131,11 +146,7 @@ fun SoraApp() {
                     manager = extensionManager, libraryEntries = repository.library, listeningSignals = repository.listeningSignals,
                     isSaved = repository::isSaved, onToggleSaved = repository::toggleSaved,
                     onOpenExtensions = { push(AppScreen.Extensions) }, onOpenDetails = ::openMedia,
-                    onPlayMusic = { track ->
-                        nowPlaying = track
-                        repository.recordActivity(track, "played")
-                        repository.recordListening(track.id, track.subtitle.substringBefore(" · ").ifBlank { track.title })
-                    },
+                    onPlayMusic = { track, queue -> musicPlayer.play(track, queue, extensions) },
                 )
                 RootTab.LIBRARY -> LibraryScreen(
                     modifier = Modifier.padding(padding), entries = repository.library,
@@ -202,28 +213,51 @@ fun SoraApp() {
             )
             is AppScreen.Reader -> ReaderScreen(current.session, onBack = ::pop)
             is AppScreen.VideoPlayer -> VideoPlayerScreen(current.session, onBack = ::pop)
-            is AppScreen.NowPlaying -> NowPlayingScreen(current.track, onBack = ::pop)
+            AppScreen.NowPlaying -> NowPlayingScreen(player = musicPlayer, isSaved = repository::isSaved, onToggleSaved = repository::toggleSaved, onBack = ::pop)
         }
     }
 }
 
 @Composable
-private fun MiniPlayer(track: ExtensionMediaSelection, onOpen: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp)
-            .clip(RoundedCornerShape(12.dp)).background(Color(0xFF1D1D1A)).clickable(onClick = onOpen)
-            .padding(horizontal = 9.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically,
+private fun MiniPlayer(player: MusicPlaybackController, onOpen: () -> Unit) {
+    val track = player.currentTrack ?: return
+    val progress = if (player.durationMs > 0L) {
+        (player.positionMs.toFloat() / player.durationMs.toFloat()).coerceIn(0f, 1f)
+    } else 0f
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp)
+            .clip(RoundedCornerShape(12.dp)).background(Color(0xFF1D1D1A)),
     ) {
-        Box(Modifier.size(42.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFFD8C38D))) {
-            if (!track.artworkUrl.isNullOrBlank()) AsyncImage(track.artworkUrl, track.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        if (player.durationMs > 0L) {
+            Box(Modifier.fillMaxWidth().height(2.dp).background(SoraSurfaceRaised)) {
+                Box(Modifier.fillMaxWidth(progress).height(2.dp).background(SoraAccent))
+            }
         }
-        Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
-            Text(track.title, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(track.subtitle, color = SoraMuted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Row(
+            Modifier.fillMaxWidth().semantics { contentDescription = "Mini player" }
+                .clickable(onClick = onOpen).padding(horizontal = 9.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(42.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFD8C38D))) {
+                if (!track.artworkUrl.isNullOrBlank()) AsyncImage(track.artworkUrl, track.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            }
+            Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                Text(track.title, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(track.subtitle, color = SoraMuted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            IconButton(onClick = player::skipPrevious) { Icon(Icons.Rounded.SkipPrevious, "Previous", modifier = Modifier.size(20.dp)) }
+            IconButton(onClick = player::togglePlayPause) {
+                if (player.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(
+                        if (player.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        if (player.isPlaying) "Pause" else "Play",
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
         }
-        IconButton(onClick = {}) { Icon(Icons.Rounded.SkipPrevious, "Previous", modifier = Modifier.size(20.dp)) }
-        IconButton(onClick = {}) { Icon(Icons.Rounded.Pause, "Pause", modifier = Modifier.size(20.dp)) }
     }
 }
 

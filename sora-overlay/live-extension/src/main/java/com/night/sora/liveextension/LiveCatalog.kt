@@ -58,6 +58,9 @@ object LiveCatalog {
             val animeId = id.substringBefore('|').ifBlank { id }
             mapJikanStreaming(get("https://api.jikan.moe/v4/anime/${numericId(animeId)}/streaming"))
         }
+        "live.itunes.music" -> mapItunesMusicStreams(
+            get("https://itunes.apple.com/lookup?id=${numericId(id)}&entity=song&country=US")
+        )
         else -> JSONArray().toString()
     }
 
@@ -183,6 +186,20 @@ object LiveCatalog {
                 .filter { it.isNotBlank() }.joinToString(" · ").ifBlank { "No track metadata available." }
         }
         return JSONObject().put("description", description).toString()
+    }
+
+    private fun mapItunesMusicStreams(raw: String): String {
+        val results = JSONObject(raw).optJSONArray("results") ?: JSONArray()
+        val item = results.optJSONObject(0) ?: return JSONArray().toString()
+        val preview = item.optString("previewUrl")
+        if (!preview.startsWith("http://") && !preview.startsWith("https://")) return JSONArray().toString()
+        return JSONArray().put(
+            JSONObject()
+                .put("label", "iTunes Preview")
+                .put("url", preview)
+                .put("mimeType", "audio/mp4")
+                .put("durationMs", item.optLong("trackTimeMillis"))
+        ).toString()
     }
 
     private fun mapTvSchedule(raw: String): String {

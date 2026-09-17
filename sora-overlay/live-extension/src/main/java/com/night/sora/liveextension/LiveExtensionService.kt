@@ -27,14 +27,14 @@ class LiveExtensionService : Service() {
         author = "Night",
         description = "Temporary network-backed discovery sources for Movies, TV and Music.",
         contentTypes = setOf("movie", "tv", "music"),
-        capabilities = setOf("catalog", "browse", "search", "details", "episodes", "lyrics", "relatedArtists"),
+        capabilities = setOf("catalog", "browse", "search", "details", "episodes", "streams", "lyrics", "relatedArtists"),
         permissions = listOf(
             ExtensionPermission("network", listOf("api.tvmaze.com", "itunes.apple.com")),
         ),
         sources = listOf(
             SourceDescriptor("live.itunes.movies", "iTunes Movies", setOf("movie"), setOf("browse", "search", "details")),
             SourceDescriptor("live.tvmaze.tv", "TVmaze", setOf("tv"), setOf("browse", "search", "details", "episodes")),
-            SourceDescriptor("live.itunes.music", "iTunes Music", setOf("music"), setOf("browse", "search", "details", "lyrics", "relatedArtists")),
+            SourceDescriptor("live.itunes.music", "iTunes Music", setOf("music"), setOf("browse", "search", "details", "streams", "lyrics", "relatedArtists")),
         ),
     )
 

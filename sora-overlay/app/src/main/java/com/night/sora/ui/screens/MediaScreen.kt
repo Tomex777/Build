@@ -84,7 +84,7 @@ fun MediaScreen(
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
     onOpenExtensions: () -> Unit,
     onOpenDetails: (ExtensionMediaSelection) -> Unit,
-    onPlayMusic: (ExtensionMediaSelection) -> Unit,
+    onPlayMusic: (ExtensionMediaSelection, List<ExtensionMediaSelection>) -> Unit,
 ) {
     val context = LocalContext.current
     val mediaCache = remember { MediaCatalogCache(context.applicationContext) }
@@ -413,13 +413,15 @@ private fun MusicSurface(
     libraryEntries: List<LibraryEntry>,
     rankedTaste: List<ListeningSignal>,
     selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
-    onPlay: (ExtensionMediaSelection) -> Unit,
+    onPlay: (ExtensionMediaSelection, List<ExtensionMediaSelection>) -> Unit,
     onOpen: (ExtensionMediaSelection) -> Unit,
 ) {
+    val queue = remember(rows) { rows.map { selection(it, ContentType.MUSIC) } }
+    val playFromQueue: (ExtensionMediaSelection) -> Unit = { track -> onPlay(track, queue) }
     when (panel) {
-        MusicLocal.HOME -> MusicHome(rows, rankedTaste, selection, onPlay, onOpen)
-        MusicLocal.DISCOVER -> MusicDiscover(rows, selection, onPlay)
-        MusicLocal.LIBRARY -> MusicLibrary(rows, libraryEntries, selection, onPlay)
+        MusicLocal.HOME -> MusicHome(rows, rankedTaste, selection, playFromQueue, onOpen)
+        MusicLocal.DISCOVER -> MusicDiscover(rows, selection, playFromQueue)
+        MusicLocal.LIBRARY -> MusicLibrary(rows, libraryEntries, selection, playFromQueue)
     }
 }
 
@@ -514,11 +516,12 @@ private fun MemeSurface(rows: List<BrowseCard>, selection: (BrowseCard, ContentT
 }
 
 @Composable
-private fun SearchResultsSurface(rows: List<BrowseCard>, type: ContentType, selection: (BrowseCard, ContentType) -> ExtensionMediaSelection, onOpen: (ExtensionMediaSelection) -> Unit, onPlayMusic: (ExtensionMediaSelection) -> Unit) {
+private fun SearchResultsSurface(rows: List<BrowseCard>, type: ContentType, selection: (BrowseCard, ContentType) -> ExtensionMediaSelection, onOpen: (ExtensionMediaSelection) -> Unit, onPlayMusic: (ExtensionMediaSelection, List<ExtensionMediaSelection>) -> Unit) {
+    val musicQueue = remember(rows, type) { if (type == ContentType.MUSIC) rows.map { selection(it, type) } else emptyList() }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
         item { MediaSectionTitle("Results", type.label) }
         items(rows, key = { it.id }) { card ->
-            Row(Modifier.fillMaxWidth().clickable { if (type == ContentType.MUSIC) onPlayMusic(selection(card, type)) else onOpen(selection(card, type)) }.padding(horizontal = 18.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().clickable { if (type == ContentType.MUSIC) onPlayMusic(selection(card, type), musicQueue) else onOpen(selection(card, type)) }.padding(horizontal = 18.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Poster(card.artworkUrl, card.title, Modifier.size(width = 58.dp, height = if (type == ContentType.MUSIC) 58.dp else 76.dp), if (type == ContentType.MUSIC) 7 else 5)
                 Column(Modifier.weight(1f).padding(horizontal = 12.dp)) { Text(type.label.uppercase(), color = SoraAccent, fontSize = 8.sp, fontWeight = FontWeight.Black); Text(card.title, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1); Text(card.subtitle, color = SoraMuted, fontSize = 10.sp, maxLines = 1) }
             }
