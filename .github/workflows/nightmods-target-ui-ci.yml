@@ -77,6 +77,9 @@ jobs:
           "$AAPT" dump badging "$CORE" | grep -q "package: name='dev.nightmods.core'"
           "$AAPT" dump badging "$TARGET" | grep -q "package: name='com.whatsapp'"
           unzip -p "$CORE" META-INF/xposed/module.prop | grep -qx 'targetApiVersion=100'
+          unzip -p "$CORE" META-INF/xposed/scope.list | grep -qx 'com.android.systemui'
+          unzip -p "$CORE" META-INF/xposed/scope.list | grep -qx 'com.whatsapp'
+          unzip -p "$CORE" META-INF/xposed/scope.list | grep -qx 'com.instagram.android'
           sha256sum "$MANAGER" "$CORE" "$TARGET" | tee target-ui-apk-sha256.txt
 
       - name: Enable KVM
@@ -111,16 +114,29 @@ jobs:
             adb shell uiautomator dump /sdcard/nightmods-night-core.xml || true
             adb pull /sdcard/nightmods-night-core.xml target-ui-smoke/nightmods-night-core.xml || true
             grep -q 'Night Core' target-ui-smoke/nightmods-night-core.xml
+            grep -q 'System UI' target-ui-smoke/nightmods-night-core.xml
+            grep -q 'Status Bar Tweaks' target-ui-smoke/nightmods-night-core.xml
             grep -q 'WhatsApp' target-ui-smoke/nightmods-night-core.xml
             grep -q 'Instagram' target-ui-smoke/nightmods-night-core.xml
             grep -q 'Analysis required' target-ui-smoke/nightmods-night-core.xml
             grep -q 'Not installed' target-ui-smoke/nightmods-night-core.xml
             adb exec-out screencap -p > target-ui-smoke/nightmods-target-status-android16.png
 
+            adb shell am force-stop org.lsposed.manager || true
+            adb shell am start -W -a android.intent.action.VIEW -d 'lsposed://night-core/status-bar' -n org.lsposed.manager/.ui.activity.MainActivity | tee target-ui-smoke/status-bar-start.txt
+            sleep 4
+            adb shell uiautomator dump /sdcard/nightmods-status-bar.xml || true
+            adb pull /sdcard/nightmods-status-bar.xml target-ui-smoke/nightmods-status-bar.xml || true
+            grep -q 'Status Bar Tweaks' target-ui-smoke/nightmods-status-bar.xml
+            grep -q 'Enable System UI tweaks' target-ui-smoke/nightmods-status-bar.xml
+            grep -q 'Side padding' target-ui-smoke/nightmods-status-bar.xml
+            grep -q 'Samsung Android 16' target-ui-smoke/nightmods-status-bar.xml
+            adb exec-out screencap -p > target-ui-smoke/nightmods-status-bar-android16.png
+
             adb logcat -d > target-ui-smoke/logcat.txt
             adb logcat -b crash -d > target-ui-smoke/crash.txt || true
             test -z "$(grep -E 'org\.lsposed\.manager|dev\.nightmods\.core|com\.whatsapp' target-ui-smoke/crash.txt || true)"
-            echo 'Night Core target compatibility UI passed on Android 16.'
+            echo 'Night Core SystemUI + app target compatibility UI passed on Android 16.'
 
       - name: Upload target UI evidence
         if: always()
