@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Wire real playback listening events
-        run: python sora-ci/patch_music_listening_events.py
+        run: python sora-ci/patch_music_listening_events_v2.py
       - name: Verify listening signal wiring
         run: |
           grep -q 'MusicListeningEventType { STARTED, COMPLETED, SKIPPED }' sora-overlay/app/src/main/java/com/night/sora/playback/MusicPlaybackController.kt
