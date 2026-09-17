@@ -1,1 +1,1 @@
-2026-09-17T10:06:00Z verify Now Playing dark-theme visibility after activity recreation proof
+2026-09-17 verify hardened Music listening events with Pixel 7 playback/session transport smoke, then media/library/navigation flow.
