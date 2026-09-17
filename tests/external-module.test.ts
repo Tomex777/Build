@@ -19,6 +19,7 @@ describe("Bailey external module protocol", () => {
       name: "Economy",
       version: "1.0.0",
       runtime: { command: "python", args: ["main.py"] },
+      capabilities: ["commands", "events"],
       commands: [
         { id: "balance", name: "balance", section: "Economy", description: "Show a balance." },
       ],
@@ -26,6 +27,18 @@ describe("Bailey external module protocol", () => {
 
     expect(manifest.runtime.command).toBe("python");
     expect(manifest.commands?.[0]?.name).toBe("balance");
+    expect(manifest.capabilities).toContain("events");
+  });
+
+  it("rejects unknown capabilities instead of silently accepting them", () => {
+    expect(() => parseExternalModuleManifest({
+      protocol: 1,
+      id: "bad-capability",
+      name: "Bad capability",
+      version: "1.0.0",
+      runtime: { command: "python", args: ["main.py"] },
+      capabilities: ["telepathy"],
+    })).toThrow("Unsupported module capability");
   });
 
   it("runs a module as a child process and applies returned Bailey actions", async () => {
@@ -87,6 +100,61 @@ input.on("line", (line) => {
 
     expect(replies).toEqual(["Worker:one|two"]);
     expect(reactions).toEqual(["✅"]);
+    await manager.stopAll();
+  });
+
+  it("delivers ordinary incoming-message events to modules that opt into events", async () => {
+    const root = await mkdtemp(join(tmpdir(), "bailey-external-events-"));
+    tempDirs.push(root);
+    const moduleDir = join(root, "listener");
+    await mkdir(moduleDir, { recursive: true });
+
+    await writeFile(join(moduleDir, "bailey.module.json"), JSON.stringify({
+      protocol: 1,
+      id: "listener",
+      name: "Listener",
+      version: "1.0.0",
+      runtime: { command: process.execPath, args: ["worker.mjs"] },
+      capabilities: ["events"],
+    }, null, 2));
+
+    await writeFile(join(moduleDir, "worker.mjs"), `
+import readline from "node:readline";
+const input = readline.createInterface({ input: process.stdin });
+input.on("line", (line) => {
+  const request = JSON.parse(line);
+  if (request.type !== "event.dispatch" || request.event !== "message.received") return;
+  process.stdout.write(JSON.stringify({
+    protocol: 1,
+    replyTo: request.id,
+    ok: true,
+    actions: [
+      { type: "reply", text: "event:" + (request.context.text ?? "") },
+      { type: "react", emoji: "👀" }
+    ]
+  }) + "\\n");
+});
+`);
+
+    const manager = new ExternalModuleManager(root, () => ({}));
+    const loaded = await manager.load();
+    expect(loaded.errors).toEqual([]);
+    expect(loaded.definitions[0].onMessage).toBeTypeOf("function");
+
+    const replies: string[] = [];
+    const reactions: string[] = [];
+    await loaded.definitions[0].onMessage!({
+      remoteJid: "group@g.us",
+      senderJid: "123@s.whatsapp.net",
+      text: "normal message",
+      pushName: "Tester",
+      timestamp: 123456,
+      reply: async (text) => { replies.push(text); },
+      react: async (emoji) => { reactions.push(emoji); },
+    });
+
+    expect(replies).toEqual(["event:normal message"]);
+    expect(reactions).toEqual(["👀"]);
     await manager.stopAll();
   });
 });
