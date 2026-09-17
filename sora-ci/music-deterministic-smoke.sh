@@ -29,6 +29,31 @@ dump_ui() {
   adb pull /sdcard/window.xml /tmp/sora-music-window.xml >/dev/null 2>&1 || true
 }
 
+dismiss_system_dialogs() {
+  dump_ui
+  python3 <<'PY'
+import re, subprocess, xml.etree.ElementTree as ET
+try:
+    root=ET.parse('/tmp/sora-music-window.xml').getroot()
+except Exception:
+    raise SystemExit(0)
+for label in ('Wait', 'OK'):
+    for node in root.iter('node'):
+        text=(node.attrib.get('text') or '').strip()
+        desc=(node.attrib.get('content-desc') or '').strip()
+        if text != label and desc != label:
+            continue
+        m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+        if not m:
+            continue
+        x1,y1,x2,y2=map(int,m.groups())
+        subprocess.call(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)])
+        raise SystemExit(0)
+PY
+  adb shell am start -W -n com.night.sora/.MainActivity >/dev/null 2>&1 || true
+  sleep 1
+}
+
 node_exists() {
   local label="$1"
   dump_ui
@@ -53,6 +78,7 @@ wait_for_node() {
   local timeout="${2:-25}"
   local elapsed=0
   while (( elapsed < timeout )); do
+    dismiss_system_dialogs
     if node_exists "$label"; then
       echo "Found '$label' after ${elapsed}s"
       return 0
@@ -69,6 +95,7 @@ wait_for_node() {
 
 tap_text() {
   local label="$1"
+  dismiss_system_dialogs
   dump_ui
   python3 - "$label" <<'PY'
 import re, subprocess, sys, xml.etree.ElementTree as ET
@@ -84,11 +111,11 @@ for node in root.iter('node'):
     if not m:
         continue
     x1,y1,x2,y2=map(int,m.groups())
-    p=((x1+x2)//2,(y1+y2)//2)
+    point=((x1+x2)//2,(y1+y2)//2)
     if text == label or desc == label:
-        exact.append(p)
+        exact.append(point)
     elif label in text or label in desc:
-        partial.append(p)
+        partial.append(point)
 points=exact or partial
 if not points:
     raise SystemExit(f'UI node not found: {label}')
@@ -100,6 +127,7 @@ PY
 
 rapid_double_tap_text() {
   local label="$1"
+  dismiss_system_dialogs
   dump_ui
   python3 - "$label" <<'PY'
 import re, subprocess, sys, time, xml.etree.ElementTree as ET
@@ -126,6 +154,7 @@ PY
 }
 
 tap_media_tab() {
+  dismiss_system_dialogs
   if node_exists Media; then
     tap_text Media
     return
@@ -137,6 +166,7 @@ tap_media_tab() {
   sleep 2
 }
 
+dismiss_system_dialogs
 shot 00-home
 
 tap_media_tab
@@ -152,8 +182,9 @@ wait_for_node 'Mini player' 20
 wait_for_node Pause 20
 shot 02-playing
 
-# Background Media3 service/session must stay alive.
-adb shell input keyevent KEYCODE_HOME
+# Background Media3 service/session must stay alive. Use Settings instead of the
+# emulator launcher so Pixel Launcher ANRs cannot contaminate Sora's playback proof.
+adb shell am start -W -a android.settings.SETTINGS >/dev/null
 sleep 4
 adb shell dumpsys activity services com.night.sora | grep -q 'MusicPlaybackService'
 adb shell dumpsys media_session | grep -q 'com.night.sora'
@@ -180,16 +211,17 @@ wait_for_node Pause 20
 shot 06-next-track
 
 # Standard music-player semantics: Previous after >3s restarts the current
-# track. The second press must land inside the 3s threshold so it can move to
-# the prior queue item. Use one UI dump and two direct taps 250ms apart.
+# track. The second press must land inside the 3s threshold so it moves to the
+# prior queue item. Use one UI dump and two direct taps 250ms apart.
 rapid_double_tap_text Previous
 wait_for_node 'Low Light' 20
 wait_for_node Pause 20
 shot 07-previous-track
 
-# Activity recreation must reconnect to the same process-wide player.
+# Activity recreation must reconnect to the same process-wide player. Launching
+# Settings backgrounds Sora without involving the flaky hosted Pixel Launcher.
 adb shell settings put global always_finish_activities 1
-adb shell input keyevent KEYCODE_HOME
+adb shell am start -W -a android.settings.SETTINGS >/dev/null
 sleep 4
 adb shell dumpsys activity services com.night.sora | grep -q 'MusicPlaybackService'
 adb shell dumpsys media_session | grep -q 'com.night.sora'
