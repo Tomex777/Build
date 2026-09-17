@@ -10,7 +10,7 @@
     "test": "vitest run",
     "start": "npm run build && electron .",
     "smoke": "npm run build && electron . --ci-smoke",
-    "dist:win": "npm run build && electron-builder --win nsis portable --x64"
+    "dist:win": "npm run build && electron-builder --win nsis portable --x64 --publish never"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
