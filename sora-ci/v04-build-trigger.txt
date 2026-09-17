@@ -1,1 +1,1 @@
-2026-09-17 compile Core-owned Sora watch/read progress and truthful Continue rails.
+2026-09-17 compile source-aware direct Continue resume for Sora watch/read sessions.
