@@ -295,10 +295,14 @@ async function reloadExternalModules() {
   externalModuleIds.clear();
   externalModuleErrors = [];
 
-  const manager = new ExternalModuleManager(modulesRoot(), (moduleId) => {
-    const definitions = effectiveConfigDefinitions().filter((definition) => definition.moduleId === moduleId);
-    return configStore.toEnvironment(definitions);
-  });
+  const manager = new ExternalModuleManager(
+    modulesRoot(),
+    (moduleId) => {
+      const definitions = effectiveConfigDefinitions().filter((definition) => definition.moduleId === moduleId);
+      return configStore.toEnvironment(definitions);
+    },
+    moduleEnabled,
+  );
   const external = await manager.load();
   externalModuleErrors = [...external.errors];
 
@@ -315,6 +319,10 @@ async function reloadExternalModules() {
   }
 
   externalModuleManager = manager;
+  if (engineManager) {
+    manager.setHostSendText((remoteJid, text) => engineManager.sendText(remoteJid, text));
+    manager.startJobs();
+  }
   if (externalModuleErrors.length) {
     for (const failure of externalModuleErrors) console.warn(`[module:${failure.folder}] ${failure.error}`);
   }
@@ -511,6 +519,8 @@ app.whenReady().then(async () => {
     process.execPath,
   );
   await engineManager.initialize();
+  externalModuleManager?.setHostSendText((remoteJid, text) => engineManager.sendText(remoteJid, text));
+  externalModuleManager?.startJobs();
   chatController = new ChatController(chatStore, engineManager, () => mainWindow);
   chatController.registerIpc();
   engineManager.on("status", broadcastEngineStatus);
