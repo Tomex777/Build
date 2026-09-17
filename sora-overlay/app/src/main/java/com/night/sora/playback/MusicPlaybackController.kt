@@ -2,6 +2,7 @@ package com.night.sora.playback
 
 import android.content.Context
 import android.net.Uri
+import android.os.SystemClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -69,6 +70,7 @@ class MusicPlaybackController(
     private var requestSerial = 0L
     private var listeningEventSerial = 0L
     private var startedEventTrackKey: String? = null
+    private var previousRestartRequestedAtMs = Long.MIN_VALUE
     private var baseQueue: List<ExtensionMediaSelection> = emptyList()
     private var extensions: List<InstalledExtension> = emptyList()
 
@@ -171,6 +173,7 @@ class MusicPlaybackController(
         val track = queue[index]
         currentTrack = track
         startedEventTrackKey = null
+        previousRestartRequestedAtMs = Long.MIN_VALUE
         positionMs = 0L
         durationMs = 0L
         errorMessage = null
@@ -202,10 +205,16 @@ class MusicPlaybackController(
 
     fun skipPrevious() {
         if (queue.isEmpty()) return
-        if (player.currentPosition > 3_000L) {
+        val now = SystemClock.elapsedRealtime()
+        val restartSeekStillSettling = previousRestartRequestedAtMs != Long.MIN_VALUE &&
+            now - previousRestartRequestedAtMs in 0L..1_000L
+        if (!restartSeekStillSettling && player.currentPosition > 3_000L) {
+            previousRestartRequestedAtMs = now
+            positionMs = 0L
             player.seekTo(0L)
             return
         }
+        previousRestartRequestedAtMs = Long.MIN_VALUE
         val previous = when {
             currentIndex > 0 -> currentIndex - 1
             repeatMode == MusicRepeatMode.ALL -> queue.lastIndex
