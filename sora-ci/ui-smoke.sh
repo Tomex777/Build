@@ -4,6 +4,11 @@ set -euo pipefail
 OUT=/tmp/sora-ui
 mkdir -p "$OUT"
 
+cleanup_smoke_settings() {
+  adb shell settings put global always_finish_activities 0 >/dev/null 2>&1 || true
+}
+trap cleanup_smoke_settings EXIT
+
 adb uninstall com.night.sora.ext.live >/dev/null 2>&1 || true
 adb uninstall com.night.sora.ext.demo >/dev/null 2>&1 || true
 adb install -r "$SORA_ROOT/app/build/outputs/apk/debug/app-debug.apk"
@@ -310,6 +315,22 @@ wait_for_node Play 10
 shot 06aa-music-background-paused
 tap_text Play
 wait_for_node Pause 15
+shot 06ab-music-background-resumed
+
+# Force Android to destroy the activity when it leaves the foreground. The
+# process-wide Media3 service/player must survive and the recreated activity
+# must reconnect to the same now-playing state.
+adb shell settings put global always_finish_activities 1
+adb shell input keyevent KEYCODE_HOME
+sleep 4
+adb shell dumpsys activity services com.night.sora | grep -q 'MusicPlaybackService'
+adb shell dumpsys media_session | grep -q 'com.night.sora'
+adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
+sleep 4
+dismiss_system_dialogs
+wait_for_node Pause 15
+shot 06ac-music-after-activity-recreation
+adb shell settings put global always_finish_activities 0
 
 tap_text 'Mini player'
 wait_for_node Pause 10
