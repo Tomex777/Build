@@ -12,6 +12,7 @@ import android.util.Log
 import com.night.sora.extension.api.ExtensionContract
 import com.night.sora.extension.api.ExtensionDescriptor
 import com.night.sora.extension.api.ExtensionPermission
+import com.night.sora.extension.api.ExtensionSessionContract
 import com.night.sora.extension.api.SourceDescriptor
 import com.night.sora.extension.api.toJson
 import kotlinx.coroutines.runBlocking
@@ -29,11 +30,11 @@ class YouTubeMusicExtensionService : Service() {
         author = "Night",
         description = "YouTube Music search and audio resolver for Sora.",
         contentTypes = setOf("music"),
-        capabilities = setOf("catalog", "browse", "search", "details", "streams"),
+        capabilities = setOf("catalog", "browse", "search", "details", "streams", ExtensionSessionContract.CAPABILITY_WEBVIEW),
         permissions = listOf(
             ExtensionPermission(
                 "network",
-                listOf("music.youtube.com", "youtube.com", "googlevideo.com", "googleapis.com"),
+                listOf("music.youtube.com", "youtube.com", "googlevideo.com", "googleapis.com", "accounts.google.com"),
             ),
         ),
         sources = listOf(
@@ -41,7 +42,7 @@ class YouTubeMusicExtensionService : Service() {
                 "youtube.music",
                 "YouTube Music",
                 setOf("music"),
-                setOf("browse", "search", "details", "streams"),
+                setOf("browse", "search", "details", "streams", ExtensionSessionContract.CAPABILITY_WEBVIEW),
             ),
         ),
     )
@@ -78,6 +79,12 @@ class YouTubeMusicExtensionService : Service() {
                             ExtensionContract.Method.SEARCH -> YouTubeMusicCatalog.search(sourceId, payload.optString("query"))
                             ExtensionContract.Method.DETAILS -> YouTubeMusicCatalog.details(sourceId, id)
                             ExtensionContract.Method.STREAMS -> YouTubeMusicCatalog.streams(sourceId, id)
+                            ExtensionSessionContract.METHOD_BROWSER_SESSION -> YouTubeMusicCatalog.browserSession(sourceId)
+                            ExtensionSessionContract.METHOD_STORE_SESSION -> YouTubeMusicCatalog.storeSession(
+                                sourceId = sourceId,
+                                cookieHeader = payload.optString("cookieHeader"),
+                                userAgent = payload.optString("userAgent"),
+                            )
                             ExtensionContract.Method.EPISODES,
                             ExtensionContract.Method.CHAPTERS,
                             ExtensionContract.Method.PAGES,
