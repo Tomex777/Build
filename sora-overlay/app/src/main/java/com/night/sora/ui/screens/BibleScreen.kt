@@ -2,7 +2,10 @@
 
 package com.night.sora.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -61,6 +64,15 @@ fun BibleScreen(onBack: () -> Unit) {
     fun changeTranslation(next: BibleTranslation) {
         selectedTranslation = next
         repository.setSelectedTranslation(next)
+    }
+
+    BackHandler(enabled = route != BibleRoute.Hub) {
+        route = when (val current = route) {
+            BibleRoute.Search, BibleRoute.Bookmarks -> BibleRoute.Hub
+            is BibleRoute.Chapters -> BibleRoute.Hub
+            is BibleRoute.Reader -> BibleRoute.Chapters(current.book)
+            BibleRoute.Hub -> BibleRoute.Hub
+        }
     }
 
     when (val current = route) {
@@ -198,7 +210,10 @@ private fun BibleHub(
             }
 
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     BibleFilterChip("All", testament == null) { testament = null }
                     BibleFilterChip("Old Testament", testament == Testament.OLD) { testament = Testament.OLD }
                     BibleFilterChip("New Testament", testament == Testament.NEW) { testament = Testament.NEW }
