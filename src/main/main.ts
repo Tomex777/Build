@@ -1,7 +1,9 @@
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, safeStorage, Tray } from "electron";
 import { join } from "node:path";
 import { baileyMarkDataUrl } from "../brand/logo";
+import { JsonCommandStore, type VisualCommandPatch } from "../core/command-store";
 import { JsonConfigStore, type SecretCodec } from "../core/config-store";
+import { commandId } from "../core/module";
 import { ModuleRegistry } from "../core/registry";
 import type { IncomingEngineMessage } from "../engine/contracts";
 import { EngineManager } from "../engine/engine-manager";
@@ -14,6 +16,7 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 let configStore: JsonConfigStore;
+let commandStore: JsonCommandStore;
 let engineManager: EngineManager;
 
 function createSecretCodec(): SecretCodec {
@@ -95,34 +98,50 @@ function getSetting(key: string): string | number | boolean | undefined {
   return definition ? configStore.get(definition) : undefined;
 }
 
+function commandPrefix(): string {
+  return String(getSetting("modules.core.settings.prefix") ?? ".");
+}
+
 function moduleEnabled(moduleId: string): boolean {
   return Boolean(getSetting(`modules.${moduleId}.enabled`) ?? true);
 }
 
-function commandEnabled(moduleId: string, commandName: string): boolean {
-  return Boolean(getSetting(`modules.${moduleId}.commands.${commandName}.enabled`) ?? true);
+function commandEnabled(moduleId: string, id: string): boolean {
+  return Boolean(getSetting(`modules.${moduleId}.commands.${id}.enabled`) ?? true);
+}
+
+async function runDeclarativeActions(actions: NonNullable<ReturnType<JsonCommandStore["effective"]>["actions"]>, remoteJid: string): Promise<void> {
+  for (const action of actions) {
+    if (action.type === "reply") await engineManager.sendText(remoteJid, action.text);
+  }
 }
 
 async function dispatchIncomingMessage(message: IncomingEngineMessage): Promise<void> {
   if (message.fromMe || !message.text?.trim()) return;
-  const prefix = String(getSetting("modules.core.settings.prefix") ?? ".");
+  const prefix = commandPrefix();
   if (!message.text.startsWith(prefix)) return;
 
   const body = message.text.slice(prefix.length).trim();
   if (!body) return;
   const [commandName, ...args] = body.split(/\s+/);
-  const resolved = registry.resolveCommand(commandName);
-  if (!resolved?.command.execute) return;
-  if (!moduleEnabled(resolved.module.id) || !commandEnabled(resolved.module.id, resolved.command.name)) return;
+  const resolved = commandStore.resolve(registry.list(), commandName);
+  if (!resolved) return;
+  if (!moduleEnabled(resolved.module.id) || !commandEnabled(resolved.module.id, resolved.command.id)) return;
 
-  await resolved.command.execute({
+  const context = {
     remoteJid: message.remoteJid,
     senderJid: message.participant ?? message.remoteJid,
     text: message.text,
     args,
-    reply: async (text) => engineManager.sendText(message.remoteJid, text),
-    react: async (emoji) => engineManager.react(message.remoteJid, message.key, emoji),
-  });
+    reply: async (text: string) => engineManager.sendText(message.remoteJid, text),
+    react: async (emoji: string) => engineManager.react(message.remoteJid, message.key, emoji),
+  };
+
+  if (resolved.command.actions?.length) {
+    await runDeclarativeActions(resolved.command.actions, message.remoteJid);
+  } else if (resolved.command.execute) {
+    await resolved.command.execute(context);
+  }
 }
 
 function workerPath(): string {
@@ -139,28 +158,90 @@ function broadcastEngineStatus(): void {
   }
 }
 
+function effectiveModules() {
+  return registry.list().map((module) => ({
+    id: module.id,
+    name: module.name,
+    version: module.version,
+    description: module.description,
+    commands: (module.commands ?? []).map((command) => {
+      const effective = commandStore.effective(module, command);
+      return {
+        id: effective.id,
+        name: effective.name,
+        section: effective.section,
+        aliases: effective.aliases,
+        description: effective.description,
+        editable: effective.editable,
+        replyText: effective.replyText,
+      };
+    }),
+  }));
+}
+
+function effectiveConfigDefinitions() {
+  const prefix = commandPrefix();
+  return registry.getConfigDefinitions().map((definition) => {
+    const match = definition.key.match(/^modules\.([^.]+)\.commands\.([^.]+)\.enabled$/);
+    if (!match) return definition;
+    const module = registry.findModule(match[1]);
+    const command = module ? registry.findCommand(module.id, match[2]) : undefined;
+    if (!module || !command) return definition;
+    const effective = commandStore.effective(module, command);
+    return {
+      ...definition,
+      label: `${prefix}${effective.name}`,
+      description: effective.description,
+    };
+  });
+}
+
 function registerIpc(): void {
   ipcMain.handle("bailey:get-state", () => ({
     runtime: engineManager.status().runtime,
     whatsapp: engineManager.status().whatsapp,
     moduleCount: registry.list().length,
+    commandCount: commandStore.list(registry.list()).length,
     version: app.getVersion(),
   }));
 
-  ipcMain.handle("bailey:get-modules", () => registry.list().map((module) => ({
-    id: module.id,
-    name: module.name,
-    version: module.version,
-    description: module.description,
-    commands: (module.commands ?? []).map((command) => ({
-      name: command.name,
-      aliases: command.aliases ?? [],
-      description: command.description,
-    })),
-  })));
+  ipcMain.handle("bailey:get-modules", () => ({
+    prefix: commandPrefix(),
+    modules: effectiveModules(),
+  }));
+
+  ipcMain.handle("bailey:get-command", (_event, moduleId: string, id: string) => {
+    const module = registry.findModule(moduleId);
+    const command = registry.findCommand(moduleId, id);
+    if (!module || !command) throw new Error("Command not found.");
+    return commandStore.get(module, command);
+  });
+
+  ipcMain.handle("bailey:update-command", async (_event, moduleId: string, id: string, patch: VisualCommandPatch) => {
+    const module = registry.findModule(moduleId);
+    const command = registry.findCommand(moduleId, id);
+    if (!module || !command) throw new Error("Command not found.");
+
+    const duplicate = commandStore.list(registry.list()).find(({ module: candidateModule, command: candidate }) => {
+      if (candidateModule.id === moduleId && candidate.id === id) return false;
+      const names = [candidate.name, ...candidate.aliases].map((value) => value.toLowerCase());
+      const requested = [patch.name, ...(patch.aliases ?? [])].map((value) => String(value).toLowerCase());
+      return requested.some((value) => names.includes(value));
+    });
+    if (duplicate) throw new Error(`That trigger or alias is already used by ${commandPrefix()}${duplicate.command.name}.`);
+
+    return commandStore.update(module, command, patch);
+  });
+
+  ipcMain.handle("bailey:reset-command", async (_event, moduleId: string, id: string) => {
+    const module = registry.findModule(moduleId);
+    const command = registry.findCommand(moduleId, id);
+    if (!module || !command) throw new Error("Command not found.");
+    return commandStore.reset(module, command);
+  });
 
   ipcMain.handle("bailey:get-config", () => {
-    const definitions = registry.getConfigDefinitions();
+    const definitions = effectiveConfigDefinitions();
     return {
       definitions,
       values: configStore.listForUi(definitions),
@@ -207,7 +288,8 @@ app.whenReady().then(async () => {
     join(app.getPath("userData"), "config.json"),
     createSecretCodec(),
   );
-  await configStore.load();
+  commandStore = new JsonCommandStore(join(app.getPath("userData"), "commands.json"));
+  await Promise.all([configStore.load(), commandStore.load()]);
 
   engineManager = new EngineManager(
     join(app.getPath("userData"), "engines"),
