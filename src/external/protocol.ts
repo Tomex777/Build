@@ -2,7 +2,7 @@ import type { ModuleSettingDefinition } from "../shared/config-schema";
 
 export const BAILEY_MODULE_PROTOCOL = 1 as const;
 
-export type ExternalModuleCapability = "commands" | "settings" | "events" | "jobs" | "services";
+export type ExternalModuleCapability = "commands" | "settings" | "events" | "jobs" | "storage" | "services";
 
 export interface ExternalModuleCommandManifest {
   id: string;
@@ -103,7 +103,7 @@ export interface ExternalModuleResponse {
 
 const MODULE_ID = /^[a-z0-9][a-z0-9.-]*$/;
 const COMMAND_NAME = /^[a-z0-9][a-z0-9_-]{0,63}$/;
-const CAPABILITIES = new Set<ExternalModuleCapability>(["commands", "settings", "events", "jobs", "services"]);
+const CAPABILITIES = new Set<ExternalModuleCapability>(["commands", "settings", "events", "jobs", "storage", "services"]);
 const MIN_JOB_INTERVAL_SECONDS = 5;
 const MAX_JOB_INTERVAL_SECONDS = 30 * 24 * 60 * 60;
 
