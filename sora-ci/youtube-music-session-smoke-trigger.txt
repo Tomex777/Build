@@ -1,0 +1,1 @@
+2026-09-17 prove YouTube Music extension browser session IPC and WebView entry on Pixel 7 emulator.
