@@ -1,0 +1,132 @@
+name: Sora Anime Manga Media CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [sora-media-ci]
+    paths:
+      - 'sora-ci/sora-media-ci-trigger.txt'
+
+jobs:
+  anime-manga-flow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply focused Anime Manga patch
+        run: |
+          python3 sora-ci/repair-sora-anime-manga-patch.py
+          python3 sora-ci/patch-sora-anime-manga-flow.py
+          # The repair is only a build-time normalizer for the patch draft.
+          git checkout -- sora-ci/patch-sora-anime-manga-flow.py
+
+      - name: Enforce Anime Manga truthfulness and scope
+        run: |
+          set -euo pipefail
+          MEDIA='sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt'
+          DETAIL='sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaDetailScreen.kt'
+          JIKAN='sora-overlay/app/src/main/java/com/night/sora/catalog/JikanCatalogClient.kt'
+          CACHE='sora-overlay/app/src/main/java/com/night/sora/data/MediaCatalogCache.kt'
+
+          grep -q 'Popular this season' "$MEDIA"
+          grep -q 'Recently started' "$MEDIA"
+          grep -q 'Showing saved catalog data' "$MEDIA"
+          grep -q 'SearchResultSkeleton' "$MEDIA"
+          grep -q 'CachedMediaSnapshot' "$CACHE"
+          grep -q 'equals("Adaptation", ignoreCase = true)' "$JIKAN"
+          grep -q 'exact title match' "$DETAIL"
+          ! grep -q 'best ?: array.optJSONObject(0)' "$DETAIL"
+          ! grep -q 'name.contains(normalized)' "$DETAIL"
+          ! grep -q 'The Last Platform\|After Rain' "$MEDIA"
+          ! grep -q 'Made for You' "$MEDIA"
+
+          changed="$(git diff --name-only)"
+          echo "$changed"
+          test "$(printf '%s\n' "$changed" | grep '^sora-overlay/' | wc -l)" -le 6
+          ! printf '%s\n' "$changed" | grep -E 'Music|AiScreen|BibleScreen|GamesScreen|PlayerReaderSettingsScreen'
+
+      - name: Reconstruct current Android source
+        run: |
+          rm -rf /tmp/sora-src /tmp/sora.zip
+          cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/sora.zip
+          unzip -q /tmp/sora.zip -d /tmp/sora-src
+          ROOT=/tmp/sora-src/Sora_Android_v0_1
+          test -f "$ROOT/settings.gradle.kts"
+          cp -R sora-overlay/. "$ROOT/"
+          echo "SORA_ROOT=$ROOT" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 36 SDK
+        run: sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+
+      - name: Build Sora Core
+        working-directory: /tmp/sora-src/Sora_Android_v0_1
+        run: gradle --stacktrace :app:assembleDebug
+
+      - name: Smoke-check Jikan endpoints
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 --retry-delay 2 --max-time 15 'https://api.jikan.moe/v4/top/anime?filter=airing&limit=1&sfw=true' | grep -q '"data"'
+          sleep 1
+          curl -fsSL --retry 3 --retry-delay 2 --max-time 15 'https://api.jikan.moe/v4/top/manga?filter=publishing&limit=1' | grep -q '"data"'
+          sleep 1
+          curl -fsSL --retry 3 --retry-delay 2 --max-time 15 'https://api.jikan.moe/v4/anime?q=naruto&limit=1&sfw=true' | grep -q '"data"'
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Validate live Anime Manga flow in emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash "$GITHUB_WORKSPACE/sora-ci/anime-manga-live-smoke.sh"
+
+      - name: Upload Anime Manga screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sora-anime-manga-live-ui
+          path: /tmp/sora-anime-manga-live
+          if-no-files-found: warn
+          retention-days: 5
+
+      - name: Commit validated Anime Manga implementation
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            sora-overlay/app/src/main/java/com/night/sora/data/MediaCatalogCache.kt \
+            sora-overlay/app/src/main/java/com/night/sora/catalog/JikanCatalogClient.kt \
+            sora-overlay/app/src/main/java/com/night/sora/catalog/JikanCatalogService.kt \
+            sora-overlay/app/src/main/java/com/night/sora/extension/ExtensionManager.kt \
+            sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaDetailScreen.kt \
+            sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
+          if git diff --cached --quiet; then
+            echo 'No Anime/Manga changes to commit'
+          else
+            git commit -m 'polish live Sora Anime Manga flow'
+            git push origin HEAD:sora-media-ci
+          fi
