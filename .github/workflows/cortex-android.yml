@@ -1,0 +1,34 @@
+name: Cortex Android
+
+on:
+  push:
+    branches: [cortex-android-live]
+    paths:
+      - 'cortex-android/**'
+      - '.github/workflows/cortex-android.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK
+        run: sdkmanager 'platforms;android-37' 'build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Build debug APK
+        working-directory: cortex-android
+        run: gradle :app:assembleDebug --stacktrace
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: cortex-debug
+          path: cortex-android/app/build/outputs/apk/debug/app-debug.apk
