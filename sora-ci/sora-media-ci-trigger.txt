@@ -1,1 +1,1 @@
-run 7 - dismiss emulator launcher ANR overlays without masking Sora failures
+run 8 - emulator-authoritative full live Anime Manga validation
