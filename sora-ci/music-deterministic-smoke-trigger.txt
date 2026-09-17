@@ -1,1 +1,1 @@
-2026-09-17 final deterministic Music regression after Spotui Home alignment and strict one-selected-source playback/download guard.
+2026-09-17 final deterministic Music regression after source guard, resolver race fix, audio focus, noisy handling, and wake mode.
