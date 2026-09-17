@@ -1,3 +1,8 @@
+const studioStyles = document.createElement("link");
+studioStyles.rel = "stylesheet";
+studioStyles.href = "./studio.css";
+document.head.append(studioStyles);
+
 const bailey = (window as unknown as {
   bailey: {
     openModulesFolder(): Promise<{ ok: boolean; path: string }>;
