@@ -1,5 +1,3 @@
-import "./chats";
-
 const studioStyles = document.createElement("link");
 studioStyles.rel = "stylesheet";
 studioStyles.href = "./studio.css";
@@ -10,6 +8,27 @@ const bailey = (window as unknown as {
     openModulesFolder(): Promise<{ ok: boolean; path: string }>;
   };
 }).bailey;
+
+const replyField = document.querySelector<HTMLTextAreaElement>("#command-reply")?.closest("label.field");
+if (replyField && !document.querySelector("#command-reaction")) {
+  const reactionField = document.createElement("label");
+  reactionField.className = "field editor-span-2";
+
+  const title = document.createElement("span");
+  title.textContent = "Reaction (optional)";
+
+  const input = document.createElement("input");
+  input.id = "command-reaction";
+  input.autocomplete = "off";
+  input.placeholder = "❤️";
+  input.maxLength = 32;
+
+  const help = document.createElement("small");
+  help.textContent = "If set, Bailey reacts to the triggering WhatsApp message before sending the reply.";
+
+  reactionField.append(title, input, help);
+  replyField.after(reactionField);
+}
 
 const modulesFolderButton = document.querySelector<HTMLButtonElement>("#studio-open-modules-folder");
 modulesFolderButton?.addEventListener("click", () => {
