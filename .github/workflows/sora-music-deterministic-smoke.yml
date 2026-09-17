@@ -24,7 +24,7 @@ jobs:
           cp -R sora-overlay/. "$ROOT/"
           echo "SORA_ROOT=$ROOT" >> "$GITHUB_ENV"
 
-      - name: Promote demo source only inside CI fixture
+      - name: Ensure demo source is eligible inside CI fixture
         run: |
           FILE=/tmp/sora-src/Sora_Android_v0_1/test-extension/src/main/java/com/night/sora/testextension/DemoExtensionService.kt
           python3 - "$FILE" <<'PY'
@@ -32,11 +32,13 @@ jobs:
           import sys
           path = Path(sys.argv[1])
           text = path.read_text()
-          old = 'capabilities = setOf("diagnostic", "browse", "search", "details", "episodes", "chapters", "pages", "streams", "lyrics", "relatedArtists", "feed"),'
-          new = 'capabilities = setOf("catalog", "browse", "search", "details", "episodes", "chapters", "pages", "streams", "lyrics", "relatedArtists", "feed"),'
-          if text.count(old) != 1:
-              raise SystemExit('CI demo capability marker not found exactly once')
-          path.write_text(text.replace(old, new, 1))
+          diagnostic = 'capabilities = setOf("diagnostic", "browse", "search", "details", "episodes", "chapters", "pages", "streams", "lyrics", "relatedArtists", "feed"),'
+          catalog = 'capabilities = setOf("catalog", "browse", "search", "details", "episodes", "chapters", "pages", "streams", "lyrics", "relatedArtists", "feed"),'
+          if diagnostic in text:
+              text = text.replace(diagnostic, catalog, 1)
+              path.write_text(text)
+          elif catalog not in text:
+              raise SystemExit('CI demo capability marker is neither diagnostic nor catalog')
           PY
           grep -q 'capabilities = setOf("catalog"' "$FILE"
           ! grep -q 'capabilities = setOf("diagnostic"' "$FILE"
