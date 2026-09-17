@@ -346,13 +346,11 @@ fun MediaDetailScreen(
             item(key = "actions") {
                 DetailActionRow(
                     saved = isSaved(active),
-                    hasConsumptionSource = consumption != null,
                     browserEnabled = webViewAvailable && !browserBusy,
                     browserBusy = browserBusy,
                     type = active.type,
                     counterpart = counterpart,
                     onLibrary = { onToggleSaved(active) },
-                    onSource = { sourcePickerOpen = true },
                     onAdaptation = { counterpart?.let { active = it } },
                     onWebView = ::openBrowser,
                 )
@@ -403,7 +401,6 @@ fun MediaDetailScreen(
                         count = childRows.size,
                         descending = descending,
                         onSort = { descending = !descending },
-                        onSource = { sourcePickerOpen = true },
                     )
                 }
 
@@ -448,9 +445,6 @@ fun MediaDetailScreen(
             },
             navigationIcon = { IconButton(onClick = ::effectiveBack) { Icon(Icons.Rounded.ArrowBack, "Back") } },
             actions = {
-                if (sourceOptions.isNotEmpty()) {
-                    IconButton(onClick = { sourcePickerOpen = true }) { Icon(Icons.Rounded.Source, "Change source") }
-                }
                 Box {
                     IconButton(onClick = { menuOpen = true }) { Icon(Icons.Rounded.MoreVert, "Title options") }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
@@ -592,13 +586,11 @@ private fun DetailInfoHeader(selection: ExtensionMediaSelection, metadata: Detai
 @Composable
 private fun DetailActionRow(
     saved: Boolean,
-    hasConsumptionSource: Boolean,
     browserEnabled: Boolean,
     browserBusy: Boolean,
     type: ContentType,
     counterpart: ExtensionMediaSelection?,
     onLibrary: () -> Unit,
-    onSource: () -> Unit,
     onAdaptation: () -> Unit,
     onWebView: () -> Unit,
 ) {
@@ -608,12 +600,6 @@ private fun DetailActionRow(
             icon = if (saved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
             highlighted = saved,
             onClick = onLibrary,
-        )
-        DetailActionButton(
-            title = if (hasConsumptionSource) "Source" else "Choose source",
-            icon = Icons.Rounded.Public,
-            highlighted = hasConsumptionSource,
-            onClick = onSource,
         )
         if (type == ContentType.ANIME || type == ContentType.MANGA) {
             DetailActionButton(
@@ -683,7 +669,7 @@ private fun DetailDescription(metadata: DetailMetadata, fallback: String, expand
 }
 
 @Composable
-private fun DetailItemsHeader(type: ContentType, count: Int, descending: Boolean, onSort: () -> Unit, onSource: () -> Unit) {
+private fun DetailItemsHeader(type: ContentType, count: Int, descending: Boolean, onSort: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -692,7 +678,6 @@ private fun DetailItemsHeader(type: ContentType, count: Int, descending: Boolean
             Text(sectionTitle(type), fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
             if (count > 0) Text("$count item${if (count == 1) "" else "s"}", color = SoraMuted, fontSize = 11.sp)
         }
-        IconButton(onClick = onSource) { Icon(Icons.Rounded.Source, "Choose source") }
         IconButton(onClick = onSort) { Icon(if (descending) Icons.Rounded.ArrowDownward else Icons.Rounded.ArrowUpward, "Change sort order") }
     }
 }
