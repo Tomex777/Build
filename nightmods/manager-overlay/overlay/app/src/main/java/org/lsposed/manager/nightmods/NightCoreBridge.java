@@ -11,18 +11,24 @@ import androidx.annotation.Nullable;
 /** Manager-side client for Night Core's deliberately narrow settings/status provider. */
 public final class NightCoreBridge {
     public static final String PACKAGE_NAME = "dev.nightmods.core";
+    public static final String SYSTEM_UI_PACKAGE = "com.android.systemui";
     public static final String WHATSAPP_PACKAGE = "com.whatsapp";
     public static final String INSTAGRAM_PACKAGE = "com.instagram.android";
     public static final String AUTHORITY = "dev.nightmods.core.settings";
     public static final Uri SETTINGS_URI = Uri.parse("content://" + AUTHORITY);
     private static final String METHOD_GET = "get_bubble_style";
     private static final String METHOD_SET = "set_bubble_style";
+    private static final String METHOD_GET_SYSTEM_UI = "get_system_ui";
+    private static final String METHOD_SET_SYSTEM_UI = "set_system_ui";
     private static final String METHOD_GET_TARGET_STATUS = "get_target_status";
     public static final String KEY_ENABLED = "bubble_enabled";
     public static final String KEY_WHATSAPP = "target_whatsapp";
     public static final String KEY_INSTAGRAM = "target_instagram";
     public static final String KEY_RADIUS = "bubble_radius";
     public static final String KEY_SPACING = "bubble_spacing";
+    public static final String KEY_SYSTEM_UI_ENABLED = "systemui_enabled";
+    public static final String KEY_STATUSBAR_PADDING_ENABLED = "statusbar_padding_enabled";
+    public static final String KEY_STATUSBAR_PADDING_DP = "statusbar_padding_dp";
 
     private NightCoreBridge() {}
 
@@ -79,6 +85,36 @@ public final class NightCoreBridge {
     }
 
     @Nullable
+    public static SystemUiState loadSystemUi(@NonNull Context context) {
+        if (!isInstalled(context)) return null;
+        try {
+            Bundle data = context.getContentResolver().call(
+                    SETTINGS_URI, METHOD_GET_SYSTEM_UI, null, null);
+            if (data == null) return null;
+            return new SystemUiState(
+                    data.getBoolean(KEY_SYSTEM_UI_ENABLED, false),
+                    data.getBoolean(KEY_STATUSBAR_PADDING_ENABLED, false),
+                    clamp(data.getInt(KEY_STATUSBAR_PADDING_DP, 8), 0, 32));
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    public static boolean saveSystemUi(@NonNull Context context, @NonNull SystemUiState state) {
+        if (!isInstalled(context)) return false;
+        Bundle data = new Bundle();
+        data.putBoolean(KEY_SYSTEM_UI_ENABLED, state.enabled);
+        data.putBoolean(KEY_STATUSBAR_PADDING_ENABLED, state.statusBarPaddingEnabled);
+        data.putInt(KEY_STATUSBAR_PADDING_DP, clamp(state.statusBarPaddingDp, 0, 32));
+        try {
+            context.getContentResolver().call(SETTINGS_URI, METHOD_SET_SYSTEM_UI, null, data);
+            return true;
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
+    @Nullable
     public static TargetStatus loadTargetStatus(@NonNull Context context, @NonNull String packageName) {
         if (!isInstalled(context)) return null;
         try {
@@ -122,6 +158,18 @@ public final class NightCoreBridge {
             this.instagram = instagram;
             this.radius = radius;
             this.spacing = spacing;
+        }
+    }
+
+    public static final class SystemUiState {
+        public final boolean enabled;
+        public final boolean statusBarPaddingEnabled;
+        public final int statusBarPaddingDp;
+
+        public SystemUiState(boolean enabled, boolean statusBarPaddingEnabled, int statusBarPaddingDp) {
+            this.enabled = enabled;
+            this.statusBarPaddingEnabled = statusBarPaddingEnabled;
+            this.statusBarPaddingDp = statusBarPaddingDp;
         }
     }
 
