@@ -4,6 +4,13 @@ set -euo pipefail
 OUT=/tmp/sora-youtube-music-smoke
 mkdir -p "$OUT"
 
+capture_logs() {
+  adb logcat -d -t 2500 2>/dev/null \
+    | grep -Ei 'com\.night\.sora|SoraYouTubeMusic|youtube|innertube|googlevideo|ExoPlayer|PlaybackException|HttpDataSource|AndroidRuntime|FATAL EXCEPTION' \
+    | tail -n 500 > "$OUT/youtube-music-logcat.txt" || true
+}
+trap capture_logs EXIT
+
 adb uninstall com.night.sora.ext.live >/dev/null 2>&1 || true
 adb uninstall com.night.sora.ext.demo >/dev/null 2>&1 || true
 adb uninstall com.night.sora.ext.youtube.music >/dev/null 2>&1 || true
@@ -33,7 +40,8 @@ log_state() {
   adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity|com.night.sora|Application Not Responding' | tail -n 30 >&2 || true
   adb shell dumpsys activity services com.night.sora | grep -E 'MusicPlaybackService|ServiceRecord' >&2 || true
   adb shell dumpsys media_session | grep -A8 -B3 'com.night.sora' >&2 || true
-  adb logcat -d -t 800 2>/dev/null | grep -Ei 'com\.night\.sora|youtube|innertube|googlevideo|AndroidRuntime|FATAL EXCEPTION|ExoPlayer' | tail -n 180 >&2 || true
+  capture_logs
+  tail -n 220 "$OUT/youtube-music-logcat.txt" >&2 2>/dev/null || true
   dump_ui
   cat /tmp/window.xml >&2 2>/dev/null || true
   echo "--- end diagnostics ---" >&2
@@ -185,5 +193,4 @@ tap_text Play
 wait_for_node Pause 20
 shot 05-system-resumed
 
-# Capture extension/network logs for evidence even on success.
-adb logcat -d -t 1000 2>/dev/null | grep -Ei 'com\.night\.sora|youtube|innertube|googlevideo|ExoPlayer' | tail -n 240 > "$OUT/youtube-music-logcat.txt" || true
+capture_logs
