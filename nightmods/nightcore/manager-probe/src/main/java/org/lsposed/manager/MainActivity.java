@@ -9,6 +9,8 @@ public final class MainActivity extends Activity {
     private static final Uri SETTINGS_URI = Uri.parse("content://dev.nightmods.core.settings");
     private static final String METHOD_GET = "get_bubble_style";
     private static final String METHOD_SET = "set_bubble_style";
+    private static final String METHOD_GET_SYSTEM_UI = "get_system_ui";
+    private static final String METHOD_SET_SYSTEM_UI = "set_system_ui";
     private static final String METHOD_TARGET_STATUS = "get_target_status";
 
     @Override
@@ -25,16 +27,28 @@ public final class MainActivity extends Activity {
                 desired.putInt("bubble_radius", 31);
                 desired.putInt("bubble_spacing", 9);
                 getContentResolver().call(SETTINGS_URI, METHOD_SET, null, desired);
+
+                Bundle systemUiDesired = new Bundle();
+                systemUiDesired.putBoolean("systemui_enabled", true);
+                systemUiDesired.putBoolean("statusbar_padding_enabled", true);
+                systemUiDesired.putInt("statusbar_padding_dp", 11);
+                getContentResolver().call(SETTINGS_URI, METHOD_SET_SYSTEM_UI, null, systemUiDesired);
             }
 
             Bundle result = getContentResolver().call(SETTINGS_URI, METHOD_GET, null, null);
-            if (result == null) throw new IllegalStateException("Night Core returned no settings");
+            Bundle systemUiResult = getContentResolver().call(
+                    SETTINGS_URI, METHOD_GET_SYSTEM_UI, null, null);
+            if (result == null || systemUiResult == null) {
+                throw new IllegalStateException("Night Core returned no settings");
+            }
 
+            Bundle systemUi = getContentResolver().call(
+                    SETTINGS_URI, METHOD_TARGET_STATUS, "com.android.systemui", null);
             Bundle whatsapp = getContentResolver().call(
                     SETTINGS_URI, METHOD_TARGET_STATUS, "com.whatsapp", null);
             Bundle instagram = getContentResolver().call(
                     SETTINGS_URI, METHOD_TARGET_STATUS, "com.instagram.android", null);
-            if (whatsapp == null || instagram == null) {
+            if (systemUi == null || whatsapp == null || instagram == null) {
                 throw new IllegalStateException("Night Core returned no target metadata");
             }
 
@@ -47,6 +61,12 @@ public final class MainActivity extends Activity {
                     .putBoolean("target_instagram", result.getBoolean("target_instagram", true))
                     .putInt("bubble_radius", result.getInt("bubble_radius", -1))
                     .putInt("bubble_spacing", result.getInt("bubble_spacing", -1))
+                    .putBoolean("systemui_enabled", systemUiResult.getBoolean("systemui_enabled", false))
+                    .putBoolean("statusbar_padding_enabled", systemUiResult.getBoolean("statusbar_padding_enabled", false))
+                    .putInt("statusbar_padding_dp", systemUiResult.getInt("statusbar_padding_dp", -1))
+                    .putBoolean("systemui_installed", systemUi.getBoolean("installed", false))
+                    .putString("systemui_compatibility", systemUi.getString("compatibility", "UNKNOWN"))
+                    .putString("systemui_version_name", systemUi.getString("version_name", ""))
                     .putBoolean("whatsapp_installed", whatsapp.getBoolean("installed", false))
                     .putString("whatsapp_compatibility", whatsapp.getString("compatibility", "UNKNOWN"))
                     .putString("whatsapp_version_name", whatsapp.getString("version_name", ""))
