@@ -45,8 +45,8 @@ fun NowPlayingScreen(
             verticalArrangement = Arrangement.Center,
         ) {
             Icon(Icons.Rounded.MusicOff, null, tint = SoraMuted, modifier = Modifier.size(48.dp))
-            Text("Nothing playing", fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
-            TextButton(onClick = onBack) { Text("Back") }
+            Text("Nothing playing", color = SoraText, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
+            TextButton(onClick = onBack) { Text("Back", color = SoraText) }
         }
         return
     }
@@ -61,14 +61,14 @@ fun NowPlayingScreen(
             .verticalScroll(rememberScrollState()).padding(horizontal = 22.dp).padding(bottom = 28.dp),
     ) {
         Row(Modifier.fillMaxWidth().height(58.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Rounded.KeyboardArrowDown, "Collapse") }
+            IconButton(onClick = onBack) { Icon(Icons.Rounded.KeyboardArrowDown, "Collapse", tint = SoraText) }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("PLAYING FROM SORA", fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp, color = SoraMuted)
                 if (player.sourceName.isNotBlank()) {
                     Text(player.sourceName, color = SoraFaint, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-            IconButton(onClick = {}) { Icon(Icons.Rounded.MoreVert, "Track options") }
+            IconButton(onClick = {}) { Icon(Icons.Rounded.MoreVert, "Track options", tint = SoraText) }
         }
 
         Spacer(Modifier.height(18.dp))
@@ -89,7 +89,7 @@ fun NowPlayingScreen(
         Spacer(Modifier.height(24.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(track.title, fontSize = 24.sp, lineHeight = 27.sp, fontWeight = FontWeight.Black)
+                Text(track.title, color = SoraText, fontSize = 24.sp, lineHeight = 27.sp, fontWeight = FontWeight.Black)
                 Text(track.subtitle, color = SoraMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
             }
             IconButton(onClick = { onToggleSaved(track) }) {
@@ -140,7 +140,7 @@ fun NowPlayingScreen(
                 Icon(Icons.Rounded.Shuffle, "Shuffle", tint = if (player.shuffleEnabled) SoraAccent else SoraMuted)
             }
             IconButton(onClick = player::skipPrevious) {
-                Icon(Icons.Rounded.SkipPrevious, "Previous", modifier = Modifier.size(34.dp))
+                Icon(Icons.Rounded.SkipPrevious, "Previous", tint = SoraText, modifier = Modifier.size(34.dp))
             }
             FilledIconButton(
                 onClick = player::togglePlayPause,
@@ -158,7 +158,7 @@ fun NowPlayingScreen(
                 }
             }
             IconButton(onClick = player::skipNext) {
-                Icon(Icons.Rounded.SkipNext, "Next", modifier = Modifier.size(34.dp))
+                Icon(Icons.Rounded.SkipNext, "Next", tint = SoraText, modifier = Modifier.size(34.dp))
             }
             IconButton(onClick = player::cycleRepeatMode) {
                 Icon(
@@ -187,6 +187,7 @@ fun NowPlayingScreen(
                     }
                     !player.lyricsText.isNullOrBlank() -> Text(
                         player.lyricsText.orEmpty(),
+                        color = SoraText,
                         fontSize = 16.sp,
                         lineHeight = 24.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -207,7 +208,7 @@ fun NowPlayingScreen(
         Row(Modifier.fillMaxWidth().padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.Speaker, null, tint = SoraMuted)
             Column(Modifier.padding(start = 10.dp).weight(1f)) {
-                Text("This phone", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("This phone", color = SoraText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 if (player.streamLabel.isNotBlank()) Text(player.streamLabel, color = SoraFaint, fontSize = 9.sp)
             }
             Text("Output", color = SoraMuted, fontSize = 10.sp)
@@ -217,7 +218,7 @@ fun NowPlayingScreen(
     if (queueOpen) {
         ModalBottomSheet(onDismissRequest = { queueOpen = false }, containerColor = Color(0xFF161614)) {
             Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 16.dp)) {
-                Text("Queue", fontSize = 20.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp))
+                Text("Queue", color = SoraText, fontSize = 20.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp))
                 if (player.queue.isEmpty()) {
                     Text("Nothing queued.", color = SoraMuted, modifier = Modifier.padding(18.dp))
                 } else {
@@ -233,7 +234,7 @@ fun NowPlayingScreen(
                                 if (!item.artworkUrl.isNullOrBlank()) AsyncImage(item.artworkUrl, item.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                             }
                             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                                Text(item.title, fontSize = 12.sp, fontWeight = if (index == player.currentIndex) FontWeight.Black else FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(item.title, color = SoraText, fontSize = 12.sp, fontWeight = if (index == player.currentIndex) FontWeight.Black else FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(item.subtitle, color = SoraMuted, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                             if (index == player.currentIndex) Icon(Icons.Rounded.GraphicEq, "Playing", tint = SoraAccent)
