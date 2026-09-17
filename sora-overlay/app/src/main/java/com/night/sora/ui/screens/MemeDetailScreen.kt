@@ -52,6 +52,7 @@ fun MemeDetailScreen(
     var error by remember(selection) { mutableStateOf<String?>(null) }
     var refreshNonce by remember { mutableIntStateOf(0) }
     val saved = isSaved(selection)
+    val isReddit = selection.extensionPackage.contains("reddit", ignoreCase = true)
 
     LaunchedEffect(selection, refreshNonce) {
         loading = true
@@ -137,8 +138,8 @@ fun MemeDetailScreen(
 
                 val sourceLine = buildList {
                     details.subreddit.takeIf(String::isNotBlank)?.let(::add)
-                    details.author.takeIf(String::isNotBlank)?.let { add("u/$it") }
-                    if (details.score > 0) add("${details.score} points")
+                    details.author.takeIf(String::isNotBlank)?.let { add(if (isReddit) "u/$it" else it) }
+                    if (details.score > 0) add(if (isReddit) "${details.score} points" else "${details.score} notes")
                     if (details.comments > 0) add("${details.comments} comments")
                 }.joinToString(" · ")
                 Text(
@@ -184,7 +185,7 @@ fun MemeDetailScreen(
 
                 if (details.permalink.isNotBlank()) {
                     TextButton(onClick = ::openSource, modifier = Modifier.padding(top = 8.dp)) {
-                        Text("Open original on Reddit")
+                        Text("Open original")
                         Spacer(Modifier.width(4.dp))
                         Icon(Icons.Rounded.OpenInNew, null, modifier = Modifier.size(16.dp))
                     }
