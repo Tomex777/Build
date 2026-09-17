@@ -47,7 +47,9 @@ new = '''    private fun requestJsonWithRetry(url: String): JSONObject {
                 connection.setRequestProperty("User-Agent", "Sora-Android/0.4")
                 val code = connection.responseCode
                 val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-                val body = stream?.let { BufferedReader(InputStreamReader(it)).use(BufferedReader::readText) }.orEmpty()
+                val body = stream?.let { input ->
+                    BufferedReader(InputStreamReader(input)).use { reader -> reader.readText() }
+                }.orEmpty()
                 val retryAfterSeconds = connection.getHeaderField("Retry-After")?.toLongOrNull()
                 connection.disconnect()
 
@@ -58,6 +60,7 @@ new = '''    private fun requestJsonWithRetry(url: String): JSONObject {
                     error("Jikan HTTP $code")
                 }
 
+                lastError = IllegalStateException("Jikan HTTP $code")
                 val serverDelayMs = retryAfterSeconds?.times(1_000L)
                 Thread.sleep(serverDelayMs ?: retryDelayMs(attempt))
             } catch (t: Throwable) {
