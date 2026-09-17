@@ -9,6 +9,7 @@ import android.os.Looper
 import android.os.Message
 import android.os.Messenger
 import android.util.Log
+import com.metrolist.innertube.YouTube
 import com.night.sora.extension.api.ExtensionContract
 import com.night.sora.extension.api.ExtensionDescriptor
 import com.night.sora.extension.api.ExtensionPermission
@@ -85,6 +86,15 @@ class YouTubeMusicExtensionService : Service() {
                                 YouTubeMusicSession.browserSession()
                             }
                             ExtensionSessionContract.METHOD_STORE_SESSION -> {
+                                // Apply the browser page identifiers before validating the cookie so
+                                // account_menu and the subsequent PoToken request see one coherent session.
+                                payload.optString("visitorData").trim().takeIf(String::isNotBlank)?.let {
+                                    YouTube.visitorData = it
+                                }
+                                payload.optString("dataSyncId").trim().substringBefore("||").takeIf(String::isNotBlank)?.let {
+                                    YouTube.dataSyncId = it
+                                }
+
                                 val stored = YouTubeMusicCatalog.storeSession(
                                     sourceId = sourceId,
                                     cookieHeader = normalizeYouTubeCookieHeader(payload.optString("cookieHeader")),
