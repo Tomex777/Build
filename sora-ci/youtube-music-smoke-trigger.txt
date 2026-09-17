@@ -1,1 +1,1 @@
-2026-09-17 probe broader anonymous YouTube client identities after runner LOGIN_REQUIRED challenge.
+2026-09-17 rerun YouTube Music runtime smoke after WEB_REMIX PoToken provider integration at branch head.
