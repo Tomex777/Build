@@ -1,0 +1,97 @@
+name: Night Mods Matched Framework CI
+
+on:
+  push:
+    branches:
+      - nightmods-ci
+    paths:
+      - 'nightmods/manager-overlay/**'
+      - 'nightmods/ci/prepare-libxposed-100.sh'
+      - '.github/workflows/nightmods-framework-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  matched-framework:
+    name: Build matched LSPosed ET framework and Night Mods manager
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout Night Mods source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Android SDK prerequisites
+        shell: bash
+        run: |
+          export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+          export ANDROID_HOME="$ANDROID_SDK_ROOT"
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+
+      - name: Publish exact libxposed API/service 100 locally
+        shell: bash
+        run: bash nightmods/ci/prepare-libxposed-100.sh
+
+      - name: Clone pinned LSPosed ET
+        shell: bash
+        run: |
+          git clone https://github.com/EzequielDevTeam/LSPosed-ET.git lsposed-et
+          cd lsposed-et
+          git checkout 22ff70d96190af6aad722c3731504fd26cf7299b
+          git config --global --add safe.directory '*'
+          git submodule update --init --depth 1
+          git -C external/lsplant rm -q --cached -r test || true
+          rm -rf external/lsplant/test
+          git -C external/lsplant submodule update --init --recursive --depth 1
+
+      - name: Apply Night Mods manager overlay
+        shell: bash
+        run: |
+          python3 nightmods/manager-overlay/apply_nightmods.py lsposed-et
+          grep -q 'org.lsposed.manager.ui.fragment.ModulesFragment' lsposed-et/app/src/main/res/navigation/modules_nav.xml
+          grep -q 'Night Mods' lsposed-et/app/src/main/res/values/strings_untranslatable.xml
+
+      - name: Build matched framework and manager
+        working-directory: lsposed-et
+        run: ./gradlew --no-daemon --stacktrace -Dorg.gradle.jvmargs="-Xmx5g -XX:MaxMetaspaceSize=1g" -Dorg.gradle.workers.max=2 zipAll
+
+      - name: Verify matched outputs
+        shell: bash
+        run: |
+          MANAGER="$(find lsposed-et/app/build/outputs -type f -name '*.apk' -print -quit)"
+          ZYGISK_DEBUG="$(find lsposed-et/magisk-loader/release -maxdepth 1 -type f -name 'LSPosed-*-zygisk-debug.zip' -print -quit)"
+          test -n "$MANAGER"
+          test -n "$ZYGISK_DEBUG"
+          AAPT="${ANDROID_SDK_ROOT}/build-tools/36.0.0/aapt"
+          "$AAPT" dump badging "$MANAGER" | tee matched-manager-badging.txt
+          grep -q "package: name='org.lsposed.manager'" matched-manager-badging.txt
+          grep -q "application-label:'Night Mods'" matched-manager-badging.txt
+          unzip -l "$ZYGISK_DEBUG" | tee matched-framework-files.txt
+          sha256sum "$MANAGER" "$ZYGISK_DEBUG" | tee matched-output-sha256.txt
+          mkdir -p matched-out
+          cp "$MANAGER" matched-out/Night-Mods-matched-manager.apk
+          cp "$ZYGISK_DEBUG" matched-out/Night-Mods-LSPosed-ET-zygisk-debug.zip
+
+      - name: Upload matched install pair
+        uses: actions/upload-artifact@v4
+        with:
+          name: Night-Mods-matched-framework-manager
+          path: |
+            matched-out/Night-Mods-matched-manager.apk
+            matched-out/Night-Mods-LSPosed-ET-zygisk-debug.zip
+            matched-output-sha256.txt
+            matched-manager-badging.txt
+            matched-framework-files.txt
+          if-no-files-found: error
+          retention-days: 3
