@@ -1,1 +1,1 @@
-run 5 - separate Jikan outage validation from true live Anime/Manga gate
+run 6 - validate per-tab partial recovery without weakening the full live gate
