@@ -1,0 +1,1 @@
+2026-09-17 keep process-wide music playback alive across activity disposal/recreation.
