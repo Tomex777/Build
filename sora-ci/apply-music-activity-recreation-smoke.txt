@@ -1,1 +1,1 @@
-2026-09-17 add Android activity-destruction/recreation coverage for process-wide Music playback.
+2026-09-17 retry Android activity-destruction/recreation coverage with current smoke anchor.
