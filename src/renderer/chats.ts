@@ -24,6 +24,61 @@ interface ChatBaileyApi {
   onChatMessage(listener: (message: ChatMessage) => void): () => void;
 }
 
+function mountChatsView(): void {
+  if (!document.querySelector('link[href="./chats.css"]')) {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "./chats.css";
+    document.head.append(link);
+  }
+
+  const nav = document.querySelector<HTMLElement>("#nav")!;
+  const configuration = nav.querySelector<HTMLButtonElement>('[data-view="configuration"]');
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "nav-item";
+  button.dataset.view = "chats";
+  button.textContent = "Chats";
+  nav.insertBefore(button, configuration ?? null);
+
+  const view = document.createElement("section");
+  view.className = "view view-wide";
+  view.id = "view-chats";
+  view.innerHTML = `
+    <div class="chat-shell">
+      <aside class="chat-sidebar">
+        <div class="chat-sidebar-head">
+          <h1>Chats</h1>
+          <input class="chat-search" id="chat-search" type="search" placeholder="Search cached chats" autocomplete="off" />
+        </div>
+        <div class="chat-list" id="chat-list"></div>
+      </aside>
+      <section class="conversation">
+        <header class="conversation-head">
+          <strong id="chat-title">Choose a chat</strong>
+          <span id="chat-subtitle">Messages Bailey receives while running are cached locally.</span>
+        </header>
+        <div class="chat-messages" id="chat-messages">
+          <div class="conversation-empty">Choose a conversation from the left. Bailey does not pull your full WhatsApp history automatically.</div>
+        </div>
+        <form class="chat-composer" id="chat-composer">
+          <textarea id="chat-input" rows="1" placeholder="Message" disabled></textarea>
+          <button class="primary-button" id="chat-send" type="submit" disabled>Send</button>
+          <span class="chat-composer-foot" id="chat-send-status">Enter sends · Shift+Enter adds a line</span>
+        </form>
+      </section>
+    </div>`;
+  document.querySelector<HTMLElement>("main.content")!.append(view);
+
+  button.addEventListener("click", () => {
+    for (const item of document.querySelectorAll<HTMLElement>(".nav-item")) item.classList.toggle("active", item === button);
+    for (const item of document.querySelectorAll<HTMLElement>(".view")) item.classList.toggle("active", item === view);
+    void renderChats();
+  });
+}
+
+mountChatsView();
+
 const bailey = (window as unknown as { bailey: ChatBaileyApi }).bailey;
 const list = document.querySelector<HTMLElement>("#chat-list")!;
 const search = document.querySelector<HTMLInputElement>("#chat-search")!;
