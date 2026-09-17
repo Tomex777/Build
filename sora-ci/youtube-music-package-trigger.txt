@@ -1,1 +1,1 @@
-2026-09-17 package completed Music pass with current Sora Core and external YouTube Music extension.
+2026-09-17 package final Music pass after source guard, resolver race fix, audio focus, noisy handling, and wake mode.
