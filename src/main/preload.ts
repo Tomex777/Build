@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("bailey", {
   setConfig: (key: string, value: unknown) => ipcRenderer.invoke("bailey:set-config", key, value),
   openStudioFile: () => ipcRenderer.invoke("bailey:studio-open-file"),
   saveStudioFile: (path: string, content: string) => ipcRenderer.invoke("bailey:studio-save-file", path, content),
+  openModulesFolder: () => ipcRenderer.invoke("bailey:studio-open-modules-folder"),
   getEngineStatus: () => ipcRenderer.invoke("bailey:engine-status"),
   checkEngineLatest: () => ipcRenderer.invoke("bailey:engine-check-latest"),
   installDefaultEngine: () => ipcRenderer.invoke("bailey:engine-install-default"),
