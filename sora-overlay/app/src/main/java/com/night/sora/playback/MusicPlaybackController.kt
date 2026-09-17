@@ -11,12 +11,18 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.night.sora.extension.ExtensionManager
 import com.night.sora.extension.InstalledExtension
 import com.night.sora.extension.api.ExtensionContract
 import com.night.sora.model.ExtensionMediaSelection
 import com.night.sora.model.PlaybackStream
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,7 +41,23 @@ class MusicPlaybackController(
 ) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val player = ExoPlayer.Builder(appContext).build()
+    private val streamHeaders = ConcurrentHashMap<String, Map<String, String>>()
+    private val upstreamDataSourceFactory = DefaultDataSource.Factory(
+        appContext,
+        DefaultHttpDataSource.Factory(),
+    )
+    private val resolvingDataSourceFactory = ResolvingDataSource.Factory(
+        upstreamDataSourceFactory,
+        object : ResolvingDataSource.Resolver {
+            override fun resolveDataSpec(dataSpec: DataSpec): DataSpec {
+                val headers = streamHeaders[dataSpec.uri.toString()].orEmpty()
+                return if (headers.isEmpty()) dataSpec else dataSpec.withAdditionalHeaders(headers)
+            }
+        },
+    )
+    private val player = ExoPlayer.Builder(appContext)
+        .setMediaSourceFactory(DefaultMediaSourceFactory(resolvingDataSourceFactory))
+        .build()
     private var requestSerial = 0L
     private var baseQueue: List<ExtensionMediaSelection> = emptyList()
     private var extensions: List<InstalledExtension> = emptyList()
@@ -217,17 +239,21 @@ class MusicPlaybackController(
                     return@launch
                 }
                 streamLabel = stream.label
+                streamHeaders.clear()
+                if (stream.headers.isNotEmpty()) {
+                    streamHeaders[stream.url] = stream.headers
+                }
                 val metadata = MediaMetadata.Builder()
                     .setTitle(track.title)
                     .setArtist(track.artistName())
                     .apply { track.artworkUrl?.takeIf(String::isNotBlank)?.let { setArtworkUri(Uri.parse(it)) } }
                     .build()
-                val item = MediaItem.Builder()
+                val itemBuilder = MediaItem.Builder()
                     .setUri(stream.url)
                     .setMediaId(track.identityKey())
                     .setMediaMetadata(metadata)
-                    .build()
-                player.setMediaItem(item)
+                stream.mimeType?.let(itemBuilder::setMimeType)
+                player.setMediaItem(itemBuilder.build())
                 player.prepare()
                 player.playWhenReady = true
                 loadLyrics(extension, track, requestId)
