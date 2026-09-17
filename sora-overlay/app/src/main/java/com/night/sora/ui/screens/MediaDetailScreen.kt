@@ -207,6 +207,7 @@ fun MediaDetailScreen(
 
     fun openMovie(row: DetailRow? = null) {
         if (active.type != ContentType.MOVIE || movieStreams.isEmpty()) return
+        val target = consumption ?: active.takeIf { selectionCanConsume(it, extensions) } ?: return
         val requested = row?.id?.removePrefix("movie-stream-")?.toIntOrNull() ?: 0
         val index = requested.coerceIn(0, movieStreams.lastIndex)
         onOpenPlayer(
@@ -217,7 +218,9 @@ fun MediaDetailScreen(
                 streams = movieStreams,
                 initialStream = index,
                 media = active,
-                itemId = active.id,
+                itemId = target.id,
+                consumptionSourceId = target.sourceId,
+                consumptionExtensionPackage = target.extensionPackage,
             )
         )
     }
@@ -245,6 +248,8 @@ fun MediaDetailScreen(
                             pages = pages,
                             media = active,
                             itemId = row.id,
+                            consumptionSourceId = target.sourceId,
+                            consumptionExtensionPackage = target.extensionPackage,
                         )
                     )
                 } else {
@@ -273,6 +278,8 @@ fun MediaDetailScreen(
                             streams = streams,
                             media = active,
                             itemId = row.id,
+                            consumptionSourceId = target.sourceId,
+                            consumptionExtensionPackage = target.extensionPackage,
                         )
                     )
                 } else {
@@ -922,7 +929,7 @@ private fun parseRows(type: ContentType, raw: String): List<DetailRow> = runCatc
     }
 }.getOrDefault(emptyList())
 
-private fun parsePlaybackStreams(raw: String): List<PlaybackStream> = runCatching {
+internal fun parsePlaybackStreams(raw: String): List<PlaybackStream> = runCatching {
     val array = JSONArray(raw)
     buildList {
         for (i in 0 until array.length()) {
@@ -955,7 +962,7 @@ private fun parsePlaybackStreams(raw: String): List<PlaybackStream> = runCatchin
     }.distinctBy { it.url }
 }.getOrDefault(emptyList())
 
-private fun parseReaderPages(raw: String): List<ReaderPage> = runCatching {
+internal fun parseReaderPages(raw: String): List<ReaderPage> = runCatching {
     val array = JSONArray(raw)
     buildList {
         for (i in 0 until array.length()) {

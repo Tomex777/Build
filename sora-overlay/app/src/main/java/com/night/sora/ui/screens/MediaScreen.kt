@@ -86,6 +86,7 @@ fun MediaScreen(
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
     onOpenExtensions: () -> Unit,
     onOpenDetails: (ExtensionMediaSelection) -> Unit,
+    onResumeProgress: (MediaProgressEntry) -> Unit,
     onPlayMusic: (ExtensionMediaSelection, List<ExtensionMediaSelection>) -> Unit,
 ) {
     val context = LocalContext.current
@@ -274,11 +275,12 @@ fun MediaScreen(
             destination == MediaDestination.ANIME_MANGA -> AnimeMangaSurface(
                 type = selectedType, rows = rows, popularRows = popularRows, upcomingRows = upcomingRows, topRows = topRows,
                 libraryEntries = libraryEntries, progressEntries = progressEntries, selection = ::selection, isSaved = isSaved,
-                onToggleSaved = onToggleSaved, onOpen = onOpenDetails,
+                onToggleSaved = onToggleSaved, onOpen = onOpenDetails, onResume = onResumeProgress,
             )
             destination == MediaDestination.MOVIES_TV -> MovieTvSurface(
                 type = selectedType, rows = rows, libraryEntries = libraryEntries, progressEntries = progressEntries,
                 selection = ::selection, isSaved = isSaved, onToggleSaved = onToggleSaved, onOpen = onOpenDetails,
+                onResume = onResumeProgress,
             )
             destination == MediaDestination.MUSIC -> MusicSurface(
                 panel = musicLocal, rows = rows, libraryEntries = libraryEntries, rankedTaste = rankedTaste,
@@ -382,10 +384,11 @@ private fun AnimeMangaSurface(
     isSaved: (ExtensionMediaSelection) -> Boolean,
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
     onOpen: (ExtensionMediaSelection) -> Unit,
+    onResume: (MediaProgressEntry) -> Unit,
 ) {
     val selected = rows.firstOrNull() ?: popularRows.firstOrNull() ?: topRows.firstOrNull()
     val saved = libraryEntries.filter { it.contentType == type }
-    val continued = progressEntries.filter { it.contentType == type }.sortedByDescending { it.updatedAt }
+    val continued = progressEntries.filter { it.contentType == type && it.progress < .999f }.sortedByDescending { it.updatedAt }
     val currentLabel = if (type == ContentType.ANIME) "Airing now" else "Publishing now"
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
         if (selected == null) item { EmptyFeatureShell(type) }
@@ -409,7 +412,7 @@ private fun AnimeMangaSurface(
                 if (type == ContentType.ANIME) "Continue watching" else "Continue reading",
                 "Real progress from your last session",
             )
-            ProgressLandscapeRail(continued, onOpen)
+            ProgressLandscapeRail(continued, onResume)
         }
         item {
             MediaSectionTitle("In your library", if (type == ContentType.ANIME) "Anime you saved in Sora" else "Manga you saved in Sora")
@@ -445,10 +448,11 @@ private fun MovieTvSurface(
     isSaved: (ExtensionMediaSelection) -> Boolean,
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
     onOpen: (ExtensionMediaSelection) -> Unit,
+    onResume: (MediaProgressEntry) -> Unit,
 ) {
     val selected = rows.firstOrNull()
     val saved = libraryEntries.filter { it.contentType == type }
-    val continued = progressEntries.filter { it.contentType == type }.sortedByDescending { it.updatedAt }
+    val continued = progressEntries.filter { it.contentType == type && it.progress < .999f }.sortedByDescending { it.updatedAt }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
         if (selected == null) item { EmptyFeatureShell(type) }
         if (selected != null) item {
@@ -462,7 +466,7 @@ private fun MovieTvSurface(
         }
         if (continued.isNotEmpty()) item {
             MediaSectionTitle("Continue watching", "Real playback progress from your last session")
-            ProgressLandscapeRail(continued, onOpen)
+            ProgressLandscapeRail(continued, onResume)
         }
         item {
             MediaSectionTitle("In your library", "${if (type == ContentType.MOVIE) "Movies" else "Series"} you saved in Sora")
@@ -765,10 +769,10 @@ private fun TopTenRail(rows: List<BrowseCard>, type: ContentType, selection: (Br
 }
 
 @Composable
-private fun ProgressLandscapeRail(entries: List<MediaProgressEntry>, onOpen: (ExtensionMediaSelection) -> Unit) {
+private fun ProgressLandscapeRail(entries: List<MediaProgressEntry>, onResume: (MediaProgressEntry) -> Unit) {
     LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
         items(entries.take(8), key = { "progress-${it.extensionPackage}-${it.sourceId}-${it.mediaId}" }) { entry ->
-            Column(Modifier.width(190.dp).clickable { onOpen(entry.toMediaSelection()) }) {
+            Column(Modifier.width(190.dp).clickable { onResume(entry) }) {
                 Box(Modifier.fillMaxWidth().height(107.dp).clip(RoundedCornerShape(7.dp)).background(SoraSurface)) {
                     if (!entry.artworkUrl.isNullOrBlank()) AsyncImage(entry.artworkUrl, entry.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                     LinearProgressIndicator(

@@ -75,6 +75,8 @@ data class MediaProgressEntry(
     val itemLabel: String,
     val position: Long,
     val total: Long,
+    val resumeSourceId: String = sourceId,
+    val resumeExtensionPackage: String = extensionPackage,
     val subtitle: String = "",
     val artworkUrl: String? = null,
     val updatedAt: Long = System.currentTimeMillis(),
@@ -154,6 +156,8 @@ data class ReaderSession(
     val initialPage: Int = 0,
     val media: ExtensionMediaSelection? = null,
     val itemId: String = "",
+    val consumptionSourceId: String = "",
+    val consumptionExtensionPackage: String = "",
 )
 
 /** One concrete stream resolved by a watch source extension. */
@@ -174,4 +178,6 @@ data class PlaybackSession(
     val initialPositionMs: Long = 0L,
     val media: ExtensionMediaSelection? = null,
     val itemId: String = "",
+    val consumptionSourceId: String = "",
+    val consumptionExtensionPackage: String = "",
 )

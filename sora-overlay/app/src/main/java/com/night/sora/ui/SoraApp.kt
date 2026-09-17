@@ -162,6 +162,16 @@ fun SoraApp() {
                     progressEntries = repository.mediaProgress,
                     isSaved = repository::isSaved, onToggleSaved = repository::toggleSaved,
                     onOpenExtensions = { push(AppScreen.Extensions) }, onOpenDetails = ::openMedia,
+                    onResumeProgress = { entry ->
+                        resumeMediaProgress(
+                            entry = entry,
+                            extensions = extensions,
+                            manager = extensionManager,
+                            onOpenReader = { push(AppScreen.Reader(it)) },
+                            onOpenPlayer = { push(AppScreen.VideoPlayer(it)) },
+                            onFallback = ::openMedia,
+                        )
+                    },
                     onPlayMusic = { track, queue -> musicPlayer.play(track, queue, extensions) },
                 )
                 RootTab.LIBRARY -> LibraryScreen(
@@ -232,7 +242,15 @@ fun SoraApp() {
                 onBack = ::pop,
                 onProgress = { session, page, total ->
                     session.media?.let { media ->
-                        repository.recordMediaProgress(media, session.itemId, session.chapterTitle, page.toLong(), total.toLong())
+                        repository.recordMediaProgress(
+                            media,
+                            session.itemId,
+                            session.chapterTitle,
+                            page.toLong(),
+                            total.toLong(),
+                            session.consumptionSourceId,
+                            session.consumptionExtensionPackage,
+                        )
                     }
                 },
             )
@@ -241,7 +259,15 @@ fun SoraApp() {
                 onBack = ::pop,
                 onProgress = { session, position, total ->
                     session.media?.let { media ->
-                        repository.recordMediaProgress(media, session.itemId, session.episodeTitle, position, total)
+                        repository.recordMediaProgress(
+                            media,
+                            session.itemId,
+                            session.episodeTitle,
+                            position,
+                            total,
+                            session.consumptionSourceId,
+                            session.consumptionExtensionPackage,
+                        )
                     }
                 },
             )

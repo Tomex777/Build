@@ -177,6 +177,8 @@ class CoreRepository(context: Context) {
         itemLabel: String,
         position: Long,
         total: Long,
+        resumeSourceId: String = selection.sourceId,
+        resumeExtensionPackage: String = selection.extensionPackage,
     ) {
         if (selection.type !in setOf(ContentType.ANIME, ContentType.MANGA, ContentType.MOVIE, ContentType.TV)) return
         if (total <= 0L) return
@@ -192,6 +194,8 @@ class CoreRepository(context: Context) {
             itemLabel = itemLabel.ifBlank { selection.title },
             position = safePosition,
             total = total,
+            resumeSourceId = resumeSourceId.ifBlank { selection.sourceId },
+            resumeExtensionPackage = resumeExtensionPackage.ifBlank { selection.extensionPackage },
             subtitle = selection.subtitle,
             artworkUrl = selection.artworkUrl,
             updatedAt = System.currentTimeMillis(),
@@ -399,6 +403,8 @@ class CoreRepository(context: Context) {
                     itemLabel = item.optString("itemLabel"),
                     position = item.optLong("position"),
                     total = item.optLong("total"),
+                    resumeSourceId = item.optString("resumeSourceId").ifBlank { item.getString("sourceId") },
+                    resumeExtensionPackage = item.optString("resumeExtensionPackage").ifBlank { item.getString("extensionPackage") },
                     subtitle = item.optString("subtitle"),
                     artworkUrl = item.optNullableString("artworkUrl"),
                     updatedAt = item.optLong("updatedAt"),
@@ -420,6 +426,8 @@ class CoreRepository(context: Context) {
                 put("itemLabel", entry.itemLabel)
                 put("position", entry.position)
                 put("total", entry.total)
+                put("resumeSourceId", entry.resumeSourceId)
+                put("resumeExtensionPackage", entry.resumeExtensionPackage)
                 put("subtitle", entry.subtitle)
                 putNullable("artworkUrl", entry.artworkUrl)
                 put("updatedAt", entry.updatedAt)
