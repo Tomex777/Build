@@ -690,13 +690,22 @@ private fun TranslationMenu(
 ) {
     var sheetOpen by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
-    val visibleTranslations = remember(query, translations) {
+    val visibleTranslations = remember(query, translations, selected.id) {
         val needle = query.trim()
-        if (needle.isBlank()) translations else translations.filter { translation ->
-            translation.shortLabel.contains(needle, ignoreCase = true) ||
-                translation.name.contains(needle, ignoreCase = true) ||
-                translation.language.contains(needle, ignoreCase = true)
-        }
+        translations
+            .filter { translation ->
+                needle.isBlank() ||
+                    translation.shortLabel.contains(needle, ignoreCase = true) ||
+                    translation.name.contains(needle, ignoreCase = true) ||
+                    translation.language.contains(needle, ignoreCase = true)
+            }
+            .sortedWith(
+                compareBy<BibleTranslation>(
+                    { if (it.id == selected.id) 0 else 1 },
+                    { if (it.language.contains("English", ignoreCase = true)) 0 else 1 },
+                    { it.name.lowercase() },
+                )
+            )
     }
 
     Surface(
