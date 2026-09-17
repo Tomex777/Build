@@ -92,6 +92,9 @@ fun MediaScreen(
     var selectedType by remember { mutableStateOf(ContentType.ANIME) }
     var musicLocal by remember { mutableStateOf(MusicLocal.HOME) }
     var rows by remember { mutableStateOf(mediaCache.read(ContentType.ANIME).map { it.toBrowseCard() }) }
+    var popularRows by remember { mutableStateOf<List<BrowseCard>>(emptyList()) }
+    var upcomingRows by remember { mutableStateOf<List<BrowseCard>>(emptyList()) }
+    var topRows by remember { mutableStateOf<List<BrowseCard>>(emptyList()) }
     var searchOpen by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var switchOpen by remember { mutableStateOf(false) }
@@ -138,6 +141,28 @@ fun MediaScreen(
         subtitle = card.subtitle,
         artworkUrl = card.artworkUrl,
     )
+
+    fun loadJikanFeed(feed: String, requestType: ContentType, onResult: (List<BrowseCard>) -> Unit) {
+        if (requestType != ContentType.ANIME && requestType != ContentType.MANGA) {
+            onResult(emptyList())
+            return
+        }
+        val key = typeKey(requestType)
+        val ext = extensions.firstOrNull { it.error == null && it.declaredId == "sora.core.jikan" }
+        val source = ext?.descriptor?.sources?.firstOrNull { key in it.contentTypes }
+        if (ext == null || source == null) {
+            onResult(emptyList())
+            return
+        }
+        val payload = JSONObject()
+            .put("sourceId", source.id)
+            .put("type", key)
+            .put("feed", feed)
+            .toString()
+        manager.call(ext, ExtensionContract.Method.BROWSE, payload) { result ->
+            onResult(result.getOrNull()?.let { parseBrowse(it, source.id, ext.packageName) }.orEmpty())
+        }
+    }
 
     fun load(search: String) {
         if (destination == MediaDestination.BIBLE) {
@@ -191,6 +216,24 @@ fun MediaScreen(
         load(query)
     }
 
+    LaunchedEffect(selectedType, extensions, destination, networkEpoch) {
+        popularRows = emptyList()
+        upcomingRows = emptyList()
+        topRows = emptyList()
+        if (destination != MediaDestination.ANIME_MANGA) return@LaunchedEffect
+        if (selectedType != ContentType.ANIME && selectedType != ContentType.MANGA) return@LaunchedEffect
+        val requestType = selectedType
+        loadJikanFeed("popular", requestType) { result ->
+            if (destination == MediaDestination.ANIME_MANGA && selectedType == requestType) popularRows = result
+        }
+        loadJikanFeed("upcoming", requestType) { result ->
+            if (destination == MediaDestination.ANIME_MANGA && selectedType == requestType) upcomingRows = result
+        }
+        loadJikanFeed("top", requestType) { result ->
+            if (destination == MediaDestination.ANIME_MANGA && selectedType == requestType) topRows = result
+        }
+    }
+
     Column(modifier.fillMaxSize()) {
         MediaTopBar(
             title = destination.label,
@@ -226,8 +269,9 @@ fun MediaScreen(
             destination == MediaDestination.BIBLE -> BibleHubContent(Modifier.fillMaxSize())
             query.isNotBlank() -> SearchResultsSurface(rows, selectedType, ::selection, onOpenDetails, onPlayMusic)
             destination == MediaDestination.ANIME_MANGA -> AnimeMangaSurface(
-                type = selectedType, rows = rows, libraryEntries = libraryEntries,
-                selection = ::selection, isSaved = isSaved, onToggleSaved = onToggleSaved, onOpen = onOpenDetails,
+                type = selectedType, rows = rows, popularRows = popularRows, upcomingRows = upcomingRows, topRows = topRows,
+                libraryEntries = libraryEntries, selection = ::selection, isSaved = isSaved,
+                onToggleSaved = onToggleSaved, onOpen = onOpenDetails,
             )
             destination == MediaDestination.MOVIES_TV -> MovieTvSurface(
                 type = selectedType, rows = rows, libraryEntries = libraryEntries,
@@ -323,51 +367,58 @@ private fun LocalTabs(labels: List<String>, selected: Int, onSelect: (Int) -> Un
 private fun AnimeMangaSurface(
     type: ContentType,
     rows: List<BrowseCard>,
+    popularRows: List<BrowseCard>,
+    upcomingRows: List<BrowseCard>,
+    topRows: List<BrowseCard>,
     libraryEntries: List<LibraryEntry>,
     selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
     isSaved: (ExtensionMediaSelection) -> Boolean,
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
     onOpen: (ExtensionMediaSelection) -> Unit,
 ) {
-    val selected = rows.firstOrNull()
-    val continued = libraryEntries.filter { it.contentType == type }
+    val selected = rows.firstOrNull() ?: popularRows.firstOrNull() ?: topRows.firstOrNull()
+    val saved = libraryEntries.filter { it.contentType == type }
+    val currentLabel = if (type == ContentType.ANIME) "Airing now" else "Publishing now"
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
         if (selected == null) item { EmptyFeatureShell(type) }
         if (selected != null) item {
+            val selectedMedia = selection(selected, type)
             StreamFeature(
                 card = selected,
-                kicker = if (type == ContentType.ANIME) "Featured anime" else "Featured manga",
-                body = if (type == ContentType.ANIME) "Continue the anime without mixing it with your manga progress." else "Pick up your reading progress directly from the chapter you left.",
-                primaryLabel = if (type == ContentType.ANIME) "Continue" else "Read",
-                selection = selection(selected, type), isSaved = isSaved(selection(selected, type)), onToggleSaved = onToggleSaved, onOpen = onOpen,
+                kicker = currentLabel,
+                body = selected.subtitle.ifBlank {
+                    if (type == ContentType.ANIME) "Currently airing in the Sora catalog." else "Currently publishing in the Sora catalog."
+                },
+                primaryLabel = "Open",
+                selection = selectedMedia,
+                isSaved = isSaved(selectedMedia),
+                onToggleSaved = onToggleSaved,
+                onOpen = onOpen,
             )
         }
         item {
-            MediaSectionTitle(if (type == ContentType.ANIME) "Continue watching" else "Continue reading", "Right where you stopped")
-            if (continued.isNotEmpty()) ContinueLandscapeRail(continued, onOpen)
-            else HintLine(if (type == ContentType.ANIME) "Your watching progress will appear here." else "Your reading progress will appear here.")
+            MediaSectionTitle("In your library", if (type == ContentType.ANIME) "Anime you saved in Sora" else "Manga you saved in Sora")
+            if (saved.isNotEmpty()) ContinueLandscapeRail(saved, onOpen)
+            else HintLine(if (type == ContentType.ANIME) "Saved anime will appear here." else "Saved manga will appear here.")
+        }
+        if (popularRows.isNotEmpty()) item {
+            MediaSectionTitle("Popular now", if (type == ContentType.ANIME) "Popular anime from the catalog" else "Popular manga from the catalog")
+            PortraitRail(popularRows, type, selection, onOpen)
+        }
+        if (upcomingRows.isNotEmpty()) item {
+            MediaSectionTitle(if (type == ContentType.ANIME) "Upcoming anime" else "Upcoming manga", "Titles coming next")
+            NewHotStack(upcomingRows.take(4), type, selection, onOpen)
+        }
+        if (topRows.isNotEmpty()) item {
+            MediaSectionTitle("Top 10 ${type.label.lowercase()}", "Highest-ranked titles from the catalog")
+            TopTenRail(topRows.take(10), type, selection, onOpen)
+        }
+        if (rows.isNotEmpty()) item {
+            MediaSectionTitle(currentLabel, if (type == ContentType.ANIME) "Anime currently airing" else "Manga currently publishing")
+            PortraitRail(rows, type, selection, onOpen)
         }
         item {
-            MediaSectionTitle(
-                if (type == ContentType.ANIME) "Because you watched ${selected?.title ?: "anime"}" else "Because you read ${selected?.title ?: "manga"}",
-                if (type == ContentType.ANIME) "More you might like" else "More you might like",
-            )
-            PortraitRail(rows.drop(1).ifEmpty { rows }, type, selection, onOpen)
-        }
-        item {
-            MediaSectionTitle("New & hot", if (type == ContentType.ANIME) "Fresh episodes and upcoming releases" else "Fresh chapters and upcoming releases")
-            NewHotStack(rows.take(3), type, selection, onOpen)
-        }
-        item {
-            MediaSectionTitle("Top 10 ${type.label.lowercase()} today", if (type == ContentType.ANIME) "Trending now" else "Popular today")
-            TopTenRail(rows, type, selection, onOpen)
-        }
-        item {
-            MediaSectionTitle(if (type == ContentType.ANIME) "New episodes" else "Recently updated", if (type == ContentType.ANIME) "Fresh episodes" else "New chapters from your library")
-            PortraitRail(rows.reversed(), type, selection, onOpen)
-        }
-        item {
-            MediaSectionTitle("Browse by mood", "Jump straight to a vibe")
+            MediaSectionTitle("Browse by mood", "Explore a genre from Search")
             GenreRail(if (type == ContentType.ANIME) listOf("Dark", "Funny", "Psychological", "Adventure", "Romance", "Slice of life") else listOf("Drama", "Psychological", "Action", "Romance", "Mystery", "Slice of life"))
         }
     }
@@ -384,26 +435,28 @@ private fun MovieTvSurface(
     onOpen: (ExtensionMediaSelection) -> Unit,
 ) {
     val selected = rows.firstOrNull()
-    val continued = libraryEntries.filter { it.contentType == type }
+    val saved = libraryEntries.filter { it.contentType == type }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
         if (selected == null) item { EmptyFeatureShell(type) }
         if (selected != null) item {
             StreamFeature(
                 card = selected,
                 kicker = if (type == ContentType.MOVIE) "Featured movie" else "Featured series",
-                body = selected.subtitle.ifBlank { "Ready when you are" },
-                primaryLabel = "Play",
+                body = selected.subtitle.ifBlank { "From your active catalog source" },
+                primaryLabel = "Open",
                 selection = selection(selected, type), isSaved = isSaved(selection(selected, type)), onToggleSaved = onToggleSaved, onOpen = onOpen,
             )
         }
         item {
-            MediaSectionTitle("Continue watching", "Right where you stopped")
-            if (continued.isNotEmpty()) ContinueLandscapeRail(continued, onOpen) else HintLine("Your movie and series progress will appear here.")
+            MediaSectionTitle("In your library", "${if (type == ContentType.MOVIE) "Movies" else "Series"} you saved in Sora")
+            if (saved.isNotEmpty()) ContinueLandscapeRail(saved, onOpen) else HintLine("Saved titles will appear here.")
         }
-        item { MediaSectionTitle("Top 10 ${if (type == ContentType.MOVIE) "movies" else "series"} today", "Popular today"); TopTenRail(rows, type, selection, onOpen) }
-        item { MediaSectionTitle("Trending now", "What people are watching"); PortraitRail(rows, type, selection, onOpen) }
-        item { MediaSectionTitle("New & popular", "Fresh additions and returning favourites"); PortraitRail(rows.reversed(), type, selection, onOpen) }
-        item { MediaSectionTitle("Browse by mood", "Pick a lane"); GenreRail(listOf("Thriller", "Drama", "Comedy", "Sci-fi", "Crime", "Documentary")) }
+        if (rows.isNotEmpty()) {
+            item { MediaSectionTitle("Featured picks", "From your active catalog source"); PortraitRail(rows, type, selection, onOpen) }
+            item { MediaSectionTitle("More to watch", "More titles from the same source"); PortraitRail(rows.drop(6).ifEmpty { rows }, type, selection, onOpen) }
+            item { MediaSectionTitle("10 picks", "A quick shortlist from your source"); TopTenRail(rows.take(10), type, selection, onOpen) }
+        }
+        item { MediaSectionTitle("Browse by mood", "Explore a genre from Search"); GenreRail(listOf("Thriller", "Drama", "Comedy", "Sci-fi", "Crime", "Documentary")) }
     }
 }
 

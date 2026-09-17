@@ -68,7 +68,7 @@ class JikanCatalogService : Service() {
                 ExtensionContract.Method.BROWSE -> {
                     val type = typeFromPayload(payload)
                     if (type == null) sendError(reply, requestId, "Jikan supports Anime and Manga only")
-                    else client.browse(type) { result -> sendCatalogResult(reply, requestId, result) }
+                    else client.browse(type, payload.optString("feed")) { result -> sendCatalogResult(reply, requestId, result) }
                 }
                 ExtensionContract.Method.SEARCH -> {
                     val type = typeFromPayload(payload)

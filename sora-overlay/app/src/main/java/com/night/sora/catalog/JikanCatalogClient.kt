@@ -41,11 +41,22 @@ class JikanCatalogClient {
         val genres: List<String>,
     )
 
-    fun browse(type: ContentType, callback: (Result<List<CatalogItem>>) -> Unit) {
+    fun browse(type: ContentType, feed: String = "", callback: (Result<List<CatalogItem>>) -> Unit) {
         requireJikanType(type)
+        val cleanFeed = feed.trim().lowercase()
         val endpoint = when (type) {
-            ContentType.ANIME -> "$BASE_URL/top/anime?filter=airing&limit=25&sfw=true"
-            ContentType.MANGA -> "$BASE_URL/top/manga?limit=25"
+            ContentType.ANIME -> when (cleanFeed) {
+                "popular" -> "$BASE_URL/top/anime?filter=bypopularity&limit=25&sfw=true"
+                "upcoming" -> "$BASE_URL/top/anime?filter=upcoming&limit=25&sfw=true"
+                "top" -> "$BASE_URL/top/anime?limit=25&sfw=true"
+                else -> "$BASE_URL/top/anime?filter=airing&limit=25&sfw=true"
+            }
+            ContentType.MANGA -> when (cleanFeed) {
+                "popular" -> "$BASE_URL/top/manga?filter=bypopularity&limit=25"
+                "upcoming" -> "$BASE_URL/top/manga?filter=upcoming&limit=25"
+                "top" -> "$BASE_URL/top/manga?limit=25"
+                else -> "$BASE_URL/top/manga?filter=publishing&limit=25"
+            }
             else -> error("Unsupported Jikan type: $type")
         }
         request(endpoint) { result ->
