@@ -98,6 +98,33 @@ PY
   sleep 2
 }
 
+rapid_double_tap_text() {
+  local label="$1"
+  dump_ui
+  python3 - "$label" <<'PY'
+import re, subprocess, sys, time, xml.etree.ElementTree as ET
+label=sys.argv[1]
+root=ET.parse('/tmp/sora-music-window.xml').getroot()
+points=[]
+for node in root.iter('node'):
+    text=(node.attrib.get('text') or '').strip()
+    desc=(node.attrib.get('content-desc') or '').strip()
+    if text != label and desc != label:
+        continue
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+    if m:
+        x1,y1,x2,y2=map(int,m.groups())
+        points.append(((x1+x2)//2,(y1+y2)//2))
+if not points:
+    raise SystemExit(f'UI node not found: {label}')
+x,y=points[0]
+subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
+time.sleep(0.25)
+subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
+PY
+  sleep 2
+}
+
 tap_media_tab() {
   if node_exists Media; then
     tap_text Media
@@ -153,10 +180,9 @@ wait_for_node Pause 20
 shot 06-next-track
 
 # Standard music-player semantics: Previous after >3s restarts the current
-# track. A second press then moves to the previous queue item. Two presses are
-# valid in both cases (if the first already moved, the second stays at index 0).
-tap_text Previous
-tap_text Previous
+# track. The second press must land inside the 3s threshold so it can move to
+# the prior queue item. Use one UI dump and two direct taps 250ms apart.
+rapid_double_tap_text Previous
 wait_for_node 'Low Light' 20
 wait_for_node Pause 20
 shot 07-previous-track
