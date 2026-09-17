@@ -1,0 +1,60 @@
+name: Sora Memes + Bible CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [sora-memes-bible-ci]
+    paths:
+      - 'sora-overlay/**'
+      - 'sora-ci/memes-bible-trigger.txt'
+      - '.github/workflows/sora-memes-bible-ci.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct current Sora source
+        run: |
+          rm -rf /tmp/sora-src /tmp/sora.zip
+          cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/sora.zip
+          unzip -q /tmp/sora.zip -d /tmp/sora-src
+          ROOT=/tmp/sora-src/Sora_Android_v0_1
+          test -f "$ROOT/settings.gradle.kts"
+          cp -R sora-overlay/. "$ROOT/"
+          test -f "$ROOT/app/src/main/java/com/night/sora/data/BibleRepository.kt"
+          test -f "$ROOT/app/src/main/java/com/night/sora/ui/screens/BibleScreen.kt"
+          test -f "$ROOT/meme-extension/src/main/java/com/night/sora/memeextension/RedditMemeCatalog.kt"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android 36 SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 12266719
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+      - name: Build Sora Core and Reddit meme extension
+        working-directory: /tmp/sora-src/Sora_Android_v0_1
+        run: gradle --stacktrace :app:assembleDebug :meme-extension:assembleDebug
+      - name: Smoke-check live endpoints
+        run: |
+          curl -fsSL --retry 2 --max-time 15 -A 'android:com.night.sora.ext.memes.reddit:0.1 (Sora private media client)' 'https://www.reddit.com/r/memes/hot.json?raw_json=1&limit=2' | grep -q '"children"'
+          curl -fsSL --retry 2 --max-time 15 'https://bible-api.com/data' | grep -q '"translations"'
+          curl -fsSL --retry 2 --max-time 15 'https://bible-api.com/John%203?translation=web&single_chapter_book_matching=indifferent' | grep -q '"verses"'
+      - name: Prepare artifacts
+        run: |
+          cp /tmp/sora-src/Sora_Android_v0_1/app/build/outputs/apk/debug/app-debug.apk /tmp/Sora-Memes-Bible-debug.apk
+          cp /tmp/sora-src/Sora_Android_v0_1/meme-extension/build/outputs/apk/debug/meme-extension-debug.apk /tmp/Sora-Reddit-Memes-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sora-memes-bible-apks
+          path: |
+            /tmp/Sora-Memes-Bible-debug.apk
+            /tmp/Sora-Reddit-Memes-debug.apk
+          if-no-files-found: error
+          retention-days: 3
