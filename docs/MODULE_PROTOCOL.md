@@ -31,7 +31,7 @@ Bailey Host → Studio → **Open modules folder** opens this location. Studio c
     "command": "python",
     "args": ["main.py"]
   },
-  "capabilities": ["commands", "settings"],
+  "capabilities": ["commands", "settings", "events"],
   "settings": [
     {
       "key": "currency",
@@ -54,6 +54,8 @@ Bailey Host → Studio → **Open modules folder** opens this location. Studio c
 ```
 
 `runtime.command` is launched directly without a shell.
+
+Supported capability names are currently `commands`, `settings`, `events`, `jobs`, and `services`. `events` is active in Protocol 1 now. `jobs` and `services` are reserved capability names for the next host layers; declaring them does not yet create schedules or service endpoints by itself.
 
 ### Runtime choices
 
@@ -85,7 +87,31 @@ When a module command runs, Bailey writes one JSON line to stdin:
 {"protocol":1,"id":"request-id","type":"command.execute","commandId":"balance","context":{"remoteJid":"...","senderJid":"...","text":".balance","args":[]}}
 ```
 
-The process may stay alive and handle many requests. Bailey currently waits up to 30 seconds for each command response.
+The process may stay alive and handle many requests. Bailey currently waits up to 30 seconds for each response.
+
+## Incoming-message event
+
+A module that declares the `events` capability receives ordinary incoming WhatsApp messages, not only command messages.
+
+Bailey sends:
+
+```json
+{"protocol":1,"id":"request-id","type":"event.dispatch","event":"message.received","context":{"remoteJid":"...","senderJid":"...","text":"hello","pushName":"Ada","timestamp":1789674000}}
+```
+
+Important behavior:
+
+- Events are opt-in. A module without `"events"` in `capabilities` does not receive them.
+- Messages sent by the bot itself are not dispatched as `message.received` events.
+- Event delivery is independent of command parsing, so a command message may also be seen as an ordinary message event by an event-enabled module.
+- The module must send a response for every event request, even when it wants to do nothing. Use an empty `actions` array in that case.
+- A disabled Bailey module receives neither commands nor passive message events.
+
+Example no-op event response:
+
+```json
+{"protocol":1,"replyTo":"request-id","ok":true,"actions":[]}
+```
 
 ## Response
 
@@ -101,6 +127,8 @@ Supported actions in Protocol 1 today:
 - `{"type":"react","emoji":"✅"}` — react to the triggering message.
 - `{"type":"log","level":"info","message":"..."}` — write a module log line. `level` may be `debug`, `info`, `warn`, or `error`.
 
+The same action format is used for command responses and event responses. Bailey remains the only layer that performs WhatsApp actions.
+
 For failures:
 
 ```json
@@ -111,8 +139,9 @@ For failures:
 
 - Do not import or manipulate Lia Baileys from an external module.
 - Do not read Bailey's WhatsApp auth/session directory.
-- Treat the request context as data and return actions for Bailey to perform.
+- Treat request context as data and return actions for Bailey to perform.
 - Keep protocol messages on stdout. Use stderr for diagnostic output; Bailey records it as module diagnostics.
 - One line on stdout must contain one complete JSON protocol message.
+- Event handlers should return quickly. Long-running work belongs in the upcoming jobs/services layers rather than blocking message-event responses.
 
-The protocol is intentionally small. Future versions can add media actions, richer storage APIs, events, scheduled jobs and services without tying module code to a specific WhatsApp-engine fork.
+The protocol stays intentionally small. Media actions, scheduled jobs, host services, and richer storage APIs can be layered on without tying module code to a specific WhatsApp-engine fork.
