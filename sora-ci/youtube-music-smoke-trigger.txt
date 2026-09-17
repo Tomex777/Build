@@ -1,1 +1,1 @@
-2026-09-17 rerun YouTube Music with bounded native client fallbacks and preserved resolver logs.
+2026-09-17 rerun YouTube Music with launcher disabled, bounded native fallbacks, and preserved resolver logs.
