@@ -51,13 +51,26 @@ wait_for_node() {
   return 1
 }
 
-assert_absent() {
-  local label="$1"
-  if node_exists "$label"; then
-    echo "Unexpected UI node present: $label" >&2
-    shot "failure-unexpected-${label//[^A-Za-z0-9]/_}"
-    return 1
-  fi
+# Returns 0 for a real catalog surface, 2 for the honest unavailable state,
+# and 1 only when neither state appears. This lets a tab recover independently
+# while Jikan is degraded without turning real recovery into a false failure.
+wait_for_catalog_state() {
+  local timeout="${1:-50}" elapsed=0
+  while (( elapsed < timeout )); do
+    if node_exists Details; then
+      echo "Catalog recovered with real rows after ${elapsed}s"
+      return 0
+    fi
+    if node_exists 'Catalog unavailable'; then
+      echo "Catalog is truthfully unavailable after ${elapsed}s"
+      return 2
+    fi
+    sleep 1
+    elapsed=$((elapsed+1))
+  done
+  echo 'Timed out waiting for either real catalog rows or the unavailable state' >&2
+  shot failure-catalog-state
+  return 1
 }
 
 tap_text() {
@@ -99,23 +112,34 @@ tap_text Media
 wait_for_node 'Anime & Manga' 12
 shot 01-anime-initial
 
-# When GitHub's runner cannot reach Jikan, validate the real outage UI instead
-# of pretending the app failed because live catalog rows cannot exist. This is
-# intentionally not considered a live-data validation by the workflow.
+# A failed preflight does not mean every Jikan endpoint stays down. Validate
+# each tab independently: either it exposes real Jikan rows, or it shows the
+# honest retryable unavailable state. This degraded-path pass never authorizes
+# the workflow to commit the implementation as fully live-validated.
 if [[ "${JIKAN_HEALTHY:-0}" != "1" ]]; then
-  wait_for_node 'Catalog unavailable' 45
-  wait_for_node Retry 10
-  assert_absent Details
-  shot 02-anime-outage
+  if wait_for_catalog_state 50; then
+    wait_for_node 'Airing now' 45
+    shot 02-anime-partial-recovery
+  else
+    rc=$?
+    if [[ "$rc" -ne 2 ]]; then exit "$rc"; fi
+    wait_for_node Retry 10
+    shot 02-anime-outage
+  fi
 
   wait_for_node Manga 10
   tap_text Manga
-  wait_for_node 'Catalog unavailable' 45
-  wait_for_node Retry 10
-  assert_absent Details
-  shot 03-manga-outage
+  if wait_for_catalog_state 60; then
+    wait_for_node 'Publishing now' 45
+    shot 03-manga-partial-recovery
+  else
+    rc=$?
+    if [[ "$rc" -ne 2 ]]; then exit "$rc"; fi
+    wait_for_node Retry 10
+    shot 03-manga-outage
+  fi
 
-  echo 'Sora Anime/Manga honest Jikan-outage emulator smoke passed; live-data gate remains pending.'
+  echo 'Sora Anime/Manga degraded-Jikan emulator smoke passed; full live-data gate remains pending.'
   exit 0
 fi
 
