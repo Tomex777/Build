@@ -87,6 +87,28 @@ export interface ExternalLifecycleRequest {
 
 export type ExternalModuleRequest = ExternalCommandRequest | ExternalEventRequest | ExternalJobRequest | ExternalLifecycleRequest;
 
+/** A module-originated request for a host-owned service. */
+export interface ExternalHostCall {
+  protocol: typeof BAILEY_MODULE_PROTOCOL;
+  id: string;
+  type: "host.call";
+  service: string;
+  method: string;
+  params?: unknown;
+}
+
+/** Bailey's response to a module-originated host.call. */
+export interface ExternalHostResult {
+  protocol: typeof BAILEY_MODULE_PROTOCOL;
+  type: "host.result";
+  replyTo: string;
+  ok: boolean;
+  result?: unknown;
+  error?: string;
+}
+
+export type ExternalModuleInput = ExternalModuleRequest | ExternalHostResult;
+
 export type ExternalModuleAction =
   | { type: "reply"; text: string }
   | { type: "react"; emoji: string }
@@ -101,8 +123,12 @@ export interface ExternalModuleResponse {
   error?: string;
 }
 
+export type ExternalModuleOutput = ExternalModuleResponse | ExternalHostCall;
+
 const MODULE_ID = /^[a-z0-9][a-z0-9.-]*$/;
 const COMMAND_NAME = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+const SERVICE_NAME = /^[a-z0-9][a-z0-9.-]{0,63}$/;
+const SERVICE_METHOD = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 const CAPABILITIES = new Set<ExternalModuleCapability>(["commands", "settings", "events", "jobs", "storage", "services"]);
 const MIN_JOB_INTERVAL_SECONDS = 5;
 const MAX_JOB_INTERVAL_SECONDS = 30 * 24 * 60 * 60;
@@ -163,6 +189,17 @@ export function parseExternalModuleManifest(raw: unknown): ExternalModuleManifes
   }
 
   return input as ExternalModuleManifest;
+}
+
+export function parseExternalHostCall(raw: unknown): ExternalHostCall {
+  if (!raw || typeof raw !== "object") throw new Error("Host service call must be a JSON object.");
+  const call = raw as Partial<ExternalHostCall>;
+  if (call.protocol !== BAILEY_MODULE_PROTOCOL) throw new Error("Host service call uses an unsupported protocol version.");
+  if (call.type !== "host.call") throw new Error("Output is not a host service call.");
+  if (typeof call.id !== "string" || !call.id.trim()) throw new Error("Host service call is missing id.");
+  if (typeof call.service !== "string" || !SERVICE_NAME.test(call.service)) throw new Error("Host service name is invalid.");
+  if (typeof call.method !== "string" || !SERVICE_METHOD.test(call.method)) throw new Error("Host service method is invalid.");
+  return call as ExternalHostCall;
 }
 
 export function parseExternalModuleResponse(raw: unknown): ExternalModuleResponse {
