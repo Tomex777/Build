@@ -80,7 +80,7 @@ fun HomeScreen(
         )
     }
     var music by remember { mutableStateOf(cachedHomeType(mediaCache, ContentType.MUSIC).take(8)) }
-    var memes by remember { mutableStateOf(cachedHomeType(mediaCache, ContentType.MEME).take(4)) }
+    var memes by remember { mutableStateOf<List<HomeBrowseCard>>(emptyList()) }
 
     DisposableEffect(context) {
         val connectivity = context.getSystemService(ConnectivityManager::class.java)
@@ -366,9 +366,11 @@ private fun loadHomeType(
             if (completed == providers.size) {
                 val fresh = collected.flatten().distinctBy { it.title.trim().lowercase() }
                 if (fresh.isNotEmpty()) {
-                    cache.write(type, fresh.map { CachedMediaRecord(it.id, it.title, it.subtitle, it.artworkUrl, it.sourceId, it.extensionPackage) })
+                    if (type != ContentType.MEME) {
+                        cache.write(type, fresh.map { CachedMediaRecord(it.id, it.title, it.subtitle, it.artworkUrl, it.sourceId, it.extensionPackage) })
+                    }
                     callback(fresh)
-                } else callback(cached)
+                } else callback(if (type == ContentType.MEME) emptyList() else cached)
             }
         }
     }

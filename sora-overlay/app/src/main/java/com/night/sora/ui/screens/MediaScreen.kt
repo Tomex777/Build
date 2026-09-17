@@ -103,6 +103,8 @@ fun MediaScreen(
     var query by remember { mutableStateOf("") }
     var switchOpen by remember { mutableStateOf(false) }
     var networkEpoch by remember { mutableIntStateOf(0) }
+    var memeLoading by remember { mutableStateOf(false) }
+    var memeError by remember { mutableStateOf<String?>(null) }
 
     val engine = remember { MusicTasteEngine() }
     val rankedTaste = remember(listeningSignals) { engine.ranked(listeningSignals, System.currentTimeMillis()) }
@@ -177,8 +179,18 @@ fun MediaScreen(
         val requestType = selectedType
         val requestDestination = destination
         val requestQuery = search.trim()
-        val cached = if (requestQuery.isBlank()) mediaCache.read(requestType) else mediaCache.search(requestType, requestQuery)
+        val cached = if (requestType == ContentType.MEME) {
+            emptyList()
+        } else if (requestQuery.isBlank()) {
+            mediaCache.read(requestType)
+        } else {
+            mediaCache.search(requestType, requestQuery)
+        }
         rows = cached.map { it.toBrowseCard() }
+        if (requestType == ContentType.MEME) {
+            memeLoading = true
+            memeError = null
+        }
 
         val key = typeKey(requestType)
         val providers = extensions.flatMap { ext ->
@@ -186,10 +198,17 @@ fun MediaScreen(
                 .filter { source -> ext.isCatalogProvider() && key in source.contentTypes }
                 .map { source -> ext to source }
         }
-        if (providers.isEmpty()) return
+        if (providers.isEmpty()) {
+            if (requestType == ContentType.MEME) {
+                memeLoading = false
+                memeError = if (extensionScanDone) "No meme source is installed." else null
+            }
+            return
+        }
 
         val method = if (requestQuery.isBlank()) ExtensionContract.Method.BROWSE else ExtensionContract.Method.SEARCH
         val collected = MutableList(providers.size) { emptyList<BrowseCard>() }
+        val failures = MutableList<String?>(providers.size) { null }
         var completed = 0
 
         providers.forEachIndexed { index, (ext, source) ->
@@ -200,14 +219,24 @@ fun MediaScreen(
                 .toString()
             manager.call(ext, method, payload) { result ->
                 collected[index] = result.getOrNull()?.let { parseBrowse(it, source.id, ext.packageName) }.orEmpty()
+                failures[index] = result.exceptionOrNull()?.message
                 completed++
                 if (completed == providers.size) {
                     val fresh = collected.flatten().distinctBy { it.title.trim().lowercase() }
-                    if (requestQuery.isBlank() && fresh.isNotEmpty()) {
+                    if (requestType != ContentType.MEME && requestQuery.isBlank() && fresh.isNotEmpty()) {
                         mediaCache.write(requestType, fresh.map { it.toCachedRecord() })
                     }
                     if (selectedType == requestType && destination == requestDestination && query.trim() == requestQuery) {
-                        if (fresh.isNotEmpty()) rows = fresh
+                        if (requestType == ContentType.MEME) {
+                            memeLoading = false
+                            memeError = if (fresh.isEmpty()) {
+                                failures.firstOrNull { !it.isNullOrBlank() }
+                                    ?: if (requestQuery.isBlank()) "No image posts are available from this source right now." else "No meme results matched your search."
+                            } else null
+                            rows = fresh
+                        } else if (fresh.isNotEmpty()) {
+                            rows = fresh
+                        }
                     }
                 }
             }
@@ -288,7 +317,14 @@ fun MediaScreen(
                 selection = ::selection, onPlay = onPlayMusic, onOpen = onOpenDetails,
                 onOpenExtensions = onOpenExtensions, onSelectPanel = { musicLocal = it },
             )
-            destination == MediaDestination.MEMES -> MemeSurface(rows, ::selection, onOpenDetails)
+            destination == MediaDestination.MEMES -> MemeSurface(
+                rows = rows,
+                selection = ::selection,
+                onOpen = onOpenDetails,
+                loading = memeLoading,
+                error = memeError,
+                onOpenExtensions = onOpenExtensions,
+            )
         }
     }
 
@@ -635,9 +671,53 @@ private fun MusicLibrary(
 }
 
 @Composable
-private fun MemeSurface(rows: List<BrowseCard>, selection: (BrowseCard, ContentType) -> ExtensionMediaSelection, onOpen: (ExtensionMediaSelection) -> Unit) {
+private fun MemeSurface(
+    rows: List<BrowseCard>,
+    selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
+    onOpen: (ExtensionMediaSelection) -> Unit,
+    loading: Boolean,
+    error: String?,
+    onOpenExtensions: () -> Unit,
+) {
+    if (rows.isEmpty() && loading) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(color = SoraAccent, modifier = Modifier.size(28.dp), strokeWidth = 2.dp)
+                Text("Loading meme feed…", color = SoraMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 10.dp))
+            }
+        }
+        return
+    }
+    if (rows.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 28.dp)) {
+                Icon(
+                    if (error?.contains("installed", ignoreCase = true) == true) Icons.Rounded.ExtensionOff else Icons.Rounded.CloudOff,
+                    null,
+                    tint = SoraMuted,
+                    modifier = Modifier.size(40.dp),
+                )
+                Text(
+                    if (error?.contains("installed", ignoreCase = true) == true) "No meme source installed" else "Meme feed unavailable",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+                Text(
+                    error ?: "No posts are available right now.",
+                    color = SoraMuted,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp,
+                    modifier = Modifier.padding(top = 5.dp),
+                )
+                if (error?.contains("installed", ignoreCase = true) == true) {
+                    TextButton(onClick = onOpenExtensions, modifier = Modifier.padding(top = 8.dp)) { Text("Manage extensions") }
+                }
+            }
+        }
+        return
+    }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)) {
-        if (rows.isEmpty()) item { HintLine("Your feed will appear here as soon as new posts are available.") }
         items(rows, key = { it.id }) { card ->
             Surface(color = Color(0xFFF0EDE5), contentColor = Color(0xFF141412), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp).clickable { onOpen(selection(card, ContentType.MEME)) }) {
                 Column {
