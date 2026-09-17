@@ -296,6 +296,21 @@ wait_for_node 'Mini player' 20
 wait_for_node Pause 20
 shot 06a-music-playing
 
+# Background playback must survive leaving the activity and expose a Media3 session.
+adb shell input keyevent KEYCODE_HOME
+sleep 4
+adb shell dumpsys activity services com.night.sora | grep -q 'MusicPlaybackService'
+adb shell dumpsys media_session | grep -q 'com.night.sora'
+adb shell input keyevent KEYCODE_MEDIA_PAUSE
+sleep 2
+adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
+sleep 3
+dismiss_system_dialogs
+wait_for_node Play 10
+shot 06aa-music-background-paused
+tap_text Play
+wait_for_node Pause 15
+
 tap_text 'Mini player'
 wait_for_node Pause 10
 shot 06b-music-full-player
