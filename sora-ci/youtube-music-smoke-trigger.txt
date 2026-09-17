@@ -1,1 +1,1 @@
-2026-09-17 rerun YouTube Music runtime smoke after WEB_REMIX PoToken provider integration at branch head.
+2026-09-17 test independent NewPipe StreamInfo fallback after challenged native and WEB_REMIX PoToken paths.
