@@ -34,6 +34,12 @@ class MusicDownloadManager(context: Context, private val repository: CoreReposit
     }
 
     fun updateExtensions(value: List<InstalledExtension>) { extensions = value }
+    fun canUseSource(track: ExtensionMediaSelection): Boolean {
+        val selected = app.getSharedPreferences("sora_preferred_sources_v1", Context.MODE_PRIVATE)
+            .getString("preferred_music", null)
+            ?: return true
+        return selected == "${track.extensionPackage}|${track.sourceId}"
+    }
     fun entryFor(track: ExtensionMediaSelection) = repository.downloads.firstOrNull { it.id == id(track) }
     fun localFileFor(track: ExtensionMediaSelection): String? {
         val e = entryFor(track) ?: return null
@@ -44,7 +50,7 @@ class MusicDownloadManager(context: Context, private val repository: CoreReposit
     }
 
     fun download(track: ExtensionMediaSelection) {
-        if (track.type != ContentType.MUSIC) return
+        if (track.type != ContentType.MUSIC || !canUseSource(track)) return
         val key = id(track)
         if (localFileFor(track) != null || jobs[key]?.isActive == true) return
         val source = extensions.firstOrNull { it.packageName == track.extensionPackage }?.descriptor?.sources?.firstOrNull { it.id == track.sourceId }

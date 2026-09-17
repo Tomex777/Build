@@ -301,6 +301,7 @@ fun SoraApp() {
                 isSaved = repository::isSaved,
                 onToggleSaved = repository::toggleSaved,
                 downloadEntry = musicDownloads::entryFor,
+                downloadAllowed = musicDownloads::canUseSource,
                 onDownload = musicDownloads::download,
                 onRemoveDownload = musicDownloads::remove,
                 onBack = ::pop,

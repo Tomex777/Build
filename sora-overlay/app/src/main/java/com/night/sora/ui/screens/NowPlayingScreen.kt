@@ -36,6 +36,7 @@ fun NowPlayingScreen(
     isSaved: (ExtensionMediaSelection) -> Boolean,
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
     downloadEntry: (ExtensionMediaSelection) -> DownloadEntry?,
+    downloadAllowed: (ExtensionMediaSelection) -> Boolean,
     onDownload: (ExtensionMediaSelection) -> Unit,
     onRemoveDownload: (ExtensionMediaSelection) -> Unit,
     onBack: () -> Unit,
@@ -64,6 +65,7 @@ fun NowPlayingScreen(
     val download = downloadEntry(track)
     val downloaded = download?.status == DownloadStatus.COMPLETED && !download.filePath.isNullOrBlank()
     val downloadBusy = download?.status == DownloadStatus.DOWNLOADING || download?.status == DownloadStatus.QUEUED
+    val sourceAllowsDownload = downloaded || downloadAllowed(track)
 
     Column(
         Modifier.fillMaxSize().background(SoraBg).statusBarsPadding().navigationBarsPadding()
@@ -81,9 +83,9 @@ fun NowPlayingScreen(
                 IconButton(onClick = { optionsOpen = true }) { Icon(Icons.Rounded.MoreVert, "Track options", tint = SoraText) }
                 DropdownMenu(expanded = optionsOpen, onDismissRequest = { optionsOpen = false }) {
                     DropdownMenuItem(
-                        text = { Text(if (downloaded) "Remove download" else if (downloadBusy) "Downloading" else if (download?.status == DownloadStatus.FAILED) "Retry download" else "Download") },
+                        text = { Text(if (downloaded) "Remove download" else if (!sourceAllowsDownload) "Switch Music source to download" else if (downloadBusy) "Downloading" else if (download?.status == DownloadStatus.FAILED) "Retry download" else "Download") },
                         leadingIcon = { Icon(if (downloaded) Icons.Rounded.DeleteOutline else Icons.Rounded.Download, null) },
-                        enabled = !downloadBusy,
+                        enabled = !downloadBusy && sourceAllowsDownload,
                         onClick = { optionsOpen = false; if (downloaded) onRemoveDownload(track) else onDownload(track) },
                     )
                     DropdownMenuItem(
@@ -201,11 +203,12 @@ fun NowPlayingScreen(
                 if (downloaded) Icons.Rounded.OfflinePin else Icons.Rounded.Download,
                 when {
                     downloaded -> "Downloaded"
+                    !sourceAllowsDownload -> "Switch source"
                     downloadBusy -> "Downloading"
                     download?.status == DownloadStatus.FAILED -> "Retry"
                     else -> "Download"
                 },
-                enabled = !downloadBusy,
+                enabled = !downloadBusy && sourceAllowsDownload,
                 onClick = { if (downloaded) onRemoveDownload(track) else onDownload(track) },
             )
         }

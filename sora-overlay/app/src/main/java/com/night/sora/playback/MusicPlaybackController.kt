@@ -271,6 +271,13 @@ class MusicPlaybackController(
             val file = File(path)
             if (file.isFile && file.length() > 0L) { playLocal(track, file); return }
         }
+        if (!isActiveMusicSource(track)) {
+            isLoading = false
+            sourceName = ""
+            streamLabel = ""
+            errorMessage = "This track belongs to a different Music source. Change the selected Music source to play it."
+            return
+        }
         val extension = extensions.firstOrNull { it.packageName == track.extensionPackage }
         if (extension == null) {
             isLoading = false
@@ -434,6 +441,13 @@ class MusicPlaybackController(
         track: ExtensionMediaSelection,
         values: List<ExtensionMediaSelection>,
     ): List<ExtensionMediaSelection> = listOf(track) + values.filterNot { it.sameTrack(track) }.shuffled()
+
+    private fun isActiveMusicSource(track: ExtensionMediaSelection): Boolean {
+        val selected = appContext.getSharedPreferences("sora_preferred_sources_v1", Context.MODE_PRIVATE)
+            .getString("preferred_music", null)
+            ?: return true
+        return selected == "${track.extensionPackage}|${track.sourceId}"
+    }
 
     private fun ExtensionMediaSelection.sameTrack(other: ExtensionMediaSelection): Boolean = identityKey() == other.identityKey()
     private fun ExtensionMediaSelection.identityKey(): String = "$extensionPackage|$sourceId|$id"
