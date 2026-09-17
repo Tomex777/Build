@@ -1,0 +1,77 @@
+name: Sora YouTube Music Package
+
+on:
+  push:
+    branches: [sora-android-ci]
+    paths:
+      - 'sora-ci/youtube-music-package-trigger.txt'
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Import pinned Spotui Innertube into runner workspace
+        run: bash sora-ci/import_spotui_innertube.sh
+
+      - name: Reconstruct current Sora source with YouTube Music module
+        run: |
+          rm -rf /tmp/sora-yt-package /tmp/sora.zip /tmp/sora-package
+          cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/sora.zip
+          unzip -q /tmp/sora.zip -d /tmp/sora-yt-package
+          ROOT=/tmp/sora-yt-package/Sora_Android_v0_1
+          test -f "$ROOT/settings.gradle.kts"
+          cp -R sora-overlay/. "$ROOT/"
+          python3 - "$ROOT/settings.gradle.kts" <<'PY'
+          from pathlib import Path
+          import sys
+          p=Path(sys.argv[1]); s=p.read_text()
+          start=s.find('dependencyResolutionManagement {')
+          if start < 0: raise SystemExit('dependencyResolutionManagement block not found')
+          tail=s[start:]
+          if 'maven("https://jitpack.io")' not in tail:
+              needle='        mavenCentral()\n'; pos=tail.find(needle)
+              if pos < 0: raise SystemExit('dependency-resolution mavenCentral() not found')
+              at=start+pos+len(needle)
+              s=s[:at]+'        maven("https://jitpack.io")\n'+s[at:]
+          if 'include(":youtube-innertube")' not in s:
+              s += '\ninclude(":youtube-innertube")\ninclude(":youtube-music-extension")\n'
+          p.write_text(s)
+          PY
+          echo "SORA_YT_ROOT=$ROOT" >> "$GITHUB_ENV"
+          mkdir -p /tmp/sora-package
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android 36 SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 12266719
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+
+      - name: Build Sora and YouTube Music extension
+        working-directory: ${{ env.SORA_YT_ROOT }}
+        run: gradle --stacktrace :app:assembleDebug :youtube-music-extension:assembleDebug
+
+      - name: Prepare APKs
+        run: |
+          cp "$SORA_YT_ROOT/app/build/outputs/apk/debug/app-debug.apk" /tmp/sora-package/Sora-debug.apk
+          cp "$SORA_YT_ROOT/youtube-music-extension/build/outputs/apk/debug/youtube-music-extension-debug.apk" /tmp/sora-package/Sora-YouTube-Music-Extension-debug.apk
+          ls -lh /tmp/sora-package
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sora-current-app-and-youtube-music-extension
+          path: /tmp/sora-package/*.apk
+          if-no-files-found: error
+          retention-days: 3
