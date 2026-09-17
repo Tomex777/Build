@@ -1,1 +1,1 @@
-2026-09-17 rerun deterministic Music smoke with standard Previous restart semantics accounted for.
+2026-09-17 rerun deterministic Music smoke with truly rapid double-Previous transport press.
