@@ -283,14 +283,17 @@ function editorLanguage(path: string): string {
 }
 
 async function openEditorFile() {
-  const result = await dialog.showOpenDialog(mainWindow ?? undefined, {
+  const options = {
     title: "Open code or module file",
-    properties: ["openFile"],
+    properties: ["openFile"] as const,
     filters: [
       { name: "Bailey editable files", extensions: [...EDITABLE_EXTENSIONS].map((value) => value.slice(1)) },
       { name: "All files", extensions: ["*"] },
     ],
-  });
+  };
+  const result = mainWindow
+    ? await dialog.showOpenDialog(mainWindow, options)
+    : await dialog.showOpenDialog(options);
   if (result.canceled || !result.filePaths[0]) return null;
   const path = result.filePaths[0];
   const extension = extname(path).toLowerCase();
