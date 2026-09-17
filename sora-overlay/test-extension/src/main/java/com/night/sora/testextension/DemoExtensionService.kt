@@ -22,10 +22,10 @@ class DemoExtensionService : Service() {
         version = "0.1.0",
         apiVersion = ExtensionContract.API_VERSION,
         author = "Night",
-        description = "Separate diagnostic APK for validating Sora Extension API v1.",
+        description = "Separate CI/test APK for validating Sora Extension API v1 and deterministic media flows.",
         contentTypes = setOf("anime", "manga", "movie", "tv", "music", "memes"),
-        capabilities = setOf("diagnostic", "browse", "search", "details", "episodes", "chapters", "pages", "streams", "lyrics", "relatedArtists", "feed"),
-        permissions = listOf(ExtensionPermission("network", listOf("storage.googleapis.com", "picsum.photos", "example.invalid"))),
+        capabilities = setOf("catalog", "browse", "search", "details", "episodes", "chapters", "pages", "streams", "lyrics", "relatedArtists", "feed"),
+        permissions = listOf(ExtensionPermission("network", listOf("storage.googleapis.com", "10.0.2.2", "picsum.photos", "example.invalid"))),
         sources = listOf(
             SourceDescriptor("demo.anime", "Demo Anime", setOf("anime"), setOf("browse", "search", "details", "episodes", "streams")),
             SourceDescriptor("demo.manga", "Demo Manga", setOf("manga"), setOf("browse", "search", "details", "chapters", "pages")),
