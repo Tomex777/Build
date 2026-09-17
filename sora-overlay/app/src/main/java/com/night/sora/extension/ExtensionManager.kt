@@ -146,7 +146,7 @@ class ExtensionManager(private val context: Context) {
             ExtensionContract.Method.MANIFEST -> callback(Result.success(jikanDescriptor.toJson()))
             ExtensionContract.Method.BROWSE -> {
                 if (type == null) return callback(Result.failure(IllegalArgumentException("Jikan supports Anime and Manga only")))
-                jikanClient.browse(type) { result -> callback(result.map(::catalogItemsJson)) }
+                jikanClient.browse(type, payload.optString("feed")) { result -> callback(result.map(::catalogItemsJson)) }
             }
             ExtensionContract.Method.SEARCH -> {
                 if (type == null) return callback(Result.failure(IllegalArgumentException("Jikan supports Anime and Manga only")))
