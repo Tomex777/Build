@@ -142,8 +142,12 @@ wait_node 'Mini player' 20
 tap_text 'Mini player'
 wait_node Downloaded 15
 wait_node Pause 20
-# MusicPlaybackController sets this exact stream label only after selecting the verified local file.
-wait_node Offline 15
+sleep 2
+# Prove playback from Android's media session rather than relying on a presentation label.
+# The source server is already dead, so PLAYING here demonstrates Core is using the saved local file.
+adb shell dumpsys media_session > "$OUT/offline-media-session.txt"
+grep -q 'com.night.sora' "$OUT/offline-media-session.txt"
+grep -q 'state=PLAYING(3)' "$OUT/offline-media-session.txt"
 shot 04-offline-local-playback
 
 # Remove through the real overflow action; this avoids confusing the Downloaded source label
