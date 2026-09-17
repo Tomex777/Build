@@ -52,10 +52,21 @@ fun PlayerReaderSettingsScreen(
             DefaultSourceTarget(ContentType.MANGA, "Manga", "Default extension used to resolve chapters", "chapters", "manga"),
             DefaultSourceTarget(ContentType.MOVIE, "Movies", "Default extension used to resolve movie streams", "streams", "movie"),
             DefaultSourceTarget(ContentType.TV, "Series", "Default extension used to resolve episodes", "episodes", "tv"),
+            DefaultSourceTarget(ContentType.MUSIC, "Music", "Default extension used for playback and downloads", "streams", "music"),
         )
     }
     var pickerTarget by remember { mutableStateOf<DefaultSourceTarget?>(null) }
     var preferenceEpoch by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(extensions) {
+        val target = targets.first { it.type == ContentType.MUSIC }
+        val options = compatibleSources(extensions, target)
+        val selected = prefs.getString(preferenceKey(target), null)
+        if (options.isNotEmpty() && options.none { it.persistedValue == selected }) {
+            prefs.edit().putString(preferenceKey(target), options.first().persistedValue).apply()
+            preferenceEpoch++
+        }
+    }
 
     Scaffold(
         containerColor = SoraBg,
@@ -89,7 +100,7 @@ fun PlayerReaderSettingsScreen(
                     SettingSourceRow(
                         title = target.label,
                         subtitle = selected?.let { "${it.source.name} · ${it.extension.declaredName}" }
-                            ?: if (options.isEmpty()) "No compatible source installed" else "Ask each title",
+                            ?: if (options.isEmpty()) "No compatible source installed" else if (target.type == ContentType.MUSIC) "Select a music source" else "Ask each title",
                         enabled = options.isNotEmpty(),
                         onClick = { pickerTarget = target },
                     )
@@ -98,7 +109,7 @@ fun PlayerReaderSettingsScreen(
             }
             item {
                 Text(
-                    "These defaults use the same source preference Sora remembers when you choose Change source on a title. Clearing one makes Sora ask per title again.",
+                    "Music always uses one selected source at a time. Anime, Manga, Movies and Series can still ask per title when their default is cleared.",
                     color = SoraMuted,
                     fontSize = 11.sp,
                     lineHeight = 16.sp,
@@ -123,16 +134,18 @@ fun PlayerReaderSettingsScreen(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
                 )
-                SourceChoiceRow(
-                    title = "Ask each title",
-                    subtitle = "Do not force a default source",
-                    selected = selectedValue == null,
-                    onClick = {
-                        prefs.edit().remove(preferenceKey(target)).apply()
-                        preferenceEpoch++
-                        pickerTarget = null
-                    },
-                )
+                if (target.type != ContentType.MUSIC) {
+                    SourceChoiceRow(
+                        title = "Ask each title",
+                        subtitle = "Do not force a default source",
+                        selected = selectedValue == null,
+                        onClick = {
+                            prefs.edit().remove(preferenceKey(target)).apply()
+                            preferenceEpoch++
+                            pickerTarget = null
+                        },
+                    )
+                }
                 options.forEach { option ->
                     SourceChoiceRow(
                         title = option.source.name,

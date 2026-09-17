@@ -127,7 +127,7 @@ private fun MoreRow(
 fun DownloadsScreen(
     downloads: List<DownloadEntry>,
     onBack: () -> Unit,
-    onStatus: (String, DownloadStatus) -> Unit,
+    onRetry: (String) -> Unit,
     onRemove: (String) -> Unit,
     onClearCompleted: () -> Unit,
 ) {
@@ -153,7 +153,7 @@ fun DownloadsScreen(
                 item { EmptyDownloadMessage("Downloads you start from a title will appear here while they are queued or transferring.") }
             } else {
                 items(active, key = { it.id }) { entry ->
-                    ActiveDownloadRow(entry, onStatus, onRemove)
+                    ActiveDownloadRow(entry, onRetry, onRemove)
                     MoreDivider()
                 }
             }
@@ -184,7 +184,7 @@ private fun EmptyDownloadMessage(text: String) {
 }
 
 @Composable
-private fun ActiveDownloadRow(entry: DownloadEntry, onStatus: (String, DownloadStatus) -> Unit, onRemove: (String) -> Unit) {
+private fun ActiveDownloadRow(entry: DownloadEntry, onRetry: (String) -> Unit, onRemove: (String) -> Unit) {
     val progress = if (entry.totalBytes > 0L) (entry.bytesDownloaded.toFloat() / entry.totalBytes.toFloat()).coerceIn(0f, 1f) else 0f
     Row(Modifier.fillMaxWidth().padding(start = 20.dp, top = 11.dp, end = 8.dp, bottom = 11.dp), verticalAlignment = Alignment.CenterVertically) {
         DownloadTypeIcon(entry.contentType)
@@ -207,10 +207,8 @@ private fun ActiveDownloadRow(entry: DownloadEntry, onStatus: (String, DownloadS
                 modifier = Modifier.padding(top = 5.dp),
             )
         }
-        when (entry.status) {
-            DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED -> IconButton(onClick = { onStatus(entry.id, DownloadStatus.PAUSED) }) { Icon(Icons.Rounded.Pause, "Pause") }
-            DownloadStatus.PAUSED, DownloadStatus.FAILED -> IconButton(onClick = { onStatus(entry.id, DownloadStatus.QUEUED) }) { Icon(Icons.Rounded.PlayArrow, "Resume") }
-            DownloadStatus.COMPLETED -> Unit
+        if (entry.status == DownloadStatus.FAILED) {
+            IconButton(onClick = { onRetry(entry.id) }) { Icon(Icons.Rounded.Refresh, "Retry") }
         }
         IconButton(onClick = { onRemove(entry.id) }) { Icon(Icons.Rounded.Close, "Remove", tint = SoraMuted) }
     }

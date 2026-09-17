@@ -23,6 +23,7 @@ import com.night.sora.extension.InstalledExtension
 import com.night.sora.extension.api.ExtensionContract
 import com.night.sora.model.ExtensionMediaSelection
 import com.night.sora.model.PlaybackStream
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -73,6 +74,7 @@ class MusicPlaybackController(
     private var previousRestartRequestedAtMs = Long.MIN_VALUE
     private var baseQueue: List<ExtensionMediaSelection> = emptyList()
     private var extensions: List<InstalledExtension> = emptyList()
+    private var offlineResolver: ((ExtensionMediaSelection) -> String?)? = null
 
     var currentTrack by mutableStateOf<ExtensionMediaSelection?>(null)
         private set
@@ -145,6 +147,8 @@ class MusicPlaybackController(
     fun updateExtensions(value: List<InstalledExtension>) {
         extensions = value
     }
+
+    fun setOfflineResolver(resolver: (ExtensionMediaSelection) -> String?) { offlineResolver = resolver }
 
     fun sessionPlayer(): Player = player
 
@@ -260,6 +264,10 @@ class MusicPlaybackController(
     }
 
     private fun resolveAndPlay(track: ExtensionMediaSelection) {
+        offlineResolver?.invoke(track)?.let { path ->
+            val file = File(path)
+            if (file.isFile && file.length() > 0L) { playLocal(track, file); return }
+        }
         val extension = extensions.firstOrNull { it.packageName == track.extensionPackage }
         if (extension == null) {
             isLoading = false
@@ -303,6 +311,14 @@ class MusicPlaybackController(
                 loadLyrics(extension, track, requestId)
             }
         }
+    }
+
+    private fun playLocal(track: ExtensionMediaSelection, file: File) {
+        sourceName = "Downloaded"; streamLabel = "Offline"; streamHeaders.clear(); lyricsText = null; lyricsLoading = false; errorMessage = null; isLoading = true
+        val metadata = MediaMetadata.Builder().setTitle(track.title).setArtist(track.artistName())
+            .apply { track.artworkUrl?.takeIf(String::isNotBlank)?.let { setArtworkUri(Uri.parse(it)) } }.build()
+        player.setMediaItem(MediaItem.Builder().setUri(Uri.fromFile(file)).setMediaId(track.identityKey()).setMediaMetadata(metadata).build())
+        player.prepare(); player.playWhenReady = true
     }
 
     private fun loadLyrics(extension: InstalledExtension, track: ExtensionMediaSelection, requestId: Long) {

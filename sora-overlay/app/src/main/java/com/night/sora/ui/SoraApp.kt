@@ -31,6 +31,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.night.sora.data.CoreRepository
 import com.night.sora.data.MediaCatalogCache
+import com.night.sora.download.MusicDownloadManager
 import com.night.sora.extension.ExtensionManager
 import com.night.sora.extension.InstalledExtension
 import com.night.sora.model.ExtensionMediaSelection
@@ -68,6 +69,7 @@ fun SoraApp() {
     val mediaCatalogCache = remember { MediaCatalogCache(context.applicationContext) }
     val extensionManager = remember { ExtensionManager(context.applicationContext) }
     val musicPlayer = remember { MusicPlaybackRuntime.get(context.applicationContext, extensionManager) }
+    val musicDownloads = remember { MusicDownloadManager(context.applicationContext, repository, extensionManager) }
     var tab by remember { mutableStateOf(RootTab.HOME) }
     val screenStack = remember { mutableStateListOf<AppScreen>() }
     var extensions by remember { mutableStateOf<List<InstalledExtension>>(emptyList()) }
@@ -86,7 +88,11 @@ fun SoraApp() {
 
     LaunchedEffect(Unit) { refreshExtensions() }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refreshExtensions() }
-    LaunchedEffect(extensions) { musicPlayer.updateExtensions(extensions) }
+    LaunchedEffect(extensions) {
+        musicPlayer.updateExtensions(extensions)
+        musicDownloads.updateExtensions(extensions)
+        musicPlayer.setOfflineResolver(musicDownloads::localFileFor)
+    }
     LaunchedEffect(musicPlayer.listeningEvent?.serial) {
         val event = musicPlayer.listeningEvent ?: return@LaunchedEffect
         val track = event.track
@@ -229,9 +235,9 @@ fun SoraApp() {
             AppScreen.Downloads -> DownloadsScreen(
                 downloads = repository.downloads,
                 onBack = ::pop,
-                onStatus = repository::setDownloadStatus,
-                onRemove = repository::removeDownload,
-                onClearCompleted = repository::clearCompletedDownloads,
+                onRetry = musicDownloads::retry,
+                onRemove = musicDownloads::remove,
+                onClearCompleted = musicDownloads::clearCompleted,
             )
             AppScreen.Statistics -> StatisticsScreen(
                 library = repository.library,
@@ -290,7 +296,15 @@ fun SoraApp() {
                     }
                 },
             )
-            AppScreen.NowPlaying -> NowPlayingScreen(player = musicPlayer, isSaved = repository::isSaved, onToggleSaved = repository::toggleSaved, onBack = ::pop)
+            AppScreen.NowPlaying -> NowPlayingScreen(
+                player = musicPlayer,
+                isSaved = repository::isSaved,
+                onToggleSaved = repository::toggleSaved,
+                downloadEntry = musicDownloads::entryFor,
+                onDownload = musicDownloads::download,
+                onRemoveDownload = musicDownloads::remove,
+                onBack = ::pop,
+            )
         }
     }
 }

@@ -2,6 +2,7 @@
 
 package com.night.sora.ui.screens
 
+import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.os.Handler
@@ -91,6 +92,7 @@ fun MediaScreen(
 ) {
     val context = LocalContext.current
     val mediaCache = remember { MediaCatalogCache(context.applicationContext) }
+    val sourcePrefs = remember(context) { context.getSharedPreferences("sora_preferred_sources_v1", Context.MODE_PRIVATE) }
     var destination by remember { mutableStateOf(MediaDestination.ANIME_MANGA) }
     var selectedType by remember { mutableStateOf(ContentType.ANIME) }
     var musicLocal by remember { mutableStateOf(MusicLocal.HOME) }
@@ -176,15 +178,28 @@ fun MediaScreen(
         val requestType = selectedType
         val requestDestination = destination
         val requestQuery = search.trim()
-        val cached = if (requestQuery.isBlank()) mediaCache.read(requestType) else mediaCache.search(requestType, requestQuery)
-        rows = cached.map { it.toBrowseCard() }
-
         val key = typeKey(requestType)
-        val providers = extensions.flatMap { ext ->
+        val allProviders = extensions.flatMap { ext ->
             ext.descriptor?.sources.orEmpty()
                 .filter { source -> ext.isCatalogProvider() && key in source.contentTypes }
                 .map { source -> ext to source }
         }
+        val providers = if (requestType == ContentType.MUSIC) {
+            val saved = sourcePrefs.getString("preferred_music", null)
+            val chosen = allProviders.firstOrNull { (ext, source) -> "${ext.packageName}|${source.id}" == saved }
+                ?: allProviders.sortedWith(compareBy({ it.first.declaredName.lowercase() }, { it.second.name.lowercase() })).firstOrNull()
+            if (chosen != null) {
+                val value = "${chosen.first.packageName}|${chosen.second.id}"
+                if (saved != value) sourcePrefs.edit().putString("preferred_music", value).apply()
+                listOf(chosen)
+            } else emptyList()
+        } else allProviders
+        val cachedAll = if (requestQuery.isBlank()) mediaCache.read(requestType) else mediaCache.search(requestType, requestQuery)
+        val cached = if (requestType == ContentType.MUSIC && providers.isNotEmpty()) {
+            val (ext, source) = providers.first()
+            cachedAll.filter { it.extensionPackage == ext.packageName && it.sourceId == source.id }
+        } else cachedAll
+        rows = cached.map { it.toBrowseCard() }
         if (providers.isEmpty()) return
 
         val method = if (requestQuery.isBlank()) ExtensionContract.Method.BROWSE else ExtensionContract.Method.SEARCH

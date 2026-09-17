@@ -33,7 +33,10 @@ fun ExtensionsScreen(
             TopAppBar(
                 title = { Text("Extensions") },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back") } },
-                actions = { IconButton(onClick = onRefresh) { Icon(Icons.Rounded.Refresh, "Refresh") } },
+                actions = {
+                    ExtensionInstallButton()
+                    IconButton(onClick = onRefresh) { Icon(Icons.Rounded.Refresh, "Refresh") }
+                },
             )
         }
     ) { padding ->

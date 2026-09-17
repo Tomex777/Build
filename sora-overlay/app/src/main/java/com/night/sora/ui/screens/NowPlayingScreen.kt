@@ -20,6 +20,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.night.sora.model.DownloadEntry
+import com.night.sora.model.DownloadStatus
 import com.night.sora.model.ExtensionMediaSelection
 import com.night.sora.playback.MusicPlaybackController
 import com.night.sora.playback.MusicRepeatMode
@@ -33,10 +35,14 @@ fun NowPlayingScreen(
     player: MusicPlaybackController,
     isSaved: (ExtensionMediaSelection) -> Boolean,
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
+    downloadEntry: (ExtensionMediaSelection) -> DownloadEntry?,
+    onDownload: (ExtensionMediaSelection) -> Unit,
+    onRemoveDownload: (ExtensionMediaSelection) -> Unit,
     onBack: () -> Unit,
 ) {
     val track = player.currentTrack
     var queueOpen by remember { mutableStateOf(false) }
+    var optionsOpen by remember { mutableStateOf(false) }
 
     if (track == null) {
         Column(
@@ -55,6 +61,9 @@ fun NowPlayingScreen(
         (player.positionMs.toFloat() / player.durationMs.toFloat()).coerceIn(0f, 1f)
     } else 0f
     val saved = isSaved(track)
+    val download = downloadEntry(track)
+    val downloaded = download?.status == DownloadStatus.COMPLETED && !download.filePath.isNullOrBlank()
+    val downloadBusy = download?.status == DownloadStatus.DOWNLOADING || download?.status == DownloadStatus.QUEUED
 
     Column(
         Modifier.fillMaxSize().background(SoraBg).statusBarsPadding().navigationBarsPadding()
@@ -68,7 +77,22 @@ fun NowPlayingScreen(
                     Text(player.sourceName, color = SoraFaint, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-            IconButton(onClick = {}) { Icon(Icons.Rounded.MoreVert, "Track options", tint = SoraText) }
+            Box {
+                IconButton(onClick = { optionsOpen = true }) { Icon(Icons.Rounded.MoreVert, "Track options", tint = SoraText) }
+                DropdownMenu(expanded = optionsOpen, onDismissRequest = { optionsOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text(if (downloaded) "Remove download" else if (downloadBusy) "Downloading" else if (download?.status == DownloadStatus.FAILED) "Retry download" else "Download") },
+                        leadingIcon = { Icon(if (downloaded) Icons.Rounded.DeleteOutline else Icons.Rounded.Download, null) },
+                        enabled = !downloadBusy,
+                        onClick = { optionsOpen = false; if (downloaded) onRemoveDownload(track) else onDownload(track) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(if (saved) "Remove from Your Music" else "Save to Your Music") },
+                        leadingIcon = { Icon(if (saved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, null) },
+                        onClick = { optionsOpen = false; onToggleSaved(track) },
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.height(18.dp))
@@ -173,7 +197,17 @@ fun NowPlayingScreen(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             PlayerSecondary(Icons.Rounded.Lyrics, "Lyrics")
             PlayerSecondary(Icons.Rounded.QueueMusic, "Queue", onClick = { queueOpen = true })
-            PlayerSecondary(Icons.Rounded.Download, "Download")
+            PlayerSecondary(
+                if (downloaded) Icons.Rounded.OfflinePin else Icons.Rounded.Download,
+                when {
+                    downloaded -> "Downloaded"
+                    downloadBusy -> "Downloading"
+                    download?.status == DownloadStatus.FAILED -> "Retry"
+                    else -> "Download"
+                },
+                enabled = !downloadBusy,
+                onClick = { if (downloaded) onRemoveDownload(track) else onDownload(track) },
+            )
         }
 
         Spacer(Modifier.height(22.dp))
@@ -250,14 +284,15 @@ fun NowPlayingScreen(
 private fun PlayerSecondary(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
+    enabled: Boolean = true,
     onClick: () -> Unit = {},
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 6.dp),
+        modifier = Modifier.clickable(enabled = enabled, onClick = onClick).padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
-        Icon(icon, null, tint = SoraMuted)
-        Text(label, color = SoraMuted, fontSize = 9.sp, modifier = Modifier.padding(top = 4.dp))
+        Icon(icon, null, tint = if (enabled) SoraMuted else SoraFaint)
+        Text(label, color = if (enabled) SoraMuted else SoraFaint, fontSize = 9.sp, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
