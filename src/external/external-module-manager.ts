@@ -326,12 +326,29 @@ export class ExternalModuleManager {
 
   async stopAll(): Promise<void> {
     this.stopJobs();
-    for (const loaded of this.modules.values()) {
+    await Promise.all([...this.modules.values()].map(async (loaded) => {
       const child = loaded.process;
-      if (!child || child.killed) continue;
-      child.stdin.end();
-      child.kill();
+      if (!child) return;
+      if (child.exitCode !== null || child.signalCode !== null) {
+        loaded.process = undefined;
+        return;
+      }
+
+      await new Promise<void>((resolve) => {
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve();
+        };
+        const timer = setTimeout(finish, 2500);
+        child.once("exit", finish);
+        child.once("error", finish);
+        child.stdin.end();
+        if (!child.killed) child.kill();
+      });
       loaded.process = undefined;
-    }
+    }));
   }
 }
