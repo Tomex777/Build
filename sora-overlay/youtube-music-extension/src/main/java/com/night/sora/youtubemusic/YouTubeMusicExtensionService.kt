@@ -80,7 +80,7 @@ class YouTubeMusicExtensionService : Service() {
                             ExtensionContract.Method.BROWSE -> YouTubeMusicCatalog.browse(sourceId)
                             ExtensionContract.Method.SEARCH -> YouTubeMusicCatalog.search(sourceId, payload.optString("query"))
                             ExtensionContract.Method.DETAILS -> YouTubeMusicCatalog.details(sourceId, id)
-                            ExtensionContract.Method.STREAMS -> YouTubeMusicCatalog.streams(sourceId, id)
+                            ExtensionContract.Method.STREAMS -> resolveStreams(sourceId, id)
                             ExtensionSessionContract.METHOD_BROWSER_SESSION -> {
                                 require(sourceId == "youtube.music") { "Unsupported YouTube Music source: $sourceId" }
                                 YouTubeMusicSession.browserSession()
@@ -135,6 +135,25 @@ class YouTubeMusicExtensionService : Service() {
             }
         }
     })
+
+    private suspend fun resolveStreams(sourceId: String, id: String): String {
+        return try {
+            YouTubeMusicCatalog.streams(sourceId, id)
+        } catch (cause: Throwable) {
+            val detail = cause.message.orEmpty()
+            val challenged = detail.contains("LOGIN_REQUIRED", ignoreCase = true) ||
+                detail.contains("confirm you", ignoreCase = true) ||
+                detail.contains("not a bot", ignoreCase = true)
+            if (challenged) {
+                Log.w("SoraYouTubeMusic", "YouTube challenged playback; source browser sign-in required", cause)
+                error(
+                    "YouTube Music needs a signed-in session on this network. " +
+                        "Open More → Extensions → Sora YouTube Music → Open YouTube Music, sign in, then try this track again."
+                )
+            }
+            throw cause
+        }
+    }
 
     private fun respond(msg: Message, result: Result<String>) {
         val response = Message.obtain(null, ExtensionContract.MSG_RESPONSE).apply {
