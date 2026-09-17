@@ -50,9 +50,10 @@ export function defineModule<T extends BaileyModuleDefinition>(definition: T): T
   return definition;
 }
 
+/**
+ * Type-friendly authoring helper. Runtime validity is enforced when a module is registered,
+ * so tooling can safely construct command metadata before an implementation is attached.
+ */
 export function defineCommand<T extends BaileyCommandDefinition>(definition: T): T {
-  if (!definition.actions?.length && !definition.execute) {
-    throw new Error(`Command ${definition.name} must define actions or execute()`);
-  }
   return definition;
 }
