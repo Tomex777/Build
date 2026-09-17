@@ -16,7 +16,7 @@ Bailey Host turns a normal Windows laptop into a local host for a WhatsApp bot. 
 - Visual command editing for declarative reply/react actions.
 - Bailey Studio file editing, JavaScript/Python module scaffolding, modules-folder access, and live module reload.
 - Language-neutral external module protocol over JSONL. Modules can be written in Python, JavaScript, Java, Go, Rust, or another process runtime.
-- External module commands, passive incoming-message events, and Bailey-managed fixed-interval background jobs.
+- External module commands, passive incoming-message events, Bailey-managed fixed-interval background jobs, and opt-in persistent module storage.
 - Host-controlled outbound actions so external modules do not receive the Lia socket or WhatsApp auth state.
 - Windows CI that typechecks, tests, smoke-launches Electron, installs a real Lia engine, exercises a packaged JavaScript module, and builds a portable EXE artifact.
 
@@ -30,8 +30,9 @@ Protocol 1 currently supports:
 - `settings` — typed settings that automatically appear in Configuration and can map to environment variables.
 - `events` — passive `message.received` delivery for ordinary incoming WhatsApp messages.
 - `jobs` — Bailey-managed fixed-interval background work with overlap protection and optional run-on-start behavior.
+- `storage` — a persistent module-owned data directory exposed as `BAILEY_MODULE_DATA_DIR`, suitable for SQLite, JSON state, caches, indexes, and media-processing files.
 
-External modules return actions for Bailey to perform, including reply, react, proactive text send, and logging. They do not import Lia Baileys or access Bailey's WhatsApp auth/session directory.
+External modules return actions for Bailey to perform, including reply, react, proactive text send, and logging. They do not import Lia Baileys or receive Bailey's WhatsApp socket/auth state.
 
 See [`docs/MODULE_PROTOCOL.md`](docs/MODULE_PROTOCOL.md) for the wire protocol and the Python example under [`examples/python-module`](examples/python-module).
 
@@ -95,6 +96,14 @@ ENV is an adapter, not the UI model. A setting may declare `env: "SOME_NAME"`. B
 
 This lets older modules keep reading environment variables while the desktop application presents proper switches, number fields, selections, and secret inputs.
 
+## Persistent module data
+
+Modules that declare the `storage` capability receive `BAILEY_MODULE_DATA_DIR` when their worker starts. Bailey creates the directory before launch and reuses it after worker restarts and module reloads.
+
+That lets a Python economy module keep a SQLite database, an anime module keep tracking state and indexes, or a media module keep generated files without storing runtime state beside the module source code. The storage folder is also separate from Bailey's WhatsApp authentication/session data.
+
+The storage directory is a persistence boundary, not an OS sandbox. External modules are still trusted local processes.
+
 ## Development
 
 ```bash
@@ -112,4 +121,4 @@ npm run dist:win
 
 ## Next host layers
 
-The next protocol work is aimed at richer host services and storage APIs. Those layers are what larger modules such as economy systems, anime/manga workflows, media processors, and blob-backed features can build on without taking ownership of Bailey's WhatsApp engine.
+The next protocol work is aimed at richer host services: controlled reusable capabilities that large modules can call without each one reinventing the same infrastructure. Cloud/blob adapters can then sit behind that service boundary while Bailey continues to own the WhatsApp engine and authentication state.
