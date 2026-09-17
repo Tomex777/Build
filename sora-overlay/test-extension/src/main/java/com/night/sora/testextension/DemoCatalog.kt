@@ -30,6 +30,7 @@ object DemoCatalog {
                 put(item("track-1", "Low Light", "Aster · 3:42", "https://picsum.photos/seed/sora-music-1/600/600"))
                 put(item("track-2", "Wake Slowly", "Nami · 4:10", "https://picsum.photos/seed/sora-music-2/600/600"))
                 put(item("track-3", "Glassline", "Vela · 2:58", "https://picsum.photos/seed/sora-music-3/600/600"))
+                put(item("track-download", "Offline Proof", "Sora Test · 0:05", "https://picsum.photos/seed/sora-music-offline/600/600"))
             }
             "memes" -> {
                 put(item("meme-1", "When the build passes first try", "Developer memes", "https://picsum.photos/seed/sora-meme-1/700/700"))
@@ -70,14 +71,25 @@ object DemoCatalog {
         repeat(42) { index -> put(JSONObject().put("index", index).put("url", "https://example.invalid/$chapterId/page-${index + 1}.jpg")) }
     }.toString()
 
-    fun streams(id: String): String = JSONArray()
-        .put(
-            JSONObject()
-                .put("label", "Test MP3")
-                .put("url", "https://storage.googleapis.com/exoplayer-test-media-0/play.mp3")
-                .put("mimeType", "audio/mpeg")
-        )
-        .toString()
+    fun streams(id: String): String {
+        if (id == "track-download") {
+            return JSONArray().put(
+                JSONObject()
+                    .put("label", "Local proof MP3")
+                    .put("url", "http://10.0.2.2:8765/proof.mp3")
+                    .put("mimeType", "audio/mpeg")
+                    .put("headers", JSONObject().put("X-Sora-Download-Proof", "allowed"))
+            ).toString()
+        }
+        return JSONArray()
+            .put(
+                JSONObject()
+                    .put("label", "Test MP3")
+                    .put("url", "https://storage.googleapis.com/exoplayer-test-media-0/play.mp3")
+                    .put("mimeType", "audio/mpeg")
+            )
+            .toString()
+    }
 
     fun lyrics(id: String): String = JSONObject()
         .put("trackId", id)
