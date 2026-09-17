@@ -41,9 +41,12 @@ jobs:
       - name: Build Sora Core and Reddit meme extension
         working-directory: /tmp/sora-src/Sora_Android_v0_1
         run: gradle --stacktrace :app:assembleDebug :meme-extension:assembleDebug
-      - name: Smoke-check live endpoints
+      - name: Probe Reddit from hosted runner
+        continue-on-error: true
         run: |
-          curl -fsSL --retry 2 --max-time 15 -A 'android:com.night.sora.ext.memes.reddit:0.1 (Sora private media client)' 'https://www.reddit.com/r/memes/hot.json?raw_json=1&limit=2' | grep -q '"children"'
+          curl -fsSL --retry 1 --max-time 15 -A 'android:com.night.sora.ext.memes.reddit:0.1 (Sora private media client)' 'https://www.reddit.com/r/memes/hot.json?raw_json=1&limit=2' | grep -q '"children"'
+      - name: Smoke-check Bible live endpoints
+        run: |
           curl -fsSL --retry 2 --max-time 15 'https://bible-api.com/data' | grep -q '"translations"'
           curl -fsSL --retry 2 --max-time 15 'https://bible-api.com/John%203?translation=web&single_chapter_book_matching=indifferent' | grep -q '"verses"'
       - name: Prepare artifacts
