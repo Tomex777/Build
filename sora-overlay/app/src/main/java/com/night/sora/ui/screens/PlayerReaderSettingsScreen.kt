@@ -52,7 +52,7 @@ fun PlayerReaderSettingsScreen(
             DefaultSourceTarget(ContentType.MANGA, "Manga", "Default extension used to resolve chapters", "chapters", "manga"),
             DefaultSourceTarget(ContentType.MOVIE, "Movies", "Default extension used to resolve movie streams", "streams", "movie"),
             DefaultSourceTarget(ContentType.TV, "Series", "Default extension used to resolve episodes", "episodes", "tv"),
-            DefaultSourceTarget(ContentType.MUSIC, "Music", "Default extension used for playback and downloads", "streams", "music"),
+            DefaultSourceTarget(ContentType.MUSIC, "Music", "Default extension used for catalog, playback and downloads", "streams", "music"),
         )
     }
     var pickerTarget by remember { mutableStateOf<DefaultSourceTarget?>(null) }
@@ -162,7 +162,6 @@ fun PlayerReaderSettingsScreen(
         }
     }
 
-    // Reading this state keeps the screen reactive after SharedPreferences writes.
     @Suppress("UNUSED_EXPRESSION")
     preferenceEpoch
 }
@@ -218,10 +217,17 @@ private fun compatibleSources(
     } else {
         extension.descriptor?.sources.orEmpty()
             .filter { source ->
-                target.contentKey in source.contentTypes && (
-                    target.requiredCapability in source.capabilities ||
-                        (!extension.isCatalogProvider() && "search" in source.capabilities)
-                )
+                if (target.type == ContentType.MUSIC) {
+                    target.contentKey in source.contentTypes &&
+                        extension.isCatalogProvider() &&
+                        "streams" in source.capabilities &&
+                        ("browse" in source.capabilities || "search" in source.capabilities)
+                } else {
+                    target.contentKey in source.contentTypes && (
+                        target.requiredCapability in source.capabilities ||
+                            (!extension.isCatalogProvider() && "search" in source.capabilities)
+                    )
+                }
             }
             .map { source -> DefaultSourceOption(extension, source) }
     }
