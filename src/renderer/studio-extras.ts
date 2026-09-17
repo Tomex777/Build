@@ -232,6 +232,9 @@ function installModuleWizard(): void {
 
 installModuleWizard();
 
+const guideNote = document.querySelector<HTMLElement>(".module-guide-actions span");
+if (guideNote) guideNote.textContent = "After editing a module, use Reload modules. Bailey Host and WhatsApp stay running.";
+
 const modulesFolderButton = document.querySelector<HTMLButtonElement>("#studio-open-modules-folder");
 if (modulesFolderButton && !document.querySelector("#studio-reload-modules")) {
   const reloadButton = document.createElement("button");
