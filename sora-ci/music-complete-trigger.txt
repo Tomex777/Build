@@ -1,0 +1,1 @@
+Apply the complete Music pass: one active source, real downloads, local-first playback, truthful download UI, and extension install toolbar wiring.
