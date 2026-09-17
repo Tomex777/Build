@@ -20,15 +20,22 @@ interface UiConfigValue {
   secretConfigured?: boolean;
 }
 
+interface ModuleInfo {
+  id: string;
+  name: string;
+  version: string;
+  description?: string;
+  commands: Array<{ name: string; description: string }>;
+}
+
 interface BaileyApi {
   getState(): Promise<{ runtime: string; whatsapp: string; moduleCount: number; version: string }>;
-  getModules(): Promise<Array<{ id: string; name: string; version: string; description?: string; commands: Array<{ name: string; description: string }> }>>;
+  getModules(): Promise<ModuleInfo[]>;
   getConfig(): Promise<{ definitions: ConfigDefinition[]; values: UiConfigValue[] }>;
   setConfig(key: string, value: unknown): Promise<{ ok: boolean }>;
 }
 
-declare interface Window { bailey: BaileyApi }
-
+const bailey = (window as Window & typeof globalThis & { bailey: BaileyApi }).bailey;
 const navButtons = [...document.querySelectorAll<HTMLButtonElement>(".nav-item")];
 const views = [...document.querySelectorAll<HTMLElement>(".view")];
 const saveStatus = document.querySelector<HTMLElement>("#save-status")!;
@@ -45,7 +52,7 @@ async function save(definition: ConfigDefinition, value: unknown): Promise<void>
   saveStatus.textContent = "Saving…";
   saveStatus.className = "save-status saving";
   try {
-    await window.bailey.setConfig(definition.key, value);
+    await bailey.setConfig(definition.key, value);
     saveStatus.textContent = "Saved locally";
     saveStatus.className = "save-status";
   } catch (error) {
@@ -119,8 +126,10 @@ function createControl(definition: ConfigDefinition, current: UiConfigValue): HT
 }
 
 async function renderConfiguration(): Promise<void> {
-  const { definitions, values } = await window.bailey.getConfig();
-  const valuesByKey = new Map(values.map((value) => [value.key, value]));
+  const { definitions, values } = await bailey.getConfig();
+  const valuesByKey = new Map<string, UiConfigValue>(
+    values.map((value): [string, UiConfigValue] => [value.key, value]),
+  );
   const sections = new Map<string, ConfigDefinition[]>();
   for (const definition of definitions) {
     const group = sections.get(definition.section) ?? [];
@@ -158,7 +167,11 @@ async function renderConfiguration(): Promise<void> {
       const description = document.createElement("p");
       description.textContent = definition.description ?? definition.key;
       copy.append(title, description);
-      row.append(copy, createControl(definition, valuesByKey.get(definition.key) ?? { key: definition.key, value: definition.defaultValue }));
+      const current = valuesByKey.get(definition.key) ?? {
+        key: definition.key,
+        value: definition.defaultValue,
+      } satisfies UiConfigValue;
+      row.append(copy, createControl(definition, current));
       section.append(row);
     }
     root.append(section);
@@ -166,20 +179,22 @@ async function renderConfiguration(): Promise<void> {
 }
 
 async function renderModules(): Promise<void> {
-  const modules = await window.bailey.getModules();
+  const modules = await bailey.getModules();
   const root = document.querySelector<HTMLElement>("#module-list")!;
   root.replaceChildren();
   for (const module of modules) {
     const card = document.createElement("article");
     card.className = "module-card";
-    const commands = module.commands.map((command) => `<span class="command-chip">.${command.name}</span>`).join("");
+    const commands = module.commands
+      .map((command) => `<span class="command-chip">.${command.name}</span>`)
+      .join("");
     card.innerHTML = `<div class="module-heading"><div><h2>${module.name}</h2><p>${module.description ?? ""}</p></div><div class="module-meta"><span class="pill">${module.id}</span><span class="pill">v${module.version}</span></div></div><div class="command-list">${commands || "<span class=\"muted\">No commands registered</span>"}</div>`;
     root.append(card);
   }
 }
 
 async function renderDashboard(): Promise<void> {
-  const state = await window.bailey.getState();
+  const state = await bailey.getState();
   document.querySelector<HTMLElement>("#runtime-state")!.textContent = state.runtime === "stopped" ? "Stopped" : state.runtime;
   document.querySelector<HTMLElement>("#whatsapp-state")!.textContent = state.whatsapp === "not-connected" ? "Not connected" : state.whatsapp;
   document.querySelector<HTMLElement>("#module-count")!.textContent = String(state.moduleCount);
