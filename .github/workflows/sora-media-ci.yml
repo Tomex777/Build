@@ -21,6 +21,7 @@ jobs:
         run: |
           python3 sora-ci/repair-sora-anime-manga-patch.py
           python3 sora-ci/patch-sora-anime-manga-flow.py
+          python3 sora-ci/patch-sora-jikan-resilience.py
           # The repair is only a build-time normalizer for the patch draft.
           git checkout -- sora-ci/patch-sora-anime-manga-flow.py
 
@@ -38,6 +39,8 @@ jobs:
           grep -q 'SearchResultSkeleton' "$MEDIA"
           grep -q 'CachedMediaSnapshot' "$CACHE"
           grep -q 'equals("Adaptation", ignoreCase = true)' "$JIKAN"
+          grep -q 'MAX_REQUEST_ATTEMPTS = 3' "$JIKAN"
+          grep -q 'code in 500..599' "$JIKAN"
           grep -q 'exact title match' "$DETAIL"
           ! grep -q 'best ?: array.optJSONObject(0)' "$DETAIL"
           ! grep -q 'name.contains(normalized)' "$DETAIL"
@@ -80,14 +83,29 @@ jobs:
         working-directory: /tmp/sora-src/Sora_Android_v0_1
         run: gradle --stacktrace :app:assembleDebug
 
-      - name: Smoke-check Jikan endpoints
+      - name: Probe Jikan availability
         run: |
-          set -euo pipefail
-          curl -fsSL --retry 3 --retry-delay 2 --max-time 15 'https://api.jikan.moe/v4/top/anime?filter=airing&limit=1&sfw=true' | grep -q '"data"'
-          sleep 1
-          curl -fsSL --retry 3 --retry-delay 2 --max-time 15 'https://api.jikan.moe/v4/top/manga?filter=publishing&limit=1' | grep -q '"data"'
-          sleep 1
-          curl -fsSL --retry 3 --retry-delay 2 --max-time 15 'https://api.jikan.moe/v4/anime?q=naruto&limit=1&sfw=true' | grep -q '"data"'
+          set +e
+          urls=(
+            'https://api.jikan.moe/v4/top/anime?filter=airing&limit=1&sfw=true'
+            'https://api.jikan.moe/v4/top/manga?filter=publishing&limit=1'
+            'https://api.jikan.moe/v4/anime?q=naruto&limit=1&sfw=true'
+          )
+          healthy=0
+          for url in "${urls[@]}"; do
+            code="$(curl -sS -o /tmp/jikan-probe.json -w '%{http_code}' --retry 2 --retry-delay 2 --max-time 15 "$url")"
+            if [[ "$code" =~ ^2 && "$code" != "204" ]] && grep -q '"data"' /tmp/jikan-probe.json; then
+              echo "Jikan probe OK ($code): $url"
+              healthy=1
+            else
+              echo "Jikan probe unavailable ($code): $url"
+            fi
+            sleep 1
+          done
+          if [[ "$healthy" -eq 0 ]]; then
+            echo '::warning::Jikan is currently unavailable from this runner. Emulator validation will exercise Sora’s live retry/error behavior.'
+          fi
+          exit 0
 
       - name: Enable KVM
         run: |
