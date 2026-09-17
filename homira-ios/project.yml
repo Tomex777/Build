@@ -1,0 +1,24 @@
+name: Homira
+options:
+  bundleIdPrefix: com.night
+settings:
+  base:
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    SWIFT_VERSION: "6.0"
+targets:
+  Homira:
+    type: application
+    platform: iOS
+    sources:
+      - Homira
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.night.homira
+        PRODUCT_NAME: Homira
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Homira
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: Homira uses your microphone for voice and video calls.
+        INFOPLIST_KEY_NSCameraUsageDescription: Homira uses your camera for video calls.
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        CODE_SIGNING_ALLOWED: NO
