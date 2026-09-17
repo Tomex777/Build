@@ -1,0 +1,22 @@
+[Unit]
+Description=Cortex Agent for Night
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/cortex-agent
+EnvironmentFile=/etc/cortex-agent.env
+ExecStart=/usr/bin/node /opt/cortex-agent/index.js
+Restart=always
+RestartSec=3
+User=root
+Group=root
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/night
+
+[Install]
+WantedBy=multi-user.target
