@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -19,7 +19,7 @@ describe("Bailey external module protocol", () => {
       name: "Economy",
       version: "1.0.0",
       runtime: { command: "python", args: ["main.py"] },
-      capabilities: ["commands", "events", "jobs"],
+      capabilities: ["commands", "events", "jobs", "storage"],
       commands: [
         { id: "balance", name: "balance", section: "Economy", description: "Show a balance." },
       ],
@@ -31,6 +31,7 @@ describe("Bailey external module protocol", () => {
     expect(manifest.runtime.command).toBe("python");
     expect(manifest.commands?.[0]?.name).toBe("balance");
     expect(manifest.capabilities).toContain("events");
+    expect(manifest.capabilities).toContain("storage");
     expect(manifest.jobs?.[0]?.id).toBe("interest");
   });
 
@@ -241,5 +242,69 @@ input.on("line", (line) => {
     await manager.load();
     await expect(manager.executeJob("disabled", "tick", 999)).resolves.toBeUndefined();
     await manager.stopAll();
+  });
+
+  it("gives storage-enabled modules a persistent data directory across process restarts", async () => {
+    const root = await mkdtemp(join(tmpdir(), "bailey-external-storage-"));
+    tempDirs.push(root);
+    const moduleDir = join(root, "keeper");
+    const dataRoot = join(root, "host-data");
+    await mkdir(moduleDir, { recursive: true });
+
+    await writeFile(join(moduleDir, "bailey.module.json"), JSON.stringify({
+      protocol: 1,
+      id: "keeper",
+      name: "Keeper",
+      version: "1.0.0",
+      runtime: { command: process.execPath, args: ["worker.mjs"] },
+      capabilities: ["commands", "storage"],
+      commands: [
+        { id: "count", name: "count", section: "Storage", description: "Increment a persistent counter." },
+      ],
+    }, null, 2));
+
+    await writeFile(join(moduleDir, "worker.mjs"), `
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import readline from "node:readline";
+const input = readline.createInterface({ input: process.stdin });
+input.on("line", (line) => {
+  const request = JSON.parse(line);
+  if (request.type !== "command.execute") return;
+  const dataDir = process.env.BAILEY_MODULE_DATA_DIR;
+  if (!dataDir) throw new Error("storage path missing");
+  const counterFile = join(dataDir, "counter.txt");
+  const previous = existsSync(counterFile) ? Number(readFileSync(counterFile, "utf8")) : 0;
+  const next = previous + 1;
+  writeFileSync(counterFile, String(next), "utf8");
+  process.stdout.write(JSON.stringify({
+    protocol: 1,
+    replyTo: request.id,
+    ok: true,
+    actions: [{ type: "reply", text: String(next) }]
+  }) + "\\n");
+});
+`);
+
+    const runCount = async () => {
+      const manager = new ExternalModuleManager(root, () => ({}), () => true, dataRoot);
+      const loaded = await manager.load();
+      expect(loaded.errors).toEqual([]);
+      const replies: string[] = [];
+      await loaded.definitions[0].commands![0].execute!({
+        remoteJid: "123@s.whatsapp.net",
+        text: ".count",
+        args: [],
+        reply: async (text) => { replies.push(text); },
+        react: async () => {},
+        showMenu: async () => {},
+      });
+      await manager.stopAll();
+      return replies[0];
+    };
+
+    expect(await runCount()).toBe("1");
+    expect(await runCount()).toBe("2");
+    expect(await readFile(join(dataRoot, "keeper", "counter.txt"), "utf8")).toBe("2");
   });
 });
