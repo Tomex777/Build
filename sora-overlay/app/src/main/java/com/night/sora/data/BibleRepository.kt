@@ -144,6 +144,119 @@ class BibleRepository(context: Context) {
         it.key == bookmarkKey(translation.id, verse.book, verse.chapter, verse.number)
     }
 
+    fun annotations(): List<BibleAnnotation> {
+        val raw = prefs.getString(KEY_ANNOTATIONS, null) ?: return emptyList()
+        return runCatching {
+            val array = JSONArray(raw)
+            buildList {
+                for (i in 0 until array.length()) {
+                    val item = array.optJSONObject(i) ?: continue
+                    add(
+                        BibleAnnotation(
+                            key = item.getString("key"),
+                            book = item.getString("book"),
+                            chapter = item.getInt("chapter"),
+                            verse = item.getInt("verse"),
+                            text = item.optString("text"),
+                            translationId = item.optString("translationId", "web"),
+                            translationName = item.optString("translationName", "World English Bible"),
+                            highlighted = item.optBoolean("highlighted", false),
+                            note = item.optString("note"),
+                            updatedAt = item.optLong("updatedAt", 0L),
+                        )
+                    )
+                }
+            }.filter { it.highlighted || it.note.isNotBlank() }.sortedByDescending { it.updatedAt }
+        }.getOrDefault(emptyList())
+    }
+
+    fun annotationFor(
+        verse: BibleVerse,
+        translation: BibleTranslation,
+        annotations: List<BibleAnnotation>,
+    ): BibleAnnotation? = annotations.firstOrNull {
+        it.key == bookmarkKey(translation.id, verse.book, verse.chapter, verse.number)
+    }
+
+    fun toggleHighlight(verse: BibleVerse, translation: BibleTranslation): List<BibleAnnotation> {
+        val current = annotations().toMutableList()
+        val key = bookmarkKey(translation.id, verse.book, verse.chapter, verse.number)
+        val index = current.indexOfFirst { it.key == key }
+        val existing = current.getOrNull(index)
+        val next = (existing ?: BibleAnnotation(
+            key = key,
+            book = verse.book,
+            chapter = verse.chapter,
+            verse = verse.number,
+            text = verse.text,
+            translationId = translation.id,
+            translationName = translation.name,
+        )).copy(
+            text = verse.text,
+            highlighted = !(existing?.highlighted ?: false),
+            updatedAt = System.currentTimeMillis(),
+        )
+        if (!next.highlighted && next.note.isBlank()) {
+            if (index >= 0) current.removeAt(index)
+        } else if (index >= 0) {
+            current[index] = next
+        } else {
+            current.add(0, next)
+        }
+        persistAnnotations(current)
+        return current.sortedByDescending { it.updatedAt }
+    }
+
+    fun saveNote(verse: BibleVerse, translation: BibleTranslation, note: String): List<BibleAnnotation> {
+        val clean = note.trim()
+        val current = annotations().toMutableList()
+        val key = bookmarkKey(translation.id, verse.book, verse.chapter, verse.number)
+        val index = current.indexOfFirst { it.key == key }
+        val existing = current.getOrNull(index)
+        val next = (existing ?: BibleAnnotation(
+            key = key,
+            book = verse.book,
+            chapter = verse.chapter,
+            verse = verse.number,
+            text = verse.text,
+            translationId = translation.id,
+            translationName = translation.name,
+        )).copy(
+            text = verse.text,
+            note = clean,
+            updatedAt = System.currentTimeMillis(),
+        )
+        if (!next.highlighted && next.note.isBlank()) {
+            if (index >= 0) current.removeAt(index)
+        } else if (index >= 0) {
+            current[index] = next
+        } else {
+            current.add(0, next)
+        }
+        persistAnnotations(current)
+        return current.sortedByDescending { it.updatedAt }
+    }
+
+    private fun persistAnnotations(entries: List<BibleAnnotation>) {
+        val array = JSONArray()
+        entries.forEach { entry ->
+            array.put(
+                JSONObject()
+                    .put("key", entry.key)
+                    .put("book", entry.book)
+                    .put("chapter", entry.chapter)
+                    .put("verse", entry.verse)
+                    .put("text", entry.text)
+                    .put("translationId", entry.translationId)
+                    .put("translationName", entry.translationName)
+                    .put("highlighted", entry.highlighted)
+                    .put("note", entry.note)
+                    .put("updatedAt", entry.updatedAt)
+            )
+        }
+        prefs.edit().putString(KEY_ANNOTATIONS, array.toString()).apply()
+    }
+
     private fun persistBookmarks(entries: List<BibleBookmark>) {
         val array = JSONArray()
         entries.forEach { entry ->
@@ -250,6 +363,7 @@ class BibleRepository(context: Context) {
     companion object {
         private const val KEY_LAST_READING = "last_reading"
         private const val KEY_BOOKMARKS = "bookmarks"
+        private const val KEY_ANNOTATIONS = "annotations"
         private const val KEY_TRANSLATION = "translation"
         private const val KEY_TRANSLATIONS_CACHE = "translations_cache"
 
@@ -337,6 +451,19 @@ data class BibleBookmark(
     val translationId: String,
     val translationName: String,
     val savedAt: Long,
+)
+
+data class BibleAnnotation(
+    val key: String,
+    val book: String,
+    val chapter: Int,
+    val verse: Int,
+    val text: String,
+    val translationId: String,
+    val translationName: String,
+    val highlighted: Boolean = false,
+    val note: String = "",
+    val updatedAt: Long = 0L,
 )
 
 val SoraBibleBooks: List<BibleBook> = listOf(

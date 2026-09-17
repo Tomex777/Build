@@ -51,6 +51,7 @@ fun BibleScreen(onBack: () -> Unit) {
     var translations by remember { mutableStateOf(repository.cachedTranslations()) }
     var selectedTranslation by remember { mutableStateOf(repository.selectedTranslation()) }
     var bookmarks by remember { mutableStateOf(repository.bookmarks()) }
+    var annotations by remember { mutableStateOf(repository.annotations()) }
     val lastReading = remember(route) { repository.lastReading() }
 
     LaunchedEffect(Unit) {
@@ -125,8 +126,10 @@ fun BibleScreen(onBack: () -> Unit) {
             selectedTranslation = selectedTranslation,
             translations = translations,
             bookmarks = bookmarks,
+            annotations = annotations,
             onTranslation = ::changeTranslation,
             onBookmarksChanged = { bookmarks = it },
+            onAnnotationsChanged = { annotations = it },
             onBack = { route = BibleRoute.Chapters(current.book) },
             onChapter = { chapter -> route = BibleRoute.Reader(current.book, chapter) },
         )
@@ -306,8 +309,10 @@ private fun BibleReader(
     selectedTranslation: BibleTranslation,
     translations: List<BibleTranslation>,
     bookmarks: List<BibleBookmark>,
+    annotations: List<BibleAnnotation>,
     onTranslation: (BibleTranslation) -> Unit,
     onBookmarksChanged: (List<BibleBookmark>) -> Unit,
+    onAnnotationsChanged: (List<BibleAnnotation>) -> Unit,
     onBack: () -> Unit,
     onChapter: (Int) -> Unit,
 ) {
@@ -315,6 +320,9 @@ private fun BibleReader(
     var loading by remember(book, chapter, selectedTranslation.id) { mutableStateOf(true) }
     var error by remember(book, chapter, selectedTranslation.id) { mutableStateOf<String?>(null) }
     var refreshNonce by remember { mutableIntStateOf(0) }
+    var selectedVerse by remember(book, chapter, selectedTranslation.id) { mutableStateOf<BibleVerse?>(null) }
+    var noteVerse by remember(book, chapter, selectedTranslation.id) { mutableStateOf<BibleVerse?>(null) }
+    var noteDraft by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
     LaunchedEffect(book, chapter, selectedTranslation.id, refreshNonce) {
@@ -380,30 +388,48 @@ private fun BibleReader(
                     }
                     items(current.verses, key = { "${it.chapter}:${it.number}" }) { verse ->
                         val saved = repository.isBookmarked(verse, selectedTranslation, bookmarks)
-                        Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), verticalAlignment = Alignment.Top) {
-                            Text(
-                                verse.number.toString(),
-                                color = SoraAccent,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Black,
-                                modifier = Modifier.width(28.dp).padding(top = 5.dp),
-                            )
-                            Text(
-                                verse.text,
-                                fontSize = 17.sp,
-                                lineHeight = 28.sp,
-                                modifier = Modifier.weight(1f),
-                            )
-                            IconButton(
-                                onClick = { onBookmarksChanged(repository.toggleBookmark(verse, selectedTranslation)) },
-                                modifier = Modifier.size(38.dp),
+                        val annotation = repository.annotationFor(verse, selectedTranslation, annotations)
+                        Surface(
+                            color = if (annotation?.highlighted == true) SoraAccent.copy(alpha = .10f) else Color.Transparent,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth().clickable { selectedVerse = verse }.padding(vertical = 5.dp),
+                                verticalAlignment = Alignment.Top,
                             ) {
-                                Icon(
-                                    if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                                    if (saved) "Remove bookmark" else "Bookmark verse",
-                                    tint = if (saved) SoraAccent else SoraMuted,
-                                    modifier = Modifier.size(18.dp),
+                                Text(
+                                    verse.number.toString(),
+                                    color = SoraAccent,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black,
+                                    modifier = Modifier.width(28.dp).padding(top = 5.dp),
                                 )
+                                Text(
+                                    verse.text,
+                                    fontSize = 17.sp,
+                                    lineHeight = 28.sp,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                if (!annotation?.note.isNullOrBlank()) {
+                                    Icon(
+                                        Icons.Rounded.Edit,
+                                        "Verse has a note",
+                                        tint = SoraAccent,
+                                        modifier = Modifier.padding(top = 10.dp, end = 3.dp).size(15.dp),
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { onBookmarksChanged(repository.toggleBookmark(verse, selectedTranslation)) },
+                                    modifier = Modifier.size(38.dp),
+                                ) {
+                                    Icon(
+                                        if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                                        if (saved) "Remove bookmark" else "Bookmark verse",
+                                        tint = if (saved) SoraAccent else SoraMuted,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
                             }
                         }
                     }
@@ -427,6 +453,80 @@ private fun BibleReader(
                 }
             }
         }
+    }
+
+    selectedVerse?.let { verse ->
+        val annotation = repository.annotationFor(verse, selectedTranslation, annotations)
+        val saved = repository.isBookmarked(verse, selectedTranslation, bookmarks)
+        ModalBottomSheet(
+            onDismissRequest = { selectedVerse = null },
+            containerColor = SoraSurface,
+        ) {
+            Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 24.dp)) {
+                Text("${verse.book} ${verse.chapter}:${verse.number}", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                Text(verse.text, color = SoraMuted, fontSize = 13.sp, lineHeight = 20.sp, maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 7.dp))
+                Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { onAnnotationsChanged(repository.toggleHighlight(verse, selectedTranslation)) },
+                        modifier = Modifier.weight(1f),
+                    ) { Text(if (annotation?.highlighted == true) "Unhighlight" else "Highlight") }
+                    Button(
+                        onClick = {
+                            noteDraft = annotation?.note.orEmpty()
+                            noteVerse = verse
+                            selectedVerse = null
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) { Text(if (annotation?.note.isNullOrBlank()) "Add note" else "Edit note") }
+                }
+                TextButton(
+                    onClick = { onBookmarksChanged(repository.toggleBookmark(verse, selectedTranslation)) },
+                    modifier = Modifier.align(Alignment.End),
+                ) {
+                    Icon(if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder, null, modifier = Modifier.size(17.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (saved) "Remove bookmark" else "Bookmark verse")
+                }
+            }
+        }
+    }
+
+    noteVerse?.let { verse ->
+        val existing = repository.annotationFor(verse, selectedTranslation, annotations)
+        AlertDialog(
+            onDismissRequest = { noteVerse = null },
+            title = { Text("${verse.book} ${verse.chapter}:${verse.number}") },
+            text = {
+                Column {
+                    Text(verse.text, color = SoraMuted, fontSize = 11.sp, lineHeight = 16.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    OutlinedTextField(
+                        value = noteDraft,
+                        onValueChange = { noteDraft = it },
+                        label = { Text("Note") },
+                        minLines = 3,
+                        maxLines = 7,
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onAnnotationsChanged(repository.saveNote(verse, selectedTranslation, noteDraft))
+                    noteVerse = null
+                }) { Text("Save") }
+            },
+            dismissButton = {
+                Row {
+                    if (!existing?.note.isNullOrBlank()) {
+                        TextButton(onClick = {
+                            onAnnotationsChanged(repository.saveNote(verse, selectedTranslation, ""))
+                            noteVerse = null
+                        }) { Text("Clear") }
+                    }
+                    TextButton(onClick = { noteVerse = null }) { Text("Cancel") }
+                }
+            },
+        )
     }
 }
 
