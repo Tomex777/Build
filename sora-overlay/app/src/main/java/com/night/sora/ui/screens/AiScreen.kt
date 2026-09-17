@@ -152,7 +152,7 @@ fun AiScreen(
                 AiDrawerTarget.CHAT -> ChatThread(
                     modifier = Modifier.padding(padding),
                     messages = messages,
-                    onSuggestion = { draft = it },
+                    onSuggestion = onDraft,
                 )
                 AiDrawerTarget.GENERATED_IMAGES -> AiLibraryEmpty(Modifier.padding(padding), Icons.Rounded.Image, "Generated images", "Images you create with Sora stay here, beside your AI history.")
                 AiDrawerTarget.FILES -> AiFilesSurface(Modifier.padding(padding), files)
@@ -173,14 +173,13 @@ private fun ChatThread(modifier: Modifier, messages: List<AiMessage>, onSuggesti
                 Column(Modifier.fillMaxWidth().padding(top = 70.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.size(31.dp)) {
                         Box(Modifier.align(Alignment.TopCenter).width(24.dp).height(11.dp).background(SoraText, RoundedCornerShape(12.dp, 12.dp, 3.dp, 3.dp)))
-                        Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp).width(24.dp).height(2.dp).background(SoraAccent, RoundedCornerShape(99.dp)))
+                        Box(Modifier.align(Alignment.BottomCenter).width(31.dp).height(2.dp).background(SoraText))
                     }
-                    Text("What do you need?", fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 18.dp))
-                    Text("Talk normally. Sora decides what capability is needed.", color = SoraMuted, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(horizontal = 28.dp, vertical = 8.dp))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-                        SuggestionChip("Find a manga") { onSuggestion("Find this manga for me.") }
-                        SuggestionChip("Create something") { onSuggestion("Create an image for me.") }
-                        SuggestionChip("Search something") { onSuggestion("Search this for me.") }
+                    Text("What do you want to do?", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 16.dp))
+                    Text("One chat for Sora, your media and your files.", color = SoraMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                    Column(Modifier.fillMaxWidth().padding(top = 26.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SuggestionChip("What should I continue tonight?") { onSuggestion("What should I continue tonight?") }
+                        SuggestionChip("Find me another manga") { onSuggestion("Find me a manga based on what I like.") }
                         SuggestionChip("Explain a Bible passage") { onSuggestion("Explain this Bible passage for me.") }
                     }
                 }
@@ -209,12 +208,12 @@ private fun ChatThread(modifier: Modifier, messages: List<AiMessage>, onSuggesti
 
 @Composable
 private fun SuggestionChip(text: String, onClick: () -> Unit) {
-    Surface(
-        color = SoraSurface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .08f)),
-        shape = RoundedCornerShape(999.dp),
-        modifier = Modifier.clickable(onClick = onClick),
-    ) { Text(text, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) }
+    Surface(color = SoraSurface, border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .07f)), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(text, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            Icon(Icons.Rounded.NorthWest, null, tint = SoraFaint, modifier = Modifier.size(15.dp))
+        }
+    }
 }
 
 @Composable
@@ -242,21 +241,17 @@ private fun ChatComposer(
                 }
             }
             Surface(
-                color = Color(0xFF181816),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .08f)),
-                shape = RoundedCornerShape(24.dp),
+                color = Color(0xFF20201D),
+                shape = RoundedCornerShape(25.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .06f)),
             ) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 7.dp, vertical = 7.dp), verticalAlignment = Alignment.Bottom) {
-                    IconButton(onClick = onAttach, modifier = Modifier.size(38.dp)) { Icon(Icons.Rounded.Add, "Attach", modifier = Modifier.size(20.dp)) }
-                    Box(Modifier.weight(1f).padding(vertical = 9.dp)) {
+                Row(Modifier.padding(horizontal = 6.dp, vertical = 6.dp), verticalAlignment = Alignment.Bottom) {
+                    IconButton(onClick = onAttach, modifier = Modifier.size(38.dp)) { Icon(Icons.Rounded.Add, "Attach", modifier = Modifier.size(19.dp)) }
+                    Box(Modifier.weight(1f).padding(horizontal = 3.dp, vertical = 9.dp)) {
                         BasicTextField(
-                            value = draft,
-                            onValueChange = onDraft,
-                            minLines = 1,
-                            maxLines = 5,
-                            textStyle = TextStyle(color = SoraText, fontSize = 14.sp, lineHeight = 20.sp),
-                            modifier = Modifier.fillMaxWidth(),
-                            decorationBox = { inner -> if (draft.isEmpty()) Text("Message Sora…", color = SoraMuted, fontSize = 14.sp); inner() },
+                            value = draft, onValueChange = onDraft, minLines = 1, maxLines = 5,
+                            textStyle = TextStyle(color = SoraText, fontSize = 14.sp, lineHeight = 20.sp), modifier = Modifier.fillMaxWidth(),
+                            decorationBox = { inner -> if (draft.isEmpty()) Text("Message Sora", color = SoraMuted, fontSize = 14.sp); inner() },
                         )
                     }
                     FilledIconButton(
@@ -267,7 +262,7 @@ private fun ChatComposer(
                     ) { Icon(Icons.Rounded.ArrowUpward, "Save message", modifier = Modifier.size(19.dp)) }
                 }
             }
-            Row(Modifier.fillMaxWidth().padding(horizontal = 7.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().padding(start = 9.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(5.dp).background(SoraAccent, CircleShape))
                 Text("Messages are stored locally until an AI provider is connected", color = SoraMuted, fontSize = 8.sp, modifier = Modifier.padding(start = 6.dp))
             }
@@ -309,11 +304,9 @@ private fun AiFilesSurface(modifier: Modifier, files: List<AiAttachment>) {
 
 @Composable
 private fun AiLibraryEmpty(modifier: Modifier, icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, body: String) {
-    Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(34.dp)) {
-            Icon(icon, null, tint = SoraMuted, modifier = Modifier.size(42.dp))
-            Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 13.dp))
-            Text(body, color = SoraMuted, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 5.dp))
-        }
+    Column(modifier.fillMaxSize().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Icon(icon, null, tint = SoraMuted, modifier = Modifier.size(38.dp))
+        Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
+        Text(body, color = SoraMuted, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 5.dp))
     }
 }
