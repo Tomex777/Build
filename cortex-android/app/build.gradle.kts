@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.night.cortex"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.night.cortex"
