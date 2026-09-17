@@ -152,6 +152,10 @@ wait_for_node 'Wake Slowly' 20
 wait_for_node Pause 20
 shot 06-next-track
 
+# Standard music-player semantics: Previous after >3s restarts the current
+# track. A second press then moves to the previous queue item. Two presses are
+# valid in both cases (if the first already moved, the second stays at index 0).
+tap_text Previous
 tap_text Previous
 wait_for_node 'Low Light' 20
 wait_for_node Pause 20
