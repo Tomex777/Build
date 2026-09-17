@@ -26,6 +26,7 @@ jobs:
           test -f "$ROOT/app/src/main/java/com/night/sora/data/BibleRepository.kt"
           test -f "$ROOT/app/src/main/java/com/night/sora/ui/screens/BibleScreen.kt"
           test -f "$ROOT/meme-extension/src/main/java/com/night/sora/memeextension/RedditMemeCatalog.kt"
+          test -f "$ROOT/tumblr-meme-extension/src/main/java/com/night/sora/tumblrmemeextension/TumblrMemeCatalog.kt"
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -38,13 +39,17 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
-      - name: Build Sora Core and Reddit meme extension
+      - name: Build Sora Core and meme extensions
         working-directory: /tmp/sora-src/Sora_Android_v0_1
-        run: gradle --stacktrace :app:assembleDebug :meme-extension:assembleDebug
+        run: gradle --stacktrace :app:assembleDebug :meme-extension:assembleDebug :tumblr-meme-extension:assembleDebug
       - name: Probe Reddit from hosted runner
         continue-on-error: true
         run: |
           curl -fsSL --retry 1 --max-time 15 -A 'android:com.night.sora.ext.memes.reddit:0.1 (Sora private media client)' 'https://www.reddit.com/r/memes/hot.json?raw_json=1&limit=2' | grep -q '"children"'
+      - name: Verify Tumblr source is credential-gated
+        run: |
+          grep -q 'SORA_TUMBLR_API_KEY' sora-overlay/tumblr-meme-extension/build.gradle.kts
+          grep -q 'Tumblr API key is not configured' sora-overlay/tumblr-meme-extension/src/main/java/com/night/sora/tumblrmemeextension/TumblrMemeCatalog.kt
       - name: Smoke-check Bible live endpoints
         run: |
           curl -fsSL --retry 2 --max-time 15 'https://bible-api.com/data' | grep -q '"translations"'
@@ -53,11 +58,13 @@ jobs:
         run: |
           cp /tmp/sora-src/Sora_Android_v0_1/app/build/outputs/apk/debug/app-debug.apk /tmp/Sora-Memes-Bible-debug.apk
           cp /tmp/sora-src/Sora_Android_v0_1/meme-extension/build/outputs/apk/debug/meme-extension-debug.apk /tmp/Sora-Reddit-Memes-debug.apk
+          cp /tmp/sora-src/Sora_Android_v0_1/tumblr-meme-extension/build/outputs/apk/debug/tumblr-meme-extension-debug.apk /tmp/Sora-Tumblr-Memes-debug.apk
       - uses: actions/upload-artifact@v4
         with:
           name: sora-memes-bible-apks
           path: |
             /tmp/Sora-Memes-Bible-debug.apk
             /tmp/Sora-Reddit-Memes-debug.apk
+            /tmp/Sora-Tumblr-Memes-debug.apk
           if-no-files-found: error
           retention-days: 3
