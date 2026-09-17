@@ -1,0 +1,37 @@
+name: Apply Sora Music Smoke
+
+on:
+  push:
+    branches: [sora-android-ci]
+    paths:
+      - 'sora-ci/apply-music-smoke.txt'
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply strict Music playback smoke
+        run: python sora-ci/patch_music_smoke.py
+      - name: Verify Music playback assertions
+        run: |
+          grep -q 'tap_first_music_tile' sora-ci/ui-smoke.sh
+          grep -q "wait_for_node 'Mini player'" sora-ci/ui-smoke.sh
+          grep -q "wait_for_node Pause" sora-ci/ui-smoke.sh
+          grep -q '06c-music-transport' sora-ci/ui-smoke.sh
+      - name: Commit smoke continuation
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add sora-ci/ui-smoke.sh
+          if git diff --cached --quiet; then
+            echo 'No changes to commit'
+          else
+            git commit -m 'test Sora real music playback transport'
+            git push
+          fi
