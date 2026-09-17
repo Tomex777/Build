@@ -1,5 +1,7 @@
 package com.night.sora.youtubemusic
 
+import android.content.Context
+import android.net.Uri
 import android.util.Log
 import com.metrolist.innertube.NewPipeExtractor
 import com.metrolist.innertube.YouTube
@@ -16,6 +18,7 @@ import com.metrolist.innertube.models.YouTubeClient.Companion.IPADOS
 import com.metrolist.innertube.models.YouTubeClient.Companion.MOBILE
 import com.metrolist.innertube.models.YouTubeClient.Companion.TVHTML5
 import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS
+import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
@@ -25,11 +28,13 @@ object YouTubeMusicCatalog {
     private const val TAG = "SoraYouTubeMusic"
     private const val PLAYER_ATTEMPT_TIMEOUT_MS = 15_000L
 
+    @Volatile
+    private var poTokenProvider: YouTubePoTokenProvider? = null
+
     /**
      * Keep the cheap direct-url path first, but walk the extra anonymous identities
      * already carried by the pinned Spotui Innertube snapshot before escalating to
-     * cipher / PoToken / SABR machinery. GitHub-hosted runners can be challenged on
-     * one client identity while another still receives an ordinary player response.
+     * BotGuard/PoToken. YouTube-specific anti-bot logic remains extension-local.
      */
     private val nativePlaybackClients = listOf(
         ANDROID_MUSIC,
@@ -44,6 +49,16 @@ object YouTubeMusicCatalog {
         VISIONOS,
         MOBILE,
     )
+
+    fun initialize(context: Context) {
+        if (poTokenProvider == null) {
+            synchronized(this) {
+                if (poTokenProvider == null) {
+                    poTokenProvider = YouTubePoTokenProvider(context.applicationContext)
+                }
+            }
+        }
+    }
 
     suspend fun browse(sourceId: String): String {
         requireSource(sourceId)
@@ -141,15 +156,7 @@ object YouTubeMusicCatalog {
                 continue
             }
 
-            val audio = formats
-                .asSequence()
-                .filter { it.isAudio && it.isOriginal && !it.url.isNullOrBlank() }
-                .sortedByDescending { format ->
-                    (format.averageBitrate ?: format.bitrate) +
-                        if (format.mimeType.startsWith("audio/webm")) 10_000 else 0
-                }
-                .toList()
-
+            val audio = directAudioFormats(formats)
             Log.i(
                 TAG,
                 "direct audio id=$id client=$identity count=${audio.size} mime=${audio.firstOrNull()?.mimeType.orEmpty()}",
@@ -159,32 +166,123 @@ object YouTubeMusicCatalog {
                 continue
             }
 
-            return JSONArray().apply {
-                audio.forEach { format ->
-                    val url = format.url.orEmpty()
-                    // Preserve the exact identity that minted this URL. The generic
-                    // Core stream contract transports these headers without knowing
-                    // anything YouTube-specific.
-                    val headersJson = JSONObject().apply {
-                        client.mediaHeaders().forEach { (name, value) -> put(name, value) }
-                    }
-                    put(
-                        JSONObject()
-                            .put("label", qualityLabel(format.mimeType, format.averageBitrate ?: format.bitrate))
-                            .put("url", url)
-                            .put("headers", headersJson)
-                            .put("mimeType", format.mimeType.substringBefore(';'))
-                            .put("bitrate", format.averageBitrate ?: format.bitrate)
-                            .put("durationMs", format.approxDurationMs?.toLongOrNull() ?: 0L)
-                    )
-                }
-            }.toString().also {
+            return streamsJson(audio, client, poToken = null).also {
                 Log.i(TAG, "resolved id=$id client=$identity streams=${audio.size}")
             }
         }
 
-        error("No anonymous YouTube Music client returned direct audio: ${failures.joinToString("; ")}")
+        // GitHub/cloud IPs are often challenged even when discovery works. Spotui's
+        // web fallback proves bot integrity using VISITOR_DATA and binds a second
+        // token to the requested video. Try that only after all cheap native paths.
+        val visitorData = YouTube.visitorData?.takeIf(String::isNotBlank)
+        val provider = poTokenProvider
+        if (visitorData == null) {
+            failures += "WEB_REMIX: missing visitor data"
+        } else if (provider == null) {
+            failures += "WEB_REMIX: PoToken provider not initialized"
+        } else {
+            Log.i(TAG, "potoken start id=$id client=${WEB_REMIX.clientName}/${WEB_REMIX.clientVersion}")
+            val tokens = provider.tokens(id, visitorData)
+            val tokenPair = tokens.getOrNull()
+            if (tokenPair == null) {
+                val message = tokens.exceptionOrNull()?.message.orEmpty().ifBlank { "unknown PoToken error" }
+                Log.e(TAG, "potoken failed id=$id reason=$message", tokens.exceptionOrNull())
+                failures += "WEB_REMIX PoToken: $message"
+            } else {
+                Log.i(TAG, "potoken ready id=$id request=true stream=true")
+                val response = withTimeoutOrNull(PLAYER_ATTEMPT_TIMEOUT_MS) {
+                    YouTube.player(
+                        videoId = id,
+                        client = WEB_REMIX,
+                        signatureTimestamp = signatureTimestamp,
+                        poToken = tokenPair.playerRequestPoToken,
+                        authenticated = false,
+                    ).getOrNull()
+                }
+
+                if (response == null) {
+                    failures += "WEB_REMIX: timeout/network"
+                    Log.w(TAG, "player timeout-or-null id=$id client=WEB_REMIX")
+                } else {
+                    val status = response.playabilityStatus.status
+                    val reason = response.playabilityStatus.reason.orEmpty()
+                    val returnedVideoId = response.videoDetails?.videoId
+                    val formats = response.streamingData?.adaptiveFormats.orEmpty()
+                    Log.i(
+                        TAG,
+                        "player result id=$id client=WEB_REMIX status=$status reason=$reason returned=$returnedVideoId adaptive=${formats.size}",
+                    )
+                    when {
+                        returnedVideoId != null && returnedVideoId != id -> {
+                            failures += "WEB_REMIX: wrong video"
+                            Log.w(TAG, "wrong-video id=$id client=WEB_REMIX returned=$returnedVideoId")
+                        }
+                        status != "OK" -> {
+                            failures += "WEB_REMIX: $status${reason.takeIf(String::isNotBlank)?.let { " ($it)" }.orEmpty()}"
+                        }
+                        else -> {
+                            val audio = directAudioFormats(formats)
+                            Log.i(
+                                TAG,
+                                "direct audio id=$id client=WEB_REMIX count=${audio.size} mime=${audio.firstOrNull()?.mimeType.orEmpty()}",
+                            )
+                            if (audio.isNotEmpty()) {
+                                return streamsJson(
+                                    audio,
+                                    WEB_REMIX,
+                                    poToken = tokenPair.streamingDataPoToken,
+                                ).also {
+                                    Log.i(TAG, "resolved id=$id client=WEB_REMIX streams=${audio.size} pot=true")
+                                }
+                            }
+                            failures += "WEB_REMIX: OK but no direct audio URL"
+                            Log.w(TAG, "WEB_REMIX playable response has no direct audio URL; cipher fallback required")
+                        }
+                    }
+                }
+            }
+        }
+
+        error("No YouTube Music playback path resolved direct audio: ${failures.joinToString("; ")}")
     }
+
+    private fun directAudioFormats(
+        formats: List<com.metrolist.innertube.models.response.PlayerResponse.StreamingData.Format>,
+    ): List<com.metrolist.innertube.models.response.PlayerResponse.StreamingData.Format> = formats
+        .asSequence()
+        .filter { it.isAudio && it.isOriginal && !it.url.isNullOrBlank() }
+        .sortedByDescending { format ->
+            (format.averageBitrate ?: format.bitrate) +
+                if (format.mimeType.startsWith("audio/webm")) 10_000 else 0
+        }
+        .toList()
+
+    private fun streamsJson(
+        audio: List<com.metrolist.innertube.models.response.PlayerResponse.StreamingData.Format>,
+        client: YouTubeClient,
+        poToken: String?,
+    ): String = JSONArray().apply {
+        audio.forEach { format ->
+            val baseUrl = format.url.orEmpty()
+            val url = if (poToken.isNullOrBlank()) {
+                baseUrl
+            } else {
+                "$baseUrl${if ('?' in baseUrl) '&' else '?'}pot=${Uri.encode(poToken)}"
+            }
+            val headersJson = JSONObject().apply {
+                client.mediaHeaders().forEach { (name, value) -> put(name, value) }
+            }
+            put(
+                JSONObject()
+                    .put("label", qualityLabel(format.mimeType, format.averageBitrate ?: format.bitrate))
+                    .put("url", url)
+                    .put("headers", headersJson)
+                    .put("mimeType", format.mimeType.substringBefore(';'))
+                    .put("bitrate", format.averageBitrate ?: format.bitrate)
+                    .put("durationMs", format.approxDurationMs?.toLongOrNull() ?: 0L)
+            )
+        }
+    }.toString()
 
     private suspend fun ensureVisitorData() {
         if (YouTube.visitorData.isNullOrBlank()) {
