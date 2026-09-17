@@ -32,13 +32,24 @@ export interface ExternalModuleLoadResult {
   errors: Array<{ folder: string; error: string }>;
 }
 
+type HostSendText = (remoteJid: string, text: string) => Promise<void>;
+type TriggerContext = Pick<CommandContext | MessageEventContext, "reply" | "react">;
+
 export class ExternalModuleManager {
   private readonly modules = new Map<string, LoadedModule>();
+  private readonly jobTimers = new Map<string, NodeJS.Timeout>();
+  private readonly runningJobs = new Set<string>();
+  private hostSendText?: HostSendText;
+  private jobsStarted = false;
 
   constructor(
     private readonly modulesRoot: string,
     private readonly getEnvironment: (moduleId: string) => Record<string, string>,
   ) {}
+
+  setHostSendText(handler: HostSendText): void {
+    this.hostSendText = handler;
+  }
 
   async load(): Promise<ExternalModuleLoadResult> {
     await mkdir(this.modulesRoot, { recursive: true });
@@ -194,18 +205,20 @@ export class ExternalModuleManager {
     });
   }
 
-  private async applyActions(
-    moduleId: string,
-    actions: ExternalModuleAction[],
-    context: Pick<CommandContext | MessageEventContext, "reply" | "react">,
-  ): Promise<void> {
+  private async applyActions(moduleId: string, actions: ExternalModuleAction[], context?: TriggerContext): Promise<void> {
     for (const action of actions) {
       switch (action.type) {
         case "reply":
+          if (!context) throw new Error(`${moduleId} returned reply from a request without a triggering message.`);
           await context.reply(action.text);
           break;
         case "react":
+          if (!context) throw new Error(`${moduleId} returned react from a request without a triggering message.`);
           await context.react(action.emoji);
+          break;
+        case "send":
+          if (!this.hostSendText) throw new Error(`${moduleId} tried to send a message before Bailey's WhatsApp host was ready.`);
+          await this.hostSendText(action.remoteJid, action.text);
           break;
         case "log":
           console[action.level === "error" ? "error" : action.level === "warn" ? "warn" : "log"](`[module:${moduleId}] ${action.message}`);
@@ -251,7 +264,66 @@ export class ExternalModuleManager {
     await this.applyActions(moduleId, actions, context);
   }
 
+  async executeJob(moduleId: string, jobId: string, scheduledAt = Date.now()): Promise<void> {
+    const loaded = this.modules.get(moduleId);
+    if (!loaded) throw new Error(`External module is not loaded: ${moduleId}`);
+    if (!(loaded.manifest.capabilities?.includes("jobs") ?? false)) throw new Error(`${moduleId} does not declare the jobs capability.`);
+    if (!(loaded.manifest.jobs ?? []).some((job) => job.id === jobId)) throw new Error(`Unknown job ${jobId} in ${moduleId}.`);
+
+    const key = `${moduleId}:${jobId}`;
+    if (this.runningJobs.has(key)) {
+      console.warn(`[module:${moduleId}] Skipped overlapping job ${jobId}.`);
+      return;
+    }
+
+    this.runningJobs.add(key);
+    try {
+      const actions = await this.request(moduleId, {
+        protocol: BAILEY_MODULE_PROTOCOL,
+        id: randomUUID(),
+        type: "job.execute",
+        jobId,
+        scheduledAt,
+      });
+      await this.applyActions(moduleId, actions);
+    } finally {
+      this.runningJobs.delete(key);
+    }
+  }
+
+  startJobs(): void {
+    if (this.jobsStarted) return;
+    this.jobsStarted = true;
+
+    for (const loaded of this.modules.values()) {
+      if (!(loaded.manifest.capabilities?.includes("jobs") ?? false)) continue;
+      for (const job of loaded.manifest.jobs ?? []) {
+        const key = `${loaded.manifest.id}:${job.id}`;
+        if (job.runOnStart) {
+          void this.executeJob(loaded.manifest.id, job.id).catch((error) => {
+            console.error(`[module:${loaded.manifest.id}] job ${job.id} failed`, error);
+          });
+        }
+        const timer = setInterval(() => {
+          void this.executeJob(loaded.manifest.id, job.id).catch((error) => {
+            console.error(`[module:${loaded.manifest.id}] job ${job.id} failed`, error);
+          });
+        }, job.intervalSeconds * 1000);
+        timer.unref?.();
+        this.jobTimers.set(key, timer);
+      }
+    }
+  }
+
+  stopJobs(): void {
+    for (const timer of this.jobTimers.values()) clearInterval(timer);
+    this.jobTimers.clear();
+    this.runningJobs.clear();
+    this.jobsStarted = false;
+  }
+
   async stopAll(): Promise<void> {
+    this.stopJobs();
     for (const loaded of this.modules.values()) {
       const child = loaded.process;
       if (!child || child.killed) continue;
