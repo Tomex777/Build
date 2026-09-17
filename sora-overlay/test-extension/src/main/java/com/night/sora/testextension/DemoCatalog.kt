@@ -71,8 +71,12 @@ object DemoCatalog {
     }.toString()
 
     fun streams(id: String): String = JSONArray()
-        .put(JSONObject().put("label", "1080p").put("url", "https://example.invalid/$id/1080.m3u8"))
-        .put(JSONObject().put("label", "720p").put("url", "https://example.invalid/$id/720.m3u8"))
+        .put(
+            JSONObject()
+                .put("label", "Test MP3")
+                .put("url", "https://storage.googleapis.com/exoplayer-test-media-0/play.mp3")
+                .put("mimeType", "audio/mpeg")
+        )
         .toString()
 
     fun lyrics(id: String): String = JSONObject()
