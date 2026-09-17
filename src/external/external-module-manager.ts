@@ -45,6 +45,7 @@ export class ExternalModuleManager {
   constructor(
     private readonly modulesRoot: string,
     private readonly getEnvironment: (moduleId: string) => Record<string, string>,
+    private readonly isModuleEnabled: (moduleId: string) => boolean = () => true,
   ) {}
 
   setHostSendText(handler: HostSendText): void {
@@ -267,6 +268,7 @@ export class ExternalModuleManager {
   async executeJob(moduleId: string, jobId: string, scheduledAt = Date.now()): Promise<void> {
     const loaded = this.modules.get(moduleId);
     if (!loaded) throw new Error(`External module is not loaded: ${moduleId}`);
+    if (!this.isModuleEnabled(moduleId)) return;
     if (!(loaded.manifest.capabilities?.includes("jobs") ?? false)) throw new Error(`${moduleId} does not declare the jobs capability.`);
     if (!(loaded.manifest.jobs ?? []).some((job) => job.id === jobId)) throw new Error(`Unknown job ${jobId} in ${moduleId}.`);
 
