@@ -82,6 +82,7 @@ input.on("line", (line) => {
       args: ["one", "two"],
       reply: async (text) => { replies.push(text); },
       react: async (emoji) => { reactions.push(emoji); },
+      showMenu: async () => {},
     });
 
     expect(replies).toEqual(["Worker:one|two"]);
