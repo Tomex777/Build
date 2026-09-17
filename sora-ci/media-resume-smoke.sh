@@ -157,6 +157,11 @@ PY
   sleep 2
 }
 
+scroll_continue_into_view() {
+  adb shell input swipe 540 1900 540 1120 350
+  sleep 2
+}
+
 assert_progress() {
   local media_id="$1" min_position="$2"
   adb shell run-as com.night.sora cat shared_prefs/sora_core.xml > /tmp/current-sora-core.xml
@@ -182,6 +187,7 @@ tap_text 'Anime & Manga'
 wait_for_node 'Movies & TV' 10
 tap_text 'Movies & TV'
 wait_for_node 'Continue watching' 15
+scroll_continue_into_view
 shot 01-movie-continue
 
 tap_text_below 'Continue watching' 'The Last Platform'
@@ -201,6 +207,7 @@ tap_text 'Anime & Manga'
 wait_for_node Manga 10
 tap_text Manga
 wait_for_node 'Continue reading' 15
+scroll_continue_into_view
 shot 03-manga-continue
 
 tap_text_below 'Continue reading' 'After Rain'
