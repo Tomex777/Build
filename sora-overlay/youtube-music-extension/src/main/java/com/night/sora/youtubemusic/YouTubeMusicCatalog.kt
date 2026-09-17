@@ -27,9 +27,18 @@ object YouTubeMusicCatalog {
     private const val SOURCE_ID = "youtube.music"
     private const val TAG = "SoraYouTubeMusic"
     private const val PLAYER_ATTEMPT_TIMEOUT_MS = 15_000L
+    private const val SESSION_PREFS = "sora_youtube_music_session_v1"
+    private const val SESSION_COOKIE = "cookie"
+    private const val SESSION_USER_AGENT = "userAgent"
 
     @Volatile
     private var poTokenProvider: YouTubePoTokenProvider? = null
+
+    @Volatile
+    private var appContext: Context? = null
+
+    @Volatile
+    private var sessionUserAgent: String? = null
 
     /**
      * Keep the cheap direct-url path first, but walk the extra anonymous identities
@@ -51,13 +60,72 @@ object YouTubeMusicCatalog {
     )
 
     fun initialize(context: Context) {
+        val app = context.applicationContext
+        appContext = app
+        val prefs = app.getSharedPreferences(SESSION_PREFS, Context.MODE_PRIVATE)
+        val storedCookie = prefs.getString(SESSION_COOKIE, null)?.takeIf(String::isNotBlank)
+        sessionUserAgent = prefs.getString(SESSION_USER_AGENT, null)?.takeIf(String::isNotBlank)
+        YouTube.cookie = storedCookie
+        YouTube.useLoginForBrowse = hasSignedInCookie(storedCookie)
+
         if (poTokenProvider == null) {
             synchronized(this) {
                 if (poTokenProvider == null) {
-                    poTokenProvider = YouTubePoTokenProvider(context.applicationContext)
+                    poTokenProvider = YouTubePoTokenProvider(app)
                 }
             }
         }
+        Log.i(TAG, "session restore signedIn=${hasSignedInCookie(storedCookie)}")
+    }
+
+    fun browserSession(sourceId: String): String {
+        requireSource(sourceId)
+        val headers = JSONObject()
+            .put("User-Agent", sessionUserAgent?.takeIf(String::isNotBlank) ?: WEB_REMIX.userAgent)
+        return JSONObject()
+            .put("url", "https://music.youtube.com/")
+            .put("title", "YouTube Music sign in")
+            .put("headers", headers)
+            .toString()
+    }
+
+    suspend fun storeSession(sourceId: String, cookieHeader: String, userAgent: String): String {
+        requireSource(sourceId)
+        val context = appContext ?: error("YouTube Music extension is not initialized")
+        val prefs = context.getSharedPreferences(SESSION_PREFS, Context.MODE_PRIVATE)
+        val cleanCookie = cookieHeader.trim()
+        val cleanUserAgent = userAgent.trim().takeIf(String::isNotBlank)
+
+        if (!hasSignedInCookie(cleanCookie)) {
+            prefs.edit().clear().apply()
+            YouTube.cookie = null
+            YouTube.useLoginForBrowse = false
+            sessionUserAgent = null
+            Log.i(TAG, "session cleared signedIn=false")
+            return JSONObject()
+                .put("stored", false)
+                .put("signedIn", false)
+                .put("message", "No signed-in YouTube Music session was found.")
+                .toString()
+        }
+
+        prefs.edit()
+            .putString(SESSION_COOKIE, cleanCookie)
+            .putString(SESSION_USER_AGENT, cleanUserAgent)
+            .apply()
+        sessionUserAgent = cleanUserAgent
+        YouTube.cookie = cleanCookie
+        YouTube.useLoginForBrowse = true
+
+        val validated = withTimeoutOrNull(PLAYER_ATTEMPT_TIMEOUT_MS) {
+            YouTube.validateLogin().getOrDefault(false)
+        } ?: false
+        Log.i(TAG, "session stored signedIn=true validated=$validated")
+        return JSONObject()
+            .put("stored", true)
+            .put("signedIn", true)
+            .put("validated", validated)
+            .toString()
     }
 
     suspend fun browse(sourceId: String): String {
@@ -115,7 +183,7 @@ object YouTubeMusicCatalog {
         }.getOrNull()
         Log.i(
             TAG,
-            "resolver context id=$id visitor=${!YouTube.visitorData.isNullOrBlank()} signatureTimestamp=${signatureTimestamp ?: "none"}",
+            "resolver context id=$id visitor=${!YouTube.visitorData.isNullOrBlank()} signedIn=${hasSignedInCookie(YouTube.cookie)} signatureTimestamp=${signatureTimestamp ?: "none"}",
         )
 
         val failures = mutableListOf<String>()
@@ -171,11 +239,9 @@ object YouTubeMusicCatalog {
             }
         }
 
-        // GitHub/cloud IPs are often challenged even when discovery works. Spotui's
-        // web fallback proves bot integrity using VISITOR_DATA and binds a second
-        // token to the requested video. Try that only after all cheap native paths.
         val visitorData = YouTube.visitorData?.takeIf(String::isNotBlank)
         val provider = poTokenProvider
+        var tokenPair: YouTubePoTokenProvider.Tokens? = null
         if (visitorData == null) {
             failures += "WEB_REMIX: missing visitor data"
         } else if (provider == null) {
@@ -183,61 +249,106 @@ object YouTubeMusicCatalog {
         } else {
             Log.i(TAG, "potoken start id=$id client=${WEB_REMIX.clientName}/${WEB_REMIX.clientVersion}")
             val tokens = provider.tokens(id, visitorData)
-            val tokenPair = tokens.getOrNull()
+            tokenPair = tokens.getOrNull()
             if (tokenPair == null) {
                 val message = tokens.exceptionOrNull()?.message.orEmpty().ifBlank { "unknown PoToken error" }
                 Log.e(TAG, "potoken failed id=$id reason=$message", tokens.exceptionOrNull())
                 failures += "WEB_REMIX PoToken: $message"
             } else {
                 Log.i(TAG, "potoken ready id=$id request=true stream=true")
-                val response = withTimeoutOrNull(PLAYER_ATTEMPT_TIMEOUT_MS) {
-                    YouTube.player(
-                        videoId = id,
-                        client = WEB_REMIX,
-                        signatureTimestamp = signatureTimestamp,
-                        poToken = tokenPair.playerRequestPoToken,
-                        authenticated = false,
-                    ).getOrNull()
-                }
+            }
+        }
 
-                if (response == null) {
-                    failures += "WEB_REMIX: timeout/network"
-                    Log.w(TAG, "player timeout-or-null id=$id client=WEB_REMIX")
-                } else {
-                    val status = response.playabilityStatus.status
-                    val reason = response.playabilityStatus.reason.orEmpty()
-                    val returnedVideoId = response.videoDetails?.videoId
-                    val formats = response.streamingData?.adaptiveFormats.orEmpty()
-                    Log.i(
-                        TAG,
-                        "player result id=$id client=WEB_REMIX status=$status reason=$reason returned=$returnedVideoId adaptive=${formats.size}",
-                    )
-                    when {
-                        returnedVideoId != null && returnedVideoId != id -> {
-                            failures += "WEB_REMIX: wrong video"
-                            Log.w(TAG, "wrong-video id=$id client=WEB_REMIX returned=$returnedVideoId")
-                        }
-                        status != "OK" -> {
-                            failures += "WEB_REMIX: $status${reason.takeIf(String::isNotBlank)?.let { " ($it)" }.orEmpty()}"
-                        }
-                        else -> {
-                            val audio = directAudioFormats(formats)
-                            Log.i(
-                                TAG,
-                                "direct audio id=$id client=WEB_REMIX count=${audio.size} mime=${audio.firstOrNull()?.mimeType.orEmpty()}",
-                            )
-                            if (audio.isNotEmpty()) {
-                                return streamsJson(
-                                    audio,
-                                    WEB_REMIX,
-                                    poToken = tokenPair.streamingDataPoToken,
-                                ).also {
-                                    Log.i(TAG, "resolved id=$id client=WEB_REMIX streams=${audio.size} pot=true")
-                                }
+        // Spotui's signed-in fallback uses the real browser session only after the
+        // anonymous identities have been challenged. Cookie + SAPISIDHASH are added
+        // by Innertube when authenticated=true; the PoTokens remain bound to the
+        // current VISITOR_DATA/video pair.
+        if (hasSignedInCookie(YouTube.cookie) && tokenPair != null) {
+            val client = authenticatedWebClient()
+            Log.i(TAG, "authenticated player start id=$id client=${client.clientName}/${client.clientVersion}")
+            val response = withTimeoutOrNull(PLAYER_ATTEMPT_TIMEOUT_MS) {
+                YouTube.player(
+                    videoId = id,
+                    client = client,
+                    signatureTimestamp = signatureTimestamp,
+                    poToken = tokenPair.playerRequestPoToken,
+                    authenticated = true,
+                ).getOrNull()
+            }
+            if (response == null) {
+                failures += "WEB_REMIX authenticated: timeout/network"
+                Log.w(TAG, "authenticated player timeout-or-null id=$id")
+            } else {
+                val status = response.playabilityStatus.status
+                val reason = response.playabilityStatus.reason.orEmpty()
+                val returnedVideoId = response.videoDetails?.videoId
+                val formats = response.streamingData?.adaptiveFormats.orEmpty()
+                Log.i(
+                    TAG,
+                    "authenticated player result id=$id status=$status reason=$reason returned=$returnedVideoId adaptive=${formats.size}",
+                )
+                when {
+                    returnedVideoId != null && returnedVideoId != id -> {
+                        failures += "WEB_REMIX authenticated: wrong video"
+                    }
+                    status != "OK" -> {
+                        failures += "WEB_REMIX authenticated: $status${reason.takeIf(String::isNotBlank)?.let { " ($it)" }.orEmpty()}"
+                    }
+                    else -> {
+                        val audio = resolvedWebAudioFormats(formats, id, client)
+                        if (audio.isNotEmpty()) {
+                            return resolvedStreamsJson(audio, client, tokenPair.streamingDataPoToken).also {
+                                Log.i(TAG, "resolved id=$id client=WEB_REMIX authenticated streams=${audio.size} pot=true")
                             }
-                            failures += "WEB_REMIX: OK but no direct audio URL"
-                            Log.w(TAG, "WEB_REMIX playable response has no direct audio URL; cipher fallback required")
                         }
+                        failures += "WEB_REMIX authenticated: OK but no resolvable audio"
+                    }
+                }
+            }
+        }
+
+        // Keep the anonymous browser path for devices/IPs where BotGuard alone is
+        // accepted, even when no account session exists.
+        if (tokenPair != null) {
+            val response = withTimeoutOrNull(PLAYER_ATTEMPT_TIMEOUT_MS) {
+                YouTube.player(
+                    videoId = id,
+                    client = WEB_REMIX,
+                    signatureTimestamp = signatureTimestamp,
+                    poToken = tokenPair.playerRequestPoToken,
+                    authenticated = false,
+                ).getOrNull()
+            }
+
+            if (response == null) {
+                failures += "WEB_REMIX: timeout/network"
+                Log.w(TAG, "player timeout-or-null id=$id client=WEB_REMIX")
+            } else {
+                val status = response.playabilityStatus.status
+                val reason = response.playabilityStatus.reason.orEmpty()
+                val returnedVideoId = response.videoDetails?.videoId
+                val formats = response.streamingData?.adaptiveFormats.orEmpty()
+                Log.i(
+                    TAG,
+                    "player result id=$id client=WEB_REMIX status=$status reason=$reason returned=$returnedVideoId adaptive=${formats.size}",
+                )
+                when {
+                    returnedVideoId != null && returnedVideoId != id -> {
+                        failures += "WEB_REMIX: wrong video"
+                        Log.w(TAG, "wrong-video id=$id client=WEB_REMIX returned=$returnedVideoId")
+                    }
+                    status != "OK" -> {
+                        failures += "WEB_REMIX: $status${reason.takeIf(String::isNotBlank)?.let { " ($it)" }.orEmpty()}"
+                    }
+                    else -> {
+                        val audio = resolvedWebAudioFormats(formats, id, WEB_REMIX)
+                        if (audio.isNotEmpty()) {
+                            return resolvedStreamsJson(audio, WEB_REMIX, tokenPair.streamingDataPoToken).also {
+                                Log.i(TAG, "resolved id=$id client=WEB_REMIX streams=${audio.size} pot=true")
+                            }
+                        }
+                        failures += "WEB_REMIX: OK but no resolvable audio"
+                        Log.w(TAG, "WEB_REMIX playable response has no resolvable audio URL")
                     }
                 }
             }
@@ -293,6 +404,29 @@ object YouTubeMusicCatalog {
         }
         .toList()
 
+    private fun resolvedWebAudioFormats(
+        formats: List<com.metrolist.innertube.models.response.PlayerResponse.StreamingData.Format>,
+        videoId: String,
+        client: YouTubeClient,
+    ): List<ResolvedAudioStream> = formats
+        .asSequence()
+        .filter { it.isAudio && it.isOriginal }
+        .mapNotNull { format ->
+            val solved = runCatching { NewPipeExtractor.getStreamUrl(format, videoId) }.getOrNull()
+                ?: format.url?.takeIf(String::isNotBlank)
+                ?: return@mapNotNull null
+            ResolvedAudioStream(
+                url = patchClientVersion(solved, client.clientVersion),
+                mimeType = format.mimeType,
+                bitrate = format.averageBitrate ?: format.bitrate,
+                durationMs = format.approxDurationMs?.toLongOrNull() ?: 0L,
+            )
+        }
+        .sortedByDescending { stream ->
+            stream.bitrate + if (stream.mimeType.startsWith("audio/webm")) 10_000 else 0
+        }
+        .toList()
+
     private fun streamsJson(
         audio: List<com.metrolist.innertube.models.response.PlayerResponse.StreamingData.Format>,
         client: YouTubeClient,
@@ -300,11 +434,7 @@ object YouTubeMusicCatalog {
     ): String = JSONArray().apply {
         audio.forEach { format ->
             val baseUrl = format.url.orEmpty()
-            val url = if (poToken.isNullOrBlank()) {
-                baseUrl
-            } else {
-                "$baseUrl${if ('?' in baseUrl) '&' else '?'}pot=${Uri.encode(poToken)}"
-            }
+            val url = appendPoToken(baseUrl, poToken)
             val headersJson = JSONObject().apply {
                 client.mediaHeaders().forEach { (name, value) -> put(name, value) }
             }
@@ -316,6 +446,27 @@ object YouTubeMusicCatalog {
                     .put("mimeType", format.mimeType.substringBefore(';'))
                     .put("bitrate", format.averageBitrate ?: format.bitrate)
                     .put("durationMs", format.approxDurationMs?.toLongOrNull() ?: 0L)
+            )
+        }
+    }.toString()
+
+    private fun resolvedStreamsJson(
+        audio: List<ResolvedAudioStream>,
+        client: YouTubeClient,
+        poToken: String?,
+    ): String = JSONArray().apply {
+        audio.forEach { stream ->
+            val headersJson = JSONObject().apply {
+                client.mediaHeaders().forEach { (name, value) -> put(name, value) }
+            }
+            put(
+                JSONObject()
+                    .put("label", qualityLabel(stream.mimeType, stream.bitrate))
+                    .put("url", appendPoToken(stream.url, poToken))
+                    .put("headers", headersJson)
+                    .put("mimeType", stream.mimeType.substringBefore(';'))
+                    .put("bitrate", stream.bitrate)
+                    .put("durationMs", stream.durationMs)
             )
         }
     }.toString()
@@ -337,6 +488,13 @@ object YouTubeMusicCatalog {
         }
     }.toString()
 
+    private data class ResolvedAudioStream(
+        val url: String,
+        val mimeType: String,
+        val bitrate: Int,
+        val durationMs: Long,
+    )
+
     private data class NewPipeAudioStream(
         val itag: Int,
         val url: String,
@@ -344,6 +502,24 @@ object YouTubeMusicCatalog {
         val bitrate: Int,
         val durationMs: Long,
     )
+
+    private fun authenticatedWebClient(): YouTubeClient = WEB_REMIX.copy(
+        userAgent = sessionUserAgent?.takeIf(String::isNotBlank) ?: WEB_REMIX.userAgent,
+    )
+
+    private fun hasSignedInCookie(cookie: String?): Boolean = cookie
+        ?.split(';')
+        ?.any { token ->
+            token.substringBefore('=').trim() == "SAPISID" && token.substringAfter('=', "").trim().isNotEmpty()
+        } == true
+
+    private fun appendPoToken(url: String, poToken: String?): String {
+        if (poToken.isNullOrBlank()) return url
+        return "$url${if ('?' in url) '&' else '?'}pot=${Uri.encode(poToken)}"
+    }
+
+    private fun patchClientVersion(url: String, clientVersion: String): String =
+        if ("cver=" in url) url.replace(Regex("cver=[^&]+"), "cver=$clientVersion") else url
 
     private fun mimeTypeForAudioItag(itag: Int): String = when (itag) {
         139, 140, 141, 256, 258, 325, 328 -> "audio/mp4"
