@@ -7,7 +7,7 @@ await mkdir("dist/engine", { recursive: true });
 await mkdir("dist/renderer", { recursive: true });
 
 await build({
-  entryPoints: ["src/main/main.ts"],
+  entryPoints: ["src/main/bootstrap.ts"],
   outfile: "dist/main/main.cjs",
   bundle: true,
   platform: "node",
