@@ -16,7 +16,12 @@ export interface ReplyCommandAction {
   text: string;
 }
 
-export type BaileyCommandAction = ReplyCommandAction;
+export interface ReactCommandAction {
+  type: "react";
+  emoji: string;
+}
+
+export type BaileyCommandAction = ReplyCommandAction | ReactCommandAction;
 
 export interface BaileyCommandDefinition {
   /** Stable identity used for persisted overrides. It must never depend on the visible trigger. */
