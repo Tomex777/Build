@@ -13,6 +13,17 @@ SERVICE_COMMIT="4351a735755c86c031a977a62e52005b23048c4d"
 rm -rf "$SERVICE_ROOT"
 mkdir -p "$API_DIR" libxposed
 
+# The preserved API-100 service compiles against Android 34 / Build Tools 34.0.0.
+# Keep this prerequisite with the dependency preparation itself so every CI consumer
+# (build, security and target-UI) resolves the same exact historical contract.
+SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+if [[ ! -d "$SDK_ROOT/platforms/android-34" || ! -d "$SDK_ROOT/build-tools/34.0.0" ]]; then
+  SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+  test -x "$SDKMANAGER"
+  yes | "$SDKMANAGER" --licenses >/dev/null || true
+  "$SDKMANAGER" "platforms;android-34" "build-tools;34.0.0"
+fi
+
 # Match LSPosed ET's own build: install its pinned API-100 artifact verbatim instead of
 # resolving whatever the current libxposed/api repository happens to publish.
 curl --fail --location --retry 3 \
