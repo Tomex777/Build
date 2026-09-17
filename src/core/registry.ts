@@ -57,6 +57,10 @@ export class ModuleRegistry {
     this.modules.set(module.id, module);
   }
 
+  unregister(moduleId: string): boolean {
+    return this.modules.delete(moduleId);
+  }
+
   list(): BaileyModuleDefinition[] {
     return [...this.modules.values()];
   }
