@@ -4,7 +4,7 @@ import { setting } from "../../shared/config-schema";
 export const coreModule = defineModule({
   id: "core",
   name: "Core",
-  version: "0.3.0",
+  version: "0.4.0",
   description: "Base Bailey Host behaviour and bot defaults.",
   settings: [
     setting.text("prefix", "Command prefix", ".", {
@@ -47,6 +47,15 @@ export const coreModule = defineModule({
     }),
   ],
   commands: [
+    defineCommand({
+      id: "menu",
+      name: "menu",
+      section: "Help",
+      description: "Show commands grouped by module and section.",
+      execute: async (context) => {
+        await context.reply("Bailey menu is still starting.");
+      },
+    }),
     defineCommand({
       id: "status",
       name: "status",
