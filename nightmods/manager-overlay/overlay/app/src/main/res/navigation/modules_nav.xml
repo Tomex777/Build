@@ -6,8 +6,12 @@
     </fragment>
     <fragment android:id="@+id/night_core_fragment" android:name="org.lsposed.manager.nightmods.ui.NightCoreFragment" android:label="night_core">
         <deepLink app:uri="lsposed://night-core" />
+        <action android:id="@+id/action_night_core_to_status_bar_tweaks" app:destination="@id/night_status_bar_tweaks_fragment" app:enterAnim="@anim/fragment_enter" app:exitAnim="@anim/fragment_exit" app:popEnterAnim="@anim/fragment_enter_pop" app:popExitAnim="@anim/fragment_exit_pop" />
         <action android:id="@+id/action_night_core_to_bubble_styler" app:destination="@id/night_bubble_styler_fragment" app:enterAnim="@anim/fragment_enter" app:exitAnim="@anim/fragment_exit" app:popEnterAnim="@anim/fragment_enter_pop" app:popExitAnim="@anim/fragment_exit_pop" />
         <action android:id="@+id/action_night_core_to_app_list" app:destination="@id/app_list_fragment" app:enterAnim="@anim/fragment_enter" app:exitAnim="@anim/fragment_exit" app:popEnterAnim="@anim/fragment_enter_pop" app:popExitAnim="@anim/fragment_exit_pop" />
+    </fragment>
+    <fragment android:id="@+id/night_status_bar_tweaks_fragment" android:name="org.lsposed.manager.nightmods.ui.StatusBarTweaksFragment" android:label="status_bar_tweaks">
+        <deepLink app:uri="lsposed://night-core/status-bar" />
     </fragment>
     <fragment android:id="@+id/night_bubble_styler_fragment" android:name="org.lsposed.manager.nightmods.ui.BubbleStylerFragment" android:label="bubble_styler">
         <deepLink app:uri="lsposed://night-core/bubble-styler" />
