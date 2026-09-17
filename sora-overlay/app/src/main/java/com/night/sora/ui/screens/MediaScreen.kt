@@ -231,8 +231,8 @@ fun MediaScreen(
                             primaryCacheFetchedAt = System.currentTimeMillis()
                         }
                     }
-                    .onFailure { error ->
-                        primaryError = error.message ?: "Could not refresh the catalog."
+                    .onFailure {
+                        primaryError = "Jikan did not return live ${requestType.label} data. Please retry in a moment."
                     }
             }
             return
