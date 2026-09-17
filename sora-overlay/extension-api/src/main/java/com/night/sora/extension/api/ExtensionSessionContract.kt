@@ -30,11 +30,17 @@ object ExtensionSessionContract {
      *   "sourceId": "...",
      *   "url": "https://source.example/...",
      *   "cookieHeader": "name=value; ...",
-     *   "userAgent": "..."
+     *   "userAgent": "...",
+     *   "visitorData": "optional page-owned client/session id",
+     *   "dataSyncId": "optional page-owned account sync id",
+     *   "authUser": "optional account/session index"
      * }
      *
      * The cookie header is intentionally limited to the browser's current
      * source URL; Core never exposes unrelated app cookies or private state.
+     * Page/session fields are optional and are read only from the source-owned
+     * page itself, allowing extensions such as YouTube Music to keep an API
+     * session aligned with the browser session without Core understanding it.
      */
     const val METHOD_STORE_SESSION = "storeSession"
 }
