@@ -19,10 +19,10 @@ text = text.replace(needle, r"\n\n''',", 1)
 
 # Make the source-resolution reset replacement unique by including the nearby
 # sourceSearchError line. The shorter sequence appears in more than one block.
-old = r'''    '''        browserError = null\n        readerError = null\n        playbackError = null\n''',
-    '''        browserError = null\n        readerError = null\n        playbackError = null\n        sourceResolutionMessage = null\n''','''
-new = r'''    '''        sourceSearchError = null\n        browserError = null\n        readerError = null\n        playbackError = null\n''',
-    '''        sourceSearchError = null\n        browserError = null\n        readerError = null\n        playbackError = null\n        sourceResolutionMessage = null\n''','''
+old = r"""    '''        browserError = null\n        readerError = null\n        playbackError = null\n''',
+    '''        browserError = null\n        readerError = null\n        playbackError = null\n        sourceResolutionMessage = null\n''',"""
+new = r"""    '''        sourceSearchError = null\n        browserError = null\n        readerError = null\n        playbackError = null\n''',
+    '''        sourceSearchError = null\n        browserError = null\n        readerError = null\n        playbackError = null\n        sourceResolutionMessage = null\n''',"""
 if text.count(old) != 1:
     raise SystemExit('source-resolution reset patch marker mismatch')
 text = text.replace(old, new, 1)
