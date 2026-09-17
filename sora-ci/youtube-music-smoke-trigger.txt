@@ -1,1 +1,1 @@
-2026-09-17 test independent NewPipe StreamInfo fallback after challenged native and WEB_REMIX PoToken paths.
+2026-09-17 compile authenticated YouTube Music browser-session resolver and generic extension session UI.
