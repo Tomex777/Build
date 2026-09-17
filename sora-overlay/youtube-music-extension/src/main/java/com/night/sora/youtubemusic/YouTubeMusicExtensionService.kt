@@ -8,6 +8,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.Message
 import android.os.Messenger
+import android.util.Log
 import com.night.sora.extension.api.ExtensionContract
 import com.night.sora.extension.api.ExtensionDescriptor
 import com.night.sora.extension.api.ExtensionPermission
@@ -85,6 +86,10 @@ class YouTubeMusicExtensionService : Service() {
                             else -> error("Unsupported method: $method")
                         }
                     }
+                }
+
+                result.exceptionOrNull()?.let { error ->
+                    Log.e("SoraYouTubeMusic", "$method request failed: ${error.message}", error)
                 }
 
                 val response = Message.obtain(null, ExtensionContract.MSG_RESPONSE).apply {
