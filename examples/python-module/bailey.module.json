@@ -8,7 +8,7 @@
     "command": "python",
     "args": ["main.py"]
   },
-  "capabilities": ["commands", "settings"],
+  "capabilities": ["commands", "settings", "events"],
   "settings": [
     {
       "key": "greeting",
