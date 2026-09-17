@@ -74,7 +74,12 @@ public final class NightCoreServiceStore {
         boolean localCommitted = config.writeTo(NightCorePreferences.open(context));
         boolean remoteCommitted = writeRemote(SERVICE.get(), config);
         setPending(context, !remoteCommitted);
-        return localCommitted;
+
+        // Keep the local mirror/pending copy so settings can synchronize when the framework service
+        // binds later, but do not report a successful manager write until the hook-visible framework
+        // store has actually committed it. Otherwise Night Core could die in the pending window and
+        // the manager would have claimed success while hooked apps still saw stale settings.
+        return localCommitted && remoteCommitted;
     }
 
     private static boolean writeRemote(XposedService service, BubbleStyleConfig config) {
