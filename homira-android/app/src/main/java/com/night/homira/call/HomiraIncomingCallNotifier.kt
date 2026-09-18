@@ -1,6 +1,7 @@
 package com.night.homira.call
 
 import android.Manifest
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -13,6 +14,9 @@ import android.media.AudioAttributes
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import com.night.homira.MainActivity
 import com.night.homira.data.LiveCallSession
@@ -23,6 +27,8 @@ class HomiraIncomingCallNotifier(
     private val appContext = context.applicationContext
     private val notificationManager =
         appContext.getSystemService(NotificationManager::class.java)
+    private val alarmManager =
+        appContext.getSystemService(AlarmManager::class.java)
 
     init {
         ensureChannel()
@@ -37,6 +43,7 @@ class HomiraIncomingCallNotifier(
         callId = session.id,
         mediaType = session.mediaType,
         callerName = callerName,
+        callerId = session.callerId,
         notificationsEnabled = notificationsEnabled,
         ringtoneUri = ringtoneUri
     )
@@ -45,9 +52,23 @@ class HomiraIncomingCallNotifier(
         callId: String,
         mediaType: String,
         callerName: String,
+        callerId: String? = null,
         notificationsEnabled: Boolean,
-        ringtoneUri: String? = null
+        ringtoneUri: String? = null,
+        timeoutMs: Long = DEFAULT_RING_TIMEOUT_MS
     ): Boolean {
+        val safeTimeoutMs = timeoutMs.coerceIn(
+            MIN_RING_TIMEOUT_MS,
+            MAX_RING_TIMEOUT_MS
+        )
+        scheduleRingTimeout(
+            callId = callId,
+            callerId = callerId,
+            callerName = callerName,
+            mediaType = mediaType,
+            timeoutMs = safeTimeoutMs
+        )
+
         if (!notificationsEnabled) return false
 
         if (
@@ -126,6 +147,7 @@ class HomiraIncomingCallNotifier(
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setAutoCancel(false)
+            .setTimeoutAfter(safeTimeoutMs)
             .setContentIntent(openPendingIntent)
             .setStyle(
                 Notification.CallStyle.forIncomingCall(
@@ -148,7 +170,9 @@ class HomiraIncomingCallNotifier(
         )
         HomiraRingtonePlayback.play(
             context = appContext,
-            uriString = ringtoneUri
+            uriString = ringtoneUri,
+            callId = callId,
+            timeoutMs = safeTimeoutMs
         )
         return true
     }
@@ -159,6 +183,8 @@ class HomiraIncomingCallNotifier(
         peerName: String,
         calling: Boolean = false
     ): Boolean {
+        cancelRingTimeout(callId)
+
         if (
             ContextCompat.checkSelfPermission(
                 appContext,
@@ -241,11 +267,61 @@ class HomiraIncomingCallNotifier(
     }
 
     fun cancel(callId: String) {
+        cancelRingTimeout(callId)
         notificationManager.cancel(
             NOTIFICATION_TAG,
             notificationId(callId)
         )
         HomiraRingtonePlayback.stop()
+    }
+
+    private fun scheduleRingTimeout(
+        callId: String,
+        callerId: String?,
+        callerName: String,
+        mediaType: String,
+        timeoutMs: Long
+    ) {
+        val intent = Intent(
+            appContext,
+            HomiraCallActionReceiver::class.java
+        ).apply {
+            action = ACTION_RING_TIMEOUT
+            putExtra(EXTRA_CALL_ID, callId)
+            putExtra(EXTRA_CALLER_ID, callerId)
+            putExtra(EXTRA_CALLER_NAME, callerName)
+            putExtra(EXTRA_MEDIA_TYPE, mediaType)
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            appContext,
+            notificationId("$callId:ring-timeout"),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        alarmManager.setAndAllowWhileIdle(
+            AlarmManager.ELAPSED_REALTIME_WAKEUP,
+            SystemClock.elapsedRealtime() + timeoutMs,
+            pendingIntent
+        )
+    }
+
+    private fun cancelRingTimeout(callId: String) {
+        val intent = Intent(
+            appContext,
+            HomiraCallActionReceiver::class.java
+        ).apply {
+            action = ACTION_RING_TIMEOUT
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            appContext,
+            notificationId("$callId:ring-timeout"),
+            intent,
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+        ) ?: return
+
+        alarmManager.cancel(pendingIntent)
+        pendingIntent.cancel()
     }
 
     private fun ensureChannel() {
@@ -273,8 +349,16 @@ class HomiraIncomingCallNotifier(
     companion object {
         const val ACTION_DECLINE = "com.night.homira.action.DECLINE_CALL"
         const val ACTION_HANG_UP = "com.night.homira.action.HANG_UP_CALL"
+        const val ACTION_RING_TIMEOUT = "com.night.homira.action.RING_TIMEOUT"
         const val EXTRA_CALL_ID = "homira_call_id"
         const val EXTRA_ANSWER_CALL = "homira_answer_call"
+        const val EXTRA_CALLER_ID = "homira_caller_id"
+        const val EXTRA_CALLER_NAME = "homira_caller_name"
+        const val EXTRA_MEDIA_TYPE = "homira_media_type"
+
+        const val DEFAULT_RING_TIMEOUT_MS = 30_000L
+        private const val MIN_RING_TIMEOUT_MS = 1_000L
+        private const val MAX_RING_TIMEOUT_MS = 45_000L
 
         private const val CHANNEL_INCOMING_CALLS = "homira_incoming_calls_v2"
         private const val NOTIFICATION_TAG = "homira_call"
@@ -283,12 +367,16 @@ class HomiraIncomingCallNotifier(
 
 
 private object HomiraRingtonePlayback {
+    private val handler = Handler(Looper.getMainLooper())
     private var active: Ringtone? = null
+    private var activeCallId: String? = null
 
     @Synchronized
     fun play(
         context: Context,
-        uriString: String?
+        uriString: String?,
+        callId: String,
+        timeoutMs: Long
     ) {
         stop()
 
@@ -310,19 +398,36 @@ private object HomiraRingtonePlayback {
             .build()
         ringtone.isLooping = true
         active = ringtone
+        activeCallId = callId
 
         runCatching {
             ringtone.play()
+            handler.postDelayed(
+                {
+                    stopIfCall(callId)
+                },
+                timeoutMs
+            )
         }.onFailure {
             active = null
+            activeCallId = null
             runCatching { ringtone.stop() }
         }
     }
 
     @Synchronized
+    private fun stopIfCall(callId: String) {
+        if (activeCallId != callId) return
+        stop()
+    }
+
+    @Synchronized
     fun stop() {
-        val ringtone = active ?: return
+        val ringtone = active
         active = null
-        runCatching { ringtone.stop() }
+        activeCallId = null
+        if (ringtone != null) {
+            runCatching { ringtone.stop() }
+        }
     }
 }

@@ -4,6 +4,7 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.night.homira.data.HomiraLiveRepository
 import com.night.homira.data.HomiraSettingsStore
+import java.time.Duration
 import java.time.Instant
 import java.time.OffsetDateTime
 import kotlinx.coroutines.CoroutineScope
@@ -69,15 +70,29 @@ class HomiraFirebaseMessagingService : FirebaseMessagingService() {
             ?.takeIf { it == "audio" || it == "video" }
             ?: "audio"
 
-        val settings = HomiraSettingsStore(this).load()
-        if (!settings.callNotifications) return
+        val callerId = data["caller_id"]
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
 
+        val remainingMs = expiresAt?.let { expiry ->
+            Duration.between(Instant.now(), expiry)
+                .toMillis()
+                .coerceAtLeast(1_000L)
+        }
+        val timeoutMs = minOf(
+            HomiraIncomingCallNotifier.DEFAULT_RING_TIMEOUT_MS,
+            remainingMs ?: HomiraIncomingCallNotifier.DEFAULT_RING_TIMEOUT_MS
+        )
+
+        val settings = HomiraSettingsStore(this).load()
         HomiraIncomingCallNotifier(this).show(
             callId = callId,
             mediaType = mediaType,
             callerName = callerName,
-            notificationsEnabled = true,
-            ringtoneUri = settings.ringtoneUri
+            callerId = callerId,
+            notificationsEnabled = settings.callNotifications,
+            ringtoneUri = settings.ringtoneUri,
+            timeoutMs = timeoutMs
         )
     }
 
