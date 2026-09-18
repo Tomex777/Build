@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -50,9 +49,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -779,7 +775,7 @@ private fun SettingsScreen(vm: PaheViewModel, padding: PaddingValues) {
                     Text("About this build", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Native Android port of PaheBatcher 3.4.0's AnimePahe → Kwik → HLS pipeline. Downloads are written as transport streams without an extra FFmpeg dependency.",
+                        "Native Android port of PaheBatcher 3.4.0's AnimePahe → Kwik → HLS pipeline. Finished streams are remuxed to MP4 with Android's media stack when possible, with a transport-stream fallback.",
                         color = TextMuted,
                         fontSize = 13.sp,
                         lineHeight = 19.sp,
@@ -953,7 +949,12 @@ private fun VerificationScreen(vm: PaheViewModel) {
                         view.tag != target
                     ) {
                         view.tag = target
-                        view.loadUrl(target)
+                        if (vm.verifyStage == VerifyStage.KWIK) {
+                            val animeHost = vm.sessions.animeHost.ifBlank { "animepahe.si" }
+                            view.loadUrl(target, mapOf("Referer" to "https://$animeHost/"))
+                        } else {
+                            view.loadUrl(target)
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxSize(),
