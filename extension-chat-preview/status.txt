@@ -1,1 +1,1 @@
-sha=4367a11ff07060f47014ecccdcacbcd56f8a1f89 stage=build-succeeded
+sha=4367a11ff07060f47014ecccdcacbcd56f8a1f89 stage=screenshot-captured
