@@ -897,9 +897,9 @@ private fun parseBestSourceSelection(raw: String, sourceId: String, packageName:
 
 private fun findCounterpart(active: ExtensionMediaSelection, extensions: List<InstalledExtension>, manager: ExtensionManager, callback: (ExtensionMediaSelection?) -> Unit) {
     if (active.type != ContentType.ANIME && active.type != ContentType.MANGA) return callback(null)
-    // Only Jikan's explicit Adaptation relation is trusted. A title search is not
+    // Only AniList's explicit Adaptation relation is trusted. A title search is not
     // evidence that two works are counterparts and can link the wrong series.
-    if (!manager.findBuiltInJikanCounterpart(active) { result -> callback(result.getOrNull()) }) {
+    if (!manager.findBuiltInAniListCounterpart(active) { result -> callback(result.getOrNull()) }) {
         callback(null)
     }
 }
