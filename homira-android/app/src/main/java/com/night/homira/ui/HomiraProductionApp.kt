@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -87,6 +88,7 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.Voicemail
 import androidx.compose.material.icons.rounded.VolumeUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -2172,6 +2174,7 @@ private fun ActiveCallScreen(
         else -> "Connecting…"
     }
     var menuOpen by remember { mutableStateOf(false) }
+    var callInfoOpen by remember { mutableStateOf(false) }
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(startsWithVideo, onSpeakerChanged) {
@@ -2204,7 +2207,6 @@ private fun ActiveCallScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(if (video) Color.Black else HomiraBackground)
-            .safeDrawingPadding()
             .clickable { if (video) controlsVisible = true }
     ) {
         if (video) {
@@ -2237,7 +2239,8 @@ private fun ActiveCallScreen(
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(top = 72.dp, end = 16.dp)
+                        .statusBarsPadding()
+                        .padding(top = 12.dp, end = 16.dp)
                         .width(108.dp)
                         .height(156.dp),
                     shape = RoundedCornerShape(20.dp),
@@ -2256,7 +2259,10 @@ private fun ActiveCallScreen(
         }
 
         Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             AnimatedVisibility(!video || controlsVisible) {
@@ -2291,7 +2297,10 @@ private fun ActiveCallScreen(
                             DropdownMenuItem(
                                 text = { Text("Call info") },
                                 leadingIcon = { Icon(Icons.Rounded.Info, contentDescription = null) },
-                                onClick = { menuOpen = false }
+                                onClick = {
+                                    callInfoOpen = true
+                                    menuOpen = false
+                                }
                             )
                         }
                     }
@@ -2315,7 +2324,7 @@ private fun ActiveCallScreen(
                 Spacer(Modifier.weight(1f))
             }
 
-            AnimatedVisibility(muted && (!video || controlsVisible)) {
+            AnimatedVisibility(muted) {
                 Surface(shape = RoundedCornerShape(99.dp), color = HomiraDanger.copy(alpha = .16f)) {
                     Row(Modifier.padding(horizontal = 13.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Rounded.MicOff, contentDescription = null, tint = HomiraDanger, modifier = Modifier.size(17.dp))
@@ -2325,7 +2334,7 @@ private fun ActiveCallScreen(
                 }
             }
 
-            AnimatedVisibility(remoteMuted && (!video || controlsVisible)) {
+            AnimatedVisibility(remoteMuted) {
                 Surface(
                     shape = RoundedCornerShape(99.dp),
                     color = HomiraSurfaceRaised.copy(alpha = .92f)
@@ -2351,7 +2360,7 @@ private fun ActiveCallScreen(
                 }
             }
 
-            AnimatedVisibility(screenSharing && (!video || controlsVisible)) {
+            AnimatedVisibility(screenSharing) {
                 Text(
                     "Sharing your screen",
                     color = HomiraGreen,
@@ -2360,7 +2369,7 @@ private fun ActiveCallScreen(
                 )
             }
 
-            AnimatedVisibility(remoteScreenSharing && (!video || controlsVisible)) {
+            AnimatedVisibility(remoteScreenSharing) {
                 Text(
                     "${person.name} is sharing their screen",
                     color = Color.White.copy(alpha = .82f),
@@ -2395,6 +2404,62 @@ private fun ActiveCallScreen(
                     Spacer(Modifier.height(20.dp))
                 }
             }
+        }
+
+        if (callInfoOpen) {
+            AlertDialog(
+                onDismissRequest = { callInfoOpen = false },
+                title = { Text("Call info", color = HomiraText) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            person.name,
+                            color = HomiraText,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            if (startsWithVideo || videoEnabled || remoteVideoEnabled) {
+                                "Video call"
+                            } else {
+                                "Voice call"
+                            },
+                            color = HomiraMuted,
+                            fontSize = 13.sp
+                        )
+                        Text(
+                            "Status: $statusText",
+                            color = HomiraMuted,
+                            fontSize = 13.sp
+                        )
+                        if (screenSharing) {
+                            Text(
+                                "You are sharing your screen.",
+                                color = HomiraGreen,
+                                fontSize = 13.sp
+                            )
+                        } else if (remoteScreenSharing) {
+                            Text(
+                                "${person.name} is sharing their screen.",
+                                color = HomiraMuted,
+                                fontSize = 13.sp
+                            )
+                        }
+                        Text(
+                            "Audio and video use encrypted WebRTC media paths. Homira's backend handles call setup and signaling, not the call media itself.",
+                            color = HomiraMuted,
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { callInfoOpen = false }) {
+                        Text("Done", color = HomiraGreen)
+                    }
+                },
+                containerColor = HomiraSurface
+            )
         }
     }
 }
