@@ -11,10 +11,6 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: whatsapp-clone-baseline
-  cancel-in-progress: true
-
 jobs:
   build-and-capture:
     runs-on: ubuntu-latest
