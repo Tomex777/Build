@@ -1,1 +1,1 @@
-run 6 - stop mpv await idle before player disposal exact resume validation
+run 6 - async mpv destroy after idle real media exact resume validation
