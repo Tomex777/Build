@@ -14,6 +14,7 @@ data class CelestialBody(
     val phaseRad: Double = 0.0,
     val radiusKm: Double = 0.0,
     val semiMajorAxisAu: Double? = null,
+    val axialTiltDeg: Double = 0.0,
     val description: String = "",
     var position: Vec3d = Vec3d.ZERO
 )
