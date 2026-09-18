@@ -83,6 +83,8 @@ fun MediaScreen(
     libraryEntries: List<LibraryEntry>,
     listeningSignals: List<ListeningSignal>,
     progressEntries: List<MediaProgressEntry>,
+    initialSelectedType: ContentType = ContentType.ANIME,
+    onSelectedTypeChange: (ContentType) -> Unit = {},
     isSaved: (ExtensionMediaSelection) -> Boolean,
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
     onOpenExtensions: () -> Unit,
@@ -93,7 +95,7 @@ fun MediaScreen(
     val context = LocalContext.current
     val mediaCache = remember { MediaCatalogCache(context.applicationContext) }
     var destination by remember { mutableStateOf(MediaDestination.ANIME_MANGA) }
-    var selectedType by remember { mutableStateOf(ContentType.ANIME) }
+    var selectedType by remember { mutableStateOf(initialSelectedType) }
     var musicLocal by remember { mutableStateOf(MusicLocal.HOME) }
     var rows by remember { mutableStateOf<List<BrowseCard>>(emptyList()) }
     var popularRows by remember { mutableStateOf<List<BrowseCard>>(emptyList()) }
@@ -110,6 +112,12 @@ fun MediaScreen(
     var primaryError by remember { mutableStateOf<String?>(null) }
     var primaryCacheFetchedAt by remember { mutableLongStateOf(0L) }
     var feedFailures by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(selectedType) {
+        if (selectedType == ContentType.ANIME || selectedType == ContentType.MANGA) {
+            onSelectedTypeChange(selectedType)
+        }
+    }
 
     val engine = remember { MusicTasteEngine() }
     val rankedTaste = remember(listeningSignals) { engine.ranked(listeningSignals, System.currentTimeMillis()) }
