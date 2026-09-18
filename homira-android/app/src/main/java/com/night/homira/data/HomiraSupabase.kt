@@ -177,6 +177,20 @@ class HomiraLiveRepository {
         )
     }
 
+    suspend fun sendEmailOtp(email: String) {
+        client.auth.signInWith(OTP) {
+            this.email = email
+        }
+    }
+
+    suspend fun verifyEmailOtp(email: String, code: String) {
+        client.auth.verifyEmailOtp(
+            type = OtpType.Email.EMAIL,
+            email = email,
+            token = code
+        )
+    }
+
     suspend fun signOut() {
         client.auth.signOut()
     }
