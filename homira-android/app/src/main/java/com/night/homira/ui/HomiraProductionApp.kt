@@ -177,7 +177,9 @@ private data class HomiraPerson(
     val marker: String,
     val accent: Color,
     val number: String,
-    val favorite: Boolean = false
+    val favorite: Boolean = false,
+    val avatarUri: String? = null,
+    val callCardUri: String? = null
 )
 
 private data class VoicemailOffer(
@@ -244,6 +246,32 @@ private fun prepareProfileJpeg(
     } finally {
         if (output !== bitmap) output.recycle()
         bitmap.recycle()
+    }
+}
+
+private suspend fun cacheProfileMediaP(
+    context: Context,
+    repository: HomiraLiveRepository,
+    storagePath: String?,
+    cacheKey: String
+): String? {
+    if (storagePath.isNullOrBlank()) return null
+
+    return runCatching {
+        val bytes = repository.downloadProfileMedia(storagePath)
+        withContext(Dispatchers.IO) {
+            val safeKey = cacheKey
+                .replace(Regex("[^A-Za-z0-9._-]"), "_")
+                .take(80)
+            File(
+                context.cacheDir,
+                "homira-profile-$safeKey.jpg"
+            ).apply {
+                writeBytes(bytes)
+            }
+        }
+    }.getOrNull()?.let { file ->
+        android.net.Uri.fromFile(file).toString()
     }
 }
 
@@ -566,39 +594,26 @@ fun HomiraProductionApp(
 
         LaunchedEffect(liveMode, initialProfile?.id) {
             if (!liveMode) return@LaunchedEffect
+            val ownerId = initialProfile?.id ?: return@LaunchedEffect
 
-            suspend fun restoreMedia(
-                storagePath: String?,
-                cachePrefix: String
-            ): String? {
-                if (storagePath.isNullOrBlank()) return null
-                return runCatching {
-                    val bytes = liveRepository.downloadProfileMedia(storagePath)
-                    withContext(Dispatchers.IO) {
-                        File.createTempFile(
-                            cachePrefix,
-                            ".jpg",
-                            context.cacheDir
-                        ).apply {
-                            writeBytes(bytes)
-                        }
-                    }
-                }.getOrNull()?.let { file ->
-                    android.net.Uri.fromFile(file).toString()
-                }
-            }
-
-            avatarUri = restoreMedia(
-                initialProfile?.avatarPath,
-                "homira-avatar-cache-"
+            avatarUri = cacheProfileMediaP(
+                context = context,
+                repository = liveRepository,
+                storagePath = initialProfile.avatarPath,
+                cacheKey = "$ownerId-avatar"
             )
-            callCardUri = restoreMedia(
-                initialProfile?.callCardPath,
-                "homira-call-card-cache-"
+            callCardUri = cacheProfileMediaP(
+                context = context,
+                repository = liveRepository,
+                storagePath = initialProfile.callCardPath,
+                cacheKey = "$ownerId-call-card"
             )
         }
 
         var liveContacts by remember(initialContacts) { mutableStateOf(initialContacts) }
+        var contactMediaUris by remember {
+            mutableStateOf<Map<String, Pair<String?, String?>>>(emptyMap())
+        }
         var blockedUserIds by remember { mutableStateOf<Set<String>>(emptySet()) }
         var liveVoicemails by remember { mutableStateOf<List<LiveVoicemail>>(emptyList()) }
         var liveVoicemailEntries by remember { mutableStateOf<List<CallEntry>>(emptyList()) }
@@ -606,7 +621,29 @@ fun HomiraProductionApp(
         var playingVoicemailId by rememberSaveable { mutableStateOf<String?>(null) }
         var voicemailPlaybackFile by remember { mutableStateOf<File?>(null) }
 
-        val appContacts = remember(liveContacts) {
+        LaunchedEffect(liveMode, liveContacts) {
+            if (!liveMode) return@LaunchedEffect
+
+            val media = linkedMapOf<String, Pair<String?, String?>>()
+            liveContacts.forEach { contact ->
+                val avatar = cacheProfileMediaP(
+                    context = context,
+                    repository = liveRepository,
+                    storagePath = contact.avatarPath,
+                    cacheKey = "${contact.id}-avatar"
+                )
+                val callCard = cacheProfileMediaP(
+                    context = context,
+                    repository = liveRepository,
+                    storagePath = contact.callCardPath,
+                    cacheKey = "${contact.id}-call-card"
+                )
+                media[contact.id] = avatar to callCard
+            }
+            contactMediaUris = media
+        }
+
+        val appContacts = remember(liveContacts, contactMediaUris) {
             liveContacts.map { contact ->
                 val visibleName = contact.localName?.takeIf { it.isNotBlank() }
                     ?: contact.displayName.takeIf { it.isNotBlank() }
@@ -619,12 +656,23 @@ fun HomiraProductionApp(
                     marker = visibleName.firstOrNull()?.uppercaseChar()?.toString() ?: "H",
                     accent = HomiraGreen,
                     number = contact.phoneE164.orEmpty(),
-                    favorite = contact.favorite
+                    favorite = contact.favorite,
+                    avatarUri = contactMediaUris[contact.id]?.first,
+                    callCardUri = contactMediaUris[contact.id]?.second
                 )
             }
         }
-        val localCallEntries = remember(localCallHistory) {
-            localCallHistory.map { it.toCallEntry() }
+        val localCallEntries = remember(localCallHistory, appContacts) {
+            val currentPeople = appContacts.associateBy { it.id }
+            localCallHistory.map { record ->
+                val entry = record.toCallEntry()
+                val currentPerson = currentPeople[entry.person.id]
+                if (currentPerson != null) {
+                    entry.copy(person = currentPerson)
+                } else {
+                    entry
+                }
+            }
         }
 
         val appCallEntries = if (liveMode) {
@@ -690,7 +738,19 @@ fun HomiraProductionApp(
                         name = visibleName,
                         marker = visibleName.firstOrNull()?.uppercaseChar()?.toString() ?: "H",
                         accent = HomiraGreen,
-                        number = profile?.phoneE164.orEmpty()
+                        number = profile?.phoneE164.orEmpty(),
+                        avatarUri = cacheProfileMediaP(
+                            context,
+                            liveRepository,
+                            profile?.avatarPath,
+                            "${voicemail.senderId}-avatar"
+                        ),
+                        callCardUri = cacheProfileMediaP(
+                            context,
+                            liveRepository,
+                            profile?.callCardPath,
+                            "${voicemail.senderId}-call-card"
+                        )
                     )
                 }
 
@@ -973,7 +1033,19 @@ fun HomiraProductionApp(
                     name = name,
                     marker = name.firstOrNull()?.uppercaseChar()?.toString() ?: "H",
                     accent = HomiraGreen,
-                    number = profile?.phoneE164.orEmpty()
+                    number = profile?.phoneE164.orEmpty(),
+                    avatarUri = cacheProfileMediaP(
+                        context,
+                        liveRepository,
+                        profile?.avatarPath,
+                        "$userId-avatar"
+                    ),
+                    callCardUri = cacheProfileMediaP(
+                        context,
+                        liveRepository,
+                        profile?.callCardPath,
+                        "$userId-call-card"
+                    )
                 )
             }
 
@@ -4167,15 +4239,32 @@ private fun IncomingCallScreen(
     onAccept: () -> Unit,
     onDecline: () -> Unit
 ) {
+    val callCardBitmap = rememberBitmapP(person.callCardUri)
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(HomiraBackground)
-            .safeDrawingPadding()
-            .padding(horizontal = 28.dp)
     ) {
+        if (callCardBitmap != null) {
+            Image(
+                bitmap = callCardBitmap,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = .58f))
+            )
+        }
+
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .padding(horizontal = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(Modifier.weight(.7f))
@@ -4319,12 +4408,30 @@ private fun ActiveCallScreen(
         }
     }
 
+    val voiceCallCardBitmap = rememberBitmapP(
+        if (!video) person.callCardUri else null
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(if (video) Color.Black else HomiraBackground)
             .clickable { if (video) controlsVisible = true }
     ) {
+        if (!video && voiceCallCardBitmap != null) {
+            Image(
+                bitmap = voiceCallCardBitmap,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = .58f))
+            )
+        }
+
         if (video) {
             if (remoteVideoEnabled && remoteVideoTrack != null && eglContext != null) {
                 WebRtcVideoSurface(
@@ -4685,9 +4792,29 @@ private fun OngoingCallBanner(person: HomiraPerson, onReturn: () -> Unit, onEnd:
 
 @Composable
 private fun PersonAvatarP(person: HomiraPerson, size: Int) {
-    Surface(modifier = Modifier.size(size.dp), shape = CircleShape, color = person.accent.copy(alpha = .13f)) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(person.marker, color = person.accent, fontSize = (size * .38f).sp, fontWeight = FontWeight.Bold)
+    val avatarBitmap = rememberBitmapP(person.avatarUri)
+
+    Surface(
+        modifier = Modifier.size(size.dp),
+        shape = CircleShape,
+        color = person.accent.copy(alpha = .13f)
+    ) {
+        if (avatarBitmap != null) {
+            Image(
+                bitmap = avatarBitmap,
+                contentDescription = "${person.name} profile photo",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    person.marker,
+                    color = person.accent,
+                    fontSize = (size * .38f).sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
