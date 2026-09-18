@@ -104,10 +104,17 @@ class PaheRepository(
         .build()
 
     private val animeHosts: List<String>
-        get() = buildList {
-            sessions.animeHost().takeIf { it.isNotBlank() }?.let(::add)
-            addAll(listOf("animepahe.pw", "animepahe.com", "animepahe.org"))
-        }.distinct()
+        get() {
+            val verifiedHost = sessions.animeHost().takeIf { it.isNotBlank() }
+            if (sessions.animeCookie().isNotBlank() && verifiedHost != null) {
+                return listOf(verifiedHost)
+            }
+
+            return buildList {
+                verifiedHost?.let(::add)
+                addAll(listOf("animepahe.pw", "animepahe.com", "animepahe.org"))
+            }.distinct()
+        }
 
     suspend fun search(query: String): List<AnimeSearchResult> = withContext(Dispatchers.IO) {
         val clean = query.trim()
