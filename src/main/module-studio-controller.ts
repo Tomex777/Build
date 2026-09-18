@@ -2,11 +2,21 @@ import { ipcMain, shell } from "electron";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createModuleScaffold, type ModuleScaffoldInput } from "../core/module-scaffold";
+import { detectModuleRuntimes } from "../core/runtime-detector";
+import { ModulePackageManager } from "./module-package-manager";
 
 export class ModuleStudioController {
-  constructor(private readonly modulesRoot: string) {}
+  private readonly packages: ModulePackageManager;
+
+  constructor(private readonly modulesRoot: string) {
+    this.packages = new ModulePackageManager(modulesRoot);
+  }
 
   registerIpc(): void {
+    ipcMain.handle("bailey:studio-detect-runtimes", () => detectModuleRuntimes());
+    ipcMain.handle("bailey:studio-export-module", (_event, moduleId: string) => this.packages.exportModule(moduleId));
+    ipcMain.handle("bailey:studio-install-module", () => this.packages.installModule());
+
     ipcMain.handle("bailey:studio-create-module", async (_event, input: ModuleScaffoldInput) => {
       const scaffold = createModuleScaffold(input);
       const directory = join(this.modulesRoot, scaffold.manifest.id);

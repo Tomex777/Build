@@ -18,6 +18,7 @@ import { coreModule } from "../modules/core";
 import { myCommandsModule } from "../modules/my-commands";
 import type { ConfigDefinition } from "../shared/config-schema";
 import { ChatController } from "./chat-controller";
+import { BaileyBackupManager } from "./backup-manager";
 
 const registry = new ModuleRegistry();
 registry.register(coreModule);
@@ -32,6 +33,7 @@ let chatStore: JsonChatStore;
 let chatController: ChatController;
 let engineManager: EngineManager;
 let externalModuleManager: ExternalModuleManager | undefined;
+let backupManager: BaileyBackupManager;
 let externalModuleErrors: Array<{ folder: string; error: string }> = [];
 const externalModuleIds = new Set<string>();
 const openedEditorFiles = new Set<string>();
@@ -501,6 +503,16 @@ function registerIpc(): void {
     if (!externalModuleManager) throw new Error("External module manager is not ready.");
     return externalModuleManager.restartModule(String(moduleId ?? ""));
   });
+  ipcMain.handle("bailey:backup-export", () => backupManager.exportBackup());
+  ipcMain.handle("bailey:backup-import", async () => {
+    const result = await backupManager.chooseAndImport();
+    if (!result.ok || result.canceled) return result;
+    await externalModuleManager?.stopAll();
+    await engineManager?.stop();
+    app.relaunch();
+    app.exit(0);
+    return result;
+  });
 
   ipcMain.handle("bailey:engine-status", () => engineManager.status());
   ipcMain.handle("bailey:engine-check-latest", () => engineManager.checkLatest());
@@ -531,6 +543,7 @@ app.whenReady().then(async () => {
   );
   commandStore = new JsonCommandStore(join(app.getPath("userData"), "commands.json"));
   chatStore = new JsonChatStore(join(app.getPath("userData"), "chats.json"));
+  backupManager = new BaileyBackupManager(app.getPath("userData"));
   await Promise.all([configStore.load(), commandStore.load(), chatStore.load()]);
   await reloadExternalModules();
 

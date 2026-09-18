@@ -30,6 +30,13 @@ const bailey = (window as unknown as {
     }): Promise<ModuleCreateResult>;
     showModule(moduleId: string): Promise<{ ok: boolean; directory: string }>;
     reloadModules(): Promise<ModuleReloadResult>;
+    detectModuleRuntimes(): Promise<Array<{ id: string; label: string; available: boolean; command: string; version?: string; detail?: string }>>;
+    exportModulePackage(moduleId: string): Promise<{ ok: boolean; canceled?: boolean; path?: string }>;
+    installModulePackage(): Promise<{ ok: boolean; canceled?: boolean; id?: string; name?: string }>;
+    getModuleRuntimeStatus(): Promise<Array<{ id: string; name: string; running: boolean; pid?: number; crashCount: number; restartCount: number; lastError?: string; capabilities: string[]; permissions: string[]; logs: string[] }>>;
+    restartModule(moduleId: string): Promise<unknown>;
+    exportBackup(): Promise<{ ok: boolean; canceled?: boolean; path?: string }>;
+    importBackup(): Promise<{ ok: boolean; canceled?: boolean; fileCount?: number }>;
   };
 }).bailey;
 
@@ -300,3 +307,161 @@ document.addEventListener("keydown", (event) => {
   event.preventDefault();
   fileSave?.click();
 });
+
+
+function installHostTools(): void {
+  const studioGrid = document.querySelector<HTMLElement>("#view-studio .studio-grid");
+  if (studioGrid && !document.querySelector("#host-runtime-card")) {
+    const runtimeCard = document.createElement("article");
+    runtimeCard.id = "host-runtime-card";
+    runtimeCard.className = "panel studio-card studio-card-wide";
+    runtimeCard.innerHTML = `
+      <div>
+        <span class="studio-kicker">RUNTIMES</span>
+        <h2>Module runtimes & health</h2>
+        <p>Bailey embedded Node is built in. External runtimes are detected from this computer; module workers expose health, crash and restart information here.</p>
+      </div>
+      <div class="action-row">
+        <button class="secondary-button" id="runtime-refresh" type="button">Check runtimes</button>
+        <button class="secondary-button" id="module-install-package" type="button">Install module package…</button>
+      </div>
+      <div id="runtime-list" class="stack"></div>
+      <div id="module-runtime-list" class="stack"></div>
+    `;
+    studioGrid.append(runtimeCard);
+
+    const runtimeList = runtimeCard.querySelector<HTMLElement>("#runtime-list")!;
+    const moduleList = runtimeCard.querySelector<HTMLElement>("#module-runtime-list")!;
+    const refreshButton = runtimeCard.querySelector<HTMLButtonElement>("#runtime-refresh")!;
+    const installButton = runtimeCard.querySelector<HTMLButtonElement>("#module-install-package")!;
+
+    const refresh = async () => {
+      refreshButton.disabled = true;
+      refreshButton.textContent = "Checking…";
+      try {
+        const [runtimes, modules] = await Promise.all([
+          bailey.detectModuleRuntimes(),
+          bailey.getModuleRuntimeStatus(),
+        ]);
+        runtimeList.replaceChildren(...runtimes.map((runtime) => {
+          const row = document.createElement("div");
+          row.className = "module-guide-actions";
+          const text = document.createElement("span");
+          text.textContent = `${runtime.label}: ${runtime.available ? runtime.version ?? "Available" : runtime.detail ?? "Not found"}`;
+          const pill = document.createElement("span");
+          pill.className = "pill";
+          pill.textContent = runtime.available ? runtime.command : "Missing";
+          row.append(text, pill);
+          return row;
+        }));
+
+        moduleList.replaceChildren(...modules.map((module) => {
+          const row = document.createElement("div");
+          row.className = "module-guide-actions";
+          const copy = document.createElement("div");
+          const title = document.createElement("strong");
+          title.textContent = module.name;
+          const meta = document.createElement("p");
+          meta.className = "muted";
+          meta.textContent = module.running
+            ? `Running · PID ${module.pid ?? "?"} · restarts ${module.restartCount}`
+            : `Stopped · crashes ${module.crashCount}${module.lastError ? ` · ${module.lastError}` : ""}`;
+          copy.append(title, meta);
+
+          const actions = document.createElement("div");
+          actions.className = "action-row";
+          const exportButton = document.createElement("button");
+          exportButton.type = "button";
+          exportButton.className = "secondary-button";
+          exportButton.textContent = "Export package";
+          exportButton.addEventListener("click", () => {
+            exportButton.disabled = true;
+            void bailey.exportModulePackage(module.id).finally(() => { exportButton.disabled = false; });
+          });
+          const restartButton = document.createElement("button");
+          restartButton.type = "button";
+          restartButton.className = "secondary-button";
+          restartButton.textContent = "Restart";
+          restartButton.addEventListener("click", () => {
+            restartButton.disabled = true;
+            void bailey.restartModule(module.id).then(refresh).finally(() => { restartButton.disabled = false; });
+          });
+          actions.append(exportButton, restartButton);
+
+          const details = document.createElement("details");
+          const summary = document.createElement("summary");
+          summary.textContent = "Logs & permissions";
+          const pre = document.createElement("pre");
+          pre.className = "manifest-example";
+          pre.textContent = [
+            `Capabilities: ${module.capabilities.join(", ") || "none"}`,
+            `Permissions: ${module.permissions.join(", ") || "none"}`,
+            "",
+            ...module.logs.slice(-30),
+          ].join("\n");
+          details.append(summary, pre);
+          row.append(copy, actions, details);
+          return row;
+        }));
+      } catch (error) {
+        runtimeList.textContent = error instanceof Error ? error.message : String(error);
+      } finally {
+        refreshButton.disabled = false;
+        refreshButton.textContent = "Check runtimes";
+      }
+    };
+
+    refreshButton.addEventListener("click", () => void refresh());
+    installButton.addEventListener("click", () => {
+      installButton.disabled = true;
+      void bailey.installModulePackage().then(async (result) => {
+        if (result.ok) {
+          const reload = await bailey.reloadModules();
+          if (reload.errors.length) throw new Error(reload.errors.map((item) => `${item.folder}: ${item.error}`).join("\n"));
+          await refresh();
+        }
+      }).catch((error) => window.alert(error instanceof Error ? error.message : String(error)))
+        .finally(() => { installButton.disabled = false; });
+    });
+    void refresh();
+  }
+
+  const configRoot = document.querySelector<HTMLElement>("#view-configuration .stack");
+  if (configRoot && !document.querySelector("#backup-card")) {
+    const card = document.createElement("article");
+    card.id = "backup-card";
+    card.className = "panel";
+    card.innerHTML = `
+      <div class="panel-heading">
+        <div>
+          <h2>Backup & restore</h2>
+          <p>Back up configuration, commands, module code/data and provider-neutral storage. WhatsApp session/auth files and engine binaries are deliberately excluded.</p>
+        </div>
+        <span class="pill">No auth keys</span>
+      </div>
+      <div class="action-row">
+        <button class="secondary-button" id="backup-export" type="button">Export backup…</button>
+        <button class="secondary-button" id="backup-import" type="button">Restore backup…</button>
+      </div>
+      <p class="muted">Secret settings stay protected by Windows secure storage and may need to be entered again when a backup is moved to another computer.</p>
+    `;
+    configRoot.append(card);
+    card.querySelector<HTMLButtonElement>("#backup-export")!.addEventListener("click", (event) => {
+      const button = event.currentTarget as HTMLButtonElement;
+      button.disabled = true;
+      void bailey.exportBackup().catch((error) => window.alert(error instanceof Error ? error.message : String(error)))
+        .finally(() => { button.disabled = false; });
+    });
+    card.querySelector<HTMLButtonElement>("#backup-import")!.addEventListener("click", (event) => {
+      if (!window.confirm("Restore this Bailey backup? Bailey Host will restart after the files are restored.")) return;
+      const button = event.currentTarget as HTMLButtonElement;
+      button.disabled = true;
+      void bailey.importBackup().catch((error) => {
+        window.alert(error instanceof Error ? error.message : String(error));
+        button.disabled = false;
+      });
+    });
+  }
+}
+
+installHostTools();
