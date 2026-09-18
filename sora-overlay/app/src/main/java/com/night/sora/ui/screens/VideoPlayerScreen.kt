@@ -87,15 +87,17 @@ fun VideoPlayerScreen(
         scope.launch {
             repeat(30) {
                 if (currentPlayer.isIdleForExit()) {
-                    onBack()
+                    currentPlayer.releaseAsync(onReleased = onBack)
                     return@launch
                 }
                 delay(50)
             }
 
-            // Never trap the user if mpv fails to expose idle-active; the
-            // destroy path still issues stop again as a final safeguard.
-            onBack()
+            // Some mpv builds may not expose idle-active promptly. Release
+            // asynchronously anyway; never perform native destroy on the UI
+            // thread and never pop this route until the global mpv instance is
+            // actually gone.
+            currentPlayer.releaseAsync(onReleased = onBack)
         }
     }
 
@@ -183,7 +185,7 @@ fun VideoPlayerScreen(
                 TopAppBar(
                     title = { Text(session.episodeTitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     navigationIcon = {
-                        IconButton(onClick = onBack) {
+                        IconButton(onClick = ::requestExit) {
                             Icon(Icons.Rounded.ArrowBack, "Back")
                         }
                     },
