@@ -97,6 +97,7 @@ sealed interface WhatsAppVisualMessage {
         val time: String,
         val mine: Boolean,
         val read: Boolean = false,
+        val compact: Boolean = false,
     ) : WhatsAppVisualMessage
 
     data class VoiceMessage(
@@ -280,7 +281,7 @@ private fun CurrentChatHeader(
                 Text(
                     text = subtitle,
                     color = SecondaryText,
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -382,19 +383,19 @@ private fun CurrentReplyBlock(reply: ReplyPreview) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(IncomingReply)
-            .height(66.dp),
+            .height(46.dp),
     ) {
         Box(
             modifier = Modifier
                 .width(4.dp)
-                .height(66.dp)
+                .height(46.dp)
                 .background(AccentPink),
         )
 
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(horizontal = 10.dp, vertical = 7.dp),
+                .padding(horizontal = 9.dp, vertical = 4.dp),
         ) {
             Text(
                 text = reply.author,
@@ -405,8 +406,8 @@ private fun CurrentReplyBlock(reply: ReplyPreview) {
             Text(
                 text = reply.text,
                 color = Color(0xFFB3B6B7),
-                fontSize = 13.sp,
-                lineHeight = 16.sp,
+                fontSize = 12.sp,
+                lineHeight = 14.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -418,6 +419,11 @@ private fun CurrentReplyBlock(reply: ReplyPreview) {
 
 @Composable
 private fun CurrentPhotoBubble(item: WhatsAppVisualMessage.PhotoMessage) {
+    if (item.compact) {
+        CompactPhotoBubble(item)
+        return
+    }
+
     Box(
         modifier = Modifier.fillMaxWidth(),
         contentAlignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart,
@@ -455,6 +461,39 @@ private fun CurrentPhotoBubble(item: WhatsAppVisualMessage.PhotoMessage) {
                     )
                     MessageMeta(item.time, item.mine, item.read)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactPhotoBubble(item: WhatsAppVisualMessage.PhotoMessage) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Image(
+                painter = painterResource(R.drawable.bilal),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(112.dp)
+                    .clip(RoundedCornerShape(2.dp)),
+                contentScale = ContentScale.Crop,
+            )
+            Surface(
+                color = DatePill.copy(alpha = 0.92f),
+                shape = RoundedCornerShape(7.dp),
+                modifier = Modifier.padding(top = 2.dp),
+            ) {
+                Text(
+                    text = item.time,
+                    color = SecondaryText,
+                    fontSize = 10.sp,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                )
             }
         }
     }
@@ -504,9 +543,9 @@ private fun CurrentVoiceBubble(item: WhatsAppVisualMessage.VoiceMessage) {
         modifier = Modifier.fillMaxWidth(),
         contentAlignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart,
     ) {
-        Row(
+        Column(
             modifier = Modifier
-                .widthIn(min = 300.dp, max = 390.dp)
+                .widthIn(min = 280.dp, max = 300.dp)
                 .clip(
                     if (item.mine) {
                         RoundedCornerShape(14.dp, 3.dp, 14.dp, 14.dp)
@@ -515,78 +554,84 @@ private fun CurrentVoiceBubble(item: WhatsAppVisualMessage.VoiceMessage) {
                     }
                 )
                 .background(if (item.mine) OutgoingBubble else IncomingBubble)
-                .padding(start = 9.dp, end = 8.dp, top = 9.dp, bottom = 7.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 6.dp),
         ) {
-            Box {
-                Image(
-                    painter = painterResource(R.drawable.bilal),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop,
-                )
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(18.dp)
-                        .clip(CircleShape)
-                        .background(if (item.mine) OutgoingBubble else IncomingBubble),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Mic,
-                        contentDescription = null,
-                        tint = PrimaryText,
-                        modifier = Modifier.size(14.dp),
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = "Play voice note",
-                tint = PrimaryText,
-                modifier = Modifier.size(38.dp),
-            )
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 3.dp),
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+                Box {
+                    Image(
+                        painter = painterResource(R.drawable.bilal),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop,
+                    )
+
                     Box(
                         modifier = Modifier
-                            .size(11.dp)
+                            .align(Alignment.BottomEnd)
+                            .size(16.dp)
                             .clip(CircleShape)
-                            .background(PrimaryText),
-                    )
-                    Spacer(modifier = Modifier.width(5.dp))
-                    VoiceWaveform(modifier = Modifier.weight(1f))
+                            .background(if (item.mine) OutgoingBubble else IncomingBubble),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = null,
+                            tint = PrimaryText,
+                            modifier = Modifier.size(12.dp),
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.width(7.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Bottom,
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Play voice note",
+                    tint = PrimaryText,
+                    modifier = Modifier.size(34.dp),
+                )
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 2.dp),
                 ) {
-                    Text(
-                        text = item.duration,
-                        color = SecondaryText,
-                        fontSize = 11.sp,
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    MessageMeta(item.time, item.mine, item.read)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(9.dp)
+                                .clip(CircleShape)
+                                .background(PrimaryText),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        VoiceWaveform(modifier = Modifier.weight(1f))
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Bottom,
+                    ) {
+                        Text(
+                            text = item.duration,
+                            color = SecondaryText,
+                            fontSize = 10.sp,
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        MessageMeta(item.time, item.mine, item.read)
+                    }
                 }
             }
+
+            Text(
+                text = "Setting up transcripts, Stop",
+                color = Color(0xFFCE8B9D),
+                fontSize = 9.sp,
+                modifier = Modifier.padding(start = 51.dp, top = 2.dp),
+            )
         }
     }
 }
@@ -831,6 +876,13 @@ fun whatsappPreviewMessages(): List<WhatsAppVisualMessage> = listOf(
         text = "Since yesterday",
         time = "13:08",
         mine = false,
+    ),
+    WhatsAppVisualMessage.PhotoMessage(
+        id = "compact-photo",
+        caption = "",
+        time = "13:09",
+        mine = false,
+        compact = true,
     ),
     WhatsAppVisualMessage.VoiceMessage(
         id = "voice",
