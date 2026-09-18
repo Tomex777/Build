@@ -1,82 +1,62 @@
 name: Extension Chat Android UI
 
+concurrency:
+  group: extension-chat-ui-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
-    branches:
-      - extension-chat-ui-ci
+    branches: [extension-chat-ui-ci]
     paths:
-      - "extension-chat-android/**"
-      - ".github/workflows/extension-chat-ui-ci.yml"
-  pull_request:
-    branches:
-      - main
-    paths:
-      - "extension-chat-android/**"
-      - ".github/workflows/extension-chat-ui-ci.yml"
+      - 'extension-chat-android/**'
+      - '.github/workflows/extension-chat-ui-ci.yml'
   workflow_dispatch:
 
 permissions:
   contents: write
 
-concurrency:
-  group: extension-chat-ui-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  build-and-screenshot:
+  build-and-visual-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 35
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - name: Prepare diagnostics
-        run: |
-          mkdir -p extension-chat-preview
-          echo "sha=$GITHUB_SHA stage=workflow-started" > extension-chat-preview/status.txt
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: '17'
 
-      - name: Mark JDK ready
-        run: echo "sha=$GITHUB_SHA stage=jdk-ready" > extension-chat-preview/status.txt
-
-      - name: Verify preinstalled Android SDK
-        run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          SDKMANAGER="$(find "$ANDROID_HOME" -type f -name sdkmanager | head -n 1)"
-          echo "SDKMANAGER=$SDKMANAGER"
-          test -n "$SDKMANAGER"
-          "$SDKMANAGER" --version
-          echo "sha=$GITHUB_SHA stage=android-sdk-ready" > extension-chat-preview/status.txt
-          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
-
-      - name: Verify compile SDK 36
-        run: |
-          test -d "$ANDROID_HOME/platforms/android-36"
-          echo "sha=$GITHUB_SHA stage=compile-sdk-ready" > extension-chat-preview/status.txt
-
-      - name: Set up Gradle 9.6
-        uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v3
         with:
-          gradle-version: "9.6.0"
+          packages: platform-tools
 
-      - name: Mark Gradle ready
-        run: echo "sha=$GITHUB_SHA stage=gradle-ready" > extension-chat-preview/status.txt
+      - name: Install Android SDK
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
 
       - name: Build debug APK
         id: build
+        working-directory: extension-chat-android
         run: |
           set -o pipefail
-          gradle -p extension-chat-android :app:assembleDebug --stacktrace 2>&1 | tee extension-chat-preview/build.log
-          echo "sha=$GITHUB_SHA stage=build-succeeded" > extension-chat-preview/status.txt
+          mkdir -p ../extension-chat-preview
+          gradle :app:assembleDebug --stacktrace 2>&1 | tee ../extension-chat-preview/build.log
+          echo "sha=$GITHUB_SHA stage=build-succeeded" > ../extension-chat-preview/status.txt
 
       - name: Commit build checkpoint
-        if: steps.build.outcome == 'success' && github.event_name == 'push'
+        if: steps.build.outcome == 'success'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -84,25 +64,36 @@ jobs:
           git diff --cached --quiet || git commit -m "Record Extension Chat build checkpoint"
           git push origin HEAD:extension-chat-ui-ci
 
-      - name: Boot emulator and capture UI
-        if: steps.build.outcome == 'success'
+      - name: Emulator visual smoke
+        id: emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 36
-          target: google_apis
+          api-level: 34
           arch: x86_64
+          target: google_apis
+          emulator-boot-timeout: 900
           profile: pixel_6
+          cores: 2
+          ram-size: 3072M
           disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
-            adb install -r extension-chat-android/app/build/outputs/apk/debug/app-debug.apk
+            set -eu
+            mkdir -p extension-chat-preview
+            adb wait-for-device
+            adb shell 'while [ "$(getprop sys.boot_completed)" != "1" ]; do sleep 1; done'
+            sleep 8
+            adb install --no-streaming -r extension-chat-android/app/build/outputs/apk/debug/app-debug.apk || (sleep 8; adb wait-for-device; adb install --no-streaming -r extension-chat-android/app/build/outputs/apk/debug/app-debug.apk)
+            adb shell wm size 1080x2400
+            adb shell wm density 440
             adb shell am force-stop com.night.extensionchat
             adb shell am start -W -n com.night.extensionchat/.MainActivity
-            sleep 4
+            sleep 5
             adb exec-out screencap -p > extension-chat-preview/chat-screen.png
             echo "sha=$GITHUB_SHA stage=screenshot-captured" > extension-chat-preview/status.txt
 
-      - name: Finalize preview diagnostics
-        if: always() && github.event_name == 'push'
+      - name: Commit rendered screenshot
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -115,7 +106,7 @@ jobs:
           git push origin HEAD:extension-chat-ui-ci
 
       - name: Upload APK and screenshot
-        if: steps.build.outcome == 'success'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: extension-chat-ui-preview
