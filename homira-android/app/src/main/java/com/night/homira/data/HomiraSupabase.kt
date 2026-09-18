@@ -7,6 +7,7 @@ import io.github.jan.supabase.auth.providers.builtin.OTP
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.storage.Storage
 import kotlinx.serialization.SerialName
@@ -26,6 +27,25 @@ object HomiraSupabase {
         install(Realtime)
     }
 }
+
+@Serializable
+data class LiveContact(
+    val id: String,
+    @SerialName("display_name") val displayName: String,
+    val username: String? = null,
+    @SerialName("phone_e164") val phoneE164: String? = null,
+    val about: String = "",
+    @SerialName("avatar_path") val avatarPath: String? = null,
+    @SerialName("call_card_path") val callCardPath: String? = null,
+    val favorite: Boolean = false,
+    @SerialName("local_name") val localName: String? = null
+)
+
+@Serializable
+private data class AddContactParams(
+    @SerialName("p_query") val query: String,
+    @SerialName("p_local_name") val localName: String? = null
+)
 
 @Serializable
 data class LiveProfile(
@@ -81,6 +101,20 @@ class HomiraLiveRepository {
                 .decodeSingle<LiveProfile>()
         }.getOrNull()
     }
+
+    suspend fun loadContacts(): List<LiveContact> =
+        client.postgrest
+            .rpc("list_my_contacts")
+            .decodeList<LiveContact>()
+
+    suspend fun addContact(query: String, localName: String? = null): LiveContact? =
+        client.postgrest
+            .rpc(
+                "add_homira_contact",
+                AddContactParams(query = query.trim(), localName = localName?.trim())
+            )
+            .decodeList<LiveContact>()
+            .firstOrNull()
 
     suspend fun updateMyProfile(
         displayName: String,
