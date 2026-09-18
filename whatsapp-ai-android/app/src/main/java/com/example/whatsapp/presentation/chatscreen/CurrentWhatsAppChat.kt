@@ -1,0 +1,838 @@
+package com.example.whatsapp.presentation.chatscreen
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.SentimentSatisfiedAlt
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.whatsapp.R
+
+private val HeaderBlack = Color(0xFF0A0A0A)
+private val IncomingBubble = Color(0xFF242625)
+private val IncomingReply = Color(0xFF3C3C3A)
+private val OutgoingBubble = Color(0xFF7E112E)
+private val AccentPink = Color(0xFFCF4A69)
+private val ComposerBackground = Color(0xFF1F272A)
+private val DatePill = Color(0xFF13181C)
+private val PrimaryText = Color(0xFFECEDEE)
+private val SecondaryText = Color(0xFF9EA7AB)
+private val TickBlue = Color(0xFF53BDEB)
+
+sealed interface WhatsAppVisualMessage {
+    val id: String
+
+    data class TextMessage(
+        override val id: String,
+        val text: String,
+        val time: String,
+        val mine: Boolean,
+        val read: Boolean = false,
+        val reply: ReplyPreview? = null,
+    ) : WhatsAppVisualMessage
+
+    data class PhotoMessage(
+        override val id: String,
+        val caption: String,
+        val time: String,
+        val mine: Boolean,
+        val read: Boolean = false,
+    ) : WhatsAppVisualMessage
+
+    data class VoiceMessage(
+        override val id: String,
+        val duration: String,
+        val time: String,
+        val mine: Boolean,
+        val read: Boolean = false,
+    ) : WhatsAppVisualMessage
+
+    data class DateSeparator(
+        override val id: String,
+        val label: String,
+    ) : WhatsAppVisualMessage
+}
+
+data class ReplyPreview(
+    val author: String,
+    val text: String,
+)
+
+@Composable
+fun CurrentWhatsAppConversation(
+    contactName: String,
+    subtitle: String,
+    messages: List<WhatsAppVisualMessage>,
+    messageText: String,
+    onMessageTextChange: (String) -> Unit,
+    onBackClick: () -> Unit,
+    onSendClick: () -> Unit,
+    onCallClick: () -> Unit = {},
+    onAttachmentClick: () -> Unit = {},
+    onCameraClick: () -> Unit = {},
+    onMicClick: () -> Unit = {},
+) {
+    val state = rememberLazyListState()
+
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            state.scrollToItem(messages.lastIndex)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(HeaderBlack),
+    ) {
+        WhatsAppWallpaper()
+
+        Column(modifier = Modifier.fillMaxSize()) {
+            CurrentChatHeader(
+                contactName = contactName,
+                subtitle = subtitle,
+                onBackClick = onBackClick,
+                onCallClick = onCallClick,
+            )
+
+            LazyColumn(
+                state = state,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentPadding = PaddingValues(
+                    start = 14.dp,
+                    end = 14.dp,
+                    top = 8.dp,
+                    bottom = 8.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                items(messages, key = { it.id }) { item ->
+                    when (item) {
+                        is WhatsAppVisualMessage.TextMessage -> CurrentTextBubble(item)
+                        is WhatsAppVisualMessage.PhotoMessage -> CurrentPhotoBubble(item)
+                        is WhatsAppVisualMessage.VoiceMessage -> CurrentVoiceBubble(item)
+                        is WhatsAppVisualMessage.DateSeparator -> CurrentDateSeparator(item.label)
+                    }
+                }
+            }
+
+            CurrentComposer(
+                text = messageText,
+                onTextChange = onMessageTextChange,
+                onSendClick = onSendClick,
+                onAttachmentClick = onAttachmentClick,
+                onCameraClick = onCameraClick,
+                onMicClick = onMicClick,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WhatsAppWallpaper() {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        drawRect(
+            brush = Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xFF6A0011),
+                    Color(0xFF8F0018),
+                    Color(0xFF4F000E),
+                )
+            )
+        )
+
+        val w = size.width
+        val h = size.height
+        drawOval(
+            color = Color.Black.copy(alpha = 0.34f),
+            topLeft = Offset(w * 0.42f, h * 0.18f),
+            size = Size(w * 0.88f, h * 0.74f),
+        )
+        drawOval(
+            color = Color(0xFF121719).copy(alpha = 0.62f),
+            topLeft = Offset(-w * 0.18f, h * 0.53f),
+            size = Size(w * 0.92f, h * 0.54f),
+        )
+        drawRect(
+            color = Color(0xFF150006).copy(alpha = 0.45f),
+            topLeft = Offset(w * 0.12f, h * 0.46f),
+            size = Size(w * 0.72f, h * 0.07f),
+        )
+    }
+}
+
+@Composable
+private fun CurrentChatHeader(
+    contactName: String,
+    subtitle: String,
+    onBackClick: () -> Unit,
+    onCallClick: () -> Unit,
+) {
+    Surface(
+        color = HeaderBlack,
+        shadowElevation = 0.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .height(68.dp)
+                .padding(start = 3.dp, end = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = PrimaryText,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+
+            Image(
+                painter = painterResource(R.drawable.bilal),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop,
+            )
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp),
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = contactName,
+                    color = PrimaryText,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = subtitle,
+                    color = SecondaryText,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            IconButton(onClick = onCallClick) {
+                Icon(
+                    imageVector = Icons.Default.Phone,
+                    contentDescription = "Call",
+                    tint = PrimaryText,
+                    modifier = Modifier.size(25.dp),
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.ArrowDropDown,
+                contentDescription = null,
+                tint = PrimaryText,
+                modifier = Modifier.size(23.dp),
+            )
+
+            IconButton(onClick = {}) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More",
+                    tint = PrimaryText,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CurrentTextBubble(item: WhatsAppVisualMessage.TextMessage) {
+    val alignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart
+    val bubbleColor = if (item.mine) OutgoingBubble else IncomingBubble
+    val shape = if (item.mine) {
+        RoundedCornerShape(
+            topStart = 13.dp,
+            topEnd = 3.dp,
+            bottomStart = 13.dp,
+            bottomEnd = 13.dp,
+        )
+    } else {
+        RoundedCornerShape(
+            topStart = 3.dp,
+            topEnd = 13.dp,
+            bottomStart = 13.dp,
+            bottomEnd = 13.dp,
+        )
+    }
+
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = alignment,
+    ) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 320.dp)
+                .clip(shape)
+                .background(bubbleColor)
+                .padding(
+                    start = 10.dp,
+                    top = if (item.reply == null) 7.dp else 6.dp,
+                    end = 8.dp,
+                    bottom = 5.dp,
+                ),
+        ) {
+            item.reply?.let { CurrentReplyBlock(it) }
+
+            Row(
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                Text(
+                    text = item.text,
+                    color = PrimaryText,
+                    fontSize = 15.sp,
+                    lineHeight = 19.sp,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                MessageMeta(
+                    time = item.time,
+                    mine = item.mine,
+                    read = item.read,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CurrentReplyBlock(reply: ReplyPreview) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(IncomingReply)
+            .height(66.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .height(66.dp)
+                .background(AccentPink),
+        )
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 10.dp, vertical = 7.dp),
+        ) {
+            Text(
+                text = reply.author,
+                color = Color(0xFFD8A5B4),
+                fontSize = 12.sp,
+            )
+            Spacer(modifier = Modifier.height(3.dp))
+            Text(
+                text = reply.text,
+                color = Color(0xFFB3B6B7),
+                fontSize = 13.sp,
+                lineHeight = 16.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+
+    Spacer(modifier = Modifier.height(6.dp))
+}
+
+@Composable
+private fun CurrentPhotoBubble(item: WhatsAppVisualMessage.PhotoMessage) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart,
+    ) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 505.dp)
+                .clip(
+                    if (item.mine) {
+                        RoundedCornerShape(14.dp, 3.dp, 14.dp, 14.dp)
+                    } else {
+                        RoundedCornerShape(3.dp, 14.dp, 14.dp, 14.dp)
+                    }
+                )
+                .background(if (item.mine) OutgoingBubble else IncomingBubble)
+                .padding(5.dp),
+        ) {
+            DemoMediaArtwork(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(230.dp)
+                    .clip(RoundedCornerShape(10.dp)),
+            )
+
+            if (item.caption.isNotBlank()) {
+                Row(
+                    modifier = Modifier.padding(start = 6.dp, end = 3.dp, top = 7.dp, bottom = 2.dp),
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    Text(
+                        text = item.caption,
+                        color = PrimaryText,
+                        fontSize = 14.sp,
+                        modifier = Modifier.weight(1f),
+                    )
+                    MessageMeta(item.time, item.mine, item.read)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DemoMediaArtwork(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.background(Color(0xFFF4F1EB)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                color = Color(0xFFDF67C8),
+                radius = size.minDimension * 0.29f,
+                center = Offset(size.width * 0.48f, size.height * 0.48f),
+            )
+            drawCircle(
+                color = Color(0xFFFFFF00),
+                radius = size.minDimension * 0.20f,
+                center = Offset(size.width * 0.28f, size.height * 0.55f),
+            )
+            drawCircle(
+                color = Color(0xFF2196F3),
+                radius = size.minDimension * 0.09f,
+                center = Offset(size.width * 0.82f, size.height * 0.38f),
+            )
+            drawCircle(
+                color = Color(0xFFFFA51F),
+                radius = size.minDimension * 0.07f,
+                center = Offset(size.width * 0.18f, size.height * 0.78f),
+            )
+        }
+        Text(
+            text = "PAGE  NOT  FOUND",
+            color = Color(0xFF181818),
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 0.6.sp,
+        )
+    }
+}
+
+@Composable
+private fun CurrentVoiceBubble(item: WhatsAppVisualMessage.VoiceMessage) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart,
+    ) {
+        Row(
+            modifier = Modifier
+                .widthIn(min = 300.dp, max = 390.dp)
+                .clip(
+                    if (item.mine) {
+                        RoundedCornerShape(14.dp, 3.dp, 14.dp, 14.dp)
+                    } else {
+                        RoundedCornerShape(3.dp, 14.dp, 14.dp, 14.dp)
+                    }
+                )
+                .background(if (item.mine) OutgoingBubble else IncomingBubble)
+                .padding(start = 9.dp, end = 8.dp, top = 9.dp, bottom = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box {
+                Image(
+                    painter = painterResource(R.drawable.bilal),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop,
+                )
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(if (item.mine) OutgoingBubble else IncomingBubble),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = null,
+                        tint = PrimaryText,
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = "Play voice note",
+                tint = PrimaryText,
+                modifier = Modifier.size(38.dp),
+            )
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 3.dp),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(11.dp)
+                            .clip(CircleShape)
+                            .background(PrimaryText),
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    VoiceWaveform(modifier = Modifier.weight(1f))
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    Text(
+                        text = item.duration,
+                        color = SecondaryText,
+                        fontSize = 11.sp,
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    MessageMeta(item.time, item.mine, item.read)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VoiceWaveform(modifier: Modifier = Modifier) {
+    val heights = listOf(
+        7, 12, 9, 18, 10, 7, 16, 23, 13, 8, 11, 20, 26, 14, 9, 18, 24, 12,
+        8, 15, 21, 10, 7, 18, 13, 23, 16, 8, 11, 20, 9, 14, 24, 12, 7, 16,
+    )
+
+    Row(
+        modifier = modifier.height(30.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        heights.forEach { h ->
+            Box(
+                modifier = Modifier
+                    .width(2.dp)
+                    .height(h.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color(0xFFCE8B9D)),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CurrentDateSeparator(label: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            color = DatePill,
+            shape = RoundedCornerShape(8.dp),
+        ) {
+            Text(
+                text = label,
+                color = SecondaryText,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MessageMeta(
+    time: String,
+    mine: Boolean,
+    read: Boolean,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = time,
+            color = SecondaryText,
+            fontSize = 10.sp,
+        )
+
+        if (mine) {
+            Spacer(modifier = Modifier.width(3.dp))
+            Icon(
+                imageVector = Icons.Default.DoneAll,
+                contentDescription = if (read) "Read" else "Delivered",
+                tint = if (read) TickBlue else SecondaryText,
+                modifier = Modifier.size(17.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CurrentComposer(
+    text: String,
+    onTextChange: (String) -> Unit,
+    onSendClick: () -> Unit,
+    onAttachmentClick: () -> Unit,
+    onCameraClick: () -> Unit,
+    onMicClick: () -> Unit,
+) {
+    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+    val bottomPadding = if (imeBottom > 0.dp) 5.dp else navBottom.coerceAtLeast(6.dp)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.Transparent)
+            .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = bottomPadding),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        Surface(
+            color = ComposerBackground,
+            shape = RoundedCornerShape(28.dp),
+            modifier = Modifier.weight(1f),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(start = 3.dp, end = 2.dp),
+            ) {
+                IconButton(onClick = {}) {
+                    Icon(
+                        imageVector = Icons.Default.SentimentSatisfiedAlt,
+                        contentDescription = "Emoji",
+                        tint = SecondaryText,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+
+                TextField(
+                    value = text,
+                    onValueChange = onTextChange,
+                    placeholder = {
+                        Text(
+                            text = "Message",
+                            color = Color(0xFF8F999E),
+                            fontSize = 16.sp,
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                    maxLines = 5,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        focusedTextColor = PrimaryText,
+                        unfocusedTextColor = PrimaryText,
+                        cursorColor = AccentPink,
+                    ),
+                    textStyle = LocalTextStyle.current.copy(
+                        fontSize = 16.sp,
+                        lineHeight = 20.sp,
+                    ),
+                )
+
+                IconButton(onClick = onAttachmentClick) {
+                    Icon(
+                        imageVector = Icons.Default.AttachFile,
+                        contentDescription = "Attach",
+                        tint = SecondaryText,
+                        modifier = Modifier.size(25.dp),
+                    )
+                }
+
+                IconButton(onClick = onCameraClick) {
+                    Icon(
+                        imageVector = Icons.Default.PhotoCamera,
+                        contentDescription = "Camera",
+                        tint = SecondaryText,
+                        modifier = Modifier.size(25.dp),
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.width(7.dp))
+
+        Surface(
+            color = AccentPink,
+            shape = CircleShape,
+            modifier = Modifier
+                .size(55.dp)
+                .clickable {
+                    if (text.isBlank()) onMicClick() else onSendClick()
+                },
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = if (text.isBlank()) Icons.Default.Mic else Icons.Default.Send,
+                    contentDescription = if (text.isBlank()) "Voice message" else "Send",
+                    tint = Color(0xFF10161A),
+                    modifier = Modifier.size(27.dp),
+                )
+            }
+        }
+    }
+}
+
+fun whatsappPreviewMessages(): List<WhatsAppVisualMessage> = listOf(
+    WhatsAppVisualMessage.PhotoMessage(
+        id = "photo",
+        caption = "Something like this",
+        time = "21:58",
+        mine = true,
+        read = true,
+    ),
+    WhatsAppVisualMessage.TextMessage(
+        id = "reply",
+        text = "Great great",
+        time = "22:19",
+        mine = false,
+        reply = ReplyPreview(
+            author = "You",
+            text = "I learnt about balance, unity, contrasts, emphasis and repetition/patterns",
+        ),
+    ),
+    WhatsAppVisualMessage.TextMessage(
+        id = "t2",
+        text = "Find ways to implement them",
+        time = "22:19",
+        mine = false,
+    ),
+    WhatsAppVisualMessage.TextMessage(
+        id = "t3",
+        text = "You can design a flyer for the app if you are feeling like it",
+        time = "22:19",
+        mine = false,
+    ),
+    WhatsAppVisualMessage.DateSeparator("wed", "Wednesday"),
+    WhatsAppVisualMessage.TextMessage(
+        id = "morning-in",
+        text = "Good morning boss",
+        time = "09:44",
+        mine = false,
+    ),
+    WhatsAppVisualMessage.TextMessage(
+        id = "morning-out",
+        text = "Good morning",
+        time = "09:54",
+        mine = true,
+        read = true,
+    ),
+    WhatsAppVisualMessage.TextMessage(
+        id = "church",
+        text = "I'm in church",
+        time = "09:54",
+        mine = true,
+        read = true,
+    ),
+    WhatsAppVisualMessage.DateSeparator("yesterday", "Yesterday"),
+    WhatsAppVisualMessage.TextMessage(
+        id = "since",
+        text = "Since yesterday",
+        time = "13:08",
+        mine = false,
+    ),
+    WhatsAppVisualMessage.VoiceMessage(
+        id = "voice",
+        duration = "0:15",
+        time = "18:28",
+        mine = true,
+        read = true,
+    ),
+)
