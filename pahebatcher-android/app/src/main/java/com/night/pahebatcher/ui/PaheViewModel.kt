@@ -69,7 +69,7 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
 
     val downloads = mutableStateListOf<DownloadUi>()
 
-    fun setTab(value: MainTab) {
+    fun navigateToTab(value: MainTab) {
         tab = value
         details = null
         detailsError = null
