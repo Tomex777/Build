@@ -263,6 +263,31 @@ class HomiraLiveRepository {
         }
     }
 
+    fun observeReceivedVoicemailChanges(): Flow<LiveVoicemail> = flow {
+        val userId = requireNotNull(currentUserId()) { "Not signed in" }
+        val channel = client.channel("received-voicemails-$userId")
+        val changes = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+            table = "voicemails"
+            filter = "recipient_id=eq.$userId"
+        }
+
+        client.realtime.connect()
+        channel.subscribe(blockUntilSubscribed = true)
+
+        try {
+            changes.collect { action ->
+                val voicemail = when (action) {
+                    is PostgresAction.Insert -> action.decodeRecordOrNull<LiveVoicemail>()
+                    is PostgresAction.Update -> action.decodeRecordOrNull<LiveVoicemail>()
+                    else -> null
+                }
+                if (voicemail != null) emit(voicemail)
+            }
+        } finally {
+            runCatching { channel.unsubscribe() }
+        }
+    }
+
     suspend fun saveVoicemailGreeting(audioFile: File): LiveProfile {
         val userId = requireNotNull(currentUserId()) { "Not signed in" }
         require(audioFile.exists() && audioFile.length() > 0L) { "Greeting audio is empty" }
