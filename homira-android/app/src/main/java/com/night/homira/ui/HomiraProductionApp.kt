@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
+import android.media.RingtoneManager
+import android.net.Uri
 import com.night.homira.call.HomiraWebRtcState
 import com.night.homira.call.HomiraAudioRecorder
 import com.night.homira.call.HomiraAudioPlayer
@@ -420,6 +422,34 @@ fun HomiraProductionApp(
                 settingsStore.setNotificationPermissionRequested(true)
                 localSettings = settingsStore.load()
             }
+
+        val ringtonePickerLauncher =
+            rememberLauncherForActivityResult(
+                ActivityResultContracts.StartActivityForResult()
+            ) { result ->
+                if (result.resultCode == Activity.RESULT_OK) {
+                    val pickedUri = result.data?.getParcelableExtra(
+                        RingtoneManager.EXTRA_RINGTONE_PICKED_URI,
+                        Uri::class.java
+                    )
+                    settingsStore.setRingtoneUri(pickedUri?.toString())
+                    localSettings = settingsStore.load()
+                }
+            }
+
+        val ringtoneTitle = remember(localSettings.ringtoneUri) {
+            val uri = localSettings.ringtoneUri
+                ?.let(Uri::parse)
+                ?: RingtoneManager.getDefaultUri(
+                    RingtoneManager.TYPE_RINGTONE
+                )
+
+            runCatching {
+                RingtoneManager.getRingtone(context, uri)
+                    ?.getTitle(context)
+            }.getOrNull()
+                ?: "System default"
+        }
 
         LaunchedEffect(
             liveMode,
@@ -1077,7 +1107,8 @@ fun HomiraProductionApp(
                 incomingCallNotifier.show(
                     session = pending,
                     callerName = person.name,
-                    notificationsEnabled = localSettings.callNotifications
+                    notificationsEnabled = localSettings.callNotifications,
+                    ringtoneUri = localSettings.ringtoneUri
                 )
             }
 
@@ -1099,7 +1130,8 @@ fun HomiraProductionApp(
                         incomingCallNotifier.show(
                             session = session,
                             callerName = person.name,
-                            notificationsEnabled = localSettings.callNotifications
+                            notificationsEnabled = localSettings.callNotifications,
+                            ringtoneUri = localSettings.ringtoneUri
                         )
                     }
 
@@ -1478,6 +1510,7 @@ fun HomiraProductionApp(
             overlay == OverlayScreen.Settings -> SettingsScreen(
                 lowDataCalls = localSettings.lowDataCalls,
                 callNotifications = localSettings.callNotifications,
+                ringtoneTitle = ringtoneTitle,
                 voicemailEnabled = voicemailEnabled,
                 voicemailGreetingMode = voicemailGreetingMode,
                 onLowDataChanged = { enabled ->
@@ -1492,6 +1525,39 @@ fun HomiraProductionApp(
                             Manifest.permission.POST_NOTIFICATIONS
                         )
                     }
+                },
+                onRingtone = {
+                    val existingUri = localSettings.ringtoneUri
+                        ?.let(Uri::parse)
+                        ?: RingtoneManager.getDefaultUri(
+                            RingtoneManager.TYPE_RINGTONE
+                        )
+
+                    val intent = Intent(
+                        RingtoneManager.ACTION_RINGTONE_PICKER
+                    ).apply {
+                        putExtra(
+                            RingtoneManager.EXTRA_RINGTONE_TYPE,
+                            RingtoneManager.TYPE_RINGTONE
+                        )
+                        putExtra(
+                            RingtoneManager.EXTRA_RINGTONE_TITLE,
+                            "Homira ringtone"
+                        )
+                        putExtra(
+                            RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT,
+                            true
+                        )
+                        putExtra(
+                            RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT,
+                            false
+                        )
+                        putExtra(
+                            RingtoneManager.EXTRA_RINGTONE_EXISTING_URI,
+                            existingUri
+                        )
+                    }
+                    ringtonePickerLauncher.launch(intent)
                 },
                 onVoicemailEnabledChanged = { enabled ->
                     if (!liveMode) {
@@ -3086,10 +3152,12 @@ private fun EditProfileScreen(
 private fun SettingsScreen(
     lowDataCalls: Boolean,
     callNotifications: Boolean,
+    ringtoneTitle: String,
     voicemailEnabled: Boolean,
     voicemailGreetingMode: String,
     onLowDataChanged: (Boolean) -> Unit,
     onNotificationsChanged: (Boolean) -> Unit,
+    onRingtone: () -> Unit,
     onVoicemailEnabledChanged: (Boolean) -> Unit,
     onBack: () -> Unit,
     onVoicemail: () -> Unit,
@@ -3192,6 +3260,13 @@ private fun SettingsScreen(
                 callNotifications,
                 onNotificationsChanged
             )
+            SettingsRowP(
+                Icons.Rounded.VolumeUp,
+                "Ringtone",
+                ringtoneTitle
+            ) {
+                onRingtone()
+            }
         }
 
         item {
