@@ -1,1 +1,1 @@
-sha=29505c0c8b096e6a2e517b05b59904f7d4c4a296 stage=gradle-ready
+sha=c6869d5ad6e5364b59fa38f91a318777e33b4937 stage=android-sdk-ready
