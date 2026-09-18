@@ -1,1 +1,1 @@
-run 11 - verify polished outage copy and idempotent promoted Anime Manga source
+run 12 - strict AniList Anime Manga migration validation
