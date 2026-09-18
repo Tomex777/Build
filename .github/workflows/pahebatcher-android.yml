@@ -44,21 +44,53 @@ jobs:
           ls -l /dev/kvm
 
       - name: Start Tor test proxy
+        id: tor
         run: |
           sudo apt-get update -y
           sudo apt-get install -y tor privoxy
+          echo 'ControlPort 9051' | sudo tee -a /etc/tor/torrc
+          echo 'CookieAuthentication 0' | sudo tee -a /etc/tor/torrc
           sudo sed -i 's/^listen-address[[:space:]]\+127\.0\.0\.1:8118/listen-address  0.0.0.0:8118/' /etc/privoxy/config
           echo 'forward-socks5t / 127.0.0.1:9050 .' | sudo tee -a /etc/privoxy/config
           sudo systemctl restart tor || sudo service tor restart
           sudo systemctl restart privoxy || sudo service privoxy restart
+
+          tor_ready=false
           for i in $(seq 1 30); do
-            if curl -fsS --max-time 15 -x http://127.0.0.1:8118 https://check.torproject.org/api/ip; then
-              exit 0
+            if curl -fsS --max-time 15 -x http://127.0.0.1:8118 https://check.torproject.org/api/ip >/tmp/tor-ip.json; then
+              tor_ready=true
+              break
             fi
             sleep 2
           done
-          echo "Tor proxy did not become ready" >&2
-          exit 1
+          if [ "$tor_ready" != "true" ]; then
+            echo "Tor proxy did not become ready" >&2
+            exit 1
+          fi
+          cat /tmp/tor-ip.json
+
+          live_animepahe=false
+          for attempt in $(seq 1 6); do
+            body="$(curl -sS --max-time 20 -x http://127.0.0.1:8118 'https://animepahe.pw/api?m=search&q=bleach' || true)"
+            if printf '%s' "$body" | grep -q '"data"'; then
+              live_animepahe=true
+              echo "AnimePahe JSON reachable through Tor on attempt $attempt"
+              break
+            fi
+
+            python3 - <<'PY'
+import socket
+with socket.create_connection(("127.0.0.1", 9051), timeout=5) as s:
+    s.sendall(b"AUTHENTICATE\r\nSIGNAL NEWNYM\r\nQUIT\r\n")
+    s.recv(4096)
+PY
+            sleep 11
+          done
+
+          echo "live_animepahe=$live_animepahe" >> "$GITHUB_OUTPUT"
+          if [ "$live_animepahe" != "true" ]; then
+            echo "AnimePahe challenged all sampled Tor exits; live catalog test will be skipped."
+          fi
 
       - name: Build debug APK
         working-directory: pahebatcher-android
@@ -72,6 +104,8 @@ jobs:
           if-no-files-found: error
 
       - name: Emulator visual smoke
+        env:
+          LIVE_ANIMEPAHE: ${{ steps.tor.outputs.live_animepahe }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
