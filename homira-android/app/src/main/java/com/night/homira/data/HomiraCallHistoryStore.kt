@@ -158,26 +158,39 @@ class HomiraCallHistoryStore(context: Context) {
         )
     }
 
-    suspend fun normalizeInterruptedRinging() = withContext(Dispatchers.IO) {
+    suspend fun normalizeInterruptedRinging(
+        staleAfterMs: Long = 15 * 60 * 1000L
+    ) = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        val cutoff = now - staleAfterMs.coerceAtLeast(60_000L)
+
         val values = ContentValues().apply {
             put(COL_OUTCOME, OUTCOME_MISSED)
-            put(COL_ENDED_AT, System.currentTimeMillis())
+            put(COL_ENDED_AT, now)
         }
         helper.writableDatabase.update(
             TABLE,
             values,
-            "$COL_OUTCOME = ? AND $COL_DIRECTION = ?",
-            arrayOf(OUTCOME_RINGING, DIRECTION_INCOMING)
+            "$COL_OUTCOME = ? AND $COL_DIRECTION = ? AND $COL_STARTED_AT < ?",
+            arrayOf(
+                OUTCOME_RINGING,
+                DIRECTION_INCOMING,
+                cutoff.toString()
+            )
         )
 
         values.clear()
         values.put(COL_OUTCOME, OUTCOME_CANCELLED)
-        values.put(COL_ENDED_AT, System.currentTimeMillis())
+        values.put(COL_ENDED_AT, now)
         helper.writableDatabase.update(
             TABLE,
             values,
-            "$COL_OUTCOME = ? AND $COL_DIRECTION = ?",
-            arrayOf(OUTCOME_RINGING, DIRECTION_OUTGOING)
+            "$COL_OUTCOME = ? AND $COL_DIRECTION = ? AND $COL_STARTED_AT < ?",
+            arrayOf(
+                OUTCOME_RINGING,
+                DIRECTION_OUTGOING,
+                cutoff.toString()
+            )
         )
     }
 
