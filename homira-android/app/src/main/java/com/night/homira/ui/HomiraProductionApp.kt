@@ -1,8 +1,12 @@
 package com.night.homira.ui
 
 import android.Manifest
+import android.app.Activity
 import android.content.pm.PackageManager
+import android.content.Intent
+import android.media.projection.MediaProjectionManager
 import com.night.homira.call.HomiraWebRtcState
+import com.night.homira.call.HomiraScreenShareService
 import com.night.homira.call.HomiraWebRtcVoiceEngine
 import com.night.homira.data.HomiraCallSignaling
 import com.night.homira.data.HomiraLiveRepository
@@ -135,6 +139,9 @@ import org.webrtc.RendererCommon
 import org.webrtc.SurfaceViewRenderer
 import org.webrtc.VideoTrack
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -202,6 +209,8 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         var remoteVideoTrack by remember { mutableStateOf<VideoTrack?>(null) }
         var remoteMuted by remember { mutableStateOf(false) }
         var remoteVideoEnabled by remember { mutableStateOf(false) }
+        var screenSharing by remember { mutableStateOf(false) }
+        var remoteScreenSharing by remember { mutableStateOf(false) }
         var pendingOutgoingCall by remember { mutableStateOf<Pair<HomiraPerson, Boolean>?>(null) }
         var pendingIncomingAccept by remember { mutableStateOf(false) }
         var pendingVideoEnable by remember { mutableStateOf(false) }
@@ -251,6 +260,52 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                     "Camera permission is required to use video.",
                     Toast.LENGTH_SHORT
                 ).show()
+            }
+        }
+
+        val mediaProjectionManager = remember {
+            context.getSystemService(MediaProjectionManager::class.java)
+        }
+        val screenShareLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            val projectionData = result.data
+            if (result.resultCode == Activity.RESULT_OK && projectionData != null) {
+                ContextCompat.startForegroundService(
+                    context,
+                    Intent(context, HomiraScreenShareService::class.java)
+                )
+                liveScope.launch {
+                    val ready = withTimeoutOrNull(3_000L) {
+                        HomiraScreenShareService.foregroundReady
+                            .filter { it }
+                            .first()
+                    } != null
+
+                    if (!ready) {
+                        context.stopService(
+                            Intent(context, HomiraScreenShareService::class.java)
+                        )
+                        Toast.makeText(
+                            context,
+                            "Could not start screen sharing.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        return@launch
+                    }
+
+                    val started = voiceEngine?.startScreenShare(projectionData) == true
+                    if (!started) {
+                        context.stopService(
+                            Intent(context, HomiraScreenShareService::class.java)
+                        )
+                        Toast.makeText(
+                            context,
+                            "Could not share your screen.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
             }
         }
 
@@ -512,6 +567,8 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
             remoteVideoTrack = null
             remoteMuted = false
             remoteVideoEnabled = activeVideo
+            screenSharing = false
+            remoteScreenSharing = false
             val engine = voiceEngine ?: return@LaunchedEffect
 
             launch {
@@ -532,6 +589,16 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
             launch {
                 engine.remoteVideoEnabled.collect { enabled ->
                     remoteVideoEnabled = enabled
+                }
+            }
+            launch {
+                engine.screenSharing.collect { sharing ->
+                    screenSharing = sharing
+                }
+            }
+            launch {
+                engine.remoteScreenSharing.collect { sharing ->
+                    remoteScreenSharing = sharing
                 }
             }
         }
@@ -577,13 +644,21 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 videoEnabled = activeVideo,
                 remoteVideoEnabled = if (liveMode) remoteVideoEnabled else activeVideo,
                 remoteMuted = if (liveMode) remoteMuted else false,
+                screenSharing = if (liveMode) screenSharing else false,
+                remoteScreenSharing = if (liveMode) remoteScreenSharing else false,
                 localVideoTrack = if (liveMode) localVideoTrack else null,
                 remoteVideoTrack = if (liveMode) remoteVideoTrack else null,
                 eglContext = if (liveMode) voiceEngine?.eglContext() else null,
                 onMuteChanged = { muted -> voiceEngine?.setMuted(muted) },
                 onSpeakerChanged = { enabled -> voiceEngine?.setSpeakerEnabled(enabled) },
                 onVideoChanged = { enabled ->
-                    if (!liveMode) {
+                    if (screenSharing) {
+                        Toast.makeText(
+                            context,
+                            "Stop screen sharing to use the camera.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else if (!liveMode) {
                         activeVideo = enabled
                     } else if (!enabled) {
                         voiceEngine?.setVideoEnabled(false)
@@ -605,6 +680,17 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                     }
                 },
                 onSwitchCamera = { voiceEngine?.switchCamera() },
+                onScreenShareChanged = { shouldShare ->
+                    if (!liveMode) {
+                        screenSharing = shouldShare
+                    } else if (shouldShare) {
+                        screenShareLauncher.launch(
+                            mediaProjectionManager.createScreenCaptureIntent()
+                        )
+                    } else {
+                        voiceEngine?.stopScreenShare()
+                    }
+                },
                 onMinimize = { minimized = true },
                 onEnd = {
                     val session = activeSession
@@ -2054,6 +2140,8 @@ private fun ActiveCallScreen(
     videoEnabled: Boolean = startsWithVideo,
     remoteVideoEnabled: Boolean = startsWithVideo,
     remoteMuted: Boolean = false,
+    screenSharing: Boolean = false,
+    remoteScreenSharing: Boolean = false,
     localVideoTrack: VideoTrack? = null,
     remoteVideoTrack: VideoTrack? = null,
     eglContext: EglBase.Context? = null,
@@ -2061,14 +2149,14 @@ private fun ActiveCallScreen(
     onSpeakerChanged: (Boolean) -> Unit = {},
     onVideoChanged: (Boolean) -> Unit = {},
     onSwitchCamera: () -> Unit = {},
+    onScreenShareChanged: (Boolean) -> Unit = {},
     onMinimize: () -> Unit,
     onEnd: () -> Unit
 ) {
     var muted by rememberSaveable { mutableStateOf(false) }
     var speaker by rememberSaveable { mutableStateOf(startsWithVideo) }
-    val localVideo = videoEnabled
-    val video = localVideo || remoteVideoEnabled
-    var sharing by rememberSaveable { mutableStateOf(false) }
+    val localVideo = videoEnabled && !screenSharing
+    val video = localVideo || remoteVideoEnabled || remoteScreenSharing
     var simulatedConnected by rememberSaveable { mutableStateOf(false) }
     var seconds by rememberSaveable { mutableIntStateOf(0) }
     val connected = if (liveState == null) {
@@ -2183,10 +2271,10 @@ private fun ActiveCallScreen(
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                             DropdownMenuItem(
-                                text = { Text(if (sharing) "Stop sharing screen" else "Share screen") },
+                                text = { Text(if (screenSharing) "Stop sharing screen" else "Share screen") },
                                 leadingIcon = { Icon(Icons.Rounded.ScreenShare, contentDescription = null) },
                                 onClick = {
-                                    sharing = !sharing
+                                    onScreenShareChanged(!screenSharing)
                                     menuOpen = false
                                 }
                             )
@@ -2263,8 +2351,22 @@ private fun ActiveCallScreen(
                 }
             }
 
-            AnimatedVisibility(sharing && (!video || controlsVisible)) {
-                Text("Sharing your screen", color = HomiraGreen, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+            AnimatedVisibility(screenSharing && (!video || controlsVisible)) {
+                Text(
+                    "Sharing your screen",
+                    color = HomiraGreen,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+
+            AnimatedVisibility(remoteScreenSharing && (!video || controlsVisible)) {
+                Text(
+                    "${person.name} is sharing their screen",
+                    color = Color.White.copy(alpha = .82f),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
             }
 
             AnimatedVisibility(!video || controlsVisible) {
