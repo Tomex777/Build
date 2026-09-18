@@ -15,26 +15,53 @@ data class SessionSnapshot(
 class SessionStore(context: Context) {
     private val prefs = context.getSharedPreferences("pahe_sessions", Context.MODE_PRIVATE)
 
-    fun userAgent(): String = prefs.getString(KEY_UA, DEFAULT_UA) ?: DEFAULT_UA
+    fun animeUserAgent(): String =
+        prefs.getString(KEY_ANIME_UA, prefs.getString(KEY_LEGACY_UA, DEFAULT_UA)) ?: DEFAULT_UA
+    fun kwikUserAgent(): String =
+        prefs.getString(KEY_KWIK_UA, prefs.getString(KEY_LEGACY_UA, DEFAULT_UA)) ?: DEFAULT_UA
     fun animeCookie(): String = prefs.getString(KEY_ANIME_COOKIE, "").orEmpty()
     fun kwikCookie(): String = prefs.getString(KEY_KWIK_COOKIE, "").orEmpty()
     fun animeHost(): String = prefs.getString(KEY_ANIME_HOST, "").orEmpty()
     fun kwikHost(): String = prefs.getString(KEY_KWIK_HOST, "").orEmpty()
 
     fun cookieFor(url: String): String {
-        val host = runCatching { URI(url).host.orEmpty().lowercase() }.getOrDefault("")
+        val host = hostOf(url)
         return when {
-            host.contains("animepahe") || host == "pahe.win" -> animeCookie()
-            host.startsWith("kwik.") || host.contains(".kwik.") -> kwikCookie()
+            hostMatches(host, animeHost()) -> animeCookie()
+            hostMatches(host, kwikHost()) -> kwikCookie()
             else -> ""
         }
     }
+
+    fun userAgentFor(url: String): String {
+        val host = hostOf(url)
+        return when {
+            hostMatches(host, kwikHost()) || isKwikHost(host) -> kwikUserAgent()
+            hostMatches(host, animeHost()) || isAnimePaheHost(host) -> animeUserAgent()
+            else -> animeUserAgent()
+        }
+    }
+
+    private fun hostOf(url: String): String =
+        runCatching { URI(url).host.orEmpty().lowercase() }.getOrDefault("")
+
+    private fun hostMatches(actual: String, saved: String): Boolean {
+        if (actual.isBlank() || saved.isBlank()) return false
+        val normalizedSaved = saved.lowercase()
+        return actual == normalizedSaved || actual.endsWith(".$normalizedSaved")
+    }
+
+    private fun isAnimePaheHost(host: String): Boolean =
+        host.contains("animepahe") || host == "pahe.win"
+
+    private fun isKwikHost(host: String): Boolean =
+        host.startsWith("kwik.") || host.contains(".kwik.")
 
     fun saveAnime(cookie: String, host: String, userAgent: String) {
         prefs.edit()
             .putString(KEY_ANIME_COOKIE, cookie)
             .putString(KEY_ANIME_HOST, host)
-            .putString(KEY_UA, userAgent.ifBlank { DEFAULT_UA })
+            .putString(KEY_ANIME_UA, userAgent.ifBlank { DEFAULT_UA })
             .putLong(KEY_ANIME_UPDATED, System.currentTimeMillis())
             .apply()
     }
@@ -48,7 +75,7 @@ class SessionStore(context: Context) {
         prefs.edit()
             .putString(KEY_KWIK_COOKIE, cookie)
             .putString(KEY_KWIK_HOST, host)
-            .putString(KEY_UA, userAgent.ifBlank { DEFAULT_UA })
+            .putString(KEY_KWIK_UA, userAgent.ifBlank { DEFAULT_UA })
             .putLong(KEY_KWIK_UPDATED, System.currentTimeMillis())
             .apply()
     }
@@ -67,7 +94,9 @@ class SessionStore(context: Context) {
     )
 
     companion object {
-        private const val KEY_UA = "user_agent"
+        private const val KEY_LEGACY_UA = "user_agent"
+        private const val KEY_ANIME_UA = "anime_user_agent"
+        private const val KEY_KWIK_UA = "kwik_user_agent"
         private const val KEY_ANIME_COOKIE = "anime_cookie"
         private const val KEY_KWIK_COOKIE = "kwik_cookie"
         private const val KEY_ANIME_HOST = "anime_host"
