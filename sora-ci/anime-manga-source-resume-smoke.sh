@@ -6,8 +6,10 @@ FULL_LIVE_MARKER="$OUT/FULL_LIVE_PASS"
 mkdir -p "$OUT"
 rm -f "$FULL_LIVE_MARKER"
 
-adb uninstall com.night.sora >/dev/null 2>&1 || true\nadb uninstall com.night.sora.ext.demo >/dev/null 2>&1 || true
-adb install -r "$SORA_ROOT/test-extension/build/outputs/apk/debug/test-extension-debug.apk"\nadb install -r "$SORA_ROOT/app/build/outputs/apk/debug/app-debug.apk"
+adb uninstall com.night.sora >/dev/null 2>&1 || true
+adb uninstall com.night.sora.ext.demo >/dev/null 2>&1 || true
+adb install -r "$SORA_ROOT/test-extension/build/outputs/apk/debug/test-extension-debug.apk"
+adb install -r "$SORA_ROOT/app/build/outputs/apk/debug/app-debug.apk"
 adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
 sleep 2
 
