@@ -1,1 +1,1 @@
-sha=1545a8ede052fd2995adfb02aa5cdf0dfe53f7c8 stage=build-succeeded
+sha=1545a8ede052fd2995adfb02aa5cdf0dfe53f7c8 stage=screenshot-captured
