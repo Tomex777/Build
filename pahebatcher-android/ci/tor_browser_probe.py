@@ -58,6 +58,20 @@ def browser() -> webdriver.Chrome:
     return driver
 
 
+
+def navigate(driver: webdriver.Chrome, url: str, wait_seconds: float) -> str | None:
+    error = None
+    try:
+        driver.get(url)
+    except (TimeoutException, WebDriverException) as exc:
+        error = f"{type(exc).__name__}: {str(exc).splitlines()[0]}"
+        try:
+            driver.execute_script("window.stop();")
+        except Exception:
+            pass
+    time.sleep(wait_seconds)
+    return error
+
 def body_text(driver: webdriver.Chrome) -> str:
     try:
         return driver.find_element(By.TAG_NAME, "body").text
