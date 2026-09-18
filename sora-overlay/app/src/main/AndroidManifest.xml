@@ -17,12 +17,12 @@
         android:theme="@style/Theme.Sora">
 
         <service
-            android:name=".catalog.JikanCatalogService"
+            android:name=".catalog.AniListCatalogService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.night.sora.extension.BIND" />
             </intent-filter>
-            <meta-data android:name="sora.extension.id" android:value="sora.core.jikan" />
+            <meta-data android:name="sora.extension.id" android:value="sora.core.anilist" />
             <meta-data android:name="sora.extension.name" android:value="Sora Anime &amp; Manga Catalog" />
             <meta-data android:name="sora.extension.apiVersion" android:value="1" />
         </service>
