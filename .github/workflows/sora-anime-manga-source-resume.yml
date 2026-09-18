@@ -66,11 +66,11 @@ jobs:
 
           s = s.replace(
               '"https://example.invalid/$chapterId/page-${index + 1}.jpg"',
-              '"https://picsum.photos/seed/${chapterId}-${index + 1}/900/1400"',
+              '"http://10.0.2.2:8765/pages/${chapterId}-${index + 1}.jpg"',
           )
           s = s.replace(
               '"https://storage.googleapis.com/exoplayer-test-media-0/play.mp3"',
-              '"https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4"',
+              '"http://10.0.2.2:8765/media/video.mp4"',
           ).replace(
               '.put("mimeType", "audio/mpeg")',
               '.put("mimeType", "video/mp4")',
@@ -79,6 +79,22 @@ jobs:
               '.put("label", "Aniyomi CI Video")',
           )
           catalog.write_text(s.replace(marker, marker + insertion, 1))
+
+          anilist = root / 'app/src/main/java/com/night/sora/catalog/AniListCatalogClient.kt'
+          s = anilist.read_text()
+          old_url = 'private const val BASE_URL = "https://graphql.anilist.co"'
+          new_url = 'private const val BASE_URL = "http://10.0.2.2:8765/graphql"'
+          if s.count(old_url) != 1:
+              raise SystemExit('AniList BASE_URL marker mismatch')
+          anilist.write_text(s.replace(old_url, new_url, 1))
+
+          manifest = root / 'app/src/main/AndroidManifest.xml'
+          s = manifest.read_text()
+          if 'android:usesCleartextTraffic=' not in s:
+              if '<application' not in s:
+                  raise SystemExit('application tag missing from manifest')
+              s = s.replace('<application', '<application android:usesCleartextTraffic="true"', 1)
+          manifest.write_text(s)
           PY
 
       - uses: actions/setup-java@v5
@@ -124,6 +140,97 @@ jobs:
           grep '^lib/x86_64/' "$OUT/native-libs.txt" | grep -E 'lib(mpv|player|avcodec|avformat|avutil|avfilter|avdevice|swresample|swscale|c\+\+_shared)\.so$' || true
           echo '=== all ABI counts ==='
           awk -F/ '/^lib\// {count[$2]++} END {for (abi in count) print abi, count[abi]}' "$OUT/native-libs.txt" | sort
+
+      - name: Prepare deterministic Aniyomi engine fixtures
+        run: |
+          set -euo pipefail
+          FIXTURE=/tmp/sora-engine-fixture
+          OUT=/tmp/sora-anime-manga-source-resume
+          mkdir -p "$FIXTURE" "$OUT"
+
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+
+          if ! ffmpeg -y -loglevel error               -f lavfi -i "testsrc=size=320x180:rate=24"               -f lavfi -i "sine=frequency=440:sample_rate=44100"               -t 45 -c:v libx264 -preset ultrafast -pix_fmt yuv420p               -c:a aac -b:a 96k -shortest "$FIXTURE/video.mp4"; then
+            ffmpeg -y -loglevel error               -f lavfi -i "testsrc=size=320x180:rate=24"               -f lavfi -i "sine=frequency=440:sample_rate=44100"               -t 45 -c:v mpeg4 -q:v 5 -pix_fmt yuv420p               -c:a aac -b:a 96k -shortest "$FIXTURE/video.mp4"
+          fi
+
+          ffmpeg -y -loglevel error             -f lavfi -i "color=c=white:s=900x1400:d=1"             -frames:v 1 "$FIXTURE/page.jpg"
+
+          test -s "$FIXTURE/video.mp4"
+          test -s "$FIXTURE/page.jpg"
+          ffprobe -v error -show_entries format=duration             -of default=noprint_wrappers=1:nokey=1 "$FIXTURE/video.mp4"             | tee "$OUT/fixture-video-duration.txt"
+
+          nohup env SORA_ENGINE_FIXTURE_ROOT="$FIXTURE"             python3 "$GITHUB_WORKSPACE/sora-ci/aniyomi-media-fixture-server.py"             > "$OUT/fixture-server.log" 2>&1 &
+          echo $! > "$OUT/fixture-server.pid"
+
+          for attempt in {1..20}; do
+            if curl -fsS http://127.0.0.1:8765/health | grep -q '^ok
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Prove Anime Manga source and exact resume
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash "$GITHUB_WORKSPACE/sora-ci/anime-manga-source-resume-smoke.sh"
+
+      - name: Upload source resume diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sora-anime-manga-source-resume
+          path: /tmp/sora-anime-manga-source-resume
+          if-no-files-found: warn
+          retention-days: 5
+
+      - name: Require full source resume validation
+        if: always()
+        run: test -f /tmp/sora-anime-manga-source-resume/FULL_SOURCE_RESUME_PASS
+; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8765/health | grep -q '^ok
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Prove Anime Manga source and exact resume
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash "$GITHUB_WORKSPACE/sora-ci/anime-manga-source-resume-smoke.sh"
+
+      - name: Upload source resume diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sora-anime-manga-source-resume
+          path: /tmp/sora-anime-manga-source-resume
+          if-no-files-found: warn
+          retention-days: 5
+
+      - name: Require full source resume validation
+        if: always()
+        run: test -f /tmp/sora-anime-manga-source-resume/FULL_SOURCE_RESUME_PASS
+
+          curl -fsS -H 'Range: bytes=0-1023'             http://127.0.0.1:8765/media/video.mp4             -o "$OUT/range-probe.bin"
+          test "$(stat -c%s "$OUT/range-probe.bin")" -eq 1024
 
       - name: Enable KVM
         run: |
