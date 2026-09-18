@@ -169,6 +169,10 @@ if not points:
 x,y=points[0]
 subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
 PY
+  local status=$?
+  if (( status != 0 )); then
+    return "$status"
+  fi
   sleep 2
 }
 
