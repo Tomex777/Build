@@ -1034,12 +1034,19 @@ fun HomiraProductionApp(
         fun finishLiveCall(session: LiveCallSession?) {
             if (!liveMode || session == null) return
 
-            val terminalState = when (session.state) {
-                "ringing", "connecting" -> "cancelled"
-                else -> "ended"
-            }
-
             liveScope.launch {
+                val localUserId = liveRepository.currentUserId()
+                val terminalState = when (session.state) {
+                    "ringing", "connecting" -> {
+                        if (session.callerId == localUserId) {
+                            "cancelled"
+                        } else {
+                            "declined"
+                        }
+                    }
+                    else -> "ended"
+                }
+
                 runCatching { telecomBridge.disconnect() }
                 runCatching {
                     liveRepository.setCallState(
@@ -1108,6 +1115,84 @@ fun HomiraProductionApp(
                             it.message ?: "Could not answer the call.",
                             Toast.LENGTH_SHORT
                         ).show()
+                    }
+                }
+            }
+        }
+
+        val telecomSession = activeSession ?: incomingSession
+        val telecomPerson = activePerson ?: incomingPerson
+
+        LaunchedEffect(
+            liveMode,
+            telecomSession?.id,
+            telecomPerson?.id
+        ) {
+            val session = telecomSession
+            val person = telecomPerson
+            if (
+                !liveMode ||
+                session == null ||
+                person == null
+            ) {
+                return@LaunchedEffect
+            }
+
+            val localUserId =
+                liveRepository.currentUserId() ?: return@LaunchedEffect
+
+            runCatching {
+                telecomBridge.registerCall(
+                    callId = session.id,
+                    peerName = person.name,
+                    peerAddress = person.number.ifBlank {
+                        person.id
+                    },
+                    incoming = session.calleeId == localUserId,
+                    video = session.mediaType == "video"
+                )
+            }
+        }
+
+        LaunchedEffect(liveMode) {
+            if (!liveMode) return@LaunchedEffect
+
+            telecomBridge.platformEvents.collect { event ->
+                val session = activeSession ?: incomingSession
+
+                when (event) {
+                    is HomiraTelecomPlatformEvent.AnswerRequested -> {
+                        val pending = incomingSession
+                        if (
+                            pending != null &&
+                            pending.state == "ringing"
+                        ) {
+                            val needsMic = !micPermissionGranted
+                            val needsCamera =
+                                pending.mediaType == "video" &&
+                                    !cameraPermissionGranted
+
+                            if (!needsMic && !needsCamera) {
+                                acceptIncomingNow()
+                            } else {
+                                pendingIncomingAccept = true
+                            }
+                        }
+                    }
+
+                    is HomiraTelecomPlatformEvent.DisconnectRequested -> {
+                        finishLiveCall(session)
+                    }
+
+                    HomiraTelecomPlatformEvent.ActivateRequested -> {
+                        // Telecom is asking Homira to resume/activate an
+                        // already-established system call. The server
+                        // session remains the source of truth.
+                    }
+
+                    HomiraTelecomPlatformEvent.InactivateRequested -> {
+                        // Hold is not exposed by Homira yet, so there is
+                        // no server-side hold state to publish.
                     }
                 }
             }
