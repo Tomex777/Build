@@ -16,6 +16,7 @@ import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import io.github.jan.supabase.storage.Storage
 import io.github.jan.supabase.storage.storage
+import io.github.jan.supabase.storage.upload
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.SerialName
@@ -271,7 +272,8 @@ class HomiraLiveRepository {
         val newPath = "$userId/greetings/${UUID.randomUUID()}.m4a"
         val bucket = client.storage["voicemail"]
 
-        bucket.upload(newPath, audioFile, upsert = false) {
+        bucket.upload(newPath, audioFile) {
+            upsert = false
             contentType = ContentType.parse("audio/mp4")
         }
 
@@ -344,7 +346,8 @@ class HomiraLiveRepository {
         val path = "$senderId/${UUID.randomUUID()}.m4a"
         val bucket = client.storage["voicemail"]
 
-        bucket.upload(path, audioFile, upsert = false) {
+        bucket.upload(path, audioFile) {
+            upsert = false
             contentType = ContentType.parse("audio/mp4")
         }
 
