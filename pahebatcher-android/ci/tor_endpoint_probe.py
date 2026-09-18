@@ -9,7 +9,7 @@ import time
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import urlparse
 
 from curl_cffi import requests
 
@@ -345,7 +345,7 @@ for circuit in range(1, MAX_CIRCUITS + 1):
         kwik_url = extract_kwik(play_body)
         if kwik_url:
             summary["kwik_url"] = kwik_url
-            kwik_host = re.sub(r"^www\.", "", requests.URL(kwik_url).host or "kwik")
+            kwik_host = re.sub(r"^www\.", "", urlparse(kwik_url).hostname or "kwik")
             kwik_result, _ = request(
                 session,
                 circuit,
