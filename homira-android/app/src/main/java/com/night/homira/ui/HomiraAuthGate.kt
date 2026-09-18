@@ -46,6 +46,10 @@ private fun friendlyAuthError(error: Throwable): String {
     val message = error.message.orEmpty().lowercase()
 
     return when {
+        "email_provider_disabled" in message ||
+            "unsupported email provider" in message ->
+            "Email sign-in is not available right now."
+
         "phone_provider_disabled" in message ||
             "unsupported phone provider" in message ->
             "Phone sign-in is not available yet."
@@ -100,7 +104,7 @@ fun HomiraAuthGate(
             }
         }
 
-        LiveGateState.SignedOut -> PhoneOtpScreen(
+        LiveGateState.SignedOut -> EmailOtpScreen(
             repository = repository,
             onSignedIn = { gateState = LiveGateState.SignedIn }
         )
@@ -115,13 +119,13 @@ fun HomiraAuthGate(
 }
 
 @Composable
-private fun PhoneOtpScreen(
+private fun EmailOtpScreen(
     repository: HomiraLiveRepository,
     onSignedIn: () -> Unit
 ) {
     HomiraTheme {
         val scope = rememberCoroutineScope()
-        var phone by remember { mutableStateOf("") }
+        var email by remember { mutableStateOf("") }
         var otp by remember { mutableStateOf("") }
         var codeSent by remember { mutableStateOf(false) }
         var busy by remember { mutableStateOf(false) }
@@ -148,9 +152,9 @@ private fun PhoneOtpScreen(
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = if (codeSent) {
-                        "Enter the code sent to $phone"
+                        "Enter the code sent to $email"
                     } else {
-                        "Sign in with your phone number"
+                        "Sign in with your email"
                     },
                     color = HomiraMuted,
                     fontSize = 15.sp,
@@ -160,13 +164,13 @@ private fun PhoneOtpScreen(
 
                 if (!codeSent) {
                     OutlinedTextField(
-                        value = phone,
-                        onValueChange = { phone = it.filterNot(Char::isWhitespace) },
+                        value = email,
+                        onValueChange = { email = it.trim() },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        label = { Text("Phone number") },
-                        placeholder = { Text("+234…") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        label = { Text("Email address") },
+                        placeholder = { Text("you@example.com") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         shape = RoundedCornerShape(18.dp)
                     )
                 } else {
@@ -199,18 +203,21 @@ private fun PhoneOtpScreen(
                             error = null
                             runCatching {
                                 if (!codeSent) {
-                                    require(phone.startsWith("+") && phone.length >= 8) {
-                                        "Use your full phone number with country code."
+                                    require(
+                                        email.contains("@") &&
+                                            email.substringAfter("@").contains(".")
+                                    ) {
+                                        "Enter a valid email address."
                                     }
-                                    repository.sendPhoneOtp(phone)
+                                    repository.sendEmailOtp(email)
                                     codeSent = true
                                 } else {
                                     require(otp.length == 6) { "Enter the 6-digit code." }
-                                    repository.verifyPhoneOtp(phone, otp)
+                                    repository.verifyEmailOtp(email, otp)
                                     onSignedIn()
                                 }
                             }.onFailure {
-                                Log.e("HomiraAuth", "Phone authentication failed", it)
+                                Log.e("HomiraAuth", "Email authentication failed", it)
                                 error = friendlyAuthError(it)
                             }
                             busy = false
@@ -252,7 +259,7 @@ private fun PhoneOtpScreen(
                             contentColor = HomiraText
                         )
                     ) {
-                        Text("Change number")
+                        Text("Change email")
                     }
                 }
 
