@@ -11,7 +11,13 @@ import kotlinx.coroutines.launch
 
 class HomiraCallActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != HomiraIncomingCallNotifier.ACTION_DECLINE) return
+        val action = intent.action
+        if (
+            action != HomiraIncomingCallNotifier.ACTION_DECLINE &&
+            action != HomiraIncomingCallNotifier.ACTION_HANG_UP
+        ) {
+            return
+        }
 
         val callId = intent.getStringExtra(
             HomiraIncomingCallNotifier.EXTRA_CALL_ID
@@ -24,11 +30,50 @@ class HomiraCallActionReceiver : BroadcastReceiver() {
             try {
                 val repository = HomiraLiveRepository()
                 repository.initialize()
+
                 if (repository.isSignedIn()) {
-                    runCatching {
-                        repository.setCallState(callId, "declined")
+                    val session = repository.loadCallSessionById(callId)
+                    val localUserId = repository.currentUserId()
+
+                    if (session != null && localUserId != null) {
+                        val targetState = when (action) {
+                            HomiraIncomingCallNotifier.ACTION_DECLINE ->
+                                if (
+                                    session.state == "ringing" ||
+                                    session.state == "connecting"
+                                ) {
+                                    "declined"
+                                } else {
+                                    null
+                                }
+
+                            HomiraIncomingCallNotifier.ACTION_HANG_UP ->
+                                when (session.state) {
+                                    "ringing", "connecting" ->
+                                        if (session.callerId == localUserId) {
+                                            "cancelled"
+                                        } else {
+                                            "declined"
+                                        }
+
+                                    "active" -> "ended"
+                                    else -> null
+                                }
+
+                            else -> null
+                        }
+
+                        if (targetState != null) {
+                            runCatching {
+                                repository.setCallState(
+                                    callId,
+                                    targetState
+                                )
+                            }
+                        }
                     }
                 }
+
                 HomiraIncomingCallNotifier(appContext).cancel(callId)
             } finally {
                 pendingResult.finish()
