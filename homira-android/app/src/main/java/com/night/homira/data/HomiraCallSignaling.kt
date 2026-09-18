@@ -16,7 +16,9 @@ data class CallSignalEnvelope(
     @SerialName("sdp_type") val sdpType: String? = null,
     val candidate: String? = null,
     @SerialName("sdp_mid") val sdpMid: String? = null,
-    @SerialName("sdp_mline_index") val sdpMLineIndex: Int? = null
+    @SerialName("sdp_mline_index") val sdpMLineIndex: Int? = null,
+    val muted: Boolean? = null,
+    @SerialName("video_enabled") val videoEnabled: Boolean? = null
 )
 
 class HomiraCallSignaling(
