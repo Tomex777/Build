@@ -55,6 +55,7 @@ class HomiraWebRtcVoiceEngine(
 
     private val pendingRemoteIce = mutableListOf<IceCandidate>()
     private var remoteDescriptionSet = false
+    private var offerSent = false
     private var signalJob: Job? = null
 
     private var audioDeviceModule: JavaAudioDeviceModule? = null
@@ -101,8 +102,13 @@ class HomiraWebRtcVoiceEngine(
             }
         }
 
-        if (caller) {
-            createAndSendOffer()
+        if (!caller) {
+            signaling.send(
+                CallSignalEnvelope(
+                    type = "ready",
+                    fromUserId = localUserId
+                )
+            )
         }
     }
 
@@ -137,6 +143,8 @@ class HomiraWebRtcVoiceEngine(
     }
 
     private suspend fun createAndSendOffer() {
+        if (offerSent) return
+        offerSent = true
         val pc = requireNotNull(peerConnection)
         val offer = pc.createOfferAwait()
         pc.setLocalDescriptionAwait(offer)
@@ -168,6 +176,12 @@ class HomiraWebRtcVoiceEngine(
         val pc = peerConnection ?: return
 
         when (signal.type) {
+            "ready" -> {
+                if (caller) {
+                    createAndSendOffer()
+                }
+            }
+
             "offer" -> {
                 val sdp = signal.sdp ?: return
                 pc.setRemoteDescriptionAwait(
