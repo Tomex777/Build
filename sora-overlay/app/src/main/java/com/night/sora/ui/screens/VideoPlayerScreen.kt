@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
@@ -16,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -28,6 +26,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.night.sora.model.PlaybackSession
+import com.night.sora.ui.player.AniyomiPlayerGestureLayer
 import com.night.sora.ui.player.AniyomiPlayerView
 import com.night.sora.ui.theme.SoraAccent
 import com.night.sora.ui.theme.SoraMuted
@@ -63,6 +62,8 @@ fun VideoPlayerScreen(
     var isPlaying by remember { mutableStateOf(false) }
     var isBuffering by remember { mutableStateOf(false) }
     var speed by remember { mutableFloatStateOf(1f) }
+    var controlsLocked by remember { mutableStateOf(false) }
+    var seekPreviewMs by remember { mutableStateOf<Long?>(null) }
     var player by remember { mutableStateOf<AniyomiPlayerView?>(null) }
     var didInitialSeek by remember(session) { mutableStateOf(session.initialPositionMs <= 0L) }
 
@@ -168,15 +169,7 @@ fun VideoPlayerScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .background(Color.Black)
-            .pointerInput(player) {
-                detectTapGestures(
-                    onTap = { controlsVisible = !controlsVisible },
-                    onDoubleTap = { offset ->
-                        if (offset.x < size.width / 2f) seekBy(-10_000L) else seekBy(10_000L)
-                    },
-                )
-            },
+            .background(Color.Black),
     ) {
         AndroidView(
             factory = { ctx ->
@@ -188,6 +181,31 @@ fun VideoPlayerScreen(
             modifier = Modifier.fillMaxSize(),
         )
 
+        AniyomiPlayerGestureLayer(
+            player = player,
+            durationMs = durationMs,
+            positionMs = positionMs,
+            locked = controlsLocked,
+            playbackSpeed = speed,
+            onToggleControls = { controlsVisible = !controlsVisible },
+            onSeekPreview = { seekPreviewMs = it },
+        )
+
+        seekPreviewMs?.let { preview ->
+            Surface(
+                color = Color.Black.copy(alpha = .72f),
+                shape = MaterialTheme.shapes.large,
+                modifier = Modifier.align(Alignment.Center),
+            ) {
+                Text(
+                    formatPlayerTime(preview),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                )
+            }
+        }
+
         if (isBuffering) {
             CircularProgressIndicator(
                 color = SoraAccent,
@@ -198,6 +216,21 @@ fun VideoPlayerScreen(
         if (controlsVisible) {
             Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = .28f)))
 
+            if (controlsLocked) {
+                FilledIconButton(
+                    onClick = {
+                        controlsLocked = false
+                        controlsVisible = true
+                    },
+                    modifier = Modifier.align(Alignment.Center),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = Color.Black.copy(alpha = .62f),
+                        contentColor = Color.White,
+                    ),
+                ) {
+                    Icon(Icons.Rounded.LockOpen, "Unlock controls")
+                }
+            } else {
             Row(
                 Modifier
                     .align(Alignment.TopCenter)
@@ -233,6 +266,12 @@ fun VideoPlayerScreen(
                     maxLines = 1,
                     modifier = Modifier.widthIn(max = 120.dp),
                 )
+                IconButton(onClick = {
+                    controlsLocked = true
+                    controlsVisible = true
+                }) {
+                    Icon(Icons.Rounded.Lock, "Lock controls", tint = Color.White)
+                }
             }
 
             Row(
@@ -382,6 +421,7 @@ fun VideoPlayerScreen(
                         }
                     }
                 }
+            }
             }
         }
     }
