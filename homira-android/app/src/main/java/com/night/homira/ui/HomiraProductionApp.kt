@@ -467,6 +467,7 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 liveState = if (liveMode) activeSession?.state else null,
                 mediaState = if (liveMode) webRtcState else null,
                 onMuteChanged = { muted -> voiceEngine?.setMuted(muted) },
+                onSpeakerChanged = { enabled -> voiceEngine?.setSpeakerEnabled(enabled) },
                 onMinimize = { minimized = true },
                 onEnd = {
                     val session = activeSession
@@ -1914,6 +1915,7 @@ private fun ActiveCallScreen(
     liveState: String? = null,
     mediaState: HomiraWebRtcState? = null,
     onMuteChanged: (Boolean) -> Unit = {},
+    onSpeakerChanged: (Boolean) -> Unit = {},
     onMinimize: () -> Unit,
     onEnd: () -> Unit
 ) {
@@ -1938,6 +1940,11 @@ private fun ActiveCallScreen(
     var menuOpen by remember { mutableStateOf(false) }
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
 
+    LaunchedEffect(startsWithVideo, onSpeakerChanged) {
+        if (startsWithVideo) {
+            onSpeakerChanged(true)
+        }
+    }
     LaunchedEffect(liveState) {
         if (liveState == null && !simulatedConnected) {
             delay(650)
@@ -2044,7 +2051,10 @@ private fun ActiveCallScreen(
                             muted = !muted
                             onMuteChanged(muted)
                         }
-                        CallControlP(Icons.Rounded.VolumeUp, "Speaker", speaker) { speaker = !speaker }
+                        CallControlP(Icons.Rounded.VolumeUp, "Speaker", speaker) {
+                            speaker = !speaker
+                            onSpeakerChanged(speaker)
+                        }
                         CallControlP(Icons.Rounded.Videocam, "Video", video) {
                             video = !video
                             controlsVisible = true
