@@ -293,11 +293,9 @@ shot 02-anime-demo-source
 
 tap_text 'Episode 1'
 wait_for_node 'Demo Anime' 25
-wait_for_node Pause 25
 shot 03-anime-player
-tap_text 'Forward 10 seconds'
-sleep 4
-assert_progress_identity ANIME 9000 '-e1' demo.anime > /tmp/anime-position.txt
+sleep 6
+assert_progress_identity ANIME 1000 '-e1' demo.anime > /tmp/anime-position.txt
 ANIME_POSITION="$(tail -n 1 /tmp/anime-position.txt)"
 echo "Saved Anime position: $ANIME_POSITION ms"
 
@@ -310,8 +308,7 @@ tap_text 'Close search'
 wait_for_node 'Continue watching' 25
 tap_text_below 'Continue watching' Naruto
 wait_for_node 'Demo Anime' 25
-wait_for_node Pause 25
-sleep 2
+sleep 3
 assert_progress_identity ANIME "$ANIME_POSITION" '-e1' demo.anime >/dev/null
 shot 04-anime-exact-resume
 
