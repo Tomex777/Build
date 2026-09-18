@@ -93,11 +93,22 @@ jobs:
             adb install --no-streaming -r whatsapp-ai-android/app/build/outputs/apk/debug/app-debug.apk
             adb shell wm size 709x1536
             adb shell wm density 240
+            mkdir -p whatsapp-ai-preview
+
             adb shell am force-stop com.example.whatsapp
             adb shell am start -W -n com.example.whatsapp/.ChatPreviewActivity
-            sleep 5
-            mkdir -p whatsapp-ai-preview
+            sleep 4
             adb exec-out screencap -p > whatsapp-ai-preview/chat-current.png
+
+            adb shell am force-stop com.example.whatsapp
+            adb shell am start -W -n com.example.whatsapp/.RichBubblePreviewActivity --ei page 1
+            sleep 4
+            adb exec-out screencap -p > whatsapp-ai-preview/rich-bubbles-1.png
+
+            adb shell am force-stop com.example.whatsapp
+            adb shell am start -W -n com.example.whatsapp/.RichBubblePreviewActivity --ei page 2
+            sleep 4
+            adb exec-out screencap -p > whatsapp-ai-preview/rich-bubbles-2.png
 
       - name: Commit rendered screenshot
         if: always()
@@ -116,5 +127,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: whatsapp-ai-chat-preview
-          path: whatsapp-ai-preview/chat-current.png
+          path: |
+            whatsapp-ai-preview/chat-current.png
+            whatsapp-ai-preview/rich-bubbles-1.png
+            whatsapp-ai-preview/rich-bubbles-2.png
           if-no-files-found: warn
