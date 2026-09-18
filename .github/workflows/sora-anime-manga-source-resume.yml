@@ -153,7 +153,7 @@ jobs:
             sudo apt-get install -y -qq ffmpeg
           fi
 
-          if ! ffmpeg -y -loglevel error               -f lavfi -i "testsrc=size=320x180:rate=24"               -f lavfi -i "sine=frequency=440:sample_rate=44100"               -t 45 -c:v libx264 -preset ultrafast -pix_fmt yuv420p               -c:a aac -b:a 96k -shortest "$FIXTURE/video.mp4"; then
+          if ! ffmpeg -y -loglevel error             -f lavfi -i "testsrc=size=320x180:rate=24"             -f lavfi -i "sine=frequency=440:sample_rate=44100"             -t 45 -c:v libx264 -preset ultrafast -pix_fmt yuv420p             -c:a aac -b:a 96k -shortest "$FIXTURE/video.mp4"; then
             ffmpeg -y -loglevel error               -f lavfi -i "testsrc=size=320x180:rate=24"               -f lavfi -i "sine=frequency=440:sample_rate=44100"               -t 45 -c:v mpeg4 -q:v 5 -pix_fmt yuv420p               -c:a aac -b:a 96k -shortest "$FIXTURE/video.mp4"
           fi
 
@@ -161,73 +161,19 @@ jobs:
 
           test -s "$FIXTURE/video.mp4"
           test -s "$FIXTURE/page.jpg"
+
           ffprobe -v error -show_entries format=duration             -of default=noprint_wrappers=1:nokey=1 "$FIXTURE/video.mp4"             | tee "$OUT/fixture-video-duration.txt"
 
           nohup env SORA_ENGINE_FIXTURE_ROOT="$FIXTURE"             python3 "$GITHUB_WORKSPACE/sora-ci/aniyomi-media-fixture-server.py"             > "$OUT/fixture-server.log" 2>&1 &
           echo $! > "$OUT/fixture-server.pid"
 
           for attempt in {1..20}; do
-            if curl -fsS http://127.0.0.1:8765/health | grep -q '^ok
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-
-      - name: Prove Anime Manga source and exact resume
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          target: google_apis
-          arch: x86_64
-          profile: pixel_7
-          disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash "$GITHUB_WORKSPACE/sora-ci/anime-manga-source-resume-smoke.sh"
-
-      - name: Upload source resume diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sora-anime-manga-source-resume
-          path: /tmp/sora-anime-manga-source-resume
-          if-no-files-found: warn
-          retention-days: 5
-
-      - name: Require full source resume validation
-        if: always()
-        run: test -f /tmp/sora-anime-manga-source-resume/FULL_SOURCE_RESUME_PASS
-; then
+            if curl -fsS http://127.0.0.1:8765/health | grep -q '^ok$'; then
               break
             fi
             sleep 1
           done
-          curl -fsS http://127.0.0.1:8765/health | grep -q '^ok
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-
-      - name: Prove Anime Manga source and exact resume
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          target: google_apis
-          arch: x86_64
-          profile: pixel_7
-          disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash "$GITHUB_WORKSPACE/sora-ci/anime-manga-source-resume-smoke.sh"
-
-      - name: Upload source resume diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sora-anime-manga-source-resume
-          path: /tmp/sora-anime-manga-source-resume
-          if-no-files-found: warn
-          retention-days: 5
-
-      - name: Require full source resume validation
-        if: always()
-        run: test -f /tmp/sora-anime-manga-source-resume/FULL_SOURCE_RESUME_PASS
+          curl -fsS http://127.0.0.1:8765/health | grep -q '^ok$'
 
           curl -fsS -H 'Range: bytes=0-1023'             http://127.0.0.1:8765/media/video.mp4             -o "$OUT/range-probe.bin"
           test "$(stat -c%s "$OUT/range-probe.bin")" -eq 1024
