@@ -1,1 +1,1 @@
-2026-09-17 package final Music head after playback/offline smoke hardening.
+2026-09-18 package YouTube Music extension v0.1.1 with lyrics and mini-player Next.
