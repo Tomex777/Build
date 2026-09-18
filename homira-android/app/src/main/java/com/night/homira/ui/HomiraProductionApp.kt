@@ -1,5 +1,7 @@
 package com.night.homira.ui
 
+import com.night.homira.data.HomiraLiveRepository
+import com.night.homira.data.LiveProfile
 import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -95,6 +97,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -116,6 +119,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 private enum class MainTab { Keypad, Recents, Contacts, Me }
@@ -163,19 +167,29 @@ private val callEntries = listOf(
 )
 
 @Composable
-fun HomiraProductionApp() {
+fun HomiraProductionApp(initialProfile: LiveProfile? = null) {
     HomiraTheme {
         val context = LocalContext.current
+        val liveRepository = remember { HomiraLiveRepository() }
+        val liveScope = rememberCoroutineScope()
         var tab by rememberSaveable { mutableStateOf(MainTab.Keypad) }
         var overlay by rememberSaveable { mutableStateOf(OverlayScreen.None) }
         var activePerson by remember { mutableStateOf<HomiraPerson?>(null) }
         var activeVideo by rememberSaveable { mutableStateOf(false) }
         var minimized by rememberSaveable { mutableStateOf(false) }
 
-        var profileName by rememberSaveable { mutableStateOf("Dawson") }
-        var profileUsername by rememberSaveable { mutableStateOf("dawson") }
-        var profileAbout by rememberSaveable { mutableStateOf("Available after 6") }
-        var profileEmail by rememberSaveable { mutableStateOf("dawson@example.com") }
+        var profileName by rememberSaveable(initialProfile?.id) {
+            mutableStateOf(initialProfile?.displayName?.ifBlank { "You" } ?: "You")
+        }
+        var profileUsername by rememberSaveable(initialProfile?.id) {
+            mutableStateOf(initialProfile?.username.orEmpty())
+        }
+        var profileAbout by rememberSaveable(initialProfile?.id) {
+            mutableStateOf(initialProfile?.about.orEmpty())
+        }
+        var profileEmail by rememberSaveable(initialProfile?.id) {
+            mutableStateOf(initialProfile?.email.orEmpty())
+        }
         var avatarUri by rememberSaveable { mutableStateOf<String?>(null) }
         var callCardUri by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -221,6 +235,21 @@ fun HomiraProductionApp() {
                     avatarUri = avatar
                     callCardUri = card
                     overlay = OverlayScreen.None
+                    liveScope.launch {
+                        runCatching {
+                            liveRepository.updateMyProfile(
+                                displayName = name,
+                                username = username,
+                                about = about,
+                                email = email
+                            )
+                        }.onSuccess { saved ->
+                            profileName = saved.displayName.ifBlank { "You" }
+                            profileUsername = saved.username.orEmpty()
+                            profileAbout = saved.about
+                            profileEmail = saved.email.orEmpty()
+                        }
+                    }
                 }
             )
 
