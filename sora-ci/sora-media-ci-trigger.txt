@@ -1,1 +1,1 @@
-run 20 - build combined Aniyomi mpv player and Mihon reader integration
+run 21 - corrected combined Aniyomi player reader integration
