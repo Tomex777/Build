@@ -27,6 +27,7 @@ const bailey = (window as unknown as {
       runtime: "python" | "javascript";
       firstCommand?: string;
       firstSection?: string;
+      features?: Array<"events" | "jobs" | "storage" | "services" | "media" | "lifecycle">;
     }): Promise<ModuleCreateResult>;
     showModule(moduleId: string): Promise<{ ok: boolean; directory: string }>;
     reloadModules(): Promise<ModuleReloadResult>;
@@ -161,6 +162,19 @@ function installModuleWizard(): void {
           <span>Description (optional)</span>
           <input id="module-description" autocomplete="off" placeholder="Economy commands and storage." />
         </label>
+
+        <label class="field editor-span-2">
+          <span>Host features</span>
+          <div class="action-row" id="module-features">
+            <label><input type="checkbox" value="events" /> Events</label>
+            <label><input type="checkbox" value="jobs" /> Jobs</label>
+            <label><input type="checkbox" value="storage" /> Local data</label>
+            <label><input type="checkbox" value="services" /> Host services</label>
+            <label><input type="checkbox" value="media" /> Media</label>
+            <label><input type="checkbox" value="lifecycle" /> Lifecycle</label>
+          </div>
+          <small>These declare capabilities only. Privileged host operations still require explicit permissions in the module manifest and your approval.</small>
+        </label>
       </div>
 
       <p id="module-wizard-status" class="editor-error" role="alert"></p>
@@ -223,6 +237,7 @@ function installModuleWizard(): void {
       runtime,
       firstCommand: dialog.querySelector<HTMLInputElement>("#module-command")!.value,
       firstSection: sectionInput.value || nameInput.value,
+      features: [...dialog.querySelectorAll<HTMLInputElement>("#module-features input:checked")].map((input) => input.value as "events" | "jobs" | "storage" | "services" | "media" | "lifecycle"),
     }).then(async (result) => {
       createdModuleId = result.id;
       status.textContent = `Created ${result.name}. Loading module…`;
