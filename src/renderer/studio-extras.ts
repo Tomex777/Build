@@ -34,6 +34,12 @@ const bailey = (window as unknown as {
     exportModulePackage(moduleId: string): Promise<{ ok: boolean; canceled?: boolean; path?: string }>;
     installModulePackage(): Promise<{ ok: boolean; canceled?: boolean; id?: string; name?: string }>;
     installModuleDependencies(moduleId: string): Promise<{ ok: boolean; installed: boolean; detail: string; output: string[] }>;
+    listModuleWorkspace(moduleId: string): Promise<Array<{ path: string; type: "file" | "directory"; editable: boolean; size?: number }>>;
+    readModuleWorkspaceFile(moduleId: string, path: string): Promise<{ moduleId: string; path: string; content: string }>;
+    writeModuleWorkspaceFile(moduleId: string, path: string, content: string): Promise<{ ok: boolean; path: string }>;
+    createModuleWorkspaceItem(moduleId: string, path: string, type: "file" | "directory"): Promise<{ ok: boolean; path: string }>;
+    renameModuleWorkspaceItem(moduleId: string, from: string, to: string): Promise<{ ok: boolean; from: string; to: string }>;
+    deleteModuleWorkspaceItem(moduleId: string, path: string): Promise<{ ok: boolean; path: string }>;
     getModuleRuntimeStatus(): Promise<Array<{ id: string; name: string; running: boolean; pid?: number; crashCount: number; restartCount: number; lastError?: string; capabilities: string[]; permissions: string[]; grantedPermissions: string[]; logs: string[] }>>;
     restartModule(moduleId: string): Promise<unknown>;
     setModulePermissions(moduleId: string, grants: string[]): Promise<unknown>;
@@ -734,3 +740,318 @@ function installStorageProfilesUi(): void {
 }
 
 installStorageProfilesUi();
+
+
+function installWorkspaceUi(): void {
+  const studioGrid = document.querySelector<HTMLElement>("#view-studio .studio-grid");
+  if (!studioGrid || document.querySelector("#module-workspace-card")) return;
+
+  const card = document.createElement("article");
+  card.id = "module-workspace-card";
+  card.className = "panel studio-card studio-card-wide";
+  card.innerHTML =
+    "<div class='panel-heading'>" +
+      "<div><span class='studio-kicker'>WORKSPACE</span><h2>Module files</h2><p>Browse and edit module source without leaving Bailey. Runtime folders and module data stay hidden.</p></div>" +
+      "<div class='action-row'><select id='workspace-module'></select><button class='secondary-button' id='workspace-refresh' type='button'>Refresh</button></div>" +
+    "</div>" +
+    "<div class='action-row'>" +
+      "<button class='secondary-button' id='workspace-new-file' type='button'>New file</button>" +
+      "<button class='secondary-button' id='workspace-new-folder' type='button'>New folder</button>" +
+      "<button class='secondary-button' id='workspace-rename' type='button'>Rename</button>" +
+      "<button class='danger-quiet-button' id='workspace-delete' type='button'>Delete</button>" +
+    "</div>" +
+    "<div style='display:grid;grid-template-columns:minmax(180px,0.34fr) minmax(0,1fr);gap:16px;min-height:440px'>" +
+      "<div class='stack' style='min-width:0'><div id='workspace-tree' style='overflow:auto;max-height:560px'></div></div>" +
+      "<div class='stack' style='min-width:0'>" +
+        "<div id='workspace-tabs' class='action-row' style='overflow-x:auto;flex-wrap:nowrap'></div>" +
+        "<div class='file-editor-meta'><span class='pill' id='workspace-language'>TEXT</span><span class='muted' id='workspace-path'>Select a file</span></div>" +
+        "<textarea id='workspace-editor' class='file-content' spellcheck='false' disabled placeholder='Choose an editable file from the tree.' style='min-height:360px'></textarea>" +
+        "<div class='dialog-actions'><span id='workspace-save-status' class='save-status'>No file open</span><button class='primary-button' id='workspace-save' type='button' disabled>Save</button></div>" +
+      "</div>" +
+    "</div>";
+  studioGrid.append(card);
+
+  const moduleSelect = card.querySelector<HTMLSelectElement>("#workspace-module")!;
+  const tree = card.querySelector<HTMLElement>("#workspace-tree")!;
+  const tabsRoot = card.querySelector<HTMLElement>("#workspace-tabs")!;
+  const editor = card.querySelector<HTMLTextAreaElement>("#workspace-editor")!;
+  const pathLabel = card.querySelector<HTMLElement>("#workspace-path")!;
+  const language = card.querySelector<HTMLElement>("#workspace-language")!;
+  const status = card.querySelector<HTMLElement>("#workspace-save-status")!;
+  const saveButton = card.querySelector<HTMLButtonElement>("#workspace-save")!;
+  let selectedPath: string | undefined;
+  let activePath: string | undefined;
+  let entries: Array<{ path: string; type: "file" | "directory"; editable: boolean; size?: number }> = [];
+  const tabs = new Map<string, { path: string; content: string; saved: string }>();
+
+  const moduleId = () => moduleSelect.value;
+
+  const extensionLabel = (path: string) => {
+    const name = path.split("/").pop() ?? path;
+    const index = name.lastIndexOf(".");
+    return index > 0 ? name.slice(index + 1).toUpperCase() : "TEXT";
+  };
+
+  const dirty = (path: string) => {
+    const tab = tabs.get(path);
+    return Boolean(tab && tab.content !== tab.saved);
+  };
+
+  const syncActive = () => {
+    if (!activePath) return;
+    const tab = tabs.get(activePath);
+    if (tab) tab.content = editor.value;
+  };
+
+  const renderTabs = () => {
+    tabsRoot.replaceChildren();
+    for (const [path] of tabs) {
+      const wrap = document.createElement("span");
+      wrap.className = "action-row";
+      wrap.style.flexWrap = "nowrap";
+      wrap.style.gap = "2px";
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = activePath === path ? "secondary-button active" : "secondary-button";
+      button.textContent = (path.split("/").pop() ?? path) + (dirty(path) ? " *" : "");
+      button.title = path;
+      button.addEventListener("click", () => {
+        syncActive();
+        activePath = path;
+        const tab = tabs.get(path)!;
+        editor.value = tab.content;
+        editor.disabled = false;
+        saveButton.disabled = false;
+        pathLabel.textContent = path;
+        language.textContent = extensionLabel(path);
+        status.textContent = dirty(path) ? "Unsaved changes" : "Saved";
+        renderTabs();
+      });
+
+      const close = document.createElement("button");
+      close.type = "button";
+      close.className = "icon-button";
+      close.textContent = "×";
+      close.setAttribute("aria-label", "Close " + path);
+      close.addEventListener("click", () => {
+        syncActive();
+        if (dirty(path) && !window.confirm("Close " + path + " with unsaved changes?")) return;
+        tabs.delete(path);
+        if (activePath === path) {
+          activePath = tabs.keys().next().value as string | undefined;
+          if (activePath) {
+            const next = tabs.get(activePath)!;
+            editor.value = next.content;
+            editor.disabled = false;
+            saveButton.disabled = false;
+            pathLabel.textContent = activePath;
+            language.textContent = extensionLabel(activePath);
+          } else {
+            editor.value = "";
+            editor.disabled = true;
+            saveButton.disabled = true;
+            pathLabel.textContent = "Select a file";
+            language.textContent = "TEXT";
+            status.textContent = "No file open";
+          }
+        }
+        renderTabs();
+      });
+      wrap.append(button, close);
+      tabsRoot.append(wrap);
+    }
+  };
+
+  const openFile = async (path: string) => {
+    syncActive();
+    let tab = tabs.get(path);
+    if (!tab) {
+      const file = await bailey.readModuleWorkspaceFile(moduleId(), path);
+      tab = { path: file.path, content: file.content, saved: file.content };
+      tabs.set(path, tab);
+    }
+    activePath = path;
+    selectedPath = path;
+    editor.value = tab.content;
+    editor.disabled = false;
+    saveButton.disabled = false;
+    pathLabel.textContent = path;
+    language.textContent = extensionLabel(path);
+    status.textContent = dirty(path) ? "Unsaved changes" : "Saved";
+    renderTabs();
+    renderTree();
+    editor.focus();
+  };
+
+  const renderTree = () => {
+    tree.replaceChildren();
+    if (!entries.length) {
+      const empty = document.createElement("p");
+      empty.className = "muted";
+      empty.textContent = "No workspace files.";
+      tree.append(empty);
+      return;
+    }
+    for (const entry of entries) {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "command-row";
+      row.style.width = "100%";
+      row.style.paddingLeft = String(12 + Math.max(0, entry.path.split("/").length - 1) * 14) + "px";
+      if (selectedPath === entry.path) row.classList.add("editable");
+      const copy = document.createElement("span");
+      copy.className = "command-row-copy";
+      const name = document.createElement("strong");
+      name.textContent = entry.path.split("/").pop() ?? entry.path;
+      const meta = document.createElement("small");
+      meta.textContent = entry.type === "directory"
+        ? "Folder"
+        : entry.editable
+          ? (entry.size ?? 0) + " bytes"
+          : "Not editable";
+      copy.append(name, meta);
+      row.append(copy);
+      row.addEventListener("click", () => {
+        selectedPath = entry.path;
+        if (entry.type === "file" && entry.editable) {
+          void openFile(entry.path).catch((error) => window.alert(error instanceof Error ? error.message : String(error)));
+        } else {
+          renderTree();
+        }
+      });
+      tree.append(row);
+    }
+  };
+
+  const refreshTree = async () => {
+    if (!moduleId()) {
+      entries = [];
+      renderTree();
+      return;
+    }
+    entries = await bailey.listModuleWorkspace(moduleId());
+    renderTree();
+  };
+
+  const refreshModules = async () => {
+    const modules = await bailey.getModuleRuntimeStatus();
+    const previous = moduleSelect.value;
+    moduleSelect.replaceChildren(...modules.map((module) => {
+      const option = document.createElement("option");
+      option.value = module.id;
+      option.textContent = module.name;
+      return option;
+    }));
+    if (modules.some((module) => module.id === previous)) moduleSelect.value = previous;
+    selectedPath = undefined;
+    tabs.clear();
+    activePath = undefined;
+    editor.value = "";
+    editor.disabled = true;
+    saveButton.disabled = true;
+    renderTabs();
+    await refreshTree();
+  };
+
+  const createItem = async (type: "file" | "directory") => {
+    if (!moduleId()) return;
+    const value = window.prompt(type === "file" ? "New file path inside this module:" : "New folder path inside this module:");
+    if (!value) return;
+    await bailey.createModuleWorkspaceItem(moduleId(), value, type);
+    await refreshTree();
+    if (type === "file") await openFile(value.replace(/\\/g, "/"));
+  };
+
+  card.querySelector<HTMLButtonElement>("#workspace-refresh")!.addEventListener("click", () => void refreshModules());
+  moduleSelect.addEventListener("change", () => {
+    selectedPath = undefined;
+    tabs.clear();
+    activePath = undefined;
+    editor.value = "";
+    editor.disabled = true;
+    saveButton.disabled = true;
+    renderTabs();
+    void refreshTree();
+  });
+  card.querySelector<HTMLButtonElement>("#workspace-new-file")!.addEventListener("click", () => {
+    void createItem("file").catch((error) => window.alert(error instanceof Error ? error.message : String(error)));
+  });
+  card.querySelector<HTMLButtonElement>("#workspace-new-folder")!.addEventListener("click", () => {
+    void createItem("directory").catch((error) => window.alert(error instanceof Error ? error.message : String(error)));
+  });
+  card.querySelector<HTMLButtonElement>("#workspace-rename")!.addEventListener("click", () => {
+    if (!selectedPath) return;
+    const destination = window.prompt("Rename/move workspace item to:", selectedPath);
+    if (!destination || destination === selectedPath) return;
+    void bailey.renameModuleWorkspaceItem(moduleId(), selectedPath, destination).then(async () => {
+      tabs.clear();
+      activePath = undefined;
+      selectedPath = destination.replace(/\\/g, "/");
+      editor.value = "";
+      editor.disabled = true;
+      saveButton.disabled = true;
+      renderTabs();
+      await refreshTree();
+    }).catch((error) => window.alert(error instanceof Error ? error.message : String(error)));
+  });
+  card.querySelector<HTMLButtonElement>("#workspace-delete")!.addEventListener("click", () => {
+    if (!selectedPath) return;
+    if (!window.confirm("Delete " + selectedPath + "?")) return;
+    const deleting = selectedPath;
+    void bailey.deleteModuleWorkspaceItem(moduleId(), deleting).then(async () => {
+      tabs.delete(deleting);
+      if (activePath === deleting) activePath = undefined;
+      selectedPath = undefined;
+      editor.value = "";
+      editor.disabled = true;
+      saveButton.disabled = true;
+      renderTabs();
+      await refreshTree();
+    }).catch((error) => window.alert(error instanceof Error ? error.message : String(error)));
+  });
+
+  editor.addEventListener("input", () => {
+    if (!activePath) return;
+    const tab = tabs.get(activePath);
+    if (!tab) return;
+    tab.content = editor.value;
+    status.textContent = "Unsaved changes";
+    status.className = "save-status saving";
+    renderTabs();
+  });
+
+  const saveActive = async () => {
+    if (!activePath) return;
+    const tab = tabs.get(activePath);
+    if (!tab) return;
+    tab.content = editor.value;
+    status.textContent = "Saving…";
+    status.className = "save-status saving";
+    await bailey.writeModuleWorkspaceFile(moduleId(), activePath, tab.content);
+    tab.saved = tab.content;
+    status.textContent = "Saved";
+    status.className = "save-status";
+    renderTabs();
+    await refreshTree();
+  };
+
+  saveButton.addEventListener("click", () => {
+    void saveActive().catch((error) => {
+      status.textContent = error instanceof Error ? error.message : String(error);
+      status.className = "save-status error";
+    });
+  });
+  editor.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+      event.preventDefault();
+      void saveActive();
+    }
+  });
+
+  void refreshModules().catch((error) => {
+    tree.textContent = error instanceof Error ? error.message : String(error);
+  });
+}
+
+installWorkspaceUi();
