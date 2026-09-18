@@ -607,28 +607,6 @@ private fun RecentsScreen(
             }
         }
 
-        if (contacts.isEmpty() && query.isBlank()) {
-            item {
-                Card(
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = HomiraSurface)
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(22.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(Icons.Rounded.PersonAdd, contentDescription = null, tint = HomiraMuted)
-                        Spacer(Modifier.height(8.dp))
-                        Text("No contacts yet", color = HomiraText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(4.dp))
-                        Text("Add someone by their Homira username or phone number.", color = HomiraMuted, fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Spacer(Modifier.height(12.dp))
-                        TextButton(onClick = onAddContact) { Text("Add contact", color = HomiraGreen) }
-                    }
-                }
-            }
-        }
-
         item {
             Text(
                 "Swipe right for voice · left for video",
@@ -1050,6 +1028,35 @@ private fun ContactsScreen(
                         SimpleContactUtility(Icons.Rounded.Person, "My profile", myName, onOpenMe)
                         HorizontalDivider(modifier = Modifier.padding(start = 62.dp), color = HomiraLine.copy(alpha = .65f))
                         SimpleContactUtility(Icons.Rounded.Groups, "Groups", "Family, friends and more") { }
+                    }
+                }
+            }
+        }
+
+        if (contacts.isEmpty() && query.isBlank()) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = HomiraSurface)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(22.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(Icons.Rounded.PersonAdd, contentDescription = null, tint = HomiraMuted)
+                        Spacer(Modifier.height(8.dp))
+                        Text("No contacts yet", color = HomiraText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Add someone by their Homira username or phone number.",
+                            color = HomiraMuted,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        TextButton(onClick = onAddContact) {
+                            Text("Add contact", color = HomiraGreen)
+                        }
                     }
                 }
             }
