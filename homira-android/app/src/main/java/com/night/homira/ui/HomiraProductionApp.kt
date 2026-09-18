@@ -12,6 +12,8 @@ import com.night.homira.call.HomiraScreenShareService
 import com.night.homira.call.HomiraWebRtcVoiceEngine
 import com.night.homira.data.HomiraCallSignaling
 import com.night.homira.data.HomiraLiveRepository
+import com.night.homira.data.HomiraCallHistoryStore
+import com.night.homira.data.LocalCallHistoryRecord
 import com.night.homira.data.LiveProfile
 import com.night.homira.data.LiveContact
 import com.night.homira.data.LiveCallSession
@@ -149,6 +151,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import java.io.File
+import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -157,7 +160,7 @@ import kotlin.math.roundToInt
 
 private enum class MainTab { Keypad, Recents, Contacts, Me }
 private enum class OverlayScreen { None, Settings, EditProfile, Voicemail, AddContact }
-private enum class CallDirection { Incoming, Outgoing, Missed, Declined, Failed }
+private enum class CallDirection { Incoming, Outgoing, Missed, Declined, Cancelled, Failed }
 private enum class RecentFilter { All, Missed, Voicemail }
 
 private data class HomiraPerson(
@@ -180,7 +183,9 @@ private data class CallEntry(
     val count: Int = 1,
     val voicemailSeconds: Int? = null,
     val voicemailId: String? = null,
-    val voicemailListened: Boolean = true
+    val voicemailListened: Boolean = true,
+    val callSessionId: String? = null,
+    val timestampMillis: Long = 0L
 )
 
 private fun CallEntry.voicemailPlaybackKey(): String = voicemailId ?: id
@@ -200,6 +205,72 @@ private fun voicemailDateParts(createdAt: String): Pair<String, String> =
         }
         day to local.format(DateTimeFormatter.ofPattern("HH:mm"))
     }.getOrDefault("Recent" to "")
+
+private fun callDateParts(timestampMillis: Long): Pair<String, String> {
+    val local = Instant.ofEpochMilli(timestampMillis)
+        .atZone(ZoneId.systemDefault())
+    val date = local.toLocalDate()
+    val today = LocalDate.now(local.zone)
+    val day = when (date) {
+        today -> "Today"
+        today.minusDays(1) -> "Yesterday"
+        else -> date.dayOfWeek.name
+            .lowercase()
+            .replaceFirstChar { it.uppercase() }
+    }
+    return day to local.format(DateTimeFormatter.ofPattern("HH:mm"))
+}
+
+private fun formatHistoryDuration(seconds: Long?): String? {
+    val value = seconds ?: return null
+    return when {
+        value < 60 -> "${value}s"
+        value < 3600 -> "${value / 60}m"
+        else -> {
+            val hours = value / 3600
+            val minutes = (value % 3600) / 60
+            if (minutes == 0L) "${hours}h" else "${hours}h ${minutes}m"
+        }
+    }
+}
+
+private fun LocalCallHistoryRecord.toCallEntry(): CallEntry {
+    val (day, time) = callDateParts(startedAt)
+    val callDirection = when (outcome) {
+        HomiraCallHistoryStore.OUTCOME_MISSED -> CallDirection.Missed
+        HomiraCallHistoryStore.OUTCOME_DECLINED -> CallDirection.Declined
+        HomiraCallHistoryStore.OUTCOME_CANCELLED -> CallDirection.Cancelled
+        HomiraCallHistoryStore.OUTCOME_FAILED -> CallDirection.Failed
+        else -> if (direction == HomiraCallHistoryStore.DIRECTION_INCOMING) {
+            CallDirection.Incoming
+        } else {
+            CallDirection.Outgoing
+        }
+    }
+
+    return CallEntry(
+        id = "history-$id",
+        person = HomiraPerson(
+            id = peerUserId,
+            name = peerName,
+            marker = peerName.firstOrNull()?.uppercaseChar()?.toString() ?: "H",
+            accent = HomiraGreen,
+            number = peerNumber
+        ),
+        day = day,
+        time = time,
+        direction = callDirection,
+        video = mediaType == "video",
+        duration = formatHistoryDuration(durationSeconds),
+        callSessionId = id,
+        timestampMillis = startedAt
+    )
+}
+
+private fun voicemailTimestampMillis(createdAt: String): Long =
+    runCatching {
+        OffsetDateTime.parse(createdAt).toInstant().toEpochMilli()
+    }.getOrDefault(System.currentTimeMillis())
 
 private val mimiP = HomiraPerson("mimi", "MiMi", "✿", HomiraPink, "+234 803 124 5678", favorite = true)
 private val hexP = HomiraPerson("hex", "Hex", "⚡", HomiraBlue, "+234 806 734 2011", favorite = true)
@@ -225,6 +296,10 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         val context = LocalContext.current
         val liveRepository = remember { HomiraLiveRepository() }
         val liveScope = rememberCoroutineScope()
+        val callHistoryStore = remember(context) { HomiraCallHistoryStore(context) }
+        var localCallHistory by remember {
+            mutableStateOf<List<LocalCallHistoryRecord>>(emptyList())
+        }
         var tab by rememberSaveable { mutableStateOf(MainTab.Keypad) }
         var overlay by rememberSaveable { mutableStateOf(OverlayScreen.None) }
         var activePerson by remember { mutableStateOf<HomiraPerson?>(null) }
@@ -384,7 +459,47 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 )
             }
         }
-        val appCallEntries = if (liveMode) liveVoicemailEntries else callEntries
+        val localCallEntries = remember(localCallHistory) {
+            localCallHistory.map { it.toCallEntry() }
+        }
+
+        val appCallEntries = if (liveMode) {
+            val voicemailBySession = liveVoicemailEntries
+                .filter { it.callSessionId != null }
+                .associateBy { it.callSessionId }
+
+            val enrichedHistory = localCallEntries.map { historyEntry ->
+                val voicemail = voicemailBySession[historyEntry.callSessionId]
+                if (voicemail == null) {
+                    historyEntry
+                } else {
+                    historyEntry.copy(
+                        voicemailSeconds = voicemail.voicemailSeconds,
+                        voicemailId = voicemail.voicemailId,
+                        voicemailListened = voicemail.voicemailListened
+                    )
+                }
+            }
+
+            val matchedSessions = localCallEntries
+                .mapNotNull { it.callSessionId }
+                .toSet()
+
+            val orphanVoicemails = liveVoicemailEntries.filter {
+                it.callSessionId == null || it.callSessionId !in matchedSessions
+            }
+
+            (enrichedHistory + orphanVoicemails)
+                .sortedByDescending { it.timestampMillis }
+        } else {
+            callEntries
+        }
+
+        LaunchedEffect(liveMode) {
+            if (!liveMode) return@LaunchedEffect
+            callHistoryStore.normalizeInterruptedRinging()
+            localCallHistory = callHistoryStore.listRecent()
+        }
 
         LaunchedEffect(liveMode, appContacts) {
             if (!liveMode) return@LaunchedEffect
@@ -420,7 +535,9 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                         .roundToInt()
                         .coerceAtLeast(1),
                     voicemailId = voicemail.id,
-                    voicemailListened = voicemail.listenedAt != null
+                    voicemailListened = voicemail.listenedAt != null,
+                    callSessionId = voicemail.callSessionId,
+                    timestampMillis = voicemailTimestampMillis(voicemail.createdAt)
                 )
             }
 
@@ -3216,11 +3333,13 @@ private fun directionIcon(direction: CallDirection): ImageVector = when (directi
     CallDirection.Outgoing -> Icons.Rounded.CallMade
     CallDirection.Missed -> Icons.Rounded.PhoneMissed
     CallDirection.Declined -> Icons.Rounded.PhoneMissed
+    CallDirection.Cancelled -> Icons.Rounded.CallEnd
     CallDirection.Failed -> Icons.Rounded.PhoneMissed
 }
 
 private fun directionColor(direction: CallDirection): Color = when (direction) {
     CallDirection.Missed, CallDirection.Declined, CallDirection.Failed -> HomiraDanger
+    CallDirection.Cancelled -> HomiraMuted
     else -> HomiraBlue
 }
 
@@ -3229,6 +3348,7 @@ private fun directionLabel(direction: CallDirection): String = when (direction) 
     CallDirection.Outgoing -> "Outgoing"
     CallDirection.Missed -> "Missed"
     CallDirection.Declined -> "Declined"
+    CallDirection.Cancelled -> "Cancelled"
     CallDirection.Failed -> "Failed"
 }
 
