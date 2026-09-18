@@ -1,1 +1,1 @@
-workflow started
+jdk ready
