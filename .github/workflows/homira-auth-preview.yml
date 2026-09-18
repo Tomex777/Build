@@ -40,10 +40,10 @@ jobs:
       - name: Render auth screen
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: 30
           target: google_apis
           arch: x86_64
-          profile: pixel_6
+          profile: pixel_2
           disable-animations: true
           script: |
             adb install -r homira-android/app/build/outputs/apk/debug/app-debug.apk
