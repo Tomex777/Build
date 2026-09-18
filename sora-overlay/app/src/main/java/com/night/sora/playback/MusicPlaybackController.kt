@@ -357,7 +357,13 @@ class MusicPlaybackController(
         manager.call(
             extension,
             ExtensionContract.Method.LYRICS,
-            JSONObject().put("sourceId", track.sourceId).put("id", track.id).toString(),
+            JSONObject()
+                .put("sourceId", track.sourceId)
+                .put("id", track.id)
+                .put("title", track.title)
+                .put("artist", track.artistName())
+                .put("album", track.albumName())
+                .toString(),
         ) { result ->
             scope.launch {
                 if (requestId != requestSerial) return@launch
@@ -465,4 +471,5 @@ class MusicPlaybackController(
     private fun ExtensionMediaSelection.sameTrack(other: ExtensionMediaSelection): Boolean = identityKey() == other.identityKey()
     private fun ExtensionMediaSelection.identityKey(): String = "$extensionPackage|$sourceId|$id"
     private fun ExtensionMediaSelection.artistName(): String = subtitle.substringBefore(" · ").ifBlank { title }
+    private fun ExtensionMediaSelection.albumName(): String = subtitle.substringAfter(" · ", "").trim()
 }
