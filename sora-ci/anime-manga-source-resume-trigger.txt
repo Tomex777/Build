@@ -1,1 +1,1 @@
-run 11 - stop-before-destroy Aniyomi teardown validation
+run 6 - stop mpv await idle before player disposal exact resume validation
