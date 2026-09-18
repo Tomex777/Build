@@ -43,6 +43,7 @@ fun NowPlayingScreen(
 ) {
     val track = player.currentTrack
     var queueOpen by remember { mutableStateOf(false) }
+    var lyricsOpen by remember { mutableStateOf(false) }
     var optionsOpen by remember { mutableStateOf(false) }
 
     if (track == null) {
@@ -197,7 +198,7 @@ fun NowPlayingScreen(
 
         Spacer(Modifier.height(20.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            PlayerSecondary(Icons.Rounded.Lyrics, "Lyrics")
+            PlayerSecondary(Icons.Rounded.Lyrics, "Lyrics", onClick = { lyricsOpen = true })
             PlayerSecondary(Icons.Rounded.QueueMusic, "Queue", onClick = { queueOpen = true })
             PlayerSecondary(
                 if (downloaded) Icons.Rounded.OfflinePin else Icons.Rounded.Download,
@@ -249,6 +250,42 @@ fun NowPlayingScreen(
                 if (player.streamLabel.isNotBlank()) Text(player.streamLabel, color = SoraFaint, fontSize = 9.sp)
             }
             Text("Output", color = SoraMuted, fontSize = 10.sp)
+        }
+    }
+
+
+    if (lyricsOpen) {
+        ModalBottomSheet(onDismissRequest = { lyricsOpen = false }, containerColor = Color(0xFF161614)) {
+            Column(
+                Modifier.fillMaxWidth().navigationBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 10.dp)
+                    .padding(bottom = 22.dp),
+            ) {
+                Text("Lyrics", color = SoraText, fontSize = 22.sp, fontWeight = FontWeight.Black)
+                Text(track.title, color = SoraText, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 5.dp))
+                Text(track.subtitle, color = SoraMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp, bottom = 16.dp))
+                when {
+                    player.lyricsLoading -> {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        Text("Loading lyrics…", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
+                    }
+                    !player.lyricsText.isNullOrBlank() -> {
+                        Text(
+                            player.lyricsText.orEmpty(),
+                            color = SoraText,
+                            fontSize = 18.sp,
+                            lineHeight = 28.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState()),
+                        )
+                    }
+                    else -> Text(
+                        "Lyrics are not available for this track.",
+                        color = SoraMuted,
+                        fontSize = 13.sp,
+                    )
+                }
+            }
         }
     }
 
