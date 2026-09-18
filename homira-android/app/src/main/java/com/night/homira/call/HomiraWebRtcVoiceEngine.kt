@@ -250,7 +250,14 @@ class HomiraWebRtcVoiceEngine(
             CallSignalEnvelope(
                 type = "video-state",
                 fromUserId = localUserId,
-                videoEnabled = videoTrack?.enabled() == true
+                videoEnabled = videoTrack?.enabled() == true || _screenSharing.value
+            )
+        )
+        signaling.send(
+            CallSignalEnvelope(
+                type = "screen-share-state",
+                fromUserId = localUserId,
+                screenSharing = _screenSharing.value
             )
         )
     }
