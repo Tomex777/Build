@@ -40,7 +40,6 @@ class DiagnosticViewModel(application: Application) : AndroidViewModel(applicati
     var browserUrl by mutableStateOf("")
         private set
 
-    var manualKwikUrl by mutableStateOf(store.lastKwikUrl())
 
     fun openAnimeBrowser() {
         browserMode = BrowserMode.ANIMEPAHE
@@ -50,12 +49,9 @@ class DiagnosticViewModel(application: Application) : AndroidViewModel(applicati
         browserOpen = true
     }
 
-    fun setManualKwikUrl(value: String) {
-        manualKwikUrl = value
-    }
 
     fun openKwikBrowser() {
-        val target = sessions.lastKwikUrl.ifBlank { manualKwikUrl.trim() }
+        val target = sessions.lastKwikUrl
         val host = runCatching { URI(target).host.orEmpty().lowercase() }.getOrDefault("")
 
         if (target.isBlank()) {
@@ -64,7 +60,7 @@ class DiagnosticViewModel(application: Application) : AndroidViewModel(applicati
             return
         }
         if (!host.startsWith("kwik.") && !host.contains(".kwik.")) {
-            statusMessage = "The cached/manual URL does not look like a Kwik URL."
+            statusMessage = "The discovered URL does not look like a Kwik URL."
             return
         }
 
@@ -87,7 +83,6 @@ class DiagnosticViewModel(application: Application) : AndroidViewModel(applicati
             }
 
             store.saveLastKwikUrl(kwik)
-            manualKwikUrl = kwik
             refreshSessions()
             browserMode = BrowserMode.KWIK
             browserUrl = kwik
@@ -143,10 +138,10 @@ class DiagnosticViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun testKwik() {
-        val target = sessions.lastKwikUrl.ifBlank { manualKwikUrl.trim() }
+        val target = sessions.lastKwikUrl
         if (target.isBlank()) {
             statusMessage =
-                "No Kwik URL is available yet. Trace AnimePahe -> Kwik first, or use the Advanced manual URL fallback."
+                "No Kwik URL is available yet. Trace AnimePahe -> Kwik first."
             return
         }
 
