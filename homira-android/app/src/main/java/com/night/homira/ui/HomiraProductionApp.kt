@@ -200,6 +200,8 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         var webRtcState by remember { mutableStateOf(HomiraWebRtcState.New) }
         var localVideoTrack by remember { mutableStateOf<VideoTrack?>(null) }
         var remoteVideoTrack by remember { mutableStateOf<VideoTrack?>(null) }
+        var remoteMuted by remember { mutableStateOf(false) }
+        var remoteVideoEnabled by remember { mutableStateOf(false) }
         var pendingOutgoingCall by remember { mutableStateOf<Pair<HomiraPerson, Boolean>?>(null) }
         var pendingIncomingAccept by remember { mutableStateOf(false) }
         var pendingVideoEnable by remember { mutableStateOf(false) }
@@ -508,6 +510,8 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         LaunchedEffect(voiceEngine) {
             localVideoTrack = null
             remoteVideoTrack = null
+            remoteMuted = false
+            remoteVideoEnabled = activeVideo
             val engine = voiceEngine ?: return@LaunchedEffect
 
             launch {
@@ -518,6 +522,16 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
             launch {
                 engine.remoteVideoTrack.collect { track ->
                     remoteVideoTrack = track
+                }
+            }
+            launch {
+                engine.remoteMuted.collect { muted ->
+                    remoteMuted = muted
+                }
+            }
+            launch {
+                engine.remoteVideoEnabled.collect { enabled ->
+                    remoteVideoEnabled = enabled
                 }
             }
         }
@@ -561,6 +575,8 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 liveState = if (liveMode) activeSession?.state else null,
                 mediaState = if (liveMode) webRtcState else null,
                 videoEnabled = activeVideo,
+                remoteVideoEnabled = if (liveMode) remoteVideoEnabled else activeVideo,
+                remoteMuted = if (liveMode) remoteMuted else false,
                 localVideoTrack = if (liveMode) localVideoTrack else null,
                 remoteVideoTrack = if (liveMode) remoteVideoTrack else null,
                 eglContext = if (liveMode) voiceEngine?.eglContext() else null,
@@ -2036,6 +2052,8 @@ private fun ActiveCallScreen(
     liveState: String? = null,
     mediaState: HomiraWebRtcState? = null,
     videoEnabled: Boolean = startsWithVideo,
+    remoteVideoEnabled: Boolean = startsWithVideo,
+    remoteMuted: Boolean = false,
     localVideoTrack: VideoTrack? = null,
     remoteVideoTrack: VideoTrack? = null,
     eglContext: EglBase.Context? = null,
@@ -2048,7 +2066,8 @@ private fun ActiveCallScreen(
 ) {
     var muted by rememberSaveable { mutableStateOf(false) }
     var speaker by rememberSaveable { mutableStateOf(startsWithVideo) }
-    val video = videoEnabled
+    val localVideo = videoEnabled
+    val video = localVideo || remoteVideoEnabled
     var sharing by rememberSaveable { mutableStateOf(false) }
     var simulatedConnected by rememberSaveable { mutableStateOf(false) }
     var seconds by rememberSaveable { mutableIntStateOf(0) }
@@ -2101,7 +2120,7 @@ private fun ActiveCallScreen(
             .clickable { if (video) controlsVisible = true }
     ) {
         if (video) {
-            if (remoteVideoTrack != null && eglContext != null) {
+            if (remoteVideoEnabled && remoteVideoTrack != null && eglContext != null) {
                 WebRtcTextureVideo(
                     track = remoteVideoTrack,
                     eglContext = eglContext,
@@ -2126,7 +2145,7 @@ private fun ActiveCallScreen(
                 }
             }
 
-            if (localVideoTrack != null && eglContext != null) {
+            if (localVideo && localVideoTrack != null && eglContext != null) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -2170,7 +2189,7 @@ private fun ActiveCallScreen(
                                     menuOpen = false
                                 }
                             )
-                            if (video) {
+                            if (localVideo) {
                                 DropdownMenuItem(
                                     text = { Text("Switch camera") },
                                     leadingIcon = { Icon(Icons.Rounded.CameraAlt, contentDescription = null) },
@@ -2217,6 +2236,32 @@ private fun ActiveCallScreen(
                 }
             }
 
+            AnimatedVisibility(remoteMuted && (!video || controlsVisible)) {
+                Surface(
+                    shape = RoundedCornerShape(99.dp),
+                    color = HomiraSurfaceRaised.copy(alpha = .92f)
+                ) {
+                    Row(
+                        Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Rounded.MicOff,
+                            contentDescription = null,
+                            tint = HomiraMuted,
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "${person.name} is muted",
+                            color = HomiraText,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
             AnimatedVisibility(sharing && (!video || controlsVisible)) {
                 Text("Sharing your screen", color = HomiraGreen, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
             }
@@ -2233,8 +2278,8 @@ private fun ActiveCallScreen(
                             speaker = !speaker
                             onSpeakerChanged(speaker)
                         }
-                        CallControlP(Icons.Rounded.Videocam, "Video", video) {
-                            onVideoChanged(!video)
+                        CallControlP(Icons.Rounded.Videocam, "Video", localVideo) {
+                            onVideoChanged(!localVideo)
                             controlsVisible = true
                         }
                     }
