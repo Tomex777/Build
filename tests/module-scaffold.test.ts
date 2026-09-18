@@ -17,6 +17,7 @@ describe("createModuleScaffold", () => {
     expect(scaffold.manifest.runtime).toEqual({ command: "python", args: ["main.py"] });
     expect(scaffold.manifest.commands?.[0]?.name).toBe("balance");
     expect(scaffold.files["main.py"]).toContain("Hello from Economy!");
+    expect(scaffold.files["requirements.txt"]).toContain("Python packages");
     expect(() => parseExternalModuleManifest(JSON.parse(scaffold.files["bailey.module.json"]))).not.toThrow();
   });
 
@@ -32,6 +33,7 @@ describe("createModuleScaffold", () => {
     expect(scaffold.entryFile).toBe("main.mjs");
     expect(scaffold.manifest.runtime).toEqual({ command: "bailey-node", args: ["main.mjs"] });
     expect(scaffold.files["main.mjs"]).toContain("node:readline");
+    expect(scaffold.files["package.json"]).toContain('"private": true');
     expect(scaffold.files["README.md"]).toContain("Settings declared there automatically appear in Bailey Configuration");
   });
 
