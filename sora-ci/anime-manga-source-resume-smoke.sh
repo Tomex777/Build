@@ -46,6 +46,26 @@ for node in root.iter('node'):
     if "isn't responding" in low or 'is not responding' in low or 'keeps stopping' in low:
         titles.append(text)
 
+# Android shows a one-time immersive/fullscreen tutorial the first time
+# Sora's player hides system bars. It is an OS overlay, not app UI.
+fullscreen_tutorial = any(
+    (node.attrib.get('text') or '').strip() == 'Viewing full screen'
+    for node in root.iter('node')
+)
+if fullscreen_tutorial:
+    for node in root.iter('node'):
+        text=(node.attrib.get('text') or '').strip()
+        desc=(node.attrib.get('content-desc') or '').strip()
+        if text != 'Got it' and desc != 'Got it':
+            continue
+        m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+        if not m:
+            continue
+        x1,y1,x2,y2=map(int,m.groups())
+        print("Dismissing Android fullscreen tutorial via 'Got it'")
+        subprocess.check_call(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)])
+        raise SystemExit(0)
+
 if not titles:
     raise SystemExit(0)
 
