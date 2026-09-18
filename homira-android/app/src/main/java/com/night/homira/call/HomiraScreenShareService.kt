@@ -7,6 +7,9 @@ import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.IBinder
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class HomiraScreenShareService : Service() {
 
@@ -39,7 +42,13 @@ class HomiraScreenShareService : Service() {
             notification,
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
         )
+        _foregroundReady.value = true
         return START_NOT_STICKY
+    }
+
+    override fun onDestroy() {
+        _foregroundReady.value = false
+        super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -47,5 +56,8 @@ class HomiraScreenShareService : Service() {
     companion object {
         private const val CHANNEL_ID = "homira_screen_share"
         private const val NOTIFICATION_ID = 4102
+
+        private val _foregroundReady = MutableStateFlow(false)
+        val foregroundReady: StateFlow<Boolean> = _foregroundReady.asStateFlow()
     }
 }
