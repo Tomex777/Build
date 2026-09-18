@@ -4,6 +4,7 @@ import { basename, extname, join } from "node:path";
 import { baileyMarkDataUrl } from "../brand/logo";
 import { JsonChatStore } from "../core/chat-store";
 import { JsonCommandStore, type VisualCommandPatch } from "../core/command-store";
+import { JsonModulePermissionStore } from "../core/module-permission-store";
 import { JsonConfigStore, type SecretCodec } from "../core/config-store";
 import { buildCommandMenu } from "../core/menu-builder";
 import type { BaileyCommandAction, CommandContext, MessageEventContext } from "../core/module";
@@ -13,6 +14,7 @@ import { EngineManager } from "../engine/engine-manager";
 import { ExternalModuleManager } from "../external/external-module-manager";
 import { registerKvServices } from "../services/kv-service";
 import { registerMediaServices } from "../services/media-service";
+import { registerDatabaseServices } from "../services/sqlite-service";
 import { createStorageHostService } from "../services/storage-profile-manager";
 import { StorageProfileStore, type StorageProfileInput } from "../services/storage-profile-store";
 import { coreModule } from "../modules/core";
@@ -36,6 +38,7 @@ let engineManager: EngineManager;
 let externalModuleManager: ExternalModuleManager | undefined;
 let backupManager: BaileyBackupManager;
 let storageProfileStore: StorageProfileStore;
+let modulePermissionStore: JsonModulePermissionStore;
 let externalModuleErrors: Array<{ folder: string; error: string }> = [];
 const externalModuleIds = new Set<string>();
 const openedEditorFiles = new Set<string>();
@@ -311,10 +314,13 @@ async function reloadExternalModules() {
       return configStore.toEnvironment(definitions);
     },
     moduleEnabled,
+    join(modulesRoot(), ".data"),
+    (moduleId) => modulePermissionStore.get(moduleId),
   );
   const storageService = createStorageHostService(storageProfileStore, app.getPath("userData"));
   storageService.register(manager);
   registerKvServices(manager);
+  registerDatabaseServices(manager);
 
   const external = await manager.load();
   externalModuleErrors = [...external.errors];
@@ -496,6 +502,15 @@ function registerIpc(): void {
   ipcMain.handle("bailey:studio-open-modules-folder", () => openModulesFolder());
   ipcMain.handle("bailey:studio-reload-modules", () => reloadExternalModules());
   ipcMain.handle("bailey:module-runtime-status", () => externalModuleManager?.statuses() ?? []);
+  ipcMain.handle("bailey:module-permissions-set", async (_event, moduleId: string, grants: string[]) => {
+    const status = externalModuleManager?.statuses().find((item) => item.id === moduleId);
+    if (!status) throw new Error("External module not found.");
+    if (!Array.isArray(grants) || grants.some((grant) => !status.permissions.includes(grant))) {
+      throw new Error("A module can only be granted permissions that it requested.");
+    }
+    await modulePermissionStore.set(moduleId, grants);
+    return externalModuleManager?.statuses().find((item) => item.id === moduleId);
+  });
   ipcMain.handle("bailey:module-restart", (_event, moduleId: string) => {
     if (!externalModuleManager) throw new Error("External module manager is not ready.");
     return externalModuleManager.restartModule(String(moduleId ?? ""));
@@ -562,7 +577,14 @@ app.whenReady().then(async () => {
     join(app.getPath("userData"), "storage-profiles.json"),
     createSecretCodec(),
   );
-  await Promise.all([configStore.load(), commandStore.load(), chatStore.load(), storageProfileStore.load()]);
+  modulePermissionStore = new JsonModulePermissionStore(join(app.getPath("userData"), "module-permissions.json"));
+  await Promise.all([
+    configStore.load(),
+    commandStore.load(),
+    chatStore.load(),
+    storageProfileStore.load(),
+    modulePermissionStore.load(),
+  ]);
   await reloadExternalModules();
 
   engineManager = new EngineManager(

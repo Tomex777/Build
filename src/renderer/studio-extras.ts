@@ -33,8 +33,9 @@ const bailey = (window as unknown as {
     detectModuleRuntimes(): Promise<Array<{ id: string; label: string; available: boolean; command: string; version?: string; detail?: string }>>;
     exportModulePackage(moduleId: string): Promise<{ ok: boolean; canceled?: boolean; path?: string }>;
     installModulePackage(): Promise<{ ok: boolean; canceled?: boolean; id?: string; name?: string }>;
-    getModuleRuntimeStatus(): Promise<Array<{ id: string; name: string; running: boolean; pid?: number; crashCount: number; restartCount: number; lastError?: string; capabilities: string[]; permissions: string[]; logs: string[] }>>;
+    getModuleRuntimeStatus(): Promise<Array<{ id: string; name: string; running: boolean; pid?: number; crashCount: number; restartCount: number; lastError?: string; capabilities: string[]; permissions: string[]; grantedPermissions: string[]; logs: string[] }>>;
     restartModule(moduleId: string): Promise<unknown>;
+    setModulePermissions(moduleId: string, grants: string[]): Promise<unknown>;
     exportBackup(): Promise<{ ok: boolean; canceled?: boolean; path?: string }>;
     importBackup(): Promise<{ ok: boolean; canceled?: boolean; fileCount?: number }>;
     getStorageProfiles(): Promise<Array<{ name: string; provider: "local" | "s3" | "azure" | "gcs" | "supabase"; isDefault: boolean; config: Record<string, string | boolean>; secretFields: string[] }>>;
@@ -399,11 +400,45 @@ function installHostTools(): void {
           pre.className = "manifest-example";
           pre.textContent = [
             `Capabilities: ${module.capabilities.join(", ") || "none"}`,
-            `Permissions: ${module.permissions.join(", ") || "none"}`,
             "",
             ...module.logs.slice(-30),
           ].join("\n");
-          details.append(summary, pre);
+
+          const permissionWrap = document.createElement("div");
+          permissionWrap.className = "stack";
+          if (module.permissions.length) {
+            const permissionTitle = document.createElement("strong");
+            permissionTitle.textContent = "Requested permissions";
+            permissionWrap.append(permissionTitle);
+            for (const permission of module.permissions) {
+              const label = document.createElement("label");
+              label.className = "field";
+              const input = document.createElement("input");
+              input.type = "checkbox";
+              input.value = permission;
+              input.checked = module.grantedPermissions.includes(permission);
+              const text = document.createElement("span");
+              text.textContent = permission;
+              label.append(input, text);
+              permissionWrap.append(label);
+            }
+            const savePermissions = document.createElement("button");
+            savePermissions.type = "button";
+            savePermissions.className = "secondary-button";
+            savePermissions.textContent = "Save permissions";
+            savePermissions.addEventListener("click", () => {
+              const grants = [...permissionWrap.querySelectorAll<HTMLInputElement>('input[type="checkbox"]:checked')].map((input) => input.value);
+              savePermissions.disabled = true;
+              void bailey.setModulePermissions(module.id, grants).then(refresh).finally(() => { savePermissions.disabled = false; });
+            });
+            permissionWrap.append(savePermissions);
+          } else {
+            const none = document.createElement("span");
+            none.className = "muted";
+            none.textContent = "This module requests no privileged host permissions.";
+            permissionWrap.append(none);
+          }
+          details.append(summary, permissionWrap, pre);
           row.append(copy, actions, details);
           return row;
         }));

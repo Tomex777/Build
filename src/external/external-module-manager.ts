@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { mkdir, readFile, readdir } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { BaileyModuleDefinition, CommandContext, MessageEventContext } from "../core/module";
 import { defineCommand, defineModule } from "../core/module";
@@ -71,6 +71,7 @@ export interface ExternalModuleRuntimeStatus {
   lastError?: string;
   capabilities: readonly string[];
   permissions: readonly string[];
+  grantedPermissions: readonly string[];
   logs: readonly string[];
 }
 
@@ -145,6 +146,7 @@ export class ExternalModuleManager {
   private readonly runningJobs = new Set<string>();
   private readonly services = new Map<string, RegisteredService>();
   private readonly restartTimers = new Map<string, NodeJS.Timeout>();
+  private schedulerState: { version: 1; jobs: Record<string, { lastScheduledAt?: number; lastCompletedAt?: number; nextRunAt?: number }> } = { version: 1, jobs: {} };
   private hostSendText?: HostSendText;
   private hostSendMedia?: HostSendMedia;
   private jobsStarted = false;
@@ -155,6 +157,7 @@ export class ExternalModuleManager {
     private readonly getEnvironment: (moduleId: string) => Record<string, string>,
     private readonly isModuleEnabled: (moduleId: string) => boolean = () => true,
     private readonly dataRoot: string = join(modulesRoot, ".data"),
+    private readonly getPermissionGrants?: (moduleId: string) => readonly string[],
   ) {
     this.registerService("host", "info", (_params, context) => ({
       protocol: BAILEY_MODULE_PROTOCOL,
@@ -197,6 +200,7 @@ export class ExternalModuleManager {
       lastError: loaded.diagnostics.lastError,
       capabilities: loaded.manifest.capabilities ?? [],
       permissions: loaded.manifest.permissions ?? [],
+      grantedPermissions: this.getPermissionGrants ? [...this.getPermissionGrants(loaded.manifest.id)] : [...(loaded.manifest.permissions ?? [])],
       logs: loaded.diagnostics.logs,
     }));
   }
@@ -206,20 +210,33 @@ export class ExternalModuleManager {
     if (loaded.diagnostics.logs.length > MAX_LOG_LINES) loaded.diagnostics.logs.splice(0, loaded.diagnostics.logs.length - MAX_LOG_LINES);
   }
 
-  private hasPermission(loaded: LoadedModule, permission: string): boolean {
-    if (permission === "host.info") return true;
-    const permissions = loaded.manifest.permissions ?? [];
-    if (permissions.includes("*") || permissions.includes(permission)) return true;
+  private permissionMatches(values: readonly string[], permission: string): boolean {
+    if (values.includes("*") || values.includes(permission)) return true;
     const parts = permission.split(".");
     for (let i = parts.length - 1; i >= 1; i -= 1) {
-      if (permissions.includes(`${parts.slice(0, i).join(".")}.*`)) return true;
+      if (values.includes(`${parts.slice(0, i).join(".")}.*`)) return true;
     }
     return false;
+  }
+
+  private hasPermission(loaded: LoadedModule, permission: string): boolean {
+    if (permission === "host.info") return true;
+    const requested = loaded.manifest.permissions ?? [];
+    if (!this.permissionMatches(requested, permission)) return false;
+    const granted = this.getPermissionGrants ? this.getPermissionGrants(loaded.manifest.id) : requested;
+    return this.permissionMatches(granted, permission);
   }
 
   async load(): Promise<ExternalModuleLoadResult> {
     this.stopping = false;
     await mkdir(this.modulesRoot, { recursive: true });
+    await mkdir(this.dataRoot, { recursive: true });
+    try {
+      const parsed = JSON.parse(await readFile(join(this.dataRoot, ".scheduler.json"), "utf8")) as typeof this.schedulerState;
+      if (parsed.version === 1 && parsed.jobs && typeof parsed.jobs === "object") this.schedulerState = parsed;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") console.warn("[scheduler] Could not load scheduler state", error);
+    }
     const entries = await readdir(this.modulesRoot, { withFileTypes: true });
     const definitions: BaileyModuleDefinition[] = [];
     const errors: Array<{ folder: string; error: string }> = [];
@@ -596,6 +613,16 @@ export class ExternalModuleManager {
     }
   }
 
+  private async persistSchedulerState(): Promise<void> {
+    await mkdir(this.dataRoot, { recursive: true });
+    await writeFile(join(this.dataRoot, ".scheduler.json"), `${JSON.stringify(this.schedulerState, null, 2)}\n`, "utf8");
+  }
+
+  private jobState(moduleId: string, jobId: string) {
+    const key = `${moduleId}:${jobId}`;
+    return this.schedulerState.jobs[key] ??= {};
+  }
+
   private async runJobWithRetry(loaded: LoadedModule, job: ExternalModuleJobManifest, scheduledAt: number): Promise<void> {
     const attempts = job.retry?.maxAttempts ?? 1;
     const backoff = (job.retry?.backoffSeconds ?? 5) * 1000;
@@ -603,6 +630,10 @@ export class ExternalModuleManager {
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       try {
         await this.executeJob(loaded.manifest.id, job.id, scheduledAt);
+        const state = this.jobState(loaded.manifest.id, job.id);
+        state.lastScheduledAt = scheduledAt;
+        state.lastCompletedAt = Date.now();
+        await this.persistSchedulerState();
         return;
       } catch (error) {
         lastError = error;
@@ -617,14 +648,30 @@ export class ExternalModuleManager {
   private scheduleJob(loaded: LoadedModule, job: ExternalModuleJobManifest): void {
     const key = `${loaded.manifest.id}:${job.id}`;
     const now = Date.now();
+    const state = this.jobState(loaded.manifest.id, job.id);
     let next: number | undefined;
-    if (job.intervalSeconds !== undefined) next = now + job.intervalSeconds * 1000;
-    else if (job.cron !== undefined) next = nextCronTime(job.cron, now);
-    else if (job.runAt !== undefined && job.runAt > now) next = job.runAt;
+
+    if (job.runAt !== undefined) {
+      if (state.lastCompletedAt) return;
+      next = state.nextRunAt ?? job.runAt;
+      if (next <= now) next = now;
+    } else if (state.nextRunAt !== undefined) {
+      next = state.nextRunAt <= now ? now : state.nextRunAt;
+    } else if (job.intervalSeconds !== undefined) {
+      next = now + job.intervalSeconds * 1000;
+    } else if (job.cron !== undefined) {
+      next = nextCronTime(job.cron, now);
+    }
     if (next === undefined) return;
+    state.nextRunAt = next;
+    void this.persistSchedulerState().catch((error) => console.warn("[scheduler] Could not save scheduler state", error));
 
     const timer = setTimeout(() => {
       this.jobTimers.delete(key);
+      const state = this.jobState(loaded.manifest.id, job.id);
+      state.nextRunAt = undefined;
+      state.lastScheduledAt = next;
+      void this.persistSchedulerState().catch((error) => console.warn("[scheduler] Could not save scheduler state", error));
       void this.runJobWithRetry(loaded, job, next!).catch((error) => {
         console.error(`[module:${loaded.manifest.id}] job ${job.id} failed`, error);
       }).finally(() => {

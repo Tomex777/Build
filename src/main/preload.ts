@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld("bailey", {
   installModulePackage: () => ipcRenderer.invoke("bailey:studio-install-module"),
   getModuleRuntimeStatus: () => ipcRenderer.invoke("bailey:module-runtime-status"),
   restartModule: (moduleId: string) => ipcRenderer.invoke("bailey:module-restart", moduleId),
+  setModulePermissions: (moduleId: string, grants: string[]) => ipcRenderer.invoke("bailey:module-permissions-set", moduleId, grants),
   exportBackup: () => ipcRenderer.invoke("bailey:backup-export"),
   importBackup: () => ipcRenderer.invoke("bailey:backup-import"),
   getStorageProfiles: () => ipcRenderer.invoke("bailey:storage-profiles"),
