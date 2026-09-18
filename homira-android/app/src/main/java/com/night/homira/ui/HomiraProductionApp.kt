@@ -2215,6 +2215,7 @@ private fun ActiveCallScreen(
                     track = remoteVideoTrack,
                     eglContext = eglContext,
                     mirror = false,
+                    fit = remoteScreenSharing,
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
@@ -2470,14 +2471,21 @@ private fun WebRtcVideoSurface(
     eglContext: EglBase.Context,
     mirror: Boolean,
     overlay: Boolean = false,
+    fit: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val renderer = remember(context, eglContext, mirror) {
+    val renderer = remember(context, eglContext, mirror, overlay, fit) {
         SurfaceViewRenderer(context).apply {
             init(eglContext, null)
             setMirror(mirror)
-            setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL)
+            setScalingType(
+                if (fit) {
+                    RendererCommon.ScalingType.SCALE_ASPECT_FIT
+                } else {
+                    RendererCommon.ScalingType.SCALE_ASPECT_FILL
+                }
+            )
             setZOrderMediaOverlay(overlay)
         }
     }
