@@ -658,6 +658,16 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 runCatching {
                     liveRepository.startCall(calleeId = person.id, video = video)
                 }.onSuccess { session ->
+                    callHistoryStore.recordRinging(
+                        id = session.id,
+                        peerUserId = person.id,
+                        peerName = person.name,
+                        peerNumber = person.number,
+                        direction = HomiraCallHistoryStore.DIRECTION_OUTGOING,
+                        mediaType = session.mediaType
+                    )
+                    localCallHistory = callHistoryStore.listRecent()
+
                     activeSession = session
                     activePerson = person
                     activeVideo = video
@@ -704,6 +714,9 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                     runCatching {
                         liveRepository.setCallState(session.id, "active")
                     }.onSuccess { updated ->
+                        callHistoryStore.markAnswered(updated.id)
+                        localCallHistory = callHistoryStore.listRecent()
+
                         activeSession = updated
                         activePerson = person
                         activeVideo = updated.mediaType == "video"
@@ -784,17 +797,48 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
             }
 
             liveRepository.loadPendingIncomingCall()?.let { pending ->
+                val person = resolvePerson(pending.callerId)
+                callHistoryStore.recordRinging(
+                    id = pending.id,
+                    peerUserId = person.id,
+                    peerName = person.name,
+                    peerNumber = person.number,
+                    direction = HomiraCallHistoryStore.DIRECTION_INCOMING,
+                    mediaType = pending.mediaType
+                )
+                localCallHistory = callHistoryStore.listRecent()
                 incomingSession = pending
-                incomingPerson = resolvePerson(pending.callerId)
+                incomingPerson = person
             }
 
             liveRepository.observeIncomingCallChanges().collect { session ->
                 when (session.state) {
                     "ringing" -> {
+                        val person = resolvePerson(session.callerId)
+                        callHistoryStore.recordRinging(
+                            id = session.id,
+                            peerUserId = person.id,
+                            peerName = person.name,
+                            peerNumber = person.number,
+                            direction = HomiraCallHistoryStore.DIRECTION_INCOMING,
+                            mediaType = session.mediaType
+                        )
+                        localCallHistory = callHistoryStore.listRecent()
                         incomingSession = session
-                        incomingPerson = resolvePerson(session.callerId)
+                        incomingPerson = person
                     }
-                    "declined", "cancelled", "failed", "ended" -> {
+
+                    "missed", "declined", "cancelled", "failed", "ended" -> {
+                        val outcome = when (session.state) {
+                            "missed" -> HomiraCallHistoryStore.OUTCOME_MISSED
+                            "declined" -> HomiraCallHistoryStore.OUTCOME_DECLINED
+                            "cancelled" -> HomiraCallHistoryStore.OUTCOME_MISSED
+                            "failed" -> HomiraCallHistoryStore.OUTCOME_FAILED
+                            else -> HomiraCallHistoryStore.OUTCOME_MISSED
+                        }
+                        callHistoryStore.markTerminal(session.id, outcome)
+                        localCallHistory = callHistoryStore.listRecent()
+
                         if (incomingSession?.id == session.id) {
                             incomingSession = null
                             incomingPerson = null
@@ -807,13 +851,75 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         LaunchedEffect(liveMode, activeSession?.id) {
             if (!liveMode) return@LaunchedEffect
             val callId = activeSession?.id ?: return@LaunchedEffect
+            val localUserId = liveRepository.currentUserId()
 
             liveRepository.observeCallSession(callId).collect { session ->
                 activeSession = session
-                if (session.state in setOf("declined", "cancelled", "failed", "ended")) {
+
+                if (session.state == "active") {
+                    callHistoryStore.markAnswered(session.id)
+                    localCallHistory = callHistoryStore.listRecent()
+                }
+
+                if (
+                    session.state in setOf(
+                        "missed",
+                        "declined",
+                        "cancelled",
+                        "failed",
+                        "ended"
+                    )
+                ) {
+                    val outcome = when (session.state) {
+                        "missed" -> HomiraCallHistoryStore.OUTCOME_MISSED
+                        "declined" -> HomiraCallHistoryStore.OUTCOME_DECLINED
+                        "cancelled" -> {
+                            if (session.callerId == localUserId) {
+                                HomiraCallHistoryStore.OUTCOME_CANCELLED
+                            } else {
+                                HomiraCallHistoryStore.OUTCOME_MISSED
+                            }
+                        }
+                        "failed" -> HomiraCallHistoryStore.OUTCOME_FAILED
+                        "ended" -> HomiraCallHistoryStore.OUTCOME_ANSWERED
+                        else -> HomiraCallHistoryStore.OUTCOME_FAILED
+                    }
+                    callHistoryStore.markTerminal(session.id, outcome)
+                    localCallHistory = callHistoryStore.listRecent()
+
                     activeSession = null
                     activePerson = null
                     minimized = false
+                }
+            }
+        }
+
+        LaunchedEffect(
+            liveMode,
+            activeSession?.id,
+            activeSession?.state
+        ) {
+            if (!liveMode) return@LaunchedEffect
+
+            val session = activeSession ?: return@LaunchedEffect
+            val localUserId = liveRepository.currentUserId() ?: return@LaunchedEffect
+
+            if (
+                session.callerId == localUserId &&
+                session.state == "ringing"
+            ) {
+                delay(30_000)
+
+                val current = activeSession
+                if (
+                    current?.id == session.id &&
+                    current.state == "ringing"
+                ) {
+                    runCatching {
+                        liveRepository.setCallState(session.id, "missed")
+                    }.onSuccess { missed ->
+                        activeSession = missed
+                    }
                 }
             }
         }
