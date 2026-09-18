@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { BaileyModuleDefinition, CommandContext, MessageEventContext } from "../core/module";
@@ -318,8 +319,20 @@ export class ExternalModuleManager {
     if (!loaded) throw new Error(`External module is not loaded: ${moduleId}`);
     if (loaded.process && loaded.process.exitCode === null && !loaded.process.killed) return loaded.process;
 
-    const useEmbeddedNode = loaded.manifest.runtime.command === "bailey-node";
-    const executable = useEmbeddedNode ? process.execPath : loaded.manifest.runtime.command;
+    const runtimeCommand = loaded.manifest.runtime.command;
+    const useEmbeddedNode = runtimeCommand === "bailey-node";
+    const pythonAlias = ["python", "python3", "py", "bailey-python"].includes(runtimeCommand);
+    const managedPython = process.platform === "win32"
+      ? join(loaded.directory, ".bailey-venv", "Scripts", "python.exe")
+      : join(loaded.directory, ".bailey-venv", "bin", "python");
+    const useManagedPython = pythonAlias && existsSync(managedPython);
+    const executable = useEmbeddedNode
+      ? process.execPath
+      : useManagedPython
+        ? managedPython
+        : runtimeCommand === "bailey-python"
+          ? (process.platform === "win32" ? "python" : "python3")
+          : runtimeCommand;
     const child = spawn(executable, loaded.manifest.runtime.args ?? [], {
       cwd: loaded.directory,
       env: {
