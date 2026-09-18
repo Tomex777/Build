@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -420,29 +421,34 @@ private fun Poster(url: String, modifier: Modifier = Modifier) {
 
 @Composable
 private fun DetailHost(vm: PaheViewModel) {
-    when {
-        vm.detailsLoading -> Box(
-            Modifier
-                .fillMaxSize()
-                .background(Bg),
-            contentAlignment = Alignment.Center,
-        ) {
-            CircularProgressIndicator(color = Accent)
-        }
+    val current = vm.details
+    if (current != null) {
+        DetailScreen(vm, current)
+        return
+    }
 
-        vm.details != null -> DetailScreen(vm, vm.details!!)
-        else -> Column(
-            Modifier
-                .fillMaxSize()
-                .background(Bg)
-                .statusBarsPadding()
-                .padding(20.dp),
-        ) {
-            IconButton(onClick = vm::closeDetails) {
-                Icon(Icons.Rounded.ArrowBack, null, tint = TextMain)
+    BackHandler(onBack = vm::closeDetails)
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Bg),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (vm.detailsLoading) {
+            CircularProgressIndicator(color = Accent)
+        } else {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .padding(20.dp),
+            ) {
+                IconButton(onClick = vm::closeDetails) {
+                    Icon(Icons.Rounded.ArrowBack, null, tint = TextMain)
+                }
+                Spacer(Modifier.height(40.dp))
+                MessageCard(vm.detailsError ?: "Could not open this anime.")
             }
-            Spacer(Modifier.height(40.dp))
-            MessageCard(vm.detailsError ?: "Could not load this anime.")
         }
     }
 }
@@ -451,6 +457,8 @@ private fun DetailHost(vm: PaheViewModel) {
 @Composable
 private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
     var sheetEpisode by remember { mutableStateOf<EpisodeInfo?>(null) }
+
+    BackHandler(onBack = vm::closeDetails)
 
     Box(
         modifier = Modifier
@@ -523,9 +531,52 @@ private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
                 ) {
                     Text("Episodes", color = TextMain, fontSize = 21.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.weight(1f))
-                    Text("Tap to download", color = TextMuted, fontSize = 12.sp)
+                    Text(
+                        if (vm.detailsLoading) "Loading…" else "Tap to download",
+                        color = TextMuted,
+                        fontSize = 12.sp,
+                    )
                 }
             }
+
+            if (vm.detailsLoading) {
+                item {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                            .height(3.dp)
+                            .clip(CircleShape),
+                        color = Accent,
+                        trackColor = Elevated2,
+                    )
+                    Spacer(Modifier.height(14.dp))
+                }
+            }
+
+            vm.detailsError?.let { message ->
+                item {
+                    Box(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                        MessageCard(
+                            message = message,
+                            action = "Retry",
+                            onAction = vm::retryDetails,
+                        )
+                    }
+                }
+            }
+
+            if (!vm.detailsLoading && vm.detailsError == null && details.episodes.isEmpty()) {
+                item {
+                    Text(
+                        "No episodes were returned for this title.",
+                        color = TextMuted,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    )
+                }
+            }
+
             items(
                 details.episodes,
                 key = { "${it.session}_${it.audio}" },
@@ -875,6 +926,15 @@ private fun formatSaved(time: Long): String {
 private fun VerificationScreen(vm: PaheViewModel) {
     var webView by remember { mutableStateOf<WebView?>(null) }
     val context = LocalContext.current
+
+    BackHandler {
+        val browser = webView
+        if (vm.verifyStage != VerifyStage.PREPARING_SECOND && browser?.canGoBack() == true) {
+            browser.goBack()
+        } else {
+            vm.closeVerification()
+        }
+    }
 
     Column(
         modifier = Modifier
