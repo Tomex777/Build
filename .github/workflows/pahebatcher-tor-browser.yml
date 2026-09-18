@@ -1,0 +1,57 @@
+name: PaheBatcher Tor Browser Probe
+
+on:
+  push:
+    branches: [pahebatcher-android-ci]
+    paths:
+      - 'pahebatcher-android/ci/tor_browser_probe.py'
+      - '.github/workflows/pahebatcher-tor-browser.yml'
+  workflow_dispatch:
+
+jobs:
+  tor-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Start Tor
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y tor xvfb
+          echo 'ControlPort 9051' | sudo tee -a /etc/tor/torrc
+          echo 'CookieAuthentication 0' | sudo tee -a /etc/tor/torrc
+          echo 'SocksPort 9050' | sudo tee -a /etc/tor/torrc
+          sudo systemctl restart tor || sudo service tor restart
+
+          ready=false
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 15 --socks5-hostname 127.0.0.1:9050 https://check.torproject.org/api/ip > tor-browser-check.json; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = true
+          cat tor-browser-check.json
+
+      - name: Check browser availability
+        run: |
+          google-chrome --version || chromium --version || true
+          chromedriver --version || true
+
+      - name: Run real-browser Tor probe
+        run: |
+          python3 -m pip install --disable-pip-version-check --quiet 'selenium>=4.35,<5'
+          xvfb-run -a python3 pahebatcher-android/ci/tor_browser_probe.py
+
+      - name: Upload browser probe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pahebatcher-tor-browser-report
+          path: |
+            tor-browser-check.json
+            tor-browser-probe/**
+          if-no-files-found: warn
