@@ -22,11 +22,27 @@ def dump_ui() -> ET.Element:
 def visible_texts(root: ET.Element) -> list[str]:
     return [n.attrib.get("text", "") for n in root.iter("node") if n.attrib.get("text")]
 
+def wait_for_text(text: str, timeout: float = 35.0) -> None:
+    deadline = time.time() + timeout
+    last: list[str] = []
+    while time.time() < deadline:
+        try:
+            root = dump_ui()
+            last = visible_texts(root)
+            if text in last:
+                return
+        except Exception:
+            pass
+        time.sleep(1.0)
+    raise AssertionError(f"Missing UI text {text!r}. Visible text: {last}")
+
 def assert_text(text: str) -> None:
-    root = dump_ui()
-    values = visible_texts(root)
-    if text not in values:
-        raise AssertionError(f"Missing UI text {text!r}. Visible text: {values}")
+    wait_for_text(text, timeout=5.0)
+
+def assert_text_absent(fragment: str) -> None:
+    values = visible_texts(dump_ui())
+    if any(fragment in value for value in values):
+        raise AssertionError(f"Unexpected UI text containing {fragment!r}. Visible text: {values}")
 
 def tap_text(text: str) -> None:
     root = dump_ui()
@@ -38,7 +54,7 @@ def tap_text(text: str) -> None:
             continue
         x1, y1, x2, y2 = map(int, match.groups())
         adb("shell", "input", "tap", str((x1 + x2) // 2), str((y1 + y2) // 2))
-        time.sleep(2)
+        time.sleep(1.5)
         return
     raise AssertionError(f"Could not find tappable text {text!r}")
 
@@ -62,7 +78,35 @@ assert_text("Step 1 of 2 · AnimePahe")
 assert_text("I’ve completed AnimePahe")
 screenshot("verification.png")
 
+# Verify the phone/system Back action returns from the browser instead of exiting.
+adb("shell", "input", "keyevent", "4")
+wait_for_text("Web verification", timeout=8.0)
+screenshot("settings-after-system-back.png")
+
+tap_text("Explore")
+wait_for_text("Search AnimePahe", timeout=8.0)
+tap_text("Search AnimePahe")
+adb("shell", "input", "text", "bleach")
+adb("shell", "input", "keyevent", "66")
+wait_for_text("Bleach", timeout=45.0)
+screenshot("search-bleach.png")
+
+tap_text("Bleach")
+wait_for_text("Episodes", timeout=8.0)
+screenshot("details-shell.png")
+
+# The shell must remain visible while the real release request resolves.
+# Over the CI-only Tor path we also require at least the first episode.
+wait_for_text("1", timeout=45.0)
+assert_text_absent("AnimePahe verification is needed")
+screenshot("details-loaded.png")
+
+# Verify Android system Back returns to the search results.
+adb("shell", "input", "keyevent", "4")
+wait_for_text("Results", timeout=8.0)
+screenshot("search-after-system-back.png")
+
 pid = adb("shell", "pidof", "com.night.pahebatcher").stdout.strip()
 if not pid:
     raise SystemExit("PaheBatcher process is not running after visual smoke")
-print(f"PaheBatcher visual smoke passed with pid {pid}")
+print(f"PaheBatcher visual + live AnimePahe smoke passed with pid {pid}")
