@@ -5,6 +5,7 @@ package com.night.sora.ui.screens
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.view.LayoutInflater
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -25,6 +26,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.night.sora.R
 import com.night.sora.model.PlaybackSession
 import com.night.sora.ui.player.AniyomiPlayerGestureLayer
 import com.night.sora.ui.player.AniyomiPlayerView
@@ -173,7 +175,11 @@ fun VideoPlayerScreen(
     ) {
         AndroidView(
             factory = { ctx ->
-                AniyomiPlayerView(ctx).also { view ->
+                (LayoutInflater.from(ctx).inflate(
+                    R.layout.sora_aniyomi_player_view,
+                    null,
+                    false,
+                ) as AniyomiPlayerView).also { view ->
                     view.initialize()
                     player = view
                 }
