@@ -13,6 +13,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
 
     <application
+        android:name=".HomiraApplication"
         android:allowBackup="false"
         android:label="Homira"
         android:supportsRtl="true"
@@ -25,6 +26,18 @@
         <receiver
             android:name=".call.HomiraCallActionReceiver"
             android:exported="false" />
+
+        <service
+            android:name=".call.HomiraFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <meta-data
+            android:name="firebase_messaging_auto_init_enabled"
+            android:value="false" />
 
         <activity
             android:name=".MainActivity"
