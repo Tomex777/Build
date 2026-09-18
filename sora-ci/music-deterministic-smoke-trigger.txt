@@ -1,1 +1,1 @@
-2026-09-18 final-final Music lyrics and mini Next proof with retry-safe raw UI taps.
+2026-09-18 rerun Music lyrics and mini Next with offline-proof server available during transport regression.
