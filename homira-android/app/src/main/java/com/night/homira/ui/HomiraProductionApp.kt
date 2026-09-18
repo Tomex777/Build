@@ -103,6 +103,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -204,6 +205,16 @@ private data class CallEntry(
     val callSessionId: String? = null,
     val timestampMillis: Long = 0L
 )
+
+private fun normalizeDirectDialP(value: String): String? {
+    val trimmed = value.trim()
+    if (!trimmed.startsWith("+")) return null
+
+    val digits = trimmed.drop(1).filter(Char::isDigit)
+    if (digits.length !in 7..15) return null
+
+    return "+$digits"
+}
 
 private fun prepareProfileJpeg(
     context: Context,
@@ -447,6 +458,7 @@ fun HomiraProductionApp(
         var activePerson by remember { mutableStateOf<HomiraPerson?>(null) }
         var activeVideo by rememberSaveable { mutableStateOf(false) }
         var minimized by rememberSaveable { mutableStateOf(false) }
+        var resolvingDial by remember { mutableStateOf(false) }
         var activeSession by remember { mutableStateOf<LiveCallSession?>(null) }
         var incomingSession by remember { mutableStateOf<LiveCallSession?>(null) }
         var incomingPerson by remember { mutableStateOf<HomiraPerson?>(null) }
@@ -1755,22 +1767,25 @@ fun HomiraProductionApp(
                         when (current) {
                             MainTab.Keypad -> KeypadScreen(
                                 contacts = appContacts,
+                                resolvingDial = resolvingDial,
                                 onSettings = { overlay = OverlayScreen.Settings },
                                 onSearchContacts = { tab = MainTab.Contacts },
-                                onDial = { value ->
+                                onDial = dial@{ value ->
+                                    if (resolvingDial) return@dial
+
                                     val digits = digitsOnlyP(value)
                                     val found = appContacts.firstOrNull {
-                                        digitsOnlyP(it.number).endsWith(digits.takeLast(10)) && digits.length >= 7
+                                        digitsOnlyP(it.number).endsWith(
+                                            digits.takeLast(10)
+                                        ) && digits.length >= 7
                                     }
+
                                     if (found != null) {
                                         beginCall(found, false)
-                                    } else if (liveMode) {
-                                        Toast.makeText(
-                                            context,
-                                            "Add this Homira user first, then call from Contacts.",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    } else {
+                                        return@dial
+                                    }
+
+                                    if (!liveMode) {
                                         beginCall(
                                             HomiraPerson(
                                                 id = "dial-$digits",
@@ -1781,6 +1796,62 @@ fun HomiraProductionApp(
                                             ),
                                             false
                                         )
+                                        return@dial
+                                    }
+
+                                    val phone = normalizeDirectDialP(value)
+                                    if (phone == null) {
+                                        Toast.makeText(
+                                            context,
+                                            "Use the full number with country code, like +234…",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                        return@dial
+                                    }
+
+                                    resolvingDial = true
+                                    liveScope.launch {
+                                        runCatching {
+                                            liveRepository.resolveDialTarget(phone)
+                                        }.onSuccess { target ->
+                                            if (target == null) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "That number isn't on Homira.",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            } else {
+                                                val name = target.displayName
+                                                    .takeIf { it.isNotBlank() }
+                                                    ?: target.username
+                                                    ?: target.phoneE164
+                                                    ?: phone
+
+                                                beginCall(
+                                                    HomiraPerson(
+                                                        id = target.id,
+                                                        name = name,
+                                                        marker = name
+                                                            .firstOrNull()
+                                                            ?.uppercaseChar()
+                                                            ?.toString()
+                                                            ?: "H",
+                                                        accent = HomiraGreen,
+                                                        number = target.phoneE164
+                                                            ?: phone
+                                                    ),
+                                                    false
+                                                )
+                                            }
+                                        }.onFailure {
+                                            Toast.makeText(
+                                                context,
+                                                it.message
+                                                    ?: "Could not look up that number.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                        resolvingDial = false
                                     }
                                 }
                             )
@@ -1904,6 +1975,7 @@ private fun HeaderActions(
 @Composable
 private fun KeypadScreen(
     contacts: List<HomiraPerson>,
+    resolvingDial: Boolean,
     onSettings: () -> Unit,
     onSearchContacts: () -> Unit,
     onDial: (String) -> Unit
@@ -1960,7 +2032,15 @@ private fun KeypadScreen(
                 if (match != null) {
                     Text("${match.name} · Homira", color = match.accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 } else if (digitsOnlyP(number).length >= 7) {
-                    Text("Not on Homira", color = HomiraMuted, fontSize = 13.sp)
+                    Text(
+                        when {
+                            resolvingDial -> "Checking Homira…"
+                            number.trim().startsWith("+") -> "Call with Homira"
+                            else -> "Use +country code for an unsaved number"
+                        },
+                        color = if (resolvingDial) HomiraGreen else HomiraMuted,
+                        fontSize = 13.sp
+                    )
                 }
             } else {
                 Spacer(Modifier.height(44.dp))
@@ -1987,17 +2067,37 @@ private fun KeypadScreen(
             Surface(
                 modifier = Modifier
                     .size(70.dp)
-                    .clickable(enabled = number.isNotBlank()) { onDial(number) },
+                    .clickable(
+                        enabled = number.isNotBlank() && !resolvingDial
+                    ) {
+                        onDial(number)
+                    },
                 shape = CircleShape,
-                color = if (number.isBlank()) HomiraSurfaceRaised else HomiraGreen
+                color = if (number.isBlank() || resolvingDial) {
+                    HomiraSurfaceRaised
+                } else {
+                    HomiraGreen
+                }
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Rounded.Call,
-                        contentDescription = "Call",
-                        tint = if (number.isBlank()) HomiraMuted else Color.Black,
-                        modifier = Modifier.size(30.dp)
-                    )
+                    if (resolvingDial) {
+                        CircularProgressIndicator(
+                            color = HomiraGreen,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    } else {
+                        Icon(
+                            Icons.Rounded.Call,
+                            contentDescription = "Call",
+                            tint = if (number.isBlank()) {
+                                HomiraMuted
+                            } else {
+                                Color.Black
+                            },
+                            modifier = Modifier.size(30.dp)
+                        )
+                    }
                 }
             }
             Spacer(Modifier.width(34.dp))
