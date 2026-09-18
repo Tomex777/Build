@@ -125,6 +125,21 @@ PY
   sleep 2
 }
 
+tap_text_retry() {
+  local label="$1"
+  local timeout="${2:-12}"
+  local elapsed=0
+  while (( elapsed < timeout )); do
+    if tap_text "$label"; then
+      return 0
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+  echo "Timed out trying to tap '$label'" >&2
+  return 1
+}
+
 rapid_double_tap_text() {
   local label="$1"
   dismiss_system_dialogs
@@ -171,17 +186,17 @@ shot 00-home
 
 tap_media_tab
 wait_for_node 'Anime & Manga' 10
-tap_text 'Anime & Manga'
+tap_text_retry 'Anime & Manga' 12
 wait_for_node Music 10
-tap_text Music
+tap_text_retry Music 12
 wait_for_node 'Low Light' 20
 shot 01-music-demo-catalog
 
 # Capture every top-level Music tab for visual review.
-tap_text 'Your Music'
+tap_text_retry 'Your Music' 12
 sleep 2
 shot 01b-music-your-music
-tap_text Home
+tap_text_retry Home 12
 sleep 2
 shot 01c-music-home-return
 
