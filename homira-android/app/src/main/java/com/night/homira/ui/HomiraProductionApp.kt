@@ -6,6 +6,8 @@ import android.content.pm.PackageManager
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import com.night.homira.call.HomiraWebRtcState
+import com.night.homira.call.HomiraAudioRecorder
+import com.night.homira.call.HomiraAudioPlayer
 import com.night.homira.call.HomiraScreenShareService
 import com.night.homira.call.HomiraWebRtcVoiceEngine
 import com.night.homira.data.HomiraCallSignaling
@@ -145,6 +147,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
+import java.io.File
 import kotlin.math.roundToInt
 
 private enum class MainTab { Keypad, Recents, Contacts, Me }
@@ -322,6 +325,12 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         }
         var profileEmail by rememberSaveable(initialProfile?.id) {
             mutableStateOf(initialProfile?.email.orEmpty())
+        }
+        var voicemailGreetingMode by rememberSaveable(initialProfile?.id) {
+            mutableStateOf(initialProfile?.voicemailGreetingMode ?: "default")
+        }
+        var voicemailGreetingPath by rememberSaveable(initialProfile?.id) {
+            mutableStateOf(initialProfile?.voicemailGreetingPath)
         }
         var avatarUri by rememberSaveable { mutableStateOf<String?>(null) }
         var callCardUri by rememberSaveable { mutableStateOf<String?>(null) }
@@ -708,11 +717,20 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
             )
 
             overlay == OverlayScreen.Settings -> SettingsScreen(
+                voicemailGreetingMode = voicemailGreetingMode,
                 onBack = { overlay = OverlayScreen.None },
                 onVoicemail = { overlay = OverlayScreen.Voicemail }
             )
 
             overlay == OverlayScreen.Voicemail -> VoicemailSettingsScreen(
+                repository = liveRepository,
+                liveMode = liveMode,
+                initialMode = voicemailGreetingMode,
+                initialPath = voicemailGreetingPath,
+                onGreetingChanged = { mode, path ->
+                    voicemailGreetingMode = mode
+                    voicemailGreetingPath = path
+                },
                 onBack = { overlay = OverlayScreen.Settings }
             )
 
@@ -1888,7 +1906,11 @@ private fun EditProfileScreen(
 }
 
 @Composable
-private fun SettingsScreen(onBack: () -> Unit, onVoicemail: () -> Unit) {
+private fun SettingsScreen(
+    voicemailGreetingMode: String,
+    onBack: () -> Unit,
+    onVoicemail: () -> Unit
+) {
     var lowData by rememberSaveable { mutableStateOf(false) }
     var protectIp by rememberSaveable { mutableStateOf(false) }
     var notifications by rememberSaveable { mutableStateOf(true) }
@@ -1909,7 +1931,11 @@ private fun SettingsScreen(onBack: () -> Unit, onVoicemail: () -> Unit) {
             SectionTitleP("Calls")
             SettingsToggleP(Icons.Rounded.DataSaverOn, "Use less data for calls", "Reduce bitrate on mobile data", lowData) { lowData = it }
             SettingsRowP(Icons.Rounded.PhoneInTalk, "Call quality", "Automatic") { }
-            SettingsRowP(Icons.Rounded.Voicemail, "Voicemail", "Custom voice greeting") { onVoicemail() }
+            SettingsRowP(
+                Icons.Rounded.Voicemail,
+                "Voicemail",
+                if (voicemailGreetingMode == "voice") "Custom voice greeting" else "Default greeting"
+            ) { onVoicemail() }
             SettingsRowP(Icons.Rounded.Notifications, "Ringtone", "Default") { }
         }
         item {
@@ -1930,58 +1956,318 @@ private fun SettingsScreen(onBack: () -> Unit, onVoicemail: () -> Unit) {
 }
 
 @Composable
-private fun VoicemailSettingsScreen(onBack: () -> Unit) {
-    var customGreeting by rememberSaveable { mutableStateOf(true) }
+private fun VoicemailSettingsScreen(
+    repository: HomiraLiveRepository,
+    liveMode: Boolean,
+    initialMode: String,
+    initialPath: String?,
+    onGreetingChanged: (String, String?) -> Unit,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val recorder = remember(context) { HomiraAudioRecorder(context) }
+    val player = remember { HomiraAudioPlayer() }
+
+    var customGreeting by rememberSaveable(initialMode) {
+        mutableStateOf(initialMode == "voice")
+    }
+    var greetingPath by rememberSaveable(initialPath) {
+        mutableStateOf(initialPath)
+    }
     var recording by rememberSaveable { mutableStateOf(false) }
     var recordingSeconds by rememberSaveable { mutableIntStateOf(0) }
     var previewPlaying by rememberSaveable { mutableStateOf(false) }
+    var savedGreetingSeconds by rememberSaveable { mutableIntStateOf(0) }
+    var recordingFile by remember { mutableStateOf<File?>(null) }
+    var previewFile by remember { mutableStateOf<File?>(null) }
+    var saving by remember { mutableStateOf(false) }
+    var pendingRecordStart by remember { mutableStateOf(false) }
+    var microphoneGranted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val startRecording: () -> Unit = {
+        player.stop()
+        previewPlaying = false
+
+        val file = File(
+            context.cacheDir,
+            "homira-greeting-${System.currentTimeMillis()}.m4a"
+        )
+        runCatching {
+            recorder.start(file)
+        }.onSuccess {
+            recordingFile = file
+            recordingSeconds = 0
+            recording = true
+        }.onFailure {
+            file.delete()
+            Toast.makeText(
+                context,
+                it.message ?: "Could not start recording.",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    val microphoneLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        microphoneGranted = granted
+        if (!granted) {
+            pendingRecordStart = false
+            Toast.makeText(
+                context,
+                "Microphone permission is required to record your greeting.",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    LaunchedEffect(microphoneGranted, pendingRecordStart) {
+        if (microphoneGranted && pendingRecordStart) {
+            pendingRecordStart = false
+            startRecording()
+        }
+    }
+
+    val stopAndSave: () -> Unit = {
+        val file = recordingFile
+        val durationSeconds = recordingSeconds.coerceAtLeast(1)
+        val stopped = recorder.stop()
+        recording = false
+
+        if (!stopped || file == null || !file.exists() || file.length() == 0L) {
+            file?.delete()
+            recordingFile = null
+            Toast.makeText(
+                context,
+                "That recording was too short. Try again.",
+                Toast.LENGTH_SHORT
+            ).show()
+        } else {
+            previewFile?.takeIf { it != file }?.delete()
+            previewFile = file
+            savedGreetingSeconds = durationSeconds
+            customGreeting = true
+
+            if (liveMode) {
+                saving = true
+                scope.launch {
+                    runCatching {
+                        repository.saveVoicemailGreeting(file)
+                    }.onSuccess { profile ->
+                        greetingPath = profile.voicemailGreetingPath
+                        customGreeting = profile.voicemailGreetingMode == "voice"
+                        onGreetingChanged(
+                            profile.voicemailGreetingMode,
+                            profile.voicemailGreetingPath
+                        )
+                    }.onFailure {
+                        Toast.makeText(
+                            context,
+                            it.message ?: "Could not save your greeting.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    saving = false
+                }
+            } else {
+                greetingPath = file.absolutePath
+                onGreetingChanged("voice", greetingPath)
+            }
+        }
+    }
 
     LaunchedEffect(recording) {
         if (recording) {
-            recordingSeconds = 0
             while (recording && recordingSeconds < 30) {
                 delay(1_000)
-                recordingSeconds++
+                if (recording) recordingSeconds++
             }
-            if (recordingSeconds >= 30) recording = false
+            if (recording && recordingSeconds >= 30) {
+                stopAndSave()
+            }
+        }
+    }
+
+    fun playGreeting() {
+        if (previewPlaying) {
+            player.stop()
+            previewPlaying = false
+            return
+        }
+
+        previewFile?.takeIf { it.exists() }?.let { file ->
+            previewPlaying = true
+            player.play(file) { previewPlaying = false }
+            return
+        }
+
+        val path = greetingPath ?: return
+        if (!liveMode) return
+
+        scope.launch {
+            runCatching {
+                val bytes = repository.downloadVoicemailAudio(path)
+                File.createTempFile("homira-greeting-preview-", ".m4a", context.cacheDir).apply {
+                    writeBytes(bytes)
+                }
+            }.onSuccess { file ->
+                previewFile?.delete()
+                previewFile = file
+                previewPlaying = true
+                player.play(file) { previewPlaying = false }
+            }.onFailure {
+                Toast.makeText(
+                    context,
+                    it.message ?: "Could not load your greeting.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    fun useDefaultGreeting() {
+        player.stop()
+        previewPlaying = false
+
+        if (!liveMode) {
+            customGreeting = false
+            greetingPath = null
+            onGreetingChanged("default", null)
+            return
+        }
+
+        saving = true
+        scope.launch {
+            runCatching {
+                repository.useDefaultVoicemailGreeting()
+            }.onSuccess { profile ->
+                customGreeting = false
+                greetingPath = null
+                previewFile?.delete()
+                previewFile = null
+                onGreetingChanged(
+                    profile.voicemailGreetingMode,
+                    profile.voicemailGreetingPath
+                )
+            }.onFailure {
+                Toast.makeText(
+                    context,
+                    it.message ?: "Could not switch to the default greeting.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            saving = false
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            recorder.cancel()
+            player.stop()
+            recordingFile?.delete()
+            previewFile?.takeIf { it != recordingFile }?.delete()
         }
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(HomiraBackground).safeDrawingPadding(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(HomiraBackground)
+            .safeDrawingPadding(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = HomiraText) }
+                IconButton(
+                    onClick = {
+                        if (recording) stopAndSave()
+                        onBack()
+                    }
+                ) {
+                    Icon(
+                        Icons.Rounded.ArrowBack,
+                        contentDescription = "Back",
+                        tint = HomiraText
+                    )
+                }
                 Column {
-                    Text("Voicemail", color = HomiraText, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                    Text("What callers hear when you don't answer", color = HomiraMuted, fontSize = 12.sp)
+                    Text(
+                        "Voicemail",
+                        color = HomiraText,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "What callers hear when you don't answer",
+                        color = HomiraMuted,
+                        fontSize = 12.sp
+                    )
                 }
             }
         }
 
         item {
-            Card(shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = HomiraSurface)) {
+            Card(
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = HomiraSurface)
+            ) {
                 Column(Modifier.padding(18.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(modifier = Modifier.size(46.dp), shape = CircleShape, color = HomiraGreen.copy(alpha = .12f)) {
+                        Surface(
+                            modifier = Modifier.size(46.dp),
+                            shape = CircleShape,
+                            color = HomiraGreen.copy(alpha = .12f)
+                        ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Rounded.Mic, contentDescription = null, tint = HomiraGreen)
+                                Icon(
+                                    Icons.Rounded.Mic,
+                                    contentDescription = null,
+                                    tint = HomiraGreen
+                                )
                             }
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("Your greeting", color = HomiraText, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                            Text(if (customGreeting) "Custom voice greeting" else "Default Homira greeting", color = HomiraMuted, fontSize = 12.sp)
+                            Text(
+                                "Your greeting",
+                                color = HomiraText,
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                if (customGreeting) {
+                                    if (greetingPath != null || previewFile != null) {
+                                        "Custom voice greeting"
+                                    } else {
+                                        "Record your voice"
+                                    }
+                                } else {
+                                    "Default Homira greeting"
+                                },
+                                color = HomiraMuted,
+                                fontSize = 12.sp
+                            )
                         }
                     }
 
                     Spacer(Modifier.height(18.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        FilterChip("My voice", customGreeting) { customGreeting = true }
-                        FilterChip("Default", !customGreeting) { customGreeting = false }
+                        FilterChip("My voice", customGreeting) {
+                            customGreeting = true
+                        }
+                        FilterChip("Default", !customGreeting) {
+                            if (!saving && !recording) useDefaultGreeting()
+                        }
                     }
 
                     if (customGreeting) {
@@ -1991,37 +2277,101 @@ private fun VoicemailSettingsScreen(onBack: () -> Unit) {
                             color = HomiraSurfaceRaised
                         ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                IconButton(onClick = { previewPlaying = !previewPlaying }) {
+                                val canPreview =
+                                    previewFile?.exists() == true || greetingPath != null
+                                IconButton(
+                                    enabled = canPreview && !saving && !recording,
+                                    onClick = { playGreeting() }
+                                ) {
                                     Icon(
-                                        if (previewPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                        if (previewPlaying) {
+                                            Icons.Rounded.Pause
+                                        } else {
+                                            Icons.Rounded.PlayArrow
+                                        },
                                         contentDescription = "Preview greeting",
-                                        tint = HomiraGreen
+                                        tint = if (canPreview) HomiraGreen else HomiraMuted
                                     )
                                 }
                                 Column(Modifier.weight(1f)) {
-                                    Text("Current greeting", color = HomiraText, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                                    Text("0:07", color = HomiraMuted, fontSize = 12.sp)
+                                    Text(
+                                        if (canPreview) "Current greeting" else "No custom greeting yet",
+                                        color = HomiraText,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        when {
+                                            saving -> "Saving…"
+                                            savedGreetingSeconds > 0 ->
+                                                "0:${savedGreetingSeconds.toString().padStart(2, '0')}"
+                                            canPreview -> "Saved securely"
+                                            else -> "Record up to 30 seconds"
+                                        },
+                                        color = HomiraMuted,
+                                        fontSize = 12.sp
+                                    )
                                 }
-                                Text("My voice", color = HomiraGreen, fontSize = 12.sp)
+                                if (canPreview) {
+                                    Text(
+                                        "My voice",
+                                        color = HomiraGreen,
+                                        fontSize = 12.sp
+                                    )
+                                }
                             }
                         }
 
                         Spacer(Modifier.height(12.dp))
                         Button(
-                            onClick = { recording = !recording },
+                            onClick = {
+                                if (saving) return@Button
+
+                                if (recording) {
+                                    stopAndSave()
+                                } else if (microphoneGranted) {
+                                    startRecording()
+                                } else {
+                                    pendingRecordStart = true
+                                    microphoneLauncher.launch(
+                                        Manifest.permission.RECORD_AUDIO
+                                    )
+                                }
+                            },
+                            enabled = !saving,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(18.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (recording) HomiraDanger else HomiraText,
-                                contentColor = if (recording) Color.White else HomiraBackground
+                                containerColor = if (recording) {
+                                    HomiraDanger
+                                } else {
+                                    HomiraText
+                                },
+                                contentColor = if (recording) {
+                                    Color.White
+                                } else {
+                                    HomiraBackground
+                                }
                             )
                         ) {
-                            Icon(if (recording) Icons.Rounded.MicOff else Icons.Rounded.Mic, contentDescription = null)
+                            Icon(
+                                if (recording) Icons.Rounded.MicOff else Icons.Rounded.Mic,
+                                contentDescription = null
+                            )
                             Spacer(Modifier.width(8.dp))
-                            Text(if (recording) "Stop recording · 0:${recordingSeconds.toString().padStart(2, '0')}" else "Record a new greeting")
+                            Text(
+                                when {
+                                    saving -> "Saving greeting…"
+                                    recording ->
+                                        "Stop recording · 0:${recordingSeconds.toString().padStart(2, '0')}"
+                                    else -> "Record a new greeting"
+                                }
+                            )
                         }
                         Spacer(Modifier.height(8.dp))
                         Text(
@@ -2037,9 +2387,21 @@ private fun VoicemailSettingsScreen(onBack: () -> Unit) {
 
         item {
             SectionTitleP("When you don't answer")
-            InfoRowP(Icons.Rounded.PhoneMissed, "No answer", "Offer voicemail after the ring timeout")
-            InfoRowP(Icons.Rounded.PhoneInTalk, "Busy", "Offer voicemail when you're already on a call")
-            InfoRowP(Icons.Rounded.Voicemail, "Message length", "Up to 2 minutes")
+            InfoRowP(
+                Icons.Rounded.PhoneMissed,
+                "No answer",
+                "Offer voicemail after the ring timeout"
+            )
+            InfoRowP(
+                Icons.Rounded.PhoneInTalk,
+                "Busy",
+                "Offer voicemail when you're already on a call"
+            )
+            InfoRowP(
+                Icons.Rounded.Voicemail,
+                "Message length",
+                "Up to 2 minutes"
+            )
         }
     }
 }
