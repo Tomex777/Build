@@ -42,7 +42,9 @@ private enum class LiveGateState {
 }
 
 @Composable
-fun HomiraAuthGate() {
+fun HomiraAuthGate(
+    requestedCallId: String? = null
+) {
     val repository = remember { HomiraLiveRepository() }
     var gateState by remember { mutableStateOf(LiveGateState.Loading) }
 
@@ -74,6 +76,7 @@ fun HomiraAuthGate() {
 
         LiveGateState.SignedIn -> LiveProfileHost(
             repository = repository,
+            requestedCallId = requestedCallId,
             onSignedOut = { gateState = LiveGateState.SignedOut }
         )
     }
@@ -236,6 +239,7 @@ private fun PhoneOtpScreen(
 @Composable
 private fun LiveProfileHost(
     repository: HomiraLiveRepository,
+    requestedCallId: String?,
     onSignedOut: () -> Unit
 ) {
     var loading by remember { mutableStateOf(true) }
@@ -264,6 +268,7 @@ private fun LiveProfileHost(
             initialProfile = profile,
             initialContacts = contacts,
             liveMode = true,
+            requestedCallId = requestedCallId,
             onSignedOut = onSignedOut
         )
     }
