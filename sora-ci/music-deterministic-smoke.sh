@@ -125,6 +125,36 @@ PY
   sleep 2
 }
 
+tap_text_raw() {
+  local label="$1"
+  dump_ui
+  python3 - "$label" <<'PY'
+import re, subprocess, sys, xml.etree.ElementTree as ET
+label=sys.argv[1]
+root=ET.parse('/tmp/sora-music-window.xml').getroot()
+exact=[]
+partial=[]
+for node in root.iter('node'):
+    text=(node.attrib.get('text') or '').strip()
+    desc=(node.attrib.get('content-desc') or '').strip()
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+    if not m:
+        continue
+    x1,y1,x2,y2=map(int,m.groups())
+    point=((x1+x2)//2,(y1+y2)//2)
+    if text == label or desc == label:
+        exact.append(point)
+    elif label in text or label in desc:
+        partial.append(point)
+points=exact or partial
+if not points:
+    raise SystemExit(f'UI node not found: {label}')
+x,y=points[0]
+subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
+PY
+  sleep 2
+}
+
 tap_text_retry() {
   local label="$1"
   local timeout="${2:-12}"
@@ -186,9 +216,9 @@ shot 00-home
 
 tap_media_tab
 wait_for_node 'Anime & Manga' 10
-tap_text_retry 'Anime & Manga' 12
+tap_text_raw 'Anime & Manga'
 wait_for_node Music 10
-tap_text_retry Music 12
+tap_text_raw Music
 wait_for_node 'Low Light' 20
 shot 01-music-demo-catalog
 
