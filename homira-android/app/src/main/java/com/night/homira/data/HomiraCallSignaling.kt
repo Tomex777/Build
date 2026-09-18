@@ -32,7 +32,7 @@ class HomiraCallSignaling(
     }
 
     val signals: Flow<CallSignalEnvelope> =
-        channel.broadcastFlow(event = "signal")
+        channel.broadcastFlow<CallSignalEnvelope>(event = "signal")
 
     suspend fun connect() {
         client.realtime.connect()
