@@ -168,7 +168,7 @@ class PaheRepository(
             try {
                 var page = 1
                 while (true) {
-                    val data = releasePage(host, animeSession, candidate.animeId, page)
+                    val data = releasePage(host, animeSession, page)
                     val rows = data.optJSONArray("data") ?: break
                     for (index in 0 until rows.length()) {
                         val item = rows.optJSONObject(index) ?: continue
@@ -219,7 +219,7 @@ class PaheRepository(
             ?: search("Naruto").firstOrNull()
             ?: throw IOException("Could not find an anime to open the second verification")
         val host = sessions.animeHost().ifBlank { animeHosts.first() }
-        val page = releasePage(host, seed.session, seed.animeId, 1)
+        val page = releasePage(host, seed.session, 1)
         val rows = page.optJSONArray("data")
             ?: throw IOException("AnimePahe returned no episodes for verification")
         var last: Exception? = null
@@ -408,17 +408,13 @@ class PaheRepository(
     private fun releasePage(
         host: String,
         session: String,
-        animeId: Int? = null,
         page: Int,
     ): JSONObject {
         val cacheBust = System.currentTimeMillis() / 1000L
-        val urls = buildList {
-            add("https://$host/api?m=release&id=$session&sort=episode_asc&page=$page&_=$cacheBust")
-            animeId?.takeIf { it > 0 }?.let { id ->
-                add("https://$host/api?m=release&id=$id&sort=episode_asc&page=$page&_=$cacheBust")
-            }
-            add("https://$host/api/$session/releases?sort=episode_asc&page=$page&_=$cacheBust")
-        }.distinct()
+        val urls = listOf(
+            "https://$host/api?m=release&id=$session&sort=episode_asc&page=$page&_=$cacheBust",
+            "https://$host/api/$session/releases?sort=episode_asc&page=$page&_=$cacheBust",
+        )
 
         var verification: VerificationRequired? = null
         var lastFailure: Exception? = null
