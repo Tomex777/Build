@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.night.homira.data.HomiraLiveRepository
 import com.night.homira.data.LiveProfile
+import com.night.homira.data.LiveContact
 import kotlinx.coroutines.launch
 
 private enum class LiveGateState {
@@ -233,9 +234,11 @@ private fun PhoneOtpScreen(
 private fun LiveProfileHost(repository: HomiraLiveRepository) {
     var loading by remember { mutableStateOf(true) }
     var profile by remember { mutableStateOf<LiveProfile?>(null) }
+    var contacts by remember { mutableStateOf<List<LiveContact>>(emptyList()) }
 
     LaunchedEffect(Unit) {
         profile = repository.loadMyProfile()
+        contacts = runCatching { repository.loadContacts() }.getOrDefault(emptyList())
         loading = false
     }
 
@@ -251,6 +254,6 @@ private fun LiveProfileHost(repository: HomiraLiveRepository) {
             }
         }
     } else {
-        HomiraProductionApp(initialProfile = profile)
+        HomiraProductionApp(initialProfile = profile, initialContacts = contacts)
     }
 }
