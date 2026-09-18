@@ -75,6 +75,15 @@ jobs:
           gradle -p extension-chat-android :app:assembleDebug --stacktrace 2>&1 | tee extension-chat-preview/build.log
           echo "sha=$GITHUB_SHA stage=build-succeeded" > extension-chat-preview/status.txt
 
+      - name: Commit build checkpoint
+        if: steps.build.outcome == 'success' && github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add extension-chat-preview/status.txt extension-chat-preview/build.log
+          git diff --cached --quiet || git commit -m "Record Extension Chat build checkpoint"
+          git push origin HEAD:extension-chat-ui-ci
+
       - name: Boot emulator and capture UI
         if: steps.build.outcome == 'success'
         uses: reactivecircus/android-emulator-runner@v2
@@ -92,11 +101,14 @@ jobs:
             adb exec-out screencap -p > extension-chat-preview/chat-screen.png
             echo "sha=$GITHUB_SHA stage=screenshot-captured" > extension-chat-preview/status.txt
 
-      - name: Commit preview diagnostics
+      - name: Finalize preview diagnostics
         if: always() && github.event_name == 'push'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ ! -f extension-chat-preview/chat-screen.png ] && grep -q "stage=build-succeeded" extension-chat-preview/status.txt 2>/dev/null; then
+            echo "sha=$GITHUB_SHA stage=emulator-failed" > extension-chat-preview/status.txt
+          fi
           git add extension-chat-preview || true
           git diff --cached --quiet && exit 0
           git commit -m "Update rendered Extension Chat preview"
