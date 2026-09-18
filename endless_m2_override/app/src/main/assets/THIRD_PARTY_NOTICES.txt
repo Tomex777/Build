@@ -1,0 +1,13 @@
+Endless third-party texture notice
+
+Planetary texture maps are sourced from Solar System Scope:
+https://www.solarsystemscope.com/textures/
+
+Solar System Scope states that the texture pack is based on NASA elevation and imagery data
+and is distributed under the Creative Commons Attribution 4.0 International license (CC BY 4.0).
+
+Attribution: Solar System Scope.
+License: https://creativecommons.org/licenses/by/4.0/
+
+Endless uses these maps as visualization assets. Astronomical metadata and simulations remain
+separate from texture imagery.
