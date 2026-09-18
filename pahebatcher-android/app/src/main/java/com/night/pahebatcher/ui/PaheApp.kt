@@ -1,10 +1,15 @@
 package com.night.pahebatcher.ui
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.content.pm.PackageManager
+import android.os.Build
 import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -75,6 +80,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.night.pahebatcher.data.AnimeDetails
 import com.night.pahebatcher.data.AnimeSearchResult
@@ -461,6 +467,22 @@ private fun DetailHost(vm: PaheViewModel) {
 @Composable
 private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
     var sheetEpisode by remember { mutableStateOf<EpisodeInfo?>(null) }
+    var pendingLegacyDownload by remember {
+        mutableStateOf<Triple<EpisodeInfo, Int, String>?>(null)
+    }
+    val context = LocalContext.current
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        val pending = pendingLegacyDownload
+        pendingLegacyDownload = null
+        if (granted && pending != null) {
+            vm.downloadEpisode(pending.first, pending.second, pending.third)
+            vm.navigateToTab(MainTab.DOWNLOADS)
+        } else if (pending != null) {
+            sheetEpisode = pending.first
+        }
+    }
 
     BackHandler(onBack = vm::closeDetails)
 
@@ -598,9 +620,22 @@ private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
             episode = episode,
             onDismiss = { sheetEpisode = null },
             onDownload = { quality, audio ->
-                vm.downloadEpisode(episode, quality, audio)
-                sheetEpisode = null
-                vm.navigateToTab(MainTab.DOWNLOADS)
+                val needsLegacyStoragePermission =
+                    Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                        ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                        ) != PackageManager.PERMISSION_GRANTED
+
+                if (needsLegacyStoragePermission) {
+                    pendingLegacyDownload = Triple(episode, quality, audio)
+                    sheetEpisode = null
+                    storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                } else {
+                    vm.downloadEpisode(episode, quality, audio)
+                    sheetEpisode = null
+                    vm.navigateToTab(MainTab.DOWNLOADS)
+                }
             },
         )
     }
