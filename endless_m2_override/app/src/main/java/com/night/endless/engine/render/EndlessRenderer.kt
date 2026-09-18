@@ -81,7 +81,7 @@ class EndlessRenderer(
     private var pendingYaw = 0.0
     private var pendingPitch = 0.0
     private val dampingFactor = 0.055
-    private val rotateSpeed = 0.55
+    private val rotateSpeed = 0.30
 
     private var selectedId: String? = "earth"
     private var overview = false
@@ -327,6 +327,26 @@ class EndlessRenderer(
 
     @Synchronized
     fun pick(screenX: Float, screenY: Float) {
+        // Overview bodies are physically tiny on-screen. Give every visible body
+        // a finger-sized screen-space target before falling back to true ray/sphere picking.
+        val density = context.resources.displayMetrics.density
+        val hitRadiusPx = (if (overview) 52f else 34f) * density
+        val nearest = latestLabels
+            .asSequence()
+            .filter { it.visible }
+            .map { label ->
+                val dx = label.xPx - screenX
+                val dy = label.yPx - screenY
+                label to (dx * dx + dy * dy)
+            }
+            .filter { (_, d2) -> d2 <= hitRadiusPx * hitRadiusPx }
+            .minByOrNull { (_, d2) -> d2 }
+
+        if (nearest != null) {
+            focus(nearest.first.id)
+            return
+        }
+
         val inv = FloatArray(16)
         if (!Matrix.invertM(inv, 0, viewProjection, 0)) return
 
