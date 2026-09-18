@@ -27,9 +27,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -1885,7 +1887,11 @@ private fun KeypadScreen(
         Spacer(Modifier.height(26.dp))
         PlainDialPad(
             onDigit = { if (number.length < 20) number += it },
-            onLongZero = { if (number.length < 20 && !number.startsWith("+")) number += "+" }
+            onLongZero = {
+                if (number.isEmpty()) {
+                    number = "+"
+                }
+            }
         )
         Spacer(Modifier.height(20.dp))
         Row(
@@ -1928,8 +1934,12 @@ private fun KeypadScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PlainDialPad(onDigit: (String) -> Unit, onLongZero: () -> Unit) {
+private fun PlainDialPad(
+    onDigit: (String) -> Unit,
+    onLongZero: () -> Unit
+) {
     val rows = listOf(
         listOf("1" to "", "2" to "ABC", "3" to "DEF"),
         listOf("4" to "GHI", "5" to "JKL", "6" to "MNO"),
@@ -1943,7 +1953,14 @@ private fun PlainDialPad(onDigit: (String) -> Unit, onLongZero: () -> Unit) {
                     Box(
                         modifier = Modifier
                             .size(width = 80.dp, height = 74.dp)
-                            .clickable { onDigit(key.first) },
+                            .combinedClickable(
+                                onClick = { onDigit(key.first) },
+                                onLongClick = {
+                                    if (key.first == "0") {
+                                        onLongZero()
+                                    }
+                                }
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
