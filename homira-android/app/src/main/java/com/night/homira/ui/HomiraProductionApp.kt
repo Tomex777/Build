@@ -169,7 +169,7 @@ private val callEntries = listOf(
 )
 
 @Composable
-fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: List<LiveContact> = emptyList()) {
+fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: List<LiveContact> = emptyList(), liveMode: Boolean = false) {
     HomiraTheme {
         val context = LocalContext.current
         val liveRepository = remember { HomiraLiveRepository() }
@@ -213,7 +213,7 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 )
             }
         }
-        val appCallEntries = if (initialProfile != null) emptyList() else callEntries
+        val appCallEntries = if (liveMode) emptyList() else callEntries
 
         fun beginCall(person: HomiraPerson, video: Boolean) {
             activePerson = person
