@@ -100,6 +100,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -127,7 +128,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import org.webrtc.EglBase
+import org.webrtc.RendererCommon
+import org.webrtc.TextureViewRenderer
+import org.webrtc.VideoTrack
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -192,8 +198,11 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         var incomingPerson by remember { mutableStateOf<HomiraPerson?>(null) }
         var voiceEngine by remember { mutableStateOf<HomiraWebRtcVoiceEngine?>(null) }
         var webRtcState by remember { mutableStateOf(HomiraWebRtcState.New) }
+        var localVideoTrack by remember { mutableStateOf<VideoTrack?>(null) }
+        var remoteVideoTrack by remember { mutableStateOf<VideoTrack?>(null) }
         var pendingOutgoingCall by remember { mutableStateOf<Pair<HomiraPerson, Boolean>?>(null) }
         var pendingIncomingAccept by remember { mutableStateOf(false) }
+        var pendingVideoEnable by remember { mutableStateOf(false) }
         var micPermissionGranted by remember {
             mutableStateOf(
                 ContextCompat.checkSelfPermission(
@@ -202,16 +211,42 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 ) == PackageManager.PERMISSION_GRANTED
             )
         }
-        val microphonePermissionLauncher = rememberLauncherForActivityResult(
-            ActivityResultContracts.RequestPermission()
-        ) { granted ->
-            micPermissionGranted = granted
-            if (!granted) {
+        var cameraPermissionGranted by remember {
+            mutableStateOf(
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.CAMERA
+                ) == PackageManager.PERMISSION_GRANTED
+            )
+        }
+        val callPermissionLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions()
+        ) { results ->
+            micPermissionGranted =
+                results[Manifest.permission.RECORD_AUDIO] ?: micPermissionGranted
+            cameraPermissionGranted =
+                results[Manifest.permission.CAMERA] ?: cameraPermissionGranted
+
+            val pendingNeedsVideo =
+                pendingOutgoingCall?.second == true ||
+                    (pendingIncomingAccept && incomingSession?.mediaType == "video") ||
+                    pendingVideoEnable
+
+            if (!micPermissionGranted && (pendingOutgoingCall != null || pendingIncomingAccept)) {
                 pendingOutgoingCall = null
                 pendingIncomingAccept = false
                 Toast.makeText(
                     context,
                     "Microphone permission is required for Homira calls.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else if (pendingNeedsVideo && !cameraPermissionGranted) {
+                pendingOutgoingCall = null
+                pendingIncomingAccept = false
+                pendingVideoEnable = false
+                Toast.makeText(
+                    context,
+                    "Camera permission is required to use video.",
                     Toast.LENGTH_SHORT
                 ).show()
             }
@@ -279,9 +314,16 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 return
             }
 
-            if (!micPermissionGranted) {
+            val needsMicrophone = !micPermissionGranted
+            val needsCamera = video && !cameraPermissionGranted
+            if (needsMicrophone || needsCamera) {
                 pendingOutgoingCall = person to video
-                microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                callPermissionLauncher.launch(
+                    buildList {
+                        if (needsMicrophone) add(Manifest.permission.RECORD_AUDIO)
+                        if (needsCamera) add(Manifest.permission.CAMERA)
+                    }.toTypedArray()
+                )
                 return
             }
 
@@ -313,19 +355,44 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
             }
         }
 
-        LaunchedEffect(micPermissionGranted, pendingOutgoingCall) {
-            if (micPermissionGranted) {
-                pendingOutgoingCall?.let { (person, video) ->
+        LaunchedEffect(micPermissionGranted, cameraPermissionGranted, pendingOutgoingCall) {
+            pendingOutgoingCall?.let { (person, video) ->
+                if (micPermissionGranted && (!video || cameraPermissionGranted)) {
                     pendingOutgoingCall = null
                     startCallNow(person, video)
                 }
             }
         }
 
-        LaunchedEffect(micPermissionGranted, pendingIncomingAccept) {
-            if (micPermissionGranted && pendingIncomingAccept) {
+        LaunchedEffect(
+            micPermissionGranted,
+            cameraPermissionGranted,
+            pendingIncomingAccept,
+            incomingSession?.mediaType
+        ) {
+            if (
+                pendingIncomingAccept &&
+                micPermissionGranted &&
+                (incomingSession?.mediaType != "video" || cameraPermissionGranted)
+            ) {
                 pendingIncomingAccept = false
                 acceptIncomingNow()
+            }
+        }
+
+        LaunchedEffect(cameraPermissionGranted, pendingVideoEnable, voiceEngine) {
+            if (pendingVideoEnable && cameraPermissionGranted) {
+                pendingVideoEnable = false
+                val enabled = voiceEngine?.setVideoEnabled(true) == true
+                if (enabled) {
+                    activeVideo = true
+                } else {
+                    Toast.makeText(
+                        context,
+                        "Could not start the camera.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
 
@@ -403,6 +470,7 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 callId = session.id,
                 localUserId = localUserId,
                 caller = session.callerId == localUserId,
+                initialVideoEnabled = activeVideo && cameraPermissionGranted,
                 signaling = HomiraCallSignaling(session.id)
             )
             voiceEngine = engine
@@ -437,16 +505,42 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
             }
         }
 
+        LaunchedEffect(voiceEngine) {
+            localVideoTrack = null
+            remoteVideoTrack = null
+            val engine = voiceEngine ?: return@LaunchedEffect
+
+            launch {
+                engine.localVideoTrack.collect { track ->
+                    localVideoTrack = track
+                }
+            }
+            launch {
+                engine.remoteVideoTrack.collect { track ->
+                    remoteVideoTrack = track
+                }
+            }
+        }
+
         when {
             incomingSession != null && incomingPerson != null && activePerson == null -> IncomingCallScreen(
                 person = incomingPerson ?: mimiP,
                 video = incomingSession?.mediaType == "video",
                 onAccept = {
-                    if (micPermissionGranted) {
+                    val needsCamera =
+                        incomingSession?.mediaType == "video" && !cameraPermissionGranted
+                    val needsMicrophone = !micPermissionGranted
+
+                    if (!needsMicrophone && !needsCamera) {
                         acceptIncomingNow()
                     } else {
                         pendingIncomingAccept = true
-                        microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        callPermissionLauncher.launch(
+                            buildList {
+                                if (needsMicrophone) add(Manifest.permission.RECORD_AUDIO)
+                                if (needsCamera) add(Manifest.permission.CAMERA)
+                            }.toTypedArray()
+                        )
                     }
                 },
                 onDecline = {
@@ -466,8 +560,35 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 startsWithVideo = activeVideo,
                 liveState = if (liveMode) activeSession?.state else null,
                 mediaState = if (liveMode) webRtcState else null,
+                videoEnabled = activeVideo,
+                localVideoTrack = if (liveMode) localVideoTrack else null,
+                remoteVideoTrack = if (liveMode) remoteVideoTrack else null,
+                eglContext = if (liveMode) voiceEngine?.eglContext() else null,
                 onMuteChanged = { muted -> voiceEngine?.setMuted(muted) },
                 onSpeakerChanged = { enabled -> voiceEngine?.setSpeakerEnabled(enabled) },
+                onVideoChanged = { enabled ->
+                    if (!liveMode) {
+                        activeVideo = enabled
+                    } else if (!enabled) {
+                        voiceEngine?.setVideoEnabled(false)
+                        activeVideo = false
+                    } else if (!cameraPermissionGranted) {
+                        pendingVideoEnable = true
+                        callPermissionLauncher.launch(arrayOf(Manifest.permission.CAMERA))
+                    } else {
+                        val started = voiceEngine?.setVideoEnabled(true) == true
+                        if (started) {
+                            activeVideo = true
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "Could not start the camera.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                },
+                onSwitchCamera = { voiceEngine?.switchCamera() },
                 onMinimize = { minimized = true },
                 onEnd = {
                     val session = activeSession
