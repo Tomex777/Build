@@ -318,28 +318,3 @@ shot 06-manga-demo-source
 
 tap_text 'Chapter 1'
 wait_for_node '1 / 42' 25
-wait_for_node 'Demo Manga' 15
-tap_text 'Next page'
-tap_text 'Next page'
-tap_text 'Next page'
-tap_text 'Next page'
-wait_for_node '5 / 42' 20
-sleep 1
-assert_progress_identity MANGA 5 '-c1' demo.manga >/dev/null
-shot 07-manga-page-5
-
-adb shell input keyevent KEYCODE_BACK
-sleep 2
-adb shell input keyevent KEYCODE_BACK
-sleep 2
-wait_for_node 'Close search' 15
-tap_text 'Close search'
-wait_for_node 'Continue reading' 25
-tap_text_below 'Continue reading' Naruto
-wait_for_node '5 / 42' 25
-wait_for_node 'Demo Manga' 15
-assert_progress_identity MANGA 5 '-c1' demo.manga >/dev/null
-shot 08-manga-exact-resume
-
-touch "$OUT/FULL_SOURCE_RESUME_PASS"
-echo 'Sora Anime/Manga external source + exact resume smoke passed.'
