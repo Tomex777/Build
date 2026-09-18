@@ -63,6 +63,12 @@ private data class AddContactParams(
 )
 
 @Serializable
+private data class BlockRow(
+    @SerialName("owner_id") val ownerId: String,
+    @SerialName("blocked_user_id") val blockedUserId: String
+)
+
+@Serializable
 data class LiveCallSession(
     val id: String,
     @SerialName("caller_id") val callerId: String,
@@ -174,6 +180,38 @@ class HomiraLiveRepository {
             )
             .decodeList<LiveContact>()
             .firstOrNull()
+
+    suspend fun listBlockedUserIds(): Set<String> {
+        val userId = requireNotNull(currentUserId()) { "Not signed in" }
+        return client.from("blocks")
+            .select {
+                filter { eq("owner_id", userId) }
+            }
+            .decodeList<BlockRow>()
+            .mapTo(linkedSetOf()) { it.blockedUserId }
+    }
+
+    suspend fun blockUser(userId: String) {
+        val ownerId = requireNotNull(currentUserId()) { "Not signed in" }
+        require(userId != ownerId) { "Cannot block yourself" }
+
+        client.from("blocks").insert(
+            BlockRow(
+                ownerId = ownerId,
+                blockedUserId = userId
+            )
+        )
+    }
+
+    suspend fun unblockUser(userId: String) {
+        val ownerId = requireNotNull(currentUserId()) { "Not signed in" }
+        client.from("blocks").delete {
+            filter {
+                eq("owner_id", ownerId)
+                eq("blocked_user_id", userId)
+            }
+        }
+    }
 
     suspend fun startCall(calleeId: String, video: Boolean): LiveCallSession {
         val callerId = requireNotNull(currentUserId()) { "Not signed in" }
