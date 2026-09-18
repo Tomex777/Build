@@ -9,6 +9,11 @@ import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -23,6 +28,7 @@ import java.nio.charset.StandardCharsets
 import java.security.SecureRandom
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -106,15 +112,20 @@ class PaheRepository(
         if (clean.isBlank()) return@withContext emptyList()
 
         var lastError: Exception? = null
+        var verificationError: VerificationRequired? = null
         for (host in animeHosts) {
             try {
                 val results = searchOnHost(host, clean)
                 sessions.rememberAnimeHost(host)
                 return@withContext results
+            } catch (e: VerificationRequired) {
+                verificationError = verificationError ?: e
+                lastError = e
             } catch (e: Exception) {
                 lastError = e
             }
         }
+        verificationError?.let { throw it }
         throw lastError ?: IOException("No AnimePahe host responded")
     }
 
@@ -232,19 +243,30 @@ class PaheRepository(
 
         val tempDir = File(context.cacheDir, "pahe_hls_${System.currentTimeMillis()}_${SecureRandom().nextInt(9999)}")
         tempDir.mkdirs()
-        val keyCache = mutableMapOf<String, ByteArray>()
+        val keyCache = segments
+            .mapNotNull { it.keyUrl }
+            .distinct()
+            .associateWith { keyUrl -> requestBytes(keyUrl, headers) }
 
         try {
-            segments.forEachIndexed { index, segment ->
-                var bytes = requestBytes(segment.url, headers)
-                if (segment.keyUrl != null && segment.iv != null) {
-                    val key = keyCache.getOrPut(segment.keyUrl) {
-                        requestBytes(segment.keyUrl, headers)
+            val limiter = Semaphore(12)
+            val completed = AtomicInteger(0)
+            coroutineScope {
+                segments.mapIndexed { index, segment ->
+                    async {
+                        limiter.withPermit {
+                            var bytes = requestBytes(segment.url, headers)
+                            if (segment.keyUrl != null && segment.iv != null) {
+                                val key = keyCache[segment.keyUrl]
+                                    ?: throw IOException("Missing AES key for HLS segment")
+                                bytes = decryptAes128(bytes, key, segment.iv)
+                            }
+                            File(tempDir, "%06d.ts".format(index)).writeBytes(bytes)
+                            val done = completed.incrementAndGet()
+                            onProgress(done.toFloat() / segments.size.toFloat())
+                        }
                     }
-                    bytes = decryptAes128(bytes, key, segment.iv)
-                }
-                File(tempDir, "%06d.ts".format(index)).writeBytes(bytes)
-                onProgress((index + 1f) / segments.size.toFloat())
+                }.awaitAll()
             }
 
             val joinedTs = File(tempDir, "joined.ts")
@@ -424,12 +446,16 @@ class PaheRepository(
         }
 
         client.newCall(builder.build()).execute().use { response ->
-            val bytes = response.body?.bytes().orEmpty()
+            val bytes = response.body?.bytes() ?: ByteArray(0)
             val preview = bytes.toString(Charsets.UTF_8)
-            if (response.code == 403 || response.code == 503 || looksLikeChallenge(preview)) {
+            val verificationKind = kindFor(url)
+            if (
+                verificationKind != null &&
+                (response.code == 403 || response.code == 503 || looksLikeChallenge(preview))
+            ) {
                 throw VerificationRequired(
-                    kindFor(url),
-                    if (kindFor(url) == VerificationKind.KWIK)
+                    verificationKind,
+                    if (verificationKind == VerificationKind.KWIK)
                         "Kwik needs browser verification"
                     else
                         "AnimePahe needs browser verification",
@@ -449,12 +475,12 @@ class PaheRepository(
             body.contains("challenge-platform", true)
     }
 
-    private fun kindFor(url: String): VerificationKind {
+    private fun kindFor(url: String): VerificationKind? {
         val host = runCatching { URI(url).host.orEmpty().lowercase(Locale.US) }.getOrDefault("")
-        return if (host.startsWith("kwik.") || host.contains(".kwik.")) {
-            VerificationKind.KWIK
-        } else {
-            VerificationKind.ANIMEPAHE
+        return when {
+            host.startsWith("kwik.") || host.contains(".kwik.") -> VerificationKind.KWIK
+            host.contains("animepahe") || host == "pahe.win" -> VerificationKind.ANIMEPAHE
+            else -> null
         }
     }
 
@@ -469,7 +495,7 @@ class PaheRepository(
 
         val doc = Jsoup.parse(html)
         val scripts = doc.select("script")
-            .map { it.data().ifBlank { _ -> it.html() } }
+            .map { script -> script.data().ifBlank { script.html() } }
             .sortedByDescending { it.length }
 
         for (script in scripts) {
