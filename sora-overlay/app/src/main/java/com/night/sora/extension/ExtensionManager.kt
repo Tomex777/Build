@@ -133,8 +133,8 @@ class ExtensionManager(private val context: Context) {
     }
 
     /**
-     * Resolve only AniList's explicit ADAPTATION relation. Legacy Jikan-backed
-     * library entries are accepted by MAL id so the catalog migration does not
+     * Resolve only AniList's explicit Source/Adaptation relationship. Legacy
+     * Jikan-backed library entries are accepted by MAL id so the catalog migration does not
      * strand previously saved Anime/Manga.
      */
     fun findBuiltInAniListCounterpart(
