@@ -2,6 +2,9 @@ package com.night.pahebatcher.data
 
 import android.content.ContentValues
 import android.content.Context
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaMuxer
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
@@ -15,6 +18,7 @@ import java.io.File
 import java.io.IOException
 import java.net.URI
 import java.net.URLEncoder
+import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.security.SecureRandom
 import java.util.Locale
@@ -243,14 +247,28 @@ class PaheRepository(
                 onProgress((index + 1f) / segments.size.toFloat())
             }
 
+            val joinedTs = File(tempDir, "joined.ts")
+            joinedTs.outputStream().use { out ->
+                tempDir.listFiles()
+                    ?.filter { it.extension == "ts" && it.name != joinedTs.name }
+                    ?.sortedBy { it.name }
+                    ?.forEach { file -> file.inputStream().use { it.copyTo(out) } }
+            }
+
+            val remuxedMp4 = File(tempDir, "episode.mp4")
+            val mp4Ready = remuxTsToMp4(joinedTs, remuxedMp4)
+            val sourceFile = if (mp4Ready) remuxedMp4 else joinedTs
+            val extension = if (mp4Ready) "mp4" else "ts"
+            val mime = if (mp4Ready) "video/mp4" else "video/mp2t"
+
             val safeTitle = sanitize(animeTitle).ifBlank { "Anime" }
             val safeEpisode = episode.epLabel.replace(".", "_")
             val suffix = if (stream.audio == "eng") "_DUB" else ""
-            val displayName = "$safeTitle - Ep $safeEpisode$suffix - ${stream.quality}p.ts"
+            val displayName = "$safeTitle - Ep $safeEpisode$suffix - ${stream.quality}p.$extension"
 
             val values = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, displayName)
-                put(MediaStore.Downloads.MIME_TYPE, "video/mp2t")
+                put(MediaStore.Downloads.MIME_TYPE, mime)
                 put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/PaheBatcher")
                 put(MediaStore.Downloads.IS_PENDING, 1)
             }
@@ -260,10 +278,7 @@ class PaheRepository(
 
             try {
                 resolver.openOutputStream(uri, "w")?.use { out ->
-                    tempDir.listFiles()
-                        ?.filter { it.extension == "ts" }
-                        ?.sortedBy { it.name }
-                        ?.forEach { file -> file.inputStream().use { it.copyTo(out) } }
+                    sourceFile.inputStream().use { it.copyTo(out) }
                 } ?: throw IOException("Android could not open the output file")
 
                 values.clear()
@@ -569,6 +584,59 @@ class PaheRepository(
             }
         }
         return out
+    }
+
+    private fun remuxTsToMp4(input: File, output: File): Boolean {
+        val extractor = MediaExtractor()
+        var muxer: MediaMuxer? = null
+        var muxerStarted = false
+        return try {
+            extractor.setDataSource(input.absolutePath)
+            if (extractor.trackCount == 0) return false
+
+            muxer = MediaMuxer(output.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            val trackMap = mutableMapOf<Int, Int>()
+            for (track in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(track)
+                val mime = format.getString(android.media.MediaFormat.KEY_MIME).orEmpty()
+                if (!mime.startsWith("video/") && !mime.startsWith("audio/")) continue
+                trackMap[track] = muxer.addTrack(format)
+                extractor.selectTrack(track)
+            }
+            if (trackMap.isEmpty()) return false
+
+            muxer.start()
+            muxerStarted = true
+            val buffer = ByteBuffer.allocateDirect(4 * 1024 * 1024)
+            val info = MediaCodec.BufferInfo()
+
+            while (true) {
+                val sourceTrack = extractor.sampleTrackIndex
+                if (sourceTrack < 0) break
+                val targetTrack = trackMap[sourceTrack]
+                if (targetTrack == null) {
+                    extractor.advance()
+                    continue
+                }
+                buffer.clear()
+                val size = extractor.readSampleData(buffer, 0)
+                if (size < 0) break
+                info.set(0, size, extractor.sampleTime.coerceAtLeast(0L), extractor.sampleFlags)
+                muxer.writeSampleData(targetTrack, buffer, info)
+                extractor.advance()
+            }
+
+            muxer.stop()
+            muxerStarted = false
+            output.exists() && output.length() > 0L
+        } catch (_: Exception) {
+            false
+        } finally {
+            runCatching { extractor.release() }
+            if (muxerStarted) runCatching { muxer?.stop() }
+            runCatching { muxer?.release() }
+            if (!output.exists() || output.length() == 0L) output.delete()
+        }
     }
 
     private fun decryptAes128(data: ByteArray, key: ByteArray, iv: ByteArray): ByteArray {
