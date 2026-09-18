@@ -132,7 +132,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import org.webrtc.EglBase
 import org.webrtc.RendererCommon
-import org.webrtc.TextureViewRenderer
+import org.webrtc.SurfaceViewRenderer
 import org.webrtc.VideoTrack
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -2121,7 +2121,7 @@ private fun ActiveCallScreen(
     ) {
         if (video) {
             if (remoteVideoEnabled && remoteVideoTrack != null && eglContext != null) {
-                WebRtcTextureVideo(
+                WebRtcVideoSurface(
                     track = remoteVideoTrack,
                     eglContext = eglContext,
                     mirror = false,
@@ -2156,10 +2156,11 @@ private fun ActiveCallScreen(
                     color = HomiraSurfaceRaised,
                     shadowElevation = 8.dp
                 ) {
-                    WebRtcTextureVideo(
+                    WebRtcVideoSurface(
                         track = localVideoTrack,
                         eglContext = eglContext,
                         mirror = true,
+                        overlay = true,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -2297,18 +2298,20 @@ private fun ActiveCallScreen(
 }
 
 @Composable
-private fun WebRtcTextureVideo(
+private fun WebRtcVideoSurface(
     track: VideoTrack,
     eglContext: EglBase.Context,
     mirror: Boolean,
+    overlay: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val renderer = remember(context, eglContext, mirror) {
-        TextureViewRenderer(context).apply {
+        SurfaceViewRenderer(context).apply {
             init(eglContext, null)
             setMirror(mirror)
             setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL)
+            setZOrderMediaOverlay(overlay)
         }
     }
 
