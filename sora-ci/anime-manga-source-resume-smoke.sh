@@ -167,8 +167,10 @@ capture_runtime_diagnostics() {
     echo "=== package nativeLibraryDir ==="
     adb shell dumpsys package com.night.sora | grep -E 'nativeLibraryDir|primaryCpuAbi|secondaryCpuAbi|versionName' || true
   } > "$OUT/$name-runtime.txt" 2>&1
-  adb logcat -d -v threadtime -t 3000 > "$OUT/$name-logcat.txt" 2>&1 || true
+  adb logcat -d -v threadtime > "$OUT/$name-logcat.txt" 2>&1 || true
   adb shell dumpsys activity exit-info com.night.sora > "$OUT/$name-exit-info.txt" 2>&1 || true
+  adb shell dumpsys dropbox --print data_app_crash > "$OUT/$name-dropbox.txt" 2>&1 || true
+  adb shell dumpsys dropbox --print SYSTEM_TOMBSTONE > "$OUT/$name-tombstone.txt" 2>&1 || true
 }
 
 ensure_player_control() {
@@ -329,6 +331,10 @@ tap_text 'Demo Anime'
 wait_for_node 'Episode 1' 25
 shot 02-anime-demo-source
 
+# Keep the player crash window clean: uiautomator is extremely noisy and can
+# evict the actual AndroidRuntime stack before a timeout is diagnosed.
+adb logcat -G 16M >/dev/null 2>&1 || true
+adb logcat -c >/dev/null 2>&1 || true
 tap_text 'Episode 1'
 ensure_player_control 'Demo Anime' 25
 shot 03-anime-player
