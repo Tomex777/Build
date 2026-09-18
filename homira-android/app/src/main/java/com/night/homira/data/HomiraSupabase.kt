@@ -414,11 +414,43 @@ class HomiraLiveRepository {
         }
     }
 
+    suspend fun uploadProfileMedia(
+        jpegBytes: ByteArray,
+        kind: String
+    ): String {
+        val userId = requireNotNull(currentUserId()) { "Not signed in" }
+        require(jpegBytes.isNotEmpty()) { "Profile image is empty" }
+
+        val safeKind = when (kind) {
+            "avatar" -> "avatar"
+            "call-card" -> "call-card"
+            else -> error("Unsupported profile media kind")
+        }
+
+        val path = "$userId/$safeKind/${UUID.randomUUID()}.jpg"
+        client.storage["profile-media"].upload(path, jpegBytes) {
+            upsert = false
+            contentType = ContentType.Image.JPEG
+        }
+        return path
+    }
+
+    suspend fun downloadProfileMedia(storagePath: String): ByteArray =
+        client.storage["profile-media"]
+            .downloadAuthenticated(storagePath)
+
+    suspend fun deleteProfileMedia(storagePath: String) {
+        if (storagePath.isBlank()) return
+        client.storage["profile-media"].delete(storagePath)
+    }
+
     suspend fun updateMyProfile(
         displayName: String,
         username: String,
         about: String,
-        email: String
+        email: String,
+        avatarPath: String?,
+        callCardPath: String?
     ): LiveProfile {
         val userId = requireNotNull(currentUserId()) { "Not signed in" }
         return client.from("profiles")
@@ -427,6 +459,8 @@ class HomiraLiveRepository {
                 set("username", username.trim().lowercase().ifBlank { null })
                 set("about", about.trim())
                 set("email", email.trim().ifBlank { null })
+                set("avatar_path", avatarPath)
+                set("call_card_path", callCardPath)
             }) {
                 filter { eq("id", userId) }
             }
