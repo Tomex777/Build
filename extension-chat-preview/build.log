@@ -25,41 +25,40 @@ Starting a Gradle Daemon (subsequent builds will be faster)
 > Task :app:desugarDebugFileDependencies
 > Task :app:checkDebugDuplicateClasses
 > Task :app:checkDebugAarMetadata
-
 > Task :app:compileDebugKotlin
-w: file:///home/runner/work/Build/Build/extension-chat-android/app/src/main/java/com/night/extensionchat/ui/ExtensionChatApp.kt:208:49 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
-w: file:///home/runner/work/Build/Build/extension-chat-android/app/src/main/java/com/night/extensionchat/ui/ExtensionChatApp.kt:377:53 'val Icons.Filled.InsertDriveFile: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.InsertDriveFile.
-w: file:///home/runner/work/Build/Build/extension-chat-android/app/src/main/java/com/night/extensionchat/ui/ExtensionChatApp.kt:706:39 'val Icons.Filled.Send: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Send.
+w: file:///home/runner/work/Build/Build/extension-chat-android/app/src/main/java/com/night/extensionchat/ui/ExtensionChatApp.kt:210:49 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///home/runner/work/Build/Build/extension-chat-android/app/src/main/java/com/night/extensionchat/ui/ExtensionChatApp.kt:379:53 'val Icons.Filled.InsertDriveFile: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.InsertDriveFile.
+w: file:///home/runner/work/Build/Build/extension-chat-android/app/src/main/java/com/night/extensionchat/ui/ExtensionChatApp.kt:708:39 'val Icons.Filled.Send: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Send.
 
 > Task :app:mergeExtDexDebug
 > Task :app:compileDebugJavaWithJavac NO-SOURCE
 > Task :app:processDebugJavaRes
 > Task :app:mapDebugSourceSetPaths
 > Task :app:mergeLibDexDebug
-> Task :app:mergeDebugJavaResource
 > Task :app:compileDebugNavigationResources
+> Task :app:mergeDebugJavaResource
 > Task :app:createDebugCompatibleScreenManifests
 > Task :app:extractDeepLinksDebug
 > Task :app:processDebugMainManifest
 > Task :app:processDebugManifest
 > Task :app:mergeDebugJniLibFolders
-> Task :app:processDebugManifestForPackage
-> Task :app:mergeDebugNativeLibs
 > Task :app:mergeDebugResources
+> Task :app:mergeDebugNativeLibs
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
+> Task :app:processDebugManifestForPackage
+> Task :app:stripDebugDebugSymbols
 > Task :app:writeDebugSigningConfigVersions
 > Task :app:processDebugResources
-> Task :app:stripDebugDebugSymbols
 > Task :app:dexBuilderDebug
 > Task :app:mergeProjectDexDebug
 > Task :app:packageDebug
 > Task :app:createDebugApkListingFileRedirect
 > Task :app:assembleDebug
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/build-1789754664967.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/build-1789755104549.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Build/Build/extension-chat-android/build/reports/problems/problems-report.html
 
-BUILD SUCCESSFUL in 2m 22s
+BUILD SUCCESSFUL in 2m 42s
 36 actionable tasks: 36 executed
 Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.6.0/userguide/configuration_cache_enabling.html
