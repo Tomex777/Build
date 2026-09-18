@@ -254,6 +254,6 @@ private fun LiveProfileHost(repository: HomiraLiveRepository) {
             }
         }
     } else {
-        HomiraProductionApp(initialProfile = profile, initialContacts = contacts)
+        HomiraProductionApp(initialProfile = profile, initialContacts = contacts, liveMode = true)
     }
 }
