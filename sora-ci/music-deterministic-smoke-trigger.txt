@@ -1,1 +1,1 @@
-2026-09-18 rerun Music lyrics and mini-player Next proof with truthful UI tap retries.
+2026-09-18 final rerun for Music lyrics and mini Next with queue-order-safe next-track assertion.
