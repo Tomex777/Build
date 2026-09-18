@@ -26,6 +26,18 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Set up Android tools
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
       - name: Clone original WhatsApp clone
         run: |
           rm -rf /tmp/wa-source /tmp/wa-home /tmp/wa-chat
@@ -164,25 +176,41 @@ jobs:
       - name: Boot emulator and capture original UI
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 36
+          api-level: 34
           target: google_apis
           arch: x86_64
+          emulator-boot-timeout: 900
           profile: pixel_6
+          cores: 2
+          ram-size: 3072M
           disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
+            set -eu
             mkdir -p whatsapp-clone-preview
+            adb wait-for-device
+            adb shell 'while [ "$(getprop sys.boot_completed)" != "1" ]; do sleep 1; done'
+            sleep 8
+            adb shell wm size 1080x2400
+            adb shell wm density 440
             adb shell cmd uimode night no || true
+            adb shell am force-stop com.google.android.apps.nexuslauncher || true
 
-            adb install -r original-whatsapp-clone-home.apk
+            adb install --no-streaming -r original-whatsapp-clone-home.apk || (sleep 8; adb wait-for-device; adb install --no-streaming -r original-whatsapp-clone-home.apk)
             adb shell am force-stop com.example.whatsapp
             adb shell am start -W -n com.example.whatsapp/.MainActivity
             sleep 5
             adb exec-out screencap -p > whatsapp-clone-preview/original-home.png
 
-            adb install -r original-whatsapp-clone-chat.apk
+            adb install --no-streaming -r original-whatsapp-clone-chat.apk || (sleep 8; adb wait-for-device; adb install --no-streaming -r original-whatsapp-clone-chat.apk)
             adb shell am force-stop com.example.whatsapp
             adb shell am start -W -n com.example.whatsapp/.MainActivity
             sleep 5
+
+            adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
+            adb pull /sdcard/window.xml /tmp/window.xml >/dev/null 2>&1 || true
+            if grep -q "responding" /tmp/window.xml 2>/dev/null; then adb shell input tap 320 1360; sleep 3; fi
+
             adb exec-out screencap -p > whatsapp-clone-preview/original-chat.png
 
       - name: Commit screenshots to preview branch
