@@ -172,6 +172,13 @@ private data class HomiraPerson(
     val favorite: Boolean = false
 )
 
+private data class VoicemailOffer(
+    val person: HomiraPerson,
+    val callSessionId: String,
+    val wasVideo: Boolean,
+    val greetingPath: String?
+)
+
 private data class CallEntry(
     val id: String,
     val person: HomiraPerson,
@@ -308,6 +315,7 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         var activeSession by remember { mutableStateOf<LiveCallSession?>(null) }
         var incomingSession by remember { mutableStateOf<LiveCallSession?>(null) }
         var incomingPerson by remember { mutableStateOf<HomiraPerson?>(null) }
+        var voicemailOffer by remember { mutableStateOf<VoicemailOffer?>(null) }
         var voiceEngine by remember { mutableStateOf<HomiraWebRtcVoiceEngine?>(null) }
         var webRtcState by remember { mutableStateOf(HomiraWebRtcState.New) }
         var localVideoTrack by remember { mutableStateOf<VideoTrack?>(null) }
@@ -887,6 +895,30 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                     callHistoryStore.markTerminal(session.id, outcome)
                     localCallHistory = callHistoryStore.listRecent()
 
+                    if (
+                        session.state == "missed" &&
+                        session.callerId == localUserId
+                    ) {
+                        val person = activePerson
+                        if (person != null) {
+                            val profile = liveRepository.loadProfileById(person.id)
+                            if (profile?.voicemailEnabled == true) {
+                                voicemailOffer = VoicemailOffer(
+                                    person = person,
+                                    callSessionId = session.id,
+                                    wasVideo = activeVideo,
+                                    greetingPath = if (
+                                        profile.voicemailGreetingMode == "voice"
+                                    ) {
+                                        profile.voicemailGreetingPath
+                                    } else {
+                                        null
+                                    }
+                                )
+                            }
+                        }
+                    }
+
                     activeSession = null
                     activePerson = null
                     minimized = false
@@ -1048,6 +1080,23 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                             runCatching { liveRepository.setCallState(session.id, "declined") }
                         }
                     }
+                }
+            )
+
+            voicemailOffer != null -> LeaveVoicemailScreen(
+                offer = requireNotNull(voicemailOffer),
+                repository = liveRepository,
+                onCallAgain = { offer ->
+                    voicemailOffer = null
+                    beginCall(offer.person, offer.wasVideo)
+                },
+                onDismiss = {
+                    voicemailOffer = null
+                    tab = MainTab.Recents
+                },
+                onSent = {
+                    voicemailOffer = null
+                    tab = MainTab.Recents
                 }
             )
 
