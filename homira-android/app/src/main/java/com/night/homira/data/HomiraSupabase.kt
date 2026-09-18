@@ -196,7 +196,9 @@ class HomiraLiveRepository {
         client.postgrest
             .rpc(
                 "resolve_homira_call_target",
-                ResolveDialTargetParams(phone = phoneE164)
+                buildJsonObject {
+                    put("p_phone", phoneE164)
+                }
             )
             .decodeList<LiveDialTarget>()
             .firstOrNull()
