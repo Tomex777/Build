@@ -312,22 +312,27 @@ fun MediaDetailScreen(
         readerError = null
         playbackError = null
 
-        activeDisplayExtension?.let { ext ->
+        fun resolveCounterpart() {
+            if (requested.type != ContentType.ANIME && requested.type != ContentType.MANGA) return
+            findCounterpart(requested, extensions, manager) { found ->
+                if (active.id == requested.id && active.type == requested.type) counterpart = found
+            }
+        }
+
+        val displayExtension = activeDisplayExtension
+        if (displayExtension != null) {
             manager.call(
-                ext,
+                displayExtension,
                 ExtensionContract.Method.DETAILS,
                 JSONObject().put("sourceId", requested.sourceId).put("id", requested.id).toString(),
             ) { result ->
                 if (active.id == requested.id && active.type == requested.type) {
                     result.getOrNull()?.let { metadata = parseMetadata(it, requested.subtitle) }
+                    resolveCounterpart()
                 }
             }
-        }
-
-        if (requested.type == ContentType.ANIME || requested.type == ContentType.MANGA) {
-            findCounterpart(requested, extensions, manager) { found ->
-                if (active.id == requested.id && active.type == requested.type) counterpart = found
-            }
+        } else {
+            resolveCounterpart()
         }
 
         if (selectionCanConsume(requested, extensions)) {
