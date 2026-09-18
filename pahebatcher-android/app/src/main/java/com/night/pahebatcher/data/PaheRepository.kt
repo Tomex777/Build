@@ -358,6 +358,10 @@ class PaheRepository(
         val candidates = buildList {
             add(initialUrl)
             val currentTld = runCatching { URI(initialUrl).host.orEmpty().substringAfterLast(".") }.getOrDefault("")
+            val verifiedTld = sessions.kwikHost().substringAfterLast(".", missingDelimiterValue = "")
+            if (verifiedTld.isNotBlank() && verifiedTld != currentTld) {
+                swapKwikDomain(initialUrl, verifiedTld)?.let(::add)
+            }
             for (tld in listOf("cx", "gg", "si", "me", "net", "in", "cc")) {
                 if (tld != currentTld) swapKwikDomain(initialUrl, tld)?.let(::add)
             }
@@ -371,7 +375,7 @@ class PaheRepository(
                 return StreamInfo(
                     url = hls,
                     cookie = sessions.kwikCookie(),
-                    userAgent = sessions.userAgent(),
+                    userAgent = sessions.userAgentFor(url),
                     referer = url,
                     quality = chosen.resolution,
                     audio = if (chosen.isDub) "eng" else "jpn",
@@ -397,7 +401,7 @@ class PaheRepository(
     private fun requestBytes(url: String, extraHeaders: Map<String, String> = emptyMap()): ByteArray {
         val builder = Request.Builder()
             .url(url)
-            .header("User-Agent", sessions.userAgent())
+            .header("User-Agent", sessions.userAgentFor(url))
             .header("Accept-Language", "en-US,en;q=0.9")
         extraHeaders.forEach { (key, value) -> builder.header(key, value) }
         if ("Cookie" !in extraHeaders) {
