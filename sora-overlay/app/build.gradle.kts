@@ -47,6 +47,16 @@ dependencies {
     implementation("com.github.jmir1:ffmpeg-kit:1.18")
     implementation("com.arthenica:smart-exception-java:0.2.1")
 
+    // Aniyomi/Mihon reader viewer stack.
+    implementation("androidx.recyclerview:recyclerview:1.4.0")
+    implementation("androidx.viewpager:viewpager:1.1.0")
+    implementation("com.github.chrisbanes:PhotoView:2.3.0")
+    implementation("com.github.tachiyomiorg:DirectionalViewPager:1.0.0")
+    implementation("com.github.tachiyomiorg:subsampling-scale-image-view:66e0db195d") {
+        exclude(module = "image-decoder")
+    }
+    implementation("com.github.tachiyomiorg:image-decoder:41c059e540")
+
     val media3Version = "1.11.0"
     implementation("androidx.media3:media3-exoplayer:$media3Version")
     implementation("androidx.media3:media3-exoplayer-hls:$media3Version")
