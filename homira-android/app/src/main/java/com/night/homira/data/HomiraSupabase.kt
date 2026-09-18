@@ -202,16 +202,16 @@ class HomiraLiveRepository {
             "Unsupported push platform"
         }
 
-        client.postgrest["device_push_tokens"].insert(
+        client.postgrest["device_push_tokens"].upsert(
             DevicePushTokenRow(
                 userId = userId,
                 deviceId = deviceId,
                 platform = platform,
                 token = token
-            ),
-            upsert = true,
+            )
+        ) {
             onConflict = "user_id,device_id"
-        )
+        }
     }
 
     suspend fun removePushToken(deviceId: String) {
