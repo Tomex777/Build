@@ -33,6 +33,7 @@ data class LiveProfile(
     @SerialName("display_name") val displayName: String,
     val username: String? = null,
     @SerialName("phone_e164") val phoneE164: String? = null,
+    val email: String? = null,
     val about: String = "",
     @SerialName("avatar_path") val avatarPath: String? = null,
     @SerialName("call_card_path") val callCardPath: String? = null,
@@ -79,5 +80,24 @@ class HomiraLiveRepository {
                 }
                 .decodeSingle<LiveProfile>()
         }.getOrNull()
+    }
+
+    suspend fun updateMyProfile(
+        displayName: String,
+        username: String,
+        about: String,
+        email: String
+    ): LiveProfile {
+        val userId = requireNotNull(currentUserId()) { "Not signed in" }
+        return client.from("profiles")
+            .update({
+                set("display_name", displayName.trim())
+                set("username", username.trim().lowercase().ifBlank { null })
+                set("about", about.trim())
+                set("email", email.trim().ifBlank { null })
+            }) {
+                filter { eq("id", userId) }
+            }
+            .decodeSingle<LiveProfile>()
     }
 }
