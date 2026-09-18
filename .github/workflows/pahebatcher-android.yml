@@ -119,6 +119,7 @@ PY
           script: |
             set -eu
             mkdir -p visual
+            trap 'adb logcat -d > visual/logcat.txt 2>&1 || true; adb shell dumpsys activity activities > visual/activity.txt 2>&1 || true; adb shell dumpsys webviewupdate > visual/webview.txt 2>&1 || true' EXIT
             adb wait-for-device
             adb shell 'while [ "$(getprop sys.boot_completed)" != "1" ]; do sleep 1; done'
             sleep 8
@@ -135,5 +136,5 @@ PY
         uses: actions/upload-artifact@v4
         with:
           name: pahebatcher-visual-smoke
-          path: visual/*.png
+          path: visual/**
           if-no-files-found: warn
