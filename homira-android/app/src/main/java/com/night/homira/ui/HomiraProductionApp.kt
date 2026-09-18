@@ -954,18 +954,60 @@ fun HomiraProductionApp(
                         }
                     }
 
+                    val refreshedPerson =
+                        if (
+                            person.avatarUri == null ||
+                            person.callCardUri == null
+                        ) {
+                            val profile = liveRepository.loadProfileById(person.id)
+                            if (profile == null) {
+                                person
+                            } else {
+                                val refreshedName = profile.displayName
+                                    .takeIf { it.isNotBlank() }
+                                    ?: profile.username
+                                    ?: profile.phoneE164
+                                    ?: person.name
+
+                                person.copy(
+                                    name = refreshedName,
+                                    marker = refreshedName
+                                        .firstOrNull()
+                                        ?.uppercaseChar()
+                                        ?.toString()
+                                        ?: person.marker,
+                                    number = profile.phoneE164
+                                        ?: person.number,
+                                    avatarUri = cacheProfileMediaP(
+                                        context,
+                                        liveRepository,
+                                        profile.avatarPath,
+                                        "${person.id}-avatar"
+                                    ),
+                                    callCardUri = cacheProfileMediaP(
+                                        context,
+                                        liveRepository,
+                                        profile.callCardPath,
+                                        "${person.id}-call-card"
+                                    )
+                                )
+                            }
+                        } else {
+                            person
+                        }
+
                     callHistoryStore.recordRinging(
                         id = session.id,
-                        peerUserId = person.id,
-                        peerName = person.name,
-                        peerNumber = person.number,
+                        peerUserId = refreshedPerson.id,
+                        peerName = refreshedPerson.name,
+                        peerNumber = refreshedPerson.number,
                         direction = HomiraCallHistoryStore.DIRECTION_OUTGOING,
                         mediaType = session.mediaType
                     )
                     localCallHistory = callHistoryStore.listRecent()
 
                     activeSession = session
-                    activePerson = person
+                    activePerson = refreshedPerson
                     activeVideo = video
                     minimized = false
                 }.onFailure {
