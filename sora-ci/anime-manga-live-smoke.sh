@@ -266,8 +266,14 @@ shot 05-verified-manga-counterpart
 # Return to Media, leave search, then validate the Manga feed.
 adb shell input keyevent KEYCODE_BACK
 sleep 2
-wait_for_node 'Close search' 12
-tap_text 'Close search'
+# Detail back currently returns to the normal Anime/Manga surface and clears
+# search. Older builds kept search open, so close it only when the control is
+# actually present instead of failing a valid navigation state.
+if node_exists 'Close search'; then
+  tap_text 'Close search'
+else
+  echo 'Search already closed after returning from details.'
+fi
 wait_for_node Manga 12
 tap_text Manga
 wait_for_node Details 45
