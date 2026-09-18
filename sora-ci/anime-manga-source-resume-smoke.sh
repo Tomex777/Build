@@ -154,6 +154,23 @@ wait_for_catalog_state() {
   return 1
 }
 
+capture_runtime_diagnostics() {
+  local name="$1"
+  mkdir -p "$OUT"
+  {
+    echo "=== pidof com.night.sora ==="
+    adb shell pidof com.night.sora || true
+    echo
+    echo "=== focused/resumed activity ==="
+    adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity|ResumedActivity' | tail -n 20 || true
+    echo
+    echo "=== package nativeLibraryDir ==="
+    adb shell dumpsys package com.night.sora | grep -E 'nativeLibraryDir|primaryCpuAbi|secondaryCpuAbi|versionName' || true
+  } > "$OUT/$name-runtime.txt" 2>&1
+  adb logcat -d -v threadtime -t 3000 > "$OUT/$name-logcat.txt" 2>&1 || true
+  adb shell dumpsys activity exit-info com.night.sora > "$OUT/$name-exit-info.txt" 2>&1 || true
+}
+
 ensure_player_control() {
   local label="$1" timeout="${2:-25}" elapsed=0
   while (( elapsed < timeout )); do
@@ -167,7 +184,11 @@ ensure_player_control() {
     elapsed=$((elapsed+1))
   done
   echo "Timed out waiting for player control '$label'" >&2
-  shot "failure-player-${label//[^A-Za-z0-9]/_}"
+  local safe="${label//[^A-Za-z0-9]/_}"
+  shot "failure-player-$safe"
+  capture_runtime_diagnostics "failure-player-$safe"
+  echo "Sora pid after player failure: $(adb shell pidof com.night.sora 2>/dev/null || true)" >&2
+  grep -E 'FATAL EXCEPTION|AndroidRuntime|UnsatisfiedLinkError|dlopen failed|SIGABRT|SIGSEGV|Fatal signal|libmpv|libplayer|libavcodec|No implementation found'     "$OUT/failure-player-$safe-logcat.txt" | tail -n 120 >&2 || true
   return 1
 }
 
