@@ -1,6 +1,7 @@
-import { BAILEY_MODULE_PROTOCOL, type ExternalModuleManifest } from "../external/protocol";
+import { BAILEY_MODULE_PROTOCOL, type ExternalModuleCapability, type ExternalModuleManifest } from "../external/protocol";
 
 export type ModuleScaffoldRuntime = "python" | "javascript";
+export type ModuleScaffoldFeature = "events" | "jobs" | "storage" | "services" | "media" | "lifecycle";
 
 export interface ModuleScaffoldInput {
   id: string;
@@ -9,6 +10,7 @@ export interface ModuleScaffoldInput {
   runtime: ModuleScaffoldRuntime;
   firstCommand?: string;
   firstSection?: string;
+  features?: ModuleScaffoldFeature[];
 }
 
 export interface ModuleScaffold {
@@ -39,12 +41,27 @@ function normalizeCommand(value: unknown): string {
   return command;
 }
 
+const SCAFFOLD_FEATURES = new Set<ModuleScaffoldFeature>(["events", "jobs", "storage", "services", "media", "lifecycle"]);
+
+function normalizeFeatures(value: unknown): ModuleScaffoldFeature[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new Error("Module features must be an array.");
+  const result = new Set<ModuleScaffoldFeature>();
+  for (const feature of value) {
+    if (typeof feature !== "string" || !SCAFFOLD_FEATURES.has(feature as ModuleScaffoldFeature)) {
+      throw new Error("Unsupported module feature: " + String(feature));
+    }
+    result.add(feature as ModuleScaffoldFeature);
+  }
+  return [...result];
+}
+
 function pythonWorker(moduleName: string, commandName: string): string {
-  return `import json\nimport sys\n\n\ndef send(payload):\n    sys.stdout.write(json.dumps(payload) + "\\n")\n    sys.stdout.flush()\n\nfor line in sys.stdin:\n    line = line.strip()\n    if not line:\n        continue\n    request = json.loads(line)\n    if request.get("type") != "command.execute":\n        continue\n\n    reply = "Hello from ${moduleName}!"\n    if request.get("commandId") != "${commandName}":\n        reply = "Unknown command: " + str(request.get("commandId"))\n\n    send({\n        "protocol": 1,\n        "replyTo": request["id"],\n        "ok": True,\n        "actions": [{"type": "reply", "text": reply}],\n    })\n`;
+  return `import json\nimport sys\n\n\ndef send(payload):\n    sys.stdout.write(json.dumps(payload) + "\\n")\n    sys.stdout.flush()\n\nfor line in sys.stdin:\n    line = line.strip()\n    if not line:\n        continue\n    request = json.loads(line)\n    if request.get("type") in ("event.dispatch", "job.execute", "lifecycle.start", "lifecycle.stop"):\n        send({"protocol": 1, "replyTo": request["id"], "ok": True, "actions": []})\n        continue\n    if request.get("type") != "command.execute":\n        continue\n\n    reply = "Hello from ${moduleName}!"\n    if request.get("commandId") != "${commandName}":\n        reply = "Unknown command: " + str(request.get("commandId"))\n\n    send({\n        "protocol": 1,\n        "replyTo": request["id"],\n        "ok": True,\n        "actions": [{"type": "reply", "text": reply}],\n    })\n`;
 }
 
 function javascriptWorker(moduleName: string, commandName: string): string {
-  return `import readline from "node:readline";\n\nconst input = readline.createInterface({ input: process.stdin });\n\ninput.on("line", (line) => {\n  if (!line.trim()) return;\n  const request = JSON.parse(line);\n  if (request.type !== "command.execute") return;\n\n  const text = request.commandId === "${commandName}"\n    ? "Hello from ${moduleName}!"\n    : \`Unknown command: \${request.commandId}\`;\n\n  process.stdout.write(JSON.stringify({\n    protocol: 1,\n    replyTo: request.id,\n    ok: true,\n    actions: [{ type: "reply", text }],\n  }) + "\\n");\n});\n`;
+  return `import readline from "node:readline";\n\nconst input = readline.createInterface({ input: process.stdin });\n\ninput.on("line", (line) => {\n  if (!line.trim()) return;\n  const request = JSON.parse(line);\n  if (["event.dispatch", "job.execute", "lifecycle.start", "lifecycle.stop"].includes(request.type)) {\n    process.stdout.write(JSON.stringify({ protocol: 1, replyTo: request.id, ok: true, actions: [] }) + "\\n");\n    return;\n  }\n  if (request.type !== "command.execute") return;\n\n  const text = request.commandId === "${commandName}"\n    ? "Hello from ${moduleName}!"\n    : \`Unknown command: \${request.commandId}\`;\n\n  process.stdout.write(JSON.stringify({\n    protocol: 1,\n    replyTo: request.id,\n    ok: true,\n    actions: [{ type: "reply", text }],\n  }) + "\\n");\n});\n`;
 }
 
 export function createModuleScaffold(input: ModuleScaffoldInput): ModuleScaffold {
@@ -59,6 +76,8 @@ export function createModuleScaffold(input: ModuleScaffoldInput): ModuleScaffold
 
   const runtime = input.runtime;
   if (runtime !== "python" && runtime !== "javascript") throw new Error("Unsupported module runtime.");
+  const features = normalizeFeatures(input.features);
+  const capabilities: ExternalModuleCapability[] = ["commands", "settings", ...features];
 
   const entryFile = runtime === "python" ? "main.py" : "main.mjs";
   const runtimeCommand = runtime === "python" ? "python" : "bailey-node";
@@ -68,7 +87,7 @@ export function createModuleScaffold(input: ModuleScaffoldInput): ModuleScaffold
     name,
     version: "1.0.0",
     description: description || `${name} module for Bailey Host.`,
-    runtime: { command: runtimeCommand, args: [entryFile] },
+    runtime: { command: runtimeCommand, args: [entryFile], restart: "on-failure" },
     commands: [
       {
         id: commandName,
@@ -78,13 +97,15 @@ export function createModuleScaffold(input: ModuleScaffoldInput): ModuleScaffold
       },
     ],
     settings: [],
-    capabilities: ["commands", "settings"],
+    capabilities,
+    ...(features.includes("events") ? { events: ["message.received" as const] } : {}),
+    permissions: [],
   };
 
   const files: Record<string, string> = {
     "bailey.module.json": `${JSON.stringify(manifest, null, 2)}\n`,
     [entryFile]: runtime === "python" ? pythonWorker(name, commandName) : javascriptWorker(name, commandName),
-    "README.md": `# ${name}\n\nGenerated by Bailey Studio.\n\n- Module id: \`${id}\`\n- Runtime: ${runtime}\n- Starter command: \`${commandName}\`\n\nEdit \`bailey.module.json\` to add commands and settings. Settings declared there automatically appear in Bailey Configuration and ENV-backed settings are passed to this worker.\n`,
+    "README.md": `# ${name}\n\nGenerated by Bailey Studio.\n\n- Module id: \`${id}\`\n- Runtime: ${runtime}\n- Starter command: \`${commandName}\`\n\nOptional host features: ${features.join(", ") || "none"}.\n\nEdit \`bailey.module.json\` to add commands, jobs, event subscriptions, settings and requested permissions. Settings declared there automatically appear in Bailey Configuration.\n`,
   };
   if (runtime === "python") {
     files["requirements.txt"] = "# Add Python packages here, one per line.\n";
