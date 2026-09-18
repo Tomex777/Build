@@ -1,1 +1,1 @@
-run 5 - dismiss fullscreen tutorial external source exact resume validation
+run 6 - full restored external source player reader exact resume validation
