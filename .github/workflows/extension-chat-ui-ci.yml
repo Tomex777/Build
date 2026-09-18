@@ -57,8 +57,10 @@ jobs:
 
       - name: Install compile SDK 37
         run: |
+          set -o pipefail
+          "$SDKMANAGER" --list 2>&1 | tee extension-chat-preview/sdk.log
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-37" "build-tools;36.0.0"
+          "$SDKMANAGER" "platforms;android-37" "build-tools;36.0.0" 2>&1 | tee -a extension-chat-preview/sdk.log
           test -d "$ANDROID_HOME/platforms/android-37"
           echo "sha=$GITHUB_SHA stage=compile-sdk-ready" > extension-chat-preview/status.txt
 
