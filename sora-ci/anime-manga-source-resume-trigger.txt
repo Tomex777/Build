@@ -1,1 +1,1 @@
-run 1 - real AniList catalog to CI-only external source exact resume validation
+run 2 - fixed source resume smoke install commands
