@@ -359,8 +359,9 @@ fun MediaDetailScreen(
 
     val visibleRows = if (descending) childRows.reversed() else childRows
 
-    Box(Modifier.fillMaxSize().background(SoraBg)) {
-        LazyColumn(
+    CompositionLocalProvider(LocalContentColor provides SoraText) {
+        Box(Modifier.fillMaxSize().background(SoraBg)) {
+            LazyColumn(
             modifier = Modifier.fillMaxSize().navigationBarsPadding(),
             state = listState,
             contentPadding = PaddingValues(bottom = 12.dp),
@@ -514,6 +515,7 @@ fun MediaDetailScreen(
                 icon = { Icon(if (active.type == ContentType.MANGA) Icons.Rounded.MenuBook else Icons.Rounded.PlayArrow, null) },
                 text = { Text(if (active.type == ContentType.MANGA) "Start" else "Play") },
             )
+        }
         }
     }
 
