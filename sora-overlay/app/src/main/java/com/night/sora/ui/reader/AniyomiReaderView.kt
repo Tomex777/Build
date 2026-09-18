@@ -338,7 +338,7 @@ private class AniyomiReaderPageView(
                 .onSuccess { file ->
                     MAIN.post {
                         if (boundKey != key) return@post
-                        image.setImage(ImageSource.uri(Uri.fromFile(file)))
+                        image.setImage(ImageSource.uri(context, Uri.fromFile(file)))
                     }
                 }
                 .onFailure {
