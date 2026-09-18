@@ -73,9 +73,16 @@ class HomiraWebRtcVoiceEngine(
     private val _remoteVideoTrack = MutableStateFlow<VideoTrack?>(null)
     val remoteVideoTrack: StateFlow<VideoTrack?> = _remoteVideoTrack.asStateFlow()
 
+    private val _remoteMuted = MutableStateFlow(false)
+    val remoteMuted: StateFlow<Boolean> = _remoteMuted.asStateFlow()
+
+    private val _remoteVideoEnabled = MutableStateFlow(initialVideoEnabled)
+    val remoteVideoEnabled: StateFlow<Boolean> = _remoteVideoEnabled.asStateFlow()
+
     private val pendingRemoteIce = mutableListOf<IceCandidate>()
     private var remoteDescriptionSet = false
     private var offerSent = false
+    private var signalingReady = false
     private var signalJob: Job? = null
 
     private val eglBase = EglBase.create()
@@ -148,6 +155,7 @@ class HomiraWebRtcVoiceEngine(
         }
 
         signaling.connect()
+        signalingReady = true
         signalJob = scope.launch {
             signaling.signals.collect { signal ->
                 if (signal.fromUserId != localUserId) {
@@ -155,6 +163,8 @@ class HomiraWebRtcVoiceEngine(
                 }
             }
         }
+
+        sendLocalMediaState()
 
         if (!caller) {
             signaling.send(
@@ -170,6 +180,17 @@ class HomiraWebRtcVoiceEngine(
 
     fun setMuted(muted: Boolean) {
         audioTrack?.setEnabled(!muted)
+        if (signalingReady) {
+            scope.launch {
+                signaling.send(
+                    CallSignalEnvelope(
+                        type = "mute-state",
+                        fromUserId = localUserId,
+                        muted = muted
+                    )
+                )
+            }
+        }
     }
 
     fun setVideoEnabled(enabled: Boolean): Boolean {
@@ -178,12 +199,44 @@ class HomiraWebRtcVoiceEngine(
         if (!enabled) {
             track.setEnabled(false)
             stopCameraCapture()
+            sendVideoState(false)
             return true
         }
 
         val started = startCameraCapture()
         track.setEnabled(started)
+        if (started) sendVideoState(true)
         return started
+    }
+
+    private fun sendVideoState(enabled: Boolean) {
+        if (!signalingReady) return
+        scope.launch {
+            signaling.send(
+                CallSignalEnvelope(
+                    type = "video-state",
+                    fromUserId = localUserId,
+                    videoEnabled = enabled
+                )
+            )
+        }
+    }
+
+    private suspend fun sendLocalMediaState() {
+        signaling.send(
+            CallSignalEnvelope(
+                type = "mute-state",
+                fromUserId = localUserId,
+                muted = audioTrack?.enabled() == false
+            )
+        )
+        signaling.send(
+            CallSignalEnvelope(
+                type = "video-state",
+                fromUserId = localUserId,
+                videoEnabled = videoTrack?.enabled() == true
+            )
+        )
     }
 
     fun switchCamera() {
@@ -256,6 +309,7 @@ class HomiraWebRtcVoiceEngine(
     suspend fun close() {
         if (_state.value == HomiraWebRtcState.Closed) return
         _state.value = HomiraWebRtcState.Closed
+        signalingReady = false
 
         signalJob?.cancel()
         runCatching { signaling.close() }
@@ -341,8 +395,17 @@ class HomiraWebRtcVoiceEngine(
         when (signal.type) {
             "ready" -> {
                 if (caller) {
+                    sendLocalMediaState()
                     createAndSendOffer()
                 }
+            }
+
+            "mute-state" -> {
+                signal.muted?.let { _remoteMuted.value = it }
+            }
+
+            "video-state" -> {
+                signal.videoEnabled?.let { _remoteVideoEnabled.value = it }
             }
 
             "offer" -> {
