@@ -184,7 +184,8 @@ input_query() {
   sleep 1
 }
 
-\ntap_text_below() {
+
+tap_text_below() {
   local heading="$1" label="$2"
   dump_ui
   python3 - "$heading" "$label" <<'PY'
@@ -249,7 +250,7 @@ if not str(entry.get('sourceId','')).startswith('anilist.'):
 print(int(entry.get('position',0)))
 PY
 }
-\n
+
 # Real AniList catalog -> CI-only external Anime source -> player -> exact resume.
 wait_for_node Media 20
 tap_text Media
