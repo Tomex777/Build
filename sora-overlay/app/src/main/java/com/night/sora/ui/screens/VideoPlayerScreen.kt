@@ -27,23 +27,20 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.media3.common.C
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
-import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.DefaultHttpDataSource
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import com.night.sora.model.PlaybackSession
-import com.night.sora.model.PlaybackStream
+import com.night.sora.ui.player.AniyomiPlayerView
 import com.night.sora.ui.theme.SoraAccent
 import com.night.sora.ui.theme.SoraMuted
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlin.math.roundToLong
 
+/**
+ * Sora's Anime/TV video screen backed by Aniyomi's libmpv stack.
+ *
+ * Sora owns source/session/progress state. Playback is delegated to the
+ * Aniyomi-derived [AniyomiPlayerView].
+ */
 @Composable
 fun VideoPlayerScreen(
     session: PlaybackSession,
@@ -51,84 +48,85 @@ fun VideoPlayerScreen(
     onProgress: (PlaybackSession, Long, Long) -> Unit = { _, _, _ -> },
 ) {
     val context = LocalContext.current
-    val view = LocalView.current
+    val rootView = LocalView.current
     val activity = remember(context) { context.findActivity() }
     val streams = session.streams
-    var selectedStream by remember { mutableIntStateOf(session.initialStream.coerceIn(0, (streams.size - 1).coerceAtLeast(0))) }
+
+    var selectedStream by remember(session) {
+        mutableIntStateOf(session.initialStream.coerceIn(0, (streams.size - 1).coerceAtLeast(0)))
+    }
     var controlsVisible by remember { mutableStateOf(true) }
     var streamMenuOpen by remember { mutableStateOf(false) }
     var speedMenuOpen by remember { mutableStateOf(false) }
     var positionMs by remember(session) { mutableLongStateOf(session.initialPositionMs.coerceAtLeast(0L)) }
-    var durationMs by remember { mutableLongStateOf(0L) }
-    var bufferedPercent by remember { mutableIntStateOf(0) }
+    var durationMs by remember(session) { mutableLongStateOf(0L) }
     var isPlaying by remember { mutableStateOf(false) }
-    var playbackState by remember { mutableIntStateOf(Player.STATE_IDLE) }
-    var playbackError by remember { mutableStateOf<String?>(null) }
+    var isBuffering by remember { mutableStateOf(false) }
     var speed by remember { mutableFloatStateOf(1f) }
-
-    val player = remember(context) { ExoPlayer.Builder(context).build() }
+    var player by remember { mutableStateOf<AniyomiPlayerView?>(null) }
+    var didInitialSeek by remember(session) { mutableStateOf(session.initialPositionMs <= 0L) }
 
     BackHandler(onBack = onBack)
 
-    DisposableEffect(view, player, activity) {
-        val previousKeepScreenOn = view.keepScreenOn
-        view.keepScreenOn = true
+    DisposableEffect(rootView, activity) {
+        val previousKeepScreenOn = rootView.keepScreenOn
+        rootView.keepScreenOn = true
         val insetsController = activity?.window?.let { window ->
-            WindowCompat.getInsetsController(window, view).also { controller ->
+            WindowCompat.getInsetsController(window, rootView).also { controller ->
                 controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 controller.hide(WindowInsetsCompat.Type.systemBars())
             }
         }
         onDispose {
             insetsController?.show(WindowInsetsCompat.Type.systemBars())
-            view.keepScreenOn = previousKeepScreenOn
-            player.release()
+            rootView.keepScreenOn = previousKeepScreenOn
+            player?.destroyPlayer()
+            player = null
         }
     }
 
-    LaunchedEffect(selectedStream, streams) {
+    LaunchedEffect(player, selectedStream, streams) {
+        val currentPlayer = player ?: return@LaunchedEffect
         if (streams.isEmpty()) return@LaunchedEffect
         val stream = streams[selectedStream.coerceIn(0, streams.lastIndex)]
-        playbackError = null
-        val httpFactory = DefaultHttpDataSource.Factory()
-            .setAllowCrossProtocolRedirects(true)
-            .setDefaultRequestProperties(stream.headers)
-        val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
-        val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
-        val mediaItem = MediaItem.Builder()
-            .setUri(stream.url)
-            .apply { stream.mimeType?.takeIf(String::isNotBlank)?.let(::setMimeType) }
-            .build()
-        val resumeAt = positionMs.coerceAtLeast(0L)
-        player.setMediaSource(mediaSourceFactory.createMediaSource(mediaItem))
-        player.prepare()
-        if (resumeAt > 0L) player.seekTo(resumeAt)
-        player.playWhenReady = true
-        player.setPlaybackSpeed(speed)
+        val resumeAt = if (didInitialSeek) positionMs else session.initialPositionMs
+        currentPlayer.play(
+            url = stream.url,
+            headers = stream.headers,
+            positionMs = resumeAt.coerceAtLeast(0L),
+        )
+        currentPlayer.setSpeed(speed)
     }
 
-    LaunchedEffect(player) {
+    LaunchedEffect(player, session) {
+        val currentPlayer = player ?: return@LaunchedEffect
         while (isActive) {
-            positionMs = player.currentPosition.coerceAtLeast(0L)
-            durationMs = player.duration.takeIf { it != C.TIME_UNSET && it > 0L } ?: 0L
-            bufferedPercent = player.bufferedPercentage.coerceIn(0, 100)
-            isPlaying = player.isPlaying
-            playbackState = player.playbackState
-            playbackError = player.playerError?.message ?: playbackError
+            val current = currentPlayer.positionMs().coerceAtLeast(0L)
+            val total = currentPlayer.durationMs().coerceAtLeast(0L)
+            positionMs = current
+            durationMs = total
+            isPlaying = !currentPlayer.isPaused()
+            isBuffering = currentPlayer.isBuffering()
+
+            if (!didInitialSeek && total > 0L && session.initialPositionMs > 0L) {
+                currentPlayer.seekTo(session.initialPositionMs)
+                didInitialSeek = true
+            }
             delay(250)
         }
     }
 
     LaunchedEffect(player, session) {
+        val currentPlayer = player ?: return@LaunchedEffect
         while (isActive) {
             delay(1_000)
-            val current = player.currentPosition.coerceAtLeast(0L)
-            val total = player.duration.takeIf { it != C.TIME_UNSET && it > 0L } ?: 0L
+            val current = currentPlayer.positionMs().coerceAtLeast(0L)
+            val total = currentPlayer.durationMs().coerceAtLeast(0L)
             if (current > 0L && total > 0L) onProgress(session, current, total)
         }
     }
 
-    LaunchedEffect(controlsVisible, isPlaying) {
+    LaunchedEffect(controlsVisible, isPlaying, streamMenuOpen, speedMenuOpen) {
         if (controlsVisible && isPlaying && !streamMenuOpen && !speedMenuOpen) {
             delay(3_200)
             controlsVisible = false
@@ -136,13 +134,12 @@ fun VideoPlayerScreen(
     }
 
     fun seekBy(deltaMs: Long) {
-        val end = durationMs.takeIf { it > 0L } ?: Long.MAX_VALUE
-        player.seekTo((player.currentPosition + deltaMs).coerceIn(0L, end))
+        player?.seekBy(deltaMs)
         controlsVisible = true
     }
 
     fun togglePlayback() {
-        if (player.isPlaying) player.pause() else player.play()
+        player?.togglePause()
         controlsVisible = true
     }
 
@@ -152,7 +149,11 @@ fun VideoPlayerScreen(
             topBar = {
                 TopAppBar(
                     title = { Text(session.episodeTitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back") } },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Rounded.ArrowBack, "Back")
+                        }
+                    },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black),
                 )
             },
@@ -165,62 +166,73 @@ fun VideoPlayerScreen(
     }
 
     Box(
-        Modifier.fillMaxSize().background(Color.Black).pointerInput(player) {
-            detectTapGestures(
-                onTap = { controlsVisible = !controlsVisible },
-                onDoubleTap = { offset ->
-                    if (offset.x < size.width / 2f) seekBy(-10_000L) else seekBy(10_000L)
-                },
-            )
-        },
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .pointerInput(player) {
+                detectTapGestures(
+                    onTap = { controlsVisible = !controlsVisible },
+                    onDoubleTap = { offset ->
+                        if (offset.x < size.width / 2f) seekBy(-10_000L) else seekBy(10_000L)
+                    },
+                )
+            },
     ) {
         AndroidView(
             factory = { ctx ->
-                PlayerView(ctx).apply {
-                    useController = false
-                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    this.player = player
-                    setShutterBackgroundColor(android.graphics.Color.BLACK)
+                AniyomiPlayerView(ctx).also { view ->
+                    view.initialize()
+                    player = view
                 }
             },
-            update = { it.player = player },
             modifier = Modifier.fillMaxSize(),
         )
 
-        if (playbackState == Player.STATE_BUFFERING) {
+        if (isBuffering) {
             CircularProgressIndicator(
                 color = SoraAccent,
                 modifier = Modifier.align(Alignment.Center).size(42.dp),
             )
         }
 
-        playbackError?.let { message ->
-            Surface(
-                color = Color.Black.copy(alpha = .82f),
-                shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.align(Alignment.Center).padding(24.dp),
-            ) {
-                Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Playback error", color = Color.White, fontWeight = FontWeight.Bold)
-                    Text(message, color = SoraMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
-                    TextButton(onClick = { playbackError = null; player.prepare(); player.play() }) { Text("Retry") }
-                }
-            }
-        }
-
         if (controlsVisible) {
             Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = .28f)))
 
             Row(
-                Modifier.align(Alignment.TopCenter).fillMaxWidth().statusBarsPadding().padding(horizontal = 4.dp, vertical = 4.dp),
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back", tint = Color.White) }
-                Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
-                    Text(session.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(session.episodeTitle, color = Color.White.copy(alpha = .68f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Rounded.ArrowBack, "Back", tint = Color.White)
                 }
-                Text(session.sourceName, color = Color.White.copy(alpha = .68f), fontSize = 10.sp, maxLines = 1, modifier = Modifier.widthIn(max = 120.dp))
+                Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
+                    Text(
+                        session.title,
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        session.episodeTitle,
+                        color = Color.White.copy(alpha = .68f),
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Text(
+                    session.sourceName,
+                    color = Color.White.copy(alpha = .68f),
+                    fontSize = 10.sp,
+                    maxLines = 1,
+                    modifier = Modifier.widthIn(max = 120.dp),
+                )
             }
 
             Row(
@@ -230,31 +242,57 @@ fun VideoPlayerScreen(
             ) {
                 FilledIconButton(
                     onClick = { seekBy(-10_000L) },
-                    colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color.Black.copy(alpha = .50f), contentColor = Color.White),
-                ) { Icon(Icons.Rounded.Replay10, "Back 10 seconds") }
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = Color.Black.copy(alpha = .50f),
+                        contentColor = Color.White,
+                    ),
+                ) {
+                    Icon(Icons.Rounded.Replay10, "Back 10 seconds")
+                }
                 FilledIconButton(
                     onClick = ::togglePlayback,
                     modifier = Modifier.size(64.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color.White.copy(alpha = .94f), contentColor = Color.Black),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = Color.White.copy(alpha = .94f),
+                        contentColor = Color.Black,
+                    ),
                 ) {
-                    Icon(if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (isPlaying) "Pause" else "Play", modifier = Modifier.size(34.dp))
+                    Icon(
+                        if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        if (isPlaying) "Pause" else "Play",
+                        modifier = Modifier.size(34.dp),
+                    )
                 }
                 FilledIconButton(
                     onClick = { seekBy(10_000L) },
-                    colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color.Black.copy(alpha = .50f), contentColor = Color.White),
-                ) { Icon(Icons.Rounded.Forward10, "Forward 10 seconds") }
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = Color.Black.copy(alpha = .50f),
+                        contentColor = Color.White,
+                    ),
+                ) {
+                    Icon(Icons.Rounded.Forward10, "Forward 10 seconds")
+                }
             }
 
             Surface(
                 color = Color.Black.copy(alpha = .72f),
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
             ) {
-                Column(Modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp)) {
-                    val progress = if (durationMs > 0L) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
+                Column(
+                    Modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
+                ) {
+                    val progress = if (durationMs > 0L) {
+                        (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+                    } else {
+                        0f
+                    }
+
                     Slider(
                         value = progress,
                         onValueChange = { fraction ->
-                            if (durationMs > 0L) player.seekTo((durationMs * fraction.coerceIn(0f, 1f)).roundToLong())
+                            if (durationMs > 0L) {
+                                player?.seekTo((durationMs * fraction.coerceIn(0f, 1f)).roundToLong())
+                            }
                             controlsVisible = true
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -264,23 +302,39 @@ fun VideoPlayerScreen(
                             inactiveTrackColor = Color.White.copy(alpha = .28f),
                         ),
                     )
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("${formatPlayerTime(positionMs)} / ${formatPlayerTime(durationMs)}", color = Color.White, fontSize = 11.sp)
-                        Text("  ·  $bufferedPercent% buffered", color = SoraMuted, fontSize = 9.sp)
+                        Text(
+                            "${formatPlayerTime(positionMs)} / ${formatPlayerTime(durationMs)}",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                        )
                         Spacer(Modifier.weight(1f))
 
                         Box {
-                            TextButton(onClick = { speedMenuOpen = true; controlsVisible = true }) {
+                            TextButton(
+                                onClick = {
+                                    speedMenuOpen = true
+                                    controlsVisible = true
+                                },
+                            ) {
                                 Text("${trimSpeed(speed)}×", color = Color.White, fontSize = 11.sp)
                             }
-                            DropdownMenu(expanded = speedMenuOpen, onDismissRequest = { speedMenuOpen = false }) {
+                            DropdownMenu(
+                                expanded = speedMenuOpen,
+                                onDismissRequest = { speedMenuOpen = false },
+                            ) {
                                 listOf(.5f, .75f, 1f, 1.25f, 1.5f, 2f).forEach { value ->
                                     DropdownMenuItem(
                                         text = { Text("${trimSpeed(value)}×") },
-                                        trailingIcon = { if (speed == value) Icon(Icons.Rounded.Check, null, tint = SoraAccent) },
+                                        trailingIcon = {
+                                            if (speed == value) {
+                                                Icon(Icons.Rounded.Check, null, tint = SoraAccent)
+                                            }
+                                        },
                                         onClick = {
                                             speed = value
-                                            player.setPlaybackSpeed(value)
+                                            player?.setSpeed(value)
                                             speedMenuOpen = false
                                         },
                                     )
@@ -289,15 +343,36 @@ fun VideoPlayerScreen(
                         }
 
                         Box {
-                            TextButton(onClick = { streamMenuOpen = true; controlsVisible = true }) {
-                                Text(streams[selectedStream].label.ifBlank { "Source" }, color = Color.White, fontSize = 11.sp, maxLines = 1)
+                            TextButton(
+                                onClick = {
+                                    streamMenuOpen = true
+                                    controlsVisible = true
+                                },
+                            ) {
+                                Text(
+                                    streams[selectedStream].label.ifBlank { "Source" },
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    maxLines = 1,
+                                )
                             }
-                            DropdownMenu(expanded = streamMenuOpen, onDismissRequest = { streamMenuOpen = false }) {
+                            DropdownMenu(
+                                expanded = streamMenuOpen,
+                                onDismissRequest = { streamMenuOpen = false },
+                            ) {
                                 streams.forEachIndexed { index, stream ->
                                     DropdownMenuItem(
-                                        text = { Text(stream.label.ifBlank { "Stream ${index + 1}" }) },
-                                        trailingIcon = { if (selectedStream == index) Icon(Icons.Rounded.Check, null, tint = SoraAccent) },
+                                        text = {
+                                            Text(stream.label.ifBlank { "Stream ${index + 1}" })
+                                        },
+                                        trailingIcon = {
+                                            if (selectedStream == index) {
+                                                Icon(Icons.Rounded.Check, null, tint = SoraAccent)
+                                            }
+                                        },
                                         onClick = {
+                                            positionMs = player?.positionMs() ?: positionMs
+                                            didInitialSeek = true
                                             selectedStream = index
                                             streamMenuOpen = false
                                         },
@@ -322,7 +397,8 @@ private fun formatPlayerTime(valueMs: Long): String {
     else "%d:%02d".format(minutes, seconds)
 }
 
-private fun trimSpeed(value: Float): String = if (value % 1f == 0f) value.toInt().toString() else value.toString().trimEnd('0').trimEnd('.')
+private fun trimSpeed(value: Float): String =
+    if (value % 1f == 0f) value.toInt().toString() else value.toString().trimEnd('0').trimEnd('.')
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
