@@ -11,68 +11,50 @@ jobs:
   anime-manga-flow:
     runs-on: ubuntu-latest
     timeout-minutes: 35
-    permissions:
-      contents: write
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Apply focused Anime Manga patch
+      - name: Enforce AniList Anime Manga truthfulness
         run: |
           set -euo pipefail
-          MEDIA='sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt'
-          JIKAN='sora-overlay/app/src/main/java/com/night/sora/catalog/JikanCatalogClient.kt'
-          CACHE='sora-overlay/app/src/main/java/com/night/sora/data/MediaCatalogCache.kt'
-
-          if grep -q 'CachedMediaSnapshot' "$CACHE" && \
-             grep -q 'fullEndpoint = .*full' "$JIKAN" && \
-             grep -q 'SearchResultSkeleton' "$MEDIA"; then
-            echo 'Anime/Manga implementation already promoted; skipping one-time migration patches.'
-          else
-            python3 sora-ci/repair-sora-anime-manga-patch.py
-            python3 sora-ci/patch-sora-anime-manga-flow.py
-            python3 sora-ci/patch-sora-jikan-resilience.py
-            python3 sora-ci/patch-sora-jikan-full-relations.py
-            # The repair is only a build-time normalizer for the patch draft.
-            git checkout -- sora-ci/patch-sora-anime-manga-flow.py
-          fi
-
-          # This small polish patch is intentionally idempotent and remains safe
-          # to apply after the implementation has already been promoted.
-          python3 sora-ci/patch-sora-media-outage-polish.py
-
-      - name: Enforce Anime Manga truthfulness and scope
-        run: |
-          set -euo pipefail
+          ANILIST='sora-overlay/app/src/main/java/com/night/sora/catalog/AniListCatalogClient.kt'
+          SERVICE='sora-overlay/app/src/main/java/com/night/sora/catalog/AniListCatalogService.kt'
+          MANAGER='sora-overlay/app/src/main/java/com/night/sora/extension/ExtensionManager.kt'
           MEDIA='sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt'
           DETAIL='sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaDetailScreen.kt'
-          JIKAN='sora-overlay/app/src/main/java/com/night/sora/catalog/JikanCatalogClient.kt'
           CACHE='sora-overlay/app/src/main/java/com/night/sora/data/MediaCatalogCache.kt'
+          MANIFEST='sora-overlay/app/src/main/AndroidManifest.xml'
 
+          test -f "$ANILIST"
+          test -f "$SERVICE"
+          test ! -f 'sora-overlay/app/src/main/java/com/night/sora/catalog/JikanCatalogClient.kt'
+          test ! -f 'sora-overlay/app/src/main/java/com/night/sora/catalog/JikanCatalogService.kt'
+
+          grep -q 'https://graphql.anilist.co' "$ANILIST"
+          grep -q 'idMal' "$ANILIST"
+          grep -q 'relationType") != "ADAPTATION"' "$ANILIST"
+          grep -q 'SEARCH_MATCH' "$ANILIST"
+          grep -q 'POPULARITY_DESC' "$ANILIST"
+          grep -q 'START_DATE_DESC' "$ANILIST"
+          grep -q 'MAX_REQUEST_ATTEMPTS = 3' "$ANILIST"
+          grep -q 'sora.core.anilist' "$MANAGER"
+          grep -q 'graphql.anilist.co' "$MANAGER"
+          grep -q 'findBuiltInAniListCounterpart' "$DETAIL"
+          grep -q 'sora.core.anilist' "$MEDIA"
+          grep -q 'AniList did not return live' "$MEDIA"
           grep -q 'Popular this season' "$MEDIA"
           grep -q 'Recently started' "$MEDIA"
-          grep -q 'Showing saved catalog data' "$MEDIA"
-          grep -q 'feedFailures > 0 && selected != null' "$MEDIA"
-          grep -q 'SearchResultSkeleton' "$MEDIA"
-          grep -q 'Jikan did not return live' "$MEDIA"
-          ! grep -q 'primaryError = error.message' "$MEDIA"
           grep -q 'CachedMediaSnapshot' "$CACHE"
-          grep -q 'equals("Adaptation", ignoreCase = true)' "$JIKAN"
-          grep -q 'MAX_REQUEST_ATTEMPTS = 3' "$JIKAN"
-          grep -q 'code in 500..599' "$JIKAN"
-          grep -q 'fullEndpoint = .*full' "$JIKAN"
-          grep -q 'optJSONArray("relations")' "$JIKAN"
-          grep -q 'relationsEndpoint' "$JIKAN"
-          grep -q 'exact title match' "$DETAIL"
+          grep -q 'sourceId.startsWith("jikan."' "$CACHE"
+          grep -q '.catalog.AniListCatalogService' "$MANIFEST"
+          grep -q 'sora.core.anilist' "$MANIFEST"
+
+          ! grep -q 'api.jikan.moe' "$MANAGER" "$MEDIA" "$DETAIL" "$MANIFEST"
+          ! grep -q 'sora.core.jikan' "$MANAGER" "$MEDIA" "$DETAIL" "$MANIFEST"
           ! grep -q 'best ?: array.optJSONObject(0)' "$DETAIL"
           ! grep -q 'name.contains(normalized)' "$DETAIL"
           ! grep -q 'The Last Platform\|After Rain' "$MEDIA"
-          ! grep -q 'Made for You' "$MEDIA"
-
-          changed="$(git diff --name-only)"
-          echo "$changed"
-          test "$(printf '%s\n' "$changed" | grep '^sora-overlay/' | wc -l)" -le 6
-          ! printf '%s\n' "$changed" | grep -E 'Music|AiScreen|BibleScreen|GamesScreen|PlayerReaderSettingsScreen'
 
       - name: Reconstruct current Android source
         run: |
@@ -105,33 +87,35 @@ jobs:
         working-directory: /tmp/sora-src/Sora_Android_v0_1
         run: gradle --stacktrace :app:assembleDebug
 
-      - name: Probe Jikan availability
-        id: jikan_probe
+      - name: Probe AniList availability
+        id: anilist_probe
         run: |
           set +e
-          urls=(
-            'https://api.jikan.moe/v4/top/anime?filter=airing&limit=1&sfw=true'
-            'https://api.jikan.moe/v4/top/manga?filter=publishing&limit=1'
-            'https://api.jikan.moe/v4/anime?q=naruto&limit=1&sfw=true'
-          )
-          successes=0
-          for url in "${urls[@]}"; do
-            code="$(curl -sS -o /tmp/jikan-probe.json -w '%{http_code}' --retry 2 --retry-delay 2 --max-time 15 "$url")"
-            if [[ "$code" =~ ^2 && "$code" != "204" ]] && grep -q '"data"' /tmp/jikan-probe.json; then
-              echo "Jikan probe OK ($code): $url"
-              successes=$((successes+1))
-            else
-              echo "Jikan probe unavailable ($code): $url"
-            fi
-            sleep 1
-          done
-          if [[ "$successes" -eq "${#urls[@]}" ]]; then
-            echo 'healthy=1' >> "$GITHUB_OUTPUT"
-            echo 'Jikan preflight is healthy; emulator will run the strict full live gate.'
-          else
-            echo 'healthy=0' >> "$GITHUB_OUTPUT"
-            echo '::warning::Jikan preflight is incomplete/unavailable. The emulator remains authoritative and may still promote full-live status if the complete real UI flow succeeds.'
-          fi
+          cat > /tmp/anilist-probe-payload.json <<'JSON'
+          {"query":"query { anime: Page(page:1, perPage:2) { media(type:ANIME, status:RELEASING, isAdult:false, sort:[POPULARITY_DESC]) { id title { romaji english } } } manga: Page(page:1, perPage:2) { media(type:MANGA, status:RELEASING, isAdult:false, sort:[POPULARITY_DESC]) { id title { romaji english } } } search: Page(page:1, perPage:2) { media(type:ANIME, search:\"Naruto\", isAdult:false, sort:[SEARCH_MATCH, POPULARITY_DESC]) { id title { romaji english } } } }"}
+          JSON
+          code="$(curl -sS -o /tmp/anilist-probe.json -w '%{http_code}' --retry 2 --retry-delay 2 --max-time 20             -H 'Accept: application/json'             -H 'Content-Type: application/json'             --data-binary @/tmp/anilist-probe-payload.json             https://graphql.anilist.co)"
+
+          python3 - "$code" <<'PY'
+          import json, os, sys
+          code=sys.argv[1]
+          healthy=False
+          try:
+              root=json.load(open('/tmp/anilist-probe.json'))
+              data=root.get('data') or {}
+              healthy=(
+                  code.startswith('2')
+                  and not root.get('errors')
+                  and bool((data.get('anime') or {}).get('media'))
+                  and bool((data.get('manga') or {}).get('media'))
+                  and bool((data.get('search') or {}).get('media'))
+              )
+          except Exception:
+              healthy=False
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:
+              f.write('healthy=%s\n' % ('1' if healthy else '0'))
+          print('AniList preflight healthy.' if healthy else 'AniList preflight unavailable/incomplete; emulator will verify the honest fallback state.')
+          PY
           exit 0
 
       - name: Enable KVM
@@ -143,7 +127,7 @@ jobs:
       - name: Validate Anime Manga flow in emulator
         uses: reactivecircus/android-emulator-runner@v2
         env:
-          JIKAN_HEALTHY: ${{ steps.jikan_probe.outputs.healthy }}
+          ANILIST_HEALTHY: ${{ steps.anilist_probe.outputs.healthy }}
         with:
           api-level: 35
           target: google_apis
@@ -168,36 +152,13 @@ jobs:
         run: |
           if [[ -f /tmp/sora-anime-manga-live/FULL_LIVE_PASS ]]; then
             echo 'fully_validated=1' >> "$GITHUB_OUTPUT"
-            echo 'The emulator completed the full real-data Anime/Manga flow.'
+            echo 'The emulator completed the full real-data AniList Anime/Manga flow.'
           else
             echo 'fully_validated=0' >> "$GITHUB_OUTPUT"
-            echo 'The implementation passed build/emulator validation, but Jikan did not permit the complete live-data path in this run.'
+            echo 'The build/emulator path passed, but the complete AniList live-data flow was not available in this run.'
           fi
 
-      - name: Record live validation status
-        if: always() && steps.live_gate.outputs.fully_validated != '1'
-        run: echo 'Full live Jikan validation remains pending; this does not discard an otherwise build- and emulator-validated implementation.'
-
-      - name: Commit validated Anime Manga implementation
-        if: success()
+      - name: Require full AniList live validation
+        if: always()
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add \
-            sora-overlay/app/src/main/java/com/night/sora/data/MediaCatalogCache.kt \
-            sora-overlay/app/src/main/java/com/night/sora/catalog/JikanCatalogClient.kt \
-            sora-overlay/app/src/main/java/com/night/sora/catalog/JikanCatalogService.kt \
-            sora-overlay/app/src/main/java/com/night/sora/extension/ExtensionManager.kt \
-            sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaDetailScreen.kt \
-            sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt
-          if git diff --cached --quiet; then
-            echo 'No Anime/Manga changes to commit'
-          else
-            if [[ '${{ steps.live_gate.outputs.fully_validated }}' == '1' ]]; then
-              message='polish live Sora Anime Manga flow'
-            else
-              message='apply validated Sora Anime Manga resilience flow'
-            fi
-            git commit -m "$message"
-            git push origin HEAD:sora-media-ci
-          fi
+          test '${{ steps.live_gate.outputs.fully_validated }}' = '1'
