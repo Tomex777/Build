@@ -7,12 +7,19 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
 
     <application
         android:allowBackup="false"
         android:label="Homira"
         android:supportsRtl="true"
         android:theme="@style/Theme.Homira">
+        <service
+            android:name=".call.HomiraScreenShareService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
