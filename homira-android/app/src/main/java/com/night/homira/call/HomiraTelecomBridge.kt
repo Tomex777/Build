@@ -5,13 +5,11 @@ import android.net.Uri
 import android.telecom.DisconnectCause
 import androidx.core.telecom.CallAttributesCompat
 import androidx.core.telecom.CallControlResult
+import androidx.core.telecom.CallControlScope
 import androidx.core.telecom.CallsManager
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.launch
 
 sealed interface HomiraTelecomPlatformEvent {
     data class AnswerRequested(val requestedCallType: Int) :
@@ -22,12 +20,6 @@ sealed interface HomiraTelecomPlatformEvent {
 
     data object ActivateRequested : HomiraTelecomPlatformEvent
     data object InactivateRequested : HomiraTelecomPlatformEvent
-}
-
-private sealed interface HomiraTelecomAction {
-    data class Answer(val video: Boolean) : HomiraTelecomAction
-    data object SetActive : HomiraTelecomAction
-    data class Disconnect(val cause: Int) : HomiraTelecomAction
 }
 
 class HomiraTelecomBridge(
@@ -48,7 +40,7 @@ class HomiraTelecomBridge(
         _platformEvents.asSharedFlow()
 
     @Volatile
-    private var actions: Channel<HomiraTelecomAction>? = null
+    private var controlScope: CallControlScope? = null
 
     suspend fun registerCall(
         callId: String,
@@ -57,12 +49,9 @@ class HomiraTelecomBridge(
         incoming: Boolean,
         video: Boolean
     ) {
-        check(actions == null) {
+        check(controlScope == null) {
             "Homira currently supports one Telecom call at a time"
         }
-
-        val callActions = Channel<HomiraTelecomAction>(Channel.BUFFERED)
-        actions = callActions
 
         val attributes = CallAttributesCompat(
             displayName = peerName,
@@ -85,79 +74,59 @@ class HomiraTelecomBridge(
 
         try {
             callsManager.addCall(
-                attributes,
-                onAnswerCall = { requestedType ->
+                callAttributes = attributes,
+                onAnswer = { requestedType ->
                     _platformEvents.emit(
                         HomiraTelecomPlatformEvent.AnswerRequested(
                             requestedType
                         )
                     )
                 },
-                onSetCallDisconnected = { cause ->
+                onDisconnect = { cause ->
                     _platformEvents.emit(
                         HomiraTelecomPlatformEvent.DisconnectRequested(cause)
                     )
                 },
-                onSetCallActive = {
+                onSetActive = {
                     _platformEvents.emit(
                         HomiraTelecomPlatformEvent.ActivateRequested
                     )
                 },
-                onSetCallInactive = {
+                onSetInactive = {
                     _platformEvents.emit(
                         HomiraTelecomPlatformEvent.InactivateRequested
                     )
                 }
             ) {
-                launch {
-                    processActions(callActions.consumeAsFlow())
-                }
+                controlScope = this
             }
         } finally {
-            actions = null
-            callActions.close()
+            controlScope = null
         }
     }
 
-    suspend fun answer(video: Boolean): Boolean =
-        send(HomiraTelecomAction.Answer(video))
+    suspend fun answer(video: Boolean): Boolean {
+        val scope = controlScope ?: return false
+        return scope.answer(
+            if (video) {
+                CallAttributesCompat.CALL_TYPE_VIDEO_CALL
+            } else {
+                CallAttributesCompat.CALL_TYPE_AUDIO_CALL
+            }
+        ) is CallControlResult.Success
+    }
 
-    suspend fun markActive(): Boolean =
-        send(HomiraTelecomAction.SetActive)
+    suspend fun markActive(): Boolean {
+        val scope = controlScope ?: return false
+        return scope.setActive() is CallControlResult.Success
+    }
 
     suspend fun disconnect(
         cause: Int = DisconnectCause.LOCAL
-    ): Boolean = send(HomiraTelecomAction.Disconnect(cause))
-
-    private suspend fun send(action: HomiraTelecomAction): Boolean {
-        val channel = actions ?: return false
-        channel.send(action)
-        return true
-    }
-
-    private suspend fun androidx.core.telecom.CallControlScope.processActions(
-        actionFlow: Flow<HomiraTelecomAction>
-    ) {
-        actionFlow.collect { action ->
-            when (action) {
-                is HomiraTelecomAction.Answer -> {
-                    answer(
-                        if (action.video) {
-                            CallAttributesCompat.CALL_TYPE_VIDEO_CALL
-                        } else {
-                            CallAttributesCompat.CALL_TYPE_AUDIO_CALL
-                        }
-                    )
-                }
-
-                HomiraTelecomAction.SetActive -> {
-                    setActive()
-                }
-
-                is HomiraTelecomAction.Disconnect -> {
-                    disconnect(DisconnectCause(action.cause))
-                }
-            }
-        }
+    ): Boolean {
+        val scope = controlScope ?: return false
+        return scope.disconnect(
+            DisconnectCause(cause)
+        ) is CallControlResult.Success
     }
 }
