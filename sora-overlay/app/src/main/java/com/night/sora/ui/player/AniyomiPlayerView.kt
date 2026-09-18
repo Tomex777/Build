@@ -89,6 +89,7 @@ class AniyomiPlayerView(
         MPVLib.observeProperty("seeking", MPVLib.mpvFormat.MPV_FORMAT_FLAG)
         MPVLib.observeProperty("eof-reached", MPVLib.mpvFormat.MPV_FORMAT_FLAG)
         MPVLib.observeProperty("hwdec-current", MPVLib.mpvFormat.MPV_FORMAT_STRING)
+        MPVLib.observeProperty("idle-active", MPVLib.mpvFormat.MPV_FORMAT_FLAG)
     }
 
     /**
@@ -173,6 +174,14 @@ class AniyomiPlayerView(
         } else {
             MpvPropertyReader.getBoolean("paused-for-cache", false)
         }
+
+    fun requestStopForExit() {
+        if (!initialized) return
+        runCatching { MPVLib.command(arrayOf("stop")) }
+    }
+
+    fun isIdleForExit(): Boolean =
+        !initialized || MpvPropertyReader.getBoolean("idle-active", false)
 
     fun destroyPlayer() {
         if (!initialized) return
