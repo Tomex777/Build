@@ -851,6 +851,121 @@ private fun RecentEntryRow(
 }
 
 @Composable
+private fun AddContactScreen(
+    repository: HomiraLiveRepository,
+    onBack: () -> Unit,
+    onAdded: (LiveContact) -> Unit
+) {
+    var query by rememberSaveable { mutableStateOf("") }
+    var localName by rememberSaveable { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(HomiraBackground)
+            .safeDrawingPadding()
+            .padding(horizontal = 20.dp, vertical = 14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = HomiraText)
+            }
+            Text(
+                "Add contact",
+                color = HomiraText,
+                fontSize = 25.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Spacer(Modifier.height(20.dp))
+        Text(
+            "Find someone on Homira",
+            color = HomiraText,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(Modifier.height(5.dp))
+        Text(
+            "Use their exact @username or full phone number with country code.",
+            color = HomiraMuted,
+            fontSize = 13.sp
+        )
+        Spacer(Modifier.height(18.dp))
+
+        OutlinedTextField(
+            value = query,
+            onValueChange = {
+                query = it
+                error = null
+            },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            label = { Text("Username or phone number") },
+            placeholder = { Text("@username or +234…") },
+            shape = RoundedCornerShape(18.dp)
+        )
+
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(
+            value = localName,
+            onValueChange = { localName = it },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            label = { Text("Name on your phone · optional") },
+            shape = RoundedCornerShape(18.dp)
+        )
+
+        if (error != null) {
+            Spacer(Modifier.height(12.dp))
+            Text(error ?: "", color = HomiraDanger, fontSize = 13.sp)
+        }
+
+        Spacer(Modifier.height(18.dp))
+        Button(
+            onClick = {
+                if (query.isBlank() || busy) return@Button
+                scope.launch {
+                    busy = true
+                    error = null
+                    runCatching {
+                        repository.addContact(
+                            query = query.trim(),
+                            localName = localName.trim().ifBlank { null }
+                        )
+                    }.onSuccess { contact ->
+                        if (contact == null) {
+                            error = "No Homira account matched that username or number."
+                        } else {
+                            onAdded(contact)
+                        }
+                    }.onFailure {
+                        error = it.message ?: "Could not add this contact."
+                    }
+                    busy = false
+                }
+            },
+            enabled = query.isNotBlank() && !busy,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = HomiraGreen,
+                contentColor = HomiraBackground
+            )
+        ) {
+            if (busy) {
+                Text("Adding…", fontWeight = FontWeight.SemiBold)
+            } else {
+                Text("Add to Homira", fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
 private fun ContactsScreen(
     contacts: List<HomiraPerson>,
     myName: String,
