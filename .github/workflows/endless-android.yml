@@ -1,0 +1,54 @@
+name: Endless Android CI
+
+on:
+  push:
+    branches:
+      - endless-android-ci
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reconstruct Endless source
+        shell: bash
+        run: |
+          mkdir -p /tmp/endless-src
+          cat endless_parts/part*.b64 | tr -d '\n\r ' | base64 --decode > /tmp/endless.zip
+          unzip -q /tmp/endless.zip -d /tmp/endless-src
+          test -f /tmp/endless-src/Endless_Android_M1/settings.gradle.kts
+          echo "ENDLESS_PROJECT=/tmp/endless-src/Endless_Android_M1" >> "$GITHUB_ENV"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Install Android SDK 37
+        shell: bash
+        run: sdkmanager "platforms;android-37" "build-tools;36.0.0"
+
+      - name: Build Endless debug APK
+        working-directory: ${{ env.ENDLESS_PROJECT }}
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Upload Endless APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: endless-debug-apk
+          path: ${{ env.ENDLESS_PROJECT }}/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
