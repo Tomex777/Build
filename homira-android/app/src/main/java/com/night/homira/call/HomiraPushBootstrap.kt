@@ -11,7 +11,7 @@ import java.util.UUID
 object HomiraPushBootstrap {
     private const val PREFS_NAME = "homira_push"
     private const val KEY_DEVICE_ID = "device_id"
-    private const val KEY_FCM_TOKEN = "fcm_token"
+    private const val KEY_FCM_TARGET = "fcm_target"
 
     fun isConfigured(): Boolean =
         BuildConfig.FIREBASE_PROJECT_ID.isNotBlank() &&
@@ -54,7 +54,7 @@ object HomiraPushBootstrap {
         messaging.register()
     }
 
-    fun storeToken(
+    fun storeTarget(
         context: Context,
         token: String
     ) {
@@ -62,13 +62,13 @@ object HomiraPushBootstrap {
 
         preferences(context)
             .edit()
-            .putString(KEY_FCM_TOKEN, token)
+            .putString(KEY_FCM_TARGET, token)
             .apply()
     }
 
-    fun storedToken(context: Context): String? =
+    fun storedTarget(context: Context): String? =
         preferences(context)
-            .getString(KEY_FCM_TOKEN, null)
+            .getString(KEY_FCM_TARGET, null)
             ?.takeIf { it.isNotBlank() }
 
     fun deviceId(context: Context): String {
@@ -88,12 +88,12 @@ object HomiraPushBootstrap {
         context: Context,
         repository: HomiraLiveRepository
     ) {
-        val token = storedToken(context) ?: return
+        val target = storedTarget(context) ?: return
         if (!repository.isSignedIn()) return
 
         repository.registerPushToken(
             deviceId = deviceId(context),
-            token = token,
+            token = target,
             platform = "android"
         )
     }
