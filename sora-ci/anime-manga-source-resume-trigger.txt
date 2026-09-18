@@ -1,1 +1,1 @@
-run 4 - exact-commit-clean external source exact resume validation
+run 5 - dismiss fullscreen tutorial external source exact resume validation
