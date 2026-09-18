@@ -133,16 +133,20 @@ wait_for_catalog_state() {
 }
 
 tap_text() {
-  local label="$1"
-  if ! dismiss_emulator_system_dialogs; then
-    echo "A real Sora/system dialog blocked tap '$label'" >&2
-    return 1
-  fi
-  dump_ui
-  python3 - "$label" <<'PY'
+  local label="$1" timeout="${2:-12}" elapsed=0
+  while (( elapsed < timeout )); do
+    if ! dismiss_emulator_system_dialogs; then
+      echo "A real Sora/system dialog blocked tap '$label'" >&2
+      return 1
+    fi
+    dump_ui
+    if python3 - "$label" <<'PY'
 import re, subprocess, sys, xml.etree.ElementTree as ET
 label=sys.argv[1]
-root=ET.parse('/tmp/sora-media-window.xml').getroot()
+try:
+    root=ET.parse('/tmp/sora-media-window.xml').getroot()
+except Exception:
+    raise SystemExit(1)
 points=[]
 for node in root.iter('node'):
     text=(node.attrib.get('text') or '').strip()
@@ -154,11 +158,20 @@ for node in root.iter('node'):
         x1,y1,x2,y2=map(int,m.groups())
         points.append(((y1,x1),(x1+x2)//2,(y1+y2)//2))
 if not points:
-    raise SystemExit(f'UI node not found: {label}')
+    raise SystemExit(1)
 _,x,y=sorted(points)[0]
 subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
 PY
-  sleep 1
+    then
+      sleep 1
+      return 0
+    fi
+    sleep 1
+    elapsed=$((elapsed+1))
+  done
+  echo "Timed out trying to tap '$label'" >&2
+  shot "failure-tap-${label//[^A-Za-z0-9]/_}"
+  return 1
 }
 
 input_query() {
