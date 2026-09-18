@@ -33,6 +33,7 @@ const bailey = (window as unknown as {
     detectModuleRuntimes(): Promise<Array<{ id: string; label: string; available: boolean; command: string; version?: string; detail?: string }>>;
     exportModulePackage(moduleId: string): Promise<{ ok: boolean; canceled?: boolean; path?: string }>;
     installModulePackage(): Promise<{ ok: boolean; canceled?: boolean; id?: string; name?: string }>;
+    installModuleDependencies(moduleId: string): Promise<{ ok: boolean; installed: boolean; detail: string; output: string[] }>;
     getModuleRuntimeStatus(): Promise<Array<{ id: string; name: string; running: boolean; pid?: number; crashCount: number; restartCount: number; lastError?: string; capabilities: string[]; permissions: string[]; grantedPermissions: string[]; logs: string[] }>>;
     restartModule(moduleId: string): Promise<unknown>;
     setModulePermissions(moduleId: string, grants: string[]): Promise<unknown>;
@@ -391,7 +392,24 @@ function installHostTools(): void {
             restartButton.disabled = true;
             void bailey.restartModule(module.id).then(refresh).finally(() => { restartButton.disabled = false; });
           });
-          actions.append(exportButton, restartButton);
+          const depsButton = document.createElement("button");
+          depsButton.type = "button";
+          depsButton.className = "secondary-button";
+          depsButton.textContent = "Install deps";
+          depsButton.addEventListener("click", () => {
+            depsButton.disabled = true;
+            depsButton.textContent = "Installing…";
+            void bailey.installModuleDependencies(module.id).then((result) => {
+              window.alert(result.detail + (result.output.length ? "\n\n" + result.output.slice(-12).join("\n") : ""));
+              return refresh();
+            }).catch((error) => {
+              window.alert(error instanceof Error ? error.message : String(error));
+            }).finally(() => {
+              depsButton.disabled = false;
+              depsButton.textContent = "Install deps";
+            });
+          });
+          actions.append(exportButton, depsButton, restartButton);
 
           const details = document.createElement("details");
           const summary = document.createElement("summary");
