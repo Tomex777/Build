@@ -55,24 +55,45 @@ class DiagnosticViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun openKwikBrowser() {
-        val target = manualKwikUrl.trim().ifBlank { sessions.lastKwikUrl }
+        val target = sessions.lastKwikUrl.ifBlank { manualKwikUrl.trim() }
         val host = runCatching { URI(target).host.orEmpty().lowercase() }.getOrDefault("")
 
         if (target.isBlank()) {
-            statusMessage = "Paste a Kwik release URL first."
+            statusMessage =
+                "No Kwik URL has been discovered yet. Run Trace AnimePahe -> Kwik so we can catch where discovery fails."
             return
         }
         if (!host.startsWith("kwik.") && !host.contains(".kwik.")) {
-            statusMessage = "That does not look like a Kwik URL."
+            statusMessage = "The cached/manual URL does not look like a Kwik URL."
             return
         }
 
-        store.saveLastKwikUrl(target)
-        refreshSessions()
         browserMode = BrowserMode.KWIK
         browserUrl = target
         statusMessage = null
         browserOpen = true
+    }
+
+    fun traceKwikDiscovery() {
+        runTask("Tracing AnimePahe -> Kwik...") {
+            val result = engine.runAnimePahe()
+            applyResult(result)
+
+            val kwik = result.kwikUrl
+            if (kwik.isNullOrBlank()) {
+                statusMessage =
+                    "Kwik discovery failed. The result list/report shows the exact stage that failed."
+                return@runTask
+            }
+
+            store.saveLastKwikUrl(kwik)
+            manualKwikUrl = kwik
+            refreshSessions()
+            browserMode = BrowserMode.KWIK
+            browserUrl = kwik
+            statusMessage = "Kwik URL discovered. Opening verification browser."
+            browserOpen = true
+        }
     }
 
     fun closeBrowser() {
@@ -122,9 +143,10 @@ class DiagnosticViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun testKwik() {
-        val target = manualKwikUrl.trim().ifBlank { sessions.lastKwikUrl }
+        val target = sessions.lastKwikUrl.ifBlank { manualKwikUrl.trim() }
         if (target.isBlank()) {
-            statusMessage = "Paste a Kwik release URL first."
+            statusMessage =
+                "No Kwik URL is available yet. Trace AnimePahe -> Kwik first, or use the Advanced manual URL fallback."
             return
         }
 
