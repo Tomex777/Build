@@ -1,0 +1,59 @@
+name: Homira Auth UI Preview
+
+on:
+  push:
+    branches: [homira-call-ci]
+    paths:
+      - 'homira-android/app/src/main/java/com/night/homira/ui/HomiraAuthGate.kt'
+      - 'homira-android/app/src/main/res/drawable-nodpi/homira_call_mascot.webp'
+      - '.github/workflows/homira-auth-preview.yml'
+  workflow_dispatch:
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Build debug APK
+        working-directory: homira-android
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Render auth screen
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb install -r homira-android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell am force-stop com.night.homira
+            adb shell am start -n com.night.homira/.MainActivity
+            sleep 8
+            mkdir -p homira-android/app/build/ui-preview
+            adb exec-out screencap -p > homira-android/app/build/ui-preview/auth-screen.png
+
+      - name: Upload auth screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: homira-auth-screen
+          path: homira-android/app/build/ui-preview/auth-screen.png
+          if-no-files-found: error
