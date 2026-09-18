@@ -162,16 +162,11 @@ class HomiraLiveRepository {
     }
 
     suspend fun loadPendingIncomingCall(): LiveCallSession? {
-        val userId = currentUserId() ?: return null
-        return client.from("call_sessions")
-            .select {
-                filter {
-                    eq("callee_id", userId)
-                    eq("state", "ringing")
-                }
-            }
+        if (currentUserId() == null) return null
+        return client.postgrest
+            .rpc("latest_pending_incoming_call")
             .decodeList<LiveCallSession>()
-            .maxByOrNull { it.createdAt }
+            .firstOrNull()
     }
 
     suspend fun loadProfileById(userId: String): LiveProfile? =
