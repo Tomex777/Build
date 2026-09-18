@@ -44,6 +44,22 @@ object HomiraSupabase {
 }
 
 @Serializable
+data class LiveDialTarget(
+    val id: String,
+    @SerialName("display_name") val displayName: String,
+    val username: String? = null,
+    @SerialName("phone_e164") val phoneE164: String? = null,
+    val about: String = "",
+    @SerialName("avatar_path") val avatarPath: String? = null,
+    @SerialName("call_card_path") val callCardPath: String? = null
+)
+
+@Serializable
+private data class ResolveDialTargetParams(
+    @SerialName("p_phone") val phone: String
+)
+
+@Serializable
 data class LiveContact(
     val id: String,
     @SerialName("display_name") val displayName: String,
@@ -172,6 +188,15 @@ class HomiraLiveRepository {
                 .decodeSingle<LiveProfile>()
         }.getOrNull()
     }
+
+    suspend fun resolveDialTarget(phoneE164: String): LiveDialTarget? =
+        client.postgrest
+            .rpc(
+                "resolve_homira_call_target",
+                ResolveDialTargetParams(phone = phoneE164)
+            )
+            .decodeList<LiveDialTarget>()
+            .firstOrNull()
 
     suspend fun loadContacts(): List<LiveContact> =
         client.postgrest
