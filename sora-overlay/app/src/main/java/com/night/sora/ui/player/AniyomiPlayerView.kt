@@ -10,11 +10,15 @@ package com.night.sora.ui.player
 
 import android.content.Context
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.AttributeSet
 import android.view.SurfaceHolder
 import `is`.xyz.mpv.BaseMPVView
 import `is`.xyz.mpv.MPVLib
 import java.io.File
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Sora adapter around Aniyomi's actual [BaseMPVView] lifecycle.
@@ -30,9 +34,11 @@ class AniyomiPlayerView(
 
     private var initialized = false
     private var surfaceReady = false
+    private val releaseStarted = AtomicBoolean(false)
 
     fun initialize() {
         if (initialized) return
+        releaseStarted.set(false)
 
         val mpvDir = File(context.filesDir, "mpv").apply { mkdirs() }
         val cacheDir = File(context.cacheDir, "mpv").apply { mkdirs() }
@@ -183,17 +189,51 @@ class AniyomiPlayerView(
     fun isIdleForExit(): Boolean =
         !initialized || MpvPropertyReader.getBoolean("idle-active", false)
 
-    fun destroyPlayer() {
-        if (!initialized) return
+    /**
+     * Release libmpv without blocking Compose's main thread.
+     *
+     * BaseMPVView.destroy() calls MPVLib.destroy() synchronously. In an
+     * embedded Compose SurfaceView that can block long enough for Android to
+     * raise an ANR, especially while the video output is still attached.
+     *
+     * We first disable future SurfaceHolder callbacks and detach video output
+     * on the UI thread, then perform the blocking native destroy on a single
+     * worker. The callback is posted to the main thread only after libmpv is
+     * fully released, preventing the next player from racing the static
+     * MPVLib instance.
+     */
+    fun releaseAsync(onReleased: (() -> Unit)? = null) {
+        if (!initialized) {
+            onReleased?.invoke()
+            return
+        }
+        if (!releaseStarted.compareAndSet(false, true)) return
 
-        // Match Aniyomi's finishing lifecycle: stop active decoding before
-        // destroying libmpv. Destroying an actively playing instance can block
-        // the UI thread long enough for Android to raise an ANR.
         runCatching { MPVLib.command(arrayOf("stop")) }
+
+        // Stop BaseMPVView callbacks from touching mpv after native teardown.
+        holder.removeCallback(this)
+        if (surfaceReady) {
+            runCatching { MPVLib.setPropertyString("vo", "null") }
+            runCatching { MPVLib.setOptionString("force-window", "no") }
+            runCatching { MPVLib.detachSurface() }
+        }
 
         surfaceReady = false
         initialized = false
-        super.destroy()
+
+        RELEASE_EXECUTOR.execute {
+            runCatching { MPVLib.destroy() }
+            MAIN.post { onReleased?.invoke() }
+        }
+    }
+
+    /**
+     * Lifecycle fallback for disposal paths that did not come through the
+     * explicit Back action.
+     */
+    fun destroyPlayer() {
+        releaseAsync()
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
@@ -216,5 +256,10 @@ class AniyomiPlayerView(
             .joinToString(",") { "${it.key}: ${it.value}" }
 
         MPVLib.setPropertyString("http-header-fields", headerValue)
+    }
+
+    companion object {
+        private val RELEASE_EXECUTOR = Executors.newSingleThreadExecutor()
+        private val MAIN = Handler(Looper.getMainLooper())
     }
 }
