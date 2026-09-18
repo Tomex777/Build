@@ -380,12 +380,9 @@ class PaheRepository(
     }
 
     private fun searchOnHost(host: String, query: String): List<AnimeSearchResult> {
-        // AnimePahe can cache search responses after a session UUID rotates.
-        // Add a harmless epoch suffix so we always get the current session.
-        val freshQuery = "$query ${System.currentTimeMillis() / 1000L}"
-        val encoded = URLEncoder.encode(freshQuery, StandardCharsets.UTF_8.toString())
+        val encoded = URLEncoder.encode(query, StandardCharsets.UTF_8.toString())
         val body = requestText(
-            "https://$host/api?m=search&q=$encoded&page=1",
+            "https://$host/api?m=search&q=$encoded",
             referer = "https://$host/",
         )
         val root = JSONObject(body)
