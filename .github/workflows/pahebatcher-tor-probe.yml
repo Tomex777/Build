@@ -1,0 +1,57 @@
+name: PaheBatcher Tor Endpoint Probe
+
+on:
+  push:
+    branches: [pahebatcher-android-ci]
+    paths:
+      - 'pahebatcher-android/ci/tor_endpoint_probe.py'
+      - '.github/workflows/pahebatcher-tor-probe.yml'
+  workflow_dispatch:
+
+jobs:
+  tor-endpoints:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Start isolated Tor circuits
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y tor
+          echo 'SocksPort 9050 IsolateSOCKSAuth' | sudo tee -a /etc/tor/torrc
+          sudo systemctl restart tor || sudo service tor restart
+
+          ready=false
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 15 --socks5-hostname 127.0.0.1:9050 https://check.torproject.org/api/ip > tor-check.json; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = true
+          cat tor-check.json
+
+      - name: Probe AnimePahe and Kwik endpoints through Tor
+        run: |
+          python3 -m pip install --disable-pip-version-check --quiet 'curl-cffi>=0.13,<0.14'
+          TOR_PROBE_CIRCUITS=12 python3 pahebatcher-android/ci/tor_endpoint_probe.py
+
+      - name: Show endpoint summary
+        if: always()
+        run: |
+          if [ -f tor-probe/endpoint-report.json ]; then
+            python3 -c "import json; d=json.load(open('tor-probe/endpoint-report.json')); print(json.dumps(d['summary'], indent=2))"
+          fi
+
+      - name: Upload Tor endpoint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pahebatcher-tor-endpoint-report
+          path: |
+            tor-check.json
+            tor-probe/**
+          if-no-files-found: warn
