@@ -7,7 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import com.night.extensionchat.ui.ExtensionChatApp
 import com.night.extensionchat.ui.ExtensionChatTheme
 
-// Visual validation build target.
+// Visual validation build target. CI visual render trigger.
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
