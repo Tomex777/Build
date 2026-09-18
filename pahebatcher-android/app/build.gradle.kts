@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.night.pahebatcher"
-        minSdk = 29
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
