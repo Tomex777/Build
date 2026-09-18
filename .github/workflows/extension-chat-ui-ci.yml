@@ -86,25 +86,16 @@ jobs:
             adb install --no-streaming -r extension-chat-android/app/build/outputs/apk/debug/app-debug.apk || (sleep 8; adb wait-for-device; adb install --no-streaming -r extension-chat-android/app/build/outputs/apk/debug/app-debug.apk)
             adb shell wm size 1080x2400
             adb shell wm density 440
+            adb shell am force-stop com.google.android.apps.nexuslauncher || true
             adb shell am force-stop com.night.extensionchat
             adb shell am start -W -n com.night.extensionchat/.MainActivity
             sleep 5
 
-            # Dismiss emulator launcher ANR overlays if the slow CI device raises one.
+            # Pixel Launcher can ANR on a cold, software-rendered CI emulator.
+            # On our fixed 1080x2400 preview device, dismiss the "Wait" row if that dialog appears.
             adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
             adb pull /sdcard/window.xml /tmp/window.xml >/dev/null 2>&1 || true
-            python3 - <<'PY'
-            import re, subprocess
-            try:
-                xml = open("/tmp/window.xml", encoding="utf-8").read()
-            except Exception:
-                xml = ""
-            m = re.search(r'text="Wait"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"', xml)
-            if m and ("isn't responding" in xml or "is not responding" in xml):
-                x1, y1, x2, y2 = map(int, m.groups())
-                subprocess.run(["adb","shell","input","tap",str((x1+x2)//2),str((y1+y2)//2)], check=False)
-            PY
-            sleep 3
+            if grep -q "responding" /tmp/window.xml 2>/dev/null; then adb shell input tap 320 1360; sleep 3; fi
             adb exec-out screencap -p > extension-chat-preview/chat-screen.png
             echo "sha=$GITHUB_SHA stage=screenshot-captured" > extension-chat-preview/status.txt
 
