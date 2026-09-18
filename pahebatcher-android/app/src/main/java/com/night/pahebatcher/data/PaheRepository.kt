@@ -6,6 +6,7 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaMuxer
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
@@ -322,32 +323,56 @@ class PaheRepository(
             val suffix = if (stream.audio == "eng") "_DUB" else ""
             val displayName = "$safeTitle - Ep $safeEpisode$suffix - ${stream.quality}p.$extension"
 
-            val values = ContentValues().apply {
-                put(MediaStore.Downloads.DISPLAY_NAME, displayName)
-                put(MediaStore.Downloads.MIME_TYPE, mime)
-                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/PaheBatcher")
-                put(MediaStore.Downloads.IS_PENDING, 1)
-            }
-            val resolver = context.contentResolver
-            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                ?: throw IOException("Android could not create the output file")
-
-            try {
-                resolver.openOutputStream(uri, "w")?.use { out ->
-                    sourceFile.inputStream().use { it.copyTo(out) }
-                } ?: throw IOException("Android could not open the output file")
-
-                values.clear()
-                values.put(MediaStore.Downloads.IS_PENDING, 0)
-                resolver.update(uri, values, null, null)
-                uri
-            } catch (e: Exception) {
-                resolver.delete(uri, null, null)
-                throw e
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                saveModernDownload(sourceFile, displayName, mime)
+            } else {
+                saveLegacyDownload(sourceFile, displayName)
             }
         } finally {
             tempDir.deleteRecursively()
         }
+    }
+
+    @android.annotation.TargetApi(Build.VERSION_CODES.Q)
+    private fun saveModernDownload(sourceFile: File, displayName: String, mime: String): Uri {
+        val values = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, displayName)
+            put(MediaStore.Downloads.MIME_TYPE, mime)
+            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/PaheBatcher")
+            put(MediaStore.Downloads.IS_PENDING, 1)
+        }
+        val resolver = context.contentResolver
+        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            ?: throw IOException("Android could not create the output file")
+
+        try {
+            resolver.openOutputStream(uri, "w")?.use { out ->
+                sourceFile.inputStream().buffered().use { it.copyTo(out) }
+            } ?: throw IOException("Android could not open the output file")
+
+            values.clear()
+            values.put(MediaStore.Downloads.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
+            return uri
+        } catch (e: Exception) {
+            resolver.delete(uri, null, null)
+            throw e
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun saveLegacyDownload(sourceFile: File, displayName: String): Uri {
+        val downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val outputDir = File(downloads, "PaheBatcher")
+        if (!outputDir.exists() && !outputDir.mkdirs()) {
+            throw IOException("Could not create Downloads/PaheBatcher")
+        }
+
+        val output = File(outputDir, displayName)
+        sourceFile.inputStream().buffered().use { input ->
+            output.outputStream().buffered().use { out -> input.copyTo(out) }
+        }
+        return Uri.fromFile(output)
     }
 
     private fun searchOnHost(host: String, query: String): List<AnimeSearchResult> {
