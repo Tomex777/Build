@@ -141,13 +141,17 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
             verifyError = "No cookies were found yet. Finish the browser check before continuing."
             return
         }
-        val host = runCatching { URI(currentUrl).host.orEmpty() }.getOrDefault("")
+        val host = runCatching { URI(currentUrl).host.orEmpty().lowercase() }.getOrDefault("")
         if (host.isBlank()) {
             verifyError = "This page does not have a valid host yet."
             return
         }
 
         if (verifyStage == VerifyStage.ANIMEPAHE) {
+            if (!host.contains("animepahe") && host != "pahe.win") {
+                verifyError = "Finish the AnimePahe check and return to the AnimePahe page before confirming."
+                return
+            }
             sessionStore.saveAnime(cookie, host, userAgent)
             refreshSessions()
             verifyStage = VerifyStage.PREPARING_SECOND
@@ -162,6 +166,10 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         } else if (verifyStage == VerifyStage.KWIK) {
+            if (!host.startsWith("kwik.") && !host.contains(".kwik.")) {
+                verifyError = "Finish the Kwik check and return to the Kwik page before confirming."
+                return
+            }
             sessionStore.saveKwik(cookie, host, userAgent)
             refreshSessions()
             verificationActive = false
