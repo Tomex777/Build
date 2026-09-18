@@ -1,1 +1,1 @@
-run 22 - full Aniyomi player gestures and reader controls integration
+run 23 - corrected full Aniyomi player reader controls integration
