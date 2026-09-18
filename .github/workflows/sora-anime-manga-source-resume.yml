@@ -11,6 +11,7 @@ jobs:
   source-resume:
     runs-on: ubuntu-latest
     timeout-minutes: 35
+
     steps:
       - uses: actions/checkout@v4
 
@@ -27,6 +28,7 @@ jobs:
 
       - name: Reconstruct Sora source
         run: |
+          set -euo pipefail
           rm -rf /tmp/sora-src /tmp/sora.zip
           cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/sora.zip
           unzip -q /tmp/sora.zip -d /tmp/sora-src
@@ -40,19 +42,20 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          root=Path('/tmp/sora-src/Sora_Android_v0_1')
-          service=root/'test-extension/src/main/java/com/night/sora/testextension/DemoExtensionService.kt'
-          s=service.read_text()
-          old='capabilities = setOf("diagnostic", "browse", "search", "details", "episodes", "chapters", "pages", "streams", "lyrics", "relatedArtists", "feed")'
-          new='capabilities = setOf("browse", "search", "details", "episodes", "chapters", "pages", "streams", "lyrics", "relatedArtists", "feed")'
+          root = Path('/tmp/sora-src/Sora_Android_v0_1')
+
+          service = root / 'test-extension/src/main/java/com/night/sora/testextension/DemoExtensionService.kt'
+          s = service.read_text()
+          old = 'capabilities = setOf("diagnostic", "browse", "search", "details", "episodes", "chapters", "pages", "streams", "lyrics", "relatedArtists", "feed")'
+          new = 'capabilities = setOf("browse", "search", "details", "episodes", "chapters", "pages", "streams", "lyrics", "relatedArtists", "feed")'
           if s.count(old) != 1:
               raise SystemExit('demo diagnostic capability marker mismatch')
-          service.write_text(s.replace(old,new,1))
+          service.write_text(s.replace(old, new, 1))
 
-          catalog=root/'test-extension/src/main/java/com/night/sora/testextension/DemoCatalog.kt'
-          s=catalog.read_text()
-          marker='        val types = if (type.isBlank()) listOf("anime", "manga", "movie", "tv", "music", "memes") else listOf(type)\n'
-          insertion='''        if (q.isNotBlank() && (type == "anime" || type == "manga")) {
+          catalog = root / 'test-extension/src/main/java/com/night/sora/testextension/DemoCatalog.kt'
+          s = catalog.read_text()
+          marker = '        val types = if (type.isBlank()) listOf("anime", "manga", "movie", "tv", "music", "memes") else listOf(type)\n'
+          insertion = '''        if (q.isNotBlank() && (type == "anime" || type == "manga")) {
               return JSONArray().put(
                   item("ci-$type-${q.hashCode()}", query.trim(), "CI exact source match", "")
               ).toString()
@@ -60,11 +63,12 @@ jobs:
           '''
           if s.count(marker) != 1:
               raise SystemExit('demo search marker mismatch')
-          s=s.replace(
+
+          s = s.replace(
               '"https://example.invalid/$chapterId/page-${index + 1}.jpg"',
               '"https://picsum.photos/seed/${chapterId}-${index + 1}/900/1400"',
           )
-          s=s.replace(
+          s = s.replace(
               '"https://storage.googleapis.com/exoplayer-test-media-0/play.mp3"',
               '"https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4"',
           ).replace(
@@ -74,7 +78,7 @@ jobs:
               '.put("label", "Test MP3")',
               '.put("label", "Aniyomi CI Video")',
           )
-          catalog.write_text(s.replace(marker, marker+insertion, 1))
+          catalog.write_text(s.replace(marker, marker + insertion, 1))
           PY
 
       - uses: actions/setup-java@v5
@@ -117,36 +121,7 @@ jobs:
           APK="$SORA_ROOT/app/build/outputs/apk/debug/app-debug.apk"
           unzip -l "$APK" | awk '/lib\/.*\.so$/ {print $4}' | sort > "$OUT/native-libs.txt"
           echo '=== x86_64 media libraries ==='
-          grep '^lib/x86_64/' "$OUT/native-libs.txt" | grep -E 'lib(mpv|player|avcodec|avformat|avutil|avfilter|avdevice|swresample|swscale|c\+\+_shared)\.so
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-
-      - name: Prove Anime Manga source and exact resume
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          target: google_apis
-          arch: x86_64
-          profile: pixel_7
-          disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash "$GITHUB_WORKSPACE/sora-ci/anime-manga-source-resume-smoke.sh"
-
-      - name: Upload source resume screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sora-anime-manga-source-resume
-          path: /tmp/sora-anime-manga-source-resume
-          if-no-files-found: warn
-          retention-days: 5
-
-      - name: Require full source resume validation
-        if: always()
-        run: test -f /tmp/sora-anime-manga-source-resume/FULL_SOURCE_RESUME_PASS
- || true
+          grep '^lib/x86_64/' "$OUT/native-libs.txt" | grep -E 'lib(mpv|player|avcodec|avformat|avutil|avfilter|avdevice|swresample|swscale|c\+\+_shared)\.so$' || true
           echo '=== all ABI counts ==='
           awk -F/ '/^lib\// {count[$2]++} END {for (abi in count) print abi, count[abi]}' "$OUT/native-libs.txt" | sort
 
@@ -167,7 +142,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash "$GITHUB_WORKSPACE/sora-ci/anime-manga-source-resume-smoke.sh"
 
-      - name: Upload source resume screenshots
+      - name: Upload source resume diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
