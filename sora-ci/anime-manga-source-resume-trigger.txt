@@ -1,1 +1,1 @@
-run 7 - progress-based Anime playback and full Manga exact resume validation
+run 3 - corrected Anime Manga source resume validation
