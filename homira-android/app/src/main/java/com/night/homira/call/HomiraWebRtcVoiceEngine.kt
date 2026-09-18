@@ -1,8 +1,10 @@
 package com.night.homira.call
 
 import android.content.Context
+import android.content.Intent
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.media.projection.MediaProjection
 import com.night.homira.data.CallSignalEnvelope
 import com.night.homira.data.HomiraCallSignaling
 import kotlinx.coroutines.CoroutineScope
@@ -33,8 +35,10 @@ import org.webrtc.MediaStream
 import org.webrtc.PeerConnection
 import org.webrtc.PeerConnectionFactory
 import org.webrtc.RtpReceiver
+import org.webrtc.RtpSender
 import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
+import org.webrtc.ScreenCapturerAndroid
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -79,6 +83,12 @@ class HomiraWebRtcVoiceEngine(
     private val _remoteVideoEnabled = MutableStateFlow(initialVideoEnabled)
     val remoteVideoEnabled: StateFlow<Boolean> = _remoteVideoEnabled.asStateFlow()
 
+    private val _screenSharing = MutableStateFlow(false)
+    val screenSharing: StateFlow<Boolean> = _screenSharing.asStateFlow()
+
+    private val _remoteScreenSharing = MutableStateFlow(false)
+    val remoteScreenSharing: StateFlow<Boolean> = _remoteScreenSharing.asStateFlow()
+
     private val pendingRemoteIce = mutableListOf<IceCandidate>()
     private var remoteDescriptionSet = false
     private var offerSent = false
@@ -95,6 +105,12 @@ class HomiraWebRtcVoiceEngine(
     private var cameraCapturer: CameraVideoCapturer? = null
     private var surfaceTextureHelper: SurfaceTextureHelper? = null
     private var videoCaptureStarted = false
+    private var videoSender: RtpSender? = null
+    private var screenCapturer: ScreenCapturerAndroid? = null
+    private var screenVideoSource: VideoSource? = null
+    private var screenVideoTrack: VideoTrack? = null
+    private var screenTextureHelper: SurfaceTextureHelper? = null
+    private var restoreCameraAfterScreenShare = false
     private var peerConnection: PeerConnection? = null
 
     suspend fun start() {
@@ -145,7 +161,7 @@ class HomiraWebRtcVoiceEngine(
             requireNotNull(audioTrack),
             listOf("homira-$callId")
         )
-        requireNotNull(peerConnection).addTrack(
+        videoSender = requireNotNull(peerConnection).addTrack(
             requireNotNull(videoTrack),
             listOf("homira-$callId")
         )
@@ -246,6 +262,149 @@ class HomiraWebRtcVoiceEngine(
         })
     }
 
+    fun startScreenShare(permissionData: Intent): Boolean {
+        if (_screenSharing.value) return true
+
+        val peerFactory = factory ?: return false
+        val sender = videoSender ?: return false
+        restoreCameraAfterScreenShare = videoTrack?.enabled() == true
+
+        return runCatching {
+            if (restoreCameraAfterScreenShare) {
+                videoTrack?.setEnabled(false)
+                stopCameraCapture()
+            }
+
+            val source = peerFactory.createVideoSource(true)
+            val helper = SurfaceTextureHelper.create(
+                "HomiraScreen-$callId",
+                eglBase.eglBaseContext
+            )
+            val capturer = ScreenCapturerAndroid(
+                permissionData,
+                object : MediaProjection.Callback() {
+                    override fun onStop() {
+                        stopScreenShareInternal(
+                            stopCapturer = false,
+                            restoreCamera = true
+                        )
+                    }
+                }
+            )
+            capturer.initialize(helper, appContext, source.capturerObserver)
+
+            val metrics = appContext.resources.displayMetrics
+            val width = metrics.widthPixels.coerceAtLeast(720)
+            val height = metrics.heightPixels.coerceAtLeast(1280)
+            capturer.startCapture(width, height, 15)
+
+            val track = peerFactory.createVideoTrack(
+                "homira-screen-$callId",
+                source
+            ).apply {
+                setEnabled(true)
+            }
+
+            if (!sender.setTrack(track, false)) {
+                runCatching { capturer.stopCapture() }
+                capturer.dispose()
+                helper.dispose()
+                track.dispose()
+                source.dispose()
+                error("Could not attach screen share to the call")
+            }
+
+            screenVideoSource = source
+            screenTextureHelper = helper
+            screenCapturer = capturer
+            screenVideoTrack = track
+            _screenSharing.value = true
+            sendVideoState(true)
+            sendScreenShareState(true)
+            true
+        }.getOrElse {
+            restoreCameraTrackAfterScreenShare()
+            false
+        }
+    }
+
+    fun stopScreenShare() {
+        stopScreenShareInternal(
+            stopCapturer = true,
+            restoreCamera = true
+        )
+    }
+
+    private fun stopScreenShareInternal(
+        stopCapturer: Boolean,
+        restoreCamera: Boolean
+    ) {
+        if (!_screenSharing.value && screenCapturer == null) return
+
+        if (restoreCamera) {
+            restoreCameraTrackAfterScreenShare()
+        }
+
+        if (stopCapturer) {
+            runCatching { screenCapturer?.stopCapture() }
+        }
+        screenCapturer?.dispose()
+        screenCapturer = null
+
+        screenVideoTrack?.dispose()
+        screenVideoTrack = null
+
+        screenVideoSource?.dispose()
+        screenVideoSource = null
+
+        screenTextureHelper?.dispose()
+        screenTextureHelper = null
+
+        _screenSharing.value = false
+        sendScreenShareState(false)
+
+        if (!restoreCamera) {
+            appContext.stopService(
+                Intent(appContext, HomiraScreenShareService::class.java)
+            )
+        }
+    }
+
+    private fun restoreCameraTrackAfterScreenShare() {
+        val cameraTrack = videoTrack ?: return
+        val sender = videoSender ?: return
+        val restoreCamera = restoreCameraAfterScreenShare
+        restoreCameraAfterScreenShare = false
+
+        sender.setTrack(cameraTrack, false)
+
+        if (restoreCamera) {
+            val started = startCameraCapture()
+            cameraTrack.setEnabled(started)
+            sendVideoState(started)
+        } else {
+            cameraTrack.setEnabled(false)
+            sendVideoState(false)
+        }
+
+        appContext.stopService(
+            Intent(appContext, HomiraScreenShareService::class.java)
+        )
+    }
+
+    private fun sendScreenShareState(sharing: Boolean) {
+        if (!signalingReady) return
+        scope.launch {
+            signaling.send(
+                CallSignalEnvelope(
+                    type = "screen-share-state",
+                    fromUserId = localUserId,
+                    screenSharing = sharing
+                )
+            )
+        }
+    }
+
     fun setSpeakerEnabled(enabled: Boolean) {
         val desiredType = if (enabled) {
             AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
@@ -317,12 +476,18 @@ class HomiraWebRtcVoiceEngine(
         peerConnection?.close()
         peerConnection?.dispose()
         peerConnection = null
+        videoSender = null
 
         audioTrack?.dispose()
         audioTrack = null
 
         audioSource?.dispose()
         audioSource = null
+
+        stopScreenShareInternal(
+            stopCapturer = true,
+            restoreCamera = false
+        )
 
         stopCameraCapture()
         cameraCapturer?.dispose()
@@ -406,6 +571,10 @@ class HomiraWebRtcVoiceEngine(
 
             "video-state" -> {
                 signal.videoEnabled?.let { _remoteVideoEnabled.value = it }
+            }
+
+            "screen-share-state" -> {
+                signal.screenSharing?.let { _remoteScreenSharing.value = it }
             }
 
             "offer" -> {
