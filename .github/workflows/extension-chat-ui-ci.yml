@@ -27,6 +27,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Prepare diagnostics
+        run: |
+          mkdir -p extension-chat-preview
+          echo "workflow started" > extension-chat-preview/status.txt
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -45,9 +50,14 @@ jobs:
           gradle-version: "9.6.0"
 
       - name: Build debug APK
-        run: gradle -p extension-chat-android :app:assembleDebug --stacktrace
+        id: build
+        run: |
+          set -o pipefail
+          gradle -p extension-chat-android :app:assembleDebug --stacktrace 2>&1 | tee extension-chat-preview/build.log
+          echo "build succeeded" > extension-chat-preview/status.txt
 
       - name: Boot emulator and capture UI
+        if: steps.build.outcome == 'success'
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
@@ -60,24 +70,25 @@ jobs:
             adb shell am force-stop com.night.extensionchat
             adb shell am start -W -n com.night.extensionchat/.MainActivity
             sleep 4
-            mkdir -p extension-chat-preview
             adb exec-out screencap -p > extension-chat-preview/chat-screen.png
+            echo "emulator screenshot captured" > extension-chat-preview/status.txt
 
-      - name: Commit screenshot to preview branch
-        if: github.event_name == 'push'
+      - name: Commit preview diagnostics
+        if: always() && github.event_name == 'push'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add extension-chat-preview/chat-screen.png
+          git add extension-chat-preview || true
           git diff --cached --quiet && exit 0
-          git commit -m "Add rendered Extension Chat UI screenshot"
+          git commit -m "Update rendered Extension Chat preview"
           git push origin HEAD:extension-chat-ui-ci
 
       - name: Upload APK and screenshot
+        if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: extension-chat-ui-preview
           path: |
             extension-chat-android/app/build/outputs/apk/debug/app-debug.apk
             extension-chat-preview/chat-screen.png
-          if-no-files-found: error
+          if-no-files-found: warn
