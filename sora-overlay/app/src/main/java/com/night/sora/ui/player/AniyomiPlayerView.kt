@@ -176,9 +176,15 @@ class AniyomiPlayerView(
 
     fun destroyPlayer() {
         if (!initialized) return
-        super.destroy()
+
+        // Match Aniyomi's finishing lifecycle: stop active decoding before
+        // destroying libmpv. Destroying an actively playing instance can block
+        // the UI thread long enough for Android to raise an ANR.
+        runCatching { MPVLib.command(arrayOf("stop")) }
+
         surfaceReady = false
         initialized = false
+        super.destroy()
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
