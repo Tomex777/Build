@@ -68,18 +68,8 @@ jobs:
           python3 -m pip install --disable-pip-version-check --quiet 'curl-cffi>=0.13,<0.14'
           TOR_PROBE_CIRCUITS=10 python3 pahebatcher-android/ci/tor_endpoint_probe.py
 
-          live_animepahe="$(python3 - <<'PY'
-import json
-data=json.load(open('tor-probe/endpoint-report.json'))
-print('true' if data['summary'].get('successful_host') else 'false')
-PY
-)"
-          live_animepahe_host="$(python3 - <<'PY'
-import json
-data=json.load(open('tor-probe/endpoint-report.json'))
-print(data['summary'].get('successful_host') or '')
-PY
-)"
+          live_animepahe="$(python3 -c "import json; d=json.load(open('tor-probe/endpoint-report.json')); print('true' if d['summary'].get('successful_host') else 'false')")"
+          live_animepahe_host="$(python3 -c "import json; d=json.load(open('tor-probe/endpoint-report.json')); print(d['summary'].get('successful_host') or '')")"
           echo "live_animepahe=$live_animepahe" >> "$GITHUB_OUTPUT"
           echo "live_animepahe_host=$live_animepahe_host" >> "$GITHUB_OUTPUT"
 
