@@ -12,6 +12,8 @@ import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.storage.Storage
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 object HomiraSupabase {
     const val url = "https://uhyeopkbamwtgjgeqlyj.supabase.co"
@@ -111,7 +113,10 @@ class HomiraLiveRepository {
         client.postgrest
             .rpc(
                 "add_homira_contact",
-                AddContactParams(query = query.trim(), localName = localName?.trim())
+                buildJsonObject {
+                    put("p_query", query.trim())
+                    put("p_local_name", localName?.trim())
+                }
             )
             .decodeList<LiveContact>()
             .firstOrNull()
