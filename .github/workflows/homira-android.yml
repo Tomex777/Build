@@ -1,5 +1,9 @@
 name: Homira Android
 
+concurrency:
+  group: homira-android-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [homira-call-ci]
