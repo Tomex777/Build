@@ -8,9 +8,12 @@ import { JsonConfigStore, type SecretCodec } from "../core/config-store";
 import { buildCommandMenu } from "../core/menu-builder";
 import type { BaileyCommandAction, CommandContext, MessageEventContext } from "../core/module";
 import { ModuleRegistry } from "../core/registry";
-import type { IncomingEngineMessage } from "../engine/contracts";
+import type { EngineHostEvent, IncomingEngineMessage } from "../engine/contracts";
 import { EngineManager } from "../engine/engine-manager";
 import { ExternalModuleManager } from "../external/external-module-manager";
+import { registerKvServices } from "../services/kv-service";
+import { registerMediaServices } from "../services/media-service";
+import { LocalStorageProvider, StorageHostService } from "../services/storage-service";
 import { coreModule } from "../modules/core";
 import { myCommandsModule } from "../modules/my-commands";
 import type { ConfigDefinition } from "../shared/config-schema";
@@ -222,13 +225,15 @@ async function runDeclarativeActions(actions: BaileyCommandAction[], context: Pi
   }
 }
 
-function messageEventContext(message: IncomingEngineMessage): MessageEventContext {
+function messageEventContext(message: IncomingEngineMessage): MessageEventContext & { id?: string; media?: IncomingEngineMessage["media"] } {
   return {
+    id: message.id,
     remoteJid: message.remoteJid,
     senderJid: message.participant ?? message.remoteJid,
     text: message.text,
     pushName: message.pushName,
     timestamp: message.timestamp,
+    media: message.media,
     reply: async (text: string) => engineManager.sendText(message.remoteJid, text),
     react: async (emoji: string) => engineManager.react(message.remoteJid, message.key, emoji),
   };
@@ -303,6 +308,15 @@ async function reloadExternalModules() {
     },
     moduleEnabled,
   );
+  const storageService = new StorageHostService();
+  storageService.addProfile(
+    "default",
+    new LocalStorageProvider(join(app.getPath("userData"), "storage", "default")),
+    true,
+  );
+  storageService.register(manager);
+  registerKvServices(manager);
+
   const external = await manager.load();
   externalModuleErrors = [...external.errors];
 
@@ -321,6 +335,8 @@ async function reloadExternalModules() {
   externalModuleManager = manager;
   if (engineManager) {
     manager.setHostSendText((remoteJid, text) => engineManager.sendText(remoteJid, text));
+    manager.setHostSendMedia((remoteJid, media) => engineManager.sendMedia(remoteJid, media));
+    registerMediaServices(manager, engineManager);
     manager.startJobs();
   }
   if (externalModuleErrors.length) {
@@ -480,6 +496,11 @@ function registerIpc(): void {
   ipcMain.handle("bailey:studio-save-file", (_event, path: string, content: string) => saveEditorFile(path, content));
   ipcMain.handle("bailey:studio-open-modules-folder", () => openModulesFolder());
   ipcMain.handle("bailey:studio-reload-modules", () => reloadExternalModules());
+  ipcMain.handle("bailey:module-runtime-status", () => externalModuleManager?.statuses() ?? []);
+  ipcMain.handle("bailey:module-restart", (_event, moduleId: string) => {
+    if (!externalModuleManager) throw new Error("External module manager is not ready.");
+    return externalModuleManager.restartModule(String(moduleId ?? ""));
+  });
 
   ipcMain.handle("bailey:engine-status", () => engineManager.status());
   ipcMain.handle("bailey:engine-check-latest", () => engineManager.checkLatest());
@@ -520,6 +541,8 @@ app.whenReady().then(async () => {
   );
   await engineManager.initialize();
   externalModuleManager?.setHostSendText((remoteJid, text) => engineManager.sendText(remoteJid, text));
+  externalModuleManager?.setHostSendMedia((remoteJid, media) => engineManager.sendMedia(remoteJid, media));
+  if (externalModuleManager) registerMediaServices(externalModuleManager, engineManager);
   externalModuleManager?.startJobs();
   chatController = new ChatController(chatStore, engineManager, () => mainWindow);
   chatController.registerIpc();
@@ -528,6 +551,10 @@ app.whenReady().then(async () => {
     void chatController.ingest(message).catch((error) => console.error("Chat persistence failed", error));
     void dispatchModuleMessageEvents(message).catch((error) => console.error("Module event dispatch failed", error));
     void dispatchIncomingMessage(message).catch((error) => console.error("Command dispatch failed", error));
+  });
+  engineManager.on("host-event", (event: EngineHostEvent) => {
+    void externalModuleManager?.dispatchEventToModules(event.event, event.context)
+      .catch((error) => console.error("External module host event dispatch failed", error));
   });
 
   const autoStart = registry.findConfigDefinition("modules.core.settings.autoStart");

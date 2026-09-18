@@ -187,6 +187,7 @@ input.on("line", (line) => {
       version: "1.0.0",
       runtime: { command: process.execPath, args: ["worker.mjs"] },
       capabilities: ["jobs"],
+      permissions: ["whatsapp.send"],
       jobs: [{ id: "tick", intervalSeconds: 60 }],
     }, null, 2));
 
@@ -321,6 +322,7 @@ input.on("line", (line) => {
       version: "1.0.0",
       runtime: { command: process.execPath, args: ["worker.mjs"] },
       capabilities: ["commands", "services"],
+      permissions: ["text.upper"],
       commands: [
         { id: "service", name: "service", section: "Services", description: "Call a Bailey host service." },
       ],
@@ -377,6 +379,92 @@ input.on("line", (line) => {
     });
 
     expect(replies).toEqual(["HELLO BAILEY:caller"]);
+    await manager.stopAll();
+  });
+});
+
+
+describe("Bailey host platform extensions", () => {
+  it("supports cron, one-time jobs, retry policy and explicit permissions", () => {
+    const manifest = parseExternalModuleManifest({
+      protocol: 1,
+      id: "scheduler-next",
+      name: "Scheduler Next",
+      version: "1.0.0",
+      runtime: { command: "python", args: ["main.py"], restart: "on-failure" },
+      capabilities: ["jobs", "services", "lifecycle"],
+      permissions: ["storage.read", "storage.write", "whatsapp.send-media"],
+      jobs: [
+        { id: "cron", cron: "*/5 * * * *", retry: { maxAttempts: 3, backoffSeconds: 2 } },
+        { id: "once", runAt: Date.now() + 60_000 },
+      ],
+    });
+    expect(manifest.jobs?.[0]?.cron).toBe("*/5 * * * *");
+    expect(manifest.permissions).toContain("storage.read");
+  });
+
+  it("rejects jobs with more than one schedule", () => {
+    expect(() => parseExternalModuleManifest({
+      protocol: 1,
+      id: "bad-schedule",
+      name: "Bad schedule",
+      version: "1.0.0",
+      runtime: { command: "python", args: ["main.py"] },
+      capabilities: ["jobs"],
+      jobs: [{ id: "oops", intervalSeconds: 60, cron: "* * * * *" }],
+    })).toThrow("exactly one");
+  });
+
+  it("denies a host service when the module did not request its permission", async () => {
+    const root = await mkdtemp(join(tmpdir(), "bailey-service-permission-"));
+    tempDirs.push(root);
+    const moduleDir = join(root, "denied");
+    await mkdir(moduleDir, { recursive: true });
+
+    await writeFile(join(moduleDir, "bailey.module.json"), JSON.stringify({
+      protocol: 1,
+      id: "denied",
+      name: "Denied",
+      version: "1.0.0",
+      runtime: { command: process.execPath, args: ["worker.mjs"] },
+      capabilities: ["commands", "services"],
+      permissions: [],
+      commands: [{ id: "go", name: "go", description: "Try a service." }],
+    }, null, 2));
+
+    await writeFile(join(moduleDir, "worker.mjs"), `
+import readline from "node:readline";
+const input = readline.createInterface({ input: process.stdin });
+let pending;
+input.on("line", (line) => {
+  const message = JSON.parse(line);
+  if (message.type === "command.execute") {
+    pending = message;
+    process.stdout.write(JSON.stringify({protocol:1,id:"call",type:"host.call",service:"secret",method:"read",params:{}}) + "\\n");
+  } else if (message.type === "host.result") {
+    process.stdout.write(JSON.stringify({
+      protocol:1,
+      replyTo:pending.id,
+      ok:true,
+      actions:[{type:"reply",text:message.error ?? "allowed"}]
+    }) + "\\n");
+  }
+});
+`);
+
+    const manager = new ExternalModuleManager(root, () => ({}));
+    manager.registerService("secret", "read", () => ({ secret: true }), "secret.read");
+    const loaded = await manager.load();
+    const replies: string[] = [];
+    await loaded.definitions[0].commands![0].execute!({
+      remoteJid: "x@s.whatsapp.net",
+      text: ".go",
+      args: [],
+      reply: async (text) => { replies.push(text); },
+      react: async () => {},
+      showMenu: async () => {},
+    });
+    expect(replies[0]).toContain("Permission denied");
     await manager.stopAll();
   });
 });

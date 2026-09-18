@@ -27,6 +27,15 @@ export interface EngineStatus {
   lastError?: string;
 }
 
+export interface IncomingEngineMedia {
+  kind: "image" | "video" | "audio" | "document" | "sticker";
+  mimetype?: string;
+  fileName?: string;
+  caption?: string;
+  seconds?: number;
+  viewOnce?: boolean;
+}
+
 export interface IncomingEngineMessage {
   id?: string;
   remoteJid: string;
@@ -36,6 +45,21 @@ export interface IncomingEngineMessage {
   key: unknown;
   pushName?: string;
   timestamp?: number;
+  media?: IncomingEngineMedia;
+}
+
+export interface EngineSendMedia {
+  kind: "image" | "video" | "audio" | "document" | "sticker";
+  source: { path?: string; url?: string };
+  mimetype?: string;
+  fileName?: string;
+  caption?: string;
+  ptt?: boolean;
+}
+
+export interface EngineHostEvent {
+  event: "message.updated" | "reaction.received" | "group.participant" | "call.received";
+  context: Record<string, unknown>;
 }
 
 export type EngineWorkerEvent =
@@ -43,10 +67,14 @@ export type EngineWorkerEvent =
   | { type: "connection"; state: WhatsAppConnectionState; detail?: string }
   | { type: "pairing-code"; code: string }
   | { type: "message"; message: IncomingEngineMessage }
+  | { type: "host-event"; event: EngineHostEvent["event"]; context: Record<string, unknown> }
+  | { type: "media-downloaded"; requestId: string; ok: boolean; path?: string; size?: number; error?: string }
   | { type: "error"; message: string };
 
 export type EngineWorkerCommand =
   | { type: "pair"; phoneNumber: string }
   | { type: "send-text"; remoteJid: string; text: string }
+  | { type: "send-media"; remoteJid: string; media: EngineSendMedia }
+  | { type: "download-media"; requestId: string; messageId: string; destinationPath: string }
   | { type: "react"; remoteJid: string; key: unknown; emoji: string }
   | { type: "shutdown" };

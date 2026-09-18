@@ -3,7 +3,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import type { EngineManifest, EngineStatus, EngineWorkerCommand, EngineWorkerEvent, IncomingEngineMessage, WhatsAppConnectionState } from "./contracts";
+import type { EngineHostEvent, EngineManifest, EngineSendMedia, EngineStatus, EngineWorkerCommand, EngineWorkerEvent, IncomingEngineMessage, WhatsAppConnectionState } from "./contracts";
 
 const PACKAGE_NAME = "@itsliaaa/baileys" as const;
 const DEFAULT_VERSION = "0.3.18-final";
@@ -31,6 +31,7 @@ export class EngineManager extends EventEmitter {
   private pairingCode?: string;
   private lastError?: string;
   private child?: ChildProcess;
+  private readonly pendingMedia = new Map<string, { resolve: (value: { path: string; size: number }) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }>();
 
   constructor(
     private readonly rootDir: string,
@@ -190,6 +191,11 @@ export class EngineManager extends EventEmitter {
       this.runtime = code === 0 || signal === "SIGTERM" ? "stopped" : "error";
       if (this.whatsapp === "connected") this.whatsapp = "disconnected";
       if (code && code !== 0) this.lastError = `Engine exited with code ${code}.`;
+      for (const pending of this.pendingMedia.values()) {
+        clearTimeout(pending.timer);
+        pending.reject(new Error("WhatsApp engine stopped during media download."));
+      }
+      this.pendingMedia.clear();
       this.emitStatus();
     });
     return this.status();
@@ -231,6 +237,28 @@ export class EngineManager extends EventEmitter {
     this.send({ type: "send-text", remoteJid, text });
   }
 
+  sendMedia(remoteJid: string, media: EngineSendMedia): void {
+    this.send({ type: "send-media", remoteJid, media });
+  }
+
+  downloadMedia(messageId: string, destinationPath: string): Promise<{ path: string; size: number }> {
+    const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingMedia.delete(requestId);
+        reject(new Error("Media download timed out."));
+      }, 30_000);
+      this.pendingMedia.set(requestId, { resolve, reject, timer });
+      try {
+        this.send({ type: "download-media", requestId, messageId, destinationPath });
+      } catch (error) {
+        clearTimeout(timer);
+        this.pendingMedia.delete(requestId);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
+  }
+
   react(remoteJid: string, key: unknown, emoji: string): void {
     this.send({ type: "react", remoteJid, key, emoji });
   }
@@ -254,6 +282,16 @@ export class EngineManager extends EventEmitter {
       this.emitStatus();
     } else if (event.type === "message") {
       this.emit("message", event.message satisfies IncomingEngineMessage);
+    } else if (event.type === "host-event") {
+      this.emit("host-event", { event: event.event, context: event.context } satisfies EngineHostEvent);
+    } else if (event.type === "media-downloaded") {
+      const pending = this.pendingMedia.get(event.requestId);
+      if (pending) {
+        clearTimeout(pending.timer);
+        this.pendingMedia.delete(event.requestId);
+        if (event.ok && event.path && typeof event.size === "number") pending.resolve({ path: event.path, size: event.size });
+        else pending.reject(new Error(event.error || "Media download failed."));
+      }
     } else if (event.type === "error") {
       this.lastError = event.message;
       this.emitStatus();
