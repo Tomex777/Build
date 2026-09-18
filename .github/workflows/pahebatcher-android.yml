@@ -15,7 +15,7 @@ on:
 jobs:
   build-and-visual-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v5
@@ -42,6 +42,23 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
           ls -l /dev/kvm
+
+      - name: Start Tor test proxy
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y tor privoxy
+          sudo sed -i 's/^listen-address[[:space:]]\+127\.0\.0\.1:8118/listen-address  0.0.0.0:8118/' /etc/privoxy/config
+          echo 'forward-socks5t / 127.0.0.1:9050 .' | sudo tee -a /etc/privoxy/config
+          sudo systemctl restart tor || sudo service tor restart
+          sudo systemctl restart privoxy || sudo service privoxy restart
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 15 -x http://127.0.0.1:8118 https://check.torproject.org/api/ip; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Tor proxy did not become ready" >&2
+          exit 1
 
       - name: Build debug APK
         working-directory: pahebatcher-android
@@ -75,6 +92,7 @@ jobs:
             adb install --no-streaming -r pahebatcher-android/app/build/outputs/apk/debug/app-debug.apk || (sleep 8; adb wait-for-device; adb install --no-streaming -r pahebatcher-android/app/build/outputs/apk/debug/app-debug.apk)
             adb shell wm size 1080x2400
             adb shell wm density 440
+            adb shell settings put global http_proxy 10.0.2.2:8118
             adb shell am start -W -n com.night.pahebatcher/.MainActivity
             sleep 4
             python3 pahebatcher-android/ci/visual_smoke.py
