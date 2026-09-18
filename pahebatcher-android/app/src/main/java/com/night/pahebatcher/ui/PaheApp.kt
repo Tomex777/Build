@@ -119,6 +119,10 @@ fun PaheApp(vm: PaheViewModel) {
 
 @Composable
 private fun RootTabs(vm: PaheViewModel) {
+    BackHandler(enabled = vm.tab != MainTab.EXPLORE) {
+        vm.navigateToTab(MainTab.EXPLORE)
+    }
+
     Scaffold(
         containerColor = Bg,
         bottomBar = {
@@ -516,7 +520,10 @@ private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
                                 details.result.type.takeIf { it.isNotBlank() }?.let(::add)
                                 if (details.episodes.isNotEmpty()) {
                                     add("${details.episodes.map { it.number }.distinct().size} episodes")
+                                } else if (details.result.episodes > 0) {
+                                    add("${details.result.episodes} episodes")
                                 }
+                                details.result.status.takeIf { it.isNotBlank() }?.let(::add)
                             }.joinToString("  ·  "),
                             color = Color.White.copy(alpha = 0.76f),
                             fontSize = 13.sp,
