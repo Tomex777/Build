@@ -46,6 +46,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -144,6 +145,34 @@ private fun DiagnosticsScreen(vm: DiagnosticViewModel) {
             cookieSummary = sessions.kwikCookieSummary,
         )
 
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedTextField(
+                value = vm.manualKwikUrl,
+                onValueChange = vm::setManualKwikUrl,
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                label = { Text("Kwik release URL") },
+                placeholder = { Text("https://kwik...") },
+            )
+            TextButton(
+                onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val text = clipboard.primaryClip
+                        ?.getItemAt(0)
+                        ?.coerceToText(context)
+                        ?.toString()
+                        .orEmpty()
+                    if (text.isNotBlank()) vm.setManualKwikUrl(text)
+                },
+            ) {
+                Text("Paste")
+            }
+        }
+
         Button(
             onClick = vm::openAnimeBrowser,
             enabled = !vm.busy,
@@ -167,6 +196,13 @@ private fun DiagnosticsScreen(vm: DiagnosticViewModel) {
             Spacer(Modifier.size(8.dp))
             Text("Open Kwik verification")
         }
+
+        Text(
+            text = "Kwik can be tested independently: paste a real Kwik release URL above. The app will not run AnimePahe first.",
+            color = TextMuted,
+            fontSize = 11.sp,
+            lineHeight = 16.sp,
+        )
 
         Spacer(Modifier.height(2.dp))
 
