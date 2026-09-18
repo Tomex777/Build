@@ -177,6 +177,31 @@ private enum class OverlayScreen { None, Settings, EditProfile, Voicemail, AddCo
 private enum class CallDirection { Incoming, Outgoing, Missed, Declined, Cancelled, Failed }
 private enum class RecentFilter { All, Missed, Voicemail }
 
+private const val HOMIRA_RING_WINDOW_MS = 30_000L
+
+private fun remainingRingWindowMs(session: LiveCallSession): Long {
+    val nowMs = System.currentTimeMillis()
+
+    fun parseMillis(value: String): Long? =
+        runCatching {
+            OffsetDateTime.parse(value).toInstant().toEpochMilli()
+        }.recoverCatching {
+            Instant.parse(value).toEpochMilli()
+        }.getOrNull()
+
+    val createdDeadline = parseMillis(session.createdAt)
+        ?.plus(HOMIRA_RING_WINDOW_MS)
+    val serverDeadline = parseMillis(session.expiresAt)
+
+    val deadline = listOfNotNull(
+        createdDeadline,
+        serverDeadline
+    ).minOrNull() ?: (nowMs + HOMIRA_RING_WINDOW_MS)
+
+    return (deadline - nowMs)
+        .coerceIn(0L, HOMIRA_RING_WINDOW_MS)
+}
+
 private data class HomiraPerson(
     val id: String,
     val name: String,
@@ -1389,7 +1414,7 @@ fun HomiraProductionApp(
             val session = incomingSession ?: return@LaunchedEffect
             if (session.state != "ringing") return@LaunchedEffect
 
-            delay(30_000)
+            delay(remainingRingWindowMs(session))
 
             val current = incomingSession
             if (
@@ -1542,7 +1567,7 @@ fun HomiraProductionApp(
                 session.callerId == localUserId &&
                 session.state == "ringing"
             ) {
-                delay(30_000)
+                delay(remainingRingWindowMs(session))
 
                 val current = activeSession
                 if (
