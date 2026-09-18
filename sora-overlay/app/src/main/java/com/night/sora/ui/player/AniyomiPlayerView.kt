@@ -82,14 +82,13 @@ class AniyomiPlayerView(
     }
 
     override fun observeProperties() {
-        val format = MPVLib.mpvFormat
-        MPVLib.observeProperty("time-pos", format.MPV_FORMAT_DOUBLE)
-        MPVLib.observeProperty("duration", format.MPV_FORMAT_DOUBLE)
-        MPVLib.observeProperty("pause", format.MPV_FORMAT_FLAG)
-        MPVLib.observeProperty("paused-for-cache", format.MPV_FORMAT_FLAG)
-        MPVLib.observeProperty("seeking", format.MPV_FORMAT_FLAG)
-        MPVLib.observeProperty("eof-reached", format.MPV_FORMAT_FLAG)
-        MPVLib.observeProperty("hwdec-current", format.MPV_FORMAT_STRING)
+        MPVLib.observeProperty("time-pos", MPVLib.mpvFormat.MPV_FORMAT_DOUBLE)
+        MPVLib.observeProperty("duration", MPVLib.mpvFormat.MPV_FORMAT_DOUBLE)
+        MPVLib.observeProperty("pause", MPVLib.mpvFormat.MPV_FORMAT_FLAG)
+        MPVLib.observeProperty("paused-for-cache", MPVLib.mpvFormat.MPV_FORMAT_FLAG)
+        MPVLib.observeProperty("seeking", MPVLib.mpvFormat.MPV_FORMAT_FLAG)
+        MPVLib.observeProperty("eof-reached", MPVLib.mpvFormat.MPV_FORMAT_FLAG)
+        MPVLib.observeProperty("hwdec-current", MPVLib.mpvFormat.MPV_FORMAT_STRING)
     }
 
     /**
