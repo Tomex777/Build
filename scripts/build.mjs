@@ -13,7 +13,7 @@ await build({
   platform: "node",
   format: "cjs",
   target: "node22",
-  external: ["electron", "npm", "npm/*"],
+  external: ["electron", "npm", "npm/*", "@aws-sdk/client-s3", "@aws-sdk/s3-request-presigner", "@azure/storage-blob", "@google-cloud/storage", "@supabase/supabase-js"],
   sourcemap: true,
 });
 

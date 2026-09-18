@@ -37,6 +37,10 @@ const bailey = (window as unknown as {
     restartModule(moduleId: string): Promise<unknown>;
     exportBackup(): Promise<{ ok: boolean; canceled?: boolean; path?: string }>;
     importBackup(): Promise<{ ok: boolean; canceled?: boolean; fileCount?: number }>;
+    getStorageProfiles(): Promise<Array<{ name: string; provider: "local" | "s3" | "azure" | "gcs" | "supabase"; isDefault: boolean; config: Record<string, string | boolean>; secretFields: string[] }>>;
+    saveStorageProfile(input: { name: string; provider: string; config: Record<string, string | boolean>; secrets: Record<string, string> }): Promise<unknown>;
+    setDefaultStorageProfile(name: string): Promise<unknown>;
+    deleteStorageProfile(name: string): Promise<unknown>;
   };
 }).bailey;
 
@@ -465,3 +469,215 @@ function installHostTools(): void {
 }
 
 installHostTools();
+
+
+function installStorageProfilesUi(): void {
+  const configRoot = document.querySelector<HTMLElement>("#view-configuration .stack");
+  if (!configRoot || document.querySelector("#storage-profiles-card")) return;
+
+  const card = document.createElement("article");
+  card.id = "storage-profiles-card";
+  card.className = "panel";
+  card.innerHTML = `
+    <div class="panel-heading">
+      <div>
+        <h2>Storage profiles</h2>
+        <p>Modules call Bailey's provider-neutral storage service. Change providers here without changing module code.</p>
+      </div>
+      <button class="secondary-button" id="storage-add-profile" type="button">Add profile</button>
+    </div>
+    <div id="storage-profile-list" class="stack"></div>
+  `;
+  configRoot.prepend(card);
+
+  const dialog = document.createElement("dialog");
+  dialog.className = "command-editor";
+  dialog.id = "storage-profile-dialog";
+  dialog.innerHTML = `
+    <form id="storage-profile-form">
+      <div class="dialog-header">
+        <div>
+          <p class="eyebrow">HOST STORAGE</p>
+          <h2>Storage profile</h2>
+          <p>Credentials are encrypted with the operating system's secure storage and are never sent to modules.</p>
+        </div>
+        <button type="button" class="icon-button" id="storage-profile-close" aria-label="Close">×</button>
+      </div>
+      <div class="editor-grid">
+        <label class="field">
+          <span>Profile name</span>
+          <input id="storage-profile-name" required placeholder="media" />
+          <small>Modules can request this profile by name.</small>
+        </label>
+        <label class="field">
+          <span>Provider</span>
+          <select id="storage-profile-provider">
+            <option value="local">Local disk</option>
+            <option value="s3">S3-compatible · AWS / R2 / B2 / MinIO</option>
+            <option value="azure">Azure Blob Storage</option>
+            <option value="gcs">Google Cloud Storage</option>
+            <option value="supabase">Supabase Storage</option>
+          </select>
+        </label>
+        <div id="storage-profile-fields" class="editor-span-2 editor-grid"></div>
+      </div>
+      <p id="storage-profile-error" class="editor-error"></p>
+      <div class="dialog-actions">
+        <div></div>
+        <div class="dialog-actions-right">
+          <button type="button" class="secondary-button" id="storage-profile-cancel">Cancel</button>
+          <button type="submit" class="primary-button">Save profile</button>
+        </div>
+      </div>
+    </form>
+  `;
+  document.body.append(dialog);
+
+  const providerSelect = dialog.querySelector<HTMLSelectElement>("#storage-profile-provider")!;
+  const fields = dialog.querySelector<HTMLElement>("#storage-profile-fields")!;
+  const nameInput = dialog.querySelector<HTMLInputElement>("#storage-profile-name")!;
+  const error = dialog.querySelector<HTMLElement>("#storage-profile-error")!;
+  const list = card.querySelector<HTMLElement>("#storage-profile-list")!;
+
+  const definitions: Record<string, Array<{ key: string; label: string; secret?: boolean; toggle?: boolean; placeholder?: string }>> = {
+    local: [],
+    s3: [
+      { key: "bucket", label: "Bucket" },
+      { key: "region", label: "Region", placeholder: "auto / us-east-1" },
+      { key: "endpoint", label: "Endpoint (optional)", placeholder: "R2, B2 or MinIO endpoint" },
+      { key: "forcePathStyle", label: "Force path-style URLs", toggle: true },
+      { key: "accessKeyId", label: "Access key ID", secret: true },
+      { key: "secretAccessKey", label: "Secret access key", secret: true },
+      { key: "sessionToken", label: "Session token (optional)", secret: true },
+    ],
+    azure: [
+      { key: "accountName", label: "Storage account name" },
+      { key: "container", label: "Container" },
+      { key: "accountKey", label: "Account key", secret: true },
+    ],
+    gcs: [
+      { key: "projectId", label: "Project ID" },
+      { key: "clientEmail", label: "Service-account client email" },
+      { key: "bucket", label: "Bucket" },
+      { key: "privateKey", label: "Service-account private key", secret: true },
+    ],
+    supabase: [
+      { key: "url", label: "Project URL" },
+      { key: "bucket", label: "Bucket" },
+      { key: "serviceKey", label: "Service role / storage key", secret: true },
+    ],
+  };
+
+  let editing: Awaited<ReturnType<typeof bailey.getStorageProfiles>>[number] | undefined;
+
+  const renderFields = () => {
+    fields.replaceChildren();
+    for (const def of definitions[providerSelect.value] ?? []) {
+      const label = document.createElement("label");
+      label.className = "field";
+      const title = document.createElement("span");
+      title.textContent = def.label;
+      let input: HTMLInputElement;
+      input = document.createElement("input");
+      input.dataset.storageKey = def.key;
+      if (def.toggle) {
+        input.type = "checkbox";
+        input.checked = Boolean(editing?.config[def.key]);
+      } else {
+        input.type = def.secret ? "password" : "text";
+        input.placeholder = def.secret && editing?.secretFields.includes(def.key) ? "Configured · leave blank to keep" : def.placeholder ?? "";
+        if (!def.secret && editing) input.value = String(editing.config[def.key] ?? "");
+      }
+      label.append(title, input);
+      fields.append(label);
+    }
+  };
+
+  const openEditor = (profile?: typeof editing) => {
+    editing = profile;
+    nameInput.value = profile?.name ?? "";
+    nameInput.disabled = Boolean(profile);
+    providerSelect.value = profile?.provider ?? "local";
+    error.textContent = "";
+    renderFields();
+    dialog.showModal();
+  };
+
+  const refresh = async () => {
+    const profiles = await bailey.getStorageProfiles();
+    list.replaceChildren(...profiles.map((profile) => {
+      const row = document.createElement("div");
+      row.className = "module-guide-actions";
+      const copy = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = profile.name;
+      const meta = document.createElement("p");
+      meta.className = "muted";
+      meta.textContent = `${profile.provider.toUpperCase()}${profile.isDefault ? " · Default" : ""}`;
+      copy.append(title, meta);
+      const actions = document.createElement("div");
+      actions.className = "action-row";
+      const edit = document.createElement("button");
+      edit.className = "secondary-button";
+      edit.type = "button";
+      edit.textContent = "Edit";
+      edit.addEventListener("click", () => openEditor(profile));
+      actions.append(edit);
+      if (!profile.isDefault) {
+        const use = document.createElement("button");
+        use.className = "secondary-button";
+        use.type = "button";
+        use.textContent = "Make default";
+        use.addEventListener("click", () => void bailey.setDefaultStorageProfile(profile.name).then(refresh));
+        const remove = document.createElement("button");
+        remove.className = "danger-quiet-button";
+        remove.type = "button";
+        remove.textContent = "Delete";
+        remove.addEventListener("click", () => {
+          if (window.confirm(`Delete storage profile ${profile.name}? Stored cloud objects are not deleted.`)) {
+            void bailey.deleteStorageProfile(profile.name).then(refresh);
+          }
+        });
+        actions.append(use, remove);
+      }
+      row.append(copy, actions);
+      return row;
+    }));
+  };
+
+  providerSelect.addEventListener("change", () => {
+    if (editing && editing.provider !== providerSelect.value) editing = undefined;
+    renderFields();
+  });
+  card.querySelector<HTMLButtonElement>("#storage-add-profile")!.addEventListener("click", () => openEditor());
+  dialog.querySelector<HTMLButtonElement>("#storage-profile-close")!.addEventListener("click", () => dialog.close());
+  dialog.querySelector<HTMLButtonElement>("#storage-profile-cancel")!.addEventListener("click", () => dialog.close());
+
+  dialog.querySelector<HTMLFormElement>("#storage-profile-form")!.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const config: Record<string, string | boolean> = {};
+    const secrets: Record<string, string> = {};
+    for (const input of fields.querySelectorAll<HTMLInputElement>("input[data-storage-key]")) {
+      const key = input.dataset.storageKey!;
+      const def = (definitions[providerSelect.value] ?? []).find((item) => item.key === key)!;
+      if (def.toggle) config[key] = input.checked;
+      else if (def.secret) secrets[key] = input.value;
+      else config[key] = input.value;
+    }
+    error.textContent = "Saving…";
+    void bailey.saveStorageProfile({
+      name: nameInput.value,
+      provider: providerSelect.value,
+      config,
+      secrets,
+    }).then(async () => {
+      dialog.close();
+      await refresh();
+    }).catch((reason) => {
+      error.textContent = reason instanceof Error ? reason.message : String(reason);
+    });
+  });
+  void refresh();
+}
+
+installStorageProfilesUi();

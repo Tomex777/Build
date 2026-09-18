@@ -13,7 +13,8 @@ import { EngineManager } from "../engine/engine-manager";
 import { ExternalModuleManager } from "../external/external-module-manager";
 import { registerKvServices } from "../services/kv-service";
 import { registerMediaServices } from "../services/media-service";
-import { LocalStorageProvider, StorageHostService } from "../services/storage-service";
+import { createStorageHostService } from "../services/storage-profile-manager";
+import { StorageProfileStore, type StorageProfileInput } from "../services/storage-profile-store";
 import { coreModule } from "../modules/core";
 import { myCommandsModule } from "../modules/my-commands";
 import type { ConfigDefinition } from "../shared/config-schema";
@@ -34,6 +35,7 @@ let chatController: ChatController;
 let engineManager: EngineManager;
 let externalModuleManager: ExternalModuleManager | undefined;
 let backupManager: BaileyBackupManager;
+let storageProfileStore: StorageProfileStore;
 let externalModuleErrors: Array<{ folder: string; error: string }> = [];
 const externalModuleIds = new Set<string>();
 const openedEditorFiles = new Set<string>();
@@ -310,12 +312,7 @@ async function reloadExternalModules() {
     },
     moduleEnabled,
   );
-  const storageService = new StorageHostService();
-  storageService.addProfile(
-    "default",
-    new LocalStorageProvider(join(app.getPath("userData"), "storage", "default")),
-    true,
-  );
+  const storageService = createStorageHostService(storageProfileStore, app.getPath("userData"));
   storageService.register(manager);
   registerKvServices(manager);
 
@@ -503,6 +500,23 @@ function registerIpc(): void {
     if (!externalModuleManager) throw new Error("External module manager is not ready.");
     return externalModuleManager.restartModule(String(moduleId ?? ""));
   });
+  ipcMain.handle("bailey:storage-profiles", () => storageProfileStore.listForUi());
+  ipcMain.handle("bailey:storage-profile-save", async (_event, input: StorageProfileInput) => {
+    const profile = await storageProfileStore.upsert(input);
+    await reloadExternalModules();
+    return profile;
+  });
+  ipcMain.handle("bailey:storage-profile-default", async (_event, name: string) => {
+    await storageProfileStore.setDefault(name);
+    await reloadExternalModules();
+    return storageProfileStore.listForUi();
+  });
+  ipcMain.handle("bailey:storage-profile-delete", async (_event, name: string) => {
+    await storageProfileStore.delete(name);
+    await reloadExternalModules();
+    return storageProfileStore.listForUi();
+  });
+
   ipcMain.handle("bailey:backup-export", () => backupManager.exportBackup());
   ipcMain.handle("bailey:backup-import", async () => {
     const result = await backupManager.chooseAndImport();
@@ -544,7 +558,11 @@ app.whenReady().then(async () => {
   commandStore = new JsonCommandStore(join(app.getPath("userData"), "commands.json"));
   chatStore = new JsonChatStore(join(app.getPath("userData"), "chats.json"));
   backupManager = new BaileyBackupManager(app.getPath("userData"));
-  await Promise.all([configStore.load(), commandStore.load(), chatStore.load()]);
+  storageProfileStore = new StorageProfileStore(
+    join(app.getPath("userData"), "storage-profiles.json"),
+    createSecretCodec(),
+  );
+  await Promise.all([configStore.load(), commandStore.load(), chatStore.load(), storageProfileStore.load()]);
   await reloadExternalModules();
 
   engineManager = new EngineManager(
