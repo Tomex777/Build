@@ -2035,14 +2035,20 @@ private fun ActiveCallScreen(
     startsWithVideo: Boolean,
     liveState: String? = null,
     mediaState: HomiraWebRtcState? = null,
+    videoEnabled: Boolean = startsWithVideo,
+    localVideoTrack: VideoTrack? = null,
+    remoteVideoTrack: VideoTrack? = null,
+    eglContext: EglBase.Context? = null,
     onMuteChanged: (Boolean) -> Unit = {},
     onSpeakerChanged: (Boolean) -> Unit = {},
+    onVideoChanged: (Boolean) -> Unit = {},
+    onSwitchCamera: () -> Unit = {},
     onMinimize: () -> Unit,
     onEnd: () -> Unit
 ) {
     var muted by rememberSaveable { mutableStateOf(false) }
     var speaker by rememberSaveable { mutableStateOf(startsWithVideo) }
-    var video by rememberSaveable { mutableStateOf(startsWithVideo) }
+    val video = videoEnabled
     var sharing by rememberSaveable { mutableStateOf(false) }
     var simulatedConnected by rememberSaveable { mutableStateOf(false) }
     var seconds by rememberSaveable { mutableIntStateOf(0) }
@@ -2095,8 +2101,49 @@ private fun ActiveCallScreen(
             .clickable { if (video) controlsVisible = true }
     ) {
         if (video) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Camera preview", color = HomiraMuted, fontSize = 14.sp)
+            if (remoteVideoTrack != null && eglContext != null) {
+                WebRtcTextureVideo(
+                    track = remoteVideoTrack,
+                    eglContext = eglContext,
+                    mirror = false,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    if (liveState == null) {
+                        Text("Camera preview", color = HomiraMuted, fontSize = 14.sp)
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            PersonAvatarP(person, 128)
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                "Waiting for video…",
+                                color = Color.White.copy(alpha = .72f),
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (localVideoTrack != null && eglContext != null) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 72.dp, end = 16.dp)
+                        .width(108.dp)
+                        .height(156.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    color = HomiraSurfaceRaised,
+                    shadowElevation = 8.dp
+                ) {
+                    WebRtcTextureVideo(
+                        track = localVideoTrack,
+                        eglContext = eglContext,
+                        mirror = true,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
 
@@ -2123,6 +2170,16 @@ private fun ActiveCallScreen(
                                     menuOpen = false
                                 }
                             )
+                            if (video) {
+                                DropdownMenuItem(
+                                    text = { Text("Switch camera") },
+                                    leadingIcon = { Icon(Icons.Rounded.CameraAlt, contentDescription = null) },
+                                    onClick = {
+                                        onSwitchCamera()
+                                        menuOpen = false
+                                    }
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text("Call info") },
                                 leadingIcon = { Icon(Icons.Rounded.Info, contentDescription = null) },
@@ -2177,7 +2234,7 @@ private fun ActiveCallScreen(
                             onSpeakerChanged(speaker)
                         }
                         CallControlP(Icons.Rounded.Videocam, "Video", video) {
-                            video = !video
+                            onVideoChanged(!video)
                             controlsVisible = true
                         }
                     }
@@ -2192,6 +2249,41 @@ private fun ActiveCallScreen(
             }
         }
     }
+}
+
+@Composable
+private fun WebRtcTextureVideo(
+    track: VideoTrack,
+    eglContext: EglBase.Context,
+    mirror: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val renderer = remember(context, eglContext, mirror) {
+        TextureViewRenderer(context).apply {
+            init(eglContext, null)
+            setMirror(mirror)
+            setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL)
+        }
+    }
+
+    DisposableEffect(track, renderer) {
+        track.addSink(renderer)
+        onDispose {
+            track.removeSink(renderer)
+        }
+    }
+
+    DisposableEffect(renderer) {
+        onDispose {
+            renderer.release()
+        }
+    }
+
+    AndroidView(
+        factory = { renderer },
+        modifier = modifier
+    )
 }
 
 @Composable
