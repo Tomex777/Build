@@ -2,33 +2,34 @@
  * Adapted for Sora from Aniyomi's player surface and mpv-android BaseMPVView.
  *
  * Aniyomi: https://github.com/aniyomiorg/aniyomi
- * Copyright 2024 Abdallah Mehiz and Aniyomi contributors.
+ * mpv Android library: https://github.com/aniyomiorg/aniyomi-mpv-lib
  *
  * Licensed under the Apache License, Version 2.0.
  */
 package com.night.sora.ui.player
 
 import android.content.Context
+import android.os.Build
 import android.util.AttributeSet
 import android.view.SurfaceHolder
-import android.view.SurfaceView
+import `is`.xyz.mpv.BaseMPVView
 import `is`.xyz.mpv.MPVLib
 import java.io.File
 
 /**
- * Thin Sora adapter around Aniyomi's libmpv playback stack.
+ * Sora adapter around Aniyomi's actual [BaseMPVView] lifecycle.
  *
- * Sora owns session/source/progress state. This view owns only the actual
- * Aniyomi-style mpv rendering/playback engine.
+ * Aniyomi owns libmpv initialization, surface attachment/detachment and
+ * first-file startup. Sora only supplies resolved streams, headers and
+ * progress/control calls.
  */
-class AniyomiPlayerView @JvmOverloads constructor(
+class AniyomiPlayerView(
     context: Context,
-    attrs: AttributeSet? = null,
-) : SurfaceView(context, attrs), SurfaceHolder.Callback {
+    attrs: AttributeSet,
+) : BaseMPVView(context, attrs) {
 
     private var initialized = false
     private var surfaceReady = false
-    private var pending: PendingPlayback? = null
 
     fun initialize() {
         if (initialized) return
@@ -36,40 +37,86 @@ class AniyomiPlayerView @JvmOverloads constructor(
         val mpvDir = File(context.filesDir, "mpv").apply { mkdirs() }
         val cacheDir = File(context.cacheDir, "mpv").apply { mkdirs() }
 
-        MPVLib.create(context, "warn")
-        MPVLib.setOptionString("config", "yes")
-        MPVLib.setOptionString("config-dir", mpvDir.absolutePath)
-        MPVLib.setOptionString("gpu-shader-cache-dir", cacheDir.absolutePath)
-        MPVLib.setOptionString("icc-cache-dir", cacheDir.absolutePath)
-
-        // Mobile defaults intentionally mirror the current Aniyomi player.
-        MPVLib.setOptionString("vo", "gpu")
-        MPVLib.setOptionString("profile", "fast")
-        MPVLib.setOptionString("hwdec", "auto")
-        MPVLib.setOptionString("keep-open", "yes")
-        MPVLib.setOptionString("input-default-bindings", "yes")
-        MPVLib.setOptionString("ytdl", "no")
-        MPVLib.setOptionString("tls-verify", "yes")
-        MPVLib.setOptionString("demuxer-max-bytes", (64 * 1024 * 1024).toString())
-        MPVLib.setOptionString("demuxer-max-back-bytes", (64 * 1024 * 1024).toString())
-        MPVLib.setOptionString("vd-lavc-film-grain", "cpu")
-
-        MPVLib.init()
-        MPVLib.setOptionString("force-window", "no")
-        MPVLib.setOptionString("idle", "yes")
-        holder.addCallback(this)
+        /*
+         * BaseMPVView intentionally sets force-window=no and idle=once after
+         * mpv_init(), then owns the SurfaceHolder callbacks. Keep that exact
+         * lifecycle instead of recreating it in Sora.
+         */
+        super.initialize(
+            configDir = mpvDir.absolutePath,
+            cacheDir = cacheDir.absolutePath,
+            logLvl = "warn",
+            vo = "gpu",
+        )
         initialized = true
     }
 
+    override fun initOptions(vo: String) {
+        // Match the mobile defaults used by Aniyomi/mpv-android.
+        setVo(vo)
+        MPVLib.setOptionString("profile", "fast")
+        MPVLib.setOptionString("gpu-context", "android")
+        MPVLib.setOptionString("opengl-es", "yes")
+        MPVLib.setOptionString("hwdec", "auto")
+        MPVLib.setOptionString(
+            "hwdec-codecs",
+            "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1",
+        )
+        MPVLib.setOptionString("ao", "audiotrack,opensles")
+        MPVLib.setOptionString("input-default-bindings", "yes")
+        MPVLib.setOptionString("keep-open", "yes")
+        MPVLib.setOptionString("ytdl", "no")
+        MPVLib.setOptionString("tls-verify", "yes")
+
+        val cacheMegs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) 64 else 32
+        MPVLib.setOptionString("demuxer-max-bytes", (cacheMegs * 1024 * 1024).toString())
+        MPVLib.setOptionString("demuxer-max-back-bytes", (cacheMegs * 1024 * 1024).toString())
+
+        // Workaround also used by current Aniyomi for mpv issue #14651.
+        MPVLib.setOptionString("vd-lavc-film-grain", "cpu")
+    }
+
+    override fun postInitOptions() {
+        // Sora persists progress itself.
+        MPVLib.setOptionString("save-position-on-quit", "no")
+    }
+
+    override fun observeProperties() {
+        val format = MPVLib.mpvFormat
+        MPVLib.observeProperty("time-pos", format.MPV_FORMAT_DOUBLE)
+        MPVLib.observeProperty("duration", format.MPV_FORMAT_DOUBLE)
+        MPVLib.observeProperty("pause", format.MPV_FORMAT_FLAG)
+        MPVLib.observeProperty("paused-for-cache", format.MPV_FORMAT_FLAG)
+        MPVLib.observeProperty("seeking", format.MPV_FORMAT_FLAG)
+        MPVLib.observeProperty("eof-reached", format.MPV_FORMAT_FLAG)
+        MPVLib.observeProperty("hwdec-current", format.MPV_FORMAT_STRING)
+    }
+
+    /**
+     * Load a Sora-resolved stream.
+     *
+     * Before surface creation we delegate to BaseMPVView.playFile(), which is
+     * exactly how upstream queues its first file. Once the surface is attached
+     * we may safely issue loadfile directly for source/quality changes.
+     */
     fun play(
         url: String,
         headers: Map<String, String>,
         positionMs: Long = 0L,
     ) {
         if (!initialized) initialize()
-        val request = PendingPlayback(url, headers, positionMs.coerceAtLeast(0L))
-        pending = request
-        if (surfaceReady) load(request)
+        applyHeaders(headers)
+
+        if (surfaceReady) {
+            MPVLib.command(arrayOf("loadfile", url, "replace"))
+        } else {
+            playFile(url)
+        }
+
+        // Resume seek is intentionally applied by VideoPlayerScreen only after
+        // duration becomes available. loadfile itself is asynchronous.
+        @Suppress("UNUSED_VARIABLE")
+        val deferredResumeMs = positionMs.coerceAtLeast(0L)
     }
 
     fun pause() {
@@ -81,7 +128,9 @@ class AniyomiPlayerView @JvmOverloads constructor(
     }
 
     fun togglePause() {
-        val paused = runCatching { MPVLib.getPropertyBoolean("pause") ?: false }.getOrDefault(false)
+        if (!initialized) return
+        val paused = runCatching { MPVLib.getPropertyBoolean("pause") ?: false }
+            .getOrDefault(false)
         MPVLib.setPropertyBoolean("pause", !paused)
     }
 
@@ -100,78 +149,65 @@ class AniyomiPlayerView @JvmOverloads constructor(
     }
 
     fun positionMs(): Long =
-        if (!initialized) 0L
-        else runCatching { ((MPVLib.getPropertyDouble("time-pos") ?: 0.0) * 1000.0).toLong() }.getOrDefault(0L)
+        if (!initialized) {
+            0L
+        } else {
+            runCatching {
+                ((MPVLib.getPropertyDouble("time-pos") ?: 0.0) * 1000.0).toLong()
+            }.getOrDefault(0L)
+        }
 
     fun durationMs(): Long =
-        if (!initialized) 0L
-        else runCatching { ((MPVLib.getPropertyDouble("duration") ?: 0.0) * 1000.0).toLong() }.getOrDefault(0L)
+        if (!initialized) {
+            0L
+        } else {
+            runCatching {
+                ((MPVLib.getPropertyDouble("duration") ?: 0.0) * 1000.0).toLong()
+            }.getOrDefault(0L)
+        }
 
     fun isPaused(): Boolean =
-        if (!initialized) true
-        else runCatching { MPVLib.getPropertyBoolean("pause") ?: true }.getOrDefault(true)
+        if (!initialized) {
+            true
+        } else {
+            runCatching { MPVLib.getPropertyBoolean("pause") ?: true }
+                .getOrDefault(true)
+        }
 
     fun isBuffering(): Boolean =
-        if (!initialized) false
-        else runCatching { MPVLib.getPropertyBoolean("paused-for-cache") ?: false }.getOrDefault(false)
+        if (!initialized) {
+            false
+        } else {
+            runCatching { MPVLib.getPropertyBoolean("paused-for-cache") ?: false }
+                .getOrDefault(false)
+        }
 
     fun destroyPlayer() {
-        pending = null
         if (!initialized) return
-        holder.removeCallback(this)
-        runCatching { MPVLib.setPropertyBoolean("pause", true) }
-        runCatching { MPVLib.detachSurface() }
-        runCatching { MPVLib.destroy() }
+        super.destroy()
         surfaceReady = false
         initialized = false
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
-        if (!initialized) return
+        /*
+         * Base attaches the surface and consumes any playFile() queued before
+         * attachment. Mark ready only after upstream has completed that work.
+         */
+        super.surfaceCreated(holder)
         surfaceReady = true
-        MPVLib.attachSurface(holder.surface)
-        MPVLib.setOptionString("force-window", "yes")
-        MPVLib.setPropertyString("vo", "gpu")
-        pending?.let(::load)
-    }
-
-    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-        if (!initialized) return
-        MPVLib.setPropertyString("android-surface-size", "${width}x$height")
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
-        if (!initialized) return
         surfaceReady = false
-        runCatching { MPVLib.setPropertyString("vo", "null") }
-        runCatching { MPVLib.setOptionString("force-window", "no") }
-        runCatching { MPVLib.detachSurface() }
+        super.surfaceDestroyed(holder)
     }
 
-    private fun load(request: PendingPlayback) {
-        if (!surfaceReady || !initialized) return
-
-        val headerValue = request.headers.entries
+    private fun applyHeaders(headers: Map<String, String>) {
+        val headerValue = headers.entries
             .filter { it.key.isNotBlank() && it.value.isNotBlank() }
             .joinToString(",") { "${it.key}: ${it.value}" }
 
-        if (headerValue.isNotBlank()) {
-            MPVLib.setPropertyString("http-header-fields", headerValue)
-        } else {
-            MPVLib.setPropertyString("http-header-fields", "")
-        }
-
-        MPVLib.command(arrayOf("loadfile", request.url, "replace"))
-        if (request.positionMs > 0L) {
-            MPVLib.setPropertyDouble("time-pos", request.positionMs / 1000.0)
-        }
-        MPVLib.setPropertyBoolean("pause", false)
-        pending = null
+        MPVLib.setPropertyString("http-header-fields", headerValue)
     }
-
-    private data class PendingPlayback(
-        val url: String,
-        val headers: Map<String, String>,
-        val positionMs: Long,
-    )
 }
