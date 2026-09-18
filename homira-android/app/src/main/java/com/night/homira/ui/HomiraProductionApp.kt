@@ -1689,22 +1689,130 @@ private fun VoicemailSettingsScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun ActiveCallScreen(person: HomiraPerson, startsWithVideo: Boolean, onMinimize: () -> Unit, onEnd: () -> Unit) {
+private fun IncomingCallScreen(
+    person: HomiraPerson,
+    video: Boolean,
+    onAccept: () -> Unit,
+    onDecline: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(HomiraBackground)
+            .safeDrawingPadding()
+            .padding(horizontal = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(Modifier.weight(.7f))
+            Text(
+                text = if (video) "Incoming video call" else "Incoming voice call",
+                color = HomiraMuted,
+                fontSize = 15.sp
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = person.name,
+                color = HomiraText,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            if (person.number.isNotBlank()) {
+                Spacer(Modifier.height(4.dp))
+                Text(person.number, color = HomiraMuted, fontSize = 13.sp)
+            }
+
+            Spacer(Modifier.height(34.dp))
+            PersonAvatarP(person, 190)
+            Spacer(Modifier.weight(1f))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Surface(
+                        modifier = Modifier.size(72.dp).clickable(onClick = onDecline),
+                        shape = CircleShape,
+                        color = HomiraDanger
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Rounded.CallEnd,
+                                contentDescription = "Decline",
+                                tint = Color.White,
+                                modifier = Modifier.size(31.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(9.dp))
+                    Text("Decline", color = HomiraMuted, fontSize = 12.sp)
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Surface(
+                        modifier = Modifier.size(72.dp).clickable(onClick = onAccept),
+                        shape = CircleShape,
+                        color = HomiraGreen
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                if (video) Icons.Rounded.Videocam else Icons.Rounded.Call,
+                                contentDescription = "Accept",
+                                tint = HomiraBackground,
+                                modifier = Modifier.size(31.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(9.dp))
+                    Text("Accept", color = HomiraMuted, fontSize = 12.sp)
+                }
+            }
+            Spacer(Modifier.height(42.dp))
+        }
+    }
+}
+
+@Composable
+private fun ActiveCallScreen(
+    person: HomiraPerson,
+    startsWithVideo: Boolean,
+    liveState: String? = null,
+    onMinimize: () -> Unit,
+    onEnd: () -> Unit
+) {
     var muted by rememberSaveable { mutableStateOf(false) }
     var speaker by rememberSaveable { mutableStateOf(startsWithVideo) }
     var video by rememberSaveable { mutableStateOf(startsWithVideo) }
     var sharing by rememberSaveable { mutableStateOf(false) }
-    var connected by rememberSaveable { mutableStateOf(false) }
+    var simulatedConnected by rememberSaveable { mutableStateOf(false) }
     var seconds by rememberSaveable { mutableIntStateOf(0) }
+    val connected = if (liveState == null) simulatedConnected else liveState == "active"
+    val statusText = when {
+        connected -> formatDurationP(seconds)
+        liveState == "ringing" -> "Ringing…"
+        liveState == "connecting" -> "Connecting…"
+        else -> "Connecting…"
+    }
     var menuOpen by remember { mutableStateOf(false) }
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
 
-    LaunchedEffect(Unit) {
-        delay(650)
-        connected = true
-        while (true) {
-            delay(1_000)
-            seconds++
+    LaunchedEffect(liveState) {
+        if (liveState == null && !simulatedConnected) {
+            delay(650)
+            simulatedConnected = true
+        }
+    }
+    LaunchedEffect(connected) {
+        if (connected) {
+            while (true) {
+                delay(1_000)
+                seconds++
+            }
         }
     }
     LaunchedEffect(video, controlsVisible) {
@@ -1763,7 +1871,7 @@ private fun ActiveCallScreen(person: HomiraPerson, startsWithVideo: Boolean, onM
             if (!video) {
                 Spacer(Modifier.height(16.dp))
                 Text(person.name, color = HomiraText, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-                Text(if (connected) formatDurationP(seconds) else "Connecting…", color = HomiraMuted, fontSize = 15.sp)
+                Text(statusText, color = HomiraMuted, fontSize = 15.sp)
                 Spacer(Modifier.weight(.32f))
                 PersonAvatarP(person, 184)
                 Spacer(Modifier.weight(.32f))
@@ -1771,7 +1879,7 @@ private fun ActiveCallScreen(person: HomiraPerson, startsWithVideo: Boolean, onM
                 AnimatedVisibility(controlsVisible) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(person.name, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                        Text(if (connected) formatDurationP(seconds) else "Connecting…", color = Color.White.copy(alpha = .72f), fontSize = 13.sp)
+                        Text(statusText, color = Color.White.copy(alpha = .72f), fontSize = 13.sp)
                     }
                 }
                 Spacer(Modifier.weight(1f))
