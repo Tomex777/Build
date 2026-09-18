@@ -56,8 +56,8 @@ jobs:
           sudo systemctl restart tor || sudo service tor restart
           sudo systemctl restart privoxy || sudo service privoxy restart
 
-          for i in $(seq 1 30); do
-            if curl -fsS --max-time 15 -x http://127.0.0.1:8118 https://check.torproject.org/api/ip >/tmp/tor-ip.json; then
+          for i in $(seq 1 12); do
+            if curl -fsS --connect-timeout 4 --max-time 8 -x http://127.0.0.1:8118 https://check.torproject.org/api/ip >/tmp/tor-ip.json; then
               break
             fi
             sleep 2
@@ -66,7 +66,7 @@ jobs:
           cat /tmp/tor-ip.json
 
           python3 -m pip install --disable-pip-version-check --quiet 'curl-cffi>=0.13,<0.14'
-          TOR_PROBE_CIRCUITS=10 python3 pahebatcher-android/ci/tor_endpoint_probe.py
+          timeout 420s env TOR_PROBE_CIRCUITS=6 python3 -u pahebatcher-android/ci/tor_endpoint_probe.py
 
           live_animepahe="$(python3 -c "import json; d=json.load(open('tor-probe/endpoint-report.json')); print('true' if d['summary'].get('successful_host') else 'false')")"
           live_animepahe_host="$(python3 -c "import json; d=json.load(open('tor-probe/endpoint-report.json')); print(d['summary'].get('successful_host') or '')")"
