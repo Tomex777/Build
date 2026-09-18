@@ -288,6 +288,17 @@ class HomiraLiveRepository {
         }
     }
 
+    suspend fun setVoicemailEnabled(enabled: Boolean): LiveProfile {
+        val userId = requireNotNull(currentUserId()) { "Not signed in" }
+        return client.from("profiles")
+            .update({
+                set("voicemail_enabled", enabled)
+            }) {
+                filter { eq("id", userId) }
+            }
+            .decodeSingle<LiveProfile>()
+    }
+
     suspend fun saveVoicemailGreeting(audioFile: File): LiveProfile {
         val userId = requireNotNull(currentUserId()) { "Not signed in" }
         require(audioFile.exists() && audioFile.length() > 0L) { "Greeting audio is empty" }
@@ -365,7 +376,7 @@ class HomiraLiveRepository {
     ): LiveVoicemail {
         val senderId = requireNotNull(currentUserId()) { "Not signed in" }
         require(senderId != recipientId) { "Cannot leave voicemail for yourself" }
-        require(durationMs in 1..300_000) { "Voicemail must be between 1 ms and 5 minutes" }
+        require(durationMs in 1..120_000) { "Voicemail must be between 1 ms and 2 minutes" }
         require(audioFile.exists() && audioFile.length() > 0L) { "Voicemail audio is empty" }
 
         val path = "$senderId/${UUID.randomUUID()}.m4a"
