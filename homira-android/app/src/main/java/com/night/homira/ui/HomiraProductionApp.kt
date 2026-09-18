@@ -2,6 +2,7 @@ package com.night.homira.ui
 
 import com.night.homira.data.HomiraLiveRepository
 import com.night.homira.data.LiveProfile
+import com.night.homira.data.LiveContact
 import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -167,7 +168,7 @@ private val callEntries = listOf(
 )
 
 @Composable
-fun HomiraProductionApp(initialProfile: LiveProfile? = null) {
+fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: List<LiveContact> = emptyList()) {
     HomiraTheme {
         val context = LocalContext.current
         val liveRepository = remember { HomiraLiveRepository() }
@@ -192,6 +193,25 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null) {
         }
         var avatarUri by rememberSaveable { mutableStateOf<String?>(null) }
         var callCardUri by rememberSaveable { mutableStateOf<String?>(null) }
+
+        val appContacts = remember(initialContacts) {
+            initialContacts.map { contact ->
+                val visibleName = contact.localName?.takeIf { it.isNotBlank() }
+                    ?: contact.displayName.takeIf { it.isNotBlank() }
+                    ?: contact.username?.takeIf { it.isNotBlank() }
+                    ?: contact.phoneE164
+                    ?: "Homira user"
+                HomiraPerson(
+                    id = contact.id,
+                    name = visibleName,
+                    marker = visibleName.firstOrNull()?.uppercaseChar()?.toString() ?: "H",
+                    accent = HomiraGreen,
+                    number = contact.phoneE164.orEmpty(),
+                    favorite = contact.favorite
+                )
+            }
+        }
+        val appCallEntries = if (initialProfile != null) emptyList() else callEntries
 
         fun beginCall(person: HomiraPerson, video: Boolean) {
             activePerson = person
@@ -277,10 +297,11 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null) {
                     ) { current ->
                         when (current) {
                             MainTab.Keypad -> KeypadScreen(
+                                contacts = appContacts,
                                 onSettings = { overlay = OverlayScreen.Settings },
                                 onDial = { value ->
                                     val digits = digitsOnlyP(value)
-                                    val found = homiraContacts.firstOrNull {
+                                    val found = appContacts.firstOrNull {
                                         digitsOnlyP(it.number).endsWith(digits.takeLast(10)) && digits.length >= 7
                                     }
                                     beginCall(
@@ -297,12 +318,15 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null) {
                             )
 
                             MainTab.Recents -> RecentsScreen(
+                                contacts = appContacts,
+                                entries = appCallEntries,
                                 onSettings = { overlay = OverlayScreen.Settings },
                                 onVoiceCall = { beginCall(it, false) },
                                 onVideoCall = { beginCall(it, true) }
                             )
 
                             MainTab.Contacts -> ContactsScreen(
+                                contacts = appContacts,
                                 onSettings = { overlay = OverlayScreen.Settings },
                                 onVoiceCall = { beginCall(it, false) },
                                 onVideoCall = { beginCall(it, true) },
@@ -367,9 +391,9 @@ private fun HeaderActions(title: String, onSettings: () -> Unit, showSearch: Boo
 }
 
 @Composable
-private fun KeypadScreen(onSettings: () -> Unit, onDial: (String) -> Unit) {
+private fun KeypadScreen(contacts: List<HomiraPerson>, onSettings: () -> Unit, onDial: (String) -> Unit) {
     var number by rememberSaveable { mutableStateOf("") }
-    val match = homiraContacts.firstOrNull {
+    val match = contacts.firstOrNull {
         val digits = digitsOnlyP(number)
         digits.length >= 7 && digitsOnlyP(it.number).endsWith(digits.takeLast(10))
     }
@@ -502,6 +526,8 @@ private fun PlainDialPad(onDigit: (String) -> Unit, onLongZero: () -> Unit) {
 
 @Composable
 private fun RecentsScreen(
+    contacts: List<HomiraPerson>,
+    entries: List<CallEntry>,
     onSettings: () -> Unit,
     onVoiceCall: (HomiraPerson) -> Unit,
     onVideoCall: (HomiraPerson) -> Unit
@@ -510,12 +536,12 @@ private fun RecentsScreen(
     var playingVoicemail by rememberSaveable { mutableStateOf<String?>(null) }
 
     val filtered = when (filter) {
-        RecentFilter.All -> callEntries
-        RecentFilter.Missed -> callEntries.filter { it.direction == CallDirection.Missed }
-        RecentFilter.Voicemail -> callEntries.filter { it.voicemailSeconds != null }
+        RecentFilter.All -> entries
+        RecentFilter.Missed -> entries.filter { it.direction == CallDirection.Missed }
+        RecentFilter.Voicemail -> entries.filter { it.voicemailSeconds != null }
     }
-    val days = callEntries.map { it.day }.distinct().filter { day -> filtered.any { it.day == day } }
-    val topMissed = callEntries.firstOrNull { it.direction == CallDirection.Missed }
+    val days = entries.map { it.day }.distinct().filter { day -> filtered.any { it.day == day } }
+    val topMissed = entries.firstOrNull { it.direction == CallDirection.Missed }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().safeDrawingPadding(),
@@ -544,10 +570,10 @@ private fun RecentsScreen(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                homiraContacts.filter { it.favorite }.forEach { person ->
+                contacts.filter { it.favorite }.forEach { person ->
                     QuickPerson(person, onVoice = { onVoiceCall(person) }, onVideo = { onVideoCall(person) })
                 }
-                homiraContacts.filterNot { it.favorite }.take(2).forEach { person ->
+                contacts.filterNot { it.favorite }.take(2).forEach { person ->
                     QuickPerson(person, onVoice = { onVoiceCall(person) }, onVideo = { onVideoCall(person) })
                 }
             }
@@ -788,13 +814,14 @@ private fun RecentEntryRow(
 
 @Composable
 private fun ContactsScreen(
+    contacts: List<HomiraPerson>,
     onSettings: () -> Unit,
     onVoiceCall: (HomiraPerson) -> Unit,
     onVideoCall: (HomiraPerson) -> Unit,
     onOpenMe: () -> Unit
 ) {
     var query by rememberSaveable { mutableStateOf("") }
-    val filtered = homiraContacts.filter {
+    val filtered = contacts.filter {
         it.name.contains(query, ignoreCase = true) || it.number.contains(query)
     }
     val initials = filtered.map { it.name.first().uppercaseChar() }.distinct().sorted()
