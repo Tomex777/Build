@@ -3,7 +3,9 @@ package com.night.homira.ui
 import com.night.homira.data.HomiraLiveRepository
 import com.night.homira.data.LiveProfile
 import com.night.homira.data.LiveContact
+import com.night.homira.data.LiveCallSession
 import android.graphics.BitmapFactory
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -179,6 +181,9 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         var activePerson by remember { mutableStateOf<HomiraPerson?>(null) }
         var activeVideo by rememberSaveable { mutableStateOf(false) }
         var minimized by rememberSaveable { mutableStateOf(false) }
+        var activeSession by remember { mutableStateOf<LiveCallSession?>(null) }
+        var incomingSession by remember { mutableStateOf<LiveCallSession?>(null) }
+        var incomingPerson by remember { mutableStateOf<HomiraPerson?>(null) }
 
         var profileName by rememberSaveable(initialProfile?.id) {
             mutableStateOf(initialProfile?.displayName?.ifBlank { "You" } ?: "You")
@@ -216,19 +221,133 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         val appCallEntries = if (liveMode) emptyList() else callEntries
 
         fun beginCall(person: HomiraPerson, video: Boolean) {
-            activePerson = person
-            activeVideo = video
-            minimized = false
+            if (!liveMode) {
+                activePerson = person
+                activeVideo = video
+                minimized = false
+                return
+            }
+
+            liveScope.launch {
+                runCatching {
+                    liveRepository.startCall(calleeId = person.id, video = video)
+                }.onSuccess { session ->
+                    activeSession = session
+                    activePerson = person
+                    activeVideo = video
+                    minimized = false
+                }.onFailure {
+                    Toast.makeText(
+                        context,
+                        it.message ?: "Could not start the call.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+
+        LaunchedEffect(liveMode, appContacts) {
+            if (!liveMode) return@LaunchedEffect
+
+            suspend fun resolvePerson(userId: String): HomiraPerson {
+                appContacts.firstOrNull { it.id == userId }?.let { return it }
+
+                val profile = liveRepository.loadProfileById(userId)
+                val name = profile?.displayName?.takeIf { it.isNotBlank() }
+                    ?: profile?.username?.takeIf { it.isNotBlank() }
+                    ?: profile?.phoneE164
+                    ?: "Homira caller"
+
+                return HomiraPerson(
+                    id = userId,
+                    name = name,
+                    marker = name.firstOrNull()?.uppercaseChar()?.toString() ?: "H",
+                    accent = HomiraGreen,
+                    number = profile?.phoneE164.orEmpty()
+                )
+            }
+
+            liveRepository.loadPendingIncomingCall()?.let { pending ->
+                incomingSession = pending
+                incomingPerson = resolvePerson(pending.callerId)
+            }
+
+            liveRepository.observeIncomingCallChanges().collect { session ->
+                when (session.state) {
+                    "ringing" -> {
+                        incomingSession = session
+                        incomingPerson = resolvePerson(session.callerId)
+                    }
+                    "declined", "cancelled", "failed", "ended" -> {
+                        if (incomingSession?.id == session.id) {
+                            incomingSession = null
+                            incomingPerson = null
+                        }
+                    }
+                }
+            }
+        }
+
+        LaunchedEffect(liveMode, activeSession?.id) {
+            if (!liveMode) return@LaunchedEffect
+            val callId = activeSession?.id ?: return@LaunchedEffect
+
+            liveRepository.observeCallSession(callId).collect { session ->
+                activeSession = session
+                if (session.state in setOf("declined", "cancelled", "failed", "ended")) {
+                    activePerson = null
+                    minimized = false
+                }
+            }
         }
 
         when {
+            incomingSession != null && incomingPerson != null && activePerson == null -> IncomingCallScreen(
+                person = incomingPerson ?: mimiP,
+                video = incomingSession?.mediaType == "video",
+                onAccept = {
+                    val session = incomingSession ?: return@IncomingCallScreen
+                    val person = incomingPerson ?: return@IncomingCallScreen
+                    liveScope.launch {
+                        runCatching {
+                            liveRepository.setCallState(session.id, "active")
+                        }.onSuccess { updated ->
+                            activeSession = updated
+                            activePerson = person
+                            activeVideo = updated.mediaType == "video"
+                            minimized = false
+                            incomingSession = null
+                            incomingPerson = null
+                        }
+                    }
+                },
+                onDecline = {
+                    val session = incomingSession
+                    incomingSession = null
+                    incomingPerson = null
+                    if (session != null) {
+                        liveScope.launch {
+                            runCatching { liveRepository.setCallState(session.id, "declined") }
+                        }
+                    }
+                }
+            )
+
             activePerson != null && !minimized -> ActiveCallScreen(
                 person = activePerson ?: mimiP,
                 startsWithVideo = activeVideo,
+                liveState = if (liveMode) activeSession?.state else null,
                 onMinimize = { minimized = true },
                 onEnd = {
+                    val session = activeSession
                     activePerson = null
+                    activeSession = null
                     minimized = false
+                    if (liveMode && session != null) {
+                        liveScope.launch {
+                            runCatching { liveRepository.setCallState(session.id, "ended") }
+                        }
+                    }
                 }
             )
 
@@ -299,8 +418,15 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                             person = activePerson ?: mimiP,
                             onReturn = { minimized = false },
                             onEnd = {
+                                val session = activeSession
                                 activePerson = null
+                                activeSession = null
                                 minimized = false
+                                if (liveMode && session != null) {
+                                    liveScope.launch {
+                                        runCatching { liveRepository.setCallState(session.id, "ended") }
+                                    }
+                                }
                             }
                         )
                     }
@@ -318,16 +444,26 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                                     val found = appContacts.firstOrNull {
                                         digitsOnlyP(it.number).endsWith(digits.takeLast(10)) && digits.length >= 7
                                     }
-                                    beginCall(
-                                        found ?: HomiraPerson(
-                                            id = "dial-$digits",
-                                            name = value,
-                                            marker = "#",
-                                            accent = HomiraGreen,
-                                            number = value
-                                        ),
-                                        false
-                                    )
+                                    if (found != null) {
+                                        beginCall(found, false)
+                                    } else if (liveMode) {
+                                        Toast.makeText(
+                                            context,
+                                            "Add this Homira user first, then call from Contacts.",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    } else {
+                                        beginCall(
+                                            HomiraPerson(
+                                                id = "dial-$digits",
+                                                name = value,
+                                                marker = "#",
+                                                accent = HomiraGreen,
+                                                number = value
+                                            ),
+                                            false
+                                        )
+                                    }
                                 }
                             )
 
