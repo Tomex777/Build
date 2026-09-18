@@ -56,53 +56,40 @@ jobs:
           sudo systemctl restart tor || sudo service tor restart
           sudo systemctl restart privoxy || sudo service privoxy restart
 
-          tor_ready=false
           for i in $(seq 1 30); do
             if curl -fsS --max-time 15 -x http://127.0.0.1:8118 https://check.torproject.org/api/ip >/tmp/tor-ip.json; then
-              tor_ready=true
               break
             fi
             sleep 2
           done
-          if [ "$tor_ready" != "true" ]; then
-            echo "Tor proxy did not become ready" >&2
-            exit 1
-          fi
+          test -s /tmp/tor-ip.json
           cat /tmp/tor-ip.json
 
-          live_animepahe=false
-          live_animepahe_host=""
-          ua='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36'
+          python3 -m pip install --disable-pip-version-check --quiet 'curl-cffi>=0.13,<0.14'
+          TOR_PROBE_CIRCUITS=10 python3 pahebatcher-android/ci/tor_endpoint_probe.py
 
-          for attempt in $(seq 1 8); do
-            circuit_user="pahe-$attempt"
-            exit_json="$(curl -sS --max-time 15 --socks5-hostname 127.0.0.1:9050 --proxy-user "$circuit_user:x" https://check.torproject.org/api/ip || true)"
-            echo "Tor circuit $attempt: $exit_json"
-
-            for host in animepahe.pw animepahe.com animepahe.org; do
-              body="$(curl -sS --compressed --max-time 25 --socks5-hostname 127.0.0.1:9050 --proxy-user "$circuit_user:x" \
-                -A "$ua" \
-                -H 'Accept: application/json,text/plain,*/*' \
-                -H 'Accept-Language: en-US,en;q=0.9' \
-                -H "Referer: https://$host/" \
-                "https://$host/api?m=search&q=bleach" || true)"
-              if printf '%s' "$body" | grep -q '"data"'; then
-                live_animepahe=true
-                live_animepahe_host="$host"
-                echo "AnimePahe JSON reachable through Tor on circuit $attempt via $host"
-                break 2
-              fi
-              echo "$host challenged/rejected circuit $attempt"
-            done
-
-            sleep 3
-          done
-
+          live_animepahe="$(python3 - <<'PY'
+import json
+data=json.load(open('tor-probe/endpoint-report.json'))
+print('true' if data['summary'].get('successful_host') else 'false')
+PY
+)"
+          live_animepahe_host="$(python3 - <<'PY'
+import json
+data=json.load(open('tor-probe/endpoint-report.json'))
+print(data['summary'].get('successful_host') or '')
+PY
+)"
           echo "live_animepahe=$live_animepahe" >> "$GITHUB_OUTPUT"
           echo "live_animepahe_host=$live_animepahe_host" >> "$GITHUB_OUTPUT"
-          if [ "$live_animepahe" != "true" ]; then
-            echo "AnimePahe challenged all sampled Tor circuits/domains; live catalog test will be skipped."
-          fi
+
+      - name: Upload Tor endpoint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pahebatcher-tor-endpoint-report
+          path: tor-probe/**
+          if-no-files-found: warn
 
       - name: Build debug APK
         working-directory: pahebatcher-android
