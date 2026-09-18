@@ -269,32 +269,72 @@ input_query() {
 
 
 tap_text_below() {
-  local heading="$1" label="$2"
-  dump_ui
-  python3 - "$heading" "$label" <<'PY'
+  local heading="$1" label="$2" timeout="${3:-20}" elapsed=0
+
+  while (( elapsed < timeout )); do
+    if ! dismiss_emulator_system_dialogs; then
+      echo "A real Sora/system dialog blocked '$label' under '$heading'" >&2
+      return 1
+    fi
+
+    dump_ui
+    if python3 - "$heading" "$label" "$elapsed" <<'PY'
 import re, subprocess, sys, xml.etree.ElementTree as ET
-heading,label=sys.argv[1:]
-root=ET.parse('/tmp/sora-media-window.xml').getroot()
+heading,label,attempt=sys.argv[1],sys.argv[2],int(sys.argv[3])
+try:
+    root=ET.parse('/tmp/sora-media-window.xml').getroot()
+except Exception:
+    raise SystemExit(1)
+
 def bounds(node):
     m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
     return tuple(map(int,m.groups())) if m else None
+
 heads=[]
+labels=[]
 for n in root.iter('node'):
-    if (n.attrib.get('text') or '').strip()==heading:
-        b=bounds(n)
-        if b: heads.append(b)
-if not heads: raise SystemExit(f'Heading not found: {heading}')
-cut=min(b[3] for b in heads)
-choices=[]
-for n in root.iter('node'):
-    if (n.attrib.get('text') or '').strip()!=label: continue
+    text=(n.attrib.get('text') or '').strip()
+    desc=(n.attrib.get('content-desc') or '').strip()
     b=bounds(n)
-    if b and b[1] >= cut: choices.append(b)
-if not choices: raise SystemExit(f'No {label} below {heading}')
+    if not b:
+        continue
+    if text == heading or desc == heading:
+        heads.append(b)
+    if text == label or desc == label:
+        labels.append(b)
+
+choices=[]
+if heads:
+    cut=min(b[3] for b in heads)
+    choices=[b for b in labels if b[1] >= cut]
+elif attempt > 0:
+    # Once we have scrolled past the Continue heading, the hero title has also
+    # moved away; a remaining matching title belongs to the Continue card.
+    choices=labels
+
+if not choices:
+    raise SystemExit(1)
+
 b=sorted(choices,key=lambda v:(v[1],v[0]))[0]
-subprocess.check_call(['adb','shell','input','tap',str((b[0]+b[2])//2),str((b[1]+b[3])//2)])
+subprocess.check_call([
+    'adb','shell','input','tap',
+    str((b[0]+b[2])//2),
+    str((b[1]+b[3])//2),
+])
 PY
-  sleep 2
+    then
+      sleep 2
+      return 0
+    fi
+
+    adb shell input swipe 540 1850 540 980 320 || true
+    sleep 1
+    elapsed=$((elapsed+1))
+  done
+
+  echo "Timed out finding '$label' below '$heading'" >&2
+  shot "failure-continue-${heading//[^A-Za-z0-9]/_}-${label//[^A-Za-z0-9]/_}"
+  return 1
 }
 
 read_progress_json() {
