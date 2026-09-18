@@ -1,1 +1,1 @@
-run 5 - null-safe mpv property bridge real media exact resume validation
+run 11 - stop-before-destroy Aniyomi teardown validation
