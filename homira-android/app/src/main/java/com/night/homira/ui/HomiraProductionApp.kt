@@ -3056,7 +3056,7 @@ private fun BlockedPeopleScreen(
     onBlockChanged: (HomiraPerson, Boolean) -> Unit
 ) {
     var query by rememberSaveable { mutableStateOf("") }
-    val visibleContacts = remember(contacts, query) {
+    val visibleContacts = remember(contacts, query, blockedUserIds) {
         val normalized = query.trim().lowercase()
         if (normalized.isBlank()) {
             contacts.sortedWith(
