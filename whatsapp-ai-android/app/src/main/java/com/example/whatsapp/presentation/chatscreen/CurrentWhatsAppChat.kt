@@ -132,11 +132,12 @@ fun CurrentWhatsAppConversation(
     onCameraClick: () -> Unit = {},
     onMicClick: () -> Unit = {},
     onEmojiClick: () -> Unit = {},
+    autoScrollToLatest: Boolean = true,
 ) {
     val state = rememberLazyListState()
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
+    LaunchedEffect(messages.size, autoScrollToLatest) {
+        if (autoScrollToLatest && messages.isNotEmpty()) {
             state.scrollToItem(messages.lastIndex)
         }
     }
@@ -240,7 +241,7 @@ private fun CurrentChatHeader(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.statusBars)
-                .height(68.dp)
+                .height(58.dp)
                 .padding(start = 3.dp, end = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -249,7 +250,7 @@ private fun CurrentChatHeader(
                     imageVector = Icons.Default.ArrowBack,
                     contentDescription = "Back",
                     tint = PrimaryText,
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(24.dp),
                 )
             }
 
@@ -257,7 +258,7 @@ private fun CurrentChatHeader(
                 painter = painterResource(R.drawable.bilal),
                 contentDescription = null,
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(38.dp)
                     .clip(CircleShape),
                 contentScale = ContentScale.Crop,
             )
@@ -271,7 +272,7 @@ private fun CurrentChatHeader(
                 Text(
                     text = contactName,
                     color = PrimaryText,
-                    fontSize = 17.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Normal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -279,7 +280,7 @@ private fun CurrentChatHeader(
                 Text(
                     text = subtitle,
                     color = SecondaryText,
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -290,7 +291,7 @@ private fun CurrentChatHeader(
                     imageVector = Icons.Default.Phone,
                     contentDescription = "Call",
                     tint = PrimaryText,
-                    modifier = Modifier.size(25.dp),
+                    modifier = Modifier.size(22.dp),
                 )
             }
 
@@ -306,7 +307,7 @@ private fun CurrentChatHeader(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = "More",
                     tint = PrimaryText,
-                    modifier = Modifier.size(26.dp),
+                    modifier = Modifier.size(24.dp),
                 )
             }
         }
@@ -357,7 +358,7 @@ private fun CurrentTextBubble(item: WhatsAppVisualMessage.TextMessage) {
                 Text(
                     text = item.text,
                     color = PrimaryText,
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     lineHeight = 19.sp,
                     modifier = Modifier.weight(1f, fill = false),
                 )
@@ -423,7 +424,7 @@ private fun CurrentPhotoBubble(item: WhatsAppVisualMessage.PhotoMessage) {
     ) {
         Column(
             modifier = Modifier
-                .widthIn(max = 505.dp)
+                .widthIn(max = 330.dp)
                 .clip(
                     if (item.mine) {
                         RoundedCornerShape(14.dp, 3.dp, 14.dp, 14.dp)
@@ -437,7 +438,7 @@ private fun CurrentPhotoBubble(item: WhatsAppVisualMessage.PhotoMessage) {
             DemoMediaArtwork(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(230.dp)
+                    .height(220.dp)
                     .clip(RoundedCornerShape(10.dp)),
             )
 
@@ -756,7 +757,7 @@ private fun CurrentComposer(
             color = AccentPink,
             shape = CircleShape,
             modifier = Modifier
-                .size(55.dp)
+                .size(48.dp)
                 .clickable {
                     if (text.isBlank()) onMicClick() else onSendClick()
                 },
@@ -766,7 +767,7 @@ private fun CurrentComposer(
                     imageVector = if (text.isBlank()) Icons.Default.Mic else Icons.Default.Send,
                     contentDescription = if (text.isBlank()) "Voice message" else "Send",
                     tint = Color(0xFF10161A),
-                    modifier = Modifier.size(27.dp),
+                    modifier = Modifier.size(24.dp),
                 )
             }
         }
