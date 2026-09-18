@@ -1126,7 +1126,9 @@ fun HomiraProductionApp(
         LaunchedEffect(
             liveMode,
             telecomSession?.id,
-            telecomPerson?.id
+            telecomPerson?.id,
+            micPermissionGranted,
+            cameraPermissionGranted
         ) {
             val session = telecomSession
             val person = telecomPerson
@@ -1141,6 +1143,18 @@ fun HomiraProductionApp(
             val localUserId =
                 liveRepository.currentUserId() ?: return@LaunchedEffect
 
+            val isIncoming = session.calleeId == localUserId
+            val missingRequiredPermission =
+                !micPermissionGranted ||
+                    (
+                        session.mediaType == "video" &&
+                            !cameraPermissionGranted
+                    )
+
+            if (isIncoming && missingRequiredPermission) {
+                return@LaunchedEffect
+            }
+
             runCatching {
                 telecomBridge.registerCall(
                     callId = session.id,
@@ -1148,7 +1162,7 @@ fun HomiraProductionApp(
                     peerAddress = person.number.ifBlank {
                         person.id
                     },
-                    incoming = session.calleeId == localUserId,
+                    incoming = isIncoming,
                     video = session.mediaType == "video"
                 )
             }
