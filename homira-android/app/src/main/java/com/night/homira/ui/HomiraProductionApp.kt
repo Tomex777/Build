@@ -306,18 +306,20 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 person = incomingPerson ?: mimiP,
                 video = incomingSession?.mediaType == "video",
                 onAccept = {
-                    val session = incomingSession ?: return@IncomingCallScreen
-                    val person = incomingPerson ?: return@IncomingCallScreen
-                    liveScope.launch {
-                        runCatching {
-                            liveRepository.setCallState(session.id, "active")
-                        }.onSuccess { updated ->
-                            activeSession = updated
-                            activePerson = person
-                            activeVideo = updated.mediaType == "video"
-                            minimized = false
-                            incomingSession = null
-                            incomingPerson = null
+                    val session = incomingSession
+                    val person = incomingPerson
+                    if (session != null && person != null) {
+                        liveScope.launch {
+                            runCatching {
+                                liveRepository.setCallState(session.id, "active")
+                            }.onSuccess { updated ->
+                                activeSession = updated
+                                activePerson = person
+                                activeVideo = updated.mediaType == "video"
+                                minimized = false
+                                incomingSession = null
+                                incomingPerson = null
+                            }
                         }
                     }
                 },
