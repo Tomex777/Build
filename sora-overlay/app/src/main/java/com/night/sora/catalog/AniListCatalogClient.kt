@@ -177,7 +177,7 @@ class AniListCatalogClient {
                   Media($idArg, type: $typeArg) {
                     relations {
                       edges {
-                        relationType
+                        relationType(version: 2)
                         node {
                           $CARD_FIELDS
                         }
@@ -576,7 +576,7 @@ class AniListCatalogClient {
             coverImage { extraLarge large medium }
             relations {
               edges {
-                relationType
+                relationType(version: 2)
                 node { $CARD_FIELDS }
               }
             }
