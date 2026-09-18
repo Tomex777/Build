@@ -161,6 +161,7 @@ class AniListCatalogClient {
 
         execute(callback) {
             val opposite = if (type == ContentType.ANIME) ContentType.MANGA else ContentType.ANIME
+            val expectedRelation = if (type == ContentType.ANIME) "SOURCE" else "ADAPTATION"
             val typeArg = typeLiteral(type)
             val idArg = if (byMalId) "idMal: $id" else "id: $id"
             val graphQl = """
@@ -183,7 +184,7 @@ class AniListCatalogClient {
 
             for (index in 0 until edges.length()) {
                 val edge = edges.optJSONObject(index) ?: continue
-                if (edge.optString("relationType") != "ADAPTATION") continue
+                if (edge.optString("relationType") != expectedRelation) continue
                 val node = edge.optJSONObject("node") ?: continue
                 if (!node.optString("type").equals(typeLiteral(opposite), ignoreCase = true)) continue
                 return@execute parseItem(node, opposite)
