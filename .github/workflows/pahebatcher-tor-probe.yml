@@ -27,8 +27,8 @@ jobs:
           sudo systemctl restart tor || sudo service tor restart
 
           ready=false
-          for i in $(seq 1 30); do
-            if curl -fsS --max-time 15 --socks5-hostname 127.0.0.1:9050 https://check.torproject.org/api/ip > tor-check.json; then
+          for i in $(seq 1 12); do
+            if curl -fsS --connect-timeout 4 --max-time 8 --socks5-hostname 127.0.0.1:9050 https://check.torproject.org/api/ip > tor-check.json; then
               ready=true
               break
             fi
@@ -40,7 +40,7 @@ jobs:
       - name: Probe AnimePahe and Kwik endpoints through Tor
         run: |
           python3 -m pip install --disable-pip-version-check --quiet 'curl-cffi>=0.13,<0.14'
-          TOR_PROBE_CIRCUITS=12 python3 pahebatcher-android/ci/tor_endpoint_probe.py
+          timeout 420s env TOR_PROBE_CIRCUITS=6 python3 -u pahebatcher-android/ci/tor_endpoint_probe.py
 
       - name: Probe with real Chrome over Tor
         if: always()
