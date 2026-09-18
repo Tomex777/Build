@@ -3,13 +3,7 @@ name: Extension Chat Android UI
 on:
   push:
     branches:
-      - extension-chat-ui-ci
-    paths:
-      - "extension-chat-android/**"
-      - ".github/workflows/extension-chat-ui-ci.yml"
-  pull_request:
-    branches:
-      - main
+      - extension-chat-render-ci
     paths:
       - "extension-chat-android/**"
       - ".github/workflows/extension-chat-ui-ci.yml"
@@ -100,7 +94,7 @@ jobs:
           git add extension-chat-preview || true
           git diff --cached --quiet && exit 0
           git commit -m "Update rendered Extension Chat preview"
-          git push origin HEAD:extension-chat-ui-ci
+          git push origin HEAD:extension-chat-render-ci
 
       - name: Upload APK and screenshot
         if: steps.build.outcome == 'success'
