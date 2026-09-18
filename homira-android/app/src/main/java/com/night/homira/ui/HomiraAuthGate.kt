@@ -72,7 +72,10 @@ fun HomiraAuthGate() {
             onSignedIn = { gateState = LiveGateState.SignedIn }
         )
 
-        LiveGateState.SignedIn -> LiveProfileHost(repository = repository)
+        LiveGateState.SignedIn -> LiveProfileHost(
+            repository = repository,
+            onSignedOut = { gateState = LiveGateState.SignedOut }
+        )
     }
 }
 
@@ -231,7 +234,10 @@ private fun PhoneOtpScreen(
 
 
 @Composable
-private fun LiveProfileHost(repository: HomiraLiveRepository) {
+private fun LiveProfileHost(
+    repository: HomiraLiveRepository,
+    onSignedOut: () -> Unit
+) {
     var loading by remember { mutableStateOf(true) }
     var profile by remember { mutableStateOf<LiveProfile?>(null) }
     var contacts by remember { mutableStateOf<List<LiveContact>>(emptyList()) }
@@ -254,6 +260,11 @@ private fun LiveProfileHost(repository: HomiraLiveRepository) {
             }
         }
     } else {
-        HomiraProductionApp(initialProfile = profile, initialContacts = contacts, liveMode = true)
+        HomiraProductionApp(
+            initialProfile = profile,
+            initialContacts = contacts,
+            liveMode = true,
+            onSignedOut = onSignedOut
+        )
     }
 }
