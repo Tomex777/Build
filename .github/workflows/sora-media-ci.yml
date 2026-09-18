@@ -34,6 +34,7 @@ jobs:
           grep -q 'https://graphql.anilist.co' "$ANILIST"
           grep -q 'idMal' "$ANILIST"
           grep -q 'expectedRelation = if (type == ContentType.ANIME) "SOURCE" else "ADAPTATION"' "$ANILIST"
+          test "$(grep -c 'relationType(version: 2)' "$ANILIST")" -ge 2
           grep -q 'relationType") != expectedRelation' "$ANILIST"
           grep -q 'SEARCH_MATCH' "$ANILIST"
           grep -q 'POPULARITY_DESC' "$ANILIST"
