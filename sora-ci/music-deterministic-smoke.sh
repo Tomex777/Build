@@ -93,6 +93,23 @@ wait_for_node() {
   return 1
 }
 
+wait_for_node_raw() {
+  local label="$1"
+  local timeout="${2:-15}"
+  local elapsed=0
+  while (( elapsed < timeout )); do
+    if node_exists "$label"; then
+      echo "Found raw '$label' after ${elapsed}s"
+      return 0
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+  echo "Timed out waiting raw for '$label'" >&2
+  shot "failure-raw-${label//[^A-Za-z0-9]/_}"
+  return 1
+}
+
 tap_text() {
   local label="$1"
   dismiss_system_dialogs
@@ -253,16 +270,24 @@ tap_text Play
 wait_for_node Pause 15
 shot 04-background-resumed
 
-# Full player and queue transport.
+# Full player, lyrics sheet, and queue transport.
 tap_text 'Mini player'
 wait_for_node 'Low Light' 10
 wait_for_node Next 10
-wait_for_node 'Demo lyrics intentionally omitted. The extension hook is working.' 15
-shot 05-now-playing
+tap_text_raw Pause
+wait_for_node_raw Play 8
+tap_text_raw Lyrics
+wait_for_node_raw 'Demo lyrics intentionally omitted. The extension hook is working.' 12
+shot 05-lyrics-sheet
+adb shell input keyevent KEYCODE_BACK
+sleep 2
+wait_for_node_raw Play 8
+tap_text_raw Play
+wait_for_node_raw Pause 8
 
-tap_text Next
-wait_for_node 'Wake Slowly' 20
-wait_for_node Pause 20
+tap_text_raw Next
+wait_for_node_raw 'Wake Slowly' 15
+wait_for_node_raw Pause 8
 shot 06-next-track
 
 # Standard music-player semantics: Previous after >3s restarts the current
