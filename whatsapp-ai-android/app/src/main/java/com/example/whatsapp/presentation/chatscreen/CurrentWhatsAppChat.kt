@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
@@ -177,6 +179,7 @@ fun CurrentWhatsAppConversation(
                         is WhatsAppVisualMessage.PhotoMessage -> CurrentPhotoBubble(item)
                         is WhatsAppVisualMessage.VoiceMessage -> CurrentVoiceBubble(item)
                         is WhatsAppVisualMessage.DateSeparator -> CurrentDateSeparator(item.label)
+                        is RichResultMessage -> RichResultBubble(item)
                     }
                 }
             }
@@ -381,40 +384,40 @@ private fun CurrentReplyBlock(reply: ReplyPreview) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(IncomingReply)
-            .height(46.dp),
+            .height(IntrinsicSize.Min)
+            .clip(RoundedCornerShape(7.dp))
+            .background(Color(0xFF343638)),
     ) {
         Box(
             modifier = Modifier
-                .width(4.dp)
-                .height(46.dp)
+                .width(3.dp)
+                .fillMaxHeight()
                 .background(AccentPink),
         )
 
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(horizontal = 9.dp, vertical = 4.dp),
+                .padding(start = 8.dp, end = 8.dp, top = 5.dp, bottom = 6.dp),
         ) {
             Text(
                 text = reply.author,
-                color = Color(0xFFD8A5B4),
-                fontSize = 12.sp,
+                color = Color(0xFFE05B7C),
+                fontSize = 11.sp,
+                lineHeight = 13.sp,
             )
-            Spacer(modifier = Modifier.height(3.dp))
             Text(
                 text = reply.text,
-                color = Color(0xFFB3B6B7),
+                color = Color(0xFFB8BEC1),
                 fontSize = 12.sp,
-                lineHeight = 14.sp,
+                lineHeight = 15.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
     }
 
-    Spacer(modifier = Modifier.height(6.dp))
+    Spacer(modifier = Modifier.height(5.dp))
 }
 
 @Composable
