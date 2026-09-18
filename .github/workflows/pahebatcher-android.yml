@@ -50,6 +50,7 @@ jobs:
           sudo apt-get install -y tor privoxy
           echo 'ControlPort 9051' | sudo tee -a /etc/tor/torrc
           echo 'CookieAuthentication 0' | sudo tee -a /etc/tor/torrc
+          echo 'SocksPort 9050 IsolateSOCKSAuth' | sudo tee -a /etc/tor/torrc
           sudo sed -i 's/^listen-address[[:space:]]\+127\.0\.0\.1:8118/listen-address  0.0.0.0:8118/' /etc/privoxy/config
           echo 'forward-socks5t / 127.0.0.1:9050 .' | sudo tee -a /etc/privoxy/config
           sudo systemctl restart tor || sudo service tor restart
@@ -74,11 +75,12 @@ jobs:
           ua='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36'
 
           for attempt in $(seq 1 8); do
-            exit_json="$(curl -sS --max-time 15 --socks5-hostname 127.0.0.1:9050 https://check.torproject.org/api/ip || true)"
+            circuit_user="pahe-$attempt"
+            exit_json="$(curl -sS --max-time 15 --socks5-hostname 127.0.0.1:9050 --proxy-user "$circuit_user:x" https://check.torproject.org/api/ip || true)"
             echo "Tor circuit $attempt: $exit_json"
 
             for host in animepahe.pw animepahe.com animepahe.org; do
-              body="$(curl -sS --compressed --max-time 25 --socks5-hostname 127.0.0.1:9050 \
+              body="$(curl -sS --compressed --max-time 25 --socks5-hostname 127.0.0.1:9050 --proxy-user "$circuit_user:x" \
                 -A "$ua" \
                 -H 'Accept: application/json,text/plain,*/*' \
                 -H 'Accept-Language: en-US,en;q=0.9' \
@@ -93,8 +95,7 @@ jobs:
               echo "$host challenged/rejected circuit $attempt"
             done
 
-            python3 -c 'import socket; s=socket.create_connection(("127.0.0.1",9051),timeout=5); s.sendall(b"AUTHENTICATE\\r\\n"); s.recv(4096); s.sendall(b"SIGNAL NEWNYM\\r\\n"); s.recv(4096); s.sendall(b"QUIT\\r\\n"); s.close()' || true
-            sleep 11
+            sleep 3
           done
 
           echo "live_animepahe=$live_animepahe" >> "$GITHUB_OUTPUT"
