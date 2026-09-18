@@ -105,7 +105,7 @@ class PaheRepository(
     private val animeHosts: List<String>
         get() = buildList {
             sessions.animeHost().takeIf { it.isNotBlank() }?.let(::add)
-            addAll(listOf("animepahe.pw", "animepahe.com", "animepahe.org", "animepahe.si", "animepahe.ru"))
+            addAll(listOf("animepahe.pw", "animepahe.com", "animepahe.org"))
         }.distinct()
 
     suspend fun search(query: String): List<AnimeSearchResult> = withContext(Dispatchers.IO) {
