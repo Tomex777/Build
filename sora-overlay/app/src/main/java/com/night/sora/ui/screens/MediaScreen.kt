@@ -95,7 +95,7 @@ fun MediaScreen(
     var destination by remember { mutableStateOf(MediaDestination.ANIME_MANGA) }
     var selectedType by remember { mutableStateOf(ContentType.ANIME) }
     var musicLocal by remember { mutableStateOf(MusicLocal.HOME) }
-    var rows by remember { mutableStateOf(mediaCache.read(ContentType.ANIME).map { it.toBrowseCard() }) }
+    var rows by remember { mutableStateOf<List<BrowseCard>>(emptyList()) }
     var popularRows by remember { mutableStateOf<List<BrowseCard>>(emptyList()) }
     var seasonRows by remember { mutableStateOf<List<BrowseCard>>(emptyList()) }
     var upcomingRows by remember { mutableStateOf<List<BrowseCard>>(emptyList()) }
@@ -153,16 +153,16 @@ fun MediaScreen(
         artworkUrl = card.artworkUrl,
     )
 
-    fun jikanSource(requestType: ContentType): Pair<InstalledExtension, com.night.sora.extension.api.SourceDescriptor>? {
+    fun animeMangaCatalogSource(requestType: ContentType): Pair<InstalledExtension, com.night.sora.extension.api.SourceDescriptor>? {
         if (requestType != ContentType.ANIME && requestType != ContentType.MANGA) return null
         val key = typeKey(requestType)
-        val ext = extensions.firstOrNull { it.error == null && it.declaredId == "sora.core.jikan" } ?: return null
+        val ext = extensions.firstOrNull { it.error == null && it.declaredId == "sora.core.anilist" } ?: return null
         val source = ext.descriptor?.sources?.firstOrNull { key in it.contentTypes } ?: return null
         return ext to source
     }
 
-    fun loadJikanFeed(feed: String, requestType: ContentType, onResult: (Result<List<BrowseCard>>) -> Unit) {
-        val pair = jikanSource(requestType)
+    fun loadCatalogFeed(feed: String, requestType: ContentType, onResult: (Result<List<BrowseCard>>) -> Unit) {
+        val pair = animeMangaCatalogSource(requestType)
         if (pair == null) {
             onResult(Result.failure(IllegalStateException("Sora Anime & Manga catalog is unavailable")))
             return
@@ -191,7 +191,7 @@ fun MediaScreen(
         val requestQuery = search.trim()
 
         if (requestType == ContentType.ANIME || requestType == ContentType.MANGA) {
-            val pair = jikanSource(requestType)
+            val pair = animeMangaCatalogSource(requestType)
             val cached = if (requestQuery.isBlank()) {
                 val current = mediaCache.readSnapshot(requestType, "current")
                 if (current.rows.isNotEmpty()) current else mediaCache.readSnapshot(requestType)
@@ -209,7 +209,7 @@ fun MediaScreen(
 
             if (pair == null) {
                 primaryLoading = false
-                primaryError = "The built-in Jikan catalog is unavailable."
+                primaryError = "The built-in AniList catalog is unavailable."
                 return
             }
             val (ext, source) = pair
@@ -232,7 +232,7 @@ fun MediaScreen(
                         }
                     }
                     .onFailure {
-                        primaryError = "Jikan did not return live ${requestType.label} data. Please retry in a moment."
+                        primaryError = "AniList did not return live ${requestType.label} data. Please retry in a moment."
                     }
             }
             return
@@ -269,7 +269,7 @@ fun MediaScreen(
 
     LaunchedEffect(selectedType, extensions, query, destination, networkEpoch, refreshEpoch) {
         if (destination == MediaDestination.BIBLE) return@LaunchedEffect
-        if (query.isNotBlank()) delay(250)
+        if (query.isNotBlank()) delay(450)
         load(query)
     }
 
@@ -287,8 +287,8 @@ fun MediaScreen(
         fun refreshFeed(feed: String, setRows: (List<BrowseCard>) -> Unit) {
             val snapshot = mediaCache.readSnapshot(requestType, feed)
             if (snapshot.rows.isNotEmpty()) setRows(snapshot.rows.map { it.toBrowseCard() })
-            loadJikanFeed(feed, requestType) { result ->
-                if (destination != MediaDestination.ANIME_MANGA || selectedType != requestType) return@loadJikanFeed
+            loadCatalogFeed(feed, requestType) { result ->
+                if (destination != MediaDestination.ANIME_MANGA || selectedType != requestType) return@loadCatalogFeed
                 result.onSuccess { fresh ->
                     if (fresh.isNotEmpty()) {
                         setRows(fresh)
@@ -514,7 +514,7 @@ private fun AnimeMangaSurface(
         }
 
         if (type == ContentType.ANIME && seasonRows.isNotEmpty()) item {
-            MediaSectionTitle("Popular this season", "Currently airing seasonal Anime from Jikan")
+            MediaSectionTitle("Popular this season", "Currently airing seasonal Anime from AniList")
             PortraitRail(seasonRows, type, selection, onOpen)
         }
         if (type == ContentType.MANGA && popularRows.isNotEmpty()) item {
@@ -526,15 +526,15 @@ private fun AnimeMangaSurface(
             PortraitRail(popularRows, type, selection, onOpen)
         }
         if (topRows.isNotEmpty()) item {
-            MediaSectionTitle("Top 10 ${type.label.lowercase()}", "Highest-ranked titles returned by Jikan")
+            MediaSectionTitle("Top 10 ${type.label.lowercase()}", "Highest-ranked titles returned by AniList")
             TopTenRail(topRows.take(10), type, selection, onOpen)
         }
         if (type == ContentType.ANIME && upcomingRows.isNotEmpty()) item {
-            MediaSectionTitle("Upcoming anime", "Upcoming titles from Jikan")
+            MediaSectionTitle("Upcoming anime", "Upcoming titles from AniList")
             NewHotStack(upcomingRows.take(5), type, selection, onOpen)
         }
         if (type == ContentType.MANGA && discoverRows.isNotEmpty()) item {
-            MediaSectionTitle("Recently started", "Manga ordered by start date from Jikan")
+            MediaSectionTitle("Recently started", "Manga ordered by start date from AniList")
             PortraitRail(discoverRows, type, selection, onOpen)
         }
         if (rows.isNotEmpty()) item {
