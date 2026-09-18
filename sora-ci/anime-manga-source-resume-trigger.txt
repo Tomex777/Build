@@ -1,1 +1,1 @@
-run 8 - visible Chapter 6 Manga exact resume validation
+run 9 - preserve Manga tab and finish exact reader resume validation
