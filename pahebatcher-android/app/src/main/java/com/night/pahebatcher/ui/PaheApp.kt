@@ -125,29 +125,39 @@ private fun RootTabs(vm: PaheViewModel) {
     Scaffold(
         containerColor = Bg,
         bottomBar = {
-            NavigationBar(
-                containerColor = Color(0xFF101012),
+            Surface(
+                color = Color(0xFF101012),
                 tonalElevation = 0.dp,
-                modifier = Modifier.navigationBarsPadding(),
             ) {
-                NavItem(
-                    selected = vm.tab == MainTab.EXPLORE,
-                    label = "Explore",
-                    icon = { Icon(Icons.Rounded.Explore, null) },
-                    onClick = { vm.setTab(MainTab.EXPLORE) },
-                )
-                NavItem(
-                    selected = vm.tab == MainTab.DOWNLOADS,
-                    label = "Downloads",
-                    icon = { Icon(Icons.Rounded.Download, null) },
-                    onClick = { vm.setTab(MainTab.DOWNLOADS) },
-                )
-                NavItem(
-                    selected = vm.tab == MainTab.SETTINGS,
-                    label = "Settings",
-                    icon = { Icon(Icons.Rounded.Settings, null) },
-                    onClick = { vm.setTab(MainTab.SETTINGS) },
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .height(72.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    NavItem(
+                        selected = vm.tab == MainTab.EXPLORE,
+                        label = "Explore",
+                        icon = { Icon(Icons.Rounded.Explore, null) },
+                        modifier = Modifier.weight(1f),
+                        onClick = { vm.setTab(MainTab.EXPLORE) },
+                    )
+                    NavItem(
+                        selected = vm.tab == MainTab.DOWNLOADS,
+                        label = "Downloads",
+                        icon = { Icon(Icons.Rounded.Download, null) },
+                        modifier = Modifier.weight(1f),
+                        onClick = { vm.setTab(MainTab.DOWNLOADS) },
+                    )
+                    NavItem(
+                        selected = vm.tab == MainTab.SETTINGS,
+                        label = "Settings",
+                        icon = { Icon(Icons.Rounded.Settings, null) },
+                        modifier = Modifier.weight(1f),
+                        onClick = { vm.setTab(MainTab.SETTINGS) },
+                    )
+                }
             }
         },
     ) { padding ->
@@ -164,21 +174,37 @@ private fun NavItem(
     selected: Boolean,
     label: String,
     icon: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    NavigationBarItem(
-        selected = selected,
-        onClick = onClick,
-        icon = icon,
-        label = { Text(label, fontSize = 11.sp) },
-        colors = NavigationBarItemDefaults.colors(
-            selectedIconColor = Accent,
-            selectedTextColor = TextMain,
-            indicatorColor = AccentSoft,
-            unselectedIconColor = TextMuted,
-            unselectedTextColor = TextMuted,
-        ),
-    )
+    Column(
+        modifier = modifier
+            .fillMaxHeight()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Surface(
+            color = if (selected) AccentSoft else Color.Transparent,
+            contentColor = if (selected) Accent else TextMuted,
+            shape = CircleShape,
+        ) {
+            Box(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                icon()
+            }
+        }
+        Spacer(Modifier.height(2.dp))
+        Text(
+            label,
+            color = if (selected) TextMain else TextMuted,
+            fontSize = 11.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+        )
+    }
 }
 
 @Composable
