@@ -50,7 +50,11 @@ def browser() -> webdriver.Chrome:
     opts.add_argument("--disable-background-networking")
     opts.add_argument("--disable-default-apps")
     opts.add_argument("--disable-sync")
-    return webdriver.Chrome(options=opts)
+    opts.page_load_strategy = "eager"
+    driver = webdriver.Chrome(options=opts)
+    driver.set_page_load_timeout(30)
+    driver.set_script_timeout(20)
+    return driver
 
 
 def body_text(driver: webdriver.Chrome) -> str:
