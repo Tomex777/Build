@@ -33,6 +33,20 @@ class HomiraIncomingCallNotifier(
         callerName: String,
         notificationsEnabled: Boolean,
         ringtoneUri: String? = null
+    ): Boolean = show(
+        callId = session.id,
+        mediaType = session.mediaType,
+        callerName = callerName,
+        notificationsEnabled = notificationsEnabled,
+        ringtoneUri = ringtoneUri
+    )
+
+    fun show(
+        callId: String,
+        mediaType: String,
+        callerName: String,
+        notificationsEnabled: Boolean,
+        ringtoneUri: String? = null
     ): Boolean {
         if (!notificationsEnabled) return false
 
@@ -45,14 +59,14 @@ class HomiraIncomingCallNotifier(
             return false
         }
 
-        val requestBase = notificationId(session.id)
+        val requestBase = notificationId(callId)
 
         val openIntent = Intent(appContext, MainActivity::class.java).apply {
             flags =
                 Intent.FLAG_ACTIVITY_NEW_TASK or
                 Intent.FLAG_ACTIVITY_CLEAR_TOP or
                 Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra(EXTRA_CALL_ID, session.id)
+            putExtra(EXTRA_CALL_ID, callId)
         }
         val openPendingIntent = PendingIntent.getActivity(
             appContext,
@@ -66,7 +80,7 @@ class HomiraIncomingCallNotifier(
             HomiraCallActionReceiver::class.java
         ).apply {
             action = ACTION_DECLINE
-            putExtra(EXTRA_CALL_ID, session.id)
+            putExtra(EXTRA_CALL_ID, callId)
         }
         val declinePendingIntent = PendingIntent.getBroadcast(
             appContext,
@@ -80,11 +94,14 @@ class HomiraIncomingCallNotifier(
             .setImportant(true)
             .build()
 
-        val notification = Notification.Builder(appContext, CHANNEL_INCOMING_CALLS)
+        val notification = Notification.Builder(
+            appContext,
+            CHANNEL_INCOMING_CALLS
+        )
             .setSmallIcon(android.R.drawable.sym_action_call)
             .setContentTitle(callerName)
             .setContentText(
-                if (session.mediaType == "video") {
+                if (mediaType == "video") {
                     "Incoming video call"
                 } else {
                     "Incoming voice call"
@@ -111,7 +128,7 @@ class HomiraIncomingCallNotifier(
 
         notificationManager.notify(
             NOTIFICATION_TAG,
-            notificationId(session.id),
+            notificationId(callId),
             notification
         )
         HomiraRingtonePlayback.play(
