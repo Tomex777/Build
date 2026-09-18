@@ -166,6 +166,8 @@ class HomiraWebRtcVoiceEngine(
         }
     }
 
+    fun eglContext(): EglBase.Context = eglBase.eglBaseContext
+
     fun setMuted(muted: Boolean) {
         audioTrack?.setEnabled(!muted)
     }
