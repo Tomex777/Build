@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.night.homira.data.HomiraLiveRepository
+import com.night.homira.data.LiveProfile
 import kotlinx.coroutines.launch
 
 private enum class LiveGateState {
@@ -70,7 +71,7 @@ fun HomiraAuthGate() {
             onSignedIn = { gateState = LiveGateState.SignedIn }
         )
 
-        LiveGateState.SignedIn -> HomiraProductionApp()
+        LiveGateState.SignedIn -> LiveProfileHost(repository = repository)
     }
 }
 
@@ -224,5 +225,32 @@ private fun PhoneOtpScreen(
                 )
             }
         }
+    }
+}
+
+
+@Composable
+private fun LiveProfileHost(repository: HomiraLiveRepository) {
+    var loading by remember { mutableStateOf(true) }
+    var profile by remember { mutableStateOf<LiveProfile?>(null) }
+
+    LaunchedEffect(Unit) {
+        profile = repository.loadMyProfile()
+        loading = false
+    }
+
+    if (loading) {
+        HomiraTheme {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(HomiraBackground),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = HomiraGreen)
+            }
+        }
+    } else {
+        HomiraProductionApp(initialProfile = profile)
     }
 }
