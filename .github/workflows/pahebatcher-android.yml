@@ -81,6 +81,14 @@ jobs:
           path: tor-probe/**
           if-no-files-found: warn
 
+      - name: Verify Tor stays CI-only
+        run: |
+          if grep -R -E -i 'torproject|orbot|socks5|127\.0\.0\.1:9050|10\.0\.2\.2:8118' pahebatcher-android/app; then
+            echo "Tor/proxy plumbing found inside Android app source" >&2
+            exit 1
+          fi
+          echo "No Tor/Orbot/SOCKS test plumbing is packaged in the Android app."
+
       - name: Build debug APK
         working-directory: pahebatcher-android
         run: gradle :app:assembleDebug --stacktrace
