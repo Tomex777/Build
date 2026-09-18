@@ -5,6 +5,8 @@ import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.OTP
 import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.functions.Functions
+import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
@@ -40,6 +42,7 @@ object HomiraSupabase {
         install(Postgrest)
         install(Storage)
         install(Realtime)
+        install(Functions)
     }
 }
 
@@ -279,6 +282,16 @@ class HomiraLiveRepository {
                 eq("blocked_user_id", userId)
             }
         }
+    }
+
+    suspend fun requestIncomingCallPush(callId: String) {
+        require(callId.isNotBlank()) { "Call ID is required" }
+        client.functions.invoke(
+            function = "push-incoming-call",
+            body = buildJsonObject {
+                put("call_id", callId)
+            }
+        )
     }
 
     suspend fun startCall(calleeId: String, video: Boolean): LiveCallSession {
