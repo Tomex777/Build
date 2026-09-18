@@ -191,6 +191,21 @@ tap_text_retry() {
   return 1
 }
 
+tap_text_raw_retry() {
+  local label="$1"
+  local timeout="${2:-12}"
+  local elapsed=0
+  while (( elapsed < timeout )); do
+    if tap_text_raw "$label"; then
+      return 0
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+  echo "Timed out trying to raw-tap '$label'" >&2
+  return 1
+}
+
 rapid_double_tap_text() {
   local label="$1"
   dismiss_system_dialogs
@@ -237,9 +252,9 @@ shot 00-home
 
 tap_media_tab
 wait_for_node 'Anime & Manga' 10
-tap_text_raw 'Anime & Manga'
+tap_text_raw_retry 'Anime & Manga' 12
 wait_for_node Music 10
-tap_text_raw Music
+tap_text_raw_retry Music 12
 wait_for_node 'Low Light' 20
 shot 01-music-demo-catalog
 
@@ -278,18 +293,18 @@ shot 04-background-resumed
 tap_text 'Mini player'
 wait_for_node 'Low Light' 10
 wait_for_node Next 10
-tap_text_raw Pause
+tap_text_raw_retry Pause 12
 wait_for_node_raw Play 8
-tap_text_raw Lyrics
+tap_text_raw_retry Lyrics 12
 wait_for_node_raw 'Demo lyrics intentionally omitted. The extension hook is working.' 12
 shot 05-lyrics-sheet
 adb shell input keyevent KEYCODE_BACK
 sleep 2
 wait_for_node_raw Play 8
-tap_text_raw Play
+tap_text_raw_retry Play 12
 wait_for_node_raw Pause 8
 
-tap_text_raw Next
+tap_text_raw_retry Next 12
 next_track_seen=0
 for _ in $(seq 1 15); do
   if node_exists 'Wake Slowly' || node_exists 'Glassline' || node_exists 'Offline Proof'; then
