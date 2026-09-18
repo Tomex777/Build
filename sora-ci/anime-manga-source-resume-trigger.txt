@@ -1,1 +1,1 @@
-run 6 - full restored external source player reader exact resume validation
+run 7 - progress-based Anime playback and full Manga exact resume validation
