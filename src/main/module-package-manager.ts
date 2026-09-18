@@ -4,7 +4,7 @@ import { basename, join } from "node:path";
 import { collectArchiveFiles, decodePortableArchive, encodePortableArchive, writeArchiveFiles, type PortableArchive } from "../core/portable-archive";
 import { parseExternalModuleManifest } from "../external/protocol";
 
-const PACKAGE_EXCLUDES = new Set(["node_modules", ".venv", "venv", "__pycache__", ".git", ".data"]);
+const PACKAGE_EXCLUDES = new Set(["node_modules", ".venv", "venv", ".bailey-venv", ".bailey-runtime", "__pycache__", ".git", ".data"]);
 
 function safeModuleId(value: unknown): string {
   const id = String(value ?? "").trim().toLowerCase();
