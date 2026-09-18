@@ -15,6 +15,7 @@ import com.night.homira.data.HomiraLiveRepository
 import com.night.homira.data.LiveProfile
 import com.night.homira.data.LiveContact
 import com.night.homira.data.LiveCallSession
+import com.night.homira.data.LiveVoicemail
 import android.graphics.BitmapFactory
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -148,6 +149,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import java.io.File
+import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 private enum class MainTab { Keypad, Recents, Contacts, Me }
@@ -173,8 +178,28 @@ private data class CallEntry(
     val video: Boolean,
     val duration: String? = null,
     val count: Int = 1,
-    val voicemailSeconds: Int? = null
+    val voicemailSeconds: Int? = null,
+    val voicemailId: String? = null,
+    val voicemailListened: Boolean = true
 )
+
+private fun CallEntry.voicemailPlaybackKey(): String = voicemailId ?: id
+
+private fun voicemailDateParts(createdAt: String): Pair<String, String> =
+    runCatching {
+        val local = OffsetDateTime.parse(createdAt)
+            .atZoneSameInstant(ZoneId.systemDefault())
+        val date = local.toLocalDate()
+        val today = LocalDate.now(local.zone)
+        val day = when (date) {
+            today -> "Today"
+            today.minusDays(1) -> "Yesterday"
+            else -> date.dayOfWeek.name
+                .lowercase()
+                .replaceFirstChar { it.uppercase() }
+        }
+        day to local.format(DateTimeFormatter.ofPattern("HH:mm"))
+    }.getOrDefault("Recent" to "")
 
 private val mimiP = HomiraPerson("mimi", "MiMi", "✿", HomiraPink, "+234 803 124 5678", favorite = true)
 private val hexP = HomiraPerson("hex", "Hex", "⚡", HomiraBlue, "+234 806 734 2011", favorite = true)
@@ -336,6 +361,12 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         var callCardUri by rememberSaveable { mutableStateOf<String?>(null) }
 
         var liveContacts by remember(initialContacts) { mutableStateOf(initialContacts) }
+        var liveVoicemails by remember { mutableStateOf<List<LiveVoicemail>>(emptyList()) }
+        var liveVoicemailEntries by remember { mutableStateOf<List<CallEntry>>(emptyList()) }
+        val receivedVoicemailPlayer = remember { HomiraAudioPlayer() }
+        var playingVoicemailId by rememberSaveable { mutableStateOf<String?>(null) }
+        var voicemailPlaybackFile by remember { mutableStateOf<File?>(null) }
+
         val appContacts = remember(liveContacts) {
             liveContacts.map { contact ->
                 val visibleName = contact.localName?.takeIf { it.isNotBlank() }
@@ -353,7 +384,132 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 )
             }
         }
-        val appCallEntries = if (liveMode) emptyList() else callEntries
+        val appCallEntries = if (liveMode) liveVoicemailEntries else callEntries
+
+        LaunchedEffect(liveMode, appContacts) {
+            if (!liveMode) return@LaunchedEffect
+
+            val messages = runCatching {
+                liveRepository.listReceivedVoicemails()
+            }.getOrDefault(emptyList())
+
+            liveVoicemails = messages
+            val knownPeople = appContacts.associateBy { it.id }
+
+            liveVoicemailEntries = messages.map { voicemail ->
+                val person = knownPeople[voicemail.senderId] ?: run {
+                    val profile = liveRepository.loadProfileById(voicemail.senderId)
+                    val visibleName = profile?.displayName?.takeIf { it.isNotBlank() }
+                        ?: profile?.username?.takeIf { it.isNotBlank() }
+                        ?: profile?.phoneE164
+                        ?: "Homira caller"
+
+                    HomiraPerson(
+                        id = voicemail.senderId,
+                        name = visibleName,
+                        marker = visibleName.firstOrNull()?.uppercaseChar()?.toString() ?: "H",
+                        accent = HomiraGreen,
+                        number = profile?.phoneE164.orEmpty()
+                    )
+                }
+
+                val (day, time) = voicemailDateParts(voicemail.createdAt)
+                CallEntry(
+                    id = "voicemail-${voicemail.id}",
+                    person = person,
+                    day = day,
+                    time = time,
+                    direction = CallDirection.Missed,
+                    video = false,
+                    voicemailSeconds = (voicemail.durationMs / 1000.0)
+                        .roundToInt()
+                        .coerceAtLeast(1),
+                    voicemailId = voicemail.id,
+                    voicemailListened = voicemail.listenedAt != null
+                )
+            }
+        }
+
+        fun toggleVoicemailPlayback(entry: CallEntry) {
+            val playbackKey = entry.voicemailPlaybackKey()
+
+            if (playingVoicemailId == playbackKey) {
+                receivedVoicemailPlayer.stop()
+                voicemailPlaybackFile?.delete()
+                voicemailPlaybackFile = null
+                playingVoicemailId = null
+                return
+            }
+
+            if (!liveMode || entry.voicemailId == null) {
+                playingVoicemailId = playbackKey
+                return
+            }
+
+            val voicemail = liveVoicemails.firstOrNull { it.id == entry.voicemailId }
+                ?: return
+
+            liveScope.launch {
+                runCatching {
+                    liveRepository.downloadVoicemail(voicemail)
+                }.onSuccess { audioBytes ->
+                    receivedVoicemailPlayer.stop()
+                    voicemailPlaybackFile?.delete()
+
+                    val file = File.createTempFile(
+                        "homira-voicemail-",
+                        ".m4a",
+                        context.cacheDir
+                    ).apply {
+                        writeBytes(audioBytes)
+                    }
+
+                    voicemailPlaybackFile = file
+                    playingVoicemailId = playbackKey
+
+                    receivedVoicemailPlayer.play(file) {
+                        if (playingVoicemailId == playbackKey) {
+                            playingVoicemailId = null
+                        }
+                        if (voicemailPlaybackFile == file) {
+                            voicemailPlaybackFile = null
+                        }
+                        file.delete()
+                    }
+
+                    if (voicemail.listenedAt == null) {
+                        runCatching {
+                            liveRepository.markVoicemailListened(voicemail.id)
+                        }.onSuccess { updated ->
+                            liveVoicemails = liveVoicemails.map {
+                                if (it.id == updated.id) updated else it
+                            }
+                            liveVoicemailEntries = liveVoicemailEntries.map {
+                                if (it.voicemailId == updated.id) {
+                                    it.copy(voicemailListened = true)
+                                } else {
+                                    it
+                                }
+                            }
+                        }
+                    }
+                }.onFailure {
+                    playingVoicemailId = null
+                    Toast.makeText(
+                        context,
+                        it.message ?: "Could not play this voicemail.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                receivedVoicemailPlayer.stop()
+                voicemailPlaybackFile?.delete()
+            }
+        }
 
         fun startCallNow(person: HomiraPerson, video: Boolean) {
             liveScope.launch {
@@ -844,6 +1000,8 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                             MainTab.Recents -> RecentsScreen(
                                 contacts = appContacts,
                                 entries = appCallEntries,
+                                playingVoicemailId = playingVoicemailId,
+                                onVoicemail = { toggleVoicemailPlayback(it) },
                                 onSettings = { overlay = OverlayScreen.Settings },
                                 onVoiceCall = { beginCall(it, false) },
                                 onVideoCall = { beginCall(it, true) }
@@ -1054,12 +1212,13 @@ private fun PlainDialPad(onDigit: (String) -> Unit, onLongZero: () -> Unit) {
 private fun RecentsScreen(
     contacts: List<HomiraPerson>,
     entries: List<CallEntry>,
+    playingVoicemailId: String?,
+    onVoicemail: (CallEntry) -> Unit,
     onSettings: () -> Unit,
     onVoiceCall: (HomiraPerson) -> Unit,
     onVideoCall: (HomiraPerson) -> Unit
 ) {
     var filter by rememberSaveable { mutableStateOf(RecentFilter.All) }
-    var playingVoicemail by rememberSaveable { mutableStateOf<String?>(null) }
 
     val filtered = when (filter) {
         RecentFilter.All -> entries
@@ -1080,11 +1239,9 @@ private fun RecentsScreen(
             item {
                 MissedSummaryCard(
                     call = topMissed,
-                    voicemailPlaying = playingVoicemail == topMissed.id,
+                    voicemailPlaying = playingVoicemailId == topMissed.voicemailPlaybackKey(),
                     onCallBack = { onVoiceCall(topMissed.person) },
-                    onVoicemail = {
-                        playingVoicemail = if (playingVoicemail == topMissed.id) null else topMissed.id
-                    }
+                    onVoicemail = { onVoicemail(topMissed) }
                 )
             }
         }
@@ -1143,10 +1300,8 @@ private fun RecentsScreen(
                                 ) {
                                     RecentEntryRow(
                                         entry = entry,
-                                        voicemailPlaying = playingVoicemail == entry.id,
-                                        onVoicemail = {
-                                            playingVoicemail = if (playingVoicemail == entry.id) null else entry.id
-                                        },
+                                        voicemailPlaying = playingVoicemailId == entry.voicemailPlaybackKey(),
+                                        onVoicemail = { onVoicemail(entry) },
                                         onCall = { onVoiceCall(entry.person) }
                                     )
                                 }
