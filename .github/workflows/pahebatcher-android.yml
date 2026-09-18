@@ -50,10 +50,10 @@ jobs:
       - name: Verify Tor stays CI-only
         run: |
           if grep -R -E -i 'torproject|orbot|socks5|127\.0\.0\.1:9050|10\.0\.2\.2:8118' pahebatcher-android/app; then
-            echo "Tor/proxy plumbing found inside Android app source" >&2
+            echo "Tor/proxy plumbing found inside Android app or diagnostics source" >&2
             exit 1
           fi
-          echo "No Tor/Orbot/SOCKS test plumbing is packaged in the Android app."
+          echo "No Tor/Orbot/SOCKS test plumbing is packaged in either APK."
 
       - name: Build debug APKs
         working-directory: pahebatcher-android
