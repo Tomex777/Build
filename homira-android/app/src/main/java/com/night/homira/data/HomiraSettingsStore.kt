@@ -5,7 +5,8 @@ import android.content.Context
 data class HomiraLocalSettings(
     val lowDataCalls: Boolean = false,
     val callNotifications: Boolean = true,
-    val ringtoneUri: String? = null
+    val ringtoneUri: String? = null,
+    val notificationPermissionRequested: Boolean = false
 )
 
 class HomiraSettingsStore(context: Context) {
@@ -15,7 +16,9 @@ class HomiraSettingsStore(context: Context) {
     fun load(): HomiraLocalSettings = HomiraLocalSettings(
         lowDataCalls = preferences.getBoolean(KEY_LOW_DATA_CALLS, false),
         callNotifications = preferences.getBoolean(KEY_CALL_NOTIFICATIONS, true),
-        ringtoneUri = preferences.getString(KEY_RINGTONE_URI, null)
+        ringtoneUri = preferences.getString(KEY_RINGTONE_URI, null),
+        notificationPermissionRequested =
+            preferences.getBoolean(KEY_NOTIFICATION_PERMISSION_REQUESTED, false)
     )
 
     fun setLowDataCalls(enabled: Boolean) {
@@ -36,10 +39,18 @@ class HomiraSettingsStore(context: Context) {
             .apply()
     }
 
+    fun setNotificationPermissionRequested(requested: Boolean) {
+        preferences.edit()
+            .putBoolean(KEY_NOTIFICATION_PERMISSION_REQUESTED, requested)
+            .apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "homira_call_settings"
         private const val KEY_LOW_DATA_CALLS = "low_data_calls"
         private const val KEY_CALL_NOTIFICATIONS = "call_notifications"
         private const val KEY_RINGTONE_URI = "ringtone_uri"
+        private const val KEY_NOTIFICATION_PERMISSION_REQUESTED =
+            "notification_permission_requested"
     }
 }
