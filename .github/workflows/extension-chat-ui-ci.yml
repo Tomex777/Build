@@ -1,0 +1,123 @@
+name: Extension Chat Android UI
+
+concurrency:
+  group: extension-chat-ui-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [extension-chat-ui-ci]
+    paths:
+      - 'extension-chat-android/**'
+      - '.github/workflows/extension-chat-ui-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-visual-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android SDK
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
+      - name: Build debug APK
+        id: build
+        working-directory: extension-chat-android
+        run: |
+          set -o pipefail
+          mkdir -p ../extension-chat-preview
+          gradle :app:assembleDebug --stacktrace 2>&1 | tee ../extension-chat-preview/build.log
+          echo "sha=$GITHUB_SHA stage=build-succeeded" > ../extension-chat-preview/status.txt
+
+      - name: Commit build checkpoint
+        if: steps.build.outcome == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add extension-chat-preview/status.txt extension-chat-preview/build.log
+          git diff --cached --quiet || git commit -m "Record Extension Chat build checkpoint"
+          git push origin HEAD:extension-chat-ui-ci
+
+      - name: Emulator visual smoke
+        id: emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          emulator-boot-timeout: 900
+          profile: pixel_6
+          cores: 2
+          ram-size: 3072M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            set -eu
+            mkdir -p extension-chat-preview
+            adb wait-for-device
+            adb shell 'while [ "$(getprop sys.boot_completed)" != "1" ]; do sleep 1; done'
+            sleep 8
+            adb install --no-streaming -r extension-chat-android/app/build/outputs/apk/debug/app-debug.apk || (sleep 8; adb wait-for-device; adb install --no-streaming -r extension-chat-android/app/build/outputs/apk/debug/app-debug.apk)
+            adb shell wm size 1080x2400
+            adb shell wm density 440
+            adb shell am force-stop com.google.android.apps.nexuslauncher || true
+            adb shell am force-stop com.night.extensionchat
+            adb shell am start -W -n com.night.extensionchat/.MainActivity
+            sleep 5
+
+            # Pixel Launcher can ANR on a cold, software-rendered CI emulator.
+            # On our fixed 1080x2400 preview device, dismiss the "Wait" row if that dialog appears.
+            adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
+            adb pull /sdcard/window.xml /tmp/window.xml >/dev/null 2>&1 || true
+            if grep -q "responding" /tmp/window.xml 2>/dev/null; then adb shell input tap 320 1360; sleep 3; fi
+            adb exec-out screencap -p > extension-chat-preview/chat-screen.png
+            echo "sha=$GITHUB_SHA stage=screenshot-captured" > extension-chat-preview/status.txt
+
+      - name: Commit rendered screenshot
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ ! -f extension-chat-preview/chat-screen.png ] && grep -q "stage=build-succeeded" extension-chat-preview/status.txt 2>/dev/null; then
+            echo "sha=$GITHUB_SHA stage=emulator-failed" > extension-chat-preview/status.txt
+          fi
+          git add extension-chat-preview || true
+          git diff --cached --quiet && exit 0
+          git commit -m "Update rendered Extension Chat preview"
+          git push origin HEAD:extension-chat-ui-ci
+
+      - name: Upload APK and screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-chat-ui-preview
+          path: |
+            extension-chat-android/app/build/outputs/apk/debug/app-debug.apk
+            extension-chat-preview/chat-screen.png
+          if-no-files-found: warn
