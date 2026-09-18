@@ -81,7 +81,7 @@ class AniyomiPlayerView @JvmOverloads constructor(
     }
 
     fun togglePause() {
-        val paused = runCatching { MPVLib.getPropertyBoolean("pause") }.getOrDefault(false)
+        val paused = runCatching { MPVLib.getPropertyBoolean("pause") ?: false }.getOrDefault(false)
         MPVLib.setPropertyBoolean("pause", !paused)
     }
 
@@ -101,19 +101,19 @@ class AniyomiPlayerView @JvmOverloads constructor(
 
     fun positionMs(): Long =
         if (!initialized) 0L
-        else runCatching { (MPVLib.getPropertyDouble("time-pos") * 1000.0).toLong() }.getOrDefault(0L)
+        else runCatching { ((MPVLib.getPropertyDouble("time-pos") ?: 0.0) * 1000.0).toLong() }.getOrDefault(0L)
 
     fun durationMs(): Long =
         if (!initialized) 0L
-        else runCatching { (MPVLib.getPropertyDouble("duration") * 1000.0).toLong() }.getOrDefault(0L)
+        else runCatching { ((MPVLib.getPropertyDouble("duration") ?: 0.0) * 1000.0).toLong() }.getOrDefault(0L)
 
     fun isPaused(): Boolean =
         if (!initialized) true
-        else runCatching { MPVLib.getPropertyBoolean("pause") }.getOrDefault(true)
+        else runCatching { MPVLib.getPropertyBoolean("pause") ?: true }.getOrDefault(true)
 
     fun isBuffering(): Boolean =
         if (!initialized) false
-        else runCatching { MPVLib.getPropertyBoolean("paused-for-cache") }.getOrDefault(false)
+        else runCatching { MPVLib.getPropertyBoolean("paused-for-cache") ?: false }.getOrDefault(false)
 
     fun destroyPlayer() {
         pending = null
