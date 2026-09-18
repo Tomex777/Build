@@ -775,7 +775,11 @@ fun HomiraProductionApp(
             }.getOrDefault(emptySet())
         }
 
-        LaunchedEffect(liveMode, appContacts) {
+        LaunchedEffect(
+            liveMode,
+            appContacts,
+            requestedCallId
+        ) {
             if (!liveMode) return@LaunchedEffect
 
             val knownPeople = appContacts.associateBy { it.id }
