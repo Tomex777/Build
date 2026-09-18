@@ -60,6 +60,20 @@ jobs:
           '''
           if s.count(marker) != 1:
               raise SystemExit('demo search marker mismatch')
+          s=s.replace(
+              '"https://example.invalid/$chapterId/page-${index + 1}.jpg"',
+              '"https://picsum.photos/seed/${chapterId}-${index + 1}/900/1400"',
+          )
+          s=s.replace(
+              '"https://storage.googleapis.com/exoplayer-test-media-0/play.mp3"',
+              '"https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4"',
+          ).replace(
+              '.put("mimeType", "audio/mpeg")',
+              '.put("mimeType", "video/mp4")',
+          ).replace(
+              '.put("label", "Test MP3")',
+              '.put("label", "Aniyomi CI Video")',
+          )
           catalog.write_text(s.replace(marker, marker+insertion, 1))
           PY
 
