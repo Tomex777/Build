@@ -1,1 +1,1 @@
-sha=59341fc3ade4eb95331cc388735493760c8e31a1 stage=gradle-ready
+sha=e1b25e0616233fabaea6dc3164a809cd5c813217 stage=screenshot-captured
