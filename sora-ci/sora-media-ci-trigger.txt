@@ -1,1 +1,1 @@
-run 13 - corrected strict AniList Anime Manga validation
+run 14 - direction-aware strict AniList Anime Manga validation
