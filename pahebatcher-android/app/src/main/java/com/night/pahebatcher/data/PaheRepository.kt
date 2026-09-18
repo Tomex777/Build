@@ -193,9 +193,6 @@ class PaheRepository(
                 lastFailure = e
             }
 
-            // One good current session is enough. Stale session UUIDs should not poison
-            // the whole details screen.
-            if (unique.isNotEmpty() && animeSession == currentResult.session) break
         }
 
         if (unique.isEmpty()) {
