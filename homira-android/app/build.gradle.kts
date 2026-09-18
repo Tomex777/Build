@@ -55,5 +55,7 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:realtime-kt")
     implementation("io.ktor:ktor-client-android:3.5.2")
 
+    implementation("io.github.webrtc-sdk:android:150.7871.01")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
