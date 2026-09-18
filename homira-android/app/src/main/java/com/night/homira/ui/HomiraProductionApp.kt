@@ -2,6 +2,7 @@ package com.night.homira.ui
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.pm.PackageManager
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
@@ -145,11 +146,14 @@ import org.webrtc.EglBase
 import org.webrtc.RendererCommon
 import org.webrtc.SurfaceViewRenderer
 import org.webrtc.VideoTrack
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -194,6 +198,50 @@ private data class CallEntry(
     val callSessionId: String? = null,
     val timestampMillis: Long = 0L
 )
+
+private fun prepareProfileJpeg(
+    context: Context,
+    uriString: String,
+    maxDimension: Int,
+    quality: Int = 88
+): ByteArray {
+    val uri = android.net.Uri.parse(uriString)
+    val bitmap = context.contentResolver
+        .openInputStream(uri)
+        ?.use(BitmapFactory::decodeStream)
+        ?: error("Could not read the selected image")
+
+    val largest = maxOf(bitmap.width, bitmap.height)
+    val output = if (largest > maxDimension) {
+        val scale = maxDimension.toFloat() / largest.toFloat()
+        android.graphics.Bitmap.createScaledBitmap(
+            bitmap,
+            (bitmap.width * scale).roundToInt().coerceAtLeast(1),
+            (bitmap.height * scale).roundToInt().coerceAtLeast(1),
+            true
+        )
+    } else {
+        bitmap
+    }
+
+    return try {
+        ByteArrayOutputStream().use { stream ->
+            check(
+                output.compress(
+                    android.graphics.Bitmap.CompressFormat.JPEG,
+                    quality.coerceIn(70, 95),
+                    stream
+                )
+            ) {
+                "Could not encode the selected image"
+            }
+            stream.toByteArray()
+        }
+    } finally {
+        if (output !== bitmap) output.recycle()
+        bitmap.recycle()
+    }
+}
 
 private fun CallEntry.voicemailPlaybackKey(): String = voicemailId ?: id
 
@@ -440,8 +488,53 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         var voicemailGreetingPath by rememberSaveable(initialProfile?.id) {
             mutableStateOf(initialProfile?.voicemailGreetingPath)
         }
-        var avatarUri by rememberSaveable { mutableStateOf<String?>(null) }
-        var callCardUri by rememberSaveable { mutableStateOf<String?>(null) }
+        var avatarStoragePath by rememberSaveable(initialProfile?.id) {
+            mutableStateOf(initialProfile?.avatarPath)
+        }
+        var callCardStoragePath by rememberSaveable(initialProfile?.id) {
+            mutableStateOf(initialProfile?.callCardPath)
+        }
+        var avatarUri by rememberSaveable(initialProfile?.id) {
+            mutableStateOf<String?>(null)
+        }
+        var callCardUri by rememberSaveable(initialProfile?.id) {
+            mutableStateOf<String?>(null)
+        }
+        var profileSaving by remember { mutableStateOf(false) }
+
+        LaunchedEffect(liveMode, initialProfile?.id) {
+            if (!liveMode) return@LaunchedEffect
+
+            suspend fun restoreMedia(
+                storagePath: String?,
+                cachePrefix: String
+            ): String? {
+                if (storagePath.isNullOrBlank()) return null
+                return runCatching {
+                    val bytes = liveRepository.downloadProfileMedia(storagePath)
+                    withContext(Dispatchers.IO) {
+                        File.createTempFile(
+                            cachePrefix,
+                            ".jpg",
+                            context.cacheDir
+                        ).apply {
+                            writeBytes(bytes)
+                        }
+                    }
+                }.getOrNull()?.let { file ->
+                    android.net.Uri.fromFile(file).toString()
+                }
+            }
+
+            avatarUri = restoreMedia(
+                initialProfile?.avatarPath,
+                "homira-avatar-cache-"
+            )
+            callCardUri = restoreMedia(
+                initialProfile?.callCardPath,
+                "homira-call-card-cache-"
+            )
+        }
 
         var liveContacts by remember(initialContacts) { mutableStateOf(initialContacts) }
         var liveVoicemails by remember { mutableStateOf<List<LiveVoicemail>>(emptyList()) }
@@ -1206,28 +1299,128 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 email = profileEmail,
                 avatarUri = avatarUri,
                 callCardUri = callCardUri,
-                onBack = { overlay = OverlayScreen.None },
+                saving = profileSaving,
+                onBack = { if (!profileSaving) overlay = OverlayScreen.None },
                 onSave = { name, username, about, email, avatar, card ->
-                    profileName = name
-                    profileUsername = username
-                    profileAbout = about
-                    profileEmail = email
-                    avatarUri = avatar
-                    callCardUri = card
-                    overlay = OverlayScreen.None
-                    liveScope.launch {
-                        runCatching {
-                            liveRepository.updateMyProfile(
-                                displayName = name,
-                                username = username,
-                                about = about,
-                                email = email
-                            )
-                        }.onSuccess { saved ->
-                            profileName = saved.displayName.ifBlank { "You" }
-                            profileUsername = saved.username.orEmpty()
-                            profileAbout = saved.about
-                            profileEmail = saved.email.orEmpty()
+                    if (!liveMode) {
+                        profileName = name
+                        profileUsername = username
+                        profileAbout = about
+                        profileEmail = email
+                        avatarUri = avatar
+                        callCardUri = card
+                        overlay = OverlayScreen.None
+                    } else if (!profileSaving) {
+                        val oldAvatarUri = avatarUri
+                        val oldCardUri = callCardUri
+                        val oldAvatarPath = avatarStoragePath
+                        val oldCardPath = callCardStoragePath
+                        val avatarChanged = avatar != oldAvatarUri
+                        val cardChanged = card != oldCardUri
+
+                        profileSaving = true
+                        liveScope.launch {
+                            var uploadedAvatarPath: String? = null
+                            var uploadedCardPath: String? = null
+
+                            runCatching {
+                                var nextAvatarPath = oldAvatarPath
+                                var nextCardPath = oldCardPath
+
+                                if (avatarChanged) {
+                                    nextAvatarPath = if (avatar == null) {
+                                        null
+                                    } else {
+                                        val bytes = withContext(Dispatchers.IO) {
+                                            prepareProfileJpeg(
+                                                context = context,
+                                                uriString = avatar,
+                                                maxDimension = 768,
+                                                quality = 90
+                                            )
+                                        }
+                                        liveRepository.uploadProfileMedia(
+                                            jpegBytes = bytes,
+                                            kind = "avatar"
+                                        ).also {
+                                            uploadedAvatarPath = it
+                                        }
+                                    }
+                                }
+
+                                if (cardChanged) {
+                                    nextCardPath = if (card == null) {
+                                        null
+                                    } else {
+                                        val bytes = withContext(Dispatchers.IO) {
+                                            prepareProfileJpeg(
+                                                context = context,
+                                                uriString = card,
+                                                maxDimension = 1600,
+                                                quality = 88
+                                            )
+                                        }
+                                        liveRepository.uploadProfileMedia(
+                                            jpegBytes = bytes,
+                                            kind = "call-card"
+                                        ).also {
+                                            uploadedCardPath = it
+                                        }
+                                    }
+                                }
+
+                                liveRepository.updateMyProfile(
+                                    displayName = name,
+                                    username = username,
+                                    about = about,
+                                    email = email,
+                                    avatarPath = nextAvatarPath,
+                                    callCardPath = nextCardPath
+                                )
+                            }.onSuccess { saved ->
+                                if (
+                                    avatarChanged &&
+                                    !oldAvatarPath.isNullOrBlank() &&
+                                    oldAvatarPath != saved.avatarPath
+                                ) {
+                                    runCatching {
+                                        liveRepository.deleteProfileMedia(oldAvatarPath)
+                                    }
+                                }
+                                if (
+                                    cardChanged &&
+                                    !oldCardPath.isNullOrBlank() &&
+                                    oldCardPath != saved.callCardPath
+                                ) {
+                                    runCatching {
+                                        liveRepository.deleteProfileMedia(oldCardPath)
+                                    }
+                                }
+
+                                profileName = saved.displayName.ifBlank { "You" }
+                                profileUsername = saved.username.orEmpty()
+                                profileAbout = saved.about
+                                profileEmail = saved.email.orEmpty()
+                                avatarStoragePath = saved.avatarPath
+                                callCardStoragePath = saved.callCardPath
+                                avatarUri = avatar
+                                callCardUri = card
+                                overlay = OverlayScreen.None
+                            }.onFailure { error ->
+                                uploadedAvatarPath?.let {
+                                    runCatching { liveRepository.deleteProfileMedia(it) }
+                                }
+                                uploadedCardPath?.let {
+                                    runCatching { liveRepository.deleteProfileMedia(it) }
+                                }
+                                Toast.makeText(
+                                    context,
+                                    error.message ?: "Could not save your profile.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+
+                            profileSaving = false
                         }
                     }
                 }
@@ -2282,6 +2475,7 @@ private fun EditProfileScreen(
     email: String,
     avatarUri: String?,
     callCardUri: String?,
+    saving: Boolean,
     onBack: () -> Unit,
     onSave: (String, String, String, String, String?, String?) -> Unit
 ) {
@@ -2311,8 +2505,24 @@ private fun EditProfileScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = HomiraText) }
                 Text("Edit profile", color = HomiraText, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                TextButton(onClick = { onSave(editedName, editedUsername, editedAbout, editedEmail, editedAvatar, editedCard) }) {
-                    Text("Save", color = HomiraGreen, fontWeight = FontWeight.Bold)
+                TextButton(
+                    enabled = !saving,
+                    onClick = {
+                        onSave(
+                            editedName,
+                            editedUsername,
+                            editedAbout,
+                            editedEmail,
+                            editedAvatar,
+                            editedCard
+                        )
+                    }
+                ) {
+                    Text(
+                        if (saving) "Saving…" else "Save",
+                        color = if (saving) HomiraMuted else HomiraGreen,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
