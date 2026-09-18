@@ -1,1 +1,1 @@
-2026-09-18 verify lyrics plumbing and mini-player Next on final Music UI.
+2026-09-18 rerun Music lyrics + mini Next proof with raw destination-sheet taps.
