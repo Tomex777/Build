@@ -10,7 +10,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
-import android.provider.Settings
+import android.media.Ringtone
+import android.media.RingtoneManager
+import android.net.Uri
 import androidx.core.content.ContextCompat
 import com.night.homira.MainActivity
 import com.night.homira.data.LiveCallSession
@@ -29,7 +31,8 @@ class HomiraIncomingCallNotifier(
     fun show(
         session: LiveCallSession,
         callerName: String,
-        notificationsEnabled: Boolean
+        notificationsEnabled: Boolean,
+        ringtoneUri: String? = null
     ): Boolean {
         if (!notificationsEnabled) return false
 
@@ -111,6 +114,10 @@ class HomiraIncomingCallNotifier(
             notificationId(session.id),
             notification
         )
+        HomiraRingtonePlayback.play(
+            context = appContext,
+            uriString = ringtoneUri
+        )
         return true
     }
 
@@ -119,17 +126,13 @@ class HomiraIncomingCallNotifier(
             NOTIFICATION_TAG,
             notificationId(callId)
         )
+        HomiraRingtonePlayback.stop()
     }
 
     private fun ensureChannel() {
         if (notificationManager.getNotificationChannel(CHANNEL_INCOMING_CALLS) != null) {
             return
         }
-
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build()
 
         val channel = NotificationChannel(
             CHANNEL_INCOMING_CALLS,
@@ -139,7 +142,7 @@ class HomiraIncomingCallNotifier(
             description = "Incoming Homira voice and video calls"
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             enableVibration(true)
-            setSound(Settings.System.DEFAULT_RINGTONE_URI, audioAttributes)
+            setSound(null, null)
         }
 
         notificationManager.createNotificationChannel(channel)
@@ -152,7 +155,53 @@ class HomiraIncomingCallNotifier(
         const val ACTION_DECLINE = "com.night.homira.action.DECLINE_CALL"
         const val EXTRA_CALL_ID = "homira_call_id"
 
-        private const val CHANNEL_INCOMING_CALLS = "homira_incoming_calls"
+        private const val CHANNEL_INCOMING_CALLS = "homira_incoming_calls_v2"
         private const val NOTIFICATION_TAG = "homira_call"
+    }
+}
+
+
+private object HomiraRingtonePlayback {
+    private var active: Ringtone? = null
+
+    @Synchronized
+    fun play(
+        context: Context,
+        uriString: String?
+    ) {
+        stop()
+
+        val uri = uriString
+            ?.takeIf { it.isNotBlank() }
+            ?.let(Uri::parse)
+            ?: RingtoneManager.getDefaultUri(
+                RingtoneManager.TYPE_RINGTONE
+            )
+            ?: return
+
+        val ringtone = runCatching {
+            RingtoneManager.getRingtone(context, uri)
+        }.getOrNull() ?: return
+
+        ringtone.audioAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        ringtone.isLooping = true
+        active = ringtone
+
+        runCatching {
+            ringtone.play()
+        }.onFailure {
+            active = null
+            runCatching { ringtone.stop() }
+        }
+    }
+
+    @Synchronized
+    fun stop() {
+        val ringtone = active ?: return
+        active = null
+        runCatching { ringtone.stop() }
     }
 }
