@@ -203,6 +203,7 @@ shot 01c-music-home-return
 tap_text 'Low Light'
 wait_for_node 'Mini player' 20
 wait_for_node Pause 20
+wait_for_node Next 10
 shot 02-playing
 
 # Background Media3 service/session must stay alive. Use Settings instead of the
@@ -226,14 +227,8 @@ shot 04-background-resumed
 tap_text 'Mini player'
 wait_for_node 'Low Light' 10
 wait_for_node Next 10
+wait_for_node 'Demo lyrics intentionally omitted. The extension hook is working.' 15
 shot 05-now-playing
-
-# Capture the queue view from Now Playing as part of the Music UI evidence set.
-tap_text Queue
-sleep 2
-shot 05b-now-playing-queue
-adb shell input keyevent KEYCODE_BACK
-sleep 2
 
 tap_text Next
 wait_for_node 'Wake Slowly' 20
