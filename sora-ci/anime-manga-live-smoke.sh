@@ -185,7 +185,7 @@ if [[ "${ANILIST_HEALTHY:-0}" != "1" && "${FORCE_FULL_LIVE:-0}" != "1" ]]; then
 
   if wait_for_catalog_state 50; then
     anime_recovered=1
-    wait_for_node 'Airing now' 45
+    wait_for_node 'AIRING NOW' 45
     shot 02-anime-partial-recovery
   else
     rc=$?
@@ -198,7 +198,7 @@ if [[ "${ANILIST_HEALTHY:-0}" != "1" && "${FORCE_FULL_LIVE:-0}" != "1" ]]; then
   tap_text Manga
   if wait_for_catalog_state 60; then
     manga_recovered=1
-    wait_for_node 'Publishing now' 45
+    wait_for_node 'PUBLISHING NOW' 45
     shot 03-manga-partial-recovery
   else
     rc=$?
@@ -225,7 +225,7 @@ fi
 # because both catalog tabs recovered inside the emulator and requested an
 # opportunistic end-to-end retry.
 wait_for_node Details 45
-wait_for_node 'Airing now' 45
+wait_for_node 'AIRING NOW' 45
 shot 02-anime-live-home
 
 # Deliberate Anime search using live AniList data.
@@ -258,7 +258,7 @@ tap_text 'Close search'
 wait_for_node Manga 12
 tap_text Manga
 wait_for_node Details 45
-wait_for_node 'Publishing now' 45
+wait_for_node 'PUBLISHING NOW' 45
 shot 06-manga-live-home
 
 # Deliberate Manga search and detail page, again with no fake rows or progress.
