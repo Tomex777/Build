@@ -55,9 +55,11 @@ jobs:
           echo "sha=$GITHUB_SHA stage=android-sdk-ready" > extension-chat-preview/status.txt
           echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
 
-      - name: Verify Android 16 platform
+      - name: Install compile SDK 37
         run: |
-          test -d "$ANDROID_HOME/platforms/android-36"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-37" "build-tools;36.0.0"
+          test -d "$ANDROID_HOME/platforms/android-37"
           echo "sha=$GITHUB_SHA stage=compile-sdk-ready" > extension-chat-preview/status.txt
 
       - name: Set up Gradle 9.6
