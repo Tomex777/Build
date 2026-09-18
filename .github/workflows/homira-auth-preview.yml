@@ -52,16 +52,34 @@ jobs:
           profile: pixel_2
           disable-animations: true
           script: |
+            adb wait-for-device
+            until [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; do
+              sleep 2
+            done
             adb install -r homira-android/app/build/outputs/apk/debug/app-debug.apk
+            adb logcat -c
             adb shell am force-stop com.night.homira
-            adb shell am start -n com.night.homira/.MainActivity
-            sleep 8
+            adb shell am start -W -n com.night.homira/.MainActivity
+
+            for i in $(seq 1 30); do
+              focus="$(adb shell dumpsys window windows | grep -m 1 'mCurrentFocus' || true)"
+              echo "$focus"
+              if echo "$focus" | grep -q 'com.night.homira'; then
+                break
+              fi
+              sleep 1
+            done
+
+            sleep 15
             mkdir -p homira-android/app/build/ui-preview
+            adb shell dumpsys activity activities > homira-android/app/build/ui-preview/activity.txt
+            adb shell dumpsys window windows > homira-android/app/build/ui-preview/windows.txt
+            adb logcat -d -t 800 > homira-android/app/build/ui-preview/logcat.txt
             adb exec-out screencap -p > homira-android/app/build/ui-preview/auth-screen.png
 
-      - name: Upload auth screenshot
+      - name: Upload auth preview
         uses: actions/upload-artifact@v4
         with:
           name: homira-auth-screen
-          path: homira-android/app/build/ui-preview/auth-screen.png
+          path: homira-android/app/build/ui-preview/
           if-no-files-found: error
