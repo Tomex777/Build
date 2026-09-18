@@ -1,6 +1,8 @@
 package com.night.homira.call
 
 import android.content.Context
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import com.night.homira.data.CallSignalEnvelope
 import com.night.homira.data.HomiraCallSignaling
 import kotlinx.coroutines.CoroutineScope
@@ -49,6 +51,9 @@ class HomiraWebRtcVoiceEngine(
 ) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val audioManager = appContext.getSystemService(AudioManager::class.java)
+    private val originalAudioMode = audioManager.mode
+    private val originalCommunicationDeviceId = audioManager.communicationDevice?.id
 
     private val _state = MutableStateFlow(HomiraWebRtcState.New)
     val state: StateFlow<HomiraWebRtcState> = _state.asStateFlow()
@@ -68,6 +73,7 @@ class HomiraWebRtcVoiceEngine(
         if (_state.value != HomiraWebRtcState.New) return
 
         ensureWebRtcInitialized(appContext)
+        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
         _state.value = HomiraWebRtcState.Signaling
 
         audioDeviceModule = JavaAudioDeviceModule.builder(appContext)
@@ -116,6 +122,23 @@ class HomiraWebRtcVoiceEngine(
         audioTrack?.setEnabled(!muted)
     }
 
+    fun setSpeakerEnabled(enabled: Boolean) {
+        val desiredType = if (enabled) {
+            AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+        } else {
+            AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
+        }
+
+        val device = audioManager.availableCommunicationDevices
+            .firstOrNull { it.type == desiredType }
+
+        if (device != null) {
+            audioManager.setCommunicationDevice(device)
+        } else if (!enabled) {
+            audioManager.clearCommunicationDevice()
+        }
+    }
+
     suspend fun close() {
         if (_state.value == HomiraWebRtcState.Closed) return
         _state.value = HomiraWebRtcState.Closed
@@ -138,6 +161,16 @@ class HomiraWebRtcVoiceEngine(
 
         audioDeviceModule?.release()
         audioDeviceModule = null
+
+        val originalDevice = originalCommunicationDeviceId?.let { deviceId ->
+            audioManager.availableCommunicationDevices.firstOrNull { it.id == deviceId }
+        }
+        if (originalDevice != null) {
+            audioManager.setCommunicationDevice(originalDevice)
+        } else {
+            audioManager.clearCommunicationDevice()
+        }
+        audioManager.mode = originalAudioMode
 
         scope.cancel()
     }
