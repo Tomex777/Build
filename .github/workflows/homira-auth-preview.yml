@@ -59,12 +59,15 @@ jobs:
             adb logcat -c
             adb shell am force-stop com.night.homira
             adb shell am start -W -n com.night.homira/.MainActivity
+            adb exec-out screencap -p > homira-android/app/build/ui-preview/auth-immediate.png
+            adb shell dumpsys activity activities > homira-android/app/build/ui-preview/activity-immediate.txt
+            adb logcat -d -t 5000 > homira-android/app/build/ui-preview/logcat-immediate.txt
             sleep 2
-            adb shell pidof com.night.homira > homira-android/app/build/ui-preview/pid-after-2s.txt
+            adb shell pidof com.night.homira > homira-android/app/build/ui-preview/pid-after-2s.txt || true
             adb shell dumpsys activity activities > homira-android/app/build/ui-preview/activity-after-2s.txt
             adb logcat -d -t 5000 > homira-android/app/build/ui-preview/logcat-after-2s.txt
             sleep 18
-            adb shell pidof com.night.homira > homira-android/app/build/ui-preview/pid-after-20s.txt
+            adb shell pidof com.night.homira > homira-android/app/build/ui-preview/pid-after-20s.txt || true
             adb shell dumpsys activity activities > homira-android/app/build/ui-preview/activity.txt
             adb shell dumpsys window windows > homira-android/app/build/ui-preview/windows.txt
             adb logcat -d -t 5000 > homira-android/app/build/ui-preview/logcat.txt
