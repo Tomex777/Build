@@ -149,7 +149,7 @@ private fun DiagnosticsScreen(vm: DiagnosticViewModel) {
             enabled = !vm.busy,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Card2),
+            colors = ButtonDefaults.buttonColors(containerColor = Card2, contentColor = TextMain),
         ) {
             Icon(Icons.Rounded.Language, null)
             Spacer(Modifier.size(8.dp))
@@ -161,7 +161,7 @@ private fun DiagnosticsScreen(vm: DiagnosticViewModel) {
             enabled = !vm.busy,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Card2),
+            colors = ButtonDefaults.buttonColors(containerColor = Card2, contentColor = TextMain),
         ) {
             Icon(Icons.Rounded.PlayArrow, null)
             Spacer(Modifier.size(8.dp))
@@ -173,7 +173,7 @@ private fun DiagnosticsScreen(vm: DiagnosticViewModel) {
             enabled = !vm.busy,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Card2),
+            colors = ButtonDefaults.buttonColors(containerColor = Card2, contentColor = TextMain),
         ) {
             Icon(Icons.Rounded.Language, null)
             Spacer(Modifier.size(8.dp))
@@ -268,7 +268,7 @@ private fun DiagnosticsScreen(vm: DiagnosticViewModel) {
                 },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Card2),
+                colors = ButtonDefaults.buttonColors(containerColor = Card2, contentColor = TextMain),
             ) {
                 Icon(Icons.Rounded.ContentCopy, null)
                 Spacer(Modifier.size(8.dp))
