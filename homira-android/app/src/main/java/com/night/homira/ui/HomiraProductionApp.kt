@@ -2859,6 +2859,484 @@ private fun VoicemailSettingsScreen(
 }
 
 @Composable
+private fun LeaveVoicemailScreen(
+    offer: VoicemailOffer,
+    repository: HomiraLiveRepository,
+    onCallAgain: (VoicemailOffer) -> Unit,
+    onDismiss: () -> Unit,
+    onSent: () -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val recorder = remember(context) { HomiraAudioRecorder(context) }
+    val player = remember { HomiraAudioPlayer() }
+
+    var greetingFile by remember { mutableStateOf<File?>(null) }
+    var greetingLoading by remember { mutableStateOf(offer.greetingPath != null) }
+    var greetingPlaying by remember { mutableStateOf(false) }
+    var greetingFinished by remember { mutableStateOf(offer.greetingPath == null) }
+
+    var recording by remember { mutableStateOf(false) }
+    var recordingSeconds by rememberSaveable { mutableIntStateOf(0) }
+    var messageFile by remember { mutableStateOf<File?>(null) }
+    var reviewPlaying by remember { mutableStateOf(false) }
+    var sending by remember { mutableStateOf(false) }
+    var pendingRecordStart by remember { mutableStateOf(false) }
+
+    var microphoneGranted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val startRecording: () -> Unit = {
+        player.stop()
+        greetingPlaying = false
+        reviewPlaying = false
+
+        val file = File(
+            context.cacheDir,
+            "homira-message-${System.currentTimeMillis()}.m4a"
+        )
+
+        runCatching {
+            recorder.start(file)
+        }.onSuccess {
+            messageFile?.takeIf { it != file }?.delete()
+            messageFile = file
+            recordingSeconds = 0
+            recording = true
+        }.onFailure {
+            file.delete()
+            Toast.makeText(
+                context,
+                it.message ?: "Could not start recording.",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    val microphoneLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        microphoneGranted = granted
+        if (!granted) {
+            pendingRecordStart = false
+            Toast.makeText(
+                context,
+                "Microphone permission is required to leave voicemail.",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    LaunchedEffect(microphoneGranted, pendingRecordStart) {
+        if (microphoneGranted && pendingRecordStart) {
+            pendingRecordStart = false
+            startRecording()
+        }
+    }
+
+    val stopRecording: () -> Unit = {
+        val file = messageFile
+        val stopped = recorder.stop()
+        recording = false
+
+        if (!stopped || file == null || !file.exists() || file.length() == 0L) {
+            file?.delete()
+            messageFile = null
+            recordingSeconds = 0
+            Toast.makeText(
+                context,
+                "That message was too short. Try again.",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    LaunchedEffect(recording) {
+        if (recording) {
+            while (recording && recordingSeconds < 120) {
+                delay(1_000)
+                if (recording) recordingSeconds++
+            }
+            if (recording && recordingSeconds >= 120) {
+                stopRecording()
+            }
+        }
+    }
+
+    LaunchedEffect(offer.greetingPath) {
+        val path = offer.greetingPath
+        if (path == null) {
+            greetingLoading = false
+            greetingFinished = true
+            return@LaunchedEffect
+        }
+
+        runCatching {
+            val bytes = repository.downloadVoicemailAudio(path)
+            File.createTempFile(
+                "homira-caller-greeting-",
+                ".m4a",
+                context.cacheDir
+            ).apply {
+                writeBytes(bytes)
+            }
+        }.onSuccess { file ->
+            greetingFile = file
+            greetingLoading = false
+            greetingPlaying = true
+            player.play(file) {
+                greetingPlaying = false
+                greetingFinished = true
+            }
+        }.onFailure {
+            greetingLoading = false
+            greetingFinished = true
+        }
+    }
+
+    fun skipGreeting() {
+        player.stop()
+        greetingPlaying = false
+        greetingFinished = true
+    }
+
+    fun playReview() {
+        val file = messageFile ?: return
+
+        if (reviewPlaying) {
+            player.stop()
+            reviewPlaying = false
+        } else {
+            player.stop()
+            reviewPlaying = true
+            player.play(file) {
+                reviewPlaying = false
+            }
+        }
+    }
+
+    fun discardAndRecordAgain() {
+        player.stop()
+        reviewPlaying = false
+        messageFile?.delete()
+        messageFile = null
+        recordingSeconds = 0
+
+        if (microphoneGranted) {
+            startRecording()
+        } else {
+            pendingRecordStart = true
+            microphoneLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            recorder.cancel()
+            player.stop()
+            greetingFile?.delete()
+            messageFile?.delete()
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(HomiraBackground)
+            .safeDrawingPadding()
+            .padding(horizontal = 24.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    enabled = !sending,
+                    onClick = onDismiss
+                ) {
+                    Icon(
+                        Icons.Rounded.ArrowBack,
+                        contentDescription = "Back",
+                        tint = HomiraText
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+            }
+
+            Spacer(Modifier.weight(.35f))
+            PersonAvatarP(offer.person, 132)
+            Spacer(Modifier.height(18.dp))
+            Text(
+                "No answer",
+                color = HomiraText,
+                fontSize = 30.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Leave a voice message for ${offer.person.name}",
+                color = HomiraMuted,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(Modifier.height(28.dp))
+
+            when {
+                greetingLoading -> {
+                    Text(
+                        "Loading ${offer.person.name}'s greeting…",
+                        color = HomiraMuted,
+                        fontSize = 13.sp
+                    )
+                }
+
+                greetingPlaying -> {
+                    Surface(
+                        shape = RoundedCornerShape(99.dp),
+                        color = HomiraSurfaceRaised
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(
+                                horizontal = 14.dp,
+                                vertical = 9.dp
+                            ),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Rounded.VolumeUp,
+                                contentDescription = null,
+                                tint = HomiraGreen,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(7.dp))
+                            Text(
+                                "Playing greeting…",
+                                color = HomiraText,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    TextButton(onClick = { skipGreeting() }) {
+                        Text("Skip greeting", color = HomiraMuted)
+                    }
+                }
+
+                !greetingFinished -> Unit
+
+                recording -> {
+                    Surface(
+                        shape = RoundedCornerShape(99.dp),
+                        color = HomiraDanger.copy(alpha = .14f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(
+                                horizontal = 16.dp,
+                                vertical = 10.dp
+                            ),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Rounded.Mic,
+                                contentDescription = null,
+                                tint = HomiraDanger,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(7.dp))
+                            Text(
+                                "Recording · ${recordingSeconds / 60}:${(recordingSeconds % 60).toString().padStart(2, '0')}",
+                                color = HomiraText,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    Button(
+                        onClick = { stopRecording() },
+                        shape = RoundedCornerShape(18.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = HomiraDanger,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Stop recording")
+                    }
+                }
+
+                messageFile != null -> {
+                    Surface(
+                        shape = RoundedCornerShape(22.dp),
+                        color = HomiraSurface
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(15.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                enabled = !sending,
+                                onClick = { playReview() }
+                            ) {
+                                Icon(
+                                    if (reviewPlaying) {
+                                        Icons.Rounded.Pause
+                                    } else {
+                                        Icons.Rounded.PlayArrow
+                                    },
+                                    contentDescription = "Preview voicemail",
+                                    tint = HomiraGreen
+                                )
+                            }
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    "Your voicemail",
+                                    color = HomiraText,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    "${recordingSeconds / 60}:${(recordingSeconds % 60).toString().padStart(2, '0')}",
+                                    color = HomiraMuted,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+                    Button(
+                        enabled = !sending,
+                        onClick = {
+                            val file = messageFile ?: return@Button
+                            sending = true
+                            player.stop()
+                            reviewPlaying = false
+
+                            scope.launch {
+                                runCatching {
+                                    repository.uploadVoicemail(
+                                        recipientId = offer.person.id,
+                                        callSessionId = offer.callSessionId,
+                                        audioFile = file,
+                                        durationMs = recordingSeconds
+                                            .coerceIn(1, 120) * 1000
+                                    )
+                                }.onSuccess {
+                                    Toast.makeText(
+                                        context,
+                                        "Voicemail sent",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    onSent()
+                                }.onFailure {
+                                    Toast.makeText(
+                                        context,
+                                        it.message ?: "Could not send voicemail.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                                sending = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = HomiraGreen,
+                            contentColor = HomiraBackground
+                        )
+                    ) {
+                        Text(
+                            if (sending) "Sending…" else "Send voicemail",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(Modifier.height(7.dp))
+                    TextButton(
+                        enabled = !sending,
+                        onClick = { discardAndRecordAgain() }
+                    ) {
+                        Text("Record again", color = HomiraMuted)
+                    }
+                }
+
+                else -> {
+                    Text(
+                        if (offer.greetingPath == null) {
+                            "They didn't answer. Record your message after the tone."
+                        } else {
+                            "Greeting finished. You can record your message now."
+                        },
+                        color = HomiraMuted,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(16.dp))
+
+                    Button(
+                        onClick = {
+                            if (microphoneGranted) {
+                                startRecording()
+                            } else {
+                                pendingRecordStart = true
+                                microphoneLauncher.launch(
+                                    Manifest.permission.RECORD_AUDIO
+                                )
+                            }
+                        },
+                        shape = RoundedCornerShape(18.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = HomiraText,
+                            contentColor = HomiraBackground
+                        )
+                    ) {
+                        Icon(
+                            Icons.Rounded.Mic,
+                            contentDescription = null
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Record voice message")
+                    }
+                }
+            }
+
+            Spacer(Modifier.weight(1f))
+
+            if (!recording && messageFile == null && !sending) {
+                TextButton(onClick = { onCallAgain(offer) }) {
+                    Icon(
+                        Icons.Rounded.Call,
+                        contentDescription = null,
+                        tint = HomiraGreen,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("Call again", color = HomiraGreen)
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Not now", color = HomiraMuted)
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
 private fun IncomingCallScreen(
     person: HomiraPerson,
     video: Boolean,
