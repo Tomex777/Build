@@ -15,6 +15,7 @@ import com.night.pahebatcher.data.PaheRepository
 import com.night.pahebatcher.data.SessionStore
 import com.night.pahebatcher.data.VerificationKind
 import com.night.pahebatcher.data.VerificationRequired
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.net.URI
 import java.util.UUID
@@ -54,6 +55,8 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var detailsError by mutableStateOf<String?>(null)
         private set
+
+    private var detailsJob: Job? = null
 
     var verificationActive by mutableStateOf(false)
         private set
@@ -96,24 +99,41 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openAnime(item: AnimeSearchResult) {
+        detailsJob?.cancel()
+
+        // Open the screen immediately using data we already received from AnimePahe search.
+        // Episodes enrich this shell in the background.
+        details = AnimeDetails(
+            result = item,
+            host = sessions.animeHost,
+            episodes = emptyList(),
+        )
         detailsLoading = true
         detailsError = null
-        viewModelScope.launch {
+
+        detailsJob = viewModelScope.launch {
             try {
                 details = repository.loadAnime(item)
                 refreshSessions()
             } catch (e: VerificationRequired) {
                 detailsError = verificationMessage(e.kind)
             } catch (e: Exception) {
-                detailsError = e.message ?: "Could not load this anime."
+                detailsError = e.message ?: "Could not load episodes."
             } finally {
                 detailsLoading = false
             }
         }
     }
 
+    fun retryDetails() {
+        details?.result?.let(::openAnime)
+    }
+
     fun closeDetails() {
+        detailsJob?.cancel()
+        detailsJob = null
         details = null
+        detailsLoading = false
         detailsError = null
     }
 
