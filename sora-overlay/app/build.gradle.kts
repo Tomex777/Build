@@ -42,6 +42,11 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-compose:3.5.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.5.0")
 
+    // Aniyomi-derived Anime player stack. Keep Media3 for Music and other shared playback.
+    implementation("com.github.aniyomiorg:aniyomi-mpv-lib:1.18.n")
+    implementation("com.github.jmir1:ffmpeg-kit:1.18")
+    implementation("com.arthenica:smart-exception-java:0.2.1")
+
     val media3Version = "1.11.0"
     implementation("androidx.media3:media3-exoplayer:$media3Version")
     implementation("androidx.media3:media3-exoplayer-hls:$media3Version")
