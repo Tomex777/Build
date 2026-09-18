@@ -59,6 +59,7 @@ class HomiraWebRtcVoiceEngine(
     private val localUserId: String,
     private val caller: Boolean,
     private val initialVideoEnabled: Boolean = false,
+    private val lowDataMode: Boolean = false,
     private val signaling: HomiraCallSignaling,
     private val iceServers: List<PeerConnection.IceServer> = defaultIceServers()
 ) {
@@ -105,6 +106,7 @@ class HomiraWebRtcVoiceEngine(
     private var cameraCapturer: CameraVideoCapturer? = null
     private var surfaceTextureHelper: SurfaceTextureHelper? = null
     private var videoCaptureStarted = false
+    private var audioSender: RtpSender? = null
     private var videoSender: RtpSender? = null
     private var screenCapturer: ScreenCapturerAndroid? = null
     private var screenVideoSource: VideoSource? = null
@@ -157,7 +159,7 @@ class HomiraWebRtcVoiceEngine(
         peerConnection = requireNotNull(factory).createPeerConnection(config, peerObserver)
             ?: error("Could not create WebRTC peer connection")
 
-        requireNotNull(peerConnection).addTrack(
+        audioSender = requireNotNull(peerConnection).addTrack(
             requireNotNull(audioTrack),
             listOf("homira-$callId")
         )
@@ -165,6 +167,10 @@ class HomiraWebRtcVoiceEngine(
             requireNotNull(videoTrack),
             listOf("homira-$callId")
         )
+
+        if (lowDataMode) {
+            applyLowDataProfile()
+        }
 
         if (initialVideoEnabled) {
             setVideoEnabled(true)
@@ -193,6 +199,29 @@ class HomiraWebRtcVoiceEngine(
     }
 
     fun eglContext(): EglBase.Context = eglBase.eglBaseContext
+
+    private fun applyLowDataProfile() {
+        audioSender?.let { sender ->
+            val parameters = sender.parameters
+            parameters.encodings.forEach { encoding ->
+                encoding.maxBitrateBps = 24_000
+                encoding.bitratePriority = 4.0
+                encoding.adaptiveAudioPacketTime = true
+            }
+            sender.parameters = parameters
+        }
+
+        videoSender?.let { sender ->
+            val parameters = sender.parameters
+            parameters.encodings.forEach { encoding ->
+                encoding.maxBitrateBps = 350_000
+                encoding.maxFramerate = 20
+                encoding.scaleResolutionDownBy = 1.5
+                encoding.bitratePriority = 0.5
+            }
+            sender.parameters = parameters
+        }
+    }
 
     fun setMuted(muted: Boolean) {
         audioTrack?.setEnabled(!muted)
@@ -483,6 +512,7 @@ class HomiraWebRtcVoiceEngine(
         peerConnection?.close()
         peerConnection?.dispose()
         peerConnection = null
+        audioSender = null
         videoSender = null
 
         audioTrack?.dispose()
