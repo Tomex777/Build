@@ -40,6 +40,8 @@ class DiagnosticViewModel(application: Application) : AndroidViewModel(applicati
     var browserUrl by mutableStateOf("")
         private set
 
+    var manualKwikUrl by mutableStateOf(store.lastKwikUrl())
+
     fun openAnimeBrowser() {
         browserMode = BrowserMode.ANIMEPAHE
         val host = sessions.animeHost.ifBlank { "animepahe.pw" }
@@ -48,16 +50,27 @@ class DiagnosticViewModel(application: Application) : AndroidViewModel(applicati
         browserOpen = true
     }
 
+    fun setManualKwikUrl(value: String) {
+        manualKwikUrl = value
+    }
+
     fun openKwikBrowser() {
-        val cached = sessions.lastKwikUrl
-        if (cached.isBlank()) {
-            statusMessage =
-                "No Kwik release link has been discovered yet. Tap Test AnimePahe first, then open Kwik verification."
+        val target = manualKwikUrl.trim().ifBlank { sessions.lastKwikUrl }
+        val host = runCatching { URI(target).host.orEmpty().lowercase() }.getOrDefault("")
+
+        if (target.isBlank()) {
+            statusMessage = "Paste a Kwik release URL first."
+            return
+        }
+        if (!host.startsWith("kwik.") && !host.contains(".kwik.")) {
+            statusMessage = "That does not look like a Kwik URL."
             return
         }
 
+        store.saveLastKwikUrl(target)
+        refreshSessions()
         browserMode = BrowserMode.KWIK
-        browserUrl = cached
+        browserUrl = target
         statusMessage = null
         browserOpen = true
     }
@@ -109,15 +122,16 @@ class DiagnosticViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun testKwik() {
+        val target = manualKwikUrl.trim().ifBlank { sessions.lastKwikUrl }
+        if (target.isBlank()) {
+            statusMessage = "Paste a Kwik release URL first."
+            return
+        }
+
+        store.saveLastKwikUrl(target)
+        refreshSessions()
         runTask("Testing Kwik...") {
-            var url = sessions.lastKwikUrl
-            if (url.isBlank()) {
-                val anime = engine.runAnimePahe()
-                applyResult(anime)
-                url = anime.kwikUrl.orEmpty()
-                if (url.isBlank()) return@runTask
-            }
-            applyResult(engine.runKwik(url))
+            applyResult(engine.runKwik(target))
         }
     }
 
