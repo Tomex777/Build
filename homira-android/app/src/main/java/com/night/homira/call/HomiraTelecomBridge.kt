@@ -9,7 +9,10 @@ import androidx.core.telecom.CallControlScope
 import androidx.core.telecom.CallsManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 sealed interface HomiraTelecomPlatformEvent {
     data class AnswerRequested(val requestedCallType: Int) :
@@ -38,6 +41,9 @@ class HomiraTelecomBridge(
         )
     val platformEvents: Flow<HomiraTelecomPlatformEvent> =
         _platformEvents.asSharedFlow()
+
+    private val _ready = MutableStateFlow(false)
+    val ready: StateFlow<Boolean> = _ready.asStateFlow()
 
     @Volatile
     private var controlScope: CallControlScope? = null
@@ -72,6 +78,8 @@ class HomiraTelecomBridge(
             callCapabilities = 0
         )
 
+        _ready.value = false
+
         try {
             callsManager.addCall(
                 callAttributes = attributes,
@@ -99,9 +107,11 @@ class HomiraTelecomBridge(
                 }
             ) {
                 controlScope = this
+                _ready.value = true
             }
         } finally {
             controlScope = null
+            _ready.value = false
         }
     }
 

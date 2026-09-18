@@ -1433,16 +1433,6 @@ fun HomiraProductionApp(
                         incomingCallNotifier.cancel(session.id)
                     }
 
-                    if (session.calleeId == localUserId) {
-                        runCatching {
-                            telecomBridge.answer(
-                                session.mediaType == "video"
-                            )
-                        }
-                    } else {
-                        runCatching { telecomBridge.markActive() }
-                    }
-
                     callHistoryStore.markAnswered(session.id)
                     localCallHistory = callHistoryStore.listRecent()
                 }
@@ -1503,6 +1493,38 @@ fun HomiraProductionApp(
                     activePerson = null
                     minimized = false
                 }
+            }
+        }
+
+        LaunchedEffect(
+            liveMode,
+            activeSession?.id,
+            activeSession?.state
+        ) {
+            if (!liveMode) return@LaunchedEffect
+
+            val session = activeSession ?: return@LaunchedEffect
+            if (session.state != "active") return@LaunchedEffect
+
+            val localUserId =
+                liveRepository.currentUserId() ?: return@LaunchedEffect
+
+            val telecomReady = withTimeoutOrNull(5_000L) {
+                telecomBridge.ready
+                    .filter { it }
+                    .first()
+            } != null
+
+            if (!telecomReady) return@LaunchedEffect
+
+            if (session.calleeId == localUserId) {
+                runCatching {
+                    telecomBridge.answer(
+                        session.mediaType == "video"
+                    )
+                }
+            } else {
+                runCatching { telecomBridge.markActive() }
             }
         }
 
