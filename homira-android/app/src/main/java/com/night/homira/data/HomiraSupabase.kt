@@ -15,12 +15,17 @@ import io.github.jan.supabase.realtime.decodeRecordOrNull
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import io.github.jan.supabase.storage.Storage
+import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import io.ktor.http.ContentType
+import java.io.File
+import java.time.Instant
+import java.util.UUID
 
 object HomiraSupabase {
     const val url = "https://uhyeopkbamwtgjgeqlyj.supabase.co"
@@ -74,6 +79,27 @@ private data class NewCallSession(
     @SerialName("caller_id") val callerId: String,
     @SerialName("callee_id") val calleeId: String,
     @SerialName("media_type") val mediaType: String
+)
+
+@Serializable
+data class LiveVoicemail(
+    val id: String,
+    @SerialName("sender_id") val senderId: String,
+    @SerialName("recipient_id") val recipientId: String,
+    @SerialName("call_session_id") val callSessionId: String? = null,
+    @SerialName("storage_path") val storagePath: String,
+    @SerialName("duration_ms") val durationMs: Int,
+    @SerialName("listened_at") val listenedAt: String? = null,
+    @SerialName("created_at") val createdAt: String
+)
+
+@Serializable
+private data class NewVoicemail(
+    @SerialName("sender_id") val senderId: String,
+    @SerialName("recipient_id") val recipientId: String,
+    @SerialName("call_session_id") val callSessionId: String? = null,
+    @SerialName("storage_path") val storagePath: String,
+    @SerialName("duration_ms") val durationMs: Int
 )
 
 @Serializable
@@ -233,6 +259,72 @@ class HomiraLiveRepository {
             }
         } finally {
             runCatching { channel.unsubscribe() }
+        }
+    }
+
+    suspend fun listReceivedVoicemails(): List<LiveVoicemail> {
+        val userId = requireNotNull(currentUserId()) { "Not signed in" }
+        return client.from("voicemails")
+            .select {
+                filter { eq("recipient_id", userId) }
+            }
+            .decodeList<LiveVoicemail>()
+            .sortedByDescending { it.createdAt }
+    }
+
+    suspend fun uploadVoicemail(
+        recipientId: String,
+        callSessionId: String?,
+        audioFile: File,
+        durationMs: Int
+    ): LiveVoicemail {
+        val senderId = requireNotNull(currentUserId()) { "Not signed in" }
+        require(senderId != recipientId) { "Cannot leave voicemail for yourself" }
+        require(durationMs in 1..300_000) { "Voicemail must be between 1 ms and 5 minutes" }
+        require(audioFile.exists() && audioFile.length() > 0L) { "Voicemail audio is empty" }
+
+        val path = "$senderId/${UUID.randomUUID()}.m4a"
+        val bucket = client.storage["voicemail"]
+
+        bucket.upload(path, audioFile, upsert = false) {
+            contentType = ContentType.parse("audio/mp4")
+        }
+
+        return try {
+            client.from("voicemails")
+                .insert(
+                    NewVoicemail(
+                        senderId = senderId,
+                        recipientId = recipientId,
+                        callSessionId = callSessionId,
+                        storagePath = path,
+                        durationMs = durationMs
+                    )
+                )
+                .decodeSingle<LiveVoicemail>()
+        } catch (error: Throwable) {
+            runCatching { bucket.delete(path) }
+            throw error
+        }
+    }
+
+    suspend fun downloadVoicemail(voicemail: LiveVoicemail): ByteArray =
+        client.storage["voicemail"]
+            .downloadAuthenticated(voicemail.storagePath)
+
+    suspend fun markVoicemailListened(voicemailId: String): LiveVoicemail =
+        client.from("voicemails")
+            .update({
+                set("listened_at", Instant.now().toString())
+            }) {
+                filter { eq("id", voicemailId) }
+            }
+            .decodeSingle<LiveVoicemail>()
+
+    suspend fun deleteVoicemail(voicemail: LiveVoicemail) {
+        client.storage["voicemail"].delete(voicemail.storagePath)
+        client.from("voicemails").delete {
+            filter { eq("id", voicemail.id) }
         }
     }
 
