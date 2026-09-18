@@ -9,7 +9,14 @@ import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.realtime.Realtime
+import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.channel
+import io.github.jan.supabase.realtime.decodeRecordOrNull
+import io.github.jan.supabase.realtime.postgresChangeFlow
+import io.github.jan.supabase.realtime.realtime
 import io.github.jan.supabase.storage.Storage
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
@@ -47,6 +54,26 @@ data class LiveContact(
 private data class AddContactParams(
     @SerialName("p_query") val query: String,
     @SerialName("p_local_name") val localName: String? = null
+)
+
+@Serializable
+data class LiveCallSession(
+    val id: String,
+    @SerialName("caller_id") val callerId: String,
+    @SerialName("callee_id") val calleeId: String,
+    @SerialName("media_type") val mediaType: String,
+    val state: String,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("answered_at") val answeredAt: String? = null,
+    @SerialName("ended_at") val endedAt: String? = null,
+    @SerialName("expires_at") val expiresAt: String
+)
+
+@Serializable
+private data class NewCallSession(
+    @SerialName("caller_id") val callerId: String,
+    @SerialName("callee_id") val calleeId: String,
+    @SerialName("media_type") val mediaType: String
 )
 
 @Serializable
@@ -120,6 +147,99 @@ class HomiraLiveRepository {
             )
             .decodeList<LiveContact>()
             .firstOrNull()
+
+    suspend fun startCall(calleeId: String, video: Boolean): LiveCallSession {
+        val callerId = requireNotNull(currentUserId()) { "Not signed in" }
+        return client.from("call_sessions")
+            .insert(
+                NewCallSession(
+                    callerId = callerId,
+                    calleeId = calleeId,
+                    mediaType = if (video) "video" else "audio"
+                )
+            )
+            .decodeSingle<LiveCallSession>()
+    }
+
+    suspend fun loadPendingIncomingCall(): LiveCallSession? {
+        val userId = currentUserId() ?: return null
+        return client.from("call_sessions")
+            .select {
+                filter {
+                    eq("callee_id", userId)
+                    eq("state", "ringing")
+                }
+            }
+            .decodeList<LiveCallSession>()
+            .maxByOrNull { it.createdAt }
+    }
+
+    suspend fun loadProfileById(userId: String): LiveProfile? =
+        runCatching {
+            client.from("profiles")
+                .select {
+                    filter { eq("id", userId) }
+                }
+                .decodeSingle<LiveProfile>()
+        }.getOrNull()
+
+    suspend fun setCallState(callId: String, state: String): LiveCallSession =
+        client.from("call_sessions")
+            .update({
+                set("state", state)
+            }) {
+                filter { eq("id", callId) }
+            }
+            .decodeSingle<LiveCallSession>()
+
+    fun observeIncomingCallChanges(): Flow<LiveCallSession> = flow {
+        val userId = requireNotNull(currentUserId()) { "Not signed in" }
+        val channel = client.channel("incoming-calls-$userId")
+        val changes = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+            table = "call_sessions"
+            filter = "callee_id=eq.$userId"
+        }
+
+        client.realtime.connect()
+        channel.subscribe(blockUntilSubscribed = true)
+
+        try {
+            changes.collect { action ->
+                val session = when (action) {
+                    is PostgresAction.Insert -> action.decodeRecordOrNull<LiveCallSession>()
+                    is PostgresAction.Update -> action.decodeRecordOrNull<LiveCallSession>()
+                    else -> null
+                }
+                if (session != null) emit(session)
+            }
+        } finally {
+            runCatching { channel.unsubscribe() }
+        }
+    }
+
+    fun observeCallSession(callId: String): Flow<LiveCallSession> = flow {
+        val channel = client.channel("call-session-$callId")
+        val changes = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+            table = "call_sessions"
+            filter = "id=eq.$callId"
+        }
+
+        client.realtime.connect()
+        channel.subscribe(blockUntilSubscribed = true)
+
+        try {
+            changes.collect { action ->
+                val session = when (action) {
+                    is PostgresAction.Insert -> action.decodeRecordOrNull<LiveCallSession>()
+                    is PostgresAction.Update -> action.decodeRecordOrNull<LiveCallSession>()
+                    else -> null
+                }
+                if (session != null) emit(session)
+            }
+        } finally {
+            runCatching { channel.unsubscribe() }
+        }
+    }
 
     suspend fun updateMyProfile(
         displayName: String,
