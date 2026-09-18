@@ -348,7 +348,12 @@ private val callEntries = listOf(
 )
 
 @Composable
-fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: List<LiveContact> = emptyList(), liveMode: Boolean = false) {
+fun HomiraProductionApp(
+    initialProfile: LiveProfile? = null,
+    initialContacts: List<LiveContact> = emptyList(),
+    liveMode: Boolean = false,
+    onSignedOut: () -> Unit = {}
+) {
     HomiraTheme {
         val context = LocalContext.current
         val liveRepository = remember { HomiraLiveRepository() }
@@ -1415,7 +1420,27 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 },
                 onBack = { overlay = OverlayScreen.None },
                 onVoicemail = { overlay = OverlayScreen.Voicemail },
-                onBlockedPeople = { overlay = OverlayScreen.BlockedPeople }
+                onBlockedPeople = { overlay = OverlayScreen.BlockedPeople },
+                onSignOut = {
+                    liveScope.launch {
+                        runCatching {
+                            voiceEngine?.close()
+                            liveRepository.signOut()
+                        }.onSuccess {
+                            activePerson = null
+                            activeSession = null
+                            incomingSession = null
+                            incomingPerson = null
+                            onSignedOut()
+                        }.onFailure {
+                            Toast.makeText(
+                                context,
+                                it.message ?: "Could not sign out.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
             )
 
             overlay == OverlayScreen.Voicemail -> VoicemailSettingsScreen(
@@ -1646,6 +1671,7 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                             MainTab.Keypad -> KeypadScreen(
                                 contacts = appContacts,
                                 onSettings = { overlay = OverlayScreen.Settings },
+                                onSearchContacts = { tab = MainTab.Contacts },
                                 onDial = { value ->
                                     val digits = digitsOnlyP(value)
                                     val found = appContacts.firstOrNull {
@@ -1680,6 +1706,7 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                                 playingVoicemailId = playingVoicemailId,
                                 onVoicemail = { toggleVoicemailPlayback(it) },
                                 onSettings = { overlay = OverlayScreen.Settings },
+                                onBlockedPeople = { overlay = OverlayScreen.BlockedPeople },
                                 onVoiceCall = { beginCall(it, false) },
                                 onVideoCall = { beginCall(it, true) }
                             )
@@ -1713,9 +1740,18 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
 }
 
 @Composable
-private fun HeaderActions(title: String, onSettings: () -> Unit, showSearch: Boolean = false) {
+private fun HeaderActions(
+    title: String,
+    onSettings: () -> Unit,
+    onSearch: (() -> Unit)? = null,
+    onBlockedPeople: (() -> Unit)? = null
+) {
     var menuOpen by remember { mutableStateOf(false) }
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Text(
             title,
             color = HomiraText,
@@ -1723,36 +1759,70 @@ private fun HeaderActions(title: String, onSettings: () -> Unit, showSearch: Boo
             fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f)
         )
-        if (showSearch) {
-            IconButton(onClick = {}) {
-                Icon(Icons.Rounded.Search, contentDescription = "Search", tint = HomiraText)
+
+        if (onSearch != null) {
+            IconButton(onClick = onSearch) {
+                Icon(
+                    Icons.Rounded.Search,
+                    contentDescription = "Search",
+                    tint = HomiraText
+                )
             }
         }
+
         Box {
             IconButton(onClick = { menuOpen = true }) {
-                Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = HomiraText)
+                Icon(
+                    Icons.Rounded.MoreVert,
+                    contentDescription = "More",
+                    tint = HomiraText
+                )
             }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenu(
+                expanded = menuOpen,
+                onDismissRequest = { menuOpen = false }
+            ) {
                 DropdownMenuItem(
                     text = { Text("Settings") },
-                    leadingIcon = { Icon(Icons.Rounded.Settings, contentDescription = null) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Rounded.Settings,
+                            contentDescription = null
+                        )
+                    },
                     onClick = {
                         menuOpen = false
                         onSettings()
                     }
                 )
-                DropdownMenuItem(
-                    text = { Text("Blocked people") },
-                    leadingIcon = { Icon(Icons.Rounded.Block, contentDescription = null) },
-                    onClick = { menuOpen = false }
-                )
+
+                if (onBlockedPeople != null) {
+                    DropdownMenuItem(
+                        text = { Text("Blocked people") },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Rounded.Block,
+                                contentDescription = null
+                            )
+                        },
+                        onClick = {
+                            menuOpen = false
+                            onBlockedPeople()
+                        }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun KeypadScreen(contacts: List<HomiraPerson>, onSettings: () -> Unit, onDial: (String) -> Unit) {
+private fun KeypadScreen(
+    contacts: List<HomiraPerson>,
+    onSettings: () -> Unit,
+    onSearchContacts: () -> Unit,
+    onDial: (String) -> Unit
+) {
     var number by rememberSaveable { mutableStateOf("") }
     val match = contacts.firstOrNull {
         val digits = digitsOnlyP(number)
@@ -1766,8 +1836,12 @@ private fun KeypadScreen(contacts: List<HomiraPerson>, onSettings: () -> Unit, o
             .padding(horizontal = 24.dp, vertical = 10.dp)
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            IconButton(onClick = {}) {
-                Icon(Icons.Rounded.Search, contentDescription = "Search", tint = HomiraText)
+            IconButton(onClick = onSearchContacts) {
+                Icon(
+                    Icons.Rounded.Search,
+                    contentDescription = "Search contacts",
+                    tint = HomiraText
+                )
             }
             var menu by remember { mutableStateOf(false) }
             Box {
@@ -1892,25 +1966,74 @@ private fun RecentsScreen(
     playingVoicemailId: String?,
     onVoicemail: (CallEntry) -> Unit,
     onSettings: () -> Unit,
+    onBlockedPeople: () -> Unit,
     onVoiceCall: (HomiraPerson) -> Unit,
     onVideoCall: (HomiraPerson) -> Unit
 ) {
     var filter by rememberSaveable { mutableStateOf(RecentFilter.All) }
+    var searching by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
 
-    val filtered = when (filter) {
+    val filteredByType = when (filter) {
         RecentFilter.All -> entries
-        RecentFilter.Missed -> entries.filter { it.direction == CallDirection.Missed }
-        RecentFilter.Voicemail -> entries.filter { it.voicemailSeconds != null }
+        RecentFilter.Missed -> entries.filter {
+            it.direction == CallDirection.Missed
+        }
+        RecentFilter.Voicemail -> entries.filter {
+            it.voicemailSeconds != null
+        }
     }
-    val days = entries.map { it.day }.distinct().filter { day -> filtered.any { it.day == day } }
-    val topMissed = entries.firstOrNull { it.direction == CallDirection.Missed }
+
+    val normalizedQuery = query.trim()
+    val filtered = filteredByType.filter { entry ->
+        normalizedQuery.isBlank() ||
+            entry.person.name.contains(normalizedQuery, ignoreCase = true) ||
+            entry.person.number.contains(normalizedQuery) ||
+            directionLabel(entry.direction)
+                .contains(normalizedQuery, ignoreCase = true)
+    }
+
+    val days = filtered
+        .map { it.day }
+        .distinct()
+    val topMissed = filtered
+        .firstOrNull { it.direction == CallDirection.Missed }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().safeDrawingPadding(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item { HeaderActions("Recents", onSettings, showSearch = true) }
+        item {
+            HeaderActions(
+                title = "Recents",
+                onSettings = onSettings,
+                onSearch = {
+                    searching = !searching
+                    if (!searching) query = ""
+                },
+                onBlockedPeople = onBlockedPeople
+            )
+        }
+
+        if (searching) {
+            item {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(
+                            Icons.Rounded.Search,
+                            contentDescription = null
+                        )
+                    },
+                    placeholder = { Text("Search recent calls") },
+                    shape = RoundedCornerShape(20.dp)
+                )
+            }
+        }
 
         if (topMissed != null) {
             item {
@@ -2351,7 +2474,9 @@ private fun ContactsScreen(
                         FavoriteContact(person = person, onCall = { onVoiceCall(person) })
                     }
                     Surface(
-                        modifier = Modifier.size(width = 88.dp, height = 105.dp).clickable { },
+                        modifier = Modifier
+                            .size(width = 88.dp, height = 105.dp)
+                            .clickable(onClick = onAddContact),
                         shape = RoundedCornerShape(24.dp),
                         color = HomiraSurface
                     ) {
@@ -2367,9 +2492,12 @@ private fun ContactsScreen(
             item {
                 Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = HomiraSurface)) {
                     Column {
-                        SimpleContactUtility(Icons.Rounded.Person, "My profile", myName, onOpenMe)
-                        HorizontalDivider(modifier = Modifier.padding(start = 62.dp), color = HomiraLine.copy(alpha = .65f))
-                        SimpleContactUtility(Icons.Rounded.Groups, "Groups", "Family, friends and more") { }
+                        SimpleContactUtility(
+                            Icons.Rounded.Person,
+                            "My profile",
+                            myName,
+                            onOpenMe
+                        )
                     }
                 }
             }
@@ -2765,8 +2893,10 @@ private fun SettingsScreen(
     onVoicemailEnabledChanged: (Boolean) -> Unit,
     onBack: () -> Unit,
     onVoicemail: () -> Unit,
-    onBlockedPeople: () -> Unit
+    onBlockedPeople: () -> Unit,
+    onSignOut: () -> Unit
 ) {
+    var confirmSignOut by remember { mutableStateOf(false) }
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -2865,6 +2995,17 @@ private fun SettingsScreen(
         }
 
         item {
+            SectionTitleP("Account")
+            SettingsRowP(
+                Icons.Rounded.Security,
+                "Sign out",
+                "Sign out of Homira on this device"
+            ) {
+                confirmSignOut = true
+            }
+        }
+
+        item {
             SectionTitleP("About this build")
             InfoRowP(
                 Icons.Rounded.Security,
@@ -2873,6 +3014,38 @@ private fun SettingsScreen(
             )
         }
     }
+
+    if (confirmSignOut) {
+        AlertDialog(
+            onDismissRequest = { confirmSignOut = false },
+            title = { Text("Sign out?", color = HomiraText) },
+            text = {
+                Text(
+                    "Your local call history stays on this device. You can sign in again with your phone number.",
+                    color = HomiraMuted
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmSignOut = false
+                        onSignOut()
+                    }
+                ) {
+                    Text("Sign out", color = HomiraDanger)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { confirmSignOut = false }
+                ) {
+                    Text("Cancel", color = HomiraMuted)
+                }
+            },
+            containerColor = HomiraSurface
+        )
+    }
+
 }
 
 @Composable
