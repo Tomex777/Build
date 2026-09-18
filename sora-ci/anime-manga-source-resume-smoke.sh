@@ -176,13 +176,35 @@ capture_runtime_diagnostics() {
 ensure_player_control() {
   local label="$1" timeout="${2:-25}" elapsed=0
   while (( elapsed < timeout )); do
-    dismiss_emulator_system_dialogs
-    if node_exists "$label"; then
+    if ! dismiss_emulator_system_dialogs; then
+      echo "A real Sora/system dialog blocked player control '$label'" >&2
+      return 1
+    fi
+
+    # Wake auto-hidden controls, then inspect exactly one fresh UI tree.
+    adb shell input tap 540 1200 || true
+    sleep 0.35
+    dump_ui
+    if python3 - "$label" <<'PY'
+import sys, xml.etree.ElementTree as ET
+label=sys.argv[1]
+try:
+    root=ET.parse('/tmp/sora-media-window.xml').getroot()
+except Exception:
+    raise SystemExit(1)
+for node in root.iter('node'):
+    text=(node.attrib.get('text') or '').strip()
+    desc=(node.attrib.get('content-desc') or '').strip()
+    if text == label or desc == label:
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+    then
       echo "Found player control '$label' after ${elapsed}s"
       return 0
     fi
-    adb shell input tap 540 1200 || true
-    sleep 1
+
+    sleep 0.35
     elapsed=$((elapsed+1))
   done
   echo "Timed out waiting for player control '$label'" >&2
@@ -190,7 +212,8 @@ ensure_player_control() {
   shot "failure-player-$safe"
   capture_runtime_diagnostics "failure-player-$safe"
   echo "Sora pid after player failure: $(adb shell pidof com.night.sora 2>/dev/null || true)" >&2
-  grep -E 'FATAL EXCEPTION|AndroidRuntime|UnsatisfiedLinkError|dlopen failed|SIGABRT|SIGSEGV|Fatal signal|libmpv|libplayer|libavcodec|No implementation found'     "$OUT/failure-player-$safe-logcat.txt" | tail -n 120 >&2 || true
+  grep -E 'FATAL EXCEPTION|AndroidRuntime|UnsatisfiedLinkError|dlopen failed|SIGABRT|SIGSEGV|Fatal signal|libmpv|libplayer|libavcodec|No implementation found' \
+    "$OUT/failure-player-$safe-logcat.txt" | tail -n 120 >&2 || true
   return 1
 }
 
