@@ -20,7 +20,7 @@ REPORT_PATH = OUT_DIR / "endpoint-report.json"
 OFFICIAL_HOSTS = ("animepahe.pw", "animepahe.com", "animepahe.org")
 SEARCH_QUERY = "bleach"
 MAX_CIRCUITS = int(os.getenv("TOR_PROBE_CIRCUITS", "10"))
-TIMEOUT = 20
+TIMEOUT = 10
 
 CF_MARKERS = (
     "cf-chl-",
@@ -206,10 +206,11 @@ for circuit in range(1, MAX_CIRCUITS + 1):
     exit_ip, tor_info = get_exit_ip(session)
     is_tor = bool(tor_info and tor_info.get("IsTor") is True)
     summary["tor_confirmed"] = summary["tor_confirmed"] or is_tor
-    print(f"[circuit {circuit}] tor={is_tor} exit={exit_ip}")
+    print(f"[circuit {circuit}] tor={is_tor} exit={exit_ip}", flush=True)
 
     for host in OFFICIAL_HOSTS:
         base = f"https://{host}/"
+        print(f"  probing {host}", flush=True)
 
         root_result, _ = request(
             session,
@@ -221,7 +222,7 @@ for circuit in range(1, MAX_CIRCUITS + 1):
             accept="text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         )
         results.append(root_result)
-        print(f"  {host} root -> {root_result.status} {root_result.classification}")
+        print(f"  {host} root -> {root_result.status} {root_result.classification}", flush=True)
 
         search_url = f"https://{host}/api?m=search&q={SEARCH_QUERY}"
         search_result, search_body = request(
@@ -235,7 +236,7 @@ for circuit in range(1, MAX_CIRCUITS + 1):
             accept="application/json,text/plain,*/*",
         )
         results.append(search_result)
-        print(f"  {host} search -> {search_result.status} {search_result.classification}")
+        print(f"  {host} search -> {search_result.status} {search_result.classification}", flush=True)
 
         if search_result.classification not in ("json", "json_data"):
             continue
@@ -278,7 +279,7 @@ for circuit in range(1, MAX_CIRCUITS + 1):
             accept="application/json,text/plain,*/*",
         )
         results.append(release_result)
-        print(f"  {host} release -> {release_result.status} {release_result.classification}")
+        print(f"  {host} release -> {release_result.status} {release_result.classification}", flush=True)
 
         legacy_url = f"https://{host}/api/{anime_session}/releases?sort=episode_asc&page=1"
         legacy_result, _ = request(
@@ -292,7 +293,7 @@ for circuit in range(1, MAX_CIRCUITS + 1):
             accept="application/json,text/plain,*/*",
         )
         results.append(legacy_result)
-        print(f"  {host} legacy release -> {legacy_result.status} {legacy_result.classification}")
+        print(f"  {host} legacy release -> {legacy_result.status} {legacy_result.classification}", flush=True)
 
         if anime_id:
             id_release_url = (
@@ -310,7 +311,7 @@ for circuit in range(1, MAX_CIRCUITS + 1):
                 accept="application/json,text/plain,*/*",
             )
             results.append(id_result)
-            print(f"  {host} stable-id release -> {id_result.status} {id_result.classification}")
+            print(f"  {host} stable-id release -> {id_result.status} {id_result.classification}", flush=True)
 
         if release_result.classification not in ("json", "json_data"):
             break
@@ -340,7 +341,7 @@ for circuit in range(1, MAX_CIRCUITS + 1):
             accept="text/html,application/xhtml+xml,*/*",
         )
         results.append(play_result)
-        print(f"  {host} play -> {play_result.status} {play_result.classification}")
+        print(f"  {host} play -> {play_result.status} {play_result.classification}", flush=True)
 
         kwik_url = extract_kwik(play_body)
         if kwik_url:
@@ -358,7 +359,7 @@ for circuit in range(1, MAX_CIRCUITS + 1):
             )
             results.append(kwik_result)
             summary["kwik_reached"] = kwik_result.status is not None
-            print(f"  {kwik_host} kwik -> {kwik_result.status} {kwik_result.classification}")
+            print(f"  {kwik_host} kwik -> {kwik_result.status} {kwik_result.classification}", flush=True)
 
         # We reached the live API chain. No need to burn more Tor circuits.
         break
