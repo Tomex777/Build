@@ -17,3 +17,5 @@ dependencyResolutionManagement {
 rootProject.name = "PaheBatcherAndroid"
 include(":app")
 include(":diagnostics")
+
+include(":kwik-manual")
