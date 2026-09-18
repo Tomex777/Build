@@ -1,5 +1,10 @@
 package com.night.homira.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import com.night.homira.call.HomiraWebRtcState
+import com.night.homira.call.HomiraWebRtcVoiceEngine
+import com.night.homira.data.HomiraCallSignaling
 import com.night.homira.data.HomiraLiveRepository
 import com.night.homira.data.LiveProfile
 import com.night.homira.data.LiveContact
@@ -122,6 +127,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -184,6 +190,32 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         var activeSession by remember { mutableStateOf<LiveCallSession?>(null) }
         var incomingSession by remember { mutableStateOf<LiveCallSession?>(null) }
         var incomingPerson by remember { mutableStateOf<HomiraPerson?>(null) }
+        var voiceEngine by remember { mutableStateOf<HomiraWebRtcVoiceEngine?>(null) }
+        var webRtcState by remember { mutableStateOf(HomiraWebRtcState.New) }
+        var pendingOutgoingCall by remember { mutableStateOf<Pair<HomiraPerson, Boolean>?>(null) }
+        var pendingIncomingAccept by remember { mutableStateOf(false) }
+        var micPermissionGranted by remember {
+            mutableStateOf(
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.RECORD_AUDIO
+                ) == PackageManager.PERMISSION_GRANTED
+            )
+        }
+        val microphonePermissionLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            micPermissionGranted = granted
+            if (!granted) {
+                pendingOutgoingCall = null
+                pendingIncomingAccept = false
+                Toast.makeText(
+                    context,
+                    "Microphone permission is required for Homira calls.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
 
         var profileName by rememberSaveable(initialProfile?.id) {
             mutableStateOf(initialProfile?.displayName?.ifBlank { "You" } ?: "You")
@@ -220,14 +252,7 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         }
         val appCallEntries = if (liveMode) emptyList() else callEntries
 
-        fun beginCall(person: HomiraPerson, video: Boolean) {
-            if (!liveMode) {
-                activePerson = person
-                activeVideo = video
-                minimized = false
-                return
-            }
-
+        fun startCallNow(person: HomiraPerson, video: Boolean) {
             liveScope.launch {
                 runCatching {
                     liveRepository.startCall(calleeId = person.id, video = video)
@@ -243,6 +268,64 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                         Toast.LENGTH_SHORT
                     ).show()
                 }
+            }
+        }
+
+        fun beginCall(person: HomiraPerson, video: Boolean) {
+            if (!liveMode) {
+                activePerson = person
+                activeVideo = video
+                minimized = false
+                return
+            }
+
+            if (!micPermissionGranted) {
+                pendingOutgoingCall = person to video
+                microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                return
+            }
+
+            startCallNow(person, video)
+        }
+
+        fun acceptIncomingNow() {
+            val session = incomingSession
+            val person = incomingPerson
+            if (session != null && person != null) {
+                liveScope.launch {
+                    runCatching {
+                        liveRepository.setCallState(session.id, "active")
+                    }.onSuccess { updated ->
+                        activeSession = updated
+                        activePerson = person
+                        activeVideo = updated.mediaType == "video"
+                        minimized = false
+                        incomingSession = null
+                        incomingPerson = null
+                    }.onFailure {
+                        Toast.makeText(
+                            context,
+                            it.message ?: "Could not answer the call.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+        }
+
+        LaunchedEffect(micPermissionGranted, pendingOutgoingCall) {
+            if (micPermissionGranted) {
+                pendingOutgoingCall?.let { (person, video) ->
+                    pendingOutgoingCall = null
+                    startCallNow(person, video)
+                }
+            }
+        }
+
+        LaunchedEffect(micPermissionGranted, pendingIncomingAccept) {
+            if (micPermissionGranted && pendingIncomingAccept) {
+                pendingIncomingAccept = false
+                acceptIncomingNow()
             }
         }
 
@@ -295,8 +378,61 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
             liveRepository.observeCallSession(callId).collect { session ->
                 activeSession = session
                 if (session.state in setOf("declined", "cancelled", "failed", "ended")) {
+                    activeSession = null
                     activePerson = null
                     minimized = false
+                }
+            }
+        }
+
+        LaunchedEffect(liveMode, activeSession?.id, micPermissionGranted) {
+            voiceEngine?.close()
+            voiceEngine = null
+            webRtcState = HomiraWebRtcState.New
+
+            val session = activeSession
+            val person = activePerson
+            val localUserId = liveRepository.currentUserId()
+
+            if (!liveMode || !micPermissionGranted || session == null || person == null || localUserId == null) {
+                return@LaunchedEffect
+            }
+
+            val engine = HomiraWebRtcVoiceEngine(
+                context = context,
+                callId = session.id,
+                localUserId = localUserId,
+                caller = session.callerId == localUserId,
+                signaling = HomiraCallSignaling(session.id)
+            )
+            voiceEngine = engine
+
+            try {
+                engine.start()
+                engine.state.collect { state ->
+                    webRtcState = state
+                    if (state == HomiraWebRtcState.Failed && activeSession?.id == session.id) {
+                        runCatching {
+                            liveRepository.setCallState(session.id, "failed")
+                        }
+                    }
+                }
+            } catch (error: Throwable) {
+                webRtcState = HomiraWebRtcState.Failed
+                if (activeSession?.id == session.id) {
+                    runCatching {
+                        liveRepository.setCallState(session.id, "failed")
+                    }
+                }
+                Toast.makeText(
+                    context,
+                    error.message ?: "Call connection failed.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } finally {
+                engine.close()
+                if (voiceEngine === engine) {
+                    voiceEngine = null
                 }
             }
         }
@@ -306,21 +442,11 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 person = incomingPerson ?: mimiP,
                 video = incomingSession?.mediaType == "video",
                 onAccept = {
-                    val session = incomingSession
-                    val person = incomingPerson
-                    if (session != null && person != null) {
-                        liveScope.launch {
-                            runCatching {
-                                liveRepository.setCallState(session.id, "active")
-                            }.onSuccess { updated ->
-                                activeSession = updated
-                                activePerson = person
-                                activeVideo = updated.mediaType == "video"
-                                minimized = false
-                                incomingSession = null
-                                incomingPerson = null
-                            }
-                        }
+                    if (micPermissionGranted) {
+                        acceptIncomingNow()
+                    } else {
+                        pendingIncomingAccept = true
+                        microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     }
                 },
                 onDecline = {
@@ -339,6 +465,8 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 person = activePerson ?: mimiP,
                 startsWithVideo = activeVideo,
                 liveState = if (liveMode) activeSession?.state else null,
+                mediaState = if (liveMode) webRtcState else null,
+                onMuteChanged = { muted -> voiceEngine?.setMuted(muted) },
                 onMinimize = { minimized = true },
                 onEnd = {
                     val session = activeSession
@@ -1784,6 +1912,8 @@ private fun ActiveCallScreen(
     person: HomiraPerson,
     startsWithVideo: Boolean,
     liveState: String? = null,
+    mediaState: HomiraWebRtcState? = null,
+    onMuteChanged: (Boolean) -> Unit = {},
     onMinimize: () -> Unit,
     onEnd: () -> Unit
 ) {
@@ -1793,11 +1923,16 @@ private fun ActiveCallScreen(
     var sharing by rememberSaveable { mutableStateOf(false) }
     var simulatedConnected by rememberSaveable { mutableStateOf(false) }
     var seconds by rememberSaveable { mutableIntStateOf(0) }
-    val connected = if (liveState == null) simulatedConnected else liveState == "active"
+    val connected = if (liveState == null) {
+        simulatedConnected
+    } else {
+        mediaState == HomiraWebRtcState.Connected
+    }
     val statusText = when {
         connected -> formatDurationP(seconds)
         liveState == "ringing" -> "Ringing…"
-        liveState == "connecting" -> "Connecting…"
+        mediaState == HomiraWebRtcState.Failed -> "Connection failed"
+        mediaState == HomiraWebRtcState.Disconnected -> "Reconnecting…"
         else -> "Connecting…"
     }
     var menuOpen by remember { mutableStateOf(false) }
@@ -1905,7 +2040,10 @@ private fun ActiveCallScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Spacer(Modifier.height(20.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        CallControlP(Icons.Rounded.MicOff, "Mute", muted) { muted = !muted }
+                        CallControlP(Icons.Rounded.MicOff, "Mute", muted) {
+                            muted = !muted
+                            onMuteChanged(muted)
+                        }
                         CallControlP(Icons.Rounded.VolumeUp, "Speaker", speaker) { speaker = !speaker }
                         CallControlP(Icons.Rounded.Videocam, "Video", video) {
                             video = !video
