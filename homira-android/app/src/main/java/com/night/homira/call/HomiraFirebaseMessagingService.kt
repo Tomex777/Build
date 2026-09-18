@@ -12,8 +12,17 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 class HomiraFirebaseMessagingService : FirebaseMessagingService() {
+    override fun onRegistered(installationId: String) {
+        persistMessagingTarget(installationId)
+    }
+
+    @Deprecated("FCM registration tokens are being replaced by installation IDs")
     override fun onNewToken(token: String) {
-        HomiraPushBootstrap.storeToken(this, token)
+        persistMessagingTarget(token)
+    }
+
+    private fun persistMessagingTarget(target: String) {
+        HomiraPushBootstrap.storeTarget(this, target)
 
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             val repository = HomiraLiveRepository()
@@ -24,7 +33,7 @@ class HomiraFirebaseMessagingService : FirebaseMessagingService() {
                         deviceId = HomiraPushBootstrap.deviceId(
                             this@HomiraFirebaseMessagingService
                         ),
-                        token = token,
+                        token = target,
                         platform = "android"
                     )
                 }
