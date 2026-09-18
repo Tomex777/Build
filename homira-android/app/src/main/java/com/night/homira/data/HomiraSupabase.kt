@@ -262,6 +262,64 @@ class HomiraLiveRepository {
         }
     }
 
+    suspend fun saveVoicemailGreeting(audioFile: File): LiveProfile {
+        val userId = requireNotNull(currentUserId()) { "Not signed in" }
+        require(audioFile.exists() && audioFile.length() > 0L) { "Greeting audio is empty" }
+
+        val current = loadMyProfile()
+        val oldPath = current?.voicemailGreetingPath
+        val newPath = "$userId/greetings/${UUID.randomUUID()}.m4a"
+        val bucket = client.storage["voicemail"]
+
+        bucket.upload(newPath, audioFile, upsert = false) {
+            contentType = ContentType.parse("audio/mp4")
+        }
+
+        return try {
+            val updated = client.from("profiles")
+                .update({
+                    set("voicemail_greeting_mode", "voice")
+                    set("voicemail_greeting_path", newPath)
+                }) {
+                    filter { eq("id", userId) }
+                }
+                .decodeSingle<LiveProfile>()
+
+            if (!oldPath.isNullOrBlank() && oldPath != newPath) {
+                runCatching { bucket.delete(oldPath) }
+            }
+
+            updated
+        } catch (error: Throwable) {
+            runCatching { bucket.delete(newPath) }
+            throw error
+        }
+    }
+
+    suspend fun useDefaultVoicemailGreeting(): LiveProfile {
+        val userId = requireNotNull(currentUserId()) { "Not signed in" }
+        val current = loadMyProfile()
+        val oldPath = current?.voicemailGreetingPath
+
+        val updated = client.from("profiles")
+            .update({
+                set("voicemail_greeting_mode", "default")
+                set("voicemail_greeting_path", null as String?)
+            }) {
+                filter { eq("id", userId) }
+            }
+            .decodeSingle<LiveProfile>()
+
+        if (!oldPath.isNullOrBlank()) {
+            runCatching { client.storage["voicemail"].delete(oldPath) }
+        }
+
+        return updated
+    }
+
+    suspend fun downloadVoicemailAudio(storagePath: String): ByteArray =
+        client.storage["voicemail"].downloadAuthenticated(storagePath)
+
     suspend fun listReceivedVoicemails(): List<LiveVoicemail> {
         val userId = requireNotNull(currentUserId()) { "Not signed in" }
         return client.from("voicemails")
