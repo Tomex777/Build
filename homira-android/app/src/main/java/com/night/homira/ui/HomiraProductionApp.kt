@@ -399,6 +399,7 @@ fun HomiraProductionApp(
     initialContacts: List<LiveContact> = emptyList(),
     liveMode: Boolean = false,
     requestedCallId: String? = null,
+    requestedAnswerCall: Boolean = false,
     onSignedOut: () -> Unit = {}
 ) {
     HomiraTheme {
@@ -783,7 +784,8 @@ fun HomiraProductionApp(
         LaunchedEffect(
             liveMode,
             appContacts,
-            requestedCallId
+            requestedCallId,
+            requestedAnswerCall
         ) {
             if (!liveMode) return@LaunchedEffect
 
@@ -1309,6 +1311,27 @@ fun HomiraProductionApp(
                     notificationsEnabled = localSettings.callNotifications,
                     ringtoneUri = localSettings.ringtoneUri
                 )
+
+                if (requestedAnswerCall && requestedCallId == it.id) {
+                    pendingIncomingAccept = true
+
+                    val needsMicrophone = !micPermissionGranted
+                    val needsCamera =
+                        it.mediaType == "video" && !cameraPermissionGranted
+
+                    if (needsMicrophone || needsCamera) {
+                        callPermissionLauncher.launch(
+                            buildList {
+                                if (needsMicrophone) {
+                                    add(Manifest.permission.RECORD_AUDIO)
+                                }
+                                if (needsCamera) {
+                                    add(Manifest.permission.CAMERA)
+                                }
+                            }.toTypedArray()
+                        )
+                    }
+                }
             }
 
             liveRepository.observeIncomingCallChanges().collect { session ->

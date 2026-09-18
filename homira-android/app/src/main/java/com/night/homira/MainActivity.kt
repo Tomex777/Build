@@ -11,17 +11,23 @@ import com.night.homira.ui.HomiraAuthGate
 
 class MainActivity : ComponentActivity() {
     private val requestedCallId = mutableStateOf<String?>(null)
+    private val requestedAnswerCall = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestedCallId.value = intent?.getStringExtra(
             HomiraIncomingCallNotifier.EXTRA_CALL_ID
         )
+        requestedAnswerCall.value = intent?.getBooleanExtra(
+            HomiraIncomingCallNotifier.EXTRA_ANSWER_CALL,
+            false
+        ) ?: false
 
         enableEdgeToEdge()
         setContent {
             HomiraAuthGate(
-                requestedCallId = requestedCallId.value
+                requestedCallId = requestedCallId.value,
+                requestedAnswerCall = requestedAnswerCall.value
             )
         }
     }
@@ -31,6 +37,10 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         requestedCallId.value = intent.getStringExtra(
             HomiraIncomingCallNotifier.EXTRA_CALL_ID
+        )
+        requestedAnswerCall.value = intent.getBooleanExtra(
+            HomiraIncomingCallNotifier.EXTRA_ANSWER_CALL,
+            false
         )
     }
 }

@@ -75,6 +75,21 @@ class HomiraIncomingCallNotifier(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val answerIntent = Intent(appContext, MainActivity::class.java).apply {
+            flags =
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(EXTRA_CALL_ID, callId)
+            putExtra(EXTRA_ANSWER_CALL, true)
+        }
+        val answerPendingIntent = PendingIntent.getActivity(
+            appContext,
+            requestBase + 3,
+            answerIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val declineIntent = Intent(
             appContext,
             HomiraCallActionReceiver::class.java
@@ -116,7 +131,7 @@ class HomiraIncomingCallNotifier(
                 Notification.CallStyle.forIncomingCall(
                     caller,
                     declinePendingIntent,
-                    openPendingIntent
+                    answerPendingIntent
                 )
             )
             .apply {
@@ -259,6 +274,7 @@ class HomiraIncomingCallNotifier(
         const val ACTION_DECLINE = "com.night.homira.action.DECLINE_CALL"
         const val ACTION_HANG_UP = "com.night.homira.action.HANG_UP_CALL"
         const val EXTRA_CALL_ID = "homira_call_id"
+        const val EXTRA_ANSWER_CALL = "homira_answer_call"
 
         private const val CHANNEL_INCOMING_CALLS = "homira_incoming_calls_v2"
         private const val NOTIFICATION_TAG = "homira_call"
