@@ -68,6 +68,12 @@ class SessionStore(context: Context) {
 
     fun rememberAnimeHost(host: String) {
         if (host.isBlank()) return
+
+        // Once a browser verification has produced a cf_clearance cookie, keep that
+        // cookie bound to the exact AnimePahe origin it came from. A fallback search
+        // succeeding on another mirror must not silently re-label the saved cookie.
+        if (animeCookie().isNotBlank() && animeHost().isNotBlank()) return
+
         prefs.edit().putString(KEY_ANIME_HOST, host).apply()
     }
 
