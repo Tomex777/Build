@@ -159,7 +159,9 @@ Deno.serve(async (req: Request) => {
 
   const { data: call, error: callError } = await admin
     .from("call_sessions")
-    .select("id,caller_id,callee_id,media_type,state,expires_at")
+    .select(
+      "id,caller_id,callee_id,media_type,state,expires_at",
+    )
     .eq("id", callId)
     .maybeSingle();
 
@@ -192,7 +194,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: tokens, error: tokenError } = await admin
     .from("device_push_tokens")
-    .select("device_id,platform,token")
+    .select("user_id,device_id,platform,token")
     .eq("user_id", call.callee_id)
     .eq("platform", "android");
 
@@ -273,6 +275,7 @@ Deno.serve(async (req: Request) => {
 
     if (
       errorText.includes("UNREGISTERED") ||
+      errorText.includes("NOT_FOUND") ||
       errorText.includes("registration-token-not-registered")
     ) {
       await admin
