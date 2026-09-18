@@ -1022,6 +1022,38 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
             }
         }
 
+        LaunchedEffect(
+            liveMode,
+            incomingSession?.id,
+            incomingSession?.state
+        ) {
+            if (!liveMode) return@LaunchedEffect
+
+            val session = incomingSession ?: return@LaunchedEffect
+            if (session.state != "ringing") return@LaunchedEffect
+
+            delay(30_000)
+
+            val current = incomingSession
+            if (
+                current?.id == session.id &&
+                current.state == "ringing"
+            ) {
+                runCatching {
+                    liveRepository.setCallState(session.id, "missed")
+                }.onSuccess { missed ->
+                    incomingCallNotifier.cancel(missed.id)
+                    callHistoryStore.markTerminal(
+                        missed.id,
+                        HomiraCallHistoryStore.OUTCOME_MISSED
+                    )
+                    localCallHistory = callHistoryStore.listRecent()
+                    incomingSession = null
+                    incomingPerson = null
+                }
+            }
+        }
+
         LaunchedEffect(liveMode, activeSession?.id) {
             if (!liveMode) return@LaunchedEffect
             val callId = activeSession?.id ?: return@LaunchedEffect
