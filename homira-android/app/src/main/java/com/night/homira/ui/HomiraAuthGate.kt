@@ -1,5 +1,6 @@
 package com.night.homira.ui
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +40,35 @@ private enum class LiveGateState {
     Loading,
     SignedOut,
     SignedIn
+}
+
+private fun friendlyAuthError(error: Throwable): String {
+    val message = error.message.orEmpty().lowercase()
+
+    return when {
+        "phone_provider_disabled" in message ||
+            "unsupported phone provider" in message ->
+            "Phone sign-in is not available yet."
+
+        "rate limit" in message ||
+            "too many requests" in message ||
+            "over_request_rate_limit" in message ->
+            "Too many attempts. Wait a moment and try again."
+
+        "invalid" in message && ("otp" in message || "token" in message) ->
+            "That code is invalid or has expired."
+
+        "expired" in message && ("otp" in message || "token" in message) ->
+            "That code has expired. Request a new one."
+
+        "timeout" in message ||
+            "unable to resolve host" in message ||
+            "network" in message ||
+            "connect" in message ->
+            "Couldn't connect. Check your internet connection and try again."
+
+        else -> "Could not continue. Try again."
+    }
 }
 
 @Composable
@@ -180,7 +210,8 @@ private fun PhoneOtpScreen(
                                     onSignedIn()
                                 }
                             }.onFailure {
-                                error = it.message ?: "Could not continue. Try again."
+                                Log.e("HomiraAuth", "Phone authentication failed", it)
+                                error = friendlyAuthError(it)
                             }
                             busy = false
                         }
