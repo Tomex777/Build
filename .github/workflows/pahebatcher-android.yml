@@ -70,21 +70,46 @@ jobs:
           cat /tmp/tor-ip.json
 
           live_animepahe=false
-          for attempt in $(seq 1 6); do
-            body="$(curl -sS --max-time 20 -x http://127.0.0.1:8118 'https://animepahe.pw/api?m=search&q=bleach' || true)"
-            if printf '%s' "$body" | grep -q '"data"'; then
-              live_animepahe=true
-              echo "AnimePahe JSON reachable through Tor on attempt $attempt"
-              break
-            fi
+          live_animepahe_host=""
+          ua='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36'
 
-            python3 -c 'import socket; s=socket.create_connection(("127.0.0.1",9051),timeout=5); s.sendall(b"AUTHENTICATE\\r\\nSIGNAL NEWNYM\\r\\nQUIT\\r\\n"); s.recv(4096); s.close()' || true
+          for attempt in $(seq 1 8); do
+            exit_json="$(curl -sS --max-time 15 --socks5-hostname 127.0.0.1:9050 https://check.torproject.org/api/ip || true)"
+            echo "Tor circuit $attempt: $exit_json"
+
+            for host in animepahe.pw animepahe.com animepahe.org; do
+              body="$(curl -sS --compressed --max-time 25 --socks5-hostname 127.0.0.1:9050 \
+                -A "$ua" \
+                -H 'Accept: application/json,text/plain,*/*' \
+                -H 'Accept-Language: en-US,en;q=0.9' \
+                -H "Referer: https://$host/" \
+                "https://$host/api?m=search&q=bleach" || true)"
+              if printf '%s' "$body" | grep -q '"data"'; then
+                live_animepahe=true
+                live_animepahe_host="$host"
+                echo "AnimePahe JSON reachable through Tor on circuit $attempt via $host"
+                break 2
+              fi
+              echo "$host challenged/rejected circuit $attempt"
+            done
+
+            python3 - <<'PY' || true
+import socket
+s = socket.create_connection(("127.0.0.1", 9051), timeout=5)
+s.sendall(b"AUTHENTICATE\r\n")
+s.recv(4096)
+s.sendall(b"SIGNAL NEWNYM\r\n")
+s.recv(4096)
+s.sendall(b"QUIT\r\n")
+s.close()
+PY
             sleep 11
           done
 
           echo "live_animepahe=$live_animepahe" >> "$GITHUB_OUTPUT"
+          echo "live_animepahe_host=$live_animepahe_host" >> "$GITHUB_OUTPUT"
           if [ "$live_animepahe" != "true" ]; then
-            echo "AnimePahe challenged all sampled Tor exits; live catalog test will be skipped."
+            echo "AnimePahe challenged all sampled Tor circuits/domains; live catalog test will be skipped."
           fi
 
       - name: Build debug APK
