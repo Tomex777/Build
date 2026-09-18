@@ -121,7 +121,7 @@ private fun DiagnosticsScreen(vm: DiagnosticViewModel) {
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Text(
-            text = "Pahe Diagnostics",
+            text = "Pahe Trace",
             fontSize = 30.sp,
             color = TextMain,
         )
