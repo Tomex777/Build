@@ -36,6 +36,7 @@ class ChatPreviewActivity : ComponentActivity() {
                     onAttachmentClick = {},
                     onCameraClick = {},
                     onMicClick = {},
+                    autoScrollToLatest = false,
                 )
             }
         }
