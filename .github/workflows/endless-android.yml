@@ -22,10 +22,45 @@ jobs:
           mkdir -p /tmp/endless-src
           cat endless_parts/part*.b64 | tr -d '\n\r ' | base64 --decode > /tmp/endless.zip
           unzip -q /tmp/endless.zip -d /tmp/endless-src
-          test -f /tmp/endless-src/Endless_Android_M1/settings.gradle.kts
           ENDLESS_PROJECT=/tmp/endless-src/Endless_Android_M1
-          sed -i 's/compileSdk = 37/compileSdk = 36/' "$ENDLESS_PROJECT/app/build.gradle.kts"
-          sed -i 's/targetSdk = 37/targetSdk = 36/' "$ENDLESS_PROJECT/app/build.gradle.kts"
+          test -f "$ENDLESS_PROJECT/settings.gradle.kts"
+          cat > "$ENDLESS_PROJECT/app/build.gradle.kts" <<'EOF'
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.plugin.compose")
+          }
+
+          android {
+              namespace = "com.night.endless"
+              compileSdk = 36
+
+              defaultConfig {
+                  applicationId = "com.night.endless"
+                  minSdk = 26
+                  targetSdk = 36
+                  versionCode = 1
+                  versionName = "0.1.0-m1"
+              }
+
+              buildFeatures {
+                  compose = true
+              }
+
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+          }
+
+          dependencies {
+              implementation("androidx.activity:activity-compose:1.13.0")
+              implementation("androidx.compose.ui:ui:1.11.4")
+              implementation("androidx.compose.ui:ui-tooling-preview:1.11.4")
+              implementation("androidx.compose.foundation:foundation:1.11.4")
+              implementation("androidx.compose.material3:material3:1.3.2")
+              debugImplementation("androidx.compose.ui:ui-tooling:1.11.4")
+          }
+          EOF
           echo "ENDLESS_PROJECT=$ENDLESS_PROJECT" >> "$GITHUB_ENV"
 
       - name: Set up JDK 17
