@@ -7,7 +7,8 @@ import androidx.activity.enableEdgeToEdge
 import com.night.extensionchat.ui.ExtensionChatApp
 import com.night.extensionchat.ui.ExtensionChatTheme
 
-// Visual validation build target.\nclass MainActivity : ComponentActivity() {
+// Visual validation build target.
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
