@@ -1,0 +1,208 @@
+name: Original WhatsApp Clone Preview
+
+on:
+  push:
+    branches:
+      - whatsapp-clone-preview-ci
+    paths:
+      - ".github/workflows/whatsapp-clone-preview.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout preview branch
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Clone original WhatsApp clone
+        run: |
+          rm -rf /tmp/wa-source /tmp/wa-home /tmp/wa-chat
+          git clone --depth=1 https://github.com/Muhammad-bilal-503/WhatsApp-Clone.git /tmp/wa-source
+          cp -a /tmp/wa-source /tmp/wa-home
+          cp -a /tmp/wa-source /tmp/wa-chat
+
+      - name: Add throwaway Firebase config for build only
+        run: |
+          for DIR in /tmp/wa-home /tmp/wa-chat; do
+            cat > "$DIR/app/google-services.json" <<'EOF'
+          {
+            "project_info": {
+              "project_number": "123456789012",
+              "firebase_url": "https://whatsapp-clone-preview-default-rtdb.firebaseio.com",
+              "project_id": "whatsapp-clone-preview",
+              "storage_bucket": "whatsapp-clone-preview.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:123456789012:android:0123456789abcdef012345",
+                  "android_client_info": {
+                    "package_name": "com.example.whatsapp"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyDUMMYKEYFORLOCALUIPREVIEWONLY12345"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+          done
+
+      - name: Patch startup only for Home preview
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("/tmp/wa-home/app/src/main/java/com/example/whatsapp/presentation/navigation/WhatsAppNavigtionSystem.kt")
+          s = p.read_text()
+          old = "NavHost(startDestination = Routes.SplashScreen.route, navController = navController )"
+          new = "NavHost(startDestination = Routes.HomeScreen.route, navController = navController )"
+          if old not in s:
+              raise SystemExit("Home startDestination pattern not found")
+          p.write_text(s.replace(old, new, 1))
+          PY
+
+      - name: Patch startup and fixture data only for Chat preview
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          nav = Path("/tmp/wa-chat/app/src/main/java/com/example/whatsapp/presentation/navigation/WhatsAppNavigtionSystem.kt")
+          s = nav.read_text()
+          old = "NavHost(startDestination = Routes.SplashScreen.route, navController = navController )"
+          new = 'NavHost(startDestination = Routes.ChatScreen.createRoute("+1234567890"), navController = navController )'
+          if old not in s:
+              raise SystemExit("Chat startDestination pattern not found")
+          nav.write_text(s.replace(old, new, 1))
+
+          chat = Path("/tmp/wa-chat/app/src/main/java/com/example/whatsapp/presentation/chatscreen/ChatScreen.kt")
+          s = chat.read_text()
+
+          old_messages = 'var messages by remember { mutableStateOf<List<Pair<String, Message>>>(emptyList()) }'
+          new_messages = '''var messages by remember {
+              mutableStateOf(
+                  listOf(
+                      "preview-1" to Message(
+                          senderPhoneNumber = "+1234567890",
+                          message = "Hey! How are you?",
+                          timestamp = System.currentTimeMillis() - 120000
+                      ),
+                      "preview-2" to Message(
+                          senderPhoneNumber = "demo_user",
+                          message = "I'm good 😂 This chat UI is actually clean.",
+                          timestamp = System.currentTimeMillis() - 65000
+                      ),
+                      "preview-3" to Message(
+                          senderPhoneNumber = "+1234567890",
+                          message = "Yeah, let's build on top of this.",
+                          timestamp = System.currentTimeMillis() - 20000
+                      )
+                  )
+              )
+          }'''
+          if old_messages not in s:
+              raise SystemExit("messages fixture pattern not found")
+          s = s.replace(old_messages, new_messages, 1)
+
+          old_block = '''    // Fetch all messages (simplified - works even without real phone numbers)
+              LaunchedEffect(phoneNumber, currentUserPhone) {
+                  if (phoneNumber.isNotEmpty()) {
+                      val senderPhone = if (currentUserPhone.isNotEmpty()) currentUserPhone else "demo_user"
+                      baseViewModel.getAllMessages(senderPhone, phoneNumber) { messageList ->
+                          messages = messageList
+                      }
+                  }
+              }'''
+          if old_block in s:
+              s = s.replace(old_block, '''    // Preview build: keep fixture messages visible. Original UI code is unchanged below.''', 1)
+          else:
+              # Fallback: remove the exact LaunchedEffect block by anchors.
+              start = s.find("    // Fetch all messages")
+              end = s.find("    val coroutineScope", start)
+              if start == -1 or end == -1:
+                  raise SystemExit("message fetch block not found")
+              s = s[:start] + "    // Preview build: keep fixture messages visible.\n\n" + s[end:]
+
+          chat.write_text(s)
+          PY
+
+      - name: Build original Home APK
+        working-directory: /tmp/wa-home
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/whatsapp-clone-home-build.log"
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/original-whatsapp-clone-home.apk"
+
+      - name: Build original Chat APK
+        working-directory: /tmp/wa-chat
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/whatsapp-clone-chat-build.log"
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/original-whatsapp-clone-chat.apk"
+
+      - name: Boot emulator and capture original UI
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            mkdir -p whatsapp-clone-preview
+            adb shell cmd uimode night no || true
+
+            adb install -r original-whatsapp-clone-home.apk
+            adb shell am force-stop com.example.whatsapp
+            adb shell am start -W -n com.example.whatsapp/.MainActivity
+            sleep 5
+            adb exec-out screencap -p > whatsapp-clone-preview/original-home.png
+
+            adb install -r original-whatsapp-clone-chat.apk
+            adb shell am force-stop com.example.whatsapp
+            adb shell am start -W -n com.example.whatsapp/.MainActivity
+            sleep 5
+            adb exec-out screencap -p > whatsapp-clone-preview/original-chat.png
+
+      - name: Commit screenshots to preview branch
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add whatsapp-clone-preview || true
+          git diff --cached --quiet && exit 0
+          git commit -m "Add original WhatsApp clone emulator screenshots"
+          git push origin HEAD:whatsapp-clone-preview-ci
+
+      - name: Upload preview artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: original-whatsapp-clone-preview
+          path: |
+            whatsapp-clone-preview/*.png
+            original-whatsapp-clone-home.apk
+            original-whatsapp-clone-chat.apk
+            whatsapp-clone-*-build.log
+          if-no-files-found: warn
