@@ -27,8 +27,8 @@ jobs:
           sudo systemctl restart tor || sudo service tor restart
 
           ready=false
-          for i in $(seq 1 12); do
-            if curl -fsS --connect-timeout 4 --max-time 8 --socks5-hostname 127.0.0.1:9050 https://check.torproject.org/api/ip > tor-check.json; then
+          for i in $(seq 1 6); do
+            if curl -fsS --connect-timeout 3 --max-time 5 --socks5-hostname 127.0.0.1:9050 https://check.torproject.org/api/ip > tor-check.json; then
               ready=true
               break
             fi
