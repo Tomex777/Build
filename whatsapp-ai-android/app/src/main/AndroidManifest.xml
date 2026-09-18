@@ -16,6 +16,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Whatsapp">
         <activity
+            android:name=".ChatPreviewActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Whatsapp" />
+        <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
