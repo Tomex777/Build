@@ -30,7 +30,7 @@ jobs:
       - name: Prepare diagnostics
         run: |
           mkdir -p extension-chat-preview
-          echo "workflow started" > extension-chat-preview/status.txt
+          echo "sha=$GITHUB_SHA stage=workflow-started" > extension-chat-preview/status.txt
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -39,19 +39,23 @@ jobs:
           java-version: "17"
 
       - name: Mark JDK ready
-        run: echo "jdk ready" > extension-chat-preview/status.txt
+        run: echo "sha=$GITHUB_SHA stage=jdk-ready" > extension-chat-preview/status.txt
 
       - name: Verify preinstalled Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
-          which sdkmanager
-          sdkmanager --version
-          echo "android sdk ready" > extension-chat-preview/status.txt
+          SDKMANAGER="$(find "$ANDROID_HOME" -type f -name sdkmanager | head -n 1)"
+          echo "SDKMANAGER=$SDKMANAGER"
+          test -n "$SDKMANAGER"
+          "$SDKMANAGER" --version
+          echo "sha=$GITHUB_SHA stage=android-sdk-ready" > extension-chat-preview/status.txt
+          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
 
       - name: Install compile SDK
         run: |
-          sdkmanager "platforms;android-37" "build-tools;36.0.0"
-          echo "compile sdk ready" > extension-chat-preview/status.txt
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-37" "build-tools;36.0.0"
+          echo "sha=$GITHUB_SHA stage=compile-sdk-ready" > extension-chat-preview/status.txt
 
       - name: Set up Gradle 9.6
         uses: gradle/actions/setup-gradle@v4
@@ -59,14 +63,14 @@ jobs:
           gradle-version: "9.6.0"
 
       - name: Mark Gradle ready
-        run: echo "gradle ready" > extension-chat-preview/status.txt
+        run: echo "sha=$GITHUB_SHA stage=gradle-ready" > extension-chat-preview/status.txt
 
       - name: Build debug APK
         id: build
         run: |
           set -o pipefail
           gradle -p extension-chat-android :app:assembleDebug --stacktrace 2>&1 | tee extension-chat-preview/build.log
-          echo "build succeeded" > extension-chat-preview/status.txt
+          echo "sha=$GITHUB_SHA stage=build-succeeded" > extension-chat-preview/status.txt
 
       - name: Boot emulator and capture UI
         if: steps.build.outcome == 'success'
@@ -83,7 +87,7 @@ jobs:
             adb shell am start -W -n com.night.extensionchat/.MainActivity
             sleep 4
             adb exec-out screencap -p > extension-chat-preview/chat-screen.png
-            echo "emulator screenshot captured" > extension-chat-preview/status.txt
+            echo "sha=$GITHUB_SHA stage=screenshot-captured" > extension-chat-preview/status.txt
 
       - name: Commit preview diagnostics
         if: always() && github.event_name == 'push'
