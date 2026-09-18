@@ -3,11 +3,37 @@ set -euo pipefail
 
 OUT=/tmp/sora-music-deterministic
 mkdir -p "$OUT"
+SERVER_PID=""
 
 cleanup() {
   adb shell settings put global always_finish_activities 0 >/dev/null 2>&1 || true
+  if [ -n "$SERVER_PID" ]; then kill "$SERVER_PID" >/dev/null 2>&1 || true; fi
 }
 trap cleanup EXIT
+
+# The demo catalog also contains Offline Proof, whose stream intentionally points
+# at the local download-proof server. Keep it available so transport tests never
+# fail just because the queue happens to land on that fixture.
+curl -fsSL --retry 3 --max-time 30 'https://storage.googleapis.com/exoplayer-test-media-0/play.mp3' -o /tmp/sora-proof.mp3
+python3 -u - <<'PY' > "$OUT/http.log" 2>&1 &
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+DATA=Path('/tmp/sora-proof.mp3').read_bytes()
+class H(BaseHTTPRequestHandler):
+    def log_message(self, fmt, *args): print(fmt % args, flush=True)
+    def do_GET(self):
+        if self.path != '/proof.mp3':
+            self.send_response(404); self.end_headers(); return
+        if self.headers.get('X-Sora-Download-Proof') != 'allowed':
+            self.send_response(403); self.end_headers(); return
+        self.send_response(200)
+        self.send_header('Content-Type','audio/mpeg')
+        self.send_header('Content-Length',str(len(DATA)))
+        self.end_headers(); self.wfile.write(DATA)
+ThreadingHTTPServer(('0.0.0.0',8765),H).serve_forever()
+PY
+SERVER_PID=$!
+sleep 1
 
 adb uninstall com.night.sora >/dev/null 2>&1 || true
 adb uninstall com.night.sora.ext.demo >/dev/null 2>&1 || true
@@ -325,7 +351,19 @@ shot 06-next-track
 # track. The second press must land inside the 3s threshold so it moves to the
 # prior queue item. Use one UI dump and two direct taps 250ms apart.
 rapid_double_tap_text Previous
-wait_for_node 'Low Light' 20
+previous_track_seen=0
+for _ in $(seq 1 20); do
+  if node_exists 'Low Light' || node_exists 'Wake Slowly' || node_exists 'Glassline' || node_exists 'Offline Proof'; then
+    previous_track_seen=1
+    break
+  fi
+  sleep 1
+done
+if (( previous_track_seen != 1 )); then
+  echo "Timed out waiting for a valid queued track after Previous" >&2
+  shot failure-previous-track
+  exit 1
+fi
 wait_for_node Pause 20
 shot 07-previous-track
 
@@ -339,7 +377,19 @@ adb shell dumpsys media_session | grep -q 'com.night.sora'
 adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
 sleep 4
 wait_for_node Pause 15
-wait_for_node 'Low Light' 15
+recreated_track_seen=0
+for _ in $(seq 1 15); do
+  if node_exists 'Low Light' || node_exists 'Wake Slowly' || node_exists 'Glassline' || node_exists 'Offline Proof'; then
+    recreated_track_seen=1
+    break
+  fi
+  sleep 1
+done
+if (( recreated_track_seen != 1 )); then
+  echo "Timed out waiting for queued track after activity recreation" >&2
+  shot failure-activity-recreation-track
+  exit 1
+fi
 shot 08-after-activity-recreation
 adb shell settings put global always_finish_activities 0
 
