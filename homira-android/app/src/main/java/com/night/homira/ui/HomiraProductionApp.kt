@@ -931,6 +931,12 @@ fun HomiraProductionApp(
                 runCatching {
                     liveRepository.startCall(calleeId = person.id, video = video)
                 }.onSuccess { session ->
+                    liveScope.launch {
+                        runCatching {
+                            liveRepository.requestIncomingCallPush(session.id)
+                        }
+                    }
+
                     callHistoryStore.recordRinging(
                         id = session.id,
                         peerUserId = person.id,
