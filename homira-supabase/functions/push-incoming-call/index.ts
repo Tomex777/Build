@@ -245,7 +245,7 @@ Deno.serve(async (req: Request) => {
         },
         body: JSON.stringify({
           message: {
-            token: row.token,
+            fid: row.token,
             data: {
               type: "incoming_call",
               call_id: call.id,
