@@ -1,1 +1,1 @@
-run 6 - capture Aniyomi mpv native crash diagnostics
+run 7 - repaired mpv native crash diagnostic workflow
