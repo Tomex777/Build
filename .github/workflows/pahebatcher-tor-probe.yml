@@ -5,6 +5,7 @@ on:
     branches: [pahebatcher-android-ci]
     paths:
       - 'pahebatcher-android/ci/tor_endpoint_probe.py'
+      - 'pahebatcher-android/ci/tor_browser_probe.py'
       - '.github/workflows/pahebatcher-tor-probe.yml'
   workflow_dispatch:
 
@@ -21,6 +22,8 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y tor
           echo 'SocksPort 9050 IsolateSOCKSAuth' | sudo tee -a /etc/tor/torrc
+          echo 'ControlPort 9051' | sudo tee -a /etc/tor/torrc
+          echo 'CookieAuthentication 0' | sudo tee -a /etc/tor/torrc
           sudo systemctl restart tor || sudo service tor restart
 
           ready=false
@@ -39,6 +42,48 @@ jobs:
           python3 -m pip install --disable-pip-version-check --quiet 'curl-cffi>=0.13,<0.14'
           TOR_PROBE_CIRCUITS=12 python3 pahebatcher-android/ci/tor_endpoint_probe.py
 
+      - name: Probe with real Chrome over Tor
+        if: always()
+        run: |
+          google-chrome --version || chromium --version || true
+          chromedriver --version || true
+          python3 -m pip install --disable-pip-version-check --quiet 'selenium>=4.36,<5'
+          python3 pahebatcher-android/ci/tor_browser_probe.py
+
+      - name: Show browser probe summary
+        if: always()
+        run: |
+          if [ -f tor-browser-probe/browser-report.json ]; then
+            python3 - <<'PY'
+          import json
+          d=json.load(open('tor-browser-probe/browser-report.json'))
+          print(json.dumps({
+              'tor_confirmed': d.get('tor_confirmed'),
+              'success': d.get('success'),
+              'successful_host': d.get('successful_host'),
+              'attempts': [
+                  {
+                      'attempt': a.get('attempt'),
+                      'tor_confirmed': a.get('tor_confirmed'),
+                      'tor_ip': a.get('tor_ip'),
+                      'hosts': [
+                          {
+                              'host': h.get('host'),
+                              'root': h.get('root_classification'),
+                              'search': h.get('search_classification'),
+                              'release': h.get('release_classification'),
+                              'play': h.get('play_classification'),
+                              'kwik': h.get('kwik_classification'),
+                          }
+                          for h in a.get('hosts', [])
+                      ],
+                  }
+                  for a in d.get('attempts', [])
+              ],
+          }, indent=2))
+          PY
+          fi
+
       - name: Show endpoint summary
         if: always()
         run: |
@@ -54,4 +99,5 @@ jobs:
           path: |
             tor-check.json
             tor-probe/**
+            tor-browser-probe/**
           if-no-files-found: warn
