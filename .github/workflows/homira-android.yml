@@ -1,7 +1,7 @@
 name: Homira Android
 
 concurrency:
-  group: homira-android-${{ github.ref }}
+  group: homira-android-live-${{ github.ref }}
   cancel-in-progress: true
 
 on:
