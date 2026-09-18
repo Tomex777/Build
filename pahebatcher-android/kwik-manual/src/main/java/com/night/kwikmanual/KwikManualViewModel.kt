@@ -28,11 +28,11 @@ class KwikManualViewModel(application: Application) : AndroidViewModel(applicati
     var session by mutableStateOf(store.snapshot())
         private set
 
-    fun setKwikUrl(value: String) {
+    fun updateKwikUrl(value: String) {
         kwikUrl = value
     }
 
-    fun setReferer(value: String) {
+    fun updateReferer(value: String) {
         referer = value
     }
 
