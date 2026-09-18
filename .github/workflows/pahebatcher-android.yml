@@ -49,7 +49,7 @@ jobs:
 
       - name: Verify Tor stays CI-only
         run: |
-          if grep -R -E -i 'torproject|orbot|socks5|127\.0\.0\.1:9050|10\.0\.2\.2:8118' pahebatcher-android/app; then
+          if grep -R -E -i 'torproject|orbot|socks5|127\.0\.0\.1:9050|10\.0\.2\.2:8118' pahebatcher-android/app pahebatcher-android/diagnostics; then
             echo "Tor/proxy plumbing found inside Android app or diagnostics source" >&2
             exit 1
           fi
