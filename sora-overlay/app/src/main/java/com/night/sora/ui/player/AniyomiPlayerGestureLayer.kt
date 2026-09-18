@@ -41,6 +41,7 @@ fun AniyomiPlayerGestureLayer(
     durationMs: Long,
     positionMs: Long,
     locked: Boolean,
+    playbackSpeed: Float,
     onToggleControls: () -> Unit,
     onSeekPreview: (Long?) -> Unit,
     modifier: Modifier = Modifier,
@@ -76,7 +77,7 @@ fun AniyomiPlayerGestureLayer(
                     },
                     onPress = {
                         tryAwaitRelease()
-                        if (!locked) player?.setSpeed(1f)
+                        if (!locked) player?.setSpeed(playbackSpeed)
                     },
                 )
             }
@@ -111,6 +112,7 @@ fun AniyomiPlayerGestureLayer(
                 var startBrightness = activity?.window?.attributes?.screenBrightness
                     ?.takeIf { it >= 0f } ?: 0.5f
                 var startVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                var brightnessGesture = false
 
                 detectVerticalDragGestures(
                     onDragStart = { offset ->
@@ -118,14 +120,14 @@ fun AniyomiPlayerGestureLayer(
                         startBrightness = activity?.window?.attributes?.screenBrightness
                             ?.takeIf { it >= 0f } ?: 0.5f
                         startVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                        verticalGestureIsBrightness = offset.x > size.width / 2f
+                        brightnessGesture = offset.x > size.width / 2f
                     },
                 ) { change, amount ->
                     change.consume()
                     accumulated += amount
                     val fraction = (-accumulated / size.height).coerceIn(-1f, 1f)
 
-                    if (verticalGestureIsBrightness) {
+                    if (brightnessGesture) {
                         activity?.window?.let { window ->
                             val attrs = window.attributes
                             attrs.screenBrightness = (startBrightness + fraction).coerceIn(0.02f, 1f)
@@ -141,7 +143,6 @@ fun AniyomiPlayerGestureLayer(
     )
 }
 
-private var verticalGestureIsBrightness = false
 
 private fun horizontalSeekDelta(dragPx: Float, widthPx: Int, durationMs: Long): Long {
     if (widthPx <= 0) return 0L
