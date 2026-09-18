@@ -154,6 +154,23 @@ wait_for_catalog_state() {
   return 1
 }
 
+ensure_player_control() {
+  local label="$1" timeout="${2:-25}" elapsed=0
+  while (( elapsed < timeout )); do
+    dismiss_emulator_system_dialogs
+    if node_exists "$label"; then
+      echo "Found player control '$label' after ${elapsed}s"
+      return 0
+    fi
+    adb shell input tap 540 1200 || true
+    sleep 1
+    elapsed=$((elapsed+1))
+  done
+  echo "Timed out waiting for player control '$label'" >&2
+  shot "failure-player-${label//[^A-Za-z0-9]/_}"
+  return 1
+}
+
 tap_text() {
   local label="$1" timeout="${2:-12}" elapsed=0
   while (( elapsed < timeout )); do
@@ -292,7 +309,7 @@ wait_for_node 'Episode 1' 25
 shot 02-anime-demo-source
 
 tap_text 'Episode 1'
-wait_for_node 'Demo Anime' 25
+ensure_player_control 'Demo Anime' 25
 shot 03-anime-player
 sleep 6
 assert_progress_identity ANIME 1000 '-e1' demo.anime > /tmp/anime-position.txt
@@ -307,7 +324,7 @@ wait_for_node 'Close search' 15
 tap_text 'Close search'
 wait_for_node 'Continue watching' 25
 tap_text_below 'Continue watching' Naruto
-wait_for_node 'Demo Anime' 25
+ensure_player_control 'Demo Anime' 25
 sleep 3
 assert_progress_identity ANIME "$ANIME_POSITION" '-e1' demo.anime >/dev/null
 shot 04-anime-exact-resume
