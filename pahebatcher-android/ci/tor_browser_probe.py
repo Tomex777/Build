@@ -10,6 +10,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 
@@ -108,8 +109,11 @@ for attempt in range(1, ATTEMPTS + 1):
     report["attempts"].append(attempt_row)
 
     try:
-        driver.get("https://check.torproject.org/api/ip")
-        time.sleep(2)
+        attempt_row["tor_navigation_error"] = navigate(
+            driver,
+            "https://check.torproject.org/api/ip",
+            2,
+        )
         tor_text = body_text(driver)
         attempt_row["tor_check"] = tor_text[:500]
         tor_data = parse_json_text(tor_text) or {}
@@ -123,8 +127,7 @@ for attempt in range(1, ATTEMPTS + 1):
             attempt_row["hosts"].append(row)
             base = f"https://{host}/"
 
-            driver.get(base)
-            time.sleep(8)
+            row["root_navigation_error"] = navigate(driver, base, 8)
             row["root_title"] = driver.title
             row["root_url"] = driver.current_url
             row["root_classification"] = classify(driver)
@@ -136,8 +139,7 @@ for attempt in range(1, ATTEMPTS + 1):
                 continue
 
             search_url = f"https://{host}/api?m=search&q=bleach"
-            driver.get(search_url)
-            time.sleep(5)
+            row["search_navigation_error"] = navigate(driver, search_url, 5)
             search_text = body_text(driver)
             row["search_url"] = driver.current_url
             row["search_classification"] = classify(driver)
@@ -168,8 +170,7 @@ for attempt in range(1, ATTEMPTS + 1):
             row["anime_session"] = anime_session
 
             release_url = f"https://{host}/api?m=release&id={anime_session}&sort=episode_asc&page=1"
-            driver.get(release_url)
-            time.sleep(5)
+            row["release_navigation_error"] = navigate(driver, release_url, 5)
             release_text = body_text(driver)
             row["release_classification"] = classify(driver)
             row["release_preview"] = re.sub(r"\s+", " ", release_text)[:400]
@@ -190,8 +191,7 @@ for attempt in range(1, ATTEMPTS + 1):
             row["episode_session"] = episode_session
 
             play_url = f"https://{host}/play/{anime_session}/{episode_session}"
-            driver.get(play_url)
-            time.sleep(7)
+            row["play_navigation_error"] = navigate(driver, play_url, 7)
             play_source = driver.page_source
             row["play_classification"] = classify(driver)
             row["play_preview"] = re.sub(r"\s+", " ", body_text(driver))[:400]
@@ -205,8 +205,7 @@ for attempt in range(1, ATTEMPTS + 1):
             row["kwik_url"] = kwik_url
             row["kwik_host"] = urlparse(kwik_url).hostname
 
-            driver.get(kwik_url)
-            time.sleep(7)
+            row["kwik_navigation_error"] = navigate(driver, kwik_url, 7)
             row["kwik_classification"] = classify(driver)
             row["kwik_preview"] = re.sub(r"\s+", " ", body_text(driver))[:400]
             save_screen(driver, f"attempt-{attempt}-kwik")
