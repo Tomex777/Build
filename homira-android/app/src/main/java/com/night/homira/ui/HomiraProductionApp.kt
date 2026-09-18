@@ -389,14 +389,9 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         LaunchedEffect(liveMode, appContacts) {
             if (!liveMode) return@LaunchedEffect
 
-            val messages = runCatching {
-                liveRepository.listReceivedVoicemails()
-            }.getOrDefault(emptyList())
-
-            liveVoicemails = messages
             val knownPeople = appContacts.associateBy { it.id }
 
-            liveVoicemailEntries = messages.map { voicemail ->
+            suspend fun toRecentEntry(voicemail: LiveVoicemail): CallEntry {
                 val person = knownPeople[voicemail.senderId] ?: run {
                     val profile = liveRepository.loadProfileById(voicemail.senderId)
                     val visibleName = profile?.displayName?.takeIf { it.isNotBlank() }
@@ -414,7 +409,7 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 }
 
                 val (day, time) = voicemailDateParts(voicemail.createdAt)
-                CallEntry(
+                return CallEntry(
                     id = "voicemail-${voicemail.id}",
                     person = person,
                     day = day,
@@ -427,6 +422,36 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                     voicemailId = voicemail.id,
                     voicemailListened = voicemail.listenedAt != null
                 )
+            }
+
+            val messages = runCatching {
+                liveRepository.listReceivedVoicemails()
+            }.getOrDefault(emptyList())
+
+            liveVoicemails = messages
+            liveVoicemailEntries = messages.map { toRecentEntry(it) }
+
+            liveRepository.observeReceivedVoicemailChanges().collect { voicemail ->
+                val existingMessageIndex = liveVoicemails.indexOfFirst { it.id == voicemail.id }
+                liveVoicemails = if (existingMessageIndex >= 0) {
+                    liveVoicemails.toMutableList().apply {
+                        this[existingMessageIndex] = voicemail
+                    }
+                } else {
+                    listOf(voicemail) + liveVoicemails
+                }
+
+                val entry = toRecentEntry(voicemail)
+                val existingEntryIndex =
+                    liveVoicemailEntries.indexOfFirst { it.voicemailId == voicemail.id }
+
+                liveVoicemailEntries = if (existingEntryIndex >= 0) {
+                    liveVoicemailEntries.toMutableList().apply {
+                        this[existingEntryIndex] = entry
+                    }
+                } else {
+                    listOf(entry) + liveVoicemailEntries
+                }
             }
         }
 
