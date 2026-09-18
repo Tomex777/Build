@@ -349,6 +349,7 @@ private fun MiniPlayer(player: MusicPlaybackController, onOpen: () -> Unit) {
                     )
                 }
             }
+            IconButton(onClick = player::skipNext) { Icon(Icons.Rounded.SkipNext, "Next", modifier = Modifier.size(20.dp)) }
         }
     }
 }
