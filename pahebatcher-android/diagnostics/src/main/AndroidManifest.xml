@@ -3,7 +3,7 @@
 
     <application
         android:allowBackup="false"
-        android:label="Pahe Diagnostics"
+        android:label="Pahe Trace"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
         <activity
