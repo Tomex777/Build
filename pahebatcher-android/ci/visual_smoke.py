@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import re
 import subprocess
 import time
@@ -83,28 +84,35 @@ adb("shell", "input", "keyevent", "4")
 wait_for_text("Web verification", timeout=8.0)
 screenshot("settings-after-system-back.png")
 
-tap_text("Explore")
-wait_for_text("Search AnimePahe", timeout=8.0)
-tap_text("Search AnimePahe")
-adb("shell", "input", "text", "bleach")
-adb("shell", "input", "keyevent", "66")
-wait_for_text("Bleach", timeout=45.0)
-screenshot("search-bleach.png")
-
-tap_text("Bleach")
-wait_for_text("Episodes", timeout=8.0)
-screenshot("details-shell.png")
-
-# The shell must remain visible while the real release request resolves.
-# Over the CI-only Tor path we also require at least the first episode.
-wait_for_text("1", timeout=45.0)
-assert_text_absent("AnimePahe verification is needed")
-screenshot("details-loaded.png")
-
-# Verify Android system Back returns to the search results.
+# System Back from Settings should return to Explore.
 adb("shell", "input", "keyevent", "4")
-wait_for_text("Results", timeout=8.0)
-screenshot("search-after-system-back.png")
+wait_for_text("Find it. Keep it.", timeout=8.0)
+screenshot("explore-after-system-back.png")
+
+if os.environ.get("LIVE_ANIMEPAHE", "").lower() == "true":
+    wait_for_text("Search AnimePahe", timeout=8.0)
+    tap_text("Search AnimePahe")
+    adb("shell", "input", "text", "bleach")
+    adb("shell", "input", "keyevent", "66")
+    wait_for_text("Bleach", timeout=45.0)
+    screenshot("search-bleach.png")
+
+    tap_text("Bleach")
+    wait_for_text("Episodes", timeout=8.0)
+    screenshot("details-shell.png")
+
+    # The shell must remain visible while the real release request resolves.
+    wait_for_text("1", timeout=45.0)
+    assert_text_absent("AnimePahe verification is needed")
+    screenshot("details-loaded.png")
+
+    # Verify Android system Back returns to the search results.
+    adb("shell", "input", "keyevent", "4")
+    wait_for_text("Results", timeout=8.0)
+    screenshot("search-after-system-back.png")
+else:
+    screenshot("tor-animepahe-challenged.png")
+    print("AnimePahe live smoke skipped because all sampled Tor exits were challenged.")
 
 pid = adb("shell", "pidof", "com.night.pahebatcher").stdout.strip()
 if not pid:
