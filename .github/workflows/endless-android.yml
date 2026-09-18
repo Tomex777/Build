@@ -23,7 +23,10 @@ jobs:
           cat endless_parts/part*.b64 | tr -d '\n\r ' | base64 --decode > /tmp/endless.zip
           unzip -q /tmp/endless.zip -d /tmp/endless-src
           test -f /tmp/endless-src/Endless_Android_M1/settings.gradle.kts
-          echo "ENDLESS_PROJECT=/tmp/endless-src/Endless_Android_M1" >> "$GITHUB_ENV"
+          ENDLESS_PROJECT=/tmp/endless-src/Endless_Android_M1
+          sed -i 's/compileSdk = 37/compileSdk = 36/' "$ENDLESS_PROJECT/app/build.gradle.kts"
+          sed -i 's/targetSdk = 37/targetSdk = 36/' "$ENDLESS_PROJECT/app/build.gradle.kts"
+          echo "ENDLESS_PROJECT=$ENDLESS_PROJECT" >> "$GITHUB_ENV"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -46,7 +49,7 @@ jobs:
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platform-tools" "platforms;android-37" "build-tools;36.0.0"
+          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Build Endless debug APK
         working-directory: ${{ env.ENDLESS_PROJECT }}
