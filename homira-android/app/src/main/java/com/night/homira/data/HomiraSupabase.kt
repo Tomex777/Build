@@ -89,6 +89,15 @@ private data class NewCallSession(
 )
 
 @Serializable
+private data class DevicePushTokenRow(
+    @SerialName("user_id") val userId: String,
+    @SerialName("device_id") val deviceId: String,
+    val platform: String,
+    val token: String,
+    @SerialName("updated_at") val updatedAt: String = Instant.now().toString()
+)
+
+@Serializable
 data class LiveVoicemail(
     val id: String,
     @SerialName("sender_id") val senderId: String,
@@ -180,6 +189,40 @@ class HomiraLiveRepository {
             )
             .decodeList<LiveContact>()
             .firstOrNull()
+
+    suspend fun registerPushToken(
+        deviceId: String,
+        token: String,
+        platform: String = "android"
+    ) {
+        val userId = requireNotNull(currentUserId()) { "Not signed in" }
+        require(deviceId.isNotBlank()) { "Device ID is required" }
+        require(token.isNotBlank()) { "Push token is required" }
+        require(platform == "android" || platform == "ios") {
+            "Unsupported push platform"
+        }
+
+        client.from("device_push_tokens").insert(
+            DevicePushTokenRow(
+                userId = userId,
+                deviceId = deviceId,
+                platform = platform,
+                token = token
+            ),
+            upsert = true,
+            onConflict = "user_id,device_id"
+        )
+    }
+
+    suspend fun removePushToken(deviceId: String) {
+        val userId = requireNotNull(currentUserId()) { "Not signed in" }
+        client.from("device_push_tokens").delete {
+            filter {
+                eq("user_id", userId)
+                eq("device_id", deviceId)
+            }
+        }
+    }
 
     suspend fun listBlockedUserIds(): Set<String> {
         val userId = requireNotNull(currentUserId()) { "Not signed in" }
