@@ -6,6 +6,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.security.MessageDigest
 
 data class LocalCallHistoryRecord(
     val id: String,
@@ -27,8 +28,14 @@ data class LocalCallHistoryRecord(
         }
 }
 
-class HomiraCallHistoryStore(context: Context) {
-    private val helper = Helper(context.applicationContext)
+class HomiraCallHistoryStore(
+    context: Context,
+    ownerKey: String
+) {
+    private val helper = Helper(
+        context.applicationContext,
+        databaseNameFor(ownerKey)
+    )
 
     suspend fun listRecent(limit: Int = 250): List<LocalCallHistoryRecord> =
         withContext(Dispatchers.IO) {
@@ -229,8 +236,10 @@ class HomiraCallHistoryStore(context: Context) {
             )
         }
 
-    private class Helper(context: Context) :
-        SQLiteOpenHelper(context, DB_NAME, null, DB_VERSION) {
+    private class Helper(
+        context: Context,
+        databaseName: String
+    ) : SQLiteOpenHelper(context, databaseName, null, DB_VERSION) {
 
         override fun onCreate(db: SQLiteDatabase) {
             db.execSQL(
@@ -274,8 +283,17 @@ class HomiraCallHistoryStore(context: Context) {
         const val OUTCOME_CANCELLED = "cancelled"
         const val OUTCOME_FAILED = "failed"
 
-        private const val DB_NAME = "homira_calls.db"
         private const val DB_VERSION = 1
+
+        private fun databaseNameFor(ownerKey: String): String {
+            val normalized = ownerKey.ifBlank { "anonymous" }
+            val digest = MessageDigest
+                .getInstance("SHA-256")
+                .digest(normalized.encodeToByteArray())
+                .take(12)
+                .joinToString("") { byte -> "%02x".format(byte) }
+            return "homira_calls_$digest.db"
+        }
         private const val TABLE = "call_history"
 
         private const val COL_ID = "id"
