@@ -4,6 +4,9 @@ concurrency:
   group: pahebatcher-android-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 on:
   push:
     branches: [pahebatcher-android-ci]
@@ -23,6 +26,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+
+      - name: Publish current run id
+        run: |
+          mkdir -p ci-status
+          printf '%s\n' "$GITHUB_RUN_ID" > ci-status/pahe-diagnostics-latest.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ci-status/pahe-diagnostics-latest.txt
+          git commit -m "Record Pahe diagnostics CI run $GITHUB_RUN_ID" || true
+          git push origin "HEAD:$GITHUB_REF_NAME"
 
       - uses: actions/setup-java@v5
         with:
