@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld("bailey", {
   detectModuleRuntimes: () => ipcRenderer.invoke("bailey:studio-detect-runtimes"),
   exportModulePackage: (moduleId: string) => ipcRenderer.invoke("bailey:studio-export-module", moduleId),
   installModulePackage: () => ipcRenderer.invoke("bailey:studio-install-module"),
+  installModuleDependencies: (moduleId: string) => ipcRenderer.invoke("bailey:studio-install-dependencies", moduleId),
   getModuleRuntimeStatus: () => ipcRenderer.invoke("bailey:module-runtime-status"),
   restartModule: (moduleId: string) => ipcRenderer.invoke("bailey:module-restart", moduleId),
   setModulePermissions: (moduleId: string, grants: string[]) => ipcRenderer.invoke("bailey:module-permissions-set", moduleId, grants),
