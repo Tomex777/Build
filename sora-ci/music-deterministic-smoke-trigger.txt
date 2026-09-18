@@ -1,1 +1,1 @@
-2026-09-18 capture Music Home, Your Music, Now Playing, and Queue screenshots from the emulator.
+2026-09-18 rerun Music UI screenshots with stabilized Media/Music tab navigation.
