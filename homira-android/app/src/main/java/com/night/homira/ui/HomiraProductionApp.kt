@@ -64,6 +64,7 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Phone
 import androidx.compose.material.icons.rounded.PhoneInTalk
 import androidx.compose.material.icons.rounded.PhoneMissed
@@ -124,7 +125,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 private enum class MainTab { Keypad, Recents, Contacts, Me }
-private enum class OverlayScreen { None, Settings, EditProfile, Voicemail }
+private enum class OverlayScreen { None, Settings, EditProfile, Voicemail, AddContact }
 private enum class CallDirection { Incoming, Outgoing, Missed, Declined, Failed }
 private enum class RecentFilter { All, Missed, Voicemail }
 
@@ -194,8 +195,9 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         var avatarUri by rememberSaveable { mutableStateOf<String?>(null) }
         var callCardUri by rememberSaveable { mutableStateOf<String?>(null) }
 
-        val appContacts = remember(initialContacts) {
-            initialContacts.map { contact ->
+        var liveContacts by remember(initialContacts) { mutableStateOf(initialContacts) }
+        val appContacts = remember(liveContacts) {
+            liveContacts.map { contact ->
                 val visibleName = contact.localName?.takeIf { it.isNotBlank() }
                     ?: contact.displayName.takeIf { it.isNotBlank() }
                     ?: contact.username?.takeIf { it.isNotBlank() }
@@ -237,6 +239,18 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
 
             overlay == OverlayScreen.Voicemail -> VoicemailSettingsScreen(
                 onBack = { overlay = OverlayScreen.Settings }
+            )
+
+            overlay == OverlayScreen.AddContact -> AddContactScreen(
+                repository = liveRepository,
+                onBack = { overlay = OverlayScreen.None },
+                onAdded = { added ->
+                    liveContacts = (liveContacts.filterNot { it.id == added.id } + added)
+                        .sortedWith(compareByDescending<LiveContact> { it.favorite }.thenBy {
+                            it.localName ?: it.displayName
+                        })
+                    overlay = OverlayScreen.None
+                }
             )
 
             overlay == OverlayScreen.EditProfile -> EditProfileScreen(
@@ -327,7 +341,9 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
 
                             MainTab.Contacts -> ContactsScreen(
                                 contacts = appContacts,
+                                myName = profileName,
                                 onSettings = { overlay = OverlayScreen.Settings },
+                                onAddContact = { overlay = OverlayScreen.AddContact },
                                 onVoiceCall = { beginCall(it, false) },
                                 onVideoCall = { beginCall(it, true) },
                                 onOpenMe = { tab = MainTab.Me }
@@ -591,6 +607,28 @@ private fun RecentsScreen(
             }
         }
 
+        if (contacts.isEmpty() && query.isBlank()) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = HomiraSurface)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(22.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(Icons.Rounded.PersonAdd, contentDescription = null, tint = HomiraMuted)
+                        Spacer(Modifier.height(8.dp))
+                        Text("No contacts yet", color = HomiraText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(4.dp))
+                        Text("Add someone by their Homira username or phone number.", color = HomiraMuted, fontSize = 12.sp, textAlign = TextAlign.Center)
+                        Spacer(Modifier.height(12.dp))
+                        TextButton(onClick = onAddContact) { Text("Add contact", color = HomiraGreen) }
+                    }
+                }
+            }
+        }
+
         item {
             Text(
                 "Swipe right for voice · left for video",
@@ -815,7 +853,9 @@ private fun RecentEntryRow(
 @Composable
 private fun ContactsScreen(
     contacts: List<HomiraPerson>,
+    myName: String,
     onSettings: () -> Unit,
+    onAddContact: () -> Unit,
     onVoiceCall: (HomiraPerson) -> Unit,
     onVideoCall: (HomiraPerson) -> Unit,
     onOpenMe: () -> Unit
@@ -834,7 +874,7 @@ private fun ContactsScreen(
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Contacts", color = HomiraText, fontSize = 31.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                IconButton(onClick = {}) { Icon(Icons.Rounded.Add, contentDescription = "Add contact", tint = HomiraText) }
+                IconButton(onClick = onAddContact) { Icon(Icons.Rounded.Add, contentDescription = "Add contact", tint = HomiraText) }
                 var menuOpen by remember { mutableStateOf(false) }
                 Box {
                     IconButton(onClick = { menuOpen = true }) { Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = HomiraText) }
@@ -872,7 +912,7 @@ private fun ContactsScreen(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    homiraContacts.filter { it.favorite }.forEach { person ->
+                    contacts.filter { it.favorite }.forEach { person ->
                         FavoriteContact(person = person, onCall = { onVoiceCall(person) })
                     }
                     Surface(
@@ -892,7 +932,7 @@ private fun ContactsScreen(
             item {
                 Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = HomiraSurface)) {
                     Column {
-                        SimpleContactUtility(Icons.Rounded.Person, "My profile", "Dawson", onOpenMe)
+                        SimpleContactUtility(Icons.Rounded.Person, "My profile", myName, onOpenMe)
                         HorizontalDivider(modifier = Modifier.padding(start = 62.dp), color = HomiraLine.copy(alpha = .65f))
                         SimpleContactUtility(Icons.Rounded.Groups, "Groups", "Family, friends and more") { }
                     }
