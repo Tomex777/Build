@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "PaheBatcherAndroid"
 include(":app")
+include(":diagnostics")
