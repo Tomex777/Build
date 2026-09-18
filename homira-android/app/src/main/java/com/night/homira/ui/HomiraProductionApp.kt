@@ -1020,6 +1020,24 @@ fun HomiraProductionApp(
             }
         }
 
+        fun finishLiveCall(session: LiveCallSession?) {
+            if (!liveMode || session == null) return
+
+            val terminalState = when (session.state) {
+                "ringing", "connecting" -> "cancelled"
+                else -> "ended"
+            }
+
+            liveScope.launch {
+                runCatching {
+                    liveRepository.setCallState(
+                        session.id,
+                        terminalState
+                    )
+                }
+            }
+        }
+
         fun beginCall(person: HomiraPerson, video: Boolean) {
             if (person.id in blockedUserIds) {
                 Toast.makeText(
@@ -1568,11 +1586,7 @@ fun HomiraProductionApp(
                     activePerson = null
                     activeSession = null
                     minimized = false
-                    if (liveMode && session != null) {
-                        liveScope.launch {
-                            runCatching { liveRepository.setCallState(session.id, "ended") }
-                        }
-                    }
+                    finishLiveCall(session)
                 }
             )
 
@@ -1892,11 +1906,7 @@ fun HomiraProductionApp(
                                 activePerson = null
                                 activeSession = null
                                 minimized = false
-                                if (liveMode && session != null) {
-                                    liveScope.launch {
-                                        runCatching { liveRepository.setCallState(session.id, "ended") }
-                                    }
-                                }
+                                finishLiveCall(session)
                             }
                         )
                     }
