@@ -34,6 +34,7 @@ import com.night.sora.ui.theme.SoraAccent
 import com.night.sora.ui.theme.SoraMuted
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlin.math.roundToLong
 
 /**
@@ -68,8 +69,37 @@ fun VideoPlayerScreen(
     var seekPreviewMs by remember { mutableStateOf<Long?>(null) }
     var player by remember { mutableStateOf<AniyomiPlayerView?>(null) }
     var didInitialSeek by remember(session) { mutableStateOf(session.initialPositionMs <= 0L) }
+    var exitRequested by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
-    BackHandler(onBack = onBack)
+    fun requestExit() {
+        if (exitRequested) return
+        exitRequested = true
+        controlsVisible = false
+
+        val currentPlayer = player
+        if (currentPlayer == null) {
+            onBack()
+            return
+        }
+
+        currentPlayer.requestStopForExit()
+        scope.launch {
+            repeat(30) {
+                if (currentPlayer.isIdleForExit()) {
+                    onBack()
+                    return@launch
+                }
+                delay(50)
+            }
+
+            // Never trap the user if mpv fails to expose idle-active; the
+            // destroy path still issues stop again as a final safeguard.
+            onBack()
+        }
+    }
+
+    BackHandler(onBack = ::requestExit)
 
     DisposableEffect(rootView, activity) {
         val previousKeepScreenOn = rootView.keepScreenOn
@@ -245,7 +275,7 @@ fun VideoPlayerScreen(
                     .padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = ::requestExit) {
                     Icon(Icons.Rounded.ArrowBack, "Back", tint = Color.White)
                 }
                 Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
