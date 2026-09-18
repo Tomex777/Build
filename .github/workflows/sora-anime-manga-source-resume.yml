@@ -96,7 +96,18 @@ jobs:
 
       - name: Build Core and CI source APK
         working-directory: /tmp/sora-src/Sora_Android_v0_1
-        run: gradle --stacktrace :app:assembleDebug :test-extension:assembleDebug
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if gradle --stacktrace :app:assembleDebug :test-extension:assembleDebug; then
+              exit 0
+            fi
+            if [[ "$attempt" -lt 3 ]]; then
+              echo "Gradle build attempt $attempt failed; retrying after transient repository/network failure."
+              sleep $((attempt * 10))
+            fi
+          done
+          exit 1
 
       - name: Enable KVM
         run: |
