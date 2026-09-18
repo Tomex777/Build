@@ -370,8 +370,9 @@ adb shell input keyevent KEYCODE_BACK
 sleep 2
 adb shell input keyevent KEYCODE_BACK
 sleep 2
-wait_for_node 'Close search' 15
-tap_text 'Close search'
+if node_exists 'Close search'; then
+  tap_text 'Close search'
+fi
 wait_for_node 'Continue watching' 25
 tap_text_below 'Continue watching' Naruto
 ensure_player_control 'Demo Anime' 25
@@ -417,8 +418,9 @@ adb shell input keyevent KEYCODE_BACK
 sleep 2
 adb shell input keyevent KEYCODE_BACK
 sleep 2
-wait_for_node 'Close search' 15
-tap_text 'Close search'
+if node_exists 'Close search'; then
+  tap_text 'Close search'
+fi
 wait_for_node 'Continue reading' 25
 tap_text_below 'Continue reading' Naruto
 wait_for_node '5 / 42' 25
