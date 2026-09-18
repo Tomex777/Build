@@ -396,6 +396,7 @@ fun HomiraProductionApp(
     initialProfile: LiveProfile? = null,
     initialContacts: List<LiveContact> = emptyList(),
     liveMode: Boolean = false,
+    requestedCallId: String? = null,
     onSignedOut: () -> Unit = {}
 ) {
     HomiraTheme {
@@ -1109,21 +1110,25 @@ fun HomiraProductionApp(
                 )
             }
 
-            liveRepository.loadPendingIncomingCall()?.let { pending ->
-                val person = resolvePerson(pending.callerId)
+            val pending = requestedCallId
+                ?.let { liveRepository.loadIncomingCallById(it) }
+                ?: liveRepository.loadPendingIncomingCall()
+
+            pending?.let {
+                val person = resolvePerson(it.callerId)
                 callHistoryStore.recordRinging(
-                    id = pending.id,
+                    id = it.id,
                     peerUserId = person.id,
                     peerName = person.name,
                     peerNumber = person.number,
                     direction = HomiraCallHistoryStore.DIRECTION_INCOMING,
-                    mediaType = pending.mediaType
+                    mediaType = it.mediaType
                 )
                 localCallHistory = callHistoryStore.listRecent()
-                incomingSession = pending
+                incomingSession = it
                 incomingPerson = person
                 incomingCallNotifier.show(
-                    session = pending,
+                    session = it,
                     callerName = person.name,
                     notificationsEnabled = localSettings.callNotifications,
                     ringtoneUri = localSettings.ringtoneUri
