@@ -131,6 +131,7 @@ fun CurrentWhatsAppConversation(
     onAttachmentClick: () -> Unit = {},
     onCameraClick: () -> Unit = {},
     onMicClick: () -> Unit = {},
+    onEmojiClick: () -> Unit = {},
 ) {
     val state = rememberLazyListState()
 
@@ -185,6 +186,7 @@ fun CurrentWhatsAppConversation(
                 onAttachmentClick = onAttachmentClick,
                 onCameraClick = onCameraClick,
                 onMicClick = onMicClick,
+                onEmojiClick = onEmojiClick,
             )
         }
     }
@@ -669,6 +671,7 @@ private fun CurrentComposer(
     onAttachmentClick: () -> Unit,
     onCameraClick: () -> Unit,
     onMicClick: () -> Unit,
+    onEmojiClick: () -> Unit,
 ) {
     val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
@@ -690,7 +693,7 @@ private fun CurrentComposer(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(start = 3.dp, end = 2.dp),
             ) {
-                IconButton(onClick = {}) {
+                IconButton(onClick = onEmojiClick) {
                     Icon(
                         imageVector = Icons.Default.SentimentSatisfiedAlt,
                         contentDescription = "Emoji",
@@ -836,3 +839,62 @@ fun whatsappPreviewMessages(): List<WhatsAppVisualMessage> = listOf(
         read = true,
     ),
 )
+
+
+@Composable
+fun ChatInputBar(
+    messageText: String,
+    onMessageTextChange: (String) -> Unit,
+    onSendClick: () -> Unit,
+    onAttachmentClick: () -> Unit,
+    onCameraClick: () -> Unit,
+    onMicClick: () -> Unit,
+    onEmojiClick: () -> Unit,
+) {
+    CurrentComposer(
+        text = messageText,
+        onTextChange = onMessageTextChange,
+        onSendClick = onSendClick,
+        onAttachmentClick = onAttachmentClick,
+        onCameraClick = onCameraClick,
+        onMicClick = onMicClick,
+        onEmojiClick = onEmojiClick,
+    )
+}
+
+@Composable
+fun EmojiPicker(
+    onEmojiSelected: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val emojis = listOf("😀", "😂", "🥹", "😍", "😭", "😎", "👍", "❤️", "🙏", "🔥")
+    Surface(
+        color = ComposerBackground,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            emojis.forEach { emoji ->
+                Text(
+                    text = emoji,
+                    fontSize = 25.sp,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable { onEmojiSelected(emoji) }
+                        .padding(4.dp),
+                )
+            }
+        }
+    }
+}
+
+fun formatTimestamp(timestamp: Long): String {
+    if (timestamp <= 0L) return ""
+    return java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+        .format(java.util.Date(timestamp))
+}
