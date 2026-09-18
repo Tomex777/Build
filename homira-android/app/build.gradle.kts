@@ -12,6 +12,7 @@ plugins {
 android {
     namespace = "com.night.homira"
     compileSdk = 36
+    compileSdkMinor = 1
 
     defaultConfig {
         applicationId = "com.night.homira"
