@@ -38,16 +38,27 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Mark JDK ready
+        run: echo "jdk ready" > extension-chat-preview/status.txt
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Mark Android SDK ready
+        run: echo "android sdk ready" > extension-chat-preview/status.txt
+
       - name: Install compile SDK
-        run: sdkmanager "platforms;android-37" "build-tools;36.0.0"
+        run: |
+          sdkmanager "platforms;android-37" "build-tools;36.0.0"
+          echo "compile sdk ready" > extension-chat-preview/status.txt
 
       - name: Set up Gradle 9.6
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.6.0"
+
+      - name: Mark Gradle ready
+        run: echo "gradle ready" > extension-chat-preview/status.txt
 
       - name: Build debug APK
         id: build
