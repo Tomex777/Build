@@ -50,26 +50,16 @@ class DiagnosticViewModel(application: Application) : AndroidViewModel(applicati
 
     fun openKwikBrowser() {
         val cached = sessions.lastKwikUrl
-        if (cached.isNotBlank()) {
-            browserMode = BrowserMode.KWIK
-            browserUrl = cached
-            statusMessage = null
-            browserOpen = true
+        if (cached.isBlank()) {
+            statusMessage =
+                "No Kwik release link has been discovered yet. Tap Test AnimePahe first, then open Kwik verification."
             return
         }
 
-        runTask("Finding a real Kwik release...") {
-            val result = engine.runAnimePahe()
-            applyResult(result)
-            val kwik = result.kwikUrl
-            if (kwik.isNullOrBlank()) {
-                statusMessage = "Could not prepare Kwik. Copy the report and send it."
-            } else {
-                browserMode = BrowserMode.KWIK
-                browserUrl = kwik
-                browserOpen = true
-            }
-        }
+        browserMode = BrowserMode.KWIK
+        browserUrl = cached
+        statusMessage = null
+        browserOpen = true
     }
 
     fun closeBrowser() {
