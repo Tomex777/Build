@@ -194,7 +194,7 @@ fun SoraApp() {
                 RootTab.MORE -> MoreScreen(
                     modifier = Modifier.padding(padding),
                     extensionCount = extensions.count {
-                        it.error == null && !(it.packageName == "com.night.sora" && it.declaredId == "sora.core.jikan")
+                        it.error == null && !(it.packageName == "com.night.sora" && it.declaredId == "sora.core.anilist")
                     },
                     activeDownloadCount = repository.downloads.count { it.status != com.night.sora.model.DownloadStatus.COMPLETED },
                     completedDownloadCount = repository.downloads.count { it.status == com.night.sora.model.DownloadStatus.COMPLETED },
