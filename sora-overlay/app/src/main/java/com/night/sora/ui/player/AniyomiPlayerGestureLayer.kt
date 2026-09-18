@@ -148,8 +148,8 @@ private fun horizontalSeekDelta(dragPx: Float, widthPx: Int, durationMs: Long): 
     if (widthPx <= 0) return 0L
     val normalized = (dragPx / widthPx.toFloat()).coerceIn(-1f, 1f)
     // Match Aniyomi's intent: precise scrub for short content, larger travel for long episodes.
-    val maxTravel = (durationMs * 0.35).coerceAtMost(10 * 60_000L)
-    return (normalized * maxTravel).toLong()
+    val maxTravel = (durationMs.toDouble() * 0.35).coerceAtMost(10 * 60_000.0)
+    return (normalized.toDouble() * maxTravel).toLong()
 }
 
 private tailrec fun Context.findActivityForPlayer(): Activity? = when (this) {
