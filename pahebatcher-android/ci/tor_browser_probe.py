@@ -40,6 +40,7 @@ def newnym() -> None:
 
 def browser() -> webdriver.Chrome:
     opts = Options()
+    opts.add_argument("--headless=new")
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
     opts.add_argument("--disable-gpu")
@@ -92,12 +93,13 @@ def parse_json_text(text: str) -> dict[str, Any] | None:
     return None
 
 
-report: dict[str, Any] = {"attempts": [], "success": False}
+report: dict[str, Any] = {"attempts": [], "success": False, "tor_confirmed": False}
 
 for attempt in range(1, ATTEMPTS + 1):
     newnym()
     time.sleep(4)
     driver = browser()
+    driver.set_page_load_timeout(45)
     attempt_row: dict[str, Any] = {"attempt": attempt, "hosts": []}
     report["attempts"].append(attempt_row)
 
@@ -106,7 +108,11 @@ for attempt in range(1, ATTEMPTS + 1):
         time.sleep(2)
         tor_text = body_text(driver)
         attempt_row["tor_check"] = tor_text[:500]
+        tor_data = parse_json_text(tor_text) or {}
+        attempt_row["tor_confirmed"] = tor_data.get("IsTor") is True
+        attempt_row["tor_ip"] = tor_data.get("IP")
         print(f"[browser attempt {attempt}] Tor check: {tor_text[:180]}")
+        report["tor_confirmed"] = report["tor_confirmed"] or bool(attempt_row["tor_confirmed"])
 
         for host in HOSTS:
             row: dict[str, Any] = {"host": host}
@@ -217,3 +223,6 @@ for attempt in range(1, ATTEMPTS + 1):
 
 (OUT / "browser-report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
 print(json.dumps(report, indent=2)[:12000])
+
+if not report.get("tor_confirmed"):
+    raise SystemExit("Chrome traffic was not confirmed to be using Tor")
