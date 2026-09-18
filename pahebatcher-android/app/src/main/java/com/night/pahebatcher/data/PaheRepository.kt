@@ -47,6 +47,7 @@ data class AnimeSearchResult(
     val type: String,
     val episodes: Int,
     val status: String,
+    val animeId: Int? = null,
 )
 
 data class EpisodeInfo(
@@ -132,44 +133,77 @@ class PaheRepository(
     suspend fun loadAnime(result: AnimeSearchResult): AnimeDetails = withContext(Dispatchers.IO) {
         val host = sessions.animeHost().ifBlank { animeHosts.first() }
         val normalizedTitle = normalizeTitle(result.title)
+
+        // AnimePahe rotates the session UUID used in /anime/{session}. Refresh it from
+        // the search API before loading episodes, using the stable anime ID when available.
         val variants = runCatching { searchOnHost(host, result.title) }.getOrDefault(emptyList())
-        val sessionIds = linkedSetOf(result.session)
-        variants.filter { normalizeTitle(it.title) == normalizedTitle }
-            .mapTo(sessionIds) { it.session }
+        val refreshed = variants.firstOrNull { candidate ->
+            result.animeId != null && candidate.animeId == result.animeId
+        } ?: variants.firstOrNull { normalizeTitle(it.title) == normalizedTitle }
+
+        val currentResult = refreshed ?: result
+        val sessionIds = linkedSetOf(currentResult.session)
+
+        variants.asSequence()
+            .filter { normalizeTitle(it.title) == normalizedTitle }
+            .map { it.session }
+            .filter { it.isNotBlank() }
+            .forEach(sessionIds::add)
+
+        if (result.session.isNotBlank()) sessionIds.add(result.session)
 
         val unique = linkedMapOf<Pair<Double, String>, EpisodeInfo>()
+        var firstVerificationError: VerificationRequired? = null
+        var lastFailure: Exception? = null
+
         for (animeSession in sessionIds) {
-            var page = 1
-            while (true) {
-                val data = releasePage(host, animeSession, page)
-                val rows = data.optJSONArray("data") ?: break
-                for (index in 0 until rows.length()) {
-                    val item = rows.optJSONObject(index) ?: continue
-                    val epSession = item.optString("session")
-                    if (epSession.isBlank()) continue
-                    var audio = item.optString("audio", "jpn").trim().lowercase(Locale.US)
-                    val title = item.optString("title").let { if (it == "?") "" else it.trim() }
-                    if (audio == "jpn" && title.contains("dub", true)) audio = "eng"
-                    if (audio == "eng" && title.contains("sub", true)) audio = "jpn"
-                    val number = item.optDouble("episode", 0.0)
-                    val ep = EpisodeInfo(
-                        number = number,
-                        session = epSession,
-                        title = title,
-                        fansub = item.optString("fansub").trim(),
-                        audio = audio,
-                        playUrl = "https://$host/play/$animeSession/$epSession",
-                    )
-                    unique.putIfAbsent(number to audio, ep)
+            try {
+                var page = 1
+                while (true) {
+                    val data = releasePage(host, animeSession, page)
+                    val rows = data.optJSONArray("data") ?: break
+                    for (index in 0 until rows.length()) {
+                        val item = rows.optJSONObject(index) ?: continue
+                        val epSession = item.optString("session")
+                        if (epSession.isBlank()) continue
+                        var audio = item.optString("audio", "jpn").trim().lowercase(Locale.US)
+                        val title = item.optString("title").let { if (it == "?") "" else it.trim() }
+                        if (audio == "jpn" && title.contains("dub", true)) audio = "eng"
+                        if (audio == "eng" && title.contains("sub", true)) audio = "jpn"
+                        val number = item.optDouble("episode", 0.0)
+                        val ep = EpisodeInfo(
+                            number = number,
+                            session = epSession,
+                            title = title,
+                            fansub = item.optString("fansub").trim(),
+                            audio = audio,
+                            playUrl = "https://$host/play/$animeSession/$epSession",
+                        )
+                        unique.putIfAbsent(number to audio, ep)
+                    }
+                    val lastPage = data.optInt("last_page", 1).coerceAtLeast(1)
+                    if (page >= lastPage) break
+                    page++
                 }
-                val lastPage = data.optInt("last_page", 1).coerceAtLeast(1)
-                if (page >= lastPage) break
-                page++
+            } catch (e: VerificationRequired) {
+                if (firstVerificationError == null) firstVerificationError = e
+                lastFailure = e
+            } catch (e: Exception) {
+                lastFailure = e
             }
+
+            // One good current session is enough. Stale session UUIDs should not poison
+            // the whole details screen.
+            if (unique.isNotEmpty() && animeSession == currentResult.session) break
+        }
+
+        if (unique.isEmpty()) {
+            firstVerificationError?.let { throw it }
+            lastFailure?.let { throw it }
         }
 
         AnimeDetails(
-            result = result,
+            result = currentResult,
             host = host,
             episodes = unique.values.sortedWith(compareBy<EpisodeInfo> { it.number }.thenBy { it.audio }),
         )
@@ -335,6 +369,7 @@ class PaheRepository(
                         type = item.optString("type", "Anime"),
                         episodes = item.optInt("episodes", 0),
                         status = item.optString("status"),
+                        animeId = item.optInt("id", 0).takeIf { it > 0 },
                     )
                 )
             }
@@ -345,11 +380,11 @@ class PaheRepository(
         val primary =
             "https://$host/api?m=release&id=$session&sort=episode_asc&page=$page"
         return try {
-            JSONObject(requestText(primary, referer = "https://$host/anime/$session"))
+            JSONObject(requestText(primary, referer = "https://$host/"))
         } catch (first: Exception) {
             val alternate =
                 "https://$host/api/$session/releases?sort=episode_asc&page=$page"
-            JSONObject(requestText(alternate, referer = "https://$host/anime/$session"))
+            JSONObject(requestText(alternate, referer = "https://$host/"))
         }
     }
 
