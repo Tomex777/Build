@@ -211,7 +211,7 @@ tap_text_below() {
   python3 - "$heading" "$label" <<'PY'
 import re, subprocess, sys, xml.etree.ElementTree as ET
 heading,label=sys.argv[1:]
-root=ET.parse('/tmp/sora-resume-window.xml').getroot()
+root=ET.parse('/tmp/sora-media-window.xml').getroot()
 def bounds(node):
     m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
     return tuple(map(int,m.groups())) if m else None
