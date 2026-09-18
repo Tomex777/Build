@@ -1,1 +1,1 @@
-run 15 - strict AniList live flow with corrected hero assertions
+run 16 - strict AniList live flow with resilient UI taps
