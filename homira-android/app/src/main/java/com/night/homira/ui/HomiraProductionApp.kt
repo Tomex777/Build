@@ -10,6 +10,7 @@ import com.night.homira.call.HomiraWebRtcState
 import com.night.homira.call.HomiraAudioRecorder
 import com.night.homira.call.HomiraAudioPlayer
 import com.night.homira.call.HomiraScreenShareService
+import com.night.homira.call.HomiraIncomingCallNotifier
 import com.night.homira.call.HomiraWebRtcVoiceEngine
 import com.night.homira.data.HomiraCallSignaling
 import com.night.homira.data.HomiraLiveRepository
@@ -354,6 +355,43 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         val liveScope = rememberCoroutineScope()
         val settingsStore = remember(context) { HomiraSettingsStore(context) }
         var localSettings by remember { mutableStateOf(settingsStore.load()) }
+        val incomingCallNotifier = remember(context) {
+            HomiraIncomingCallNotifier(context)
+        }
+        var notificationPermissionGranted by remember {
+            mutableStateOf(
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+            )
+        }
+        val notificationPermissionLauncher =
+            rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) { granted ->
+                notificationPermissionGranted = granted
+                settingsStore.setNotificationPermissionRequested(true)
+                localSettings = settingsStore.load()
+            }
+
+        LaunchedEffect(
+            liveMode,
+            localSettings.callNotifications,
+            localSettings.notificationPermissionRequested,
+            notificationPermissionGranted
+        ) {
+            if (
+                liveMode &&
+                localSettings.callNotifications &&
+                !localSettings.notificationPermissionRequested &&
+                !notificationPermissionGranted
+            ) {
+                notificationPermissionLauncher.launch(
+                    Manifest.permission.POST_NOTIFICATIONS
+                )
+            }
+        }
         val callHistoryStore = remember(context) { HomiraCallHistoryStore(context) }
         var localCallHistory by remember {
             mutableStateOf<List<LocalCallHistoryRecord>>(emptyList())
@@ -838,6 +876,7 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                     runCatching {
                         liveRepository.setCallState(session.id, "active")
                     }.onSuccess { updated ->
+                        incomingCallNotifier.cancel(updated.id)
                         callHistoryStore.markAnswered(updated.id)
                         localCallHistory = callHistoryStore.listRecent()
 
@@ -933,6 +972,11 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 localCallHistory = callHistoryStore.listRecent()
                 incomingSession = pending
                 incomingPerson = person
+                incomingCallNotifier.show(
+                    session = pending,
+                    callerName = person.name,
+                    notificationsEnabled = localSettings.callNotifications
+                )
             }
 
             liveRepository.observeIncomingCallChanges().collect { session ->
@@ -950,9 +994,15 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                         localCallHistory = callHistoryStore.listRecent()
                         incomingSession = session
                         incomingPerson = person
+                        incomingCallNotifier.show(
+                            session = session,
+                            callerName = person.name,
+                            notificationsEnabled = localSettings.callNotifications
+                        )
                     }
 
                     "missed", "declined", "cancelled", "failed", "ended" -> {
+                        incomingCallNotifier.cancel(session.id)
                         val outcome = when (session.state) {
                             "missed" -> HomiraCallHistoryStore.OUTCOME_MISSED
                             "declined" -> HomiraCallHistoryStore.OUTCOME_DECLINED
@@ -981,6 +1031,7 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 activeSession = session
 
                 if (session.state == "active") {
+                    incomingCallNotifier.cancel(session.id)
                     callHistoryStore.markAnswered(session.id)
                     localCallHistory = callHistoryStore.listRecent()
                 }
@@ -1008,6 +1059,7 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                         "ended" -> HomiraCallHistoryStore.OUTCOME_ANSWERED
                         else -> HomiraCallHistoryStore.OUTCOME_FAILED
                     }
+                    incomingCallNotifier.cancel(session.id)
                     callHistoryStore.markTerminal(session.id, outcome)
                     localCallHistory = callHistoryStore.listRecent()
 
@@ -1193,8 +1245,11 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                     incomingSession = null
                     incomingPerson = null
                     if (session != null) {
+                        incomingCallNotifier.cancel(session.id)
                         liveScope.launch {
-                            runCatching { liveRepository.setCallState(session.id, "declined") }
+                            runCatching {
+                                liveRepository.setCallState(session.id, "declined")
+                            }
                         }
                     }
                 }
@@ -1298,6 +1353,11 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 onNotificationsChanged = { enabled ->
                     settingsStore.setCallNotifications(enabled)
                     localSettings = settingsStore.load()
+                    if (enabled && !notificationPermissionGranted) {
+                        notificationPermissionLauncher.launch(
+                            Manifest.permission.POST_NOTIFICATIONS
+                        )
+                    }
                 },
                 onVoicemailEnabledChanged = { enabled ->
                     if (!liveMode) {
