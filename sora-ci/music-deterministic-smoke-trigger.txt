@@ -1,1 +1,1 @@
-2026-09-17 rerun deterministic Music proof on final hardened head; verify current Media fallback navigation.
+2026-09-18 capture Music Home, Your Music, Now Playing, and Queue screenshots from the emulator.
