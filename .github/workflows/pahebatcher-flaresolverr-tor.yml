@@ -1,0 +1,102 @@
+name: PaheBatcher FlareSolverr Tor Probe
+
+on:
+  push:
+    branches: [pahebatcher-android-ci]
+    paths:
+      - 'pahebatcher-android/ci/flaresolverr_tor_probe.py'
+      - '.github/workflows/pahebatcher-flaresolverr-tor.yml'
+  workflow_dispatch:
+
+jobs:
+  flaresolverr-over-tor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Verify Tor and FlareSolverr stay outside the app
+        run: |
+          if grep -R -E -i 'torproject|orbot|socks5|flaresolverr|127\.0\.0\.1:9050' pahebatcher-android/app; then
+            echo "Tor or FlareSolverr plumbing was found inside the Android app source" >&2
+            exit 1
+          fi
+          echo "Tor and FlareSolverr are CI-only."
+
+      - name: Start Tor
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y tor
+          echo 'SocksPort 9050' | sudo tee -a /etc/tor/torrc
+          echo 'ControlPort 9051' | sudo tee -a /etc/tor/torrc
+          echo 'CookieAuthentication 0' | sudo tee -a /etc/tor/torrc
+          sudo systemctl restart tor || sudo service tor restart
+
+          ready=false
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 15 --socks5-hostname 127.0.0.1:9050 https://check.torproject.org/api/ip > tor-check.json; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = true
+          python3 -c "import json; d=json.load(open('tor-check.json')); assert d.get('IsTor') is True, d; print(d)"
+
+      - name: Start FlareSolverr on the Tor host network
+        run: |
+          docker pull ghcr.io/flaresolverr/flaresolverr:latest
+          docker run -d \
+            --name flaresolverr \
+            --network host \
+            -e LOG_LEVEL=info \
+            -e TZ=UTC \
+            ghcr.io/flaresolverr/flaresolverr:latest
+
+          ready=false
+          for i in $(seq 1 60); do
+            if curl -fsS --max-time 3 http://127.0.0.1:8191/ > flaresolverr-health.json; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = true
+          cat flaresolverr-health.json
+          docker inspect --format='{{.Image}}' flaresolverr > flaresolverr-image.txt
+
+      - name: Verify AnimePahe endpoints through FlareSolverr and Tor
+        env:
+          FLARESOLVERR_ATTEMPTS: '2'
+          FLARESOLVERR_URL: http://127.0.0.1:8191/v1
+          TOR_PROXY: socks5://127.0.0.1:9050
+        run: |
+          timeout 600s python3 -u pahebatcher-android/ci/flaresolverr_tor_probe.py
+
+      - name: Publish verification summary
+        if: always()
+        run: |
+          if [ -f flaresolverr-tor-probe/endpoint-report.json ]; then
+            python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          report = json.load(open('flaresolverr-tor-probe/endpoint-report.json'))
+          summary = report.get('summary', {})
+          print('## FlareSolverr over Tor endpoint verification')
+          for key, value in summary.items():
+              print(f'- **{key}**: `{value}`')
+          PY
+          fi
+          docker logs flaresolverr > flaresolverr-tor-probe/flaresolverr.log 2>&1 || true
+
+      - name: Upload FlareSolverr Tor report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pahebatcher-flaresolverr-tor-report
+          path: |
+            tor-check.json
+            flaresolverr-health.json
+            flaresolverr-image.txt
+            flaresolverr-tor-probe/**
+          if-no-files-found: warn
