@@ -202,7 +202,7 @@ class HomiraLiveRepository {
             "Unsupported push platform"
         }
 
-        client.from("device_push_tokens").insert(
+        client.postgrest["device_push_tokens"].insert(
             DevicePushTokenRow(
                 userId = userId,
                 deviceId = deviceId,
