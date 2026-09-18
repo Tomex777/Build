@@ -59,6 +59,7 @@ class AniListCatalogClient {
 
     private val cacheLock = Any()
     private val discoveryCache = mutableMapOf<ContentType, DiscoverySnapshot>()
+    private val counterpartCache = mutableMapOf<String, CatalogItem?>()
     private val animeSearchGeneration = AtomicInteger()
     private val mangaSearchGeneration = AtomicInteger()
 
@@ -142,6 +143,7 @@ class AniListCatalogClient {
             """.trimIndent()
             val media = requestGraphQl(graphQl).getJSONObject("data").optJSONObject("Media")
                 ?: error("AniList returned no media details")
+            cacheCounterpart(type, media)
             parseDetails(media, type)
         }
     }
@@ -159,9 +161,15 @@ class AniListCatalogClient {
             return
         }
 
+        val cacheKey = counterpartKey(type, id, byMalId)
+        synchronized(cacheLock) {
+            if (counterpartCache.containsKey(cacheKey)) {
+                callback(Result.success(counterpartCache[cacheKey]))
+                return
+            }
+        }
+
         execute(callback) {
-            val opposite = if (type == ContentType.ANIME) ContentType.MANGA else ContentType.ANIME
-            val expectedRelation = if (type == ContentType.ANIME) "SOURCE" else "ADAPTATION"
             val typeArg = typeLiteral(type)
             val idArg = if (byMalId) "idMal: $id" else "id: $id"
             val graphQl = """
@@ -180,18 +188,42 @@ class AniListCatalogClient {
             """.trimIndent()
             val media = requestGraphQl(graphQl).getJSONObject("data").optJSONObject("Media")
                 ?: return@execute null
-            val edges = media.optJSONObject("relations")?.optJSONArray("edges") ?: JSONArray()
-
-            for (index in 0 until edges.length()) {
-                val edge = edges.optJSONObject(index) ?: continue
-                if (edge.optString("relationType") != expectedRelation) continue
-                val node = edge.optJSONObject("node") ?: continue
-                if (!node.optString("type").equals(typeLiteral(opposite), ignoreCase = true)) continue
-                return@execute parseItem(node, opposite)
-            }
-            null
+            val counterpart = parseCounterpart(type, media)
+            cacheCounterpart(type, media, counterpart)
+            counterpart
         }
     }
+
+    private fun parseCounterpart(type: ContentType, media: JSONObject): CatalogItem? {
+        val opposite = if (type == ContentType.ANIME) ContentType.MANGA else ContentType.ANIME
+        val expectedRelation = if (type == ContentType.ANIME) "SOURCE" else "ADAPTATION"
+        val edges = media.optJSONObject("relations")?.optJSONArray("edges") ?: JSONArray()
+
+        for (index in 0 until edges.length()) {
+            val edge = edges.optJSONObject(index) ?: continue
+            if (edge.optString("relationType") != expectedRelation) continue
+            val node = edge.optJSONObject("node") ?: continue
+            if (!node.optString("type").equals(typeLiteral(opposite), ignoreCase = true)) continue
+            return parseItem(node, opposite)
+        }
+        return null
+    }
+
+    private fun cacheCounterpart(
+        type: ContentType,
+        media: JSONObject,
+        counterpart: CatalogItem? = parseCounterpart(type, media),
+    ) {
+        val aniListId = media.optInt("id", 0).takeIf { it > 0 }
+        val malId = media.optInt("idMal", 0).takeIf { it > 0 }
+        synchronized(cacheLock) {
+            aniListId?.let { counterpartCache[counterpartKey(type, it, false)] = counterpart }
+            malId?.let { counterpartCache[counterpartKey(type, it, true)] = counterpart }
+        }
+    }
+
+    private fun counterpartKey(type: ContentType, id: Int, byMalId: Boolean): String =
+        "${if (byMalId) "mal" else "anilist"}:${type.name}:$id"
 
     private fun fetchDiscovery(type: ContentType): Map<String, List<CatalogItem>> {
         val graphQl = when (type) {
@@ -500,7 +532,7 @@ class AniListCatalogClient {
             sourceId == LEGACY_JIKAN_ANIME_SOURCE || sourceId == LEGACY_JIKAN_MANGA_SOURCE
 
         private const val BASE_URL = "https://graphql.anilist.co"
-        private const val MIN_REQUEST_GAP_MS = 1_250L
+        private const val MIN_REQUEST_GAP_MS = 2_100L
         private const val MAX_REQUEST_ATTEMPTS = 3
         private const val DISCOVERY_MEMORY_TTL_MS = 30_000L
 
@@ -542,6 +574,12 @@ class AniListCatalogClient {
             startDate { year month day }
             genres
             coverImage { extraLarge large medium }
+            relations {
+              edges {
+                relationType
+                node { $CARD_FIELDS }
+              }
+            }
         """.trimIndent()
     }
 }
