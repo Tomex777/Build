@@ -164,7 +164,7 @@ import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 private enum class MainTab { Keypad, Recents, Contacts, Me }
-private enum class OverlayScreen { None, Settings, EditProfile, Voicemail, AddContact }
+private enum class OverlayScreen { None, Settings, EditProfile, Voicemail, AddContact, BlockedPeople }
 private enum class CallDirection { Incoming, Outgoing, Missed, Declined, Cancelled, Failed }
 private enum class RecentFilter { All, Missed, Voicemail }
 
@@ -543,6 +543,7 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         }
 
         var liveContacts by remember(initialContacts) { mutableStateOf(initialContacts) }
+        var blockedUserIds by remember { mutableStateOf<Set<String>>(emptySet()) }
         var liveVoicemails by remember { mutableStateOf<List<LiveVoicemail>>(emptyList()) }
         var liveVoicemailEntries by remember { mutableStateOf<List<CallEntry>>(emptyList()) }
         val receivedVoicemailPlayer = remember { HomiraAudioPlayer() }
@@ -606,6 +607,13 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
             if (!liveMode) return@LaunchedEffect
             callHistoryStore.normalizeInterruptedRinging()
             localCallHistory = callHistoryStore.listRecent()
+        }
+
+        LaunchedEffect(liveMode) {
+            if (!liveMode) return@LaunchedEffect
+            blockedUserIds = runCatching {
+                liveRepository.listBlockedUserIds()
+            }.getOrDefault(emptySet())
         }
 
         LaunchedEffect(liveMode, appContacts) {
@@ -790,6 +798,15 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         }
 
         fun beginCall(person: HomiraPerson, video: Boolean) {
+            if (person.id in blockedUserIds) {
+                Toast.makeText(
+                    context,
+                    "Unblock ${person.name} before calling.",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return
+            }
+
             if (!liveMode) {
                 activePerson = person
                 activeVideo = video
@@ -1305,7 +1322,8 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                     }
                 },
                 onBack = { overlay = OverlayScreen.None },
-                onVoicemail = { overlay = OverlayScreen.Voicemail }
+                onVoicemail = { overlay = OverlayScreen.Voicemail },
+                onBlockedPeople = { overlay = OverlayScreen.BlockedPeople }
             )
 
             overlay == OverlayScreen.Voicemail -> VoicemailSettingsScreen(
@@ -1318,6 +1336,43 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                     voicemailGreetingPath = path
                 },
                 onBack = { overlay = OverlayScreen.Settings }
+            )
+
+            overlay == OverlayScreen.BlockedPeople -> BlockedPeopleScreen(
+                contacts = appContacts,
+                blockedUserIds = blockedUserIds,
+                onBack = { overlay = OverlayScreen.Settings },
+                onBlockChanged = { person, blocked ->
+                    if (!liveMode) {
+                        blockedUserIds = if (blocked) {
+                            blockedUserIds + person.id
+                        } else {
+                            blockedUserIds - person.id
+                        }
+                    } else {
+                        liveScope.launch {
+                            runCatching {
+                                if (blocked) {
+                                    liveRepository.blockUser(person.id)
+                                } else {
+                                    liveRepository.unblockUser(person.id)
+                                }
+                            }.onSuccess {
+                                blockedUserIds = if (blocked) {
+                                    blockedUserIds + person.id
+                                } else {
+                                    blockedUserIds - person.id
+                                }
+                            }.onFailure {
+                                Toast.makeText(
+                                    context,
+                                    it.message ?: "Could not update blocked people.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                }
             )
 
             overlay == OverlayScreen.AddContact -> AddContactScreen(
@@ -2617,7 +2672,8 @@ private fun SettingsScreen(
     onNotificationsChanged: (Boolean) -> Unit,
     onVoicemailEnabledChanged: (Boolean) -> Unit,
     onBack: () -> Unit,
-    onVoicemail: () -> Unit
+    onVoicemail: () -> Unit,
+    onBlockedPeople: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -2696,6 +2752,13 @@ private fun SettingsScreen(
                 "Protect IP in calls",
                 "TURN relay is not configured yet"
             )
+            SettingsRowP(
+                Icons.Rounded.Block,
+                "Blocked people",
+                "Manage who can call you"
+            ) {
+                onBlockedPeople()
+            }
         }
 
         item {
@@ -2716,6 +2779,161 @@ private fun SettingsScreen(
                 "Call media",
                 "WebRTC audio/video; Supabase carries call setup only"
             )
+        }
+    }
+}
+
+@Composable
+private fun BlockedPeopleScreen(
+    contacts: List<HomiraPerson>,
+    blockedUserIds: Set<String>,
+    onBack: () -> Unit,
+    onBlockChanged: (HomiraPerson, Boolean) -> Unit
+) {
+    var query by rememberSaveable { mutableStateOf("") }
+    val visibleContacts = remember(contacts, query) {
+        val normalized = query.trim().lowercase()
+        if (normalized.isBlank()) {
+            contacts.sortedWith(
+                compareByDescending<HomiraPerson> { it.id in blockedUserIds }
+                    .thenBy { it.name.lowercase() }
+            )
+        } else {
+            contacts.filter {
+                it.name.lowercase().contains(normalized) ||
+                    it.number.contains(normalized)
+            }.sortedBy { it.name.lowercase() }
+        }
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(HomiraBackground)
+            .safeDrawingPadding(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.Rounded.ArrowBack,
+                        contentDescription = "Back",
+                        tint = HomiraText
+                    )
+                }
+                Column {
+                    Text(
+                        "Blocked people",
+                        color = HomiraText,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "Blocked accounts can't start calls to you",
+                        color = HomiraMuted,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+
+        item {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Search contacts") },
+                leadingIcon = {
+                    Icon(Icons.Rounded.Search, contentDescription = null)
+                }
+            )
+        }
+
+        if (visibleContacts.isEmpty()) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = HomiraSurface
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(22.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Rounded.Block,
+                            contentDescription = null,
+                            tint = HomiraMuted,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            if (contacts.isEmpty()) {
+                                "No Homira contacts yet"
+                            } else {
+                                "No contacts match your search"
+                            },
+                            color = HomiraMuted,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+        } else {
+            items(
+                items = visibleContacts,
+                key = { "block-${it.id}" }
+            ) { person ->
+                val blocked = person.id in blockedUserIds
+                Card(
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = HomiraSurface
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        PersonAvatarP(person, 46)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                person.name,
+                                color = HomiraText,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            if (person.number.isNotBlank()) {
+                                Text(
+                                    person.number,
+                                    color = HomiraMuted,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                        TextButton(
+                            onClick = {
+                                onBlockChanged(person, !blocked)
+                            }
+                        ) {
+                            Text(
+                                if (blocked) "Unblock" else "Block",
+                                color = if (blocked) HomiraGreen else HomiraDanger,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
