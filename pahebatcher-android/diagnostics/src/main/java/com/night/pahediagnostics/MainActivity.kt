@@ -145,34 +145,6 @@ private fun DiagnosticsScreen(vm: DiagnosticViewModel) {
             cookieSummary = sessions.kwikCookieSummary,
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OutlinedTextField(
-                value = vm.manualKwikUrl,
-                onValueChange = vm::setManualKwikUrl,
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-                label = { Text("Kwik release URL") },
-                placeholder = { Text("https://kwik...") },
-            )
-            TextButton(
-                onClick = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    val text = clipboard.primaryClip
-                        ?.getItemAt(0)
-                        ?.coerceToText(context)
-                        ?.toString()
-                        .orEmpty()
-                    if (text.isNotBlank()) vm.setManualKwikUrl(text)
-                },
-            ) {
-                Text("Paste")
-            }
-        }
-
         Button(
             onClick = vm::openAnimeBrowser,
             enabled = !vm.busy,
@@ -186,6 +158,18 @@ private fun DiagnosticsScreen(vm: DiagnosticViewModel) {
         }
 
         Button(
+            onClick = vm::traceKwikDiscovery,
+            enabled = !vm.busy,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Card2),
+        ) {
+            Icon(Icons.Rounded.PlayArrow, null)
+            Spacer(Modifier.size(8.dp))
+            Text("Trace AnimePahe -> Kwik")
+        }
+
+        Button(
             onClick = vm::openKwikBrowser,
             enabled = !vm.busy,
             modifier = Modifier.fillMaxWidth(),
@@ -194,11 +178,11 @@ private fun DiagnosticsScreen(vm: DiagnosticViewModel) {
         ) {
             Icon(Icons.Rounded.Language, null)
             Spacer(Modifier.size(8.dp))
-            Text("Open Kwik verification")
+            Text("Open discovered Kwik verification")
         }
 
         Text(
-            text = "Kwik can be tested independently: paste a real Kwik release URL above. The app will not run AnimePahe first.",
+            text = "The trace follows the same AnimePahe -> release -> play-page path the real app uses and stops at the exact failing stage. If it succeeds, the Kwik browser opens automatically.",
             color = TextMuted,
             fontSize = 11.sp,
             lineHeight = 16.sp,
@@ -274,6 +258,46 @@ private fun DiagnosticsScreen(vm: DiagnosticViewModel) {
             )
             vm.checks.forEach { check ->
                 CheckRow(check)
+            }
+        }
+
+        Text(
+            text = "Advanced fallback",
+            color = TextMain,
+            fontSize = 16.sp,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        Text(
+            text = "Only use this after we have captured the AnimePahe -> Kwik failure. It lets us test Kwik itself independently.",
+            color = TextMuted,
+            fontSize = 11.sp,
+            lineHeight = 16.sp,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedTextField(
+                value = vm.manualKwikUrl,
+                onValueChange = vm::setManualKwikUrl,
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                label = { Text("Manual Kwik release URL") },
+                placeholder = { Text("https://kwik...") },
+            )
+            TextButton(
+                onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val text = clipboard.primaryClip
+                        ?.getItemAt(0)
+                        ?.coerceToText(context)
+                        ?.toString()
+                        .orEmpty()
+                    if (text.isNotBlank()) vm.setManualKwikUrl(text)
+                },
+            ) {
+                Text("Paste")
             }
         }
 
