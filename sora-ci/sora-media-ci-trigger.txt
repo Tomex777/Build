@@ -1,1 +1,1 @@
-run 12 - strict AniList Anime Manga migration validation
+run 13 - corrected strict AniList Anime Manga validation
