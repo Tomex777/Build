@@ -111,7 +111,7 @@ class MediaCatalogCache(context: Context) {
     }
 
     private fun isLegacyDiagnosticRecord(row: CachedMediaRecord): Boolean =
-        row.extensionPackage.contains(".demo", ignoreCase = true)
+        row.extensionPackage.contains(".demo", ignoreCase = true) || row.sourceId.startsWith("jikan.", ignoreCase = true)
 
     private fun key(type: ContentType, feed: String): String {
         val cleanFeed = feed.trim().lowercase().replace(Regex("[^a-z0-9_-]"), "_").ifBlank { DEFAULT_FEED }
