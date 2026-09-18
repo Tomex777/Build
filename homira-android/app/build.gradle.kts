@@ -1,3 +1,8 @@
+fun buildConfigString(value: String): String =
+    "\"" + value
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"") + "\""
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -14,6 +19,43 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0-call-ui"
+
+        buildConfigField(
+            "String",
+            "FIREBASE_PROJECT_ID",
+            buildConfigString(
+                providers.gradleProperty(
+                    "HOMIRA_FIREBASE_PROJECT_ID"
+                ).orNull.orEmpty()
+            )
+        )
+        buildConfigField(
+            "String",
+            "FIREBASE_APP_ID",
+            buildConfigString(
+                providers.gradleProperty(
+                    "HOMIRA_FIREBASE_APP_ID"
+                ).orNull.orEmpty()
+            )
+        )
+        buildConfigField(
+            "String",
+            "FIREBASE_API_KEY",
+            buildConfigString(
+                providers.gradleProperty(
+                    "HOMIRA_FIREBASE_API_KEY"
+                ).orNull.orEmpty()
+            )
+        )
+        buildConfigField(
+            "String",
+            "FIREBASE_SENDER_ID",
+            buildConfigString(
+                providers.gradleProperty(
+                    "HOMIRA_FIREBASE_SENDER_ID"
+                ).orNull.orEmpty()
+            )
+        )
     }
 
     buildFeatures {
@@ -57,6 +99,9 @@ dependencies {
     implementation("io.ktor:ktor-client-android:3.5.2")
 
     implementation("io.github.webrtc-sdk:android:150.7871.01")
+
+    implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
+    implementation("com.google.firebase:firebase-messaging")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
