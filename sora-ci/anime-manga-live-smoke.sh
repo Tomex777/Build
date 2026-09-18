@@ -102,13 +102,13 @@ wait_for_node() {
   done
   echo "Timed out waiting for '$label'" >&2
   shot "failure-${label//[^A-Za-z0-9]/_}"
-  adb logcat -d -t 600 | grep -Ei 'com\.night\.sora|AndroidRuntime|FATAL EXCEPTION|Jikan' | tail -n 180 >&2 || true
+  adb logcat -d -t 600 | grep -Ei 'com\.night\.sora|AndroidRuntime|FATAL EXCEPTION|AniList' | tail -n 180 >&2 || true
   return 1
 }
 
 # Returns 0 for a real catalog surface, 2 for the honest unavailable state,
 # and 1 only when neither state appears. This lets a tab recover independently
-# while Jikan is degraded without turning real recovery into a false failure.
+# while AniList is degraded without turning real recovery into a false failure.
 wait_for_catalog_state() {
   local timeout="${1:-50}" elapsed=0
   while (( elapsed < timeout )); do
@@ -175,11 +175,11 @@ tap_text Media
 wait_for_node 'Anime & Manga' 12
 shot 01-anime-initial
 
-# The curl probe is diagnostic only. When it reports degraded Jikan, first
+# The curl probe is diagnostic only. When it reports degraded AniList, first
 # verify each tab independently. If both tabs have recovered by emulator time,
 # immediately retry this same script in strict full-live mode. A failed strict
 # attempt is treated as an upstream-degraded pass and never creates the marker.
-if [[ "${JIKAN_HEALTHY:-0}" != "1" && "${FORCE_FULL_LIVE:-0}" != "1" ]]; then
+if [[ "${ANILIST_HEALTHY:-0}" != "1" && "${FORCE_FULL_LIVE:-0}" != "1" ]]; then
   anime_recovered=0
   manga_recovered=0
 
@@ -217,7 +217,7 @@ if [[ "${JIKAN_HEALTHY:-0}" != "1" && "${FORCE_FULL_LIVE:-0}" != "1" ]]; then
     shot 04-opportunistic-live-incomplete
   fi
 
-  echo 'Sora Anime/Manga degraded-Jikan emulator smoke passed; full live-data gate remains pending.'
+  echo 'Sora Anime/Manga degraded-AniList emulator smoke passed; full live-data gate remains pending.'
   exit 0
 fi
 
@@ -228,7 +228,7 @@ wait_for_node Details 45
 wait_for_node 'Airing now' 45
 shot 02-anime-live-home
 
-# Deliberate Anime search using live Jikan data.
+# Deliberate Anime search using live AniList data.
 tap_text 'Search Anime & Manga'
 input_query 'Search Anime…' naruto
 wait_for_node Naruto 45
@@ -242,7 +242,7 @@ shot 04-anime-detail
 tap_text 'Add to library'
 wait_for_node 'In library' 12
 
-# Naruto has an explicit Jikan adaptation relation. Wait for relationship
+# Naruto has an explicit AniList adaptation relation. Wait for relationship
 # resolution, then switch into the verified Manga counterpart and prove the
 # detail surface changed to Chapters rather than guessing by search.
 sleep 4
