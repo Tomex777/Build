@@ -1,0 +1,43 @@
+name: Seed WhatsApp Clone Foundation
+
+on:
+  push:
+    branches:
+      - whatsapp-ai-ui-ci
+    paths:
+      - ".github/workflows/seed-whatsapp-clone.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+
+      - name: Checkout donor clone
+        uses: actions/checkout@v4
+        with:
+          repository: Muhammad-bilal-503/WhatsApp-Clone
+          ref: main
+          path: donor
+
+      - name: Copy donor project into workspace
+        run: |
+          rm -rf whatsapp-ai-android
+          mkdir -p whatsapp-ai-android
+          shopt -s dotglob
+          cp -R donor/* whatsapp-ai-android/
+          rm -rf whatsapp-ai-android/.git
+          rm -f whatsapp-ai-android/app/google-services.json
+
+      - name: Commit foundation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add whatsapp-ai-android
+          git commit -m "Seed WhatsApp clone Android foundation"
+          git push origin HEAD:whatsapp-ai-ui-ci
