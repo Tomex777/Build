@@ -14,7 +14,7 @@ describe("createModuleScaffold", () => {
     });
 
     expect(scaffold.entryFile).toBe("main.py");
-    expect(scaffold.manifest.runtime).toEqual({ command: "python", args: ["main.py"] });
+    expect(scaffold.manifest.runtime).toEqual({ command: "python", args: ["main.py"], restart: "on-failure" });
     expect(scaffold.manifest.commands?.[0]?.name).toBe("balance");
     expect(scaffold.files["main.py"]).toContain("Hello from Economy!");
     expect(scaffold.files["requirements.txt"]).toContain("Python packages");
@@ -31,7 +31,7 @@ describe("createModuleScaffold", () => {
     });
 
     expect(scaffold.entryFile).toBe("main.mjs");
-    expect(scaffold.manifest.runtime).toEqual({ command: "bailey-node", args: ["main.mjs"] });
+    expect(scaffold.manifest.runtime).toEqual({ command: "bailey-node", args: ["main.mjs"], restart: "on-failure" });
     expect(scaffold.files["main.mjs"]).toContain("node:readline");
     expect(scaffold.files["package.json"]).toContain('"private": true');
     expect(scaffold.files["README.md"]).toContain("Settings declared there automatically appear in Bailey Configuration");
@@ -50,5 +50,21 @@ describe("createModuleScaffold", () => {
       runtime: "javascript",
       firstCommand: "not valid!",
     })).toThrow(/First command/);
+  });
+});
+
+
+describe("module scaffold optional host features", () => {
+  it("generates event/lifecycle-safe workers and capability declarations", () => {
+    const scaffold = createModuleScaffold({
+      id: "media-worker",
+      name: "Media Worker",
+      runtime: "javascript",
+      features: ["events", "storage", "services", "lifecycle"],
+    });
+    expect(scaffold.manifest.capabilities).toEqual(expect.arrayContaining(["events", "storage", "services", "lifecycle"]));
+    expect(scaffold.manifest.events).toEqual(["message.received"]);
+    expect(scaffold.files["main.mjs"]).toContain("lifecycle.start");
+    expect(scaffold.manifest.permissions).toEqual([]);
   });
 });
