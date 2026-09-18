@@ -1,0 +1,251 @@
+name: WhatsApp Clone Baseline Preview
+
+on:
+  push:
+    branches:
+      - whatsapp-clone-baseline-ci
+    paths:
+      - ".github/workflows/whatsapp-clone-baseline.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: whatsapp-clone-baseline
+  cancel-in-progress: true
+
+jobs:
+  build-and-capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout preview branch
+        uses: actions/checkout@v4
+
+      - name: Checkout original WhatsApp clone
+        uses: actions/checkout@v4
+        with:
+          repository: Muhammad-bilal-503/WhatsApp-Clone
+          ref: main
+          path: donor
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Prepare donor build
+        shell: bash
+        run: |
+          mkdir -p whatsapp-clone-preview
+          echo "stage=prepare" > whatsapp-clone-preview/status.txt
+
+          cat > donor/app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "123456789012",
+              "project_id": "whatsapp-clone-preview",
+              "storage_bucket": "whatsapp-clone-preview.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:123456789012:android:0123456789abcdef",
+                  "android_client_info": {
+                    "package_name": "com.example.whatsapp"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyDUMMY_PREVIEW_KEY_NOT_FOR_NETWORK_USE"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
+
+          cat > donor/app/src/main/java/com/example/whatsapp/PreviewActivity.kt <<'KOTLIN'
+          package com.example.whatsapp
+
+          import android.os.Bundle
+          import androidx.activity.ComponentActivity
+          import androidx.activity.compose.setContent
+          import androidx.activity.enableEdgeToEdge
+          import androidx.compose.foundation.background
+          import androidx.compose.foundation.layout.Arrangement
+          import androidx.compose.foundation.layout.Box
+          import androidx.compose.foundation.layout.Column
+          import androidx.compose.foundation.layout.fillMaxSize
+          import androidx.compose.foundation.layout.fillMaxWidth
+          import androidx.compose.foundation.layout.padding
+          import androidx.compose.foundation.lazy.LazyColumn
+          import androidx.compose.foundation.lazy.items
+          import androidx.compose.runtime.getValue
+          import androidx.compose.runtime.mutableStateOf
+          import androidx.compose.runtime.remember
+          import androidx.compose.runtime.setValue
+          import androidx.compose.ui.Modifier
+          import androidx.compose.ui.graphics.Color
+          import androidx.compose.ui.unit.dp
+          import com.example.whatsapp.models.Message
+          import com.example.whatsapp.presentation.chatscreen.ChatInputBar
+          import com.example.whatsapp.presentation.chatscreen.ChatTopBar
+          import com.example.whatsapp.presentation.chatscreen.MessageBubble
+          import com.example.whatsapp.presentation.chatscreen.SecurityBanner
+          import com.example.whatsapp.ui.theme.WhatsappTheme
+
+          class PreviewActivity : ComponentActivity() {
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  enableEdgeToEdge()
+
+                  setContent {
+                      WhatsappTheme(darkTheme = false) {
+                          var messageText by remember { mutableStateOf("") }
+
+                          val now = System.currentTimeMillis()
+                          val messages = listOf(
+                              Message(
+                                  senderPhoneNumber = "friend",
+                                  message = "Hey! Are you still coming later?",
+                                  timestamp = now - 240000,
+                              ),
+                              Message(
+                                  senderPhoneNumber = "me",
+                                  message = "Yeah, I’ll be there. Give me like 20 minutes.",
+                                  timestamp = now - 180000,
+                              ),
+                              Message(
+                                  senderPhoneNumber = "friend",
+                                  message = "Okay 😂 don’t take forever.",
+                                  timestamp = now - 120000,
+                              ),
+                              Message(
+                                  senderPhoneNumber = "me",
+                                  message = "I’m already leaving 😭",
+                                  timestamp = now - 60000,
+                              ),
+                          )
+
+                          Column(
+                              modifier = Modifier
+                                  .fillMaxSize()
+                                  .background(Color(0xFFECE5DD))
+                          ) {
+                              ChatTopBar(
+                                  contactName = "Muhammad Ahmad",
+                                  phoneNumber = "+1234567890",
+                                  onBackClick = {},
+                                  onCallClick = {},
+                              )
+
+                              SecurityBanner()
+
+                              LazyColumn(
+                                  modifier = Modifier
+                                      .weight(1f)
+                                      .fillMaxWidth()
+                                      .padding(horizontal = 8.dp),
+                                  verticalArrangement = Arrangement.spacedBy(4.dp),
+                              ) {
+                                  items(messages) { message ->
+                                      MessageBubble(
+                                          message = message,
+                                          isSentByMe = message.senderPhoneNumber == "me",
+                                          onLongPress = {},
+                                      )
+                                  }
+                              }
+
+                              ChatInputBar(
+                                  messageText = messageText,
+                                  onMessageTextChange = { messageText = it },
+                                  onSendClick = {},
+                                  onAttachmentClick = {},
+                                  onCameraClick = {},
+                                  onMicClick = {},
+                                  onEmojiClick = {},
+                              )
+                          }
+                      }
+                  }
+              }
+          }
+          KOTLIN
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("donor/app/src/main/AndroidManifest.xml")
+          s = p.read_text()
+          marker = '        <activity\n            android:name=".MainActivity"'
+          insert = '''        <activity
+              android:name=".PreviewActivity"
+              android:exported="true"
+              android:theme="@style/Theme.Whatsapp" />
+          <activity
+              android:name=".MainActivity"'''
+          if marker not in s:
+              raise SystemExit("MainActivity manifest marker not found")
+          s = s.replace(marker, insert, 1)
+          p.write_text(s)
+          PY
+
+          echo "stage=prepared" > whatsapp-clone-preview/status.txt
+
+      - name: Build original clone
+        shell: bash
+        run: |
+          set -o pipefail
+          cd donor
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --stacktrace 2>&1 | tee ../whatsapp-clone-preview/build.log
+          cd ..
+          echo "stage=build-succeeded" > whatsapp-clone-preview/status.txt
+
+      - name: Boot emulator and capture original chat UI
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb install -r donor/app/build/outputs/apk/debug/app-debug.apk
+            adb shell am force-stop com.example.whatsapp
+            adb shell am start -W -n com.example.whatsapp/.PreviewActivity
+            sleep 4
+            adb exec-out screencap -p > whatsapp-clone-preview/original-chat.png
+            echo "stage=screenshot-captured" > whatsapp-clone-preview/status.txt
+
+      - name: Commit preview output
+        if: always()
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add whatsapp-clone-preview || true
+          git diff --cached --quiet && exit 0
+          git commit -m "Update original WhatsApp clone preview"
+          git push origin HEAD:whatsapp-clone-baseline-ci
+
+      - name: Upload preview artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: whatsapp-clone-baseline-preview
+          path: |
+            whatsapp-clone-preview/**
+            donor/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: warn
