@@ -50,9 +50,12 @@ jobs:
       - name: Emulator visual smoke
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: 34
           arch: x86_64
+          target: google_apis
           profile: pixel_6
+          cores: 2
+          ram-size: 3072M
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
