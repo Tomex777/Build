@@ -17,6 +17,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.webrtc.AudioSource
 import org.webrtc.AudioTrack
+import org.webrtc.VideoTrack
+import org.webrtc.VideoSource
+import org.webrtc.SurfaceTextureHelper
+import org.webrtc.EglBase
+import org.webrtc.DefaultVideoEncoderFactory
+import org.webrtc.DefaultVideoDecoderFactory
+import org.webrtc.CameraVideoCapturer
+import org.webrtc.Camera2Enumerator
 import org.webrtc.DataChannel
 import org.webrtc.IceCandidate
 import org.webrtc.audio.JavaAudioDeviceModule
@@ -46,6 +54,7 @@ class HomiraWebRtcVoiceEngine(
     private val callId: String,
     private val localUserId: String,
     private val caller: Boolean,
+    private val initialVideoEnabled: Boolean = false,
     private val signaling: HomiraCallSignaling,
     private val iceServers: List<PeerConnection.IceServer> = defaultIceServers()
 ) {
@@ -58,15 +67,27 @@ class HomiraWebRtcVoiceEngine(
     private val _state = MutableStateFlow(HomiraWebRtcState.New)
     val state: StateFlow<HomiraWebRtcState> = _state.asStateFlow()
 
+    private val _localVideoTrack = MutableStateFlow<VideoTrack?>(null)
+    val localVideoTrack: StateFlow<VideoTrack?> = _localVideoTrack.asStateFlow()
+
+    private val _remoteVideoTrack = MutableStateFlow<VideoTrack?>(null)
+    val remoteVideoTrack: StateFlow<VideoTrack?> = _remoteVideoTrack.asStateFlow()
+
     private val pendingRemoteIce = mutableListOf<IceCandidate>()
     private var remoteDescriptionSet = false
     private var offerSent = false
     private var signalJob: Job? = null
 
+    private val eglBase = EglBase.create()
     private var audioDeviceModule: JavaAudioDeviceModule? = null
     private var factory: PeerConnectionFactory? = null
     private var audioSource: AudioSource? = null
     private var audioTrack: AudioTrack? = null
+    private var videoSource: VideoSource? = null
+    private var videoTrack: VideoTrack? = null
+    private var cameraCapturer: CameraVideoCapturer? = null
+    private var surfaceTextureHelper: SurfaceTextureHelper? = null
+    private var videoCaptureStarted = false
     private var peerConnection: PeerConnection? = null
 
     suspend fun start() {
@@ -81,10 +102,29 @@ class HomiraWebRtcVoiceEngine(
 
         factory = PeerConnectionFactory.builder()
             .setAudioDeviceModule(requireNotNull(audioDeviceModule))
+            .setVideoEncoderFactory(
+                DefaultVideoEncoderFactory(
+                    eglBase.eglBaseContext,
+                    true,
+                    true
+                )
+            )
+            .setVideoDecoderFactory(
+                DefaultVideoDecoderFactory(eglBase.eglBaseContext)
+            )
             .createPeerConnectionFactory()
 
         audioSource = requireNotNull(factory).createAudioSource(MediaConstraints())
         audioTrack = requireNotNull(factory).createAudioTrack("homira-audio-$callId", audioSource)
+
+        videoSource = requireNotNull(factory).createVideoSource(false)
+        videoTrack = requireNotNull(factory).createVideoTrack(
+            "homira-video-$callId",
+            videoSource
+        ).apply {
+            setEnabled(false)
+        }
+        _localVideoTrack.value = videoTrack
 
         val config = PeerConnection.RTCConfiguration(iceServers).apply {
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
@@ -98,6 +138,14 @@ class HomiraWebRtcVoiceEngine(
             requireNotNull(audioTrack),
             listOf("homira-$callId")
         )
+        requireNotNull(peerConnection).addTrack(
+            requireNotNull(videoTrack),
+            listOf("homira-$callId")
+        )
+
+        if (initialVideoEnabled) {
+            setVideoEnabled(true)
+        }
 
         signaling.connect()
         signalJob = scope.launch {
@@ -122,6 +170,27 @@ class HomiraWebRtcVoiceEngine(
         audioTrack?.setEnabled(!muted)
     }
 
+    fun setVideoEnabled(enabled: Boolean): Boolean {
+        val track = videoTrack ?: return false
+
+        if (!enabled) {
+            track.setEnabled(false)
+            stopCameraCapture()
+            return true
+        }
+
+        val started = startCameraCapture()
+        track.setEnabled(started)
+        return started
+    }
+
+    fun switchCamera() {
+        cameraCapturer?.switchCamera(object : CameraVideoCapturer.CameraSwitchHandler {
+            override fun onCameraSwitchDone(isFrontCamera: Boolean) = Unit
+            override fun onCameraSwitchError(errorDescription: String?) = Unit
+        })
+    }
+
     fun setSpeakerEnabled(enabled: Boolean) {
         val desiredType = if (enabled) {
             AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
@@ -137,6 +206,49 @@ class HomiraWebRtcVoiceEngine(
         } else if (!enabled) {
             audioManager.clearCommunicationDevice()
         }
+    }
+
+    private fun startCameraCapture(): Boolean {
+        if (videoCaptureStarted) return true
+
+        return runCatching {
+            val source = videoSource ?: error("Video source is not ready")
+
+            if (surfaceTextureHelper == null) {
+                surfaceTextureHelper = SurfaceTextureHelper.create(
+                    "HomiraCamera-$callId",
+                    eglBase.eglBaseContext
+                )
+            }
+
+            if (cameraCapturer == null) {
+                val enumerator = Camera2Enumerator(appContext)
+                val frontCamera = enumerator.deviceNames
+                    .firstOrNull { enumerator.isFrontFacing(it) }
+                val cameraName = frontCamera
+                    ?: enumerator.deviceNames.firstOrNull()
+                    ?: error("No camera available")
+
+                cameraCapturer = enumerator.createCapturer(cameraName, null)
+                    ?: error("Could not open camera")
+
+                cameraCapturer?.initialize(
+                    surfaceTextureHelper,
+                    appContext,
+                    source.capturerObserver
+                )
+            }
+
+            cameraCapturer?.startCapture(1280, 720, 30)
+            videoCaptureStarted = true
+            true
+        }.getOrDefault(false)
+    }
+
+    private fun stopCameraCapture() {
+        if (!videoCaptureStarted) return
+        runCatching { cameraCapturer?.stopCapture() }
+        videoCaptureStarted = false
     }
 
     suspend fun close() {
@@ -156,6 +268,21 @@ class HomiraWebRtcVoiceEngine(
         audioSource?.dispose()
         audioSource = null
 
+        stopCameraCapture()
+        cameraCapturer?.dispose()
+        cameraCapturer = null
+
+        videoTrack?.dispose()
+        videoTrack = null
+        _localVideoTrack.value = null
+        _remoteVideoTrack.value = null
+
+        videoSource?.dispose()
+        videoSource = null
+
+        surfaceTextureHelper?.dispose()
+        surfaceTextureHelper = null
+
         factory?.dispose()
         factory = null
 
@@ -172,6 +299,7 @@ class HomiraWebRtcVoiceEngine(
         }
         audioManager.mode = originalAudioMode
 
+        eglBase.release()
         scope.cancel()
     }
 
@@ -293,7 +421,11 @@ class HomiraWebRtcVoiceEngine(
         override fun onRemoveStream(stream: MediaStream) = Unit
         override fun onDataChannel(dataChannel: DataChannel) = Unit
         override fun onRenegotiationNeeded() = Unit
-        override fun onAddTrack(receiver: RtpReceiver, mediaStreams: Array<MediaStream>) = Unit
+        override fun onAddTrack(receiver: RtpReceiver, mediaStreams: Array<MediaStream>) {
+            (receiver.track() as? VideoTrack)?.let { remote ->
+                _remoteVideoTrack.value = remote
+            }
+        }
     }
 
     companion object {
