@@ -178,7 +178,7 @@ private fun ManualScreen(vm: KwikManualViewModel) {
         ) {
             OutlinedTextField(
                 value = vm.kwikUrl,
-                onValueChange = vm::setKwikUrl,
+                onValueChange = vm::updateKwikUrl,
                 modifier = Modifier.weight(1f),
                 singleLine = true,
                 label = { Text("Kwik release URL") },
@@ -193,7 +193,7 @@ private fun ManualScreen(vm: KwikManualViewModel) {
                         ?.coerceToText(context)
                         ?.toString()
                         .orEmpty()
-                    if (value.isNotBlank()) vm.setKwikUrl(value)
+                    if (value.isNotBlank()) vm.updateKwikUrl(value)
                 },
             ) {
                 Text("Paste")
@@ -202,7 +202,7 @@ private fun ManualScreen(vm: KwikManualViewModel) {
 
         OutlinedTextField(
             value = vm.referer,
-            onValueChange = vm::setReferer,
+            onValueChange = vm::updateReferer,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             label = { Text("Referer") },
