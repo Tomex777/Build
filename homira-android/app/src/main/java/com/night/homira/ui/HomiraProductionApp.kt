@@ -13,6 +13,7 @@ import com.night.homira.call.HomiraAudioRecorder
 import com.night.homira.call.HomiraAudioPlayer
 import com.night.homira.call.HomiraScreenShareService
 import com.night.homira.call.HomiraIncomingCallNotifier
+import com.night.homira.call.HomiraPushBootstrap
 import com.night.homira.call.HomiraWebRtcVoiceEngine
 import com.night.homira.data.HomiraCallSignaling
 import com.night.homira.data.HomiraLiveRepository
@@ -405,6 +406,17 @@ fun HomiraProductionApp(
         var localSettings by remember { mutableStateOf(settingsStore.load()) }
         val incomingCallNotifier = remember(context) {
             HomiraIncomingCallNotifier(context)
+        }
+
+        LaunchedEffect(liveMode) {
+            if (!liveMode) return@LaunchedEffect
+            HomiraPushBootstrap.requestRegistration(context)
+            runCatching {
+                HomiraPushBootstrap.syncStoredToken(
+                    context = context,
+                    repository = liveRepository
+                )
+            }
         }
         var notificationPermissionGranted by remember {
             mutableStateOf(
@@ -1594,6 +1606,12 @@ fun HomiraProductionApp(
                     liveScope.launch {
                         runCatching {
                             voiceEngine?.close()
+                            runCatching {
+                                HomiraPushBootstrap.removeRegisteredToken(
+                                    context = context,
+                                    repository = liveRepository
+                                )
+                            }
                             liveRepository.signOut()
                         }.onSuccess {
                             activePerson = null
