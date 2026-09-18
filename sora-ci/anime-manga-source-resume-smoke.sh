@@ -213,7 +213,6 @@ PY
   sleep 2
 }
 
-\n
 read_progress_json() {
   adb shell run-as com.night.sora cat shared_prefs/sora_core.xml > /tmp/current-sora-core.xml
   python3 - <<'PY'
