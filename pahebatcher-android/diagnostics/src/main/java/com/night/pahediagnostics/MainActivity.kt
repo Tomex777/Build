@@ -46,7 +46,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -127,7 +126,7 @@ private fun DiagnosticsScreen(vm: DiagnosticViewModel) {
             color = TextMain,
         )
         Text(
-            text = "Device-side AnimePahe -> Kwik verifier. No Tor is packaged in this APK.",
+            text = "Trace the real AnimePahe -> Kwik path and capture the exact failing stage. No Tor is packaged in this APK.",
             fontSize = 13.sp,
             color = TextMuted,
         )
@@ -258,46 +257,6 @@ private fun DiagnosticsScreen(vm: DiagnosticViewModel) {
             )
             vm.checks.forEach { check ->
                 CheckRow(check)
-            }
-        }
-
-        Text(
-            text = "Advanced fallback",
-            color = TextMain,
-            fontSize = 16.sp,
-            modifier = Modifier.padding(top = 6.dp),
-        )
-        Text(
-            text = "Only use this after we have captured the AnimePahe -> Kwik failure. It lets us test Kwik itself independently.",
-            color = TextMuted,
-            fontSize = 11.sp,
-            lineHeight = 16.sp,
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OutlinedTextField(
-                value = vm.manualKwikUrl,
-                onValueChange = vm::setManualKwikUrl,
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-                label = { Text("Manual Kwik release URL") },
-                placeholder = { Text("https://kwik...") },
-            )
-            TextButton(
-                onClick = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    val text = clipboard.primaryClip
-                        ?.getItemAt(0)
-                        ?.coerceToText(context)
-                        ?.toString()
-                        .orEmpty()
-                    if (text.isNotBlank()) vm.setManualKwikUrl(text)
-                },
-            ) {
-                Text("Paste")
             }
         }
 
