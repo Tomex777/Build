@@ -53,28 +53,16 @@ jobs:
           disable-animations: true
           script: |
             adb wait-for-device
-            until [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; do
-              sleep 2
-            done
+            adb shell getprop sys.boot_completed
             adb install -r homira-android/app/build/outputs/apk/debug/app-debug.apk
             adb logcat -c
             adb shell am force-stop com.night.homira
             adb shell am start -W -n com.night.homira/.MainActivity
-
-            for i in $(seq 1 30); do
-              focus="$(adb shell dumpsys window windows | grep -m 1 'mCurrentFocus' || true)"
-              echo "$focus"
-              if echo "$focus" | grep -q 'com.night.homira'; then
-                break
-              fi
-              sleep 1
-            done
-
-            sleep 15
+            sleep 20
             mkdir -p homira-android/app/build/ui-preview
             adb shell dumpsys activity activities > homira-android/app/build/ui-preview/activity.txt
             adb shell dumpsys window windows > homira-android/app/build/ui-preview/windows.txt
-            adb logcat -d -t 800 > homira-android/app/build/ui-preview/logcat.txt
+            adb logcat -d -t 1200 > homira-android/app/build/ui-preview/logcat.txt
             adb exec-out screencap -p > homira-android/app/build/ui-preview/auth-screen.png
 
       - name: Upload auth preview
