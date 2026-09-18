@@ -13,6 +13,7 @@ import com.night.homira.call.HomiraScreenShareService
 import com.night.homira.call.HomiraWebRtcVoiceEngine
 import com.night.homira.data.HomiraCallSignaling
 import com.night.homira.data.HomiraLiveRepository
+import com.night.homira.data.HomiraSettingsStore
 import com.night.homira.data.HomiraCallHistoryStore
 import com.night.homira.data.LocalCallHistoryRecord
 import com.night.homira.data.LiveProfile
@@ -351,6 +352,8 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         val context = LocalContext.current
         val liveRepository = remember { HomiraLiveRepository() }
         val liveScope = rememberCoroutineScope()
+        val settingsStore = remember(context) { HomiraSettingsStore(context) }
+        var localSettings by remember { mutableStateOf(settingsStore.load()) }
         val callHistoryStore = remember(context) { HomiraCallHistoryStore(context) }
         var localCallHistory by remember {
             mutableStateOf<List<LocalCallHistoryRecord>>(emptyList())
@@ -481,6 +484,9 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
         }
         var profileEmail by rememberSaveable(initialProfile?.id) {
             mutableStateOf(initialProfile?.email.orEmpty())
+        }
+        var voicemailEnabled by rememberSaveable(initialProfile?.id) {
+            mutableStateOf(initialProfile?.voicemailEnabled ?: true)
         }
         var voicemailGreetingMode by rememberSaveable(initialProfile?.id) {
             mutableStateOf(initialProfile?.voicemailGreetingMode ?: "default")
@@ -1068,6 +1074,7 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
                 localUserId = localUserId,
                 caller = session.callerId == localUserId,
                 initialVideoEnabled = activeVideo && cameraPermissionGranted,
+                lowDataMode = localSettings.lowDataCalls,
                 signaling = HomiraCallSignaling(session.id)
             )
             voiceEngine = engine
@@ -1263,7 +1270,40 @@ fun HomiraProductionApp(initialProfile: LiveProfile? = null, initialContacts: Li
             )
 
             overlay == OverlayScreen.Settings -> SettingsScreen(
+                lowDataCalls = localSettings.lowDataCalls,
+                callNotifications = localSettings.callNotifications,
+                voicemailEnabled = voicemailEnabled,
                 voicemailGreetingMode = voicemailGreetingMode,
+                onLowDataChanged = { enabled ->
+                    settingsStore.setLowDataCalls(enabled)
+                    localSettings = settingsStore.load()
+                },
+                onNotificationsChanged = { enabled ->
+                    settingsStore.setCallNotifications(enabled)
+                    localSettings = settingsStore.load()
+                },
+                onVoicemailEnabledChanged = { enabled ->
+                    if (!liveMode) {
+                        voicemailEnabled = enabled
+                    } else {
+                        val previous = voicemailEnabled
+                        voicemailEnabled = enabled
+                        liveScope.launch {
+                            runCatching {
+                                liveRepository.setVoicemailEnabled(enabled)
+                            }.onSuccess { profile ->
+                                voicemailEnabled = profile.voicemailEnabled
+                            }.onFailure {
+                                voicemailEnabled = previous
+                                Toast.makeText(
+                                    context,
+                                    it.message ?: "Could not update voicemail.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                },
                 onBack = { overlay = OverlayScreen.None },
                 onVoicemail = { overlay = OverlayScreen.Voicemail }
             )
@@ -2569,50 +2609,113 @@ private fun EditProfileScreen(
 
 @Composable
 private fun SettingsScreen(
+    lowDataCalls: Boolean,
+    callNotifications: Boolean,
+    voicemailEnabled: Boolean,
     voicemailGreetingMode: String,
+    onLowDataChanged: (Boolean) -> Unit,
+    onNotificationsChanged: (Boolean) -> Unit,
+    onVoicemailEnabledChanged: (Boolean) -> Unit,
     onBack: () -> Unit,
     onVoicemail: () -> Unit
 ) {
-    var lowData by rememberSaveable { mutableStateOf(false) }
-    var protectIp by rememberSaveable { mutableStateOf(false) }
-    var notifications by rememberSaveable { mutableStateOf(true) }
-    var darkMode by rememberSaveable { mutableStateOf(true) }
-
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(HomiraBackground).safeDrawingPadding(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(HomiraBackground)
+            .safeDrawingPadding(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = HomiraText) }
-                Text("Settings", color = HomiraText, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.Rounded.ArrowBack,
+                        contentDescription = "Back",
+                        tint = HomiraText
+                    )
+                }
+                Text(
+                    "Settings",
+                    color = HomiraText,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
+
         item {
             SectionTitleP("Calls")
-            SettingsToggleP(Icons.Rounded.DataSaverOn, "Use less data for calls", "Reduce bitrate on mobile data", lowData) { lowData = it }
-            SettingsRowP(Icons.Rounded.PhoneInTalk, "Call quality", "Automatic") { }
-            SettingsRowP(
+            SettingsToggleP(
+                Icons.Rounded.DataSaverOn,
+                "Use less data for calls",
+                if (lowDataCalls) {
+                    "Lower video bitrate while prioritizing voice"
+                } else {
+                    "Adaptive quality"
+                },
+                lowDataCalls,
+                onLowDataChanged
+            )
+            InfoRowP(
+                Icons.Rounded.PhoneInTalk,
+                "Call quality",
+                if (lowDataCalls) "Low data" else "Automatic"
+            )
+            SettingsToggleP(
                 Icons.Rounded.Voicemail,
                 "Voicemail",
-                if (voicemailGreetingMode == "voice") "Custom voice greeting" else "Default greeting"
-            ) { onVoicemail() }
-            SettingsRowP(Icons.Rounded.Notifications, "Ringtone", "Default") { }
+                if (voicemailEnabled) {
+                    "Callers can leave a voice message"
+                } else {
+                    "Callers won't be offered voicemail"
+                },
+                voicemailEnabled,
+                onVoicemailEnabledChanged
+            )
+            if (voicemailEnabled) {
+                SettingsRowP(
+                    Icons.Rounded.Mic,
+                    "Voicemail greeting",
+                    if (voicemailGreetingMode == "voice") {
+                        "Custom voice greeting"
+                    } else {
+                        "Default Homira greeting"
+                    }
+                ) {
+                    onVoicemail()
+                }
+            }
         }
+
         item {
             SectionTitleP("Privacy")
-            SettingsToggleP(Icons.Rounded.Lock, "Protect IP in calls", "Use TURN relay for private IP handling", protectIp) { protectIp = it }
-            SettingsRowP(Icons.Rounded.Block, "Blocked people", "Manage") { }
-            SettingsRowP(Icons.Rounded.Security, "Account security", "PIN and recovery") { }
+            InfoRowP(
+                Icons.Rounded.Lock,
+                "Protect IP in calls",
+                "TURN relay is not configured yet"
+            )
         }
+
         item {
             SectionTitleP("Notifications")
-            SettingsToggleP(Icons.Rounded.Notifications, "Call notifications", "Incoming, missed calls and voicemail", notifications) { notifications = it }
+            SettingsToggleP(
+                Icons.Rounded.Notifications,
+                "Call notifications",
+                "Incoming, missed calls and voicemail",
+                callNotifications,
+                onNotificationsChanged
+            )
         }
+
         item {
-            SectionTitleP("Appearance")
-            SettingsToggleP(Icons.Rounded.Palette, "Dark appearance", "Use Homira's dark theme", darkMode) { darkMode = it }
+            SectionTitleP("About this build")
+            InfoRowP(
+                Icons.Rounded.Security,
+                "Call media",
+                "WebRTC audio/video; Supabase carries call setup only"
+            )
         }
     }
 }
