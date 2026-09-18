@@ -950,7 +950,7 @@ private fun VerificationScreen(vm: PaheViewModel) {
                     ) {
                         view.tag = target
                         if (vm.verifyStage == VerifyStage.KWIK) {
-                            val animeHost = vm.sessions.animeHost.ifBlank { "animepahe.si" }
+                            val animeHost = vm.sessions.animeHost.ifBlank { "animepahe.pw" }
                             view.loadUrl(target, mapOf("Referer" to "https://$animeHost/"))
                         } else {
                             view.loadUrl(target)

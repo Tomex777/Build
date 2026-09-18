@@ -120,7 +120,7 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
     fun startVerification() {
         verifyError = null
         verifyStage = VerifyStage.ANIMEPAHE
-        val host = sessions.animeHost.ifBlank { "animepahe.si" }
+        val host = sessions.animeHost.ifBlank { "animepahe.pw" }
         verifyUrl = "https://$host/"
         verificationActive = true
     }
