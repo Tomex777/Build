@@ -137,21 +137,21 @@ private fun RootTabs(vm: PaheViewModel) {
                         label = "Explore",
                         icon = { Icon(Icons.Rounded.Explore, null) },
                         modifier = Modifier.weight(1f),
-                        onClick = { vm.setTab(MainTab.EXPLORE) },
+                        onClick = { vm.navigateToTab(MainTab.EXPLORE) },
                     )
                     NavItem(
                         selected = vm.tab == MainTab.DOWNLOADS,
                         label = "Downloads",
                         icon = { Icon(Icons.Rounded.Download, null) },
                         modifier = Modifier.weight(1f),
-                        onClick = { vm.setTab(MainTab.DOWNLOADS) },
+                        onClick = { vm.navigateToTab(MainTab.DOWNLOADS) },
                     )
                     NavItem(
                         selected = vm.tab == MainTab.SETTINGS,
                         label = "Settings",
                         icon = { Icon(Icons.Rounded.Settings, null) },
                         modifier = Modifier.weight(1f),
-                        onClick = { vm.setTab(MainTab.SETTINGS) },
+                        onClick = { vm.navigateToTab(MainTab.SETTINGS) },
                     )
                 }
             }
@@ -542,7 +542,7 @@ private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
             onDownload = { quality, audio ->
                 vm.downloadEpisode(episode, quality, audio)
                 sheetEpisode = null
-                vm.setTab(MainTab.DOWNLOADS)
+                vm.navigateToTab(MainTab.DOWNLOADS)
             },
         )
     }
