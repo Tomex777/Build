@@ -33,6 +33,7 @@ import com.night.sora.data.CoreRepository
 import com.night.sora.data.MediaCatalogCache
 import com.night.sora.extension.ExtensionManager
 import com.night.sora.extension.InstalledExtension
+import com.night.sora.model.ContentType
 import com.night.sora.model.ExtensionMediaSelection
 import com.night.sora.model.PlaybackSession
 import com.night.sora.model.ReaderSession
@@ -73,6 +74,7 @@ fun SoraApp() {
     var extensions by remember { mutableStateOf<List<InstalledExtension>>(emptyList()) }
     var extensionScanDone by remember { mutableStateOf(false) }
     var showAiQuick by remember { mutableStateOf(false) }
+    var mediaSelectedType by remember { mutableStateOf(ContentType.ANIME) }
 
     fun refreshExtensions() {
         extensionManager.discover { extensions = it; extensionScanDone = true }
@@ -172,6 +174,8 @@ fun SoraApp() {
                     modifier = Modifier.padding(padding), extensions = extensions, extensionScanDone = extensionScanDone,
                     manager = extensionManager, libraryEntries = repository.library, listeningSignals = repository.listeningSignals,
                     progressEntries = repository.mediaProgress,
+                    initialSelectedType = mediaSelectedType,
+                    onSelectedTypeChange = { mediaSelectedType = it },
                     isSaved = repository::isSaved, onToggleSaved = repository::toggleSaved,
                     onOpenExtensions = { push(AppScreen.Extensions) }, onOpenDetails = ::openMedia,
                     onResumeProgress = { entry ->
