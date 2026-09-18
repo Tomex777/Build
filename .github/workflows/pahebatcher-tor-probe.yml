@@ -25,6 +25,7 @@ jobs:
           echo 'ControlPort 9051' | sudo tee -a /etc/tor/torrc
           echo 'CookieAuthentication 0' | sudo tee -a /etc/tor/torrc
           sudo systemctl restart tor || sudo service tor restart
+          timeout 25s bash -c 'until grep -q "Bootstrapped 100% (done)" <(journalctl -u tor@default -u tor --no-pager -n 200 2>/dev/null); do sleep 1; done' || true
 
           ready=false
           for i in $(seq 1 6); do
