@@ -415,12 +415,18 @@ private fun DownloadResultBubble(item: DownloadResultMessage) {
             )
         }
 
-        Text(
-            text = ((item.progress * 100).toInt()).toString() + "%",
-            color = RichMuted,
-            fontSize = 10.sp,
-            modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
+            contentAlignment = Alignment.CenterEnd,
+        ) {
+            Text(
+                text = ((item.progress * 100).toInt()).toString() + "%",
+                color = RichMuted,
+                fontSize = 10.sp,
+            )
+        }
     }
 }
 
