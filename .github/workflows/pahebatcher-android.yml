@@ -78,7 +78,7 @@ jobs:
               break
             fi
 
-            python3 -c 'import socket; s=socket.create_connection(("127.0.0.1",9051),timeout=5); s.sendall(b"AUTHENTICATE\\r\\nSIGNAL NEWNYM\\r\\nQUIT\\r\\n"); s.recv(4096); s.close()'
+            python3 -c 'import socket; s=socket.create_connection(("127.0.0.1",9051),timeout=5); s.sendall(b"AUTHENTICATE\\r\\nSIGNAL NEWNYM\\r\\nQUIT\\r\\n"); s.recv(4096); s.close()' || true
             sleep 11
           done
 
