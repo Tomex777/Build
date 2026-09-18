@@ -177,6 +177,14 @@ tap_text Music
 wait_for_node 'Low Light' 20
 shot 01-music-demo-catalog
 
+# Capture every top-level Music tab for visual review.
+tap_text 'Your Music'
+sleep 2
+shot 01b-music-your-music
+tap_text Home
+sleep 2
+shot 01c-music-home-return
+
 tap_text 'Low Light'
 wait_for_node 'Mini player' 20
 wait_for_node Pause 20
@@ -204,6 +212,13 @@ tap_text 'Mini player'
 wait_for_node 'Low Light' 10
 wait_for_node Next 10
 shot 05-now-playing
+
+# Capture the queue view from Now Playing as part of the Music UI evidence set.
+tap_text Queue
+sleep 2
+shot 05b-now-playing-queue
+adb shell input keyevent KEYCODE_BACK
+sleep 2
 
 tap_text Next
 wait_for_node 'Wake Slowly' 20
