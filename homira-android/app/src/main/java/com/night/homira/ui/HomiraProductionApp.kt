@@ -399,7 +399,18 @@ fun HomiraProductionApp(
                 )
             }
         }
-        val callHistoryStore = remember(context) { HomiraCallHistoryStore(context) }
+        val historyOwnerKey =
+            if (liveMode) {
+                liveRepository.currentUserId() ?: "signed-out"
+            } else {
+                "demo"
+            }
+        val callHistoryStore = remember(context, historyOwnerKey) {
+            HomiraCallHistoryStore(
+                context = context,
+                ownerKey = historyOwnerKey
+            )
+        }
         var localCallHistory by remember {
             mutableStateOf<List<LocalCallHistoryRecord>>(emptyList())
         }
@@ -3038,7 +3049,7 @@ private fun SettingsScreen(
             title = { Text("Sign out?", color = HomiraText) },
             text = {
                 Text(
-                    "Your local call history stays on this device. You can sign in again with your phone number.",
+                    "Your local call history stays on this device for this Homira account. You can sign in again with your phone number.",
                     color = HomiraMuted
                 )
             },
