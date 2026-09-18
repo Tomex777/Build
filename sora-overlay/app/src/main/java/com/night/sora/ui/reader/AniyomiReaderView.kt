@@ -53,6 +53,7 @@ class AniyomiReaderView(context: Context) : FrameLayout(context) {
     private var pages: List<ReaderPage> = emptyList()
     private var mode: AniyomiReadingMode = AniyomiReadingMode.WEBTOON
     private var currentPageIndex = 0
+    private var cropBorders = false
     private var onPageChanged: (Int) -> Unit = {}
     private var onTap: () -> Unit = {}
 
@@ -85,6 +86,12 @@ class AniyomiReaderView(context: Context) : FrameLayout(context) {
     fun setReadingMode(mode: AniyomiReadingMode) {
         if (this.mode == mode) return
         this.mode = mode
+        rebuild()
+    }
+
+    fun setCropBorders(enabled: Boolean) {
+        if (cropBorders == enabled) return
+        cropBorders = enabled
         rebuild()
     }
 
@@ -197,7 +204,7 @@ class AniyomiReaderView(context: Context) : FrameLayout(context) {
                 position
             }
             val pageView = AniyomiReaderPageView(context, isWebtoon = false).apply {
-                bind(pages[actual], onTap)
+                bind(pages[actual], onTap, cropBorders)
             }
             container.addView(
                 pageView,
@@ -233,7 +240,7 @@ class AniyomiReaderView(context: Context) : FrameLayout(context) {
         }
 
         override fun onBindViewHolder(holder: WebtoonHolder, position: Int) {
-            holder.page.bind(pages[position], onTap)
+            holder.page.bind(pages[position], onTap, cropBorders)
         }
 
         override fun onViewRecycled(holder: WebtoonHolder) {
@@ -304,13 +311,14 @@ private class AniyomiReaderPageView(
         )
     }
 
-    fun bind(page: ReaderPage, onTap: () -> Unit) {
+    fun bind(page: ReaderPage, onTap: () -> Unit, cropBorders: Boolean) {
         val key = buildKey(page)
         boundKey = key
         progress.visibility = View.VISIBLE
         error.visibility = View.GONE
         image.visibility = View.INVISIBLE
         image.recycle()
+        image.setCropBorders(cropBorders)
         image.setOnClickListener { onTap() }
 
         image.setOnImageEventListener(
