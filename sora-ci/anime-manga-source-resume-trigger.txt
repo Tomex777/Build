@@ -1,1 +1,1 @@
-run 6 - upstream BaseMPVView lifecycle real media exact resume validation
+run 7 - deterministic local Aniyomi player reader exact resume validation
