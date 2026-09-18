@@ -40,8 +40,11 @@ jobs:
       - name: Verify preinstalled Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
-          test -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" || test -x "$ANDROID_HOME/tools/bin/sdkmanager"
-          adb version
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          test -x "$ANDROID_HOME/platform-tools/adb"
+          "$ANDROID_HOME/platform-tools/adb" version
 
       - name: Enable KVM
         run: |
