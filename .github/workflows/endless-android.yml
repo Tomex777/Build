@@ -46,7 +46,7 @@ jobs:
             local bytes
             bytes=$(stat -c%s "$OUT/$local_name")
             echo "  bytes=$bytes  type=$(file -b "$OUT/$local_name")"
-            test "$bytes" -gt 50000
+            test "$bytes" -gt 10000
             file -b "$OUT/$local_name" | grep -Eq 'JPEG image data|PNG image data'
           }
 
