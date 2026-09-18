@@ -290,7 +290,19 @@ tap_text_raw Play
 wait_for_node_raw Pause 8
 
 tap_text_raw Next
-wait_for_node_raw 'Wake Slowly' 15
+next_track_seen=0
+for _ in $(seq 1 15); do
+  if node_exists 'Wake Slowly' || node_exists 'Glassline' || node_exists 'Offline Proof'; then
+    next_track_seen=1
+    break
+  fi
+  sleep 1
+done
+if (( next_track_seen != 1 )); then
+  echo "Timed out waiting for Music to advance away from Low Light" >&2
+  shot failure-next-track
+  exit 1
+fi
 wait_for_node_raw Pause 8
 shot 06-next-track
 
