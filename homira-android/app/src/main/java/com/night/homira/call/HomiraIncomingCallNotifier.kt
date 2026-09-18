@@ -138,6 +138,93 @@ class HomiraIncomingCallNotifier(
         return true
     }
 
+    fun showOngoing(
+        callId: String,
+        mediaType: String,
+        peerName: String,
+        calling: Boolean = false
+    ): Boolean {
+        if (
+            ContextCompat.checkSelfPermission(
+                appContext,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            HomiraRingtonePlayback.stop()
+            return false
+        }
+
+        val requestBase = notificationId(callId)
+
+        val openIntent = Intent(appContext, MainActivity::class.java).apply {
+            flags =
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(EXTRA_CALL_ID, callId)
+        }
+        val openPendingIntent = PendingIntent.getActivity(
+            appContext,
+            requestBase,
+            openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val hangUpIntent = Intent(
+            appContext,
+            HomiraCallActionReceiver::class.java
+        ).apply {
+            action = ACTION_HANG_UP
+            putExtra(EXTRA_CALL_ID, callId)
+        }
+        val hangUpPendingIntent = PendingIntent.getBroadcast(
+            appContext,
+            requestBase + 2,
+            hangUpIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val peer = Person.Builder()
+            .setName(peerName)
+            .setImportant(true)
+            .build()
+
+        val notification = Notification.Builder(
+            appContext,
+            CHANNEL_INCOMING_CALLS
+        )
+            .setSmallIcon(android.R.drawable.sym_action_call)
+            .setContentTitle(peerName)
+            .setContentText(
+                when {
+                    calling && mediaType == "video" -> "Calling · video"
+                    calling -> "Calling…"
+                    mediaType == "video" -> "Video call in progress"
+                    else -> "Call in progress"
+                }
+            )
+            .setCategory(Notification.CATEGORY_CALL)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setOngoing(true)
+            .setAutoCancel(false)
+            .setContentIntent(openPendingIntent)
+            .setStyle(
+                Notification.CallStyle.forOngoingCall(
+                    peer,
+                    hangUpPendingIntent
+                )
+            )
+            .build()
+
+        HomiraRingtonePlayback.stop()
+        notificationManager.notify(
+            NOTIFICATION_TAG,
+            notificationId(callId),
+            notification
+        )
+        return true
+    }
+
     fun cancel(callId: String) {
         notificationManager.cancel(
             NOTIFICATION_TAG,
@@ -170,6 +257,7 @@ class HomiraIncomingCallNotifier(
 
     companion object {
         const val ACTION_DECLINE = "com.night.homira.action.DECLINE_CALL"
+        const val ACTION_HANG_UP = "com.night.homira.action.HANG_UP_CALL"
         const val EXTRA_CALL_ID = "homira_call_id"
 
         private const val CHANNEL_INCOMING_CALLS = "homira_incoming_calls_v2"
