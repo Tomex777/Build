@@ -58,7 +58,7 @@ jobs:
             mkdir -p homira-android/app/build/ui-preview
             adb logcat -c
             adb shell am force-stop com.night.homira
-            adb shell am start -W -n com.night.homira/.MainActivity
+            adb shell am start -W -n com.night.homira/.MainActivity || true
             adb exec-out screencap -p > homira-android/app/build/ui-preview/auth-immediate.png
             adb shell dumpsys activity activities > homira-android/app/build/ui-preview/activity-immediate.txt
             adb logcat -d -t 5000 > homira-android/app/build/ui-preview/logcat-immediate.txt
@@ -74,6 +74,7 @@ jobs:
             adb exec-out screencap -p > homira-android/app/build/ui-preview/auth-screen.png
 
       - name: Upload auth preview
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: homira-auth-screen
