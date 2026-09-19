@@ -42,9 +42,11 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.VideoCall
 import androidx.compose.material.icons.filled.Poll
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Image as ImageIcon
 import androidx.compose.material.icons.filled.Event
@@ -352,13 +354,6 @@ private fun CurrentChatHeader(
                             showCallMenu = false
                             onCallClick()
                         },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Video call", color = PrimaryText) },
-                        leadingIcon = {
-                            Icon(Icons.Default.VideoCall, null, tint = SecondaryText)
-                        },
-                        onClick = { showCallMenu = false },
                     )
                 }
             }
@@ -885,10 +880,10 @@ private fun AttachmentTray(
         Triple("Gallery", Icons.Default.ImageIcon, Color(0xFF2196F3)),
         Triple("Camera", Icons.Default.PhotoCamera, Color(0xFFE91E63)),
         Triple("Location", Icons.Default.LocationOn, Color(0xFF20C997)),
-        Triple("Contact", Icons.Default.Person, Color(0xFF039BE5)),
+        Triple("Choose AI", Icons.Default.Psychology, Color(0xFF039BE5)),
         Triple("Document", Icons.Default.Description, Color(0xFF7E57C2)),
         Triple("Poll", Icons.Default.Poll, Color(0xFFFFB300)),
-        Triple("Event", Icons.Default.Event, Color(0xFFE91E63)),
+        Triple("Schedule", Icons.Default.Schedule, Color(0xFFE91E63)),
         Triple("AI images", Icons.Default.AutoAwesome, Color(0xFF1976D2)),
     )
 
