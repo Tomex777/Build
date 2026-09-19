@@ -218,6 +218,8 @@ private fun NightApp() {
             )
         } ?: return
 
+        val messageId = java.util.UUID.randomUUID().toString()
+
         repository.addLibraryItem(
             NightLibraryItemEntity(
                 id = saved.id,
@@ -227,10 +229,9 @@ private fun NightApp() {
                 localPath = saved.localPath,
                 createdAt = saved.createdAt,
                 sourceChatId = activeChatId,
+                sourceMessageId = messageId,
             )
         )
-
-        val messageId = java.util.UUID.randomUUID().toString()
         val initialPayload = JSONObject()
             .put("localPath", saved.localPath)
             .put("duration", formatDuration(recorded.durationMs))
@@ -314,6 +315,8 @@ private fun NightApp() {
                 NightFileLibrary.importUri(context, uri)
             } ?: return@launch
 
+            val messageId = java.util.UUID.randomUUID().toString()
+
             repository.addLibraryItem(
                 NightLibraryItemEntity(
                     id = saved.id,
@@ -323,6 +326,7 @@ private fun NightApp() {
                     localPath = saved.localPath,
                     createdAt = saved.createdAt,
                     sourceChatId = activeChatId,
+                    sourceMessageId = messageId,
                 )
             )
 
@@ -334,7 +338,7 @@ private fun NightApp() {
 
             repository.appendMessage(
                 NightMessageEntity(
-                    id = java.util.UUID.randomUUID().toString(),
+                    id = messageId,
                     chatId = activeChatId,
                     role = "user",
                     type = if (saved.mimeType.startsWith("image/")) "image" else "file",
@@ -365,6 +369,8 @@ private fun NightApp() {
                 )
             } ?: return@launch
 
+            val messageId = java.util.UUID.randomUUID().toString()
+
             repository.addLibraryItem(
                 NightLibraryItemEntity(
                     id = saved.id,
@@ -374,12 +380,13 @@ private fun NightApp() {
                     localPath = saved.localPath,
                     createdAt = saved.createdAt,
                     sourceChatId = activeChatId,
+                    sourceMessageId = messageId,
                 )
             )
 
             repository.appendMessage(
                 NightMessageEntity(
-                    id = java.util.UUID.randomUUID().toString(),
+                    id = messageId,
                     chatId = activeChatId,
                     role = "user",
                     type = "image",
