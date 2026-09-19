@@ -77,6 +77,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -158,6 +159,7 @@ fun CurrentWhatsAppConversation(
     menuInitiallyOpen: Boolean = false,
 ) {
     val state = rememberLazyListState()
+    val keyboardController = LocalSoftwareKeyboardController.current
     var showAttachments by remember { mutableStateOf(attachmentsInitiallyOpen) }
     var showEmojiPicker by remember { mutableStateOf(emojiInitiallyOpen) }
 
@@ -217,6 +219,7 @@ fun CurrentWhatsAppConversation(
                 onTextChange = onMessageTextChange,
                 onSendClick = onSendClick,
                 onAttachmentClick = {
+                    keyboardController?.hide()
                     showEmojiPicker = false
                     showAttachments = !showAttachments
                     onAttachmentClick()
@@ -224,6 +227,7 @@ fun CurrentWhatsAppConversation(
                 onCameraClick = onCameraClick,
                 onMicClick = onMicClick,
                 onEmojiClick = {
+                    keyboardController?.hide()
                     showAttachments = false
                     showEmojiPicker = !showEmojiPicker
                     onEmojiClick()
