@@ -139,7 +139,7 @@ fun NightAppearanceScreen(
                             Box(
                                 modifier = Modifier
                                     .size(28.dp)
-                                    .background(Color(raw), CircleShape)
+                                    .background(Color(raw.toInt()), CircleShape)
                             )
                         }
                     }
@@ -224,7 +224,7 @@ private fun ColorChoices(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Surface(
-                    color = Color(choice.argb),
+                    color = Color(choice.argb.toInt()),
                     shape = CircleShape,
                     modifier = Modifier.size(if (selected == choice.argb) 42.dp else 36.dp),
                 ) {}
