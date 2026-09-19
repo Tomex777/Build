@@ -32,8 +32,10 @@ fun HomeScreen(
             }
         },
         onChatClick = { chat ->
-            val identifier = chat.phoneNumber ?: chat.name ?: return@ModernChatsTab
-            navHostController.navigate(Routes.ChatScreen.createRoute(identifier))
+            val identifier = chat.phoneNumber ?: chat.name
+            if (!identifier.isNullOrBlank()) {
+                navHostController.navigate(Routes.ChatScreen.createRoute(identifier))
+            }
         },
         onSettingsClick = {
             navHostController.navigate(Routes.SettingScreen.route)
