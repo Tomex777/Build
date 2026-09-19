@@ -9,6 +9,10 @@ data class StoredDownloadTask(
     val id: String,
     val workId: String,
     val animeTitle: String,
+    val aniListId: Int = 0,
+    val sourceQueries: List<String> = emptyList(),
+    val sourceAnimeId: Int = 0,
+    val sourceAnimeSession: String = "",
     val episodeNumber: Double,
     val episodeSession: String,
     val episodeTitle: String,
@@ -37,6 +41,18 @@ data class StoredDownloadTask(
         fansub = episodeFansub,
         audio = episodeAudio,
         playUrl = playUrl,
+    )
+
+    fun catalog(): AnimeSearchResult = AnimeSearchResult(
+        session = sourceAnimeSession,
+        title = animeTitle,
+        poster = "",
+        type = "",
+        episodes = 0,
+        status = "",
+        animeId = sourceAnimeId.takeIf { it > 0 },
+        aniListId = aniListId.takeIf { it > 0 },
+        sourceQueries = sourceQueries.ifEmpty { listOf(animeTitle) },
     )
 
     fun resolvedStreamIfFresh(now: Long = System.currentTimeMillis()): StreamInfo? {
@@ -124,6 +140,26 @@ class DownloadTaskStore(private val context: Context) {
             )
         }
 
+    fun saveEpisodeSource(id: String, episode: EpisodeInfo) =
+        update(id) {
+            it.copy(
+                episodeSession = episode.session,
+                episodeTitle = episode.title,
+                episodeFansub = episode.fansub,
+                episodeAudio = episode.audio,
+                playUrl = episode.playUrl,
+            )
+        }
+
+    fun updateWorkId(id: String, workId: String, status: String = "Queued") =
+        update(id) {
+            it.copy(
+                workId = workId,
+                state = StoredDownloadTask.STATE_QUEUED,
+                status = status,
+            )
+        }
+
     fun saveResolved(id: String, stream: StreamInfo) =
         update(id) {
             it.copy(
@@ -165,6 +201,10 @@ class DownloadTaskStore(private val context: Context) {
         .put("id", id)
         .put("workId", workId)
         .put("animeTitle", animeTitle)
+        .put("aniListId", aniListId)
+        .put("sourceQueries", org.json.JSONArray(sourceQueries))
+        .put("sourceAnimeId", sourceAnimeId)
+        .put("sourceAnimeSession", sourceAnimeSession)
         .put("episodeNumber", episodeNumber)
         .put("episodeSession", episodeSession)
         .put("episodeTitle", episodeTitle)
@@ -190,6 +230,16 @@ class DownloadTaskStore(private val context: Context) {
         id = optString("id"),
         workId = optString("workId"),
         animeTitle = optString("animeTitle"),
+        aniListId = optInt("aniListId", 0),
+        sourceQueries = optJSONArray("sourceQueries")?.let { array ->
+            buildList {
+                for (index in 0 until array.length()) {
+                    array.optString(index).takeIf { it.isNotBlank() }?.let(::add)
+                }
+            }
+        }.orEmpty(),
+        sourceAnimeId = optInt("sourceAnimeId", 0),
+        sourceAnimeSession = optString("sourceAnimeSession"),
         episodeNumber = optDouble("episodeNumber", 0.0),
         episodeSession = optString("episodeSession"),
         episodeTitle = optString("episodeTitle"),
