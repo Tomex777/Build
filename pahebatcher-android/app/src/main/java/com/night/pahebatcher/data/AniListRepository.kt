@@ -148,15 +148,15 @@ class AniListRepository {
         if (id <= 0) return null
 
         val title = media.optJSONObject("title")
-        val romaji = title?.optString("romaji").orEmpty().trim()
-        val english = title?.optString("english").orEmpty().trim()
-        val native = title?.optString("native").orEmpty().trim()
+        val romaji = title.cleanString("romaji")
+        val english = title.cleanString("english")
+        val native = title.cleanString("native")
         val displayTitle = english.ifBlank { romaji.ifBlank { native } }
         if (displayTitle.isBlank()) return null
 
         val cover = media.optJSONObject("coverImage")
-        val poster = cover?.optString("extraLarge").orEmpty()
-            .ifBlank { cover?.optString("large").orEmpty() }
+        val poster = cover.cleanString("extraLarge")
+            .ifBlank { cover.cleanString("large") }
 
         val genresArray = media.optJSONArray("genres")
         val genres = buildList {
@@ -167,7 +167,7 @@ class AniListRepository {
             }
         }
 
-        val rawDescription = media.optString("description").orEmpty()
+        val rawDescription = media.cleanString("description")
         val description = if (rawDescription.isBlank()) {
             ""
         } else {
@@ -182,9 +182,9 @@ class AniListRepository {
             session = "",
             title = displayTitle,
             poster = poster,
-            type = formatLabel(media.optString("format")),
+            type = formatLabel(media.cleanString("format")),
             episodes = media.optInt("episodes", 0),
-            status = statusLabel(media.optString("status")),
+            status = statusLabel(media.cleanString("status")),
             animeId = null,
             aniListId = id,
             sourceQueries = sourceQueries,
@@ -193,6 +193,14 @@ class AniListRepository {
             year = media.optInt("seasonYear", 0).takeIf { it > 0 },
             score = media.optInt("averageScore", 0).takeIf { it > 0 },
         )
+    }
+
+    private fun JSONObject?.cleanString(key: String): String {
+        if (this == null || isNull(key)) return ""
+        return optString(key, "")
+            .takeUnless { it.equals("null", ignoreCase = true) }
+            .orEmpty()
+            .trim()
     }
 
     private fun formatLabel(value: String): String = when (value.uppercase(Locale.US)) {
