@@ -1,6 +1,8 @@
 package com.example.whatsapp.presentation.chatscreen
 
+import coil.ImageLoader
 import coil.compose.AsyncImage
+import coil.decode.SvgDecoder
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -77,6 +79,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -1092,6 +1095,14 @@ fun EmojiPicker(
     onEmojiSelected: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val emojiImageLoader = remember(context) {
+        ImageLoader.Builder(context)
+            .components {
+                add(SvgDecoder.Factory())
+            }
+            .build()
+    }
     val emojis = listOf(
         "😀" to "file:///android_asset/fluent_emoji/grinning.svg",
         "😂" to "file:///android_asset/fluent_emoji/joy.svg",
@@ -1121,6 +1132,7 @@ fun EmojiPicker(
             emojis.forEach { (emoji, asset) ->
                 AsyncImage(
                     model = asset,
+                    imageLoader = emojiImageLoader,
                     contentDescription = emoji,
                     modifier = Modifier
                         .size(34.dp)
