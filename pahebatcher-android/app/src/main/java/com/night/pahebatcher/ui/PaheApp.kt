@@ -357,7 +357,7 @@ private fun ExploreScreen(vm: PaheViewModel, padding: PaddingValues) {
                     anime = anime,
                     referer = vm.animePosterReferer(),
                     userAgent = vm.animeUserAgent(),
-                    cookie = vm.animeCookie(),
+                    cookie = vm.animeCookieFor(anime.poster),
                     onClick = { vm.openAnime(anime) },
                 )
             }
@@ -584,7 +584,7 @@ private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
                         url = details.result.poster,
                         referer = vm.animePosterReferer(),
                         userAgent = vm.animeUserAgent(),
-                        cookie = vm.animeCookie(),
+                        cookie = vm.animeCookieFor(details.result.poster),
                         modifier = Modifier
                             .fillMaxSize()
                             .background(Elevated),
