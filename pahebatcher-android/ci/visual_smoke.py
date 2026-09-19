@@ -99,6 +99,16 @@ assert_text("Search anime")
 wait_for_desc("Verify AnimePahe browser")
 screenshot("explore.png")
 
+# Settings should no longer own the verification flow.
+tap_text("Settings")
+assert_text("Download preferences")
+assert_text_absent("Web verification")
+screenshot("settings.png")
+
+# System Back from Settings should return to Explore.
+adb("shell", "input", "keyevent", "4")
+wait_for_text("Find it. Keep it.", timeout=8.0)
+
 # Verification now lives in the top-right browser icon, not Settings.
 tap_desc("Verify AnimePahe browser")
 assert_text("AnimePahe verification")
@@ -110,15 +120,6 @@ screenshot("verification.png")
 adb("shell", "input", "keyevent", "4")
 wait_for_text("Find it. Keep it.", timeout=8.0)
 screenshot("explore-after-system-back.png")
-
-tap_text("Settings")
-assert_text("Download preferences")
-assert_text_absent("Web verification")
-screenshot("settings.png")
-
-# System Back from Settings should return to Explore.
-adb("shell", "input", "keyevent", "4")
-wait_for_text("Find it. Keep it.", timeout=8.0)
 
 if os.environ.get("LIVE_ANIMEPAHE", "").lower() == "true":
     wait_for_text("Search anime", timeout=8.0)
