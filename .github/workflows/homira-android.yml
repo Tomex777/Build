@@ -15,7 +15,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
 
@@ -35,13 +35,27 @@ jobs:
         with:
           gradle-version: '9.6.0'
 
-      - name: Build debug APK
+      - name: Build normal debug APK
         working-directory: homira-android
         run: gradle :app:assembleDebug --stacktrace
 
-      - name: Upload APK
+      - name: Upload normal APK
         uses: actions/upload-artifact@v4
         with:
           name: homira-android-debug
           path: homira-android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Build TURN relay-only diagnostic APK
+        working-directory: homira-android
+        run: |
+          gradle :app:clean :app:assembleDebug -PHOMIRA_FORCE_TURN_RELAY=true --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/homira-turn-relay-test.apk
+          sha256sum app/build/outputs/apk/debug/homira-turn-relay-test.apk
+
+      - name: Upload TURN relay-only diagnostic APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: homira-turn-relay-test
+          path: homira-android/app/build/outputs/apk/debug/homira-turn-relay-test.apk
           if-no-files-found: error
