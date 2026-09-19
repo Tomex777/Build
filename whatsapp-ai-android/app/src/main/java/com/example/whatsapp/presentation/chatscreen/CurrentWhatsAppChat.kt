@@ -33,7 +33,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Mic
@@ -144,6 +143,8 @@ fun CurrentWhatsAppConversation(
     onBackClick: () -> Unit,
     onSendClick: () -> Unit,
     onCallClick: () -> Unit = {},
+    onMenuAction: (String) -> Unit = {},
+    onMessageButtonClick: (messageId: String, actionId: String) -> Unit = { _, _ -> },
     onAttachmentClick: () -> Unit = {},
     onAttachmentAction: (String) -> Unit = {},
     onCameraClick: () -> Unit = {},
@@ -174,6 +175,7 @@ fun CurrentWhatsAppConversation(
                 subtitle = subtitle,
                 onBackClick = onBackClick,
                 onCallClick = onCallClick,
+                onMenuAction = onMenuAction,
             )
 
             LazyColumn(
@@ -195,7 +197,7 @@ fun CurrentWhatsAppConversation(
                         is WhatsAppVisualMessage.PhotoMessage -> CurrentPhotoBubble(item)
                         is WhatsAppVisualMessage.VoiceMessage -> CurrentVoiceBubble(item)
                         is WhatsAppVisualMessage.DateSeparator -> CurrentDateSeparator(item.label)
-                        is RichResultMessage -> RichResultBubble(item)
+                        is RichResultMessage -> RichResultBubble(item, onMessageButtonClick)
                     }
                 }
             }
@@ -265,6 +267,7 @@ private fun CurrentChatHeader(
     subtitle: String,
     onBackClick: () -> Unit,
     onCallClick: () -> Unit,
+    onMenuAction: (String) -> Unit,
 ) {
     Surface(
         color = HeaderBlack,
@@ -320,51 +323,55 @@ private fun CurrentChatHeader(
                 )
             }
 
-            var showCallMenu by remember { mutableStateOf(false) }
+            IconButton(onClick = onCallClick) {
+                Icon(
+                    imageVector = Icons.Default.Phone,
+                    contentDescription = "Voice call",
+                    tint = PrimaryText,
+                    modifier = Modifier.size(23.dp),
+                )
+            }
+
+            var showMoreMenu by remember { mutableStateOf(false) }
             Box {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { showCallMenu = true },
-                ) {
+                IconButton(onClick = { showMoreMenu = true }) {
                     Icon(
-                        imageVector = Icons.Default.Phone,
-                        contentDescription = "Call options",
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "More",
                         tint = PrimaryText,
-                        modifier = Modifier.size(23.dp),
-                    )
-                    Icon(
-                        imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = null,
-                        tint = PrimaryText,
-                        modifier = Modifier.size(22.dp),
+                        modifier = Modifier.size(24.dp),
                     )
                 }
 
                 DropdownMenu(
-                    expanded = showCallMenu,
-                    onDismissRequest = { showCallMenu = false },
+                    expanded = showMoreMenu,
+                    onDismissRequest = { showMoreMenu = false },
                     containerColor = Color(0xFF151B1E),
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("Voice call", color = PrimaryText) },
-                        leadingIcon = {
-                            Icon(Icons.Default.Phone, null, tint = SecondaryText)
-                        },
-                        onClick = {
-                            showCallMenu = false
-                            onCallClick()
-                        },
-                    )
+                    listOf(
+                        "Search chat",
+                        "Memory & summary",
+                        "Files in chat",
+                        "Rename chat",
+                        "Export chat",
+                        "Clear chat",
+                        "Delete chat",
+                        "Choose AI",
+                    ).forEach { action ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = action,
+                                    color = if (action == "Delete chat") Color(0xFFFF5C72) else PrimaryText,
+                                )
+                            },
+                            onClick = {
+                                showMoreMenu = false
+                                onMenuAction(action)
+                            },
+                        )
+                    }
                 }
-            }
-
-            IconButton(onClick = {}) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More",
-                    tint = PrimaryText,
-                    modifier = Modifier.size(24.dp),
-                )
             }
         }
     }
