@@ -44,6 +44,8 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
@@ -94,6 +96,10 @@ import com.night.pahebatcher.data.DownloadPreferences
 import com.night.pahebatcher.data.EpisodeInfo
 import com.night.pahebatcher.data.SessionSnapshot
 import java.net.URI
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import okhttp3.Headers
 
 private val Bg = Color(0xFF0B0B0D)
@@ -124,6 +130,7 @@ fun PaheApp(vm: PaheViewModel) {
     MaterialTheme(colorScheme = PaheColors) {
         when {
             vm.verificationActive -> VerificationScreen(vm)
+            vm.aboutActive -> AboutScreen(vm)
             vm.details != null || vm.detailsLoading || vm.detailsError != null -> DetailHost(vm)
             else -> RootTabs(vm)
         }
@@ -286,10 +293,7 @@ private fun ExploreScreen(vm: PaheViewModel, padding: PaddingValues) {
         item {
             OutlinedTextField(
                 value = vm.query,
-                onValueChange = {
-                    vm.query = it
-                    if (it.isBlank()) vm.clearSearch()
-                },
+                onValueChange = vm::onQueryChanged,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 placeholder = { Text("Search anime", color = TextMuted) },
@@ -337,7 +341,7 @@ private fun ExploreScreen(vm: PaheViewModel, padding: PaddingValues) {
             if (vm.results.isNotEmpty()) {
                 item {
                     Text(
-                        "Results",
+                        "Suggestions",
                         color = TextMain,
                         fontSize = 19.sp,
                         fontWeight = FontWeight.Bold,
@@ -768,7 +772,7 @@ private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
                                 if (vm.detailsLoading) {
                                     "Loading…"
                                 } else {
-                                    "${effectivePreferences.quality}p · ${if (effectivePreferences.audio == "eng") "DUB" else "SUB"}" +
+                                    "${effectivePreferences.quality}p · ${if (effectivePreferences.audio == "eng") "Dubbed" else "Subbed"}" +
                                         if (vm.currentAnimeOverride != null) " · This anime" else " · Global"
                                 },
                                 color = TextMuted,
@@ -845,6 +849,7 @@ private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
                 EpisodeRow(
                     episode = episode,
                     download = download,
+                    preferredAudio = effectivePreferences.audio,
                     onClick = { startEpisodeDownload(episode) },
                 )
             }
@@ -869,6 +874,7 @@ private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
 private fun EpisodeRow(
     episode: EpisodeInfo,
     download: DownloadUi?,
+    preferredAudio: String,
     onClick: () -> Unit,
 ) {
     Row(
@@ -898,22 +904,42 @@ private fun EpisodeRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.height(5.dp))
-            Text(
-                download?.status ?: listOfNotNull(
-                    episode.fansub.takeIf { it.isNotBlank() },
-                    if (episode.audio == "eng") "DUB" else "SUB",
-                ).joinToString("  ·  "),
-                color = when {
-                    download?.failed == true -> Error
-                    download != null -> Accent
-                    episode.audio == "eng" -> Accent
-                    else -> TextMuted
-                },
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (download != null) {
+                Text(
+                    download.status,
+                    color = if (download.failed) Error else Accent,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            } else {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Surface(
+                        color = AccentSoft,
+                        shape = RoundedCornerShape(7.dp),
+                    ) {
+                        Text(
+                            if (preferredAudio == "eng") "DUB" else "SUB",
+                            color = Accent,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                        )
+                    }
+                    relativeEpisodeDate(episode.uploadedAt ?: episode.airedAt)?.let { date ->
+                        Text(
+                            date,
+                            color = TextMuted,
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
         }
         when {
             download?.failed == true -> Icon(Icons.Rounded.Close, null, tint = Error, modifier = Modifier.size(20.dp))
@@ -998,19 +1024,19 @@ private fun TitleDownloadSettingsSheet(
                 }
             }
             Spacer(Modifier.height(18.dp))
-            Text("Audio", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text("Audio preference", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = effective.audio == "jpn",
                     onClick = { onAudio("jpn") },
-                    label = { Text("SUB") },
+                    label = { Text("Subbed") },
                     colors = downloadChipColors(),
                 )
                 FilterChip(
                     selected = effective.audio == "eng",
                     onClick = { onAudio("eng") },
-                    label = { Text("DUB") },
+                    label = { Text("Dubbed") },
                     colors = downloadChipColors(),
                 )
             }
@@ -1068,19 +1094,19 @@ private fun EpisodeDownloadSheet(
                 }
             }
             Spacer(Modifier.height(18.dp))
-            Text("Audio", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text("Audio preference", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = audio == "jpn",
                     onClick = { audio = "jpn" },
-                    label = { Text("SUB") },
+                    label = { Text("Subbed") },
                     colors = downloadChipColors(),
                 )
                 FilterChip(
                     selected = audio == "eng",
                     onClick = { audio = "eng" },
-                    label = { Text("DUB") },
+                    label = { Text("Dubbed") },
                     colors = downloadChipColors(),
                 )
             }
@@ -1266,19 +1292,19 @@ private fun DownloadPreferencesCard(
                 }
             }
             Spacer(Modifier.height(16.dp))
-            Text("Audio", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text("Audio preference", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = preferences.audio == "jpn",
                     onClick = { onAudio("jpn") },
-                    label = { Text("SUB") },
+                    label = { Text("Subbed") },
                     colors = downloadChipColors(),
                 )
                 FilterChip(
                     selected = preferences.audio == "eng",
                     onClick = { onAudio("eng") },
-                    label = { Text("DUB") },
+                    label = { Text("Dubbed") },
                     colors = downloadChipColors(),
                 )
             }
