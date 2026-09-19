@@ -1,6 +1,8 @@
 package com.example.whatsapp.data.night
 
 import android.content.Context
+import android.util.Base64
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -21,11 +23,8 @@ class NightAiGateway private constructor(
         displayName: String,
     ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            val resolved = router.resolveChatModel(chatId)
+            val selected = router.resolveChatModel(chatId)
                 ?: error("No chat AI is configured yet.")
-
-            val key = secrets.get(resolved.profile.secretAlias)
-                ?: error("The saved API key for " + resolved.profile.displayName + " is missing.")
 
             val messages = repository.getMessages(chatId)
             val otherChats = repository.getChats()
@@ -53,59 +52,95 @@ class NightAiGateway private constructor(
             val payloadMessages = JSONArray()
                 .put(JSONObject().put("role", "system").put("content", system))
 
-            messages.takeLast(60).forEach { message ->
+            val selectedHasVision = supports(selected.model, "vision")
+
+            for (message in messages.takeLast(60)) {
                 val role = when (message.role.lowercase()) {
                     "assistant" -> "assistant"
                     "system" -> "system"
                     else -> "user"
                 }
-                if (message.text.isNotBlank()) {
+
+                if (message.type == "image" && role == "user") {
+                    val payload = runCatching { JSONObject(message.payloadJson) }.getOrNull()
+                    val path = payload?.optString("localPath").orEmpty()
+                    val mime = payload?.optString("mimeType").orEmpty()
+                        .ifBlank { "image/jpeg" }
+
+                    if (selectedHasVision && path.isNotBlank() && File(path).exists()) {
+                        payloadMessages.put(
+                            JSONObject()
+                                .put("role", "user")
+                                .put(
+                                    "content",
+                                    JSONArray()
+                                        .put(
+                                            JSONObject()
+                                                .put("type", "text")
+                                                .put(
+                                                    "text",
+                                                    message.text.ifBlank { "Please inspect this image." }
+                                                )
+                                        )
+                                        .put(imagePart(path, mime))
+                                )
+                        )
+                    } else {
+                        val fallback = router.resolveCapability(chatId, "vision")
+                        val visionText =
+                            if (
+                                fallback != null &&
+                                path.isNotBlank() &&
+                                File(path).exists()
+                            ) {
+                                runCatching {
+                                    analyzeImage(
+                                        resolved = fallback,
+                                        localPath = path,
+                                        mimeType = mime,
+                                        requestText = message.text,
+                                    )
+                                }.getOrNull()
+                            } else {
+                                null
+                            }
+
+                        val combined = buildString {
+                            append(message.text.ifBlank { "Image attached." })
+                            append("\n\n")
+                            if (!visionText.isNullOrBlank()) {
+                                append("[Vision analysis from ")
+                                append(fallback?.profile?.displayName ?: "fallback")
+                                append(": ")
+                                append(visionText)
+                                append("]")
+                            } else {
+                                append("[Image attached, but no working Vision fallback is configured.]")
+                            }
+                        }
+
+                        payloadMessages.put(
+                            JSONObject()
+                                .put("role", "user")
+                                .put("content", combined)
+                        )
+                    }
+                } else if (message.text.isNotBlank()) {
+                    val decorated = when (message.type) {
+                        "file" -> message.text + "\n[File attached in Night Library.]"
+                        "voice" -> message.text + "\n[Voice note attached in Night Library.]"
+                        else -> message.text
+                    }
+
                     payloadMessages.put(
                         JSONObject()
                             .put("role", role)
-                            .put("content", message.text)
+                            .put("content", decorated)
                     )
                 }
             }
 
-            val body = JSONObject()
-                .put("model", resolved.model.deploymentName ?: resolved.model.modelId)
-                .put("messages", payloadMessages)
-                .put("stream", false)
-
-            val requestBuilder = Request.Builder()
-                .url(chatEndpoint(resolved.profile))
-                .post(
-                    body.toString()
-                        .toRequestBody("application/json; charset=utf-8".toMediaType())
-                )
-                .header("Content-Type", "application/json")
-
-            when (resolved.profile.providerType.lowercase()) {
-                "azure" -> requestBuilder.header("api-key", key)
-                else -> requestBuilder.header("Authorization", "Bearer " + key)
-            }
-
-            http.newCall(requestBuilder.build()).execute().use { response ->
-                val raw = response.body?.string().orEmpty()
-                if (!response.isSuccessful) {
-                    error("AI request failed (" + response.code + "): " + extractError(raw))
-                }
-
-                val json = JSONObject(raw)
-                val choices = json.optJSONArray("choices")
-                    ?: error("Provider returned no choices.")
-                if (choices.length() == 0) error("Provider returned an empty response.")
-
-                val content = choices
-                    .getJSONObject(0)
-                    .getJSONObject("message")
-                    .optString("content")
-                    .trim()
-
-                if (content.isBlank()) error("Provider returned an empty message.")
-                content
-            }
+            performChat(selected, payloadMessages)
         }
     }
 
@@ -120,9 +155,6 @@ class NightAiGateway private constructor(
             }
 
             val resolved = router.resolveChatModel(chatId)
-                ?: return@runCatching localSummary(pending)
-
-            val key = secrets.get(resolved.profile.secretAlias)
                 ?: return@runCatching localSummary(pending)
 
             val chat = repository.getChat(chatId) ?: error("Chat not found.")
@@ -140,48 +172,132 @@ class NightAiGateway private constructor(
                 append(transcript.take(12000))
             }
 
-            val body = JSONObject()
-                .put("model", resolved.model.deploymentName ?: resolved.model.modelId)
+            val messages = JSONArray()
                 .put(
-                    "messages",
-                    JSONArray()
-                        .put(
-                            JSONObject()
-                                .put("role", "system")
-                                .put("content", "You maintain compact persistent memory for Night.")
-                        )
-                        .put(JSONObject().put("role", "user").put("content", prompt))
+                    JSONObject()
+                        .put("role", "system")
+                        .put("content", "You maintain compact persistent memory for Night.")
                 )
-                .put("stream", false)
+                .put(JSONObject().put("role", "user").put("content", prompt))
 
-            val requestBuilder = Request.Builder()
-                .url(chatEndpoint(resolved.profile))
-                .post(
-                    body.toString()
-                        .toRequestBody("application/json; charset=utf-8".toMediaType())
-                )
-                .header("Content-Type", "application/json")
-
-            when (resolved.profile.providerType.lowercase()) {
-                "azure" -> requestBuilder.header("api-key", key)
-                else -> requestBuilder.header("Authorization", "Bearer " + key)
-            }
-
-            http.newCall(requestBuilder.build()).execute().use { response ->
-                val raw = response.body?.string().orEmpty()
-                if (!response.isSuccessful) return@runCatching localSummary(pending)
-
-                JSONObject(raw)
-                    .optJSONArray("choices")
-                    ?.optJSONObject(0)
-                    ?.optJSONObject("message")
-                    ?.optString("content")
-                    ?.trim()
-                    ?.takeIf { it.isNotBlank() }
-                    ?: localSummary(pending)
-            }
+            runCatching { performChat(resolved, messages) }
+                .getOrElse { localSummary(pending) }
         }
     }
+
+    private fun analyzeImage(
+        resolved: NightResolvedModel,
+        localPath: String,
+        mimeType: String,
+        requestText: String,
+    ): String {
+        val messages = JSONArray()
+            .put(
+                JSONObject()
+                    .put("role", "system")
+                    .put(
+                        "content",
+                        "You are Night's Vision helper. Describe only what is useful for the user's request. Be factual and concise."
+                    )
+            )
+            .put(
+                JSONObject()
+                    .put("role", "user")
+                    .put(
+                        "content",
+                        JSONArray()
+                            .put(
+                                JSONObject()
+                                    .put("type", "text")
+                                    .put(
+                                        "text",
+                                        requestText.ifBlank {
+                                            "Describe this image so another AI can reason about it."
+                                        }
+                                    )
+                            )
+                            .put(imagePart(localPath, mimeType))
+                    )
+            )
+
+        return performChat(resolved, messages)
+    }
+
+    private fun imagePart(
+        localPath: String,
+        mimeType: String,
+    ): JSONObject {
+        val file = File(localPath)
+        require(file.exists()) { "Image file is missing." }
+        require(file.length() <= 20L * 1024L * 1024L) {
+            "Image is too large for the current Vision request."
+        }
+
+        val encoded = Base64.encodeToString(file.readBytes(), Base64.NO_WRAP)
+        val dataUrl = "data:" + mimeType + ";base64," + encoded
+
+        return JSONObject()
+            .put("type", "image_url")
+            .put(
+                "image_url",
+                JSONObject().put("url", dataUrl)
+            )
+    }
+
+    private fun performChat(
+        resolved: NightResolvedModel,
+        messages: JSONArray,
+    ): String {
+        val key = secrets.get(resolved.profile.secretAlias)
+            ?: error("The saved API key for " + resolved.profile.displayName + " is missing.")
+
+        val body = JSONObject()
+            .put("model", resolved.model.deploymentName ?: resolved.model.modelId)
+            .put("messages", messages)
+            .put("stream", false)
+
+        val requestBuilder = Request.Builder()
+            .url(chatEndpoint(resolved.profile))
+            .post(
+                body.toString()
+                    .toRequestBody("application/json; charset=utf-8".toMediaType())
+            )
+            .header("Content-Type", "application/json")
+
+        when (resolved.profile.providerType.lowercase()) {
+            "azure" -> requestBuilder.header("api-key", key)
+            else -> requestBuilder.header("Authorization", "Bearer " + key)
+        }
+
+        http.newCall(requestBuilder.build()).execute().use { response ->
+            val raw = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                error("AI request failed (" + response.code + "): " + extractError(raw))
+            }
+
+            val choices = JSONObject(raw).optJSONArray("choices")
+                ?: error("Provider returned no choices.")
+            if (choices.length() == 0) error("Provider returned an empty response.")
+
+            val content = choices
+                .getJSONObject(0)
+                .getJSONObject("message")
+                .optString("content")
+                .trim()
+
+            if (content.isBlank()) error("Provider returned an empty message.")
+            return content
+        }
+    }
+
+    private fun supports(
+        model: NightProviderModelEntity,
+        capability: String,
+    ): Boolean =
+        model.capabilities
+            .split(",")
+            .map { it.trim().lowercase() }
+            .contains(capability.lowercase())
 
     private fun chatEndpoint(profile: NightProviderProfileEntity): String =
         when (profile.providerType.lowercase()) {
