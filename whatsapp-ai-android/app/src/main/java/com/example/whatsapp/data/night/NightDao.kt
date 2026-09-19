@@ -144,6 +144,18 @@ interface NightDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertProfile(profile: NightProfileEntity)
 
+    @Query("SELECT * FROM night_scheduled_tasks ORDER BY runAt ASC")
+    fun observeScheduledTasks(): Flow<List<NightScheduledTaskEntity>>
+
+    @Query("SELECT * FROM night_scheduled_tasks WHERE id = :id LIMIT 1")
+    suspend fun getScheduledTask(id: String): NightScheduledTaskEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertScheduledTask(task: NightScheduledTaskEntity)
+
+    @Query("DELETE FROM night_scheduled_tasks WHERE id = :id")
+    suspend fun deleteScheduledTask(id: String)
+
     @Transaction
     suspend fun appendMessage(chat: NightChatEntity, message: NightMessageEntity) {
         upsertChat(chat)
