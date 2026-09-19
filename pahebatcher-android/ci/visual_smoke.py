@@ -70,7 +70,15 @@ assert_text("Settings")
 screenshot("explore.png")
 
 tap_text("Settings")
+assert_text("Download preferences")
 assert_text("Web verification")
+screenshot("settings-top.png")
+
+# The new download-preferences card intentionally pushes the verification action
+# below the first viewport. Scroll the real screen instead of assuming it is
+# immediately visible.
+adb("shell", "input", "swipe", "540", "1750", "540", "700", "350")
+time.sleep(1.0)
 assert_text("Open verification browser")
 screenshot("settings.png")
 
