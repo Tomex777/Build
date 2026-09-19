@@ -154,9 +154,11 @@ fun CurrentWhatsAppConversation(
     onEmojiClick: () -> Unit = {},
     autoScrollToLatest: Boolean = true,
     attachmentsInitiallyOpen: Boolean = false,
+    emojiInitiallyOpen: Boolean = false,
 ) {
     val state = rememberLazyListState()
     var showAttachments by remember { mutableStateOf(attachmentsInitiallyOpen) }
+    var showEmojiPicker by remember { mutableStateOf(emojiInitiallyOpen) }
 
     LaunchedEffect(messages.size, autoScrollToLatest) {
         if (autoScrollToLatest && messages.isNotEmpty()) {
@@ -213,13 +215,18 @@ fun CurrentWhatsAppConversation(
                 onTextChange = onMessageTextChange,
                 onSendClick = onSendClick,
                 onAttachmentClick = {
+                    showEmojiPicker = false
                     showAttachments = !showAttachments
                     onAttachmentClick()
                 },
                 onCameraClick = onCameraClick,
                 onMicClick = onMicClick,
-                onEmojiClick = onEmojiClick,
-                applyNavigationPadding = !showAttachments,
+                onEmojiClick = {
+                    showAttachments = false
+                    showEmojiPicker = !showEmojiPicker
+                    onEmojiClick()
+                },
+                applyNavigationPadding = !showAttachments && !showEmojiPicker,
             )
 
             if (showAttachments) {
@@ -228,6 +235,15 @@ fun CurrentWhatsAppConversation(
                         showAttachments = false
                         onAttachmentAction(action)
                     },
+                )
+            }
+
+            if (showEmojiPicker) {
+                EmojiPicker(
+                    onEmojiSelected = { emoji ->
+                        onMessageTextChange(messageText + emoji)
+                    },
+                    onDismiss = { showEmojiPicker = false },
                 )
             }
         }
@@ -1084,7 +1100,9 @@ fun EmojiPicker(
 
     Surface(
         color = ComposerBackground,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding(),
     ) {
         Row(
             modifier = Modifier
