@@ -1,3 +1,4 @@
+// Night real-core validation
 package com.example.whatsapp
 
 import android.content.Intent
