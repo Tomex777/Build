@@ -264,10 +264,27 @@ class PaheRepository(
 
             try {
                 var page = 1
+                var pageSize = 0
+                var declaredLastPage = 1
+                var expectedEpisodeCount = maxOf(
+                    displayResult.episodes,
+                    sourceResult.episodes,
+                    candidate.episodes,
+                )
+                var safetyPages = 0
+
                 while (true) {
                     val data = releasePage(host, animeSession, page)
                     val rows = data.optJSONArray("data")
                         ?: throw IOException("AnimePahe release page $page returned no episode data")
+
+                    if (pageSize == 0 && rows.length() > 0) {
+                        pageSize = rows.length()
+                    }
+                    expectedEpisodeCount = maxOf(
+                        expectedEpisodeCount,
+                        data.optInt("total", 0),
+                    )
 
                     for (index in 0 until rows.length()) {
                         val item = rows.optJSONObject(index) ?: continue
@@ -280,6 +297,7 @@ class PaheRepository(
                         if (audio == "eng" && title.contains("sub", true)) audio = "jpn"
 
                         val number = item.optDouble("episode", 0.0)
+                        if (number <= 0.0) continue
                         val ep = EpisodeInfo(
                             number = number,
                             session = epSession,
@@ -292,8 +310,42 @@ class PaheRepository(
                     }
 
                     val currentPage = data.optInt("current_page", page).coerceAtLeast(page)
-                    val lastPage = data.optInt("last_page", currentPage).coerceAtLeast(currentPage)
-                    if (currentPage >= lastPage) break
+                    declaredLastPage = maxOf(
+                        declaredLastPage,
+                        data.optInt("last_page", currentPage).coerceAtLeast(currentPage),
+                    )
+
+                    val distinctEpisodes = complete.keys.map { it.first }.distinct().size
+                    if (expectedEpisodeCount > 0 && distinctEpisodes >= expectedEpisodeCount) {
+                        break
+                    }
+
+                    val expectedPages = if (expectedEpisodeCount > 0 && pageSize > 0) {
+                        (expectedEpisodeCount + pageSize - 1) / pageSize
+                    } else {
+                        declaredLastPage
+                    }
+                    val targetPage = maxOf(declaredLastPage, expectedPages)
+
+                    if (currentPage >= targetPage) {
+                        if (expectedEpisodeCount <= 0) break
+                        throw IOException(
+                            "AnimePahe episode list incomplete: got $distinctEpisodes of " +
+                                "$expectedEpisodeCount episodes after $currentPage pages"
+                        )
+                    }
+
+                    if (rows.length() == 0) {
+                        throw IOException(
+                            "AnimePahe episode list stopped early on page $currentPage " +
+                                "with $distinctEpisodes of $expectedEpisodeCount episodes"
+                        )
+                    }
+
+                    safetyPages++
+                    if (safetyPages > 60) {
+                        throw IOException("AnimePahe pagination exceeded the safety limit")
+                    }
 
                     delay(3_000)
                     page = currentPage + 1
