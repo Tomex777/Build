@@ -121,7 +121,7 @@ class AniListRepository {
         val items = sourceItems.take(20)
         if (items.isEmpty()) return@withContext emptyList()
 
-        val variableDefs = items.indices.joinToString(", ") { index -> "$q$index: String" }
+        val variableDefs = items.indices.joinToString(", ") { index -> "${D}q$index: String" }
         val fields = """
             id
             title { romaji english native }
@@ -137,7 +137,7 @@ class AniListRepository {
         """.trimIndent()
 
         val selections = items.indices.joinToString("\n") { index ->
-            "m$index: Media(type: ANIME, search: $q$index) { $fields }"
+            "m$index: Media(type: ANIME, search: ${D}q$index) { $fields }"
         }
         val gql = "query AvailableAnime($variableDefs) {\n$selections\n}"
 
