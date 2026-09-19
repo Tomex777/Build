@@ -98,7 +98,8 @@ dependencies {
     implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
 
     //coil dependency
-    implementation("io.coil-kt:coil-compose:2.7.0")\n    implementation("io.coil-kt:coil-svg:2.7.0")
+    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("io.coil-kt:coil-svg:2.7.0")
     implementation("io.coil-kt:coil:2.7.0")
 
     // Add this line for Material Icons
