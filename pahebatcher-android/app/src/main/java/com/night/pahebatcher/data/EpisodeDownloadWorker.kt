@@ -26,72 +26,78 @@ class EpisodeDownloadWorker(
 
     override suspend fun doWork(): Result {
         if (taskId.isBlank()) return Result.failure()
-        var task = store.get(taskId) ?: return Result.failure()
+        val initial = store.get(taskId) ?: return Result.failure()
+        if (initial.manualPaused) return Result.success()
 
-        ensureNotificationChannel()
-        store.markRunning(taskId, "Preparing download…")
-        setForeground(foregroundInfo(task, task.progress))
+        return DownloadConcurrencyGate.withPermit(applicationContext, taskId) {
+            var task = store.get(taskId) ?: return@withPermit Result.failure()
+            if (task.manualPaused) return@withPermit Result.success()
 
-        return try {
-            var stream = task.resolvedStreamIfFresh()
-            if (stream == null) {
-                val resolved = resolveFreshEpisodeAndStream(task)
-                task = resolved.first
-                stream = resolved.second
-                store.saveResolved(taskId, stream)
-            }
+            ensureNotificationChannel()
+            store.markRunning(taskId, "Preparing download…")
+            setForeground(foregroundInfo(task, task.progress))
 
             try {
-                completeWithStream(task, stream)
-            } catch (e: IOException) {
-                if (looksLikeExpiredStream(e)) {
-                    store.clearResolved(taskId)
-                    store.markRunning(taskId, "Refreshing expired episode link…")
-                    val refreshed = resolveFreshEpisodeAndStream(store.get(taskId) ?: task)
-                    task = refreshed.first
-                    stream = refreshed.second
+                var stream = task.resolvedStreamIfFresh()
+                if (stream == null) {
+                    val resolved = resolveFreshEpisodeAndStream(task)
+                    task = resolved.first
+                    stream = resolved.second
                     store.saveResolved(taskId, stream)
-                    completeWithStream(task, stream)
-                } else {
-                    throw e
                 }
-            }
 
-            Result.success()
-        } catch (e: VerificationRequired) {
-            val hasSavedBrowserSession = sessionStore.animeCookie().isNotBlank()
-            val status = if (hasSavedBrowserSession) {
-                "Paused — AnimePahe source blocked; retrying with saved browser session"
-            } else {
-                "Paused — verify AnimePahe to resume"
-            }
-            store.markPaused(taskId, status)
-            notifyCurrent(status, store.get(taskId)?.progress ?: 0f)
-            Result.retry()
-        } catch (e: CancellationException) {
-            val current = store.get(taskId)
-            if (current?.manualPaused == true) {
-                notifyCurrent("Paused by you", current.progress)
-            } else {
-                store.markPaused(taskId, "Paused — will resume automatically")
-                notifyCurrent(
-                    "Paused — will resume automatically",
-                    current?.progress ?: 0f,
-                )
-            }
-            throw e
-        } catch (e: Exception) {
-            val message = e.message.orEmpty()
-            store.markPaused(
-                taskId,
-                if (message.isBlank()) {
-                    "Paused — waiting to resume"
+                try {
+                    completeWithStream(task, stream)
+                } catch (e: IOException) {
+                    if (looksLikeExpiredStream(e)) {
+                        store.clearResolved(taskId)
+                        store.markRunning(taskId, "Refreshing expired episode link…")
+                        val refreshed = resolveFreshEpisodeAndStream(store.get(taskId) ?: task)
+                        task = refreshed.first
+                        stream = refreshed.second
+                        store.saveResolved(taskId, stream)
+                        completeWithStream(task, stream)
+                    } else {
+                        throw e
+                    }
+                }
+
+                Result.success()
+            } catch (e: VerificationRequired) {
+                val hasSavedBrowserSession = sessionStore.animeCookie().isNotBlank()
+                val status = if (hasSavedBrowserSession) {
+                    "Paused — AnimePahe source blocked; retrying with saved browser session"
                 } else {
-                    "Paused — $message"
-                },
-            )
-            notifyCurrent("Paused — will resume", store.get(taskId)?.progress ?: 0f)
-            Result.retry()
+                    "Paused — verify AnimePahe to resume"
+                }
+                store.markPaused(taskId, status)
+                notifyCurrent(status, store.get(taskId)?.progress ?: 0f)
+                Result.retry()
+            } catch (e: CancellationException) {
+                val current = store.get(taskId)
+                if (current?.manualPaused == true) {
+                    notifyCurrent("Paused by you", current.progress)
+                } else {
+                    store.markPaused(taskId, "Paused — will resume automatically")
+                    notifyCurrent(
+                        "Paused — will resume automatically",
+                        current?.progress ?: 0f,
+                    )
+                }
+                throw e
+            } catch (e: Exception) {
+                val message = e.message.orEmpty()
+                store.markPaused(
+                    taskId,
+                    if (message.isBlank()) {
+                        "Paused — waiting to resume"
+                    } else {
+                        "Paused — $message"
+                    },
+                )
+                notifyCurrent("Paused — will resume", store.get(taskId)?.progress ?: 0f)
+                Result.retry()
+            }
         }
     }
 
