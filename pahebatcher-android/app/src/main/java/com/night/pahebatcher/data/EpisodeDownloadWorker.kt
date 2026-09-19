@@ -65,12 +65,15 @@ class EpisodeDownloadWorker(
 
             Result.success()
         } catch (e: VerificationRequired) {
-            store.markFailed(
+            store.markPaused(
                 taskId,
-                "AnimePahe verification is needed. Tap the browser icon at the top.",
+                "Paused — verify AnimePahe to resume",
             )
-            notifyCurrent("Verification needed", 0f, done = true)
-            Result.failure()
+            notifyCurrent(
+                "Paused — verify AnimePahe to resume",
+                store.get(taskId)?.progress ?: 0f,
+            )
+            Result.retry()
         } catch (e: CancellationException) {
             store.markPaused(taskId, "Paused — will resume automatically")
             throw e
