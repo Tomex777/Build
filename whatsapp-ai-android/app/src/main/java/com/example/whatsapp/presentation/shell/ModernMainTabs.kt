@@ -47,7 +47,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.Update
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.VideoCall
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -83,7 +83,7 @@ private val Missed = Color(0xFFFF4B62)
 
 enum class MainTab(val label: String) {
     Chats("Chats"),
-    Updates("Updates"),
+    Updates("Files"),
     Communities("Communities"),
     Calls("Calls"),
 }
@@ -202,7 +202,7 @@ private fun ModernBottomBar(
         BottomItem(
             tab = MainTab.Updates,
             selected = selected == MainTab.Updates,
-            icon = Icons.Default.Update,
+            icon = Icons.Default.Folder,
             onClick = onSelected,
         )
         BottomItem(
