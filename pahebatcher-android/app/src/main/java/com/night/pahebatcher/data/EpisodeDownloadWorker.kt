@@ -35,14 +35,10 @@ class EpisodeDownloadWorker(
         return try {
             var stream = task.resolvedStreamIfFresh()
             if (stream == null) {
-                store.markRunning(taskId, "Resolving episode source…")
-                stream = repository.resolveStream(
-                    episode = task.episode(),
-                    requestedQuality = task.requestedQuality,
-                    requestedAudio = task.requestedAudio,
-                )
+                val resolved = resolveFreshEpisodeAndStream(task)
+                task = resolved.first
+                stream = resolved.second
                 store.saveResolved(taskId, stream)
-                task = store.get(taskId) ?: task
             }
 
             try {
@@ -51,13 +47,11 @@ class EpisodeDownloadWorker(
                 if (looksLikeExpiredStream(e)) {
                     store.clearResolved(taskId)
                     store.markRunning(taskId, "Refreshing expired episode link…")
-                    val refreshed = repository.resolveStream(
-                        episode = task.episode(),
-                        requestedQuality = task.requestedQuality,
-                        requestedAudio = task.requestedAudio,
-                    )
-                    store.saveResolved(taskId, refreshed)
-                    completeWithStream(store.get(taskId) ?: task, refreshed)
+                    val refreshed = resolveFreshEpisodeAndStream(store.get(taskId) ?: task)
+                    task = refreshed.first
+                    stream = refreshed.second
+                    store.saveResolved(taskId, stream)
+                    completeWithStream(task, stream)
                 } else {
                     throw e
                 }
@@ -90,6 +84,72 @@ class EpisodeDownloadWorker(
             notifyCurrent("Paused — will resume", store.get(taskId)?.progress ?: 0f)
             Result.retry()
         }
+    }
+
+    private suspend fun resolveFreshEpisodeAndStream(
+        initialTask: StoredDownloadTask,
+    ): Pair<StoredDownloadTask, StreamInfo> {
+        var task = initialTask
+        var episode = task.episode()
+
+        if (episode.playUrl.isBlank()) {
+            store.markRunning(taskId, "Matching AnimePahe source…")
+            episode = repository.resolveCatalogEpisode(
+                catalog = task.catalog(),
+                episodeNumber = task.episodeNumber,
+                preferredAudio = task.requestedAudio,
+            )
+            store.saveEpisodeSource(taskId, episode)
+            task = store.get(taskId) ?: task.copy(
+                episodeSession = episode.session,
+                episodeTitle = episode.title,
+                episodeFansub = episode.fansub,
+                episodeAudio = episode.audio,
+                playUrl = episode.playUrl,
+            )
+        }
+
+        store.markRunning(taskId, "Resolving episode stream…")
+        val stream = try {
+            repository.resolveStream(
+                episode = episode,
+                requestedQuality = task.requestedQuality,
+                requestedAudio = task.requestedAudio,
+            )
+        } catch (_: VerificationRequired) {
+            // Do not immediately blame the browser session. Refresh the
+            // AnimePahe title/session/episode first; only a blocked refresh
+            // propagates VerificationRequired.
+            store.markRunning(taskId, "Refreshing AnimePahe source…")
+            episode = repository.resolveCatalogEpisode(
+                catalog = task.catalog(),
+                episodeNumber = task.episodeNumber,
+                preferredAudio = task.requestedAudio,
+            )
+            store.saveEpisodeSource(taskId, episode)
+            task = store.get(taskId) ?: task
+            repository.resolveStream(
+                episode = episode,
+                requestedQuality = task.requestedQuality,
+                requestedAudio = task.requestedAudio,
+            )
+        } catch (_: IOException) {
+            store.markRunning(taskId, "Refreshing AnimePahe source…")
+            episode = repository.resolveCatalogEpisode(
+                catalog = task.catalog(),
+                episodeNumber = task.episodeNumber,
+                preferredAudio = task.requestedAudio,
+            )
+            store.saveEpisodeSource(taskId, episode)
+            task = store.get(taskId) ?: task
+            repository.resolveStream(
+                episode = episode,
+                requestedQuality = task.requestedQuality,
+                requestedAudio = task.requestedAudio,
+            )
+        }
+
+        return task to stream
     }
 
     private suspend fun completeWithStream(task: StoredDownloadTask, stream: StreamInfo) {
