@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import com.example.whatsapp.data.NightFileLibrary
 import com.example.whatsapp.data.night.NightAiGateway
 import com.example.whatsapp.data.night.NightAppearanceController
@@ -993,6 +994,26 @@ private fun NightApp() {
                     Toast.makeText(context, "Could not open this link.", Toast.LENGTH_SHORT).show()
                 }
             },
+            onFileClick = { path, mimeType ->
+                runCatching {
+                    val file = File(path)
+                    val uri = FileProvider.getUriForFile(
+                        context,
+                        context.packageName + ".files",
+                        file,
+                    )
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW)
+                            .setDataAndType(
+                                uri,
+                                mimeType ?: "application/octet-stream",
+                            )
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    )
+                }.onFailure {
+                    Toast.makeText(context, "Could not open this file.", Toast.LENGTH_SHORT).show()
+                }
+            },
             onCameraClick = { cameraLauncher.launch(null) },
             isRecording = isRecording,
             onMicClick = {
@@ -1268,6 +1289,8 @@ private fun NightMessageEntity.toVisualMessage(
             time = time,
             mine = mine,
             read = mine,
+            localPath = payload?.optString("localPath")?.takeIf { it.isNotBlank() },
+            mimeType = payload?.optString("mimeType")?.takeIf { it.isNotBlank() },
             reply = reply,
         )
 
