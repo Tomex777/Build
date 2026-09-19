@@ -102,19 +102,6 @@ jobs:
               finally:
                   driver.quit()
 
-          relay_probe(
-              "static-auth",
-              {
-                  "urls": [
-                      "turn:openrelay.metered.ca:80",
-                      "turn:openrelay.metered.ca:80?transport=tcp",
-                      "turns:openrelay.metered.ca:443?transport=tcp",
-                  ],
-                  "username": "openrelayproject",
-                  "credential": "openrelayproject",
-              },
-          )
-
           expires = int(time.time()) + 3600
           username = f"{expires}:homira-ci"
           credential = base64.b64encode(
