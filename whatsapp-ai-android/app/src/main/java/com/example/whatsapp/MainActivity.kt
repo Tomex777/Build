@@ -211,8 +211,8 @@ private fun NightApp() {
             NightFileLibrary.registerLocalFile(
                 context = context,
                 source = recorded.file,
-                name = "Voice " + SimpleDateFormat("yyyy-MM-dd HH-mm-ss", Locale.getDefault()).format(Date()) + ".m4a",
-                mimeType = "audio/mp4",
+                name = "Voice " + SimpleDateFormat("yyyy-MM-dd HH-mm-ss", Locale.getDefault()).format(Date()) + ".wav",
+                mimeType = "audio/wav",
             )
         } ?: return
 
