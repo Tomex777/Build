@@ -1,3 +1,4 @@
+// Night current media validation
 package com.example.whatsapp
 
 import android.Manifest
