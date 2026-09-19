@@ -40,6 +40,7 @@ enum class VerifyStage { ANIMEPAHE }
 
 data class DownloadUi(
     val id: String,
+    val aniListId: Int,
     val animeTitle: String,
     val episode: String,
     val quality: Int,
@@ -113,9 +114,16 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
     init {
         refreshRecent()
         syncDownloads()
+        if (sessions.animeCookieSaved) {
+            viewModelScope.launch {
+                runCatching { repository.validateAnimeSession() }
+                refreshSessions()
+            }
+        }
         viewModelScope.launch {
             while (true) {
                 syncDownloads()
+                refreshSessions()
                 delay(750)
             }
         }
@@ -310,6 +318,7 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         sessionStore.saveAnime(cookie, host, userAgent)
+        sessionStore.markAnimeValidated(true)
         refreshSessions()
         verifyError = null
 
@@ -346,6 +355,11 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         globalDownloadPreferences = downloadPreferencesStore.global()
     }
 
+    fun setParallelDownloads(value: Int) {
+        downloadPreferencesStore.setParallelDownloads(value)
+        globalDownloadPreferences = downloadPreferencesStore.global()
+    }
+
     fun setCurrentAnimeQuality(quality: Int) {
         val anime = details?.result ?: return
         val current = currentAnimeOverride ?: globalDownloadPreferences
@@ -378,6 +392,39 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
 
     fun animeCookieFor(url: String): String = sessionStore.cookieFor(url)
 
+    private fun taskMatches(
+        task: StoredDownloadTask,
+        catalog: AnimeSearchResult,
+        episode: EpisodeInfo,
+    ): Boolean {
+        if (task.episodeNumber != episode.number) return false
+
+        val aniListId = catalog.aniListId
+        if (aniListId != null && aniListId > 0 && task.aniListId > 0) {
+            return task.aniListId == aniListId
+        }
+
+        val animeId = catalog.animeId
+        if (animeId != null && animeId > 0 && task.sourceAnimeId > 0) {
+            return task.sourceAnimeId == animeId
+        }
+
+        return task.animeTitle.equals(catalog.title, ignoreCase = true)
+    }
+
+    fun downloadFor(
+        catalog: AnimeSearchResult,
+        episode: EpisodeInfo,
+    ): DownloadUi? =
+        downloads.firstOrNull { item ->
+            item.episode == episode.epLabel &&
+                when {
+                    catalog.aniListId != null && catalog.aniListId > 0 && item.aniListId > 0 ->
+                        item.aniListId == catalog.aniListId
+                    else -> item.animeTitle.equals(catalog.title, ignoreCase = true)
+                }
+        }
+
     fun downloadEpisode(episode: EpisodeInfo) {
         val preferences = effectiveDownloadPreferences()
         downloadEpisode(episode, preferences.quality, preferences.audio)
@@ -389,12 +436,15 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         audio: String,
     ) {
         val current = details ?: return
-        val duplicate = downloadStore.all().any {
-            it.animeTitle == current.result.title &&
-                it.episodeNumber == episode.number &&
-                it.state != StoredDownloadTask.STATE_FAILED
+        val existing = downloadStore.all().firstOrNull {
+            taskMatches(it, current.result, episode)
         }
-        if (duplicate) return
+        if (existing != null) {
+            if (existing.state == StoredDownloadTask.STATE_FAILED) {
+                resumeDownload(existing.id)
+            }
+            return
+        }
 
         enqueueDownload(
             catalog = current.result,
@@ -409,7 +459,6 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         if (current.episodes.isEmpty()) return
 
         val preferences = effectiveDownloadPreferences()
-        val existing = downloadStore.all()
         val episodes = current.episodes
             .groupBy { it.number }
             .values
@@ -419,10 +468,8 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
             .sortedBy { it.number }
 
         episodes.forEach { episode ->
-            val duplicate = existing.any {
-                it.animeTitle == current.result.title &&
-                    it.episodeNumber == episode.number &&
-                    it.state != StoredDownloadTask.STATE_FAILED
+            val duplicate = downloadStore.all().any {
+                taskMatches(it, current.result, episode)
             }
             if (!duplicate) {
                 enqueueDownload(
@@ -565,6 +612,7 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         val mapped = downloadStore.all().map { task ->
             DownloadUi(
                 id = task.id,
+                aniListId = task.aniListId,
                 animeTitle = task.animeTitle,
                 episode = if (task.episodeNumber == task.episodeNumber.toInt().toDouble()) {
                     task.episodeNumber.toInt().toString()
