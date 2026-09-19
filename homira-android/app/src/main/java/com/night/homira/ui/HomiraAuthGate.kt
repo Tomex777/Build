@@ -1,6 +1,7 @@
 package com.night.homira.ui
 
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +19,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,6 +40,7 @@ import com.night.homira.R
 import com.night.homira.data.HomiraLiveRepository
 import com.night.homira.data.LiveProfile
 import com.night.homira.data.LiveContact
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private enum class LiveGateState {
@@ -134,6 +137,21 @@ private fun EmailOtpScreen(
         var codeSent by remember { mutableStateOf(false) }
         var busy by remember { mutableStateOf(false) }
         var error by remember { mutableStateOf<String?>(null) }
+        var resendCooldownSeconds by remember { mutableStateOf(0) }
+
+        LaunchedEffect(resendCooldownSeconds) {
+            if (resendCooldownSeconds > 0) {
+                delay(1_000)
+                resendCooldownSeconds -= 1
+            }
+        }
+
+        BackHandler(enabled = codeSent && !busy) {
+            codeSent = false
+            otp = ""
+            error = null
+            resendCooldownSeconds = 0
+        }
 
         Box(
             modifier = Modifier
@@ -224,6 +242,7 @@ private fun EmailOtpScreen(
                                     }
                                     repository.sendEmailOtp(email)
                                     codeSent = true
+                                    resendCooldownSeconds = 60
                                 } else {
                                     require(otp.length in 6..10) { "Enter the verification code." }
                                     repository.verifyEmailOtp(email, otp)
@@ -259,11 +278,45 @@ private fun EmailOtpScreen(
 
                 if (codeSent) {
                     Spacer(Modifier.height(10.dp))
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                busy = true
+                                error = null
+                                runCatching {
+                                    repository.sendEmailOtp(email)
+                                    resendCooldownSeconds = 60
+                                }.onFailure {
+                                    Log.e("HomiraAuth", "Email OTP resend failed", it)
+                                    error = friendlyAuthError(it)
+                                }
+                                busy = false
+                            }
+                        },
+                        enabled = !busy && resendCooldownSeconds == 0,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = if (resendCooldownSeconds > 0) {
+                                "Resend code in ${resendCooldownSeconds}s"
+                            } else {
+                                "Resend code"
+                            },
+                            color = if (resendCooldownSeconds > 0) {
+                                HomiraMuted
+                            } else {
+                                HomiraGreen
+                            },
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
                     Button(
                         onClick = {
                             codeSent = false
                             otp = ""
                             error = null
+                            resendCooldownSeconds = 0
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
