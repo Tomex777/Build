@@ -210,6 +210,7 @@ fun CurrentWhatsAppConversation(
                 onCameraClick = onCameraClick,
                 onMicClick = onMicClick,
                 onEmojiClick = onEmojiClick,
+                applyNavigationPadding = !showAttachments,
             )
 
             if (showAttachments) {
@@ -778,12 +779,13 @@ private fun CurrentComposer(
     onCameraClick: () -> Unit,
     onMicClick: () -> Unit,
     onEmojiClick: () -> Unit,
+    applyNavigationPadding: Boolean = true,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.Transparent)
-            .navigationBarsPadding()
+            .then(if (applyNavigationPadding) Modifier.navigationBarsPadding() else Modifier)
             .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
@@ -894,7 +896,9 @@ private fun AttachmentTray(
     Surface(
         color = Color(0xFF111719),
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding(),
     ) {
         Column(
             modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 9.dp, bottom = 8.dp),
