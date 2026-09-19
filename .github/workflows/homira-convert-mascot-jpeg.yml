@@ -1,0 +1,58 @@
+name: Homira Convert Mascot JPEG
+
+on:
+  push:
+    branches: [homira-call-ci]
+    paths:
+      - '.github/workflows/homira-convert-mascot-jpeg.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: homira-call-ci
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Convert mascot to Android-safe JPEG
+        run: |
+          python -m pip install --quiet pillow
+          python - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+
+          src = Path("homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.png")
+          dst = Path("homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.jpg")
+
+          image = Image.open(src).convert("RGBA")
+          bg = Image.new("RGBA", image.size, (10, 14, 19, 255))
+          bg.alpha_composite(image)
+          out = bg.convert("RGB")
+
+          target_width = 520
+          target_height = round(out.height * target_width / out.width)
+          out = out.resize((target_width, target_height), Image.Resampling.LANCZOS)
+          out.save(dst, "JPEG", quality=90, subsampling=0, optimize=True)
+
+          Image.open(dst).verify()
+          print(dst, dst.stat().st_size)
+          PY
+          rm homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.png
+
+      - name: Commit converted mascot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.jpg
+          git rm --cached --ignore-unmatch homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.png || true
+          git add -u
+          git commit -m "Homira: convert auth mascot to Android-safe JPEG"
+          git push origin HEAD:homira-call-ci
