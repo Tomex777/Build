@@ -15,6 +15,7 @@ class NightRepository private constructor(
     fun observeAllProviderModels(): Flow<List<NightProviderModelEntity>> = dao.observeAllProviderModels()
     fun observeAppearance(): Flow<NightAppearanceEntity?> = dao.observeAppearance()
     fun observeProfile(): Flow<NightProfileEntity?> = dao.observeProfile()
+    fun observeScheduledTasks(): Flow<List<NightScheduledTaskEntity>> = dao.observeScheduledTasks()
 
     suspend fun ensureProfile(): NightProfileEntity {
         val existing = dao.getProfile()
@@ -167,6 +168,10 @@ class NightRepository private constructor(
 
     suspend fun addLibraryItem(item: NightLibraryItemEntity) = dao.upsertLibraryItem(item)
     suspend fun getLibraryItem(id: String): NightLibraryItemEntity? = dao.getLibraryItem(id)
+
+    suspend fun getScheduledTask(id: String): NightScheduledTaskEntity? = dao.getScheduledTask(id)
+    suspend fun upsertScheduledTask(task: NightScheduledTaskEntity) = dao.upsertScheduledTask(task)
+    suspend fun deleteScheduledTask(id: String) = dao.deleteScheduledTask(id)
 
     companion object {
         @Volatile private var instance: NightRepository? = null
