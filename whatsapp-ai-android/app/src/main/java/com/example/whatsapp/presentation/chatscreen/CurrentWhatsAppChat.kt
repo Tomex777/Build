@@ -227,6 +227,7 @@ data class ReplyPreview(
     val kind: ReplyKind = ReplyKind.Text,
     val thumbnailPath: String? = null,
     val meta: String? = null,
+    val iconText: String? = null,
 )
 
 @Composable
@@ -807,7 +808,26 @@ private fun ReplyTypePreview(reply: ReplyPreview) {
             }
         }
         ReplyKind.Audio -> ReplyIconPreview(Icons.Default.PlayArrow)
-        ReplyKind.Rich -> ReplyIconPreview(Icons.Default.AutoAwesome)
+        ReplyKind.Rich -> {
+            if (!reply.iconText.isNullOrBlank()) {
+                Surface(
+                    color = Color(0xFFF4F4F2),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.size(42.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = reply.iconText.take(2),
+                            color = Color(0xFF151515),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Black,
+                        )
+                    }
+                }
+            } else {
+                ReplyIconPreview(Icons.Default.AutoAwesome)
+            }
+        }
         ReplyKind.Text -> Unit
     }
 }
