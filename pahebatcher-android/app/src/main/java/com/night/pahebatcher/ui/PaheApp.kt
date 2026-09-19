@@ -374,7 +374,7 @@ private fun ExploreScreen(vm: PaheViewModel, padding: PaddingValues) {
                         )
                         Spacer(Modifier.height(3.dp))
                         Text(
-                            "Discovery and artwork from AniList",
+                            "Available on AnimePahe · artwork and details from AniList",
                             color = TextMuted,
                             fontSize = 11.sp,
                         )
@@ -837,7 +837,7 @@ private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
 
             items(
                 details.episodes,
-                key = { "${it.session}_${it.audio}" },
+                key = { "${it.number}_${it.audio}" },
             ) { episode ->
                 val download = vm.downloads.firstOrNull {
                     it.animeTitle == details.result.title && it.episode == episode.epLabel
