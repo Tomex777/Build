@@ -1,3 +1,4 @@
+// Night media visual final validation 3
 package com.example.whatsapp
 
 import android.Manifest
