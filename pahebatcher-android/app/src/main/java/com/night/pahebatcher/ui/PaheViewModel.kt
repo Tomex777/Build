@@ -516,6 +516,43 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         syncDownloads()
     }
 
+    fun pauseDownload(id: String) {
+        val task = downloadStore.get(id) ?: return
+        if (task.state == StoredDownloadTask.STATE_COMPLETED) return
+
+        downloadStore.markPaused(id, "Paused by you", manual = true)
+        task.workId
+            .takeIf { it.isNotBlank() }
+            ?.let { runCatching { workManager.cancelWorkById(UUID.fromString(it)) } }
+        syncDownloads()
+    }
+
+    fun resumeDownload(id: String) {
+        val task = downloadStore.get(id) ?: return
+        if (task.state == StoredDownloadTask.STATE_COMPLETED) return
+
+        val request = buildDownloadWork(id)
+        downloadStore.updateWorkId(
+            id = id,
+            workId = request.id.toString(),
+            status = if (task.progress > 0f) "Resuming from saved segments…" else "Queued",
+        )
+        workManager.enqueueUniqueWork(
+            "$DOWNLOAD_QUEUE_NAME:$id",
+            ExistingWorkPolicy.REPLACE,
+            request,
+        )
+        syncDownloads()
+    }
+
+    fun openAbout() {
+        aboutActive = true
+    }
+
+    fun closeAbout() {
+        aboutActive = false
+    }
+
     fun removeDownload(id: String) {
         downloadStore.get(id)?.workId
             ?.takeIf { it.isNotBlank() }
@@ -540,6 +577,7 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
                 status = task.status,
                 uri = task.uri.takeIf { it.isNotBlank() }?.let(Uri::parse),
                 failed = task.state == StoredDownloadTask.STATE_FAILED,
+                paused = task.state == StoredDownloadTask.STATE_PAUSED,
             )
         }
 
