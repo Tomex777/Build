@@ -12,6 +12,7 @@ class NightRepository private constructor(
     fun observeLibrary(): Flow<List<NightLibraryItemEntity>> = dao.observeLibrary()
     fun observeProviderProfiles(): Flow<List<NightProviderProfileEntity>> = dao.observeProviderProfiles()
     fun observeModels(profileId: String): Flow<List<NightProviderModelEntity>> = dao.observeModels(profileId)
+    fun observeAllProviderModels(): Flow<List<NightProviderModelEntity>> = dao.observeAllProviderModels()
     fun observeAppearance(): Flow<NightAppearanceEntity?> = dao.observeAppearance()
     fun observeProfile(): Flow<NightProfileEntity?> = dao.observeProfile()
 
