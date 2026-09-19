@@ -137,6 +137,7 @@ sealed interface WhatsAppVisualMessage {
         val time: String,
         val mine: Boolean,
         val read: Boolean = false,
+        val localPath: String? = null,
     ) : WhatsAppVisualMessage
 
     data class DateSeparator(
@@ -166,6 +167,7 @@ fun CurrentWhatsAppConversation(
     onAttachmentAction: (String) -> Unit = {},
     onCameraClick: () -> Unit = {},
     onMicClick: () -> Unit = {},
+    onVoiceClick: (String) -> Unit = {},
     onEmojiClick: () -> Unit = {},
     autoScrollToLatest: Boolean = true,
     attachmentsInitiallyOpen: Boolean = false,
@@ -223,7 +225,7 @@ fun CurrentWhatsAppConversation(
                         is WhatsAppVisualMessage.TextMessage -> CurrentTextBubble(item, appearance)
                         is WhatsAppVisualMessage.PhotoMessage -> CurrentPhotoBubble(item, appearance)
                         is WhatsAppVisualMessage.FileMessage -> CurrentFileBubble(item, appearance)
-                        is WhatsAppVisualMessage.VoiceMessage -> CurrentVoiceBubble(item, appearance)
+                        is WhatsAppVisualMessage.VoiceMessage -> CurrentVoiceBubble(item, appearance, onVoiceClick)
                         is WhatsAppVisualMessage.DateSeparator -> CurrentDateSeparator(item.label)
                         is RichResultMessage -> RichResultBubble(item, onMessageButtonClick)
                     }
@@ -737,6 +739,7 @@ private fun DemoMediaArtwork(modifier: Modifier = Modifier) {
 private fun CurrentVoiceBubble(
     item: WhatsAppVisualMessage.VoiceMessage,
     appearance: NightChatAppearance,
+    onVoiceClick: (String) -> Unit,
 ) {
     Box(
         modifier = Modifier.fillMaxWidth(),
@@ -791,7 +794,11 @@ private fun CurrentVoiceBubble(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Play voice note",
                     tint = PrimaryText,
-                    modifier = Modifier.size(34.dp),
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clickable {
+                            item.localPath?.let(onVoiceClick)
+                        },
                 )
 
                 Column(
