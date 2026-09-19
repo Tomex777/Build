@@ -96,6 +96,9 @@ fun ModernAppScaffold(
     onTabSelected: (MainTab) -> Unit,
     title: String,
     onSettingsClick: () -> Unit = {},
+    showCamera: Boolean = true,
+    showSearch: Boolean = true,
+    showMenu: Boolean = true,
     floatingAction: (@Composable () -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit,
 ) {
@@ -108,6 +111,9 @@ fun ModernAppScaffold(
             ModernTopBar(
                 title = title,
                 onSettingsClick = onSettingsClick,
+                showCamera = showCamera,
+                showSearch = showSearch,
+                showMenu = showMenu,
             )
 
             Box(modifier = Modifier.weight(1f)) {
@@ -136,6 +142,9 @@ fun ModernAppScaffold(
 private fun ModernTopBar(
     title: String,
     onSettingsClick: () -> Unit,
+    showCamera: Boolean,
+    showSearch: Boolean,
+    showMenu: Boolean,
 ) {
     Row(
         modifier = Modifier
@@ -155,29 +164,35 @@ private fun ModernTopBar(
             modifier = Modifier.weight(1f),
         )
 
-        IconButton(onClick = {}) {
-            Icon(
-                imageVector = Icons.Default.CameraAlt,
-                contentDescription = "Camera",
-                tint = Primary,
-                modifier = Modifier.size(23.dp),
-            )
+        if (showCamera) {
+            IconButton(onClick = {}) {
+                Icon(
+                    imageVector = Icons.Default.CameraAlt,
+                    contentDescription = "Camera",
+                    tint = Primary,
+                    modifier = Modifier.size(23.dp),
+                )
+            }
         }
-        IconButton(onClick = {}) {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = "Search",
-                tint = Primary,
-                modifier = Modifier.size(23.dp),
-            )
+        if (showSearch) {
+            IconButton(onClick = {}) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Search",
+                    tint = Primary,
+                    modifier = Modifier.size(23.dp),
+                )
+            }
         }
-        IconButton(onClick = onSettingsClick) {
-            Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = "More",
-                tint = Primary,
-                modifier = Modifier.size(24.dp),
-            )
+        if (showMenu) {
+            IconButton(onClick = onSettingsClick) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More",
+                    tint = Primary,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
         }
     }
 }
