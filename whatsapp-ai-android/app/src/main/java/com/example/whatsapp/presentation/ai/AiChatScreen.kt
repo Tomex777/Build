@@ -184,8 +184,8 @@ fun AiChatTopBar(
                 .background(Color.Gray)
         ) {
             Icon(
-                painter = painterResource(R.drawable.meta_ai_icon),
-                contentDescription = "Meta AI",
+                painter = painterResource(R.drawable.ic_night),
+                contentDescription = "Night",
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape),
@@ -197,7 +197,7 @@ fun AiChatTopBar(
         
         // Meta AI Text
         Text(
-            text = "Meta AI",
+            text = "Night",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = Color.Black,
@@ -296,7 +296,7 @@ fun TypingIndicator() {
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
-                text = "Meta AI is typing",
+                text = "Night is typing",
                 color = Color.Gray,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(end = 8.dp)
