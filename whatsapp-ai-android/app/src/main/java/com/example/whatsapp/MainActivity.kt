@@ -52,6 +52,7 @@ import com.example.whatsapp.presentation.chatscreen.NightChatAppearance
 import com.example.whatsapp.presentation.chatscreen.NightChoiceDialog
 import com.example.whatsapp.presentation.chatscreen.NightImageViewerScreen
 import com.example.whatsapp.presentation.chatscreen.NightMediaComposerScreen
+import com.example.whatsapp.presentation.chatscreen.NightVideoPlayerScreen
 import com.example.whatsapp.presentation.chatscreen.ReplyKind
 import com.example.whatsapp.presentation.chatscreen.ReplyPreview
 import com.example.whatsapp.presentation.chatscreen.WhatsAppVisualMessage
@@ -129,6 +130,7 @@ private fun NightApp() {
     var replyingToId by rememberSaveable { mutableStateOf<String?>(null) }
     var choiceOpen by remember { mutableStateOf(false) }
     var imageViewerPath by rememberSaveable { mutableStateOf<String?>(null) }
+    var videoViewerPath by rememberSaveable { mutableStateOf<String?>(null) }
     var mediaDraft by remember { mutableStateOf<NightMediaDraft?>(null) }
     var mediaCaption by rememberSaveable { mutableStateOf("") }
 
@@ -640,6 +642,10 @@ private fun NightApp() {
                 imageViewerPath = null
                 screen = "chat"
             }
+            "video_player" -> {
+                videoViewerPath = null
+                screen = "chat"
+            }
             "media_compose" -> cancelMediaDraft()
             else -> {
                 screen = if (selectedTab == MainTab.You) "tabs" else "chat"
@@ -673,6 +679,22 @@ private fun NightApp() {
                     localPath = pathToShow,
                     onBack = {
                         imageViewerPath = null
+                        screen = "chat"
+                    },
+                )
+            } else {
+                screen = "chat"
+            }
+        }
+
+        "video_player" -> {
+            val pathToPlay = videoViewerPath
+            if (pathToPlay != null) {
+                NightVideoPlayerScreen(
+                    localPath = pathToPlay,
+                    title = activeChat?.title ?: "Video",
+                    onBack = {
+                        videoViewerPath = null
                         screen = "chat"
                     },
                 )
@@ -976,12 +998,9 @@ private fun NightApp() {
                 imageViewerPath = path
                 screen = "image_viewer"
             },
-            onVideoClick = {
-                Toast.makeText(
-                    context,
-                    "Video bubble is ready. The full player comes next.",
-                    Toast.LENGTH_SHORT,
-                ).show()
+            onVideoClick = { path ->
+                videoViewerPath = path
+                screen = "video_player"
             },
             onLinkClick = { url ->
                 runCatching {
