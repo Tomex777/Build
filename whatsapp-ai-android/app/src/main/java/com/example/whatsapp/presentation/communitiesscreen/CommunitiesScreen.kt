@@ -15,6 +15,7 @@ fun CommunitiesScreen(navHostController: NavHostController) {
                 MainTab.Updates -> Routes.UpdateScreen.route
                 MainTab.Communities -> Routes.CommunitiesScreen.route
                 MainTab.Calls -> Routes.CallScreen.route
+                MainTab.You -> Routes.SettingScreen.route
             }
             if (navHostController.currentDestination?.route != route) {
                 navHostController.navigate(route) { launchSingleTop = true }
