@@ -13,6 +13,7 @@ import com.example.whatsapp.presentation.chatscreen.AnimeResultMessage
 import com.example.whatsapp.presentation.chatscreen.ButtonResultMessage
 import com.example.whatsapp.extensions.messages.ExtensionActionStyle
 import com.example.whatsapp.extensions.messages.ExtensionCardAction
+import com.example.whatsapp.extensions.messages.ExtensionCardMetadata
 import com.example.whatsapp.extensions.messages.ExtensionCardTemplate
 import com.example.whatsapp.extensions.messages.ExtensionMessageSnapshot
 import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
@@ -59,6 +60,7 @@ class ChatPreviewActivity : ComponentActivity() {
                         "rich1" -> richPreviewMessagesPageOne()
                         "rich2" -> richPreviewMessagesPageTwo()
                         "approved-rich" -> approvedRichPreviewMessages()
+                        "extension" -> extensionSchemaPreviewMessages()
                         "utility" -> utilityPreviewMessages()
                         else -> whatsappPreviewMessages()
                     },
@@ -272,3 +274,60 @@ private fun richApprovedPreviewMessages(image: String): List<WhatsAppVisualMessa
         time = "14:24",
     ),
 )
+
+
+private fun extensionSchemaPreviewMessages(): List<WhatsAppVisualMessage> {
+    val notionPage = ExtensionMessageSnapshot(
+        extensionId = "notion",
+        messageType = "notion.page",
+        template = ExtensionCardTemplate.Content,
+        extensionName = "Notion Assistant",
+        title = "Project Night",
+        subtitle = "Product workspace",
+        body = "14 pages • Updated 3 min ago",
+        iconText = "N",
+        badge = "Productivity • Tool",
+        metadata = listOf(
+            ExtensionCardMetadata("Workspace", "Night"),
+        ),
+        actions = listOf(
+            ExtensionCardAction("open", "Open", ExtensionActionStyle.Primary),
+            ExtensionCardAction("summarize", "Summarize"),
+            ExtensionCardAction("search", "Search"),
+        ),
+        extensionPayloadJson = "{\"pageId\":\"project-night\",\"workspaceId\":\"night\"}",
+    )
+
+    return listOf(
+        ExtensionResultMessage(
+            id = "extension-notion-page",
+            snapshot = notionPage,
+            time = "14:24",
+        ),
+        WhatsAppVisualMessage.TextMessage(
+            id = "extension-reply",
+            text = "Summarize this page for me.",
+            time = "14:25",
+            mine = true,
+            read = true,
+            reply = ReplyPreview(
+                messageId = "extension-notion-page",
+                author = "Notion Assistant",
+                text = "Project Night — Product workspace",
+                kind = ReplyKind.Rich,
+                meta = "Notion page",
+                iconText = "N",
+            ),
+        ),
+        ExtensionResultMessage(
+            id = "extension-notion-unavailable",
+            snapshot = notionPage.copy(
+                title = "Project Night archive",
+                subtitle = "Saved message snapshot",
+                body = "The original card stays readable after the extension is removed.",
+            ),
+            time = "14:26",
+            extensionAvailable = false,
+        ),
+    )
+}
