@@ -16,6 +16,7 @@ import com.example.whatsapp.extensions.messages.ExtensionCardAction
 import com.example.whatsapp.extensions.messages.ExtensionCardMetadata
 import com.example.whatsapp.extensions.messages.ExtensionCardTemplate
 import com.example.whatsapp.extensions.messages.ExtensionMessageSnapshot
+import com.example.whatsapp.presentation.chatscreen.AudioPlaybackUiState
 import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
 import com.example.whatsapp.presentation.chatscreen.ExtensionResultMessage
 import com.example.whatsapp.presentation.chatscreen.LinkPreviewMessage
@@ -74,6 +75,16 @@ class ChatPreviewActivity : ComponentActivity() {
                     onMicClick = {},
                     onAttachmentAction = {},
                     onMessageButtonClick = { _, _ -> },
+                    audioPlaybackState = if (mode == "audio") {
+                        AudioPlaybackUiState(
+                            activePath = "preview-audio",
+                            isPlaying = true,
+                            progress = 0.42f,
+                            positionLabel = "1:34",
+                        )
+                    } else {
+                        AudioPlaybackUiState()
+                    },
                     autoScrollToLatest = false,
                     attachmentsInitiallyOpen = showAttachments,
                     emojiInitiallyOpen = showEmoji,
@@ -172,6 +183,7 @@ private fun audioPreviewMessages(image: String): List<WhatsAppVisualMessage> = l
         caption = "Here’s a track I’ve been listening to lately. Might fit the vibe you mentioned.",
         time = "14:34",
         mine = false,
+        localPath = "preview-audio",
         artworkPath = image,
     ),
 )
