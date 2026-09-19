@@ -1068,8 +1068,10 @@ fun richPreviewMessagesPageTwo(): List<WhatsAppVisualMessage> = listOf(
         mine = true,
         read = true,
         reply = ReplyPreview(
+            messageId = "anime",
             author = "Assistant",
             text = "Solo Leveling • Season 2 • Episode 8 • 1080p",
+            kind = ReplyKind.Rich,
         ),
     ),
     DownloadResultMessage(
