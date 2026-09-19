@@ -160,6 +160,7 @@ fun CurrentWhatsAppConversation(
     attachmentsInitiallyOpen: Boolean = false,
     emojiInitiallyOpen: Boolean = false,
     menuInitiallyOpen: Boolean = false,
+    appearance: NightChatAppearance = NightChatAppearance(),
 ) {
     val state = rememberLazyListState()
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -177,7 +178,7 @@ fun CurrentWhatsAppConversation(
             .fillMaxSize()
             .background(HeaderBlack),
     ) {
-        WhatsAppWallpaper()
+        WhatsAppWallpaper(appearance)
 
         Column(
             modifier = Modifier
@@ -208,9 +209,9 @@ fun CurrentWhatsAppConversation(
             ) {
                 items(messages, key = { it.id }) { item ->
                     when (item) {
-                        is WhatsAppVisualMessage.TextMessage -> CurrentTextBubble(item)
-                        is WhatsAppVisualMessage.PhotoMessage -> CurrentPhotoBubble(item)
-                        is WhatsAppVisualMessage.VoiceMessage -> CurrentVoiceBubble(item)
+                        is WhatsAppVisualMessage.TextMessage -> CurrentTextBubble(item, appearance)
+                        is WhatsAppVisualMessage.PhotoMessage -> CurrentPhotoBubble(item, appearance)
+                        is WhatsAppVisualMessage.VoiceMessage -> CurrentVoiceBubble(item, appearance)
                         is WhatsAppVisualMessage.DateSeparator -> CurrentDateSeparator(item.label)
                         is RichResultMessage -> RichResultBubble(item, onMessageButtonClick)
                     }
@@ -236,6 +237,7 @@ fun CurrentWhatsAppConversation(
                     onEmojiClick()
                 },
                 applyNavigationPadding = !showAttachments && !showEmojiPicker,
+                appearance = appearance,
             )
 
             if (showAttachments) {
@@ -260,14 +262,14 @@ fun CurrentWhatsAppConversation(
 }
 
 @Composable
-private fun WhatsAppWallpaper() {
+private fun WhatsAppWallpaper(appearance: NightChatAppearance) {
     Canvas(modifier = Modifier.fillMaxSize()) {
         drawRect(
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    Color(0xFF6A0011),
-                    Color(0xFF8F0018),
-                    Color(0xFF4F000E),
+                    appearance.wallpaperTopColor,
+                    appearance.wallpaperMiddleColor,
+                    appearance.wallpaperBottomColor,
                 )
             )
         )
@@ -410,9 +412,12 @@ private fun CurrentChatHeader(
 }
 
 @Composable
-private fun CurrentTextBubble(item: WhatsAppVisualMessage.TextMessage) {
+private fun CurrentTextBubble(
+    item: WhatsAppVisualMessage.TextMessage,
+    appearance: NightChatAppearance,
+) {
     val alignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart
-    val bubbleColor = if (item.mine) OutgoingBubble else IncomingBubble
+    val bubbleColor = if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor
     val shape = if (item.mine) {
         RoundedCornerShape(
             topStart = 13.dp,
@@ -445,7 +450,7 @@ private fun CurrentTextBubble(item: WhatsAppVisualMessage.TextMessage) {
                     bottom = 5.dp,
                 ),
         ) {
-            item.reply?.let { CurrentReplyBlock(it) }
+            item.reply?.let { CurrentReplyBlock(it, appearance) }
 
             Row(
                 verticalAlignment = Alignment.Bottom,
@@ -453,8 +458,9 @@ private fun CurrentTextBubble(item: WhatsAppVisualMessage.TextMessage) {
                 Text(
                     text = item.text,
                     color = PrimaryText,
-                    fontSize = 14.sp,
-                    lineHeight = 19.sp,
+                    fontSize = (14f * appearance.messageFontScale).sp,
+                    lineHeight = (19f * appearance.messageFontScale).sp,
+                    fontFamily = appearance.fontFamily,
                     modifier = Modifier.weight(1f, fill = false),
                 )
 
@@ -471,7 +477,10 @@ private fun CurrentTextBubble(item: WhatsAppVisualMessage.TextMessage) {
 }
 
 @Composable
-private fun CurrentReplyBlock(reply: ReplyPreview) {
+private fun CurrentReplyBlock(
+    reply: ReplyPreview,
+    appearance: NightChatAppearance,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -483,7 +492,7 @@ private fun CurrentReplyBlock(reply: ReplyPreview) {
             modifier = Modifier
                 .width(3.dp)
                 .fillMaxHeight()
-                .background(AccentPink),
+                .background(appearance.accentColor),
         )
 
         Column(
@@ -493,7 +502,7 @@ private fun CurrentReplyBlock(reply: ReplyPreview) {
         ) {
             Text(
                 text = reply.author,
-                color = Color(0xFFE05B7C),
+                color = appearance.accentColor,
                 fontSize = 11.sp,
                 lineHeight = 13.sp,
             )
@@ -512,7 +521,10 @@ private fun CurrentReplyBlock(reply: ReplyPreview) {
 }
 
 @Composable
-private fun CurrentPhotoBubble(item: WhatsAppVisualMessage.PhotoMessage) {
+private fun CurrentPhotoBubble(
+    item: WhatsAppVisualMessage.PhotoMessage,
+    appearance: NightChatAppearance,
+) {
     if (item.compact) {
         CompactPhotoBubble(item)
         return
@@ -532,7 +544,7 @@ private fun CurrentPhotoBubble(item: WhatsAppVisualMessage.PhotoMessage) {
                         RoundedCornerShape(3.dp, 14.dp, 14.dp, 14.dp)
                     }
                 )
-                .background(if (item.mine) OutgoingBubble else IncomingBubble)
+                .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
                 .padding(5.dp),
         ) {
             DemoMediaArtwork(
@@ -632,7 +644,10 @@ private fun DemoMediaArtwork(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun CurrentVoiceBubble(item: WhatsAppVisualMessage.VoiceMessage) {
+private fun CurrentVoiceBubble(
+    item: WhatsAppVisualMessage.VoiceMessage,
+    appearance: NightChatAppearance,
+) {
     Box(
         modifier = Modifier.fillMaxWidth(),
         contentAlignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart,
@@ -647,7 +662,7 @@ private fun CurrentVoiceBubble(item: WhatsAppVisualMessage.VoiceMessage) {
                         RoundedCornerShape(3.dp, 14.dp, 14.dp, 14.dp)
                     }
                 )
-                .background(if (item.mine) OutgoingBubble else IncomingBubble)
+                .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
                 .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 6.dp),
         ) {
             Row(
@@ -668,7 +683,7 @@ private fun CurrentVoiceBubble(item: WhatsAppVisualMessage.VoiceMessage) {
                             .align(Alignment.BottomEnd)
                             .size(16.dp)
                             .clip(CircleShape)
-                            .background(if (item.mine) OutgoingBubble else IncomingBubble),
+                            .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
@@ -813,6 +828,7 @@ private fun CurrentComposer(
     onMicClick: () -> Unit,
     onEmojiClick: () -> Unit,
     applyNavigationPadding: Boolean = true,
+    appearance: NightChatAppearance = NightChatAppearance(),
 ) {
     val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
 
@@ -855,7 +871,8 @@ private fun CurrentComposer(
                         Text(
                             text = "Message",
                             color = Color(0xFF8F999E),
-                            fontSize = 16.sp,
+                            fontSize = (16f * appearance.messageFontScale).sp,
+                        fontFamily = appearance.fontFamily,
                         )
                     },
                     modifier = Modifier.weight(1f),
@@ -868,11 +885,12 @@ private fun CurrentComposer(
                         unfocusedIndicatorColor = Color.Transparent,
                         focusedTextColor = PrimaryText,
                         unfocusedTextColor = PrimaryText,
-                        cursorColor = AccentPink,
+                        cursorColor = appearance.accentColor,
                     ),
                     textStyle = LocalTextStyle.current.copy(
-                        fontSize = 16.sp,
-                        lineHeight = 20.sp,
+                        fontSize = (16f * appearance.messageFontScale).sp,
+                        lineHeight = (20f * appearance.messageFontScale).sp,
+                        fontFamily = appearance.fontFamily,
                     ),
                 )
 
@@ -899,7 +917,7 @@ private fun CurrentComposer(
         Spacer(modifier = Modifier.width(7.dp))
 
         Surface(
-            color = AccentPink,
+            color = appearance.accentColor,
             shape = CircleShape,
             modifier = Modifier
                 .size(48.dp)
