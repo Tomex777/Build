@@ -139,10 +139,6 @@ fun PaheApp(vm: PaheViewModel) {
 
 @Composable
 private fun RootTabs(vm: PaheViewModel) {
-    BackHandler(enabled = vm.tab != MainTab.EXPLORE) {
-        vm.navigateToTab(MainTab.EXPLORE)
-    }
-
     Scaffold(
         containerColor = Bg,
         bottomBar = {
@@ -1147,6 +1143,10 @@ private fun downloadChipColors() = FilterChipDefaults.filterChipColors(
 
 @Composable
 private fun DownloadsScreen(vm: PaheViewModel, padding: PaddingValues) {
+    BackHandler {
+        vm.navigateToTab(MainTab.EXPLORE)
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -1244,6 +1244,10 @@ private fun DownloadsScreen(vm: PaheViewModel, padding: PaddingValues) {
 
 @Composable
 private fun SettingsScreen(vm: PaheViewModel, padding: PaddingValues) {
+    BackHandler {
+        vm.navigateToTab(MainTab.EXPLORE)
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
