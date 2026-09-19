@@ -28,7 +28,6 @@ import com.night.pahebatcher.data.SessionStore
 import com.night.pahebatcher.data.StoredDownloadTask
 import com.night.pahebatcher.data.VerificationKind
 import com.night.pahebatcher.data.VerificationRequired
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.net.URI
@@ -81,8 +80,6 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var detailsError by mutableStateOf<String?>(null)
         private set
-
-    private var detailsJob: Job? = null
 
     var verificationActive by mutableStateOf(false)
         private set
@@ -154,9 +151,14 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         recentError = null
         viewModelScope.launch {
             try {
-                recentAnime = aniListRepository.recentlyAired()
+                val available = repository.recentlyAvailable()
+                recentAnime = aniListRepository.enrichAvailable(available)
+            } catch (e: VerificationRequired) {
+                recentAnime = emptyList()
+                recentError = "Verify AnimePahe to load releases that are actually available."
             } catch (e: Exception) {
-                recentError = e.message ?: "Could not load recent AniList updates."
+                recentAnime = emptyList()
+                recentError = e.message ?: "Could not load available releases."
             } finally {
                 recentLoading = false
             }
@@ -164,34 +166,29 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openAnime(item: AnimeSearchResult) {
-        detailsJob?.cancel()
+        val episodeSlots = if (item.episodes > 0) {
+            (1..item.episodes).map { number ->
+                EpisodeInfo(
+                    number = number.toDouble(),
+                    session = "",
+                    title = "",
+                    fansub = "",
+                    audio = "jpn",
+                    playUrl = "",
+                )
+            }
+        } else {
+            emptyList()
+        }
 
-        // Open immediately with AniList metadata. AnimePahe is resolved only for
-        // the episode/download source in the background.
         details = AnimeDetails(
             result = item,
-            host = sessions.animeHost,
-            episodes = emptyList(),
+            host = "",
+            episodes = episodeSlots,
         )
         currentAnimeOverride = downloadPreferencesStore.overrideFor(item)
-        detailsLoading = true
+        detailsLoading = false
         detailsError = null
-
-        detailsJob = viewModelScope.launch {
-            try {
-                details = repository.loadAnime(item)
-                details?.result?.let {
-                    currentAnimeOverride = downloadPreferencesStore.overrideFor(it)
-                }
-                refreshSessions()
-            } catch (e: VerificationRequired) {
-                detailsError = verificationMessage(e.kind)
-            } catch (e: Exception) {
-                detailsError = e.message ?: "Could not load episodes."
-            } finally {
-                detailsLoading = false
-            }
-        }
     }
 
     fun retryDetails() {
@@ -199,8 +196,6 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun closeDetails() {
-        detailsJob?.cancel()
-        detailsJob = null
         details = null
         detailsLoading = false
         detailsError = null
@@ -243,7 +238,28 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         sessionStore.saveAnime(cookie, host, userAgent)
         refreshSessions()
         verifyError = null
-        verificationActive = false
+
+        viewModelScope.launch {
+            try {
+                repository.validateAnimeSession()
+                verificationActive = false
+                refreshSessions()
+                resumePausedDownloads()
+                refreshRecent()
+            } catch (e: VerificationRequired) {
+                sessionStore.clear()
+                refreshSessions()
+                verifyError = "AnimePahe did not accept that browser session yet. Finish the check and confirm again."
+            } catch (_: Exception) {
+                // A transient API/rate-limit failure is not proof that the
+                // browser session is invalid. Keep the saved session and let
+                // the actual source request decide later.
+                verificationActive = false
+                refreshSessions()
+                resumePausedDownloads()
+                refreshRecent()
+            }
+        }
     }
 
     fun clearVerificationSessions() {
@@ -312,7 +328,7 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         if (duplicate) return
 
         enqueueDownload(
-            animeTitle = current.result.title,
+            catalog = current.result,
             episode = episode,
             quality = quality,
             audio = audio,
@@ -341,7 +357,7 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
             }
             if (!duplicate) {
                 enqueueDownload(
-                    animeTitle = current.result.title,
+                    catalog = current.result,
                     episode = episode,
                     quality = preferences.quality,
                     audio = preferences.audio,
@@ -351,36 +367,23 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun enqueueDownload(
-        animeTitle: String,
+        catalog: AnimeSearchResult,
         episode: EpisodeInfo,
         quality: Int,
         audio: String,
     ) {
         val id = UUID.randomUUID().toString()
-        val request = OneTimeWorkRequestBuilder<EpisodeDownloadWorker>()
-            .setInputData(
-                Data.Builder()
-                    .putString(EpisodeDownloadWorker.INPUT_TASK_ID, id)
-                    .build()
-            )
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .setBackoffCriteria(
-                BackoffPolicy.EXPONENTIAL,
-                30,
-                TimeUnit.SECONDS,
-            )
-            .addTag(DOWNLOAD_WORK_TAG)
-            .build()
+        val request = buildDownloadWork(id)
 
         downloadStore.put(
             StoredDownloadTask(
                 id = id,
                 workId = request.id.toString(),
-                animeTitle = animeTitle,
+                animeTitle = catalog.title,
+                aniListId = catalog.aniListId ?: 0,
+                sourceQueries = catalog.sourceQueries,
+                sourceAnimeId = catalog.animeId ?: 0,
+                sourceAnimeSession = catalog.session,
                 episodeNumber = episode.number,
                 episodeSession = episode.session,
                 episodeTitle = episode.title,
@@ -398,6 +401,49 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
             ExistingWorkPolicy.APPEND_OR_REPLACE,
             request,
         )
+        syncDownloads()
+    }
+
+    private fun buildDownloadWork(taskId: String) =
+        OneTimeWorkRequestBuilder<EpisodeDownloadWorker>()
+            .setInputData(
+                Data.Builder()
+                    .putString(EpisodeDownloadWorker.INPUT_TASK_ID, taskId)
+                    .build()
+            )
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .setBackoffCriteria(
+                BackoffPolicy.EXPONENTIAL,
+                30,
+                TimeUnit.SECONDS,
+            )
+            .addTag(DOWNLOAD_WORK_TAG)
+            .build()
+
+    private fun resumePausedDownloads() {
+        downloadStore.all()
+            .filter { it.state == StoredDownloadTask.STATE_PAUSED }
+            .forEach { task ->
+                task.workId.takeIf { it.isNotBlank() }?.let { oldId ->
+                    runCatching { workManager.cancelWorkById(UUID.fromString(oldId)) }
+                }
+
+                val request = buildDownloadWork(task.id)
+                downloadStore.updateWorkId(
+                    id = task.id,
+                    workId = request.id.toString(),
+                    status = "Verified — resuming download",
+                )
+                workManager.enqueueUniqueWork(
+                    DOWNLOAD_QUEUE_NAME,
+                    ExistingWorkPolicy.APPEND_OR_REPLACE,
+                    request,
+                )
+            }
         syncDownloads()
     }
 
