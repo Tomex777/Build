@@ -1,3 +1,4 @@
+// Night real-core validation 3
 package com.example.whatsapp
 
 import android.Manifest
