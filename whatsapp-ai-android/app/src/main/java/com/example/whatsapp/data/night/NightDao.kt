@@ -123,6 +123,9 @@ interface NightDao {
     @Query("SELECT * FROM night_capability_routes WHERE capability = :capability AND isEnabled = 1 LIMIT 1")
     suspend fun getCapabilityRoute(capability: String): NightCapabilityRouteEntity?
 
+    @Query("SELECT * FROM night_capability_routes ORDER BY capability")
+    fun observeCapabilityRoutes(): Flow<List<NightCapabilityRouteEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertCapabilityRoute(route: NightCapabilityRouteEntity)
 
