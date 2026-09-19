@@ -356,7 +356,7 @@ fun ModernChatsTab(
                 FilterChip("Favorites")
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             LazyColumn(
                 contentPadding = PaddingValues(bottom = 84.dp),
