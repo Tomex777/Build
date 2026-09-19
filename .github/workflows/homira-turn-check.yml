@@ -186,7 +186,10 @@ jobs:
               urls = server.get("urls", [])
               if isinstance(urls, str):
                   urls = [urls]
-              server["urls"] = [\n                  url for url in urls\n                  if not (":53?" in url or url.endswith(":53"))\n              ]
+              server["urls"] = [
+                  url for url in urls
+                  if not (":53?" in url or url.endswith(":53"))
+              ]
 
           options = Options()
           options.add_argument("--headless=new")
