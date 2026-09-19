@@ -8,20 +8,32 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.BackoffPolicy
+import androidx.work.Constraints
+import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.night.pahebatcher.data.AniListRepository
 import com.night.pahebatcher.data.AnimeDetails
 import com.night.pahebatcher.data.AnimeSearchResult
 import com.night.pahebatcher.data.DownloadPreferences
 import com.night.pahebatcher.data.DownloadPreferencesStore
+import com.night.pahebatcher.data.DownloadTaskStore
+import com.night.pahebatcher.data.EpisodeDownloadWorker
 import com.night.pahebatcher.data.EpisodeInfo
 import com.night.pahebatcher.data.PaheRepository
 import com.night.pahebatcher.data.SessionStore
+import com.night.pahebatcher.data.StoredDownloadTask
 import com.night.pahebatcher.data.VerificationKind
 import com.night.pahebatcher.data.VerificationRequired
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.net.URI
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 
 enum class MainTab { EXPLORE, DOWNLOADS, SETTINGS }
 enum class VerifyStage { ANIMEPAHE }
@@ -43,6 +55,8 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = PaheRepository(application, sessionStore)
     private val aniListRepository = AniListRepository()
     private val downloadPreferencesStore = DownloadPreferencesStore(application)
+    private val downloadStore = DownloadTaskStore(application)
+    private val workManager = WorkManager.getInstance(application)
 
     var tab by mutableStateOf(MainTab.EXPLORE)
         private set
@@ -92,6 +106,13 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         refreshRecent()
+        syncDownloads()
+        viewModelScope.launch {
+            while (true) {
+                syncDownloads()
+                delay(750)
+            }
+        }
     }
 
     fun navigateToTab(value: MainTab) {
@@ -283,27 +304,19 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         audio: String,
     ) {
         val current = details ?: return
-        if (downloads.any {
-                it.animeTitle == current.result.title &&
-                    it.episode == episode.epLabel &&
-                    !it.failed &&
-                    it.progress < 1f
-            }
-        ) {
-            return
+        val duplicate = downloadStore.all().any {
+            it.animeTitle == current.result.title &&
+                it.episodeNumber == episode.number &&
+                it.state != StoredDownloadTask.STATE_FAILED
         }
+        if (duplicate) return
 
-        val id = enqueueDownload(
+        enqueueDownload(
             animeTitle = current.result.title,
             episode = episode,
             quality = quality,
             audio = audio,
-            status = "Resolving release…",
         )
-
-        viewModelScope.launch {
-            performDownload(id, current.result.title, episode, quality, audio)
-        }
     }
 
     fun downloadAllCurrent() {
@@ -311,6 +324,7 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         if (current.episodes.isEmpty()) return
 
         val preferences = effectiveDownloadPreferences()
+        val existing = downloadStore.all()
         val episodes = current.episodes
             .groupBy { it.number }
             .values
@@ -319,31 +333,14 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
             }
             .sortedBy { it.number }
 
-        val queued = episodes.mapNotNull { episode ->
-            val alreadyQueued = downloads.any {
+        episodes.forEach { episode ->
+            val duplicate = existing.any {
                 it.animeTitle == current.result.title &&
-                    it.episode == episode.epLabel &&
-                    !it.failed
+                    it.episodeNumber == episode.number &&
+                    it.state != StoredDownloadTask.STATE_FAILED
             }
-            if (alreadyQueued) {
-                null
-            } else {
-                episode to enqueueDownload(
-                    animeTitle = current.result.title,
-                    episode = episode,
-                    quality = preferences.quality,
-                    audio = preferences.audio,
-                    status = "Queued",
-                )
-            }
-        }
-
-        if (queued.isEmpty()) return
-
-        viewModelScope.launch {
-            for ((episode, id) in queued) {
-                performDownload(
-                    id = id,
+            if (!duplicate) {
+                enqueueDownload(
                     animeTitle = current.result.title,
                     episode = episode,
                     quality = preferences.quality,
@@ -358,80 +355,83 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         episode: EpisodeInfo,
         quality: Int,
         audio: String,
-        status: String,
-    ): String {
+    ) {
         val id = UUID.randomUUID().toString()
-        downloads.add(
-            0,
-            DownloadUi(
+        val request = OneTimeWorkRequestBuilder<EpisodeDownloadWorker>()
+            .setInputData(
+                Data.Builder()
+                    .putString(EpisodeDownloadWorker.INPUT_TASK_ID, id)
+                    .build()
+            )
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .setBackoffCriteria(
+                BackoffPolicy.EXPONENTIAL,
+                30,
+                TimeUnit.SECONDS,
+            )
+            .addTag(DOWNLOAD_WORK_TAG)
+            .build()
+
+        downloadStore.put(
+            StoredDownloadTask(
                 id = id,
+                workId = request.id.toString(),
                 animeTitle = animeTitle,
-                episode = episode.epLabel,
-                quality = quality,
-                audio = audio,
-                progress = 0f,
-                status = status,
+                episodeNumber = episode.number,
+                episodeSession = episode.session,
+                episodeTitle = episode.title,
+                episodeFansub = episode.fansub,
+                episodeAudio = episode.audio,
+                playUrl = episode.playUrl,
+                requestedQuality = quality,
+                requestedAudio = audio,
+                status = "Queued — waiting for connection",
             )
         )
-        return id
-    }
 
-    private suspend fun performDownload(
-        id: String,
-        animeTitle: String,
-        episode: EpisodeInfo,
-        quality: Int,
-        audio: String,
-    ) {
-        try {
-            updateDownload(id) { it.copy(status = "Resolving release…") }
-            val stream = repository.resolveStream(episode, quality, audio)
-            updateDownload(id) {
-                it.copy(
-                    quality = stream.quality,
-                    audio = stream.audio,
-                    status = "Downloading ${stream.quality}p…",
-                )
-            }
-            val uri = repository.downloadStream(
-                stream = stream,
-                animeTitle = animeTitle,
-                episode = episode,
-            ) { progress ->
-                viewModelScope.launch {
-                    updateDownload(id) {
-                        it.copy(
-                            progress = progress,
-                            status = "Downloading ${(progress * 100).toInt()}%",
-                        )
-                    }
-                }
-            }
-            updateDownload(id) {
-                it.copy(
-                    progress = 1f,
-                    status = "Saved to Downloads/PaheBatcher",
-                    uri = uri,
-                )
-            }
-        } catch (e: VerificationRequired) {
-            updateDownload(id) {
-                it.copy(status = verificationMessage(e.kind), failed = true)
-            }
-        } catch (e: Exception) {
-            updateDownload(id) {
-                it.copy(status = e.message ?: "Download failed", failed = true)
-            }
-        }
+        workManager.enqueueUniqueWork(
+            DOWNLOAD_QUEUE_NAME,
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
+            request,
+        )
+        syncDownloads()
     }
 
     fun removeDownload(id: String) {
-        downloads.removeAll { it.id == id }
+        downloadStore.get(id)?.workId
+            ?.takeIf { it.isNotBlank() }
+            ?.let { runCatching { workManager.cancelWorkById(UUID.fromString(it)) } }
+        downloadStore.remove(id)
+        syncDownloads()
     }
 
-    private fun updateDownload(id: String, transform: (DownloadUi) -> DownloadUi) {
-        val index = downloads.indexOfFirst { it.id == id }
-        if (index >= 0) downloads[index] = transform(downloads[index])
+    private fun syncDownloads() {
+        val mapped = downloadStore.all().map { task ->
+            DownloadUi(
+                id = task.id,
+                animeTitle = task.animeTitle,
+                episode = if (task.episodeNumber == task.episodeNumber.toInt().toDouble()) {
+                    task.episodeNumber.toInt().toString()
+                } else {
+                    task.episodeNumber.toString()
+                },
+                quality = task.resolvedQuality.takeIf { it > 0 } ?: task.requestedQuality,
+                audio = task.resolvedAudio.ifBlank { task.requestedAudio },
+                progress = task.progress,
+                status = task.status,
+                uri = task.uri.takeIf { it.isNotBlank() }?.let(Uri::parse),
+                failed = task.state == StoredDownloadTask.STATE_FAILED,
+            )
+        }
+
+        if (downloads.toList() != mapped) {
+            downloads.clear()
+            downloads.addAll(mapped)
+        }
     }
 
     private fun refreshSessions() {
@@ -442,4 +442,9 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         when (kind) {
             VerificationKind.ANIMEPAHE -> "AnimePahe verification is needed. Tap the browser icon at the top to verify."
         }
+
+    companion object {
+        private const val DOWNLOAD_QUEUE_NAME = "pahe_episode_download_queue"
+        private const val DOWNLOAD_WORK_TAG = "pahe_episode_download"
+    }
 }
