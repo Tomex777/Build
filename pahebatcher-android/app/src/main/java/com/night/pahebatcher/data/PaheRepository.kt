@@ -157,6 +157,22 @@ class PaheRepository(
             }.distinct()
         }
 
+    suspend fun validateAnimeSession(): Boolean = withContext(Dispatchers.IO) {
+        val host = sessions.animeHost()
+        if (host.isBlank() || sessions.animeCookie().isBlank()) {
+            throw VerificationRequired(
+                VerificationKind.ANIMEPAHE,
+                "AnimePahe browser session is missing",
+            )
+        }
+
+        requestText(
+            "https://$host/api?m=airing&page=1",
+            referer = "https://$host/",
+        )
+        true
+    }
+
     suspend fun recentlyAvailable(): List<AnimeSearchResult> = withContext(Dispatchers.IO) {
         var lastError: Exception? = null
         var verificationError: VerificationRequired? = null
