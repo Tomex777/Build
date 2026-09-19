@@ -40,6 +40,7 @@ import com.example.whatsapp.data.night.NightProviderManager
 import com.example.whatsapp.data.night.NightRepository
 import com.example.whatsapp.data.night.NightScheduleManager
 import com.example.whatsapp.data.night.NightSpeechService
+import com.example.whatsapp.data.night.NightStructuredReplyParser
 import com.example.whatsapp.data.night.NightVoiceRecorder
 import com.example.whatsapp.presentation.chat_box.ChatListModel
 import com.example.whatsapp.presentation.chatscreen.ChoiceResultMessage
@@ -284,18 +285,19 @@ private fun NightApp() {
             )
 
             val result = aiGateway.reply(activeChatId, displayName)
-            repository.appendText(
+            val rawReply = result.getOrElse { error ->
+                when {
+                    error.message?.contains("No chat AI") == true ->
+                        "I transcribed the voice note, but no AI is selected for this chat yet."
+                    else ->
+                        "I transcribed the voice note, but I couldn't reach the selected AI. " +
+                            (error.message ?: "Check the provider settings.")
+                }
+            }
+            appendParsedAssistantReply(
+                repository = repository,
                 chatId = activeChatId,
-                role = "assistant",
-                text = result.getOrElse { error ->
-                    when {
-                        error.message?.contains("No chat AI") == true ->
-                            "I transcribed the voice note, but no AI is selected for this chat yet."
-                        else ->
-                            "I transcribed the voice note, but I couldn't reach the selected AI. " +
-                                (error.message ?: "Check the provider settings.")
-                    }
-                },
+                rawReply = rawReply,
             )
         }
     }
@@ -778,17 +780,18 @@ private fun NightApp() {
                     }
 
                     val result = aiGateway.reply(activeChatId, displayName)
-                    repository.appendText(
+                    val rawReply = result.getOrElse { error ->
+                        when {
+                            error.message?.contains("No chat AI") == true ->
+                                "No AI is selected for this chat yet. Tap Choose AI to pick a configured model."
+                            else ->
+                                "I couldn't reach the selected AI. " + (error.message ?: "Check the provider settings.")
+                        }
+                    }
+                    appendParsedAssistantReply(
+                        repository = repository,
                         chatId = activeChatId,
-                        role = "assistant",
-                        text = result.getOrElse { error ->
-                            when {
-                                error.message?.contains("No chat AI") == true ->
-                                    "No AI is selected for this chat yet. Tap Choose AI to pick a configured model."
-                                else ->
-                                    "I couldn't reach the selected AI. " + (error.message ?: "Check the provider settings.")
-                            }
-                        },
+                        rawReply = rawReply,
                     )
                 }
             },
@@ -1363,6 +1366,38 @@ private fun formatBytes(bytes: Long): String = when {
 
 private fun repositoryActionToast(context: android.content.Context, message: String) {
     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+}
+
+private suspend fun appendParsedAssistantReply(
+    repository: NightRepository,
+    chatId: String,
+    rawReply: String,
+) {
+    val parsed = NightStructuredReplyParser.parse(rawReply)
+
+    if (parsed.text.isNotBlank()) {
+        repository.appendText(
+            chatId = chatId,
+            role = "assistant",
+            text = parsed.text,
+        )
+    }
+
+    parsed.choice?.let { choice ->
+        repository.appendMessage(
+            NightMessageEntity(
+                id = java.util.UUID.randomUUID().toString(),
+                chatId = chatId,
+                role = "assistant",
+                type = "choice",
+                text = choice.title,
+                createdAt = System.currentTimeMillis(),
+                payloadJson = JSONObject()
+                    .put("options", JSONArray(choice.options))
+                    .toString(),
+            )
+        )
+    }
 }
 
 private suspend fun exportChat(
