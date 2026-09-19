@@ -49,6 +49,7 @@ import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
 import com.example.whatsapp.presentation.chatscreen.NightChatAppearance
 import com.example.whatsapp.presentation.chatscreen.NightChoiceDialog
 import com.example.whatsapp.presentation.chatscreen.NightImageViewerScreen
+import com.example.whatsapp.presentation.chatscreen.NightMediaComposerScreen
 import com.example.whatsapp.presentation.chatscreen.ReplyKind
 import com.example.whatsapp.presentation.chatscreen.ReplyPreview
 import com.example.whatsapp.presentation.chatscreen.WhatsAppVisualMessage
@@ -126,6 +127,8 @@ private fun NightApp() {
     var replyingToId by rememberSaveable { mutableStateOf<String?>(null) }
     var choiceOpen by remember { mutableStateOf(false) }
     var imageViewerPath by rememberSaveable { mutableStateOf<String?>(null) }
+    var mediaDraft by remember { mutableStateOf<NightMediaDraft?>(null) }
+    var mediaCaption by rememberSaveable { mutableStateOf("") }
 
     val chats by repository.observeChats().collectAsState(initial = emptyList())
     val profiles by repository.observeProviderProfiles().collectAsState(initial = emptyList())
@@ -408,10 +411,49 @@ private fun NightApp() {
                 NightFileLibrary.importUri(context, uri)
             } ?: return@launch
 
-            val messageId = java.util.UUID.randomUUID().toString()
             val replyId = replyingToId
             val mime = saved.mimeType
 
+            if (mime.startsWith("image/") || mime.startsWith("video/")) {
+                val payload = JSONObject()
+                    .put("localPath", saved.localPath)
+                    .put("mimeType", mime)
+                    .put("sizeBytes", saved.sizeBytes)
+
+                var thumbnailPath: String? = null
+
+                if (mime.startsWith("image/")) {
+                    payload.put("aspectRatio", readImageAspectRatio(saved.localPath))
+                } else {
+                    val meta = withContext(Dispatchers.IO) {
+                        extractVideoMeta(context, saved.localPath)
+                    }
+                    thumbnailPath = meta.thumbnailPath
+                    payload
+                        .put("duration", meta.duration)
+                        .put("aspectRatio", meta.aspectRatio)
+                    meta.thumbnailPath?.let { payload.put("thumbnailPath", it) }
+                }
+
+                mediaDraft = NightMediaDraft(
+                    libraryId = saved.id,
+                    name = saved.name,
+                    mimeType = mime,
+                    sizeBytes = saved.sizeBytes,
+                    localPath = saved.localPath,
+                    createdAt = saved.createdAt,
+                    messageType = if (mime.startsWith("video/")) "video" else "image",
+                    payloadJson = payload.toString(),
+                    thumbnailPath = thumbnailPath,
+                    replyToMessageId = replyId,
+                )
+                mediaCaption = ""
+                replyingToId = null
+                screen = "media_compose"
+                return@launch
+            }
+
+            val messageId = java.util.UUID.randomUUID().toString()
             val payload = JSONObject()
                 .put("localPath", saved.localPath)
                 .put("mimeType", mime)
@@ -420,42 +462,20 @@ private fun NightApp() {
             val messageType: String
             val messageTextValue: String
 
-            when {
-                mime.startsWith("image/") -> {
-                    messageType = "image"
-                    messageTextValue = ""
-                    payload.put("aspectRatio", readImageAspectRatio(saved.localPath))
+            if (mime.startsWith("audio/")) {
+                messageType = "audio"
+                messageTextValue = saved.name
+                val meta = withContext(Dispatchers.IO) {
+                    extractAudioMeta(context, saved.localPath, saved.name)
                 }
-
-                mime.startsWith("video/") -> {
-                    messageType = "video"
-                    messageTextValue = ""
-                    val meta = withContext(Dispatchers.IO) {
-                        extractVideoMeta(context, saved.localPath)
-                    }
-                    payload
-                        .put("duration", meta.duration)
-                        .put("aspectRatio", meta.aspectRatio)
-                    meta.thumbnailPath?.let { payload.put("thumbnailPath", it) }
-                }
-
-                mime.startsWith("audio/") -> {
-                    messageType = "audio"
-                    messageTextValue = saved.name
-                    val meta = withContext(Dispatchers.IO) {
-                        extractAudioMeta(context, saved.localPath, saved.name)
-                    }
-                    payload
-                        .put("title", meta.title)
-                        .put("artist", meta.artist)
-                        .put("duration", meta.duration)
-                    meta.artworkPath?.let { payload.put("artworkPath", it) }
-                }
-
-                else -> {
-                    messageType = "file"
-                    messageTextValue = saved.name
-                }
+                payload
+                    .put("title", meta.title)
+                    .put("artist", meta.artist)
+                    .put("duration", meta.duration)
+                meta.artworkPath?.let { payload.put("artworkPath", it) }
+            } else {
+                messageType = "file"
+                messageTextValue = saved.name
             }
 
             repository.addLibraryItem(
@@ -494,30 +514,72 @@ private fun NightApp() {
         if (bitmap == null) return@rememberLauncherForActivityResult
         scope.launch {
             val saved = withContext(Dispatchers.IO) {
-                val source = File(context.cacheDir, "night_camera_" + System.currentTimeMillis() + ".jpg")
+                val source = File(
+                    context.cacheDir,
+                    "night_camera_" + System.currentTimeMillis() + ".jpg",
+                )
                 FileOutputStream(source).use { output ->
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 92, output)
                 }
                 NightFileLibrary.registerLocalFile(
                     context = context,
                     source = source,
-                    name = "Photo " + SimpleDateFormat("yyyy-MM-dd HH-mm", Locale.getDefault()).format(Date()) + ".jpg",
+                    name = "Photo " +
+                        SimpleDateFormat("yyyy-MM-dd HH-mm", Locale.getDefault()).format(Date()) +
+                        ".jpg",
                     mimeType = "image/jpeg",
                 )
             } ?: return@launch
 
-            val messageId = java.util.UUID.randomUUID().toString()
-            val replyId = replyingToId
+            val payload = JSONObject()
+                .put("localPath", saved.localPath)
+                .put("mimeType", saved.mimeType)
+                .put("sizeBytes", saved.sizeBytes)
+                .put("aspectRatio", readImageAspectRatio(saved.localPath))
 
+            mediaDraft = NightMediaDraft(
+                libraryId = saved.id,
+                name = saved.name,
+                mimeType = saved.mimeType,
+                sizeBytes = saved.sizeBytes,
+                localPath = saved.localPath,
+                createdAt = saved.createdAt,
+                messageType = "image",
+                payloadJson = payload.toString(),
+                thumbnailPath = null,
+                replyToMessageId = replyingToId,
+            )
+            mediaCaption = ""
+            replyingToId = null
+            screen = "media_compose"
+        }
+    }
+
+    fun cancelMediaDraft() {
+        val draft = mediaDraft ?: return
+        NightFileLibrary.remove(context, draft.libraryId)
+        draft.thumbnailPath?.let { runCatching { File(it).delete() } }
+        mediaDraft = null
+        mediaCaption = ""
+        screen = "chat"
+    }
+
+    fun sendMediaDraft() {
+        val draft = mediaDraft ?: return
+        val chatId = activeChatId
+        val caption = mediaCaption.trim()
+        val messageId = java.util.UUID.randomUUID().toString()
+
+        scope.launch {
             repository.addLibraryItem(
                 NightLibraryItemEntity(
-                    id = saved.id,
-                    name = saved.name,
-                    mimeType = saved.mimeType,
-                    sizeBytes = saved.sizeBytes,
-                    localPath = saved.localPath,
-                    createdAt = saved.createdAt,
-                    sourceChatId = activeChatId,
+                    id = draft.libraryId,
+                    name = draft.name,
+                    mimeType = draft.mimeType,
+                    sizeBytes = draft.sizeBytes,
+                    localPath = draft.localPath,
+                    createdAt = draft.createdAt,
+                    sourceChatId = chatId,
                     sourceMessageId = messageId,
                 )
             )
@@ -525,22 +587,20 @@ private fun NightApp() {
             repository.appendMessage(
                 NightMessageEntity(
                     id = messageId,
-                    chatId = activeChatId,
+                    chatId = chatId,
                     role = "user",
-                    type = "image",
-                    text = "",
+                    type = draft.messageType,
+                    text = caption,
                     createdAt = System.currentTimeMillis(),
-                    libraryFileId = saved.id,
-                    payloadJson = JSONObject()
-                        .put("localPath", saved.localPath)
-                        .put("mimeType", saved.mimeType)
-                        .put("sizeBytes", saved.sizeBytes)
-                        .put("aspectRatio", readImageAspectRatio(saved.localPath))
-                        .toString(),
-                    replyToMessageId = replyId,
+                    libraryFileId = draft.libraryId,
+                    payloadJson = draft.payloadJson,
+                    replyToMessageId = draft.replyToMessageId,
                 )
             )
-            replyingToId = null
+
+            mediaDraft = null
+            mediaCaption = ""
+            screen = "chat"
         }
     }
 
@@ -578,6 +638,7 @@ private fun NightApp() {
                 imageViewerPath = null
                 screen = "chat"
             }
+            "media_compose" -> cancelMediaDraft()
             else -> {
                 screen = if (selectedTab == MainTab.You) "tabs" else "chat"
             }
@@ -585,6 +646,24 @@ private fun NightApp() {
     }
 
     when (screen) {
+        "media_compose" -> {
+            val draft = mediaDraft
+            if (draft != null) {
+                NightMediaComposerScreen(
+                    localPath = draft.localPath,
+                    mimeType = draft.mimeType,
+                    fileName = draft.name,
+                    videoThumbnailPath = draft.thumbnailPath,
+                    caption = mediaCaption,
+                    onCaptionChange = { mediaCaption = it },
+                    onCancel = ::cancelMediaDraft,
+                    onSend = ::sendMediaDraft,
+                )
+            } else {
+                screen = "chat"
+            }
+        }
+
         "image_viewer" -> {
             val pathToShow = imageViewerPath
             if (pathToShow != null) {
@@ -1352,6 +1431,19 @@ private fun nightTime(timestamp: Long = System.currentTimeMillis()): String =
 
 private fun formatChatListTime(timestamp: Long): String =
     if (timestamp <= 0L) "" else nightTime(timestamp)
+
+private data class NightMediaDraft(
+    val libraryId: String,
+    val name: String,
+    val mimeType: String,
+    val sizeBytes: Long,
+    val localPath: String,
+    val createdAt: Long,
+    val messageType: String,
+    val payloadJson: String,
+    val thumbnailPath: String?,
+    val replyToMessageId: String?,
+)
 
 private fun formatDuration(durationMs: Long): String {
     val totalSeconds = (durationMs / 1000L).coerceAtLeast(0L)
