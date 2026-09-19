@@ -1,3 +1,4 @@
+// Night final emulator validation
 package com.example.whatsapp
 
 import android.graphics.Color
