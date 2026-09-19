@@ -1,6 +1,8 @@
 package com.example.whatsapp.data.night
 
 import android.content.Context
+import com.example.whatsapp.extensions.messages.ExtensionMessageCodec
+import com.example.whatsapp.extensions.messages.ExtensionMessageSnapshot
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 
@@ -97,6 +99,35 @@ class NightRepository private constructor(
             replyToMessageId = replyToMessageId,
         )
         dao.appendMessage(chat.copy(updatedAt = now, lastMessagePreview = text.take(120)), message)
+        return message
+    }
+
+    suspend fun appendExtensionMessage(
+        chatId: String,
+        snapshot: ExtensionMessageSnapshot,
+        role: String = "assistant",
+        replyToMessageId: String? = null,
+        now: Long = System.currentTimeMillis(),
+    ): NightMessageEntity {
+        require(snapshot.hasValidNamespace()) { "Extension message type must be namespaced to its extensionId." }
+        val chat = requireNotNull(dao.getChat(chatId)) { "Unknown chat: " + chatId }
+        val message = NightMessageEntity(
+            id = UUID.randomUUID().toString(),
+            chatId = chatId,
+            role = role,
+            type = "extension",
+            text = snapshot.title,
+            createdAt = now,
+            replyToMessageId = replyToMessageId,
+            payloadJson = ExtensionMessageCodec.encode(snapshot),
+        )
+        dao.appendMessage(
+            chat.copy(
+                updatedAt = now,
+                lastMessagePreview = snapshot.title.take(120),
+            ),
+            message,
+        )
         return message
     }
 
