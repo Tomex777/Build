@@ -1125,6 +1125,20 @@ private fun EpisodeDownloadSheet(
     }
 }
 
+private fun relativeEpisodeDate(timestampMs: Long?): String? {
+    if (timestampMs == null || timestampMs <= 0L) return null
+    return runCatching {
+        val zone = ZoneId.systemDefault()
+        val date = Instant.ofEpochMilli(timestampMs).atZone(zone).toLocalDate()
+        val today = LocalDate.now(zone)
+        when (date) {
+            today -> "Today"
+            today.minusDays(1) -> "Yesterday"
+            else -> date.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
+        }
+    }.getOrNull()
+}
+
 @Composable
 private fun downloadChipColors() = FilterChipDefaults.filterChipColors(
     containerColor = Elevated2,
@@ -1181,11 +1195,24 @@ private fun DownloadsScreen(vm: PaheViewModel, padding: PaddingValues) {
                                     fontSize = 11.sp,
                                 )
                             }
-                            if (item.progress >= 1f && !item.failed) {
-                                Icon(Icons.Rounded.CheckCircle, null, tint = Success)
-                            } else if (item.failed) {
-                                IconButton(onClick = { vm.removeDownload(item.id) }) {
-                                    Icon(Icons.Rounded.Close, null, tint = Error)
+                            when {
+                                item.progress >= 1f && !item.failed -> {
+                                    Icon(Icons.Rounded.CheckCircle, null, tint = Success)
+                                }
+                                item.failed -> {
+                                    IconButton(onClick = { vm.removeDownload(item.id) }) {
+                                        Icon(Icons.Rounded.Close, "Remove download", tint = Error)
+                                    }
+                                }
+                                item.paused -> {
+                                    IconButton(onClick = { vm.resumeDownload(item.id) }) {
+                                        Icon(Icons.Rounded.PlayArrow, "Resume download", tint = Accent)
+                                    }
+                                }
+                                else -> {
+                                    IconButton(onClick = { vm.pauseDownload(item.id) }) {
+                                        Icon(Icons.Rounded.Pause, "Pause download", tint = TextMain)
+                                    }
                                 }
                             }
                         }
@@ -1196,7 +1223,11 @@ private fun DownloadsScreen(vm: PaheViewModel, padding: PaddingValues) {
                                 .fillMaxWidth()
                                 .height(5.dp)
                                 .clip(CircleShape),
-                            color = if (item.failed) Error else Accent,
+                            color = when {
+                                item.failed -> Error
+                                item.paused -> TextMuted
+                                else -> Accent
+                            },
                             trackColor = Elevated2,
                         )
                         Spacer(Modifier.height(9.dp))
@@ -1443,7 +1474,7 @@ private fun DownloadPreferencesCard(
             Text("Download preferences", color = TextMain, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(7.dp))
             Text(
-                "Used by default for every episode. A title can override these from its three-dot menu.",
+                "Default quality and release type. A title can override these from its three-dot menu.",
                 color = TextMuted,
                 fontSize = 13.sp,
                 lineHeight = 19.sp,
@@ -1478,6 +1509,17 @@ private fun DownloadPreferencesCard(
                     colors = downloadChipColors(),
                 )
             }
+            Spacer(Modifier.height(7.dp))
+            Text(
+                if (preferences.audio == "eng") {
+                    "Prefer English audio when a dubbed release is available."
+                } else {
+                    "Prefer Japanese audio with subtitles when available."
+                },
+                color = TextMuted,
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+            )
         }
     }
 }
