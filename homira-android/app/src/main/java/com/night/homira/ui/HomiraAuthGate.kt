@@ -49,6 +49,23 @@ private enum class LiveGateState {
     SignedIn
 }
 
+private fun normalizePhoneE164(input: String): String? {
+    val trimmed = input.trim().replace(" ", "").replace("-", "")
+    if (!trimmed.startsWith("+")) return null
+    val digits = trimmed.drop(1)
+    if (digits.length !in 8..15 || digits.any { !it.isDigit() }) return null
+    return "+$digits"
+}
+
+private fun friendlyProfileSetupError(error: Throwable): String {
+    val message = error.message.orEmpty().lowercase()
+    return when {
+        "duplicate" in message || "unique" in message ->
+            "That username or phone number is already linked to another Homira account."
+        else -> "Could not finish setting up your profile. Try again."
+    }
+}
+
 private fun friendlyAuthError(error: Throwable): String {
     val message = error.message.orEmpty().lowercase()
 
@@ -359,8 +376,8 @@ private fun LiveProfileHost(
         loading = false
     }
 
-    if (loading) {
-        HomiraTheme {
+    when {
+        loading -> HomiraTheme {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -370,8 +387,24 @@ private fun LiveProfileHost(
                 CircularProgressIndicator(color = HomiraGreen)
             }
         }
-    } else {
-        HomiraProductionApp(
+
+        profile == null ||
+            profile?.displayName.isNullOrBlank() ||
+            profile?.phoneE164.isNullOrBlank() -> {
+            ProfileSetupScreen(
+                repository = repository,
+                existingProfile = profile,
+                onComplete = { saved ->
+                    profile = saved
+                    contacts = runCatching {
+                        repository.loadContacts()
+                    }.getOrDefault(emptyList())
+                },
+                onSignOut = onSignedOut
+            )
+        }
+
+        else -> HomiraProductionApp(
             initialProfile = profile,
             initialContacts = contacts,
             liveMode = true,
@@ -379,5 +412,168 @@ private fun LiveProfileHost(
             requestedAnswerCall = requestedAnswerCall,
             onSignedOut = onSignedOut
         )
+    }
+}
+
+@Composable
+private fun ProfileSetupScreen(
+    repository: HomiraLiveRepository,
+    existingProfile: LiveProfile?,
+    onComplete: (LiveProfile) -> Unit,
+    onSignOut: () -> Unit
+) {
+    HomiraTheme {
+        val scope = rememberCoroutineScope()
+        var name by remember { mutableStateOf(existingProfile?.displayName.orEmpty()) }
+        var username by remember { mutableStateOf(existingProfile?.username.orEmpty()) }
+        var phone by remember { mutableStateOf(existingProfile?.phoneE164.orEmpty()) }
+        var busy by remember { mutableStateOf(false) }
+        var error by remember { mutableStateOf<String?>(null) }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(HomiraBackground)
+                .padding(horizontal = 24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Set up your Homira profile",
+                    color = HomiraText,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Your phone number lets other Homira users find and call you. Verification codes still go to your email.",
+                    color = HomiraMuted,
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(24.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it.take(60) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Name") },
+                    shape = RoundedCornerShape(18.dp)
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = {
+                        username = it
+                            .lowercase()
+                            .filter { char -> char.isLetterOrDigit() || char == '_' }
+                            .take(30)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Username") },
+                    placeholder = { Text("homira_user") },
+                    shape = RoundedCornerShape(18.dp)
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it.take(20) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Phone number") },
+                    placeholder = { Text("+234…") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    shape = RoundedCornerShape(18.dp)
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = "Use the full international format, for example +234…",
+                    color = HomiraMuted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (error != null) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = error.orEmpty(),
+                        color = HomiraDanger,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(Modifier.height(18.dp))
+                Button(
+                    onClick = {
+                        scope.launch {
+                            val normalizedPhone = normalizePhoneE164(phone)
+                            when {
+                                name.trim().length < 2 -> {
+                                    error = "Enter your name."
+                                }
+                                username.length !in 3..30 -> {
+                                    error = "Username must be 3–30 characters."
+                                }
+                                normalizedPhone == null -> {
+                                    error = "Enter a valid phone number with country code."
+                                }
+                                else -> {
+                                    busy = true
+                                    error = null
+                                    runCatching {
+                                        repository.completeMyProfile(
+                                            displayName = name,
+                                            username = username,
+                                            phoneE164 = normalizedPhone
+                                        )
+                                    }.onSuccess(onComplete)
+                                        .onFailure {
+                                            Log.e("HomiraAuth", "Profile setup failed", it)
+                                            error = friendlyProfileSetupError(it)
+                                        }
+                                    busy = false
+                                }
+                            }
+                        }
+                    },
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = HomiraGreen,
+                        contentColor = HomiraBackground
+                    )
+                ) {
+                    if (busy) {
+                        CircularProgressIndicator(
+                            color = HomiraBackground,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Continue", fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+                TextButton(
+                    enabled = !busy,
+                    onClick = {
+                        scope.launch {
+                            runCatching { repository.signOut() }
+                            onSignOut()
+                        }
+                    }
+                ) {
+                    Text("Use another email", color = HomiraMuted)
+                }
+            }
+        }
     }
 }
