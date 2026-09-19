@@ -16,6 +16,7 @@ import androidx.room.RoomDatabase
         NightCapabilityRouteEntity::class,
         NightAppearanceEntity::class,
         NightProfileEntity::class,
+        NightScheduledTaskEntity::class,
     ],
     version = 1,
     exportSchema = false,
