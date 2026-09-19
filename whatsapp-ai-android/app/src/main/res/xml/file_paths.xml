@@ -3,4 +3,7 @@
     <cache-path
         name="night_exports"
         path="." />
+    <files-path
+        name="night_persistent_files"
+        path="." />
 </paths>
