@@ -51,6 +51,13 @@ data class AnimeSearchResult(
     val episodes: Int,
     val status: String,
     val animeId: Int? = null,
+    val aniListId: Int? = null,
+    val sourceQueries: List<String> = emptyList(),
+    val description: String = "",
+    val genres: List<String> = emptyList(),
+    val year: Int? = null,
+    val score: Int? = null,
+    val catalogNote: String = "",
 )
 
 data class EpisodeInfo(
@@ -143,22 +150,78 @@ class PaheRepository(
 
     suspend fun loadAnime(result: AnimeSearchResult): AnimeDetails = withContext(Dispatchers.IO) {
         val host = sessions.animeHost().ifBlank { animeHosts.first() }
-        val normalizedTitle = normalizeTitle(result.title)
+        val normalizedAliases = (result.sourceQueries + result.title)
+            .filter { it.isNotBlank() }
+            .map(::normalizeTitle)
+            .filter { it.isNotBlank() }
+            .distinct()
 
-        // AnimePahe rotates the session UUID. Refresh it from the search API using
-        // the stable anime ID whenever possible.
-        val variants = runCatching { searchOnHost(host, result.title) }.getOrDefault(emptyList())
+        val variants = mutableListOf<AnimeSearchResult>()
+        var searchVerification: VerificationRequired? = null
+        var searchFailure: Exception? = null
+
+        val queries = (result.sourceQueries + result.title)
+            .filter { it.isNotBlank() }
+            .distinct()
+            .take(3)
+
+        for (query in queries) {
+            try {
+                variants += searchOnHost(host, query)
+            } catch (e: VerificationRequired) {
+                searchVerification = e
+                break
+            } catch (e: Exception) {
+                searchFailure = e
+            }
+
+            val exactFound = variants.any { candidate ->
+                val normalized = normalizeTitle(candidate.title)
+                normalizedAliases.any { alias -> normalized == alias }
+            }
+            if (exactFound) break
+        }
+
+        if (result.session.isBlank() && variants.isEmpty()) {
+            searchVerification?.let { throw it }
+            searchFailure?.let { throw it }
+        }
+
         val refreshed = variants.firstOrNull { candidate ->
             result.animeId != null && candidate.animeId == result.animeId
-        } ?: variants.firstOrNull { normalizeTitle(it.title) == normalizedTitle }
+        } ?: variants.firstOrNull { candidate ->
+            val normalized = normalizeTitle(candidate.title)
+            normalizedAliases.any { alias -> normalized == alias }
+        } ?: variants.firstOrNull { candidate ->
+            val normalized = normalizeTitle(candidate.title)
+            normalizedAliases.any { alias ->
+                normalized.contains(alias) || alias.contains(normalized)
+            }
+        } ?: result.takeIf { it.session.isNotBlank() }
 
-        val currentResult = refreshed ?: result
+        val sourceResult = refreshed
+            ?: throw IOException("Could not match '${result.title}' on AnimePahe")
+
+        val displayResult = result.copy(
+            session = sourceResult.session,
+            animeId = sourceResult.animeId,
+            poster = result.poster.ifBlank { sourceResult.poster },
+            type = result.type.ifBlank { sourceResult.type },
+            episodes = result.episodes.takeIf { it > 0 } ?: sourceResult.episodes,
+            status = result.status.ifBlank { sourceResult.status },
+        )
+
         val candidates = buildList {
-            add(currentResult)
+            add(sourceResult)
             variants.asSequence()
-                .filter { normalizeTitle(it.title) == normalizedTitle }
+                .filter { candidate ->
+                    val normalized = normalizeTitle(candidate.title)
+                    normalizedAliases.any { alias ->
+                        normalized == alias || normalized.contains(alias) || alias.contains(normalized)
+                    }
+                }
                 .forEach(::add)
-            add(result)
+            if (result.session.isNotBlank()) add(result)
         }.filter { it.session.isNotBlank() }
             .distinctBy { it.session }
 
@@ -202,15 +265,13 @@ class PaheRepository(
                     val lastPage = data.optInt("last_page", currentPage).coerceAtLeast(currentPage)
                     if (currentPage >= lastPage) break
 
-                    // AnimePahe rate-limits rapid release pagination. The maintained
-                    // source deliberately spaces page requests.
                     delay(3_000)
                     page = currentPage + 1
                 }
 
                 if (complete.isNotEmpty()) {
                     return@withContext AnimeDetails(
-                        result = currentResult,
+                        result = displayResult,
                         host = host,
                         episodes = complete.values.sortedWith(
                             compareBy<EpisodeInfo> { it.number }.thenBy { it.audio },
