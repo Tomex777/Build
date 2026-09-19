@@ -61,13 +61,13 @@ class NightLiveVoiceClient private constructor(
         val key = secrets.get(profile.secretAlias)
             ?: error("The saved Azure Live Voice key is missing.")
 
-        val url = realtimeUrl(
+        val connection = realtimeConnection(
             profile = profile,
             modelName = model.deploymentName ?: model.modelId,
         )
 
         val request = Request.Builder()
-            .url(url)
+            .url(connection.url)
             .header("api-key", key)
             .build()
 
@@ -81,6 +81,7 @@ class NightLiveVoiceClient private constructor(
                             displayName = displayName,
                             voiceName = profile.voiceName ?: "alloy",
                             chatSummary = chat?.latestSummary.orEmpty(),
+                            voiceLiveApi = connection.voiceLiveApi,
                         )
                         listener.onState(State.CONNECTED)
                         startAudio(webSocket, listener)
@@ -149,51 +150,77 @@ class NightLiveVoiceClient private constructor(
         displayName: String,
         voiceName: String,
         chatSummary: String,
+        voiceLiveApi: Boolean,
     ) {
-        val session = JSONObject()
-            .put("type", "realtime")
-            .put(
-                "instructions",
-                "You are Night, the user's private AI assistant. " +
-                    "The user's preferred name is " + displayName + ". " +
-                    "Speak naturally and concisely. This is a live voice conversation. " +
-                    if (chatSummary.isBlank()) "" else "Conversation summary: " + chatSummary.take(3000)
-            )
-            .put("output_modalities", org.json.JSONArray().put("audio"))
-            .put(
-                "audio",
-                JSONObject()
-                    .put(
-                        "input",
-                        JSONObject()
-                            .put(
-                                "format",
-                                JSONObject()
-                                    .put("type", "audio/pcm")
-                                    .put("rate", SAMPLE_RATE)
-                            )
-                            .put(
-                                "turn_detection",
-                                JSONObject()
-                                    .put("type", "server_vad")
-                                    .put("threshold", 0.5)
-                                    .put("prefix_padding_ms", 300)
-                                    .put("silence_duration_ms", 500)
-                                    .put("create_response", true)
-                            )
-                    )
-                    .put(
-                        "output",
-                        JSONObject()
-                            .put("voice", voiceName)
-                            .put(
-                                "format",
-                                JSONObject()
-                                    .put("type", "audio/pcm")
-                                    .put("rate", SAMPLE_RATE)
-                            )
-                    )
-            )
+        val instructions =
+            "You are Night, the user's private AI assistant. " +
+                "The user's preferred name is " + displayName + ". " +
+                "Speak naturally and concisely. This is a live voice conversation. " +
+                if (chatSummary.isBlank()) "" else "Conversation summary: " + chatSummary.take(3000)
+
+        val session = if (voiceLiveApi) {
+            JSONObject()
+                .put("modalities", org.json.JSONArray().put("text").put("audio"))
+                .put(
+                    "voice",
+                    JSONObject()
+                        .put("type", "openai")
+                        .put("name", voiceName)
+                )
+                .put("instructions", instructions)
+                .put("input_audio_format", "pcm16")
+                .put("output_audio_format", "pcm16")
+                .put("input_audio_sampling_rate", SAMPLE_RATE)
+                .put(
+                    "turn_detection",
+                    JSONObject()
+                        .put("type", "azure_semantic_vad")
+                        .put("threshold", 0.5)
+                        .put("prefix_padding_ms", 420)
+                        .put("silence_duration_ms", 500)
+                        .put("create_response", true)
+                        .put("interrupt_response", true)
+                )
+        } else {
+            JSONObject()
+                .put("type", "realtime")
+                .put("instructions", instructions)
+                .put("output_modalities", org.json.JSONArray().put("audio"))
+                .put(
+                    "audio",
+                    JSONObject()
+                        .put(
+                            "input",
+                            JSONObject()
+                                .put(
+                                    "format",
+                                    JSONObject()
+                                        .put("type", "audio/pcm")
+                                        .put("rate", SAMPLE_RATE)
+                                )
+                                .put(
+                                    "turn_detection",
+                                    JSONObject()
+                                        .put("type", "server_vad")
+                                        .put("threshold", 0.5)
+                                        .put("prefix_padding_ms", 300)
+                                        .put("silence_duration_ms", 500)
+                                        .put("create_response", true)
+                                )
+                        )
+                        .put(
+                            "output",
+                            JSONObject()
+                                .put("voice", voiceName)
+                                .put(
+                                    "format",
+                                    JSONObject()
+                                        .put("type", "audio/pcm")
+                                        .put("rate", SAMPLE_RATE)
+                                )
+                        )
+                )
+        }
 
         webSocket.send(
             JSONObject()
@@ -351,10 +378,15 @@ class NightLiveVoiceClient private constructor(
         runCatching { player?.release() }
     }
 
-    private fun realtimeUrl(
+    private data class RealtimeConnection(
+        val url: String,
+        val voiceLiveApi: Boolean,
+    )
+
+    private fun realtimeConnection(
         profile: NightProviderProfileEntity,
         modelName: String,
-    ): String {
+    ): RealtimeConnection {
         var base = requireNotNull(profile.endpoint) {
             "Azure Live Voice endpoint is missing."
         }.trim().trimEnd('/')
@@ -365,15 +397,37 @@ class NightLiveVoiceClient private constructor(
             else -> base
         }
 
-        base = when {
+        val encodedModel = URLEncoder.encode(modelName, "UTF-8")
+        val voiceLiveApi =
+            base.contains(".services.ai.azure.com", ignoreCase = true) ||
+                (
+                    base.contains(".cognitiveservices.azure.com", ignoreCase = true) &&
+                        !base.contains(".openai.azure.com", ignoreCase = true)
+                )
+
+        if (voiceLiveApi) {
+            val root = when {
+                base.contains("/voice-live/") -> base.substringBefore("/voice-live/")
+                else -> base
+            }
+            return RealtimeConnection(
+                url = root +
+                    "/voice-live/realtime?api-version=2026-04-10&model=" +
+                    encodedModel,
+                voiceLiveApi = true,
+            )
+        }
+
+        val openAiBase = when {
             base.endsWith("/openai/v1") -> base
             base.contains("/openai/v1/") -> base.substringBefore("/openai/v1/") + "/openai/v1"
             else -> base + "/openai/v1"
         }
 
-        return base +
-            "/realtime?model=" +
-            URLEncoder.encode(modelName, "UTF-8")
+        return RealtimeConnection(
+            url = openAiBase + "/realtime?model=" + encodedModel,
+            voiceLiveApi = false,
+        )
     }
 
     companion object {
