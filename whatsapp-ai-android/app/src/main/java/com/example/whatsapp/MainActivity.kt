@@ -18,6 +18,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.example.whatsapp.presentation.chat_box.ChatListModel
 import com.example.whatsapp.presentation.chatscreen.AnimeResultMessage
+import com.example.whatsapp.presentation.chatscreen.ButtonResultMessage
+import com.example.whatsapp.presentation.chatscreen.MessageAction
 import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
 import com.example.whatsapp.presentation.chatscreen.DownloadResultMessage
 import com.example.whatsapp.presentation.chatscreen.FileResultMessage
@@ -171,6 +173,79 @@ private fun NightApp() {
                     subtitle = "The Night chat UI is ready. Live voice can be wired after the core build.",
                     time = nightTime(),
                 )
+            },
+            onMenuAction = { action ->
+                val time = nightTime()
+                messages = messages + when (action) {
+                    "Memory & summary" -> ButtonResultMessage(
+                        id = "memory_${System.nanoTime()}",
+                        title = "Memory & summary",
+                        body = "This chat keeps its own rolling summary and can reference summaries from your other Night chats.",
+                        actions = listOf(
+                            MessageAction("view_summary", "View latest summary"),
+                            MessageAction("refresh_summary", "Refresh summary now"),
+                        ),
+                        time = time,
+                    )
+                    "Files in chat" -> ButtonResultMessage(
+                        id = "files_${System.nanoTime()}",
+                        title = "Files in chat",
+                        body = "Open the items referenced by this conversation in your Night Library.",
+                        actions = listOf(MessageAction("open_library", "Open Library")),
+                        time = time,
+                    )
+                    "Choose AI" -> ButtonResultMessage(
+                        id = "choose_ai_${System.nanoTime()}",
+                        title = "Choose AI",
+                        body = "Select which model should continue this conversation.",
+                        actions = listOf(
+                            MessageAction("ai_default", "Default"),
+                            MessageAction("ai_fast", "Fast"),
+                            MessageAction("ai_reasoning", "Reasoning"),
+                        ),
+                        time = time,
+                    )
+                    else -> ToolResultMessage(
+                        id = "menu_${System.nanoTime()}",
+                        toolName = "Chat",
+                        title = action,
+                        subtitle = "The chat action is wired into Night Core and ready for its final data operation.",
+                        time = time,
+                    )
+                }
+            },
+            onMessageButtonClick = { _, actionId ->
+                val time = nightTime()
+                messages = messages + when (actionId) {
+                    "open_library" -> WhatsAppVisualMessage.TextMessage(
+                        id = "action_${System.nanoTime()}",
+                        text = "Open Library",
+                        time = time,
+                        mine = true,
+                        read = true,
+                    )
+                    "summarize", "refresh_summary" -> ToolResultMessage(
+                        id = "summary_${System.nanoTime()}",
+                        toolName = "Memory",
+                        title = "Summary checkpoint requested",
+                        subtitle = "Night will fold unsummarized messages and Library references into this chat’s latest summary.",
+                        time = time,
+                    )
+                    "choose_ai", "ai_default", "ai_fast", "ai_reasoning" -> ToolResultMessage(
+                        id = "ai_${System.nanoTime()}",
+                        toolName = "AI",
+                        title = "AI selection received",
+                        subtitle = actionId.removePrefix("ai_").replaceFirstChar { it.uppercase() },
+                        time = time,
+                    )
+                    else -> ToolResultMessage(
+                        id = "button_${System.nanoTime()}",
+                        toolName = "Action",
+                        title = actionId,
+                        subtitle = "Button action delivered to Night Core.",
+                        time = time,
+                    )
+                }
             },
             onAttachmentClick = {},
             onAttachmentAction = { action ->
@@ -327,6 +402,17 @@ private fun routeNightCore(
                 title = "Download result preview",
                 detail = "UI preview only",
                 progress = 0.43f,
+                time = time,
+            ),
+            ButtonResultMessage(
+                id = "buttons_$id",
+                title = "Choose an action",
+                body = "Buttons are now a native Night message type.",
+                actions = listOf(
+                    MessageAction("open_library", "Open Library"),
+                    MessageAction("summarize", "Summarize chat"),
+                    MessageAction("choose_ai", "Choose AI"),
+                ),
                 time = time,
             ),
             ToolResultMessage(
