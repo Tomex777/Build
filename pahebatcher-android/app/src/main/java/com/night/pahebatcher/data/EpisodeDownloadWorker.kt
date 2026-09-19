@@ -69,7 +69,16 @@ class EpisodeDownloadWorker(
             notifyCurrent(status, store.get(taskId)?.progress ?: 0f)
             Result.retry()
         } catch (e: CancellationException) {
-            store.markPaused(taskId, "Paused — will resume automatically")
+            val current = store.get(taskId)
+            if (current?.manualPaused == true) {
+                notifyCurrent("Paused by you", current.progress)
+            } else {
+                store.markPaused(taskId, "Paused — will resume automatically")
+                notifyCurrent(
+                    "Paused — will resume automatically",
+                    current?.progress ?: 0f,
+                )
+            }
             throw e
         } catch (e: Exception) {
             val message = e.message.orEmpty()
