@@ -1070,13 +1070,15 @@ fun EmojiPicker(
     onDismiss: () -> Unit,
 ) {
     val emojis = listOf(
-        "😀" to "file:///android_asset/fluent_emoji/grinning_face.svg",
-        "😂" to "file:///android_asset/fluent_emoji/face_tears_joy.svg",
-        "🥹" to "file:///android_asset/fluent_emoji/face_holding_back_tears.svg",
+        "😀" to "file:///android_asset/fluent_emoji/grinning.svg",
+        "😂" to "file:///android_asset/fluent_emoji/joy.svg",
+        "🥹" to "file:///android_asset/fluent_emoji/holding_tears.svg",
         "😍" to "file:///android_asset/fluent_emoji/heart_eyes.svg",
-        "😭" to "file:///android_asset/fluent_emoji/loudly_crying_face.svg",
+        "😭" to "file:///android_asset/fluent_emoji/crying.svg",
         "😎" to "file:///android_asset/fluent_emoji/sunglasses.svg",
+        "👍" to "file:///android_asset/fluent_emoji/thumbs_up.svg",
         "❤️" to "file:///android_asset/fluent_emoji/red_heart.svg",
+        "🙏" to "file:///android_asset/fluent_emoji/folded_hands.svg",
         "🔥" to "file:///android_asset/fluent_emoji/fire.svg",
     )
 
