@@ -7,6 +7,7 @@ on:
       - 'homira-android/app/src/main/java/com/night/homira/ui/HomiraAuthGate.kt'
       - 'homira-android/app/src/main/res/drawable-nodpi/homira_call_mascot.webp'
       - 'homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.png'
+      - 'homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.jpg'
       - '.github/workflows/homira-auth-preview.yml'
   workflow_dispatch:
 
@@ -36,10 +37,8 @@ jobs:
 
       - name: Inspect mascot resource
         run: |
-          file homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.png
-          file homira-android/app/src/main/res/drawable-nodpi/homira_call_mascot.webp
-          ls -lh homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.png
-          ls -lh homira-android/app/src/main/res/drawable-nodpi/homira_call_mascot.webp
+          file homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.jpg
+          ls -lh homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.jpg
 
       - name: Build debug APK
         working-directory: homira-android
@@ -74,6 +73,10 @@ jobs:
             adb shell pidof com.night.homira > homira-android/app/build/ui-preview/pid-after-2s.txt || true
             adb shell dumpsys activity activities > homira-android/app/build/ui-preview/activity-after-2s.txt
             adb logcat -d -t 5000 > homira-android/app/build/ui-preview/logcat-after-2s.txt
+            if ! adb shell pidof com.night.homira | grep -q .; then
+              echo "Homira crashed before the auth preview rendered."
+              exit 1
+            fi
             sleep 18
             adb shell pidof com.night.homira > homira-android/app/build/ui-preview/pid-after-20s.txt || true
             adb shell dumpsys activity activities > homira-android/app/build/ui-preview/activity.txt
