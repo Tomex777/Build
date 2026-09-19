@@ -11,6 +11,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import com.night.pahebatcher.R
+import kotlinx.coroutines.CancellationException
 import java.io.IOException
 import kotlin.math.roundToInt
 
@@ -70,6 +71,9 @@ class EpisodeDownloadWorker(
             )
             notifyCurrent("Verification needed", 0f, done = true)
             Result.failure()
+        } catch (e: CancellationException) {
+            store.markPaused(taskId, "Paused — will resume automatically")
+            throw e
         } catch (e: Exception) {
             val message = e.message.orEmpty()
             store.markPaused(
@@ -110,16 +114,6 @@ class EpisodeDownloadWorker(
         return message.contains("HTTP 403", true) ||
             message.contains("HTTP 404", true) ||
             message.contains("HTTP 410", true)
-    }
-
-    override fun onStopped() {
-        super.onStopped()
-        if (taskId.isNotBlank()) {
-            val task = store.get(taskId)
-            if (task != null && task.state != StoredDownloadTask.STATE_COMPLETED) {
-                store.markPaused(taskId, "Paused — will resume automatically")
-            }
-        }
     }
 
     private fun foregroundInfo(task: StoredDownloadTask, progress: Float): ForegroundInfo {
