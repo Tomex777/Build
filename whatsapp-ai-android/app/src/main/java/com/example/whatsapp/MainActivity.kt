@@ -596,12 +596,12 @@ private fun NightApp() {
 
 private fun NightAppearanceEntity.toChatAppearance(): NightChatAppearance =
     NightChatAppearance(
-        userBubbleColor = ComposeColor(userBubbleColor),
-        aiBubbleColor = ComposeColor(aiBubbleColor),
-        wallpaperTopColor = ComposeColor(wallpaperTopColor),
-        wallpaperMiddleColor = ComposeColor(wallpaperMiddleColor),
-        wallpaperBottomColor = ComposeColor(wallpaperBottomColor),
-        accentColor = ComposeColor(accentColor),
+        userBubbleColor = ComposeColor(userBubbleColor.toInt()),
+        aiBubbleColor = ComposeColor(aiBubbleColor.toInt()),
+        wallpaperTopColor = ComposeColor(wallpaperTopColor.toInt()),
+        wallpaperMiddleColor = ComposeColor(wallpaperMiddleColor.toInt()),
+        wallpaperBottomColor = ComposeColor(wallpaperBottomColor.toInt()),
+        accentColor = ComposeColor(accentColor.toInt()),
         fontFamilyKey = fontFamilyKey,
         messageFontScale = messageFontScale,
     )
