@@ -155,7 +155,11 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
                 recentAnime = aniListRepository.enrichAvailable(available)
             } catch (e: VerificationRequired) {
                 recentAnime = emptyList()
-                recentError = "Verify AnimePahe to load releases that are actually available."
+                recentError = if (sessions.animeCookieSaved) {
+                    "AnimePahe source request was blocked. Your browser verification is still saved — tap Retry."
+                } else {
+                    "Verify AnimePahe to load releases that are actually available."
+                }
             } catch (e: Exception) {
                 recentAnime = emptyList()
                 recentError = e.message ?: "Could not load available releases."
@@ -239,26 +243,21 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         refreshSessions()
         verifyError = null
 
+        verificationActive = false
+        refreshSessions()
+        resumePausedDownloads()
+
         viewModelScope.launch {
             try {
                 repository.validateAnimeSession()
-                verificationActive = false
                 refreshSessions()
-                resumePausedDownloads()
-                refreshRecent()
-            } catch (e: VerificationRequired) {
-                sessionStore.clear()
-                refreshSessions()
-                verifyError = "AnimePahe did not accept that browser session yet. Finish the check and confirm again."
             } catch (_: Exception) {
-                // A transient API/rate-limit failure is not proof that the
-                // browser session is invalid. Keep the saved session and let
-                // the actual source request decide later.
-                verificationActive = false
+                // Manual WebView verification succeeded and the browser session
+                // is saved. A single app-side probe failure must never erase it
+                // or immediately force the user back through verification.
                 refreshSessions()
-                resumePausedDownloads()
-                refreshRecent()
             }
+            refreshRecent()
         }
     }
 
