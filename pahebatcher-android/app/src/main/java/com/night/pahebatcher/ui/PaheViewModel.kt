@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.night.pahebatcher.data.AniListRepository
 import com.night.pahebatcher.data.AnimeDetails
 import com.night.pahebatcher.data.AnimeSearchResult
 import com.night.pahebatcher.data.DownloadPreferences
@@ -40,6 +41,7 @@ data class DownloadUi(
 class PaheViewModel(application: Application) : AndroidViewModel(application) {
     private val sessionStore = SessionStore(application)
     private val repository = PaheRepository(application, sessionStore)
+    private val aniListRepository = AniListRepository()
     private val downloadPreferencesStore = DownloadPreferencesStore(application)
 
     var tab by mutableStateOf(MainTab.EXPLORE)
@@ -50,6 +52,13 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
     var searching by mutableStateOf(false)
         private set
     var searchError by mutableStateOf<String?>(null)
+        private set
+
+    var recentAnime by mutableStateOf<List<AnimeSearchResult>>(emptyList())
+        private set
+    var recentLoading by mutableStateOf(false)
+        private set
+    var recentError by mutableStateOf<String?>(null)
         private set
 
     var details by mutableStateOf<AnimeDetails?>(null)
@@ -81,6 +90,10 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
 
     val downloads = mutableStateListOf<DownloadUi>()
 
+    init {
+        refreshRecent()
+    }
+
     fun navigateToTab(value: MainTab) {
         tab = value
         details = null
@@ -89,20 +102,42 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
 
     fun submitSearch() {
         val clean = query.trim()
-        if (clean.isBlank()) return
+        if (clean.isBlank()) {
+            clearSearch()
+            return
+        }
         searching = true
         searchError = null
         viewModelScope.launch {
             try {
-                results = repository.search(clean)
+                results = aniListRepository.search(clean)
                 if (results.isEmpty()) searchError = "No matches found."
-                refreshSessions()
-            } catch (e: VerificationRequired) {
-                searchError = verificationMessage(e.kind)
             } catch (e: Exception) {
-                searchError = e.message ?: "Search failed."
+                searchError = e.message ?: "AniList search failed."
             } finally {
                 searching = false
+            }
+        }
+    }
+
+    fun clearSearch() {
+        if (query.isBlank()) {
+            results = emptyList()
+            searchError = null
+        }
+    }
+
+    fun refreshRecent() {
+        if (recentLoading) return
+        recentLoading = true
+        recentError = null
+        viewModelScope.launch {
+            try {
+                recentAnime = aniListRepository.recentlyAired()
+            } catch (e: Exception) {
+                recentError = e.message ?: "Could not load recent AniList updates."
+            } finally {
+                recentLoading = false
             }
         }
     }
@@ -110,8 +145,8 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
     fun openAnime(item: AnimeSearchResult) {
         detailsJob?.cancel()
 
-        // Open the screen immediately using data we already received from AnimePahe search.
-        // Episodes enrich this shell in the background.
+        // Open immediately with AniList metadata. AnimePahe is resolved only for
+        // the episode/download source in the background.
         details = AnimeDetails(
             result = item,
             host = sessions.animeHost,
@@ -188,7 +223,6 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         refreshSessions()
         verifyError = null
         verificationActive = false
-        tab = MainTab.SETTINGS
     }
 
     fun clearVerificationSessions() {
@@ -406,6 +440,6 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun verificationMessage(kind: VerificationKind): String =
         when (kind) {
-            VerificationKind.ANIMEPAHE -> "AnimePahe verification is needed. Open the verification browser in Settings."
+            VerificationKind.ANIMEPAHE -> "AnimePahe verification is needed. Tap the browser icon at the top to verify."
         }
 }
