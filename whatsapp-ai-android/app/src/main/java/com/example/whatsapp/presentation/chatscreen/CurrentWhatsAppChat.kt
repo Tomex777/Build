@@ -784,7 +784,6 @@ private fun CurrentComposer(
             .fillMaxWidth()
             .background(Color.Transparent)
             .navigationBarsPadding()
-            .imePadding()
             .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
@@ -898,14 +897,14 @@ private fun AttachmentTray(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
-            modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 14.dp, bottom = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
+            modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 9.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
-                    .width(34.dp)
-                    .height(4.dp)
+                    .width(30.dp)
+                    .height(3.dp)
                     .clip(RoundedCornerShape(2.dp))
                     .background(Color(0xFF788287)),
             )
@@ -925,22 +924,22 @@ private fun AttachmentTray(
                             Surface(
                                 color = Color(0xFF141B1E),
                                 shape = RoundedCornerShape(18.dp),
-                                modifier = Modifier.size(58.dp),
+                                modifier = Modifier.size(48.dp),
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = item.second,
                                         contentDescription = item.first,
                                         tint = item.third,
-                                        modifier = Modifier.size(29.dp),
+                                        modifier = Modifier.size(25.dp),
                                     )
                                 }
                             }
                             Text(
                                 text = item.first,
                                 color = SecondaryText,
-                                fontSize = 11.sp,
-                                modifier = Modifier.padding(top = 7.dp),
+                                fontSize = 10.sp,
+                                modifier = Modifier.padding(top = 4.dp),
                             )
                         }
                     }
