@@ -1291,12 +1291,20 @@ private fun ToolResultBubble(
                 contentAlignment = Alignment.Center,
             ) {
                 if (item.iconText.isNotBlank()) {
-                    Text(
-                        text = item.iconText.take(2),
-                        color = RichText,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Black,
-                    )
+                    Surface(
+                        color = Color(0xFFF4F4F2),
+                        shape = RoundedCornerShape(7.dp),
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = item.iconText.take(2),
+                                color = Color(0xFF151515),
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Black,
+                            )
+                        }
+                    }
                 } else {
                     Icon(
                         imageVector = Icons.Default.Extension,
