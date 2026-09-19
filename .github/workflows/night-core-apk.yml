@@ -77,18 +77,18 @@ jobs:
           chmod +x gradlew
           ./gradlew :app:assembleDebug --stacktrace
 
-      - name: Stage Night APK
+      - name: Stage Night arm64 APK
         if: success()
         run: |
           mkdir -p night-build-output
-          cp whatsapp-ai-android/app/build/outputs/apk/debug/app-debug.apk night-build-output/Night.apk
+          cp whatsapp-ai-android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk night-build-output/Night-arm64-v8a.apk
 
-      - name: Upload Night APK
+      - name: Upload Night arm64 APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: night-apk
-          path: night-build-output/Night.apk
+          name: night-apk-arm64
+          path: night-build-output/Night-arm64-v8a.apk
           if-no-files-found: error
 
       - name: Publish build marker
