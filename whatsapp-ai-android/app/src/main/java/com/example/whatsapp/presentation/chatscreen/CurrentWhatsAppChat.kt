@@ -1055,7 +1055,17 @@ fun EmojiPicker(
     onEmojiSelected: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val emojis = listOf("😀", "😂", "🥹", "😍", "😭", "😎", "👍", "❤️", "🙏", "🔥")
+    val emojis = listOf(
+        "😀" to "file:///android_asset/fluent_emoji/grinning_face.svg",
+        "😂" to "file:///android_asset/fluent_emoji/face_tears_joy.svg",
+        "🥹" to "file:///android_asset/fluent_emoji/face_holding_back_tears.svg",
+        "😍" to "file:///android_asset/fluent_emoji/heart_eyes.svg",
+        "😭" to "file:///android_asset/fluent_emoji/loudly_crying_face.svg",
+        "😎" to "file:///android_asset/fluent_emoji/sunglasses.svg",
+        "❤️" to "file:///android_asset/fluent_emoji/red_heart.svg",
+        "🔥" to "file:///android_asset/fluent_emoji/fire.svg",
+    )
+
     Surface(
         color = ComposerBackground,
         modifier = Modifier.fillMaxWidth(),
@@ -1067,14 +1077,15 @@ fun EmojiPicker(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            emojis.forEach { emoji ->
-                Text(
-                    text = emoji,
-                    fontSize = 25.sp,
+            emojis.forEach { (emoji, asset) ->
+                AsyncImage(
+                    model = asset,
+                    contentDescription = emoji,
                     modifier = Modifier
+                        .size(34.dp)
                         .clip(CircleShape)
                         .clickable { onEmojiSelected(emoji) }
-                        .padding(4.dp),
+                        .padding(3.dp),
                 )
             }
         }
