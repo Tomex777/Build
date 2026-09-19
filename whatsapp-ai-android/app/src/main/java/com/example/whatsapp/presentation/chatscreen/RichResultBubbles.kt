@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MenuBook
@@ -107,6 +108,16 @@ data class ChoiceResultMessage(
     val time: String,
 ) : RichResultMessage
 
+data class LinkPreviewMessage(
+    override val id: String,
+    val title: String,
+    val description: String,
+    val domain: String,
+    val thumbnailPath: String? = null,
+    val mine: Boolean = false,
+    val time: String,
+) : RichResultMessage
+
 data class GeneratedImageResultMessage(
     override val id: String,
     val title: String,
@@ -181,6 +192,7 @@ fun RichResultBubble(
         is AnimeResultMessage -> AnimeResultBubble(item, onAction)
         is MangaResultMessage -> MangaResultBubble(item, onAction)
         is ChoiceResultMessage -> ChoiceResultBubble(item, onAction)
+        is LinkPreviewMessage -> LinkPreviewBubble(item)
         is GeneratedImageResultMessage -> GeneratedImageResultBubble(item)
         is CreationResultMessage -> CreationResultBubble(item)
         is ImageSearchResultMessage -> ImageSearchBubble(item)
@@ -639,6 +651,92 @@ private fun ChoiceResultBubble(
     }
 }
 
+
+@Composable
+private fun LinkPreviewBubble(item: LinkPreviewMessage) {
+    BubbleFrame(
+        time = item.time,
+        mine = item.mine,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(
+                    if (item.mine) Color(0xFF6E1028) else RichPanel
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(112.dp)
+                    .height(92.dp)
+                    .background(Color(0xFF343A3D)),
+                contentAlignment = Alignment.Center,
+            ) {
+                val file = item.thumbnailPath?.let(::File)
+                if (file != null && file.exists()) {
+                    AsyncImage(
+                        model = file,
+                        contentDescription = item.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .width(112.dp)
+                            .height(92.dp),
+                    )
+                } else if (!item.thumbnailPath.isNullOrBlank()) {
+                    AsyncImage(
+                        model = item.thumbnailPath,
+                        contentDescription = item.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .width(112.dp)
+                            .height(92.dp),
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Link,
+                        contentDescription = null,
+                        tint = RichMuted,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+            ) {
+                Text(
+                    text = item.title,
+                    color = RichText,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = item.description,
+                    color = RichMuted,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 3.dp),
+                )
+                Text(
+                    text = item.domain,
+                    color = RichMuted,
+                    fontSize = 10.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+    }
+}
 
 @Composable
 private fun GeneratedImageResultBubble(item: GeneratedImageResultMessage) {
