@@ -825,6 +825,7 @@ class PaheRepository(
         if (remuxedMp4.exists()) remuxedMp4.delete()
         val mp4Ready = remuxSegmentsToMp4(
             segmentFiles = completedFiles,
+            segmentDurationsUs = segments.map { (it.durationSeconds * 1_000_000.0).toLong() },
             output = remuxedMp4,
             expectedDurationUs = expectedDurationUs,
             expectedInputBytes = inputBytes,
@@ -1281,6 +1282,7 @@ class PaheRepository(
 
     private fun remuxSegmentsToMp4(
         segmentFiles: List<File>,
+        segmentDurationsUs: List<Long>,
         output: File,
         expectedDurationUs: Long,
         expectedInputBytes: Long,
@@ -1381,11 +1383,10 @@ class PaheRepository(
                         extractor.advance()
                     }
 
-                    val manifestDurationUs = expectedSegmentDurationUs(
-                        segmentIndex = index,
-                        segmentCount = segmentFiles.size,
-                        totalExpectedDurationUs = expectedDurationUs,
-                    )
+                    val manifestDurationUs = segmentDurationsUs
+                        .getOrNull(index)
+                        ?.coerceAtLeast(0L)
+                        ?: 0L
                     segmentBaseUs += if (manifestDurationUs > 0L) {
                         manifestDurationUs
                     } else {
@@ -1424,17 +1425,6 @@ class PaheRepository(
             runCatching { muxer?.release() }
             if (!output.exists() || output.length() == 0L) output.delete()
         }
-    }
-
-    private fun expectedSegmentDurationUs(
-        segmentIndex: Int,
-        segmentCount: Int,
-        totalExpectedDurationUs: Long,
-    ): Long {
-        if (totalExpectedDurationUs <= 0L || segmentCount <= 0) return 0L
-        // Use the manifest total as the continuity clock. Individual segment
-        // durations are already summed into totalExpectedDurationUs.
-        return totalExpectedDurationUs / segmentCount.toLong()
     }
 
     private fun mediaDurationUs(file: File): Long {
