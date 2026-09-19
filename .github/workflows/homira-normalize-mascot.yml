@@ -27,7 +27,9 @@ jobs:
           python -m pip install --quiet pillow
           python - <<'PY'
           from pathlib import Path
-          from PIL import Image
+          from PIL import Image, ImageFile
+
+          ImageFile.LOAD_TRUNCATED_IMAGES = True
 
           path = Path("homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.png")
           temp = path.with_suffix(".tmp.png")
