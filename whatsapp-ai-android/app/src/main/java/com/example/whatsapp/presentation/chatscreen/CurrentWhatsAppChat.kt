@@ -717,7 +717,7 @@ private fun ReplyTypePreview(reply: ReplyPreview) {
         ReplyKind.Image,
         ReplyKind.Video -> {
             val file = reply.thumbnailPath?.let(::File)
-            if (file != null && file.exists()) {
+            if (!reply.thumbnailPath.isNullOrBlank()) {
                 Box(
                     modifier = Modifier
                         .size(48.dp)
@@ -725,7 +725,7 @@ private fun ReplyTypePreview(reply: ReplyPreview) {
                     contentAlignment = Alignment.Center,
                 ) {
                     AsyncImage(
-                        model = file,
+                        model = if (file != null && file.exists()) file else reply.thumbnailPath,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
@@ -829,9 +829,10 @@ private fun CurrentPhotoBubble(
                         item.localPath?.let(onImageClick)
                     },
             ) {
-                if (!item.localPath.isNullOrBlank() && File(item.localPath).exists()) {
+                if (!item.localPath.isNullOrBlank()) {
+                    val file = File(item.localPath)
                     AsyncImage(
-                        model = File(item.localPath),
+                        model = if (file.exists()) file else item.localPath,
                         contentDescription = item.caption,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
@@ -923,13 +924,15 @@ private fun CurrentVideoBubble(
                 contentAlignment = Alignment.Center,
             ) {
                 val thumb = item.thumbnailPath?.let(::File)
-                if (thumb != null && thumb.exists()) {
+                if (!item.thumbnailPath.isNullOrBlank()) {
                     AsyncImage(
-                        model = thumb,
+                        model = if (thumb != null && thumb.exists()) thumb else item.thumbnailPath,
                         contentDescription = item.caption,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
                     )
+                } else {
+                    DemoMediaArtwork(modifier = Modifier.fillMaxSize())
                 }
 
                 Surface(
@@ -1212,9 +1215,9 @@ private fun CurrentAudioBubble(
                     contentAlignment = Alignment.Center,
                 ) {
                     val artwork = item.artworkPath?.let(::File)
-                    if (artwork != null && artwork.exists()) {
+                    if (!item.artworkPath.isNullOrBlank()) {
                         AsyncImage(
-                            model = artwork,
+                            model = if (artwork != null && artwork.exists()) artwork else item.artworkPath,
                             contentDescription = item.title,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize(),
