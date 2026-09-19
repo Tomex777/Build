@@ -1,6 +1,10 @@
 package com.example.whatsapp.presentation.chatscreen
 
 import coil.compose.AsyncImage
+import com.example.whatsapp.extensions.messages.ExtensionActionStyle
+import com.example.whatsapp.extensions.messages.ExtensionCardTemplate
+import com.example.whatsapp.extensions.messages.ExtensionMessageSnapshot
+import com.example.whatsapp.extensions.messages.NightExtensionMessageApi
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -174,6 +178,13 @@ data class ToolResultMessage(
     val actions: List<MessageAction> = emptyList(),
 ) : RichResultMessage
 
+data class ExtensionResultMessage(
+    override val id: String,
+    val snapshot: ExtensionMessageSnapshot,
+    val time: String,
+    val extensionAvailable: Boolean = true,
+) : RichResultMessage
+
 private val RichBubble = Color(0xFF242625)
 private val RichPanel = Color(0xFF303436)
 private val RichText = Color(0xFFECEDEE)
@@ -198,6 +209,7 @@ fun RichResultBubble(
         is ImageSearchResultMessage -> ImageSearchBubble(item)
         is DownloadResultMessage -> DownloadResultBubble(item)
         is ToolResultMessage -> ToolResultBubble(item, onAction)
+        is ExtensionResultMessage -> ExtensionResultBubble(item, onAction)
     }
 }
 
@@ -864,12 +876,17 @@ private fun FullActionButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     modifier: Modifier = Modifier,
     primary: Boolean = false,
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     Surface(
-        color = if (primary) Color(0xFFB51E42) else RichPanel,
+        color = when {
+            !enabled -> Color(0xFF34383A)
+            primary -> Color(0xFFB51E42)
+            else -> RichPanel
+        },
         shape = RoundedCornerShape(12.dp),
-        modifier = modifier.clickable(onClick = onClick),
+        modifier = modifier.clickable(enabled = enabled, onClick = onClick),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 9.dp, vertical = 10.dp),
@@ -879,13 +896,13 @@ private fun FullActionButton(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = Color.White,
+                tint = if (enabled) Color.White else RichMuted,
                 modifier = Modifier.size(17.dp),
             )
             Spacer(modifier = Modifier.width(5.dp))
             Text(
                 text = label,
-                color = Color.White,
+                color = if (enabled) Color.White else RichMuted,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -1363,6 +1380,288 @@ private fun ToolResultBubble(
     }
 }
 
+
+
+@Composable
+private fun ExtensionResultBubble(
+    item: ExtensionResultMessage,
+    onAction: (messageId: String, actionId: String) -> Unit,
+) {
+    val snapshot = item.snapshot
+    val unsupported =
+        !snapshot.hasValidNamespace() ||
+            snapshot.schemaVersion > NightExtensionMessageApi.SUPPORTED_SCHEMA_VERSION
+
+    if (unsupported) {
+        BubbleFrame(time = item.time) {
+            Text(
+                text = "Extension result",
+                color = RichText,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "Created by " + snapshot.extensionName,
+                color = RichMuted,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            Text(
+                text = "This content requires a newer Night card renderer.",
+                color = RichMuted,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                modifier = Modifier.padding(top = 7.dp),
+            )
+            FullActionButton(
+                label = "Open in extension",
+                icon = Icons.Default.OpenInNew,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 9.dp),
+                primary = true,
+                enabled = item.extensionAvailable,
+                onClick = { onAction(item.id, "open_extension") },
+            )
+        }
+        return
+    }
+
+    BubbleFrame(time = item.time) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+        ) {
+            val leadingSize = when (snapshot.template) {
+                ExtensionCardTemplate.Media,
+                ExtensionCardTemplate.Gallery,
+                ExtensionCardTemplate.Entity -> 72.dp
+                else -> 58.dp
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(leadingSize)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(Color(0xFF343A3D)),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (!snapshot.artworkPath.isNullOrBlank()) {
+                    val artworkFile = File(snapshot.artworkPath)
+                    AsyncImage(
+                        model = if (artworkFile.exists()) artworkFile else snapshot.artworkPath,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    Surface(
+                        color = Color(0xFFF4F4F2),
+                        shape = RoundedCornerShape(7.dp),
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = snapshot.iconText.ifBlank {
+                                    snapshot.extensionName.take(1).uppercase()
+                                }.take(2),
+                                color = Color(0xFF151515),
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Black,
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(11.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = snapshot.title,
+                    color = RichText,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = snapshot.extensionName,
+                    color = RichMuted,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 2.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (snapshot.subtitle.isNotBlank()) {
+                    Text(
+                        text = snapshot.subtitle,
+                        color = RichMuted,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 5.dp),
+                    )
+                }
+            }
+        }
+
+        if (snapshot.body.isNotBlank()) {
+            Text(
+                text = snapshot.body,
+                color = RichText,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                modifier = Modifier.padding(top = 9.dp, start = 2.dp, end = 2.dp),
+                maxLines = 6,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        val badges = buildList {
+            if (snapshot.badge.isNotBlank()) add(snapshot.badge)
+            if (snapshot.status.isNotBlank()) add(snapshot.status)
+            snapshot.metadata.take(3).forEach { metadata ->
+                add(
+                    if (metadata.value.isBlank()) metadata.label
+                    else metadata.label + " • " + metadata.value
+                )
+            }
+        }.take(3)
+
+        if (badges.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                badges.forEach { label ->
+                    Surface(
+                        color = RichPanel,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            text = label,
+                            color = RichMuted,
+                            fontSize = 10.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
+                        )
+                    }
+                }
+            }
+        }
+
+        snapshot.progress?.let { progress ->
+            LinearProgressIndicator(
+                progress = { progress.coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 9.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(3.dp)),
+                color = RichAccent,
+                trackColor = Color(0xFF42494C),
+            )
+        }
+
+        if (snapshot.rows.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+            ) {
+                snapshot.rows.take(4).forEach { row ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (row.iconText.isNotBlank()) {
+                            Surface(
+                                color = RichPanel,
+                                shape = RoundedCornerShape(7.dp),
+                                modifier = Modifier.size(30.dp),
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = row.iconText.take(2),
+                                        color = RichText,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = row.title,
+                                color = RichText,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (row.subtitle.isNotBlank()) {
+                                Text(
+                                    text = row.subtitle,
+                                    color = RichMuted,
+                                    fontSize = 10.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                        if (row.value.isNotBlank()) {
+                            Text(
+                                text = row.value,
+                                color = RichMuted,
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (snapshot.actions.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 9.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                snapshot.actions.take(3).forEachIndexed { index, action ->
+                    val enabled = item.extensionAvailable || !action.requiresExtension
+                    FullActionButton(
+                        label = action.label,
+                        icon = actionIcon(action.id),
+                        primary = action.style == ExtensionActionStyle.Primary || index == 0,
+                        enabled = enabled,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onAction(item.id, action.id) },
+                    )
+                }
+            }
+        }
+
+        if (!item.extensionAvailable) {
+            Text(
+                text = "Created by " + snapshot.extensionName + " • Extension unavailable",
+                color = RichMuted,
+                fontSize = 10.sp,
+                modifier = Modifier.padding(top = 8.dp, start = 2.dp),
+            )
+        }
+    }
+}
 
 fun richPreviewMessagesPageOne(): List<WhatsAppVisualMessage> = listOf(
     WhatsAppVisualMessage.TextMessage(
