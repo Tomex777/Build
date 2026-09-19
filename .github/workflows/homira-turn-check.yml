@@ -1,0 +1,29 @@
+name: Homira TURN Relay Check
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [homira-call-ci]
+    paths:
+      - 'homira-turn/**'
+      - '.github/workflows/homira-turn-check.yml'
+
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Coturn test client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y coturn
+
+      - name: Verify Open Relay allocation
+        run: |
+          timeout 45s turnutils_uclient             -t -y -c -n 1             -u openrelayproject             -w openrelayproject             -p 443             openrelay.metered.ca
+
+      - name: Verify TURN REST shared-secret allocation
+        run: |
+          timeout 45s turnutils_uclient             -t -y -c -n 1             -W openrelayprojectsecret             -p 443             staticauth.openrelay.metered.ca
