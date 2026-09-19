@@ -1221,13 +1221,17 @@ private fun SettingsScreen(vm: PaheViewModel, padding: PaddingValues) {
             .padding(padding)
             .statusBarsPadding(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
             Text("Settings", color = TextMain, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
-            Text("Download defaults and app preferences.", color = TextMuted, fontSize = 13.sp)
-            Spacer(Modifier.height(14.dp))
+            Text("Downloads, source access and app information.", color = TextMuted, fontSize = 13.sp)
+            Spacer(Modifier.height(10.dp))
+        }
+
+        item {
+            SettingsSectionLabel("Downloads")
         }
         item {
             DownloadPreferencesCard(
@@ -1236,13 +1240,162 @@ private fun SettingsScreen(vm: PaheViewModel, padding: PaddingValues) {
                 onAudio = vm::setGlobalAudio,
             )
         }
+
         item {
-            Surface(color = Elevated, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(18.dp)) {
-                    Text("About this build", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(8.dp))
+            SettingsSectionLabel("Source")
+        }
+        item {
+            Surface(
+                color = Elevated,
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column {
+                    SettingsActionRow(
+                        title = "AnimePahe browser",
+                        subtitle = if (vm.sessions.animeCookieSaved) {
+                            "Browser session saved"
+                        } else {
+                            "Verification required before downloading"
+                        },
+                        onClick = vm::startVerification,
+                        trailing = {
+                            Icon(
+                                if (vm.sessions.animeCookieSaved) Icons.Rounded.CheckCircle else Icons.Rounded.Language,
+                                contentDescription = null,
+                                tint = if (vm.sessions.animeCookieSaved) Success else TextMuted,
+                            )
+                        },
+                    )
+                    if (vm.sessions.animeCookieSaved) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(start = 18.dp)
+                                .height(1.dp)
+                                .background(Divider),
+                        )
+                        SettingsActionRow(
+                            title = "Clear browser session",
+                            subtitle = "Use this only if AnimePahe verification actually expires.",
+                            onClick = vm::clearVerificationSessions,
+                            titleColor = Error,
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            SettingsSectionLabel("About")
+        }
+        item {
+            Surface(
+                color = Elevated,
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                SettingsActionRow(
+                    title = "About PaheBatcher",
+                    subtitle = "Version, sources and download behavior",
+                    onClick = vm::openAbout,
+                    trailing = {
+                        Icon(Icons.Rounded.ChevronRight, null, tint = TextMuted)
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsSectionLabel(title: String) {
+    Text(
+        title,
+        color = Accent,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 2.dp),
+    )
+}
+
+@Composable
+private fun SettingsActionRow(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    titleColor: Color = TextMain,
+    trailing: @Composable (() -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                title,
+                color = titleColor,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                subtitle,
+                color = TextMuted,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+            )
+        }
+        trailing?.invoke()
+    }
+}
+
+@Composable
+private fun AboutScreen(vm: PaheViewModel) {
+    BackHandler(onBack = vm::closeAbout)
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Bg)
+            .statusBarsPadding(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = vm::closeAbout) {
+                    Icon(Icons.Rounded.ArrowBack, "Back", tint = TextMain)
+                }
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    "About PaheBatcher",
+                    color = TextMain,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+
+        item {
+            Surface(
+                color = Elevated,
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(20.dp)) {
+                    Text("PaheBatcher", color = TextMain, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(5.dp))
+                    Text("Version 0.1.0", color = TextMuted, fontSize = 12.sp)
+                    Spacer(Modifier.height(18.dp))
                     Text(
-                        "AniList handles catalog artwork and metadata. AnimePahe is the only browser-verified episode source. Downloads resume in the background and fall back to a full transport stream if Android cannot safely remux the episode to MP4.",
+                        "AniList provides catalog search, artwork and details. AnimePahe is used only when an episode source or current availability needs to be resolved.",
                         color = TextMuted,
                         fontSize = 13.sp,
                         lineHeight = 19.sp,
@@ -1250,12 +1403,29 @@ private fun SettingsScreen(vm: PaheViewModel, padding: PaddingValues) {
                 }
             }
         }
-        if (vm.sessions.animeCookieSaved) {
-            item {
-                TextButton(onClick = vm::clearVerificationSessions) {
-                    Icon(Icons.Rounded.DeleteOutline, null, tint = Error)
-                    Spacer(Modifier.width(6.dp))
-                    Text("Clear AnimePahe browser session", color = Error)
+
+        item {
+            Surface(
+                color = Elevated,
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(20.dp)) {
+                    Text("Downloads", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Downloads continue in the background, retain completed HLS segments when paused or interrupted, and resume from those saved segments.",
+                        color = TextMuted,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "Episodes are saved as MP4 when Android can safely remux the source. A complete TS file is kept as the fallback for unusual episodes that cannot be safely remuxed.",
+                        color = TextMuted,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
+                    )
                 }
             }
         }
