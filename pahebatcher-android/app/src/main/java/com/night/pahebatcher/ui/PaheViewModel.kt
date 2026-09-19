@@ -236,7 +236,7 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
 
     fun animeUserAgent(): String = sessionStore.animeUserAgent()
 
-    fun animeCookie(): String = sessionStore.animeCookie()
+    fun animeCookieFor(url: String): String = sessionStore.cookieFor(url)
 
     fun downloadEpisode(episode: EpisodeInfo) {
         val preferences = effectiveDownloadPreferences()
