@@ -1,4 +1,5 @@
 name: Homira Android
+# Mascot verification build
 
 concurrency:
   group: homira-android-live-${{ github.ref }}
