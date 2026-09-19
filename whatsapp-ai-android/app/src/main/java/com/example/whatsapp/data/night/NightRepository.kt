@@ -102,6 +102,8 @@ class NightRepository private constructor(
         )
     }
 
+    suspend fun getChat(chatId: String): NightChatEntity? = dao.getChat(chatId)
+    suspend fun getChats(): List<NightChatEntity> = dao.getChats()
     suspend fun getMessages(chatId: String): List<NightMessageEntity> = dao.getMessages(chatId)
     suspend fun getMessage(messageId: String): NightMessageEntity? = dao.getMessage(messageId)
     suspend fun renameChat(chatId: String, title: String) = dao.renameChat(chatId, title, System.currentTimeMillis())
@@ -148,12 +150,22 @@ class NightRepository private constructor(
         dao.commitSummary(chatId, summary, now, toMessageAt)
     }
 
+    suspend fun getProviderProfile(id: String): NightProviderProfileEntity? = dao.getProviderProfile(id)
+    suspend fun getProviderModel(id: String): NightProviderModelEntity? = dao.getProviderModel(id)
+    suspend fun defaultProviderProfile(serviceKind: String): NightProviderProfileEntity? =
+        dao.getDefaultProviderProfile(serviceKind)
+    suspend fun defaultProviderModel(profileId: String): NightProviderModelEntity? =
+        dao.getDefaultProviderModel(profileId)
+
     suspend fun upsertProviderProfile(profile: NightProviderProfileEntity) = dao.upsertProviderProfile(profile)
     suspend fun deleteProviderProfile(id: String) = dao.deleteProviderProfile(id)
     suspend fun upsertProviderModel(model: NightProviderModelEntity) = dao.upsertProviderModel(model)
     suspend fun deleteProviderModel(id: String) = dao.deleteProviderModel(id)
     suspend fun capabilityRoute(capability: String): NightCapabilityRouteEntity? = dao.getCapabilityRoute(capability)
     suspend fun setCapabilityRoute(route: NightCapabilityRouteEntity) = dao.upsertCapabilityRoute(route)
+
+    suspend fun addLibraryItem(item: NightLibraryItemEntity) = dao.upsertLibraryItem(item)
+    suspend fun getLibraryItem(id: String): NightLibraryItemEntity? = dao.getLibraryItem(id)
 
     companion object {
         @Volatile private var instance: NightRepository? = null
