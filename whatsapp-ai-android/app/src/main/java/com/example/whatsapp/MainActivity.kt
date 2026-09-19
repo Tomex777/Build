@@ -1,42 +1,61 @@
 package com.example.whatsapp
 
+import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.ui.platform.LocalContext
-import com.example.whatsapp.data.NightFileLibrary
+import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.platform.LocalContext
+import com.example.whatsapp.data.NightFileLibrary
+import com.example.whatsapp.data.night.NightAiGateway
+import com.example.whatsapp.data.night.NightAppearanceController
+import com.example.whatsapp.data.night.NightAppearanceEntity
+import com.example.whatsapp.data.night.NightLibraryItemEntity
+import com.example.whatsapp.data.night.NightMessageEntity
+import com.example.whatsapp.data.night.NightProviderManager
+import com.example.whatsapp.data.night.NightRepository
 import com.example.whatsapp.presentation.chat_box.ChatListModel
-import com.example.whatsapp.presentation.chatscreen.AnimeResultMessage
-import com.example.whatsapp.presentation.chatscreen.ButtonResultMessage
-import com.example.whatsapp.presentation.chatscreen.MessageAction
 import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
-import com.example.whatsapp.presentation.chatscreen.DownloadResultMessage
-import com.example.whatsapp.presentation.chatscreen.FileResultMessage
-import com.example.whatsapp.presentation.chatscreen.ImageSearchResultMessage
-import com.example.whatsapp.presentation.chatscreen.ToolResultMessage
+import com.example.whatsapp.presentation.chatscreen.NightChatAppearance
 import com.example.whatsapp.presentation.chatscreen.WhatsAppVisualMessage
-import com.example.whatsapp.presentation.shell.MainTab
-import com.example.whatsapp.presentation.shell.ModernCallsTab
-import com.example.whatsapp.presentation.shell.ModernChatsTab
-import com.example.whatsapp.presentation.shell.ModernCommunitiesTab
-import com.example.whatsapp.presentation.shell.ModernSettingsScreen
 import com.example.whatsapp.presentation.files.NightFilesTab
+import com.example.whatsapp.presentation.profile.NightAiSelectorScreen
+import com.example.whatsapp.presentation.profile.NightAppearanceScreen
+import com.example.whatsapp.presentation.profile.NightChatMemoryScreen
+import com.example.whatsapp.presentation.profile.NightMemoryScreen
+import com.example.whatsapp.presentation.profile.NightProfileScreen
+import com.example.whatsapp.presentation.profile.NightProvidersScreen
 import com.example.whatsapp.presentation.profile.NightYouTab
+import com.example.whatsapp.presentation.shell.MainTab
+import com.example.whatsapp.presentation.shell.ModernChatsTab
+import com.example.whatsapp.presentation.shell.ModernSettingsScreen
 import com.example.whatsapp.ui.theme.WhatsappTheme
+import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,300 +74,453 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun NightApp() {
+    val context = LocalContext.current
+    val repository = remember { NightRepository.get(context) }
+    val providerManager = remember { NightProviderManager.get(context) }
+    val aiGateway = remember { NightAiGateway.get(context) }
+    val appearanceController = remember { NightAppearanceController(repository) }
+    val scope = rememberCoroutineScope()
+
     var selectedTabName by rememberSaveable { mutableStateOf(MainTab.Chats.name) }
     val selectedTab = MainTab.valueOf(selectedTabName)
     var screen by rememberSaveable { mutableStateOf("tabs") }
+    var activeChatId by rememberSaveable { mutableStateOf("night-core") }
     var messageText by rememberSaveable { mutableStateOf("") }
-    var messages by remember {
-        mutableStateOf<List<WhatsAppVisualMessage>>(nightWelcomeMessages())
+    var renameOpen by remember { mutableStateOf(false) }
+
+    val chats by repository.observeChats().collectAsState(initial = emptyList())
+    val profiles by repository.observeProviderProfiles().collectAsState(initial = emptyList())
+    val providerModels by repository.observeAllProviderModels().collectAsState(initial = emptyList())
+    val profile by repository.observeProfile().collectAsState(initial = null)
+    val appearanceEntity by repository.observeAppearance().collectAsState(initial = null)
+
+    val messageFlow = remember(activeChatId) { repository.observeMessages(activeChatId) }
+    val messageEntities by messageFlow.collectAsState(initial = emptyList())
+
+    val displayName = profile?.displayName ?: "Dawson"
+    val appearance = (appearanceEntity ?: NightAppearanceEntity()).toChatAppearance()
+    val activeChat = chats.firstOrNull { it.id == activeChatId }
+    val activeModel = providerModels.firstOrNull { it.id == activeChat?.selectedModel }
+    val activeProfile = profiles.firstOrNull { it.id == activeChat?.selectedProviderProfileId }
+
+    val visualMessages = remember(messageEntities) {
+        messageEntities.map { it.toVisualMessage() }
     }
-    val context = LocalContext.current
-    var pendingPickerKind by rememberSaveable { mutableStateOf("Document") }
+
+    val chatRows = remember(chats) {
+        chats.map { chat ->
+            ChatListModel(
+                name = chat.title,
+                phoneNumber = chat.id,
+                userId = chat.id,
+                time = formatChatListTime(chat.updatedAt),
+                message = chat.lastMessagePreview.ifBlank {
+                    if (chat.latestSummary.isNotBlank()) "Summary ready" else "New chat"
+                },
+            )
+        }
+    }
+
+    suspend fun checkpoint(chatId: String) {
+        val pending = repository.unsummarizedMessages(chatId)
+        if (pending.isEmpty()) return
+
+        val summary = aiGateway.summarize(chatId, displayName)
+            .getOrElse {
+                pending
+                    .filter { it.text.isNotBlank() }
+                    .takeLast(12)
+                    .joinToString(" • ") { message ->
+                        (if (message.role == "assistant") "Night" else displayName) +
+                            ": " + message.text.take(180)
+                    }
+                    .take(2400)
+            }
+
+        if (summary.isBlank()) return
+        repository.commitSummary(
+            chatId = chatId,
+            summary = summary,
+            fromMessageAt = pending.first().createdAt,
+            toMessageAt = pending.last().createdAt,
+        )
+    }
+
+    LaunchedEffect(Unit) {
+        repository.ensureProfile()
+        repository.ensureAppearance()
+        val root = repository.ensureChat("night-core", "Night")
+        if (repository.getMessages(root.id).isEmpty()) {
+            repository.appendText(
+                chatId = root.id,
+                role = "assistant",
+                text = "Night is ready. Choose an AI when you want a live model, or keep using Night Core for local actions.",
+            )
+        }
+    }
+
+    val lastMessageAt = messageEntities.lastOrNull()?.createdAt ?: 0L
+
+    LaunchedEffect(screen, activeChatId, lastMessageAt) {
+        if (screen != "chat" || lastMessageAt == 0L) return@LaunchedEffect
+        val snapshot = lastMessageAt
+        delay(2 * 60 * 1000L)
+        val latest = repository.getMessages(activeChatId).lastOrNull()?.createdAt ?: 0L
+        if (screen == "chat" && latest == snapshot) {
+            checkpoint(activeChatId)
+        }
+    }
+
+    LaunchedEffect(screen, activeChatId) {
+        if (screen != "chat") return@LaunchedEffect
+        while (true) {
+            delay(5 * 60 * 1000L)
+            if (repository.unsummarizedMessages(activeChatId).isNotEmpty()) {
+                checkpoint(activeChatId)
+            }
+        }
+    }
+
     val attachmentPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
-        if (uri != null) {
-            val saved = NightFileLibrary.importUri(context, uri)
-            val time = nightTime()
-            val id = System.nanoTime().toString()
-            if (saved != null) {
-                messages = messages + when {
-                    saved.mimeType.startsWith("image/") ->
-                        WhatsAppVisualMessage.PhotoMessage(
-                            id = "photo_$id",
-                            caption = saved.name,
-                            time = time,
-                            mine = true,
-                            read = true,
-                        )
-                    else ->
-                        WhatsAppVisualMessage.TextMessage(
-                            id = "file_$id",
-                            text = "📎 " + saved.name,
-                            time = time,
-                            mine = true,
-                            read = true,
-                        )
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val saved = withContext(Dispatchers.IO) {
+                NightFileLibrary.importUri(context, uri)
+            } ?: return@launch
+
+            repository.addLibraryItem(
+                NightLibraryItemEntity(
+                    id = saved.id,
+                    name = saved.name,
+                    mimeType = saved.mimeType,
+                    sizeBytes = saved.sizeBytes,
+                    localPath = saved.localPath,
+                    createdAt = saved.createdAt,
+                    sourceChatId = activeChatId,
+                )
+            )
+
+            val payload = JSONObject()
+                .put("localPath", saved.localPath)
+                .put("mimeType", saved.mimeType)
+                .put("sizeBytes", saved.sizeBytes)
+                .toString()
+
+            repository.appendMessage(
+                NightMessageEntity(
+                    id = java.util.UUID.randomUUID().toString(),
+                    chatId = activeChatId,
+                    role = "user",
+                    type = if (saved.mimeType.startsWith("image/")) "image" else "file",
+                    text = saved.name,
+                    createdAt = System.currentTimeMillis(),
+                    libraryFileId = saved.id,
+                    payloadJson = payload,
+                )
+            )
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview(),
+    ) { bitmap: Bitmap? ->
+        if (bitmap == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val saved = withContext(Dispatchers.IO) {
+                val source = File(context.cacheDir, "night_camera_" + System.currentTimeMillis() + ".jpg")
+                FileOutputStream(source).use { output ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 92, output)
                 }
-            }
-        }
-    }
+                NightFileLibrary.registerLocalFile(
+                    context = context,
+                    source = source,
+                    name = "Photo " + SimpleDateFormat("yyyy-MM-dd HH-mm", Locale.getDefault()).format(Date()) + ".jpg",
+                    mimeType = "image/jpeg",
+                )
+            } ?: return@launch
 
-    var activeChatTitle by rememberSaveable { mutableStateOf("Night") }
-    var chatGeneration by rememberSaveable { mutableStateOf(1) }
-
-    val chats = remember(chatGeneration) {
-        buildList {
-            add(
-                ChatListModel(
-                    name = "Night",
-                    phoneNumber = "night-core",
-                    userId = "night-core",
-                    time = "Now",
-                    message = "Summary synced • Core ready",
+            repository.addLibraryItem(
+                NightLibraryItemEntity(
+                    id = saved.id,
+                    name = saved.name,
+                    mimeType = saved.mimeType,
+                    sizeBytes = saved.sizeBytes,
+                    localPath = saved.localPath,
+                    createdAt = saved.createdAt,
+                    sourceChatId = activeChatId,
                 )
             )
-            if (chatGeneration > 1) {
-                add(
-                    0,
-                    ChatListModel(
-                        name = "New chat " + chatGeneration,
-                        phoneNumber = "night-chat-" + chatGeneration,
-                        userId = "night-chat-" + chatGeneration,
-                        time = "Now",
-                        message = "Fresh AI conversation",
-                    )
-                )
-            }
-            add(
-                ChatListModel(
-                    name = "Night UI",
-                    phoneNumber = "night-ui",
-                    userId = "night-ui",
-                    time = "Yesterday",
-                    message = "Summary ready • chat + library + memory",
+
+            repository.appendMessage(
+                NightMessageEntity(
+                    id = java.util.UUID.randomUUID().toString(),
+                    chatId = activeChatId,
+                    role = "user",
+                    type = "image",
+                    text = saved.name,
+                    createdAt = System.currentTimeMillis(),
+                    libraryFileId = saved.id,
+                    payloadJson = JSONObject()
+                        .put("localPath", saved.localPath)
+                        .put("mimeType", saved.mimeType)
+                        .put("sizeBytes", saved.sizeBytes)
+                        .toString(),
                 )
             )
         }
     }
 
-    BackHandler(enabled = screen != "tabs") {
+    fun leaveChat() {
+        val leavingId = activeChatId
+        scope.launch { checkpoint(leavingId) }
         screen = "tabs"
     }
 
+    BackHandler(enabled = screen != "tabs") {
+        if (screen == "chat") {
+            leaveChat()
+        } else {
+            screen = if (selectedTab == MainTab.You) "tabs" else "chat"
+        }
+    }
+
     when (screen) {
+        "profile" -> NightProfileScreen(
+            displayName = displayName,
+            onBack = { screen = "tabs" },
+            onSaveName = { value ->
+                scope.launch {
+                    repository.setDisplayName(value)
+                    screen = "tabs"
+                }
+            },
+        )
+
+        "appearance" -> NightAppearanceScreen(
+            appearance = appearanceEntity ?: NightAppearanceEntity(),
+            onBack = { screen = "tabs" },
+            onUpdate = { updated ->
+                scope.launch { repository.setAppearance(updated) }
+            },
+        )
+
+        "providers" -> NightProvidersScreen(
+            profiles = profiles,
+            models = providerModels,
+            onBack = { screen = "tabs" },
+            onAddProfile = { provider, service, name, key, endpoint, region, makeDefault ->
+                scope.launch {
+                    runCatching {
+                        providerManager.addProfile(
+                            providerType = provider,
+                            serviceKind = service,
+                            displayName = name,
+                            apiKey = key,
+                            endpoint = endpoint,
+                            region = region,
+                            makeDefault = makeDefault,
+                        )
+                    }.onFailure {
+                        Toast.makeText(context, it.message ?: "Could not save provider.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            },
+            onAddModel = { providerProfile, modelId, name, deployment, capabilities, makeDefault ->
+                scope.launch {
+                    runCatching {
+                        providerManager.addModel(
+                            profile = providerProfile,
+                            modelId = modelId,
+                            displayName = name,
+                            deploymentName = deployment,
+                            capabilities = capabilities,
+                            makeDefault = makeDefault,
+                        )
+                    }.onFailure {
+                        Toast.makeText(context, it.message ?: "Could not save model.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            },
+            onDeleteProfile = { providerProfile ->
+                scope.launch { providerManager.deleteProfile(providerProfile) }
+            },
+            onDeleteModel = { model ->
+                scope.launch { providerManager.deleteModel(model) }
+            },
+        )
+
+        "choose_ai" -> NightAiSelectorScreen(
+            profiles = profiles,
+            models = providerModels,
+            selectedProfileId = activeChat?.selectedProviderProfileId,
+            selectedModelId = activeChat?.selectedModel,
+            onBack = { screen = "chat" },
+            onSelect = { providerProfile, model ->
+                scope.launch {
+                    repository.setChatModel(
+                        chatId = activeChatId,
+                        provider = providerProfile.providerType,
+                        profileId = providerProfile.id,
+                        model = model.id,
+                    )
+                    screen = "chat"
+                }
+            },
+        )
+
+        "memory" -> NightMemoryScreen(
+            chats = chats,
+            onBack = { screen = "tabs" },
+            onChatClick = {
+                activeChatId = it.id
+                screen = "chat_memory"
+            },
+        )
+
+        "chat_memory" -> NightChatMemoryScreen(
+            chat = activeChat,
+            onBack = { screen = "chat" },
+            onRefresh = {
+                scope.launch { checkpoint(activeChatId) }
+            },
+        )
+
         "settings" -> ModernSettingsScreen(
             onBack = { screen = "tabs" },
         )
 
         "chat" -> CurrentWhatsAppConversation(
-            contactName = activeChatTitle,
-            subtitle = "Core mode • extensions off",
-            messages = messages,
+            contactName = activeChat?.title ?: "Night",
+            subtitle = when {
+                activeModel != null && activeProfile != null ->
+                    activeModel.displayName + " • " + activeProfile.providerType.replaceFirstChar { it.uppercase() }
+                else -> "Choose AI"
+            },
+            messages = visualMessages,
             messageText = messageText,
             onMessageTextChange = { messageText = it },
-            onBackClick = { screen = "tabs" },
+            onBackClick = { leaveChat() },
+            appearance = appearance,
             onSendClick = {
                 val text = messageText.trim()
-                if (text.isNotEmpty()) {
-                    val time = nightTime()
-                    val id = System.nanoTime().toString()
-                    messages = messages +
-                        WhatsAppVisualMessage.TextMessage(
-                            id = "user_$id",
-                            text = text,
-                            time = time,
-                            mine = true,
-                            read = true,
-                        ) +
-                        routeNightCore(text, time, id)
-                    messageText = ""
+                if (text.isEmpty()) return@CurrentWhatsAppConversation
+                messageText = ""
+
+                scope.launch {
+                    repository.appendText(
+                        chatId = activeChatId,
+                        role = "user",
+                        text = text,
+                    )
+
+                    val localAppearanceResult = appearanceController.handleNaturalRequest(text)
+                    if (localAppearanceResult != null) {
+                        repository.appendText(
+                            chatId = activeChatId,
+                            role = "assistant",
+                            text = localAppearanceResult,
+                        )
+                        return@launch
+                    }
+
+                    val result = aiGateway.reply(activeChatId, displayName)
+                    repository.appendText(
+                        chatId = activeChatId,
+                        role = "assistant",
+                        text = result.getOrElse { error ->
+                            when {
+                                error.message?.contains("No chat AI") == true ->
+                                    "No AI is selected for this chat yet. Tap Choose AI to pick a configured model."
+                                else ->
+                                    "I couldn't reach the selected AI. " + (error.message ?: "Check the provider settings.")
+                            }
+                        },
+                    )
                 }
             },
             onCallClick = {
-                messages = messages + ToolResultMessage(
-                    id = "call_${System.nanoTime()}",
-                    toolName = "Voice",
-                    title = "Voice service is not connected yet",
-                    subtitle = "The Night chat UI is ready. Live voice can be wired after the core build.",
-                    time = nightTime(),
-                )
+                Toast.makeText(
+                    context,
+                    "Configure Azure Live Voice in You → AI & providers.",
+                    Toast.LENGTH_SHORT,
+                ).show()
             },
             onMenuAction = { action ->
-                val time = nightTime()
-                messages = messages + when (action) {
-                    "Memory & summary" -> ButtonResultMessage(
-                        id = "memory_${System.nanoTime()}",
-                        title = "Memory & summary",
-                        body = "This chat keeps its own rolling summary and can reference summaries from your other Night chats.",
-                        actions = listOf(
-                            MessageAction("view_summary", "View latest summary"),
-                            MessageAction("refresh_summary", "Refresh summary now"),
-                        ),
-                        time = time,
-                    )
-                    "Files in chat" -> ButtonResultMessage(
-                        id = "files_${System.nanoTime()}",
-                        title = "Files in chat",
-                        body = "Open the items referenced by this conversation in your Night Library.",
-                        actions = listOf(MessageAction("open_library", "Open Library")),
-                        time = time,
-                    )
-                    "Choose AI" -> ButtonResultMessage(
-                        id = "choose_ai_${System.nanoTime()}",
-                        title = "Choose AI",
-                        body = "Select which model should continue this conversation.",
-                        actions = listOf(
-                            MessageAction("ai_default", "Default"),
-                            MessageAction("ai_fast", "Fast"),
-                            MessageAction("ai_reasoning", "Reasoning"),
-                        ),
-                        time = time,
-                    )
-                    else -> ToolResultMessage(
-                        id = "menu_${System.nanoTime()}",
-                        toolName = "Chat",
-                        title = action,
-                        subtitle = "The chat action is wired into Night Core and ready for its final data operation.",
-                        time = time,
-                    )
+                when (action) {
+                    "Memory & summary" -> screen = "chat_memory"
+                    "Files in chat" -> {
+                        selectedTabName = MainTab.Updates.name
+                        screen = "tabs"
+                    }
+                    "Rename chat" -> renameOpen = true
+                    "Choose AI" -> screen = "choose_ai"
+                    "Clear chat" -> scope.launch { repository.clearChat(activeChatId) }
+                    "Delete chat" -> scope.launch {
+                        repository.deleteChat(activeChatId)
+                        activeChatId = "night-core"
+                        repository.ensureChat("night-core", "Night")
+                        screen = "tabs"
+                    }
+                    "Export chat" -> scope.launch {
+                        exportChat(context, activeChat?.title ?: "Night", messageEntities)
+                    }
+                    "Search chat" -> Toast.makeText(
+                        context,
+                        "Chat search is being wired to the persistent message index.",
+                        Toast.LENGTH_SHORT,
+                    ).show()
                 }
             },
             onMessageButtonClick = { _, actionId ->
-                val time = nightTime()
-                messages = messages + when (actionId) {
-                    "open_library" -> WhatsAppVisualMessage.TextMessage(
-                        id = "action_${System.nanoTime()}",
-                        text = "Open Library",
-                        time = time,
-                        mine = true,
-                        read = true,
-                    )
-                    "summarize", "refresh_summary" -> ToolResultMessage(
-                        id = "summary_${System.nanoTime()}",
-                        toolName = "Memory",
-                        title = "Summary checkpoint requested",
-                        subtitle = "Night will fold unsummarized messages and Library references into this chat’s latest summary.",
-                        time = time,
-                    )
-                    "choose_ai", "ai_default", "ai_fast", "ai_reasoning" -> ToolResultMessage(
-                        id = "ai_${System.nanoTime()}",
-                        toolName = "AI",
-                        title = "AI selection received",
-                        subtitle = actionId.removePrefix("ai_").replaceFirstChar { it.uppercase() },
-                        time = time,
-                    )
-                    "schedule_once", "schedule_repeat", "schedule_reminder" -> ToolResultMessage(
-                        id = "schedule_action_${System.nanoTime()}",
-                        toolName = "Schedule",
-                        title = "Schedule option selected",
-                        subtitle = actionId.removePrefix("schedule_").replaceFirstChar { it.uppercase() },
-                        time = time,
-                    )
-                    else -> ToolResultMessage(
-                        id = "button_${System.nanoTime()}",
-                        toolName = "Action",
-                        title = actionId,
-                        subtitle = "Button action delivered to Night Core.",
-                        time = time,
-                    )
+                when {
+                    actionId == "choose_ai" || actionId.startsWith("ai_") -> screen = "choose_ai"
+                    actionId == "open_library" -> {
+                        selectedTabName = MainTab.Updates.name
+                        screen = "tabs"
+                    }
+                    actionId.contains("summary") -> screen = "chat_memory"
                 }
             },
             onAttachmentClick = {},
             onAttachmentAction = { action ->
                 when (action) {
-                    "Gallery" -> {
-                        pendingPickerKind = action
-                        attachmentPicker.launch(arrayOf("image/*"))
-                    }
-                    "Document" -> {
-                        pendingPickerKind = action
-                        attachmentPicker.launch(arrayOf("*/*"))
-                    }
-                    "Camera" -> {
-                        messages = messages + WhatsAppVisualMessage.PhotoMessage(
-                            id = "camera_${System.nanoTime()}",
-                            caption = "Photo",
-                            time = nightTime(),
-                            mine = true,
-                            read = true,
-                        )
-                    }
-                    "Choose AI" -> {
-                        messages = messages + ButtonResultMessage(
-                            id = "choose_ai_${System.nanoTime()}",
-                            title = "Choose AI",
-                            body = "Choose which AI should handle this conversation.",
-                            actions = listOf(
-                                MessageAction("ai_default", "Default"),
-                                MessageAction("ai_fast", "Fast"),
-                                MessageAction("ai_reasoning", "Reasoning"),
-                            ),
-                            time = nightTime(),
-                        )
-                    }
-                    "Schedule" -> {
-                        messages = messages + ButtonResultMessage(
-                            id = "schedule_${System.nanoTime()}",
-                            title = "Schedule with Night",
-                            body = "Choose what you want Night to do with this task.",
-                            actions = listOf(
-                                MessageAction("schedule_once", "Schedule once"),
-                                MessageAction("schedule_repeat", "Repeat"),
-                                MessageAction("schedule_reminder", "Reminder only"),
-                            ),
-                            time = nightTime(),
-                        )
-                    }
-                    else -> {
-                        messages = messages + WhatsAppVisualMessage.TextMessage(
-                            id = "attachment_${System.nanoTime()}",
-                            text = "Attached " + action.lowercase(Locale.getDefault()),
-                            time = nightTime(),
-                            mine = true,
-                            read = true,
-                        )
-                    }
+                    "Gallery" -> attachmentPicker.launch(arrayOf("image/*"))
+                    "Document" -> attachmentPicker.launch(arrayOf("*/*"))
+                    "Camera" -> cameraLauncher.launch(null)
+                    "Choose AI" -> screen = "choose_ai"
+                    "Schedule" -> repositoryActionToast(context, "Scheduling will use Night's persistent scheduler.")
+                    "Location" -> repositoryActionToast(context, "Location is a Night message type; the location capability is not configured yet.")
+                    "Poll" -> repositoryActionToast(context, "Poll UI is available; persistent poll data is next.")
+                    "AI images" -> repositoryActionToast(context, "Choose an image-capable provider or extension first.")
                 }
             },
-            onCameraClick = {
-                messages = messages + WhatsAppVisualMessage.PhotoMessage(
-                    id = "camera_${System.nanoTime()}",
-                    caption = "Photo",
-                    time = nightTime(),
-                    mine = true,
-                    read = true,
-                )
-            },
+            onCameraClick = { cameraLauncher.launch(null) },
             onMicClick = {
-                messages = messages + WhatsAppVisualMessage.VoiceMessage(
-                    id = "voice_${System.nanoTime()}",
-                    duration = "0:08",
-                    time = nightTime(),
-                    mine = true,
-                    read = true,
-                )
+                repositoryActionToast(context, "Voice-note recording is the next core input being connected.")
             },
         )
 
         else -> when (selectedTab) {
             MainTab.Chats -> ModernChatsTab(
-                chats = chats,
+                chats = chatRows,
                 onTabSelected = {
                     selectedTabName = it.name
                     screen = "tabs"
                 },
-                onChatClick = {
-                    activeChatTitle = it.name ?: "Night"
-                    messages = nightWelcomeMessages()
+                onChatClick = { row ->
+                    activeChatId = row.userId ?: "night-core"
+                    messageText = ""
                     screen = "chat"
                 },
                 onNewChat = {
-                    chatGeneration += 1
-                    activeChatTitle = "New chat " + chatGeneration
-                    messages = nightWelcomeMessages()
-                    messageText = ""
-                    screen = "chat"
+                    scope.launch {
+                        val chat = repository.createChat("New chat")
+                        activeChatId = chat.id
+                        messageText = ""
+                        screen = "chat"
+                    }
                 },
                 onSettingsClick = { screen = "settings" },
             )
@@ -361,171 +533,176 @@ private fun NightApp() {
                 onSettingsClick = { screen = "settings" },
             )
 
-            MainTab.Communities -> ModernCommunitiesTab(
-                onTabSelected = {
-                    selectedTabName = it.name
-                    screen = "tabs"
-                },
-                onSettingsClick = { screen = "settings" },
-            )
-
-            MainTab.Calls -> ModernCallsTab(
-                onTabSelected = {
-                    selectedTabName = it.name
-                    screen = "tabs"
-                },
-                onSettingsClick = { screen = "settings" },
-            )
-
             MainTab.You -> NightYouTab(
+                displayName = displayName,
                 onTabSelected = {
                     selectedTabName = it.name
                     screen = "tabs"
                 },
+                onProfileClick = { screen = "profile" },
+                onProvidersClick = { screen = "providers" },
+                onMemoryClick = { screen = "memory" },
+                onLibraryStorageClick = {
+                    selectedTabName = MainTab.Updates.name
+                    screen = "tabs"
+                },
+                onAppearanceClick = { screen = "appearance" },
+                onPrivacyClick = { screen = "settings" },
                 onSettingsClick = { screen = "settings" },
             )
+
+            else -> {
+                selectedTabName = MainTab.Chats.name
+            }
         }
     }
-}
 
-private fun nightWelcomeMessages(): List<WhatsAppVisualMessage> = listOf(
-    WhatsAppVisualMessage.DateSeparator(
-        id = "today",
-        label = "Today",
-    ),
-    WhatsAppVisualMessage.TextMessage(
-        id = "welcome",
-        text = "Night is ready. The core chat works without extensions. Type “help” for the local routes or “demo” to see every rich result bubble.",
-        time = nightTime(),
-        mine = false,
-    ),
-)
-
-private fun routeNightCore(
-    raw: String,
-    time: String,
-    id: String,
-): List<WhatsAppVisualMessage> {
-    val query = raw.lowercase(Locale.getDefault())
-
-    return when {
-        query == "demo" || "show bubbles" in query || "show cards" in query -> listOf(
-            FileResultMessage(
-                id = "file_$id",
-                name = "Night demo.pdf",
-                detail = "UI preview • file result",
-                time = time,
-            ),
-            AnimeResultMessage(
-                id = "anime_$id",
-                title = "Anime result preview",
-                episode = "Extension card",
-                quality = "1080p",
-                size = "Preview",
-                time = time,
-            ),
-            ImageSearchResultMessage(
-                id = "images_$id",
-                source = "Image result preview",
-                resultCount = 4,
-                time = time,
-            ),
-            DownloadResultMessage(
-                id = "download_$id",
-                title = "Download result preview",
-                detail = "UI preview only",
-                progress = 0.43f,
-                time = time,
-            ),
-            ButtonResultMessage(
-                id = "buttons_$id",
-                title = "Choose an action",
-                body = "Buttons are now a native Night message type.",
-                actions = listOf(
-                    MessageAction("open_library", "Open Library"),
-                    MessageAction("summarize", "Summarize chat"),
-                    MessageAction("choose_ai", "Choose AI"),
-                ),
-                time = time,
-            ),
-            ToolResultMessage(
-                id = "tool_$id",
-                toolName = "Night Core",
-                title = "Rich result surfaces ready",
-                subtitle = "Extensions are intentionally deferred; these are UI previews, not fake live results.",
-                time = time,
-            ),
-        )
-
-        "status" in query -> listOf(
-            ToolResultMessage(
-                id = "status_$id",
-                toolName = "Night Core",
-                title = "Core ready",
-                subtitle = "Chat shell, navigation, composer, quotes, voice/file surfaces and rich result rendering are active. Extensions are off.",
-                time = time,
-            )
-        )
-
-        "extension" in query -> listOf(
-            ToolResultMessage(
-                id = "extensions_$id",
-                toolName = "Extensions",
-                title = "Extensions are deferred",
-                subtitle = "Night remains usable in core mode. Source/tool extensions can be added later.",
-                time = time,
-            )
-        )
-
-        "anime" in query || "manga" in query || "episode" in query -> listOf(
-            ToolResultMessage(
-                id = "media_$id",
-                toolName = "Extensions",
-                title = "Media source not connected",
-                subtitle = "The anime/media result UI is already present; the source extension will be added later.",
-                time = time,
-            )
-        )
-
-        "file" in query || "pdf" in query || "document" in query -> listOf(
-            ToolResultMessage(
-                id = "files_$id",
-                toolName = "Files",
-                title = "File result UI is ready",
-                subtitle = "Type “demo” to preview the in-chat file card. Live file actions are kept separate from extensions.",
-                time = time,
-            )
-        )
-
-        "voice" in query || "mic" in query || "speak" in query -> listOf(
-            ToolResultMessage(
-                id = "voice_$id",
-                toolName = "Voice",
-                title = "Voice surface ready",
-                subtitle = "The normal chat composer and voice-result flow are in place; speech services can be connected later.",
-                time = time,
-            )
-        )
-
-        "help" in query -> listOf(
-            WhatsAppVisualMessage.TextMessage(
-                id = "help_$id",
-                text = "Core routes: status, extensions, files, voice, anime/media, and demo. Open-ended model replies stay optional so Night can still run without an AI service.",
-                time = time,
-                mine = false,
-            )
-        )
-
-        else -> listOf(
-            WhatsAppVisualMessage.TextMessage(
-                id = "local_$id",
-                text = "I received that in Night Core. This build keeps open-ended AI optional, so the local router stays usable even when no model or extension is connected.",
-                time = time,
-                mine = false,
-            )
+    if (renameOpen) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { renameOpen = false },
+            title = { androidx.compose.material3.Text("Rename chat") },
+            text = {
+                var renameValue by remember(activeChatId, renameOpen) {
+                    mutableStateOf(activeChat?.title ?: "")
+                }
+                androidx.compose.material3.OutlinedTextField(
+                    value = renameValue,
+                    onValueChange = { renameValue = it.take(80) },
+                    singleLine = true,
+                    label = { androidx.compose.material3.Text("Chat name") },
+                )
+                androidx.compose.runtime.DisposableEffect(renameValue) {
+                    onDispose {}
+                }
+                RenameValueHolder.value = renameValue
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        val value = RenameValueHolder.value.trim()
+                        if (value.isNotBlank()) {
+                            scope.launch { repository.renameChat(activeChatId, value) }
+                        }
+                        renameOpen = false
+                    }
+                ) { androidx.compose.material3.Text("Save") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { renameOpen = false }) {
+                    androidx.compose.material3.Text("Cancel")
+                }
+            },
         )
     }
 }
 
-private fun nightTime(): String =
-    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+private object RenameValueHolder {
+    var value: String = ""
+}
+
+private fun NightAppearanceEntity.toChatAppearance(): NightChatAppearance =
+    NightChatAppearance(
+        userBubbleColor = ComposeColor(userBubbleColor),
+        aiBubbleColor = ComposeColor(aiBubbleColor),
+        wallpaperTopColor = ComposeColor(wallpaperTopColor),
+        wallpaperMiddleColor = ComposeColor(wallpaperMiddleColor),
+        wallpaperBottomColor = ComposeColor(wallpaperBottomColor),
+        accentColor = ComposeColor(accentColor),
+        fontFamilyKey = fontFamilyKey,
+        messageFontScale = messageFontScale,
+    )
+
+private fun NightMessageEntity.toVisualMessage(): WhatsAppVisualMessage {
+    val mine = role == "user"
+    val time = nightTime(createdAt)
+    val payload = runCatching { JSONObject(payloadJson) }.getOrNull()
+
+    return when (type) {
+        "image" -> WhatsAppVisualMessage.PhotoMessage(
+            id = id,
+            caption = text,
+            time = time,
+            mine = mine,
+            read = mine,
+            localPath = payload?.optString("localPath")?.takeIf { it.isNotBlank() },
+        )
+
+        "file" -> WhatsAppVisualMessage.FileMessage(
+            id = id,
+            name = text,
+            detail = buildString {
+                val mime = payload?.optString("mimeType").orEmpty()
+                if (mime.isNotBlank()) append(mime)
+                val bytes = payload?.optLong("sizeBytes", 0L) ?: 0L
+                if (bytes > 0L) {
+                    if (isNotEmpty()) append(" • ")
+                    append(formatBytes(bytes))
+                }
+            }.ifBlank { "File" },
+            time = time,
+            mine = mine,
+            read = mine,
+        )
+
+        "voice" -> WhatsAppVisualMessage.VoiceMessage(
+            id = id,
+            duration = payload?.optString("duration").orEmpty().ifBlank { "0:00" },
+            time = time,
+            mine = mine,
+            read = mine,
+        )
+
+        else -> WhatsAppVisualMessage.TextMessage(
+            id = id,
+            text = text,
+            time = time,
+            mine = mine,
+            read = mine,
+        )
+    }
+}
+
+private fun nightTime(timestamp: Long = System.currentTimeMillis()): String =
+    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
+
+private fun formatChatListTime(timestamp: Long): String =
+    if (timestamp <= 0L) "" else nightTime(timestamp)
+
+private fun formatBytes(bytes: Long): String = when {
+    bytes >= 1024L * 1024L -> String.format(Locale.getDefault(), "%.1f MB", bytes / (1024f * 1024f))
+    bytes >= 1024L -> String.format(Locale.getDefault(), "%.0f KB", bytes / 1024f)
+    else -> bytes.toString() + " B"
+}
+
+private fun repositoryActionToast(context: android.content.Context, message: String) {
+    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+}
+
+private suspend fun exportChat(
+    context: android.content.Context,
+    title: String,
+    messages: List<NightMessageEntity>,
+) = withContext(Dispatchers.IO) {
+    val safeTitle = title.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "Night" }
+    val file = File(context.cacheDir, safeTitle + "_chat.txt")
+    file.writeText(
+        messages.joinToString("\n") {
+            val speaker = if (it.role == "assistant") "Night" else "You"
+            "[" + nightTime(it.createdAt) + "] " + speaker + ": " + it.text
+        }
+    )
+
+    withContext(Dispatchers.Main) {
+        val uri = androidx.core.content.FileProvider.getUriForFile(
+            context,
+            context.packageName + ".files",
+            file,
+        )
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, "Export chat"))
+    }
+}
