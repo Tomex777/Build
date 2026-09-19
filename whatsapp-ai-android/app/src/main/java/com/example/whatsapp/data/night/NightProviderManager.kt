@@ -15,11 +15,20 @@ class NightProviderManager private constructor(
         apiKey: String,
         endpoint: String?,
         region: String?,
+        language: String = "en-US",
+        voiceName: String? = null,
         makeDefault: Boolean,
     ): NightProviderProfileEntity {
         require(apiKey.isNotBlank()) { "API key is required." }
         if (providerType == "azure") {
-            require(!endpoint.isNullOrBlank()) { "Azure endpoint is required." }
+            when (serviceKind) {
+                "chat", "live_voice" ->
+                    require(!endpoint.isNullOrBlank()) { "Azure endpoint is required for this service." }
+                "speech" ->
+                    require(!endpoint.isNullOrBlank() || !region.isNullOrBlank()) {
+                        "Azure Speech needs a resource endpoint or region."
+                    }
+            }
         }
 
         val id = UUID.randomUUID().toString()
@@ -41,6 +50,8 @@ class NightProviderManager private constructor(
             secretAlias = alias,
             endpoint = endpoint?.trim()?.ifBlank { null },
             region = region?.trim()?.ifBlank { null },
+            language = language.trim().ifBlank { "en-US" },
+            voiceName = voiceName?.trim()?.ifBlank { null },
             capabilities = when (serviceKind) {
                 "speech" -> "stt,tts,translation"
                 "live_voice" -> "live_voice"
