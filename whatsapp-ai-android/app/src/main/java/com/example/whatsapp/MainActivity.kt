@@ -1,3 +1,6 @@
+// Night keyboard validation
+// Night final UI validation 3b
+// Night final UI validation 3
 package com.example.whatsapp
 
 import android.graphics.Color
