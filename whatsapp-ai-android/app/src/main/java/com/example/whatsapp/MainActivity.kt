@@ -404,7 +404,7 @@ private fun NightApp() {
             models = providerModels,
             onBack = { screen = "tabs" },
             onCapabilityRoutingClick = { screen = "capability_routes" },
-            onAddProfile = { provider, service, name, key, endpoint, region, makeDefault ->
+            onAddProfile = { provider, service, name, key, endpoint, region, language, voiceName, makeDefault ->
                 scope.launch {
                     runCatching {
                         providerManager.addProfile(
@@ -414,6 +414,8 @@ private fun NightApp() {
                             apiKey = key,
                             endpoint = endpoint,
                             region = region,
+                            language = language,
+                            voiceName = voiceName,
                             makeDefault = makeDefault,
                         )
                     }.onFailure {
