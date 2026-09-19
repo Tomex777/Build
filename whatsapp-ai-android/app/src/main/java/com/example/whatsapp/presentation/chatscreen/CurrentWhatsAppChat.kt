@@ -74,8 +74,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -94,6 +92,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -1580,26 +1579,18 @@ private fun CurrentAudioBubble(
                     }
                 }
 
-                Slider(
-                    value = shownProgress,
-                    onValueChange = { value ->
+                AudioSeekBar(
+                    progress = shownProgress,
+                    enabled = isActive,
+                    activeColor = appearance.accentColor,
+                    onSeek = { value ->
                         item.localPath?.let { path ->
                             if (isActive) onAudioSeek(path, value)
                         }
                     },
-                    enabled = isActive,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(30.dp)
-                        .padding(horizontal = 1.dp),
-                    colors = SliderDefaults.colors(
-                        thumbColor = appearance.accentColor,
-                        activeTrackColor = appearance.accentColor,
-                        inactiveTrackColor = Color(0xFF5B6062),
-                        disabledThumbColor = appearance.accentColor,
-                        disabledActiveTrackColor = appearance.accentColor,
-                        disabledInactiveTrackColor = Color(0xFF5B6062),
-                    ),
+                        .padding(horizontal = 4.dp, vertical = 7.dp),
                 )
 
                 Row(
@@ -1640,6 +1631,64 @@ private fun CurrentAudioBubble(
                 MessageMeta(item.time, item.mine, item.read)
             }
         }
+    }
+}
+
+@Composable
+private fun AudioSeekBar(
+    progress: Float,
+    enabled: Boolean,
+    activeColor: Color,
+    onSeek: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Canvas(
+        modifier = modifier
+            .height(22.dp)
+            .pointerInput(enabled) {
+                if (!enabled) return@pointerInput
+                detectHorizontalDragGestures(
+                    onDragStart = { offset ->
+                        if (size.width > 0) {
+                            onSeek((offset.x / size.width.toFloat()).coerceIn(0f, 1f))
+                        }
+                    },
+                    onHorizontalDrag = { change, _ ->
+                        if (size.width > 0) {
+                            onSeek((change.position.x / size.width.toFloat()).coerceIn(0f, 1f))
+                            change.consume()
+                        }
+                    },
+                )
+            },
+    ) {
+        val y = size.height / 2f
+        val clamped = progress.coerceIn(0f, 1f)
+        val x = size.width * clamped
+        val trackWidth = 3.dp.toPx()
+        val knobRadius = 5.dp.toPx()
+
+        drawLine(
+            color = Color(0xFF5B6062),
+            start = Offset(0f, y),
+            end = Offset(size.width, y),
+            strokeWidth = trackWidth,
+            cap = StrokeCap.Round,
+        )
+        if (x > 0f) {
+            drawLine(
+                color = activeColor,
+                start = Offset(0f, y),
+                end = Offset(x, y),
+                strokeWidth = trackWidth,
+                cap = StrokeCap.Round,
+            )
+        }
+        drawCircle(
+            color = activeColor,
+            radius = knobRadius,
+            center = Offset(x.coerceIn(knobRadius, size.width - knobRadius), y),
+        )
     }
 }
 
@@ -2337,15 +2386,15 @@ fun EmojiPicker(
         "🔥" to "file:///android_asset/fluent_emoji/fire.svg",
     )
     val categories = listOf(
-        "Recent" to listOf("😀","😂","🥹","😍","😭","😎","👍","❤️","🙏","🔥","✨","💀","🤝","🫡","🥲","🤣"),
-        "Smileys" to listOf("😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇","🙂","🙃","😉","😌","😍","🥰","😘","😗","😙","😚","😋","😛","😝","😜","🤪","🤨","🧐","🤓","😎","🥸","🤩","🥳","🙂‍↕️","😏","😒","😞","😔","😟","😕","🙁","☹️","😣","😖","😫","😩","🥺","🥹","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🫣","🤗","🫡","🤔","🫢","🤭","🤫","🤥","😶","😶‍🌫️","😐","😑","😬","🫨","🫠"),
-        "People" to listOf("👋","🤚","🖐️","✋","🖖","🫱","🫲","🫳","🫴","👌","🤌","🤏","✌️","🤞","🫰","🤟","🤘","🤙","👈","👉","👆","👇","☝️","🫵","👍","👎","✊","👊","🤛","🤜","👏","🙌","🫶","👐","🤲","🤝","🙏","✍️","💅","🤳","💪","🦾","🦵","🦶","👂","👃","🧠","🫀","🫁","👀","👁️","👄"),
-        "Hearts" to listOf("❤️","🩷","🧡","💛","💚","💙","🩵","💜","🤎","🖤","🩶","🤍","💔","❤️‍🔥","❤️‍🩹","❣️","💕","💞","💓","💗","💖","💘","💝","💟","♥️","💋","✨","⭐","🌟","💫","🔥"),
+        "Recent" to listOf("😀","😂","🥹","😍","😭","😎","👍","❤️","🙏","🔥","✨","💀","🤝","🥲","🤣","😅"),
+        "Smileys" to listOf("😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇","🙂","🙃","😉","😌","😍","🥰","😘","😗","😙","😚","😋","😛","😝","😜","🤪","🤨","🧐","🤓","😎","🥸","🤩","🥳","🙂‍↕️","😏","😒","😞","😔","😟","😕","🙁","☹️","😣","😖","😫","😩","🥺","🥹","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🤗","🤔","🤭","🤫","🤥","😶","😶‍🌫️","😐","😑","😬"),
+        "People" to listOf("👋","🤚","🖐️","✋","🖖","👌","🤌","🤏","✌️","🤞","🤟","🤘","🤙","👈","👉","👆","👇","☝️","👍","👎","✊","👊","🤛","🤜","👏","🙌","👐","🤲","🤝","🙏","✍️","💅","🤳","💪","🦾","🦵","🦶","👂","👃","🧠","🫀","🫁","👀","👁️","👄"),
+        "Hearts" to listOf("❤️","🧡","💛","💚","💙","💜","🤎","🖤","🤍","💔","❤️‍🔥","❤️‍🩹","❣️","💕","💞","💓","💗","💖","💘","💝","💟","♥️","💋","✨","⭐","🌟","💫","🔥"),
         "Animals" to listOf("🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐻‍❄️","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🙈","🙉","🙊","🐒","🐔","🐧","🐦","🐤","🦆","🦅","🦉","🦇","🐺","🐗","🐴","🦄","🐝","🪱","🐛","🦋","🐌","🐞","🐜","🪰","🪲","🪳","🕷️","🦂","🐢","🐍","🦎","🐙","🦑","🦐","🦀","🐠","🐟","🐬","🐳","🦈"),
-        "Food" to listOf("🍏","🍎","🍐","🍊","🍋","🍌","🍉","🍇","🍓","🫐","🍈","🍒","🍑","🥭","🍍","🥥","🥝","🍅","🍆","🥑","🥦","🥬","🥒","🌶️","🫑","🌽","🥕","🫒","🧄","🧅","🥔","🍠","🥐","🥯","🍞","🥖","🥨","🧀","🥚","🍳","🥞","🧇","🥓","🍔","🍟","🍕","🌭","🥪","🌮","🌯","🥗","🍝","🍜","🍣","🍱","🍛","🍚","🍰","🎂","🍫","🍿","☕","🧋"),
+        "Food" to listOf("🍏","🍎","🍐","🍊","🍋","🍌","🍉","🍇","🍓","🍈","🍒","🍑","🥭","🍍","🥥","🥝","🍅","🍆","🥑","🥦","🥬","🥒","🌶️","🌽","🥕","🧄","🧅","🥔","🍠","🥐","🥯","🍞","🥖","🥨","🧀","🥚","🍳","🥞","🧇","🥓","🍔","🍟","🍕","🌭","🥪","🌮","🌯","🥗","🍝","🍜","🍣","🍱","🍛","🍚","🍰","🎂","🍫","🍿","☕","🧋"),
         "Activities" to listOf("⚽","🏀","🏈","⚾","🥎","🎾","🏐","🏉","🥏","🎱","🪀","🏓","🏸","🏒","🏑","🥍","🏏","🪃","🥅","⛳","🪁","🏹","🎣","🤿","🥊","🥋","🎽","🛹","🛼","🛷","⛸️","🥌","🎿","⛷️","🏂","🪂","🏋️","🤸","⛹️","🤺","🤾","🏌️","🏇","🧘","🏄","🏊","🚴","🚵","🎮","🎲","🎯","🎳","🎸","🎹","🥁","🎧","🎤"),
         "Travel" to listOf("🚗","🚕","🚙","🚌","🚎","🏎️","🚓","🚑","🚒","🚐","🛻","🚚","🚛","🚜","🛵","🏍️","🛺","🚲","🛴","🚨","🚔","🚍","🚘","🚖","✈️","🛫","🛬","🚀","🛸","🚁","⛵","🚤","🛥️","🛳️","🚢","⚓","🗺️","🗿","🗽","🗼","🏰","🏯","🏟️","🎡","🎢","🎠","⛲","⛺","🏖️","🏝️","🏜️","🏕️","🌋","⛰️","🏔️","🌍","🌎","🌏","🌙","☀️","🌈"),
-        "Objects" to listOf("⌚","📱","💻","⌨️","🖥️","🖨️","🖱️","🕹️","🗜️","💽","💾","💿","📀","📷","📸","📹","🎥","📞","☎️","📺","📻","🎙️","⏱️","⏰","⌛","🔋","🪫","🔌","💡","🔦","🕯️","🧯","🛢️","💸","💵","💳","💎","⚖️","🧰","🔧","🔨","⚒️","🛠️","⛏️","🪓","🪚","🔩","⚙️","🧲","🧪","🧬","🔭","🔬","💊","🩹","🩺","🔑","🗝️","🚪","🪑","🛏️","🎁","🎈","🎉"),
+        "Objects" to listOf("⌚","📱","💻","⌨️","🖥️","🖨️","🖱️","🕹️","🗜️","💽","💾","💿","📀","📷","📸","📹","🎥","📞","☎️","📺","📻","🎙️","⏱️","⏰","⌛","🔋","🔌","💡","🔦","🕯️","🧯","🛢️","💸","💵","💳","💎","⚖️","🧰","🔧","🔨","⚒️","🛠️","⛏️","🪓","🪚","🔩","⚙️","🧲","🧪","🧬","🔭","🔬","💊","🩹","🩺","🔑","🗝️","🚪","🪑","🛏️","🎁","🎈","🎉"),
         "Symbols" to listOf("✅","☑️","✔️","❌","❎","➕","➖","➗","✖️","♾️","‼️","⁉️","❓","❔","❕","❗","〰️","💯","🔴","🟠","🟡","🟢","🔵","🟣","⚫","⚪","🟤","🔺","🔻","🔸","🔹","🔶","🔷","🔳","🔲","▪️","▫️","◾","◽","◼️","◻️","🟥","🟧","🟨","🟩","🟦","🟪","⬛","⬜","🔔","🔕","🎵","🎶","➰","➿","🔱","📛","🔰"),
     )
     var selectedCategory by remember { mutableStateOf(0) }
