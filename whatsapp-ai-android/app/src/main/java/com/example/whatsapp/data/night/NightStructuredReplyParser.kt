@@ -7,28 +7,65 @@ data class NightChoicePayload(
     val options: List<String>,
 )
 
+data class NightChoiceSelection(
+    val messageId: String,
+    val index: Int,
+)
+
 data class NightParsedReply(
     val text: String,
     val choice: NightChoicePayload? = null,
+    val choiceSelection: NightChoiceSelection? = null,
 )
 
 object NightStructuredReplyParser {
-    private const val PREFIX = "NIGHT_OPTIONS:"
+    private const val OPTIONS_PREFIX = "NIGHT_OPTIONS:"
+    private const val SELECTION_PREFIX = "NIGHT_CHOICE_SELECTION:"
 
     fun parse(raw: String): NightParsedReply {
-        val lines = raw.lines()
-        val optionLineIndex = lines.indexOfLast {
-            it.trimStart().startsWith(PREFIX)
+        var choice: NightChoicePayload? = null
+        var selection: NightChoiceSelection? = null
+        val visibleLines = mutableListOf<String>()
+
+        raw.lines().forEach { original ->
+            val line = original.trim()
+
+            when {
+                line.startsWith(OPTIONS_PREFIX) -> {
+                    val parsed = parseOptions(
+                        line.removePrefix(OPTIONS_PREFIX).trim()
+                    )
+                    if (parsed != null) {
+                        choice = parsed
+                    } else {
+                        visibleLines += original
+                    }
+                }
+
+                line.startsWith(SELECTION_PREFIX) -> {
+                    val parsed = parseSelection(
+                        line.removePrefix(SELECTION_PREFIX).trim()
+                    )
+                    if (parsed != null) {
+                        selection = parsed
+                    } else {
+                        visibleLines += original
+                    }
+                }
+
+                else -> visibleLines += original
+            }
         }
 
-        if (optionLineIndex < 0) {
-            return NightParsedReply(text = raw.trim())
-        }
+        return NightParsedReply(
+            text = visibleLines.joinToString("\n").trim(),
+            choice = choice,
+            choiceSelection = selection,
+        )
+    }
 
-        val line = lines[optionLineIndex].trim()
-        val jsonText = line.removePrefix(PREFIX).trim()
-
-        val choice = runCatching {
+    private fun parseOptions(jsonText: String): NightChoicePayload? =
+        runCatching {
             val json = JSONObject(jsonText)
             val title = json.optString("title").trim()
             val array = json.optJSONArray("options") ?: return@runCatching null
@@ -50,18 +87,20 @@ object NightStructuredReplyParser {
             }
         }.getOrNull()
 
-        if (choice == null) {
-            return NightParsedReply(text = raw.trim())
-        }
+    private fun parseSelection(jsonText: String): NightChoiceSelection? =
+        runCatching {
+            val json = JSONObject(jsonText)
+            val messageId = json.optString("messageId").trim()
+            if (messageId.isBlank() || !json.has("index")) return@runCatching null
 
-        val visibleText = lines
-            .filterIndexed { index, _ -> index != optionLineIndex }
-            .joinToString("\n")
-            .trim()
-
-        return NightParsedReply(
-            text = visibleText,
-            choice = choice,
-        )
-    }
+            val index = json.optInt("index", -1)
+            if (index < 0) {
+                null
+            } else {
+                NightChoiceSelection(
+                    messageId = messageId,
+                    index = index,
+                )
+            }
+        }.getOrNull()
 }
