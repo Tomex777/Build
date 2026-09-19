@@ -334,6 +334,8 @@ private fun AddProviderDialog(
                     if (service == "speech") {
                         ProviderField(language, { language = it }, "Speech language")
                         ProviderField(voiceName, { voiceName = it }, "TTS voice name (optional)")
+                    } else if (service == "live_voice") {
+                        ProviderField(voiceName, { voiceName = it }, "Realtime voice name (optional)")
                     }
                 }
 
