@@ -49,3 +49,8 @@ HOMIRA_FORCE_TURN_RELAY=true
 ```
 
 That makes WebRTC use `PeerConnection.IceTransportsType.RELAY`. If the call reaches `Connected`, host and STUN-only candidates cannot have carried the media path.
+
+
+## Development relay transport note
+
+The development fallback uses plain TURN on port 80 (UDP/TCP) and TURNS over TCP on port 443. The CI allocation probe intentionally exercises plain TURN/TCP on port 80 so it does not confuse raw TCP with TLS.
