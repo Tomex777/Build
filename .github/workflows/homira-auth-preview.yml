@@ -37,8 +37,8 @@ jobs:
 
       - name: Inspect mascot resource
         run: |
-          file homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.jpg
-          ls -lh homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.jpg
+          file homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.png
+          ls -lh homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.png
 
       - name: Build debug APK
         working-directory: homira-android
@@ -73,10 +73,7 @@ jobs:
             adb shell pidof com.night.homira > homira-android/app/build/ui-preview/pid-after-2s.txt || true
             adb shell dumpsys activity activities > homira-android/app/build/ui-preview/activity-after-2s.txt
             adb logcat -d -t 5000 > homira-android/app/build/ui-preview/logcat-after-2s.txt
-            if ! adb shell pidof com.night.homira | grep -q .; then
-              echo "Homira crashed before the auth preview rendered."
-              exit 1
-            fi
+            adb shell pidof com.night.homira | grep -q . || { echo "Homira crashed before the auth preview rendered."; exit 1; }
             sleep 18
             adb shell pidof com.night.homira > homira-android/app/build/ui-preview/pid-after-20s.txt || true
             adb shell dumpsys activity activities > homira-android/app/build/ui-preview/activity.txt
