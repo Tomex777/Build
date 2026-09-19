@@ -28,6 +28,7 @@ import com.night.pahebatcher.data.SessionStore
 import com.night.pahebatcher.data.StoredDownloadTask
 import com.night.pahebatcher.data.VerificationKind
 import com.night.pahebatcher.data.VerificationRequired
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.net.URI
@@ -47,6 +48,7 @@ data class DownloadUi(
     val status: String,
     val uri: Uri? = null,
     val failed: Boolean = false,
+    val paused: Boolean = false,
 )
 
 class PaheViewModel(application: Application) : AndroidViewModel(application) {
@@ -60,6 +62,7 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
     var tab by mutableStateOf(MainTab.EXPLORE)
         private set
     var query by mutableStateOf("")
+        private set
     var results by mutableStateOf<List<AnimeSearchResult>>(emptyList())
         private set
     var searching by mutableStateOf(false)
@@ -100,6 +103,12 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     val downloads = mutableStateListOf<DownloadUi>()
+
+    var aboutActive by mutableStateOf(false)
+        private set
+
+    private var searchJob: Job? = null
+    private var airDateJob: Job? = null
 
     init {
         refreshRecent()
