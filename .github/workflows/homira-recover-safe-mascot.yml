@@ -1,0 +1,88 @@
+name: Homira Recover Safe Mascot
+
+on:
+  push:
+    branches: [homira-call-ci]
+    paths:
+      - '.github/workflows/homira-recover-safe-mascot.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: homira-call-ci
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Recover clean source and encode safe PNG
+        run: |
+          python -m pip install --quiet pillow
+          git show f80190aba162a4fdd8fd59ce54c383c788dcf5bf:homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.png > /tmp/homira-clean-source.png
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+
+          src_path = Path("/tmp/homira-clean-source.png")
+          dst_path = Path("homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.png")
+
+          with Image.open(src_path) as source:
+              source.load()
+              print("Recovered source:", source.format, source.mode, source.size)
+              rgba = source.convert("RGBA")
+
+          # Re-encode from decoded pixels only: no palette, ICC profile,
+          # EXIF, optimized chunks, or inherited PNG metadata.
+          rgba.save(
+              dst_path,
+              format="PNG",
+              optimize=False,
+              compress_level=6,
+          )
+
+          with Image.open(dst_path) as verify:
+              verify.load()
+              assert verify.format == "PNG"
+              assert verify.mode == "RGBA"
+              assert verify.size == rgba.size
+              print("Android-safe PNG:", verify.mode, verify.size, dst_path.stat().st_size, "bytes")
+          PY
+          rm -f homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.jpg
+          file homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.png
+
+      - name: Fix strict emulator process check
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path(".github/workflows/homira-auth-preview.yml")
+          text = path.read_text()
+          old = '''            if ! adb shell pidof com.night.homira | grep -q .; then
+              echo "Homira crashed before the auth preview rendered."
+              exit 1
+            fi
+          '''
+          new = '''            adb shell pidof com.night.homira | grep -q . || { echo "Homira crashed before the auth preview rendered."; exit 1; }
+          '''
+          if old not in text:
+              raise SystemExit("Expected strict-process block was not found")
+          path.write_text(text.replace(old, new))
+          PY
+
+      - name: Commit recovered mascot
+        run: |
+          rm -f .github/workflows/homira-recover-safe-mascot.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A homira-android/app/src/main/res/drawable-nodpi .github/workflows
+          git commit -m "Homira: recover Android-safe call companion"
+          git push origin HEAD:homira-call-ci
