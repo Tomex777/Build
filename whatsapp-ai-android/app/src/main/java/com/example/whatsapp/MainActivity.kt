@@ -238,6 +238,13 @@ private fun NightApp() {
                         subtitle = actionId.removePrefix("ai_").replaceFirstChar { it.uppercase() },
                         time = time,
                     )
+                    "schedule_once", "schedule_repeat", "schedule_reminder" -> ToolResultMessage(
+                        id = "schedule_action_${System.nanoTime()}",
+                        toolName = "Schedule",
+                        title = "Schedule option selected",
+                        subtitle = actionId.removePrefix("schedule_").replaceFirstChar { it.uppercase() },
+                        time = time,
+                    )
                     else -> ToolResultMessage(
                         id = "button_${System.nanoTime()}",
                         toolName = "Action",
@@ -265,6 +272,32 @@ private fun NightApp() {
                             time = nightTime(),
                             mine = true,
                             read = true,
+                        )
+                    }
+                    "Choose AI" -> {
+                        messages = messages + ButtonResultMessage(
+                            id = "choose_ai_${System.nanoTime()}",
+                            title = "Choose AI",
+                            body = "Choose which AI should handle this conversation.",
+                            actions = listOf(
+                                MessageAction("ai_default", "Default"),
+                                MessageAction("ai_fast", "Fast"),
+                                MessageAction("ai_reasoning", "Reasoning"),
+                            ),
+                            time = nightTime(),
+                        )
+                    }
+                    "Schedule" -> {
+                        messages = messages + ButtonResultMessage(
+                            id = "schedule_${System.nanoTime()}",
+                            title = "Schedule with Night",
+                            body = "Choose what you want Night to do with this task.",
+                            actions = listOf(
+                                MessageAction("schedule_once", "Schedule once"),
+                                MessageAction("schedule_repeat", "Repeat"),
+                                MessageAction("schedule_reminder", "Reminder only"),
+                            ),
+                            time = nightTime(),
                         )
                     }
                     else -> {
