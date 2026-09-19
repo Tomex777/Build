@@ -44,9 +44,11 @@ import com.example.whatsapp.data.night.NightScheduleManager
 import com.example.whatsapp.data.night.NightSpeechService
 import com.example.whatsapp.data.night.NightStructuredReplyParser
 import com.example.whatsapp.data.night.NightVoiceRecorder
+import com.example.whatsapp.extensions.messages.ExtensionMessageCodec
 import com.example.whatsapp.presentation.chat_box.ChatListModel
 import com.example.whatsapp.presentation.chatscreen.ChoiceResultMessage
 import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
+import com.example.whatsapp.presentation.chatscreen.ExtensionResultMessage
 import com.example.whatsapp.presentation.chatscreen.NightChatAppearance
 import com.example.whatsapp.presentation.chatscreen.NightChoiceDialog
 import com.example.whatsapp.presentation.chatscreen.NightImageViewerScreen
@@ -1366,6 +1368,27 @@ private fun NightMessageEntity.toVisualMessage(
             )
         }
 
+        "extension" -> {
+            val snapshot = ExtensionMessageCodec.decode(payloadJson)
+            if (snapshot != null) {
+                ExtensionResultMessage(
+                    id = id,
+                    snapshot = snapshot,
+                    time = time,
+                    extensionAvailable = true,
+                )
+            } else {
+                WhatsAppVisualMessage.TextMessage(
+                    id = id,
+                    text = text.ifBlank { "Extension result" },
+                    time = time,
+                    mine = mine,
+                    read = mine,
+                    reply = reply,
+                )
+            }
+        }
+
         else -> WhatsAppVisualMessage.TextMessage(
             id = id,
             text = text,
@@ -1439,6 +1462,37 @@ private fun NightMessageEntity.toReplyPreview(): ReplyPreview {
             kind = ReplyKind.Rich,
             meta = "Options",
         )
+
+        "extension" -> {
+            val snapshot = ExtensionMessageCodec.decode(payloadJson)
+            if (snapshot != null) {
+                ReplyPreview(
+                    messageId = id,
+                    author = snapshot.extensionName,
+                    text = buildString {
+                        append(snapshot.title)
+                        if (snapshot.subtitle.isNotBlank()) {
+                            append(" — ")
+                            append(snapshot.subtitle)
+                        }
+                    },
+                    kind = ReplyKind.Rich,
+                    meta = snapshot.badge
+                        .ifBlank { snapshot.status }
+                        .takeIf { it.isNotBlank() },
+                    iconText = snapshot.iconText.ifBlank {
+                        snapshot.extensionName.take(1).uppercase()
+                    },
+                )
+            } else {
+                ReplyPreview(
+                    messageId = id,
+                    author = author,
+                    text = text.ifBlank { "Extension result" },
+                    kind = ReplyKind.Rich,
+                )
+            }
+        }
 
         else -> ReplyPreview(
             messageId = id,
