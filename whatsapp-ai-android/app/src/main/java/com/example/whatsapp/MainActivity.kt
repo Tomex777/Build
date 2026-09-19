@@ -3,7 +3,9 @@ package com.example.whatsapp
 import android.Manifest
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.widget.Toast
@@ -40,8 +42,13 @@ import com.example.whatsapp.data.night.NightScheduleManager
 import com.example.whatsapp.data.night.NightSpeechService
 import com.example.whatsapp.data.night.NightVoiceRecorder
 import com.example.whatsapp.presentation.chat_box.ChatListModel
+import com.example.whatsapp.presentation.chatscreen.ChoiceResultMessage
 import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
 import com.example.whatsapp.presentation.chatscreen.NightChatAppearance
+import com.example.whatsapp.presentation.chatscreen.NightChoiceDialog
+import com.example.whatsapp.presentation.chatscreen.NightImageViewerScreen
+import com.example.whatsapp.presentation.chatscreen.ReplyKind
+import com.example.whatsapp.presentation.chatscreen.ReplyPreview
 import com.example.whatsapp.presentation.chatscreen.WhatsAppVisualMessage
 import com.example.whatsapp.presentation.files.NightFilesTab
 import com.example.whatsapp.presentation.profile.NightAiSelectorScreen
@@ -70,6 +77,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
@@ -112,6 +120,9 @@ private fun NightApp() {
     var scheduleOpen by remember { mutableStateOf(false) }
     var liveVoiceState by remember { mutableStateOf(NightLiveVoiceClient.State.ENDED) }
     var liveVoiceError by remember { mutableStateOf<String?>(null) }
+    var replyingToId by rememberSaveable { mutableStateOf<String?>(null) }
+    var choiceOpen by remember { mutableStateOf(false) }
+    var imageViewerPath by rememberSaveable { mutableStateOf<String?>(null) }
 
     val chats by repository.observeChats().collectAsState(initial = emptyList())
     val profiles by repository.observeProviderProfiles().collectAsState(initial = emptyList())
@@ -130,8 +141,10 @@ private fun NightApp() {
     val activeModel = providerModels.firstOrNull { it.id == activeChat?.selectedModel }
     val activeProfile = profiles.firstOrNull { it.id == activeChat?.selectedProviderProfileId }
 
-    val visualMessages = remember(messageEntities) {
-        messageEntities.map { it.toVisualMessage() }
+    val messageById = remember(messageEntities) { messageEntities.associateBy { it.id } }
+    val replyingTo = replyingToId?.let(messageById::get)
+    val visualMessages = remember(messageEntities, messageById) {
+        messageEntities.map { it.toVisualMessage(messageById) }
     }
 
     val chatRows = remember(chats) {
@@ -253,8 +266,10 @@ private fun NightApp() {
             createdAt = System.currentTimeMillis(),
             libraryFileId = saved.id,
             payloadJson = initialPayload.toString(),
+            replyToMessageId = replyingToId,
         )
         repository.appendMessage(voiceMessage)
+        replyingToId = null
 
         val transcript = speechService.transcribe(saved.localPath).getOrNull()
         if (!transcript.isNullOrBlank()) {
@@ -389,12 +404,47 @@ private fun NightApp() {
             } ?: return@launch
 
             val messageId = java.util.UUID.randomUUID().toString()
+            val replyId = replyingToId
+            val mime = saved.mimeType
+
+            val payload = JSONObject()
+                .put("localPath", saved.localPath)
+                .put("mimeType", mime)
+                .put("sizeBytes", saved.sizeBytes)
+
+            val messageType: String
+            val messageTextValue: String
+
+            when {
+                mime.startsWith("image/") -> {
+                    messageType = "image"
+                    messageTextValue = ""
+                    payload.put("aspectRatio", readImageAspectRatio(saved.localPath))
+                }
+
+                mime.startsWith("video/") -> {
+                    messageType = "video"
+                    messageTextValue = ""
+                    val meta = withContext(Dispatchers.IO) {
+                        extractVideoMeta(context, saved.localPath)
+                    }
+                    payload
+                        .put("duration", meta.duration)
+                        .put("aspectRatio", meta.aspectRatio)
+                    meta.thumbnailPath?.let { payload.put("thumbnailPath", it) }
+                }
+
+                else -> {
+                    messageType = "file"
+                    messageTextValue = saved.name
+                }
+            }
 
             repository.addLibraryItem(
                 NightLibraryItemEntity(
                     id = saved.id,
                     name = saved.name,
-                    mimeType = saved.mimeType,
+                    mimeType = mime,
                     sizeBytes = saved.sizeBytes,
                     localPath = saved.localPath,
                     createdAt = saved.createdAt,
@@ -403,24 +453,20 @@ private fun NightApp() {
                 )
             )
 
-            val payload = JSONObject()
-                .put("localPath", saved.localPath)
-                .put("mimeType", saved.mimeType)
-                .put("sizeBytes", saved.sizeBytes)
-                .toString()
-
             repository.appendMessage(
                 NightMessageEntity(
                     id = messageId,
                     chatId = activeChatId,
                     role = "user",
-                    type = if (saved.mimeType.startsWith("image/")) "image" else "file",
-                    text = saved.name,
+                    type = messageType,
+                    text = messageTextValue,
                     createdAt = System.currentTimeMillis(),
                     libraryFileId = saved.id,
-                    payloadJson = payload,
+                    payloadJson = payload.toString(),
+                    replyToMessageId = replyId,
                 )
             )
+            replyingToId = null
         }
     }
 
@@ -443,6 +489,7 @@ private fun NightApp() {
             } ?: return@launch
 
             val messageId = java.util.UUID.randomUUID().toString()
+            val replyId = replyingToId
 
             repository.addLibraryItem(
                 NightLibraryItemEntity(
@@ -463,16 +510,19 @@ private fun NightApp() {
                     chatId = activeChatId,
                     role = "user",
                     type = "image",
-                    text = saved.name,
+                    text = "",
                     createdAt = System.currentTimeMillis(),
                     libraryFileId = saved.id,
                     payloadJson = JSONObject()
                         .put("localPath", saved.localPath)
                         .put("mimeType", saved.mimeType)
                         .put("sizeBytes", saved.sizeBytes)
+                        .put("aspectRatio", readImageAspectRatio(saved.localPath))
                         .toString(),
+                    replyToMessageId = replyId,
                 )
             )
+            replyingToId = null
         }
     }
 
@@ -506,6 +556,10 @@ private fun NightApp() {
                 liveVoiceClient.stop()
                 screen = "chat"
             }
+            "image_viewer" -> {
+                imageViewerPath = null
+                screen = "chat"
+            }
             else -> {
                 screen = if (selectedTab == MainTab.You) "tabs" else "chat"
             }
@@ -513,6 +567,21 @@ private fun NightApp() {
     }
 
     when (screen) {
+        "image_viewer" -> {
+            val pathToShow = imageViewerPath
+            if (pathToShow != null) {
+                NightImageViewerScreen(
+                    localPath = pathToShow,
+                    onBack = {
+                        imageViewerPath = null
+                        screen = "chat"
+                    },
+                )
+            } else {
+                screen = "chat"
+            }
+        }
+
         "live_voice" -> NightLiveVoiceScreen(
             chatTitle = activeChat?.title ?: "Night",
             state = liveVoiceState,
@@ -694,7 +763,9 @@ private fun NightApp() {
                         chatId = activeChatId,
                         role = "user",
                         text = text,
+                        replyToMessageId = replyingToId,
                     )
+                    replyingToId = null
 
                     val localAppearanceResult = appearanceController.handleNaturalRequest(text)
                     if (localAppearanceResult != null) {
@@ -755,8 +826,23 @@ private fun NightApp() {
                     "Search chat" -> screen = "chat_search"
                 }
             },
-            onMessageButtonClick = { _, actionId ->
+            onMessageButtonClick = { messageId, actionId ->
                 when {
+                    actionId.startsWith("option_") -> {
+                        val index = actionId.removePrefix("option_").toIntOrNull()
+                        if (index != null) {
+                            scope.launch {
+                                val existing = repository.getMessage(messageId) ?: return@launch
+                                if (existing.type == "choice") {
+                                    val payload = runCatching { JSONObject(existing.payloadJson) }
+                                        .getOrElse { JSONObject() }
+                                        .put("selectedIndex", index)
+                                        .put("selectedBy", "You")
+                                    repository.appendMessage(existing.copy(payloadJson = payload.toString()))
+                                }
+                            }
+                        }
+                    }
                     actionId == "choose_ai" || actionId.startsWith("ai_") -> screen = "choose_ai"
                     actionId == "open_library" -> {
                         selectedTabName = MainTab.Updates.name
@@ -768,15 +854,30 @@ private fun NightApp() {
             onAttachmentClick = {},
             onAttachmentAction = { action ->
                 when (action) {
-                    "Gallery" -> attachmentPicker.launch(arrayOf("image/*"))
+                    "Gallery" -> attachmentPicker.launch(arrayOf("image/*", "video/*"))
                     "Document" -> attachmentPicker.launch(arrayOf("*/*"))
                     "Camera" -> cameraLauncher.launch(null)
                     "Choose AI" -> screen = "choose_ai"
                     "Schedule" -> scheduleOpen = true
-                    "Location" -> repositoryActionToast(context, "Location is a Night message type; the location capability is not configured yet.")
-                    "Poll" -> repositoryActionToast(context, "Poll UI is available; persistent poll data is next.")
+                    "Options" -> choiceOpen = true
                     "AI images" -> repositoryActionToast(context, "Choose an image-capable provider or extension first.")
                 }
+            },
+            onReplyRequest = { messageId ->
+                replyingToId = messageId
+            },
+            replyPreview = replyingTo?.toReplyPreview(),
+            onCancelReply = { replyingToId = null },
+            onImageClick = { path ->
+                imageViewerPath = path
+                screen = "image_viewer"
+            },
+            onVideoClick = {
+                Toast.makeText(
+                    context,
+                    "Video bubble is ready. The full player comes next.",
+                    Toast.LENGTH_SHORT,
+                ).show()
             },
             onCameraClick = { cameraLauncher.launch(null) },
             isRecording = isRecording,
@@ -900,6 +1001,33 @@ private fun NightApp() {
         }
     }
 
+    if (choiceOpen) {
+        NightChoiceDialog(
+            onDismiss = { choiceOpen = false },
+            onCreate = { title, options ->
+                scope.launch {
+                    val messageId = java.util.UUID.randomUUID().toString()
+                    val payload = JSONObject()
+                        .put("options", JSONArray(options))
+                    repository.appendMessage(
+                        NightMessageEntity(
+                            id = messageId,
+                            chatId = activeChatId,
+                            role = "user",
+                            type = "choice",
+                            text = title,
+                            createdAt = System.currentTimeMillis(),
+                            payloadJson = payload.toString(),
+                            replyToMessageId = replyingToId,
+                        )
+                    )
+                    replyingToId = null
+                }
+                choiceOpen = false
+            },
+        )
+    }
+
     if (scheduleOpen) {
         NightScheduleDialog(
             initialPrompt = messageText,
@@ -973,10 +1101,15 @@ private fun NightAppearanceEntity.toChatAppearance(): NightChatAppearance =
         messageFontScale = messageFontScale,
     )
 
-private fun NightMessageEntity.toVisualMessage(): WhatsAppVisualMessage {
+private fun NightMessageEntity.toVisualMessage(
+    allMessages: Map<String, NightMessageEntity>,
+): WhatsAppVisualMessage {
     val mine = role == "user"
     val time = nightTime(createdAt)
     val payload = runCatching { JSONObject(payloadJson) }.getOrNull()
+    val reply = replyToMessageId
+        ?.let(allMessages::get)
+        ?.toReplyPreview()
 
     return when (type) {
         "image" -> WhatsAppVisualMessage.PhotoMessage(
@@ -986,6 +1119,21 @@ private fun NightMessageEntity.toVisualMessage(): WhatsAppVisualMessage {
             mine = mine,
             read = mine,
             localPath = payload?.optString("localPath")?.takeIf { it.isNotBlank() },
+            aspectRatio = payload?.optDouble("aspectRatio", 1.25)?.toFloat() ?: 1.25f,
+            reply = reply,
+        )
+
+        "video" -> WhatsAppVisualMessage.VideoMessage(
+            id = id,
+            caption = text,
+            duration = payload?.optString("duration").orEmpty().ifBlank { "0:00" },
+            time = time,
+            mine = mine,
+            read = mine,
+            localPath = payload?.optString("localPath")?.takeIf { it.isNotBlank() },
+            thumbnailPath = payload?.optString("thumbnailPath")?.takeIf { it.isNotBlank() },
+            aspectRatio = payload?.optDouble("aspectRatio", 16.0 / 9.0)?.toFloat() ?: (16f / 9f),
+            reply = reply,
         )
 
         "file" -> WhatsAppVisualMessage.FileMessage(
@@ -1003,6 +1151,7 @@ private fun NightMessageEntity.toVisualMessage(): WhatsAppVisualMessage {
             time = time,
             mine = mine,
             read = mine,
+            reply = reply,
         )
 
         "voice" -> WhatsAppVisualMessage.VoiceMessage(
@@ -1013,7 +1162,32 @@ private fun NightMessageEntity.toVisualMessage(): WhatsAppVisualMessage {
             read = mine,
             localPath = payload?.optString("localPath")?.takeIf { it.isNotBlank() },
             transcript = payload?.optString("transcript")?.takeIf { it.isNotBlank() },
+            reply = reply,
         )
+
+        "choice" -> {
+            val optionsArray = payload?.optJSONArray("options")
+            val options = buildList {
+                if (optionsArray != null) {
+                    for (index in 0 until optionsArray.length()) {
+                        val option = optionsArray.optString(index).trim()
+                        if (option.isNotBlank()) add(option)
+                    }
+                }
+            }
+
+            ChoiceResultMessage(
+                id = id,
+                title = text,
+                options = options,
+                selectedIndex = payload
+                    ?.takeIf { it.has("selectedIndex") && !it.isNull("selectedIndex") }
+                    ?.optInt("selectedIndex"),
+                selectedBy = payload?.optString("selectedBy")?.takeIf { it.isNotBlank() },
+                mine = mine,
+                time = time,
+            )
+        }
 
         else -> WhatsAppVisualMessage.TextMessage(
             id = id,
@@ -1021,6 +1195,62 @@ private fun NightMessageEntity.toVisualMessage(): WhatsAppVisualMessage {
             time = time,
             mine = mine,
             read = mine,
+            reply = reply,
+        )
+    }
+}
+
+private fun NightMessageEntity.toReplyPreview(): ReplyPreview {
+    val payload = runCatching { JSONObject(payloadJson) }.getOrNull()
+    val author = if (role == "assistant") "Night" else "You"
+
+    return when (type) {
+        "image" -> ReplyPreview(
+            messageId = id,
+            author = author,
+            text = text.ifBlank { "Photo" },
+            kind = ReplyKind.Image,
+            thumbnailPath = payload?.optString("localPath")?.takeIf { it.isNotBlank() },
+        )
+
+        "video" -> ReplyPreview(
+            messageId = id,
+            author = author,
+            text = text.ifBlank { "Video" },
+            kind = ReplyKind.Video,
+            thumbnailPath = payload?.optString("thumbnailPath")?.takeIf { it.isNotBlank() },
+            meta = payload?.optString("duration")?.takeIf { it.isNotBlank() },
+        )
+
+        "voice" -> ReplyPreview(
+            messageId = id,
+            author = author,
+            text = "Voice message",
+            kind = ReplyKind.Voice,
+            meta = payload?.optString("duration")?.takeIf { it.isNotBlank() },
+        )
+
+        "file" -> ReplyPreview(
+            messageId = id,
+            author = author,
+            text = text.ifBlank { "File" },
+            kind = ReplyKind.File,
+            meta = payload?.optString("mimeType")?.takeIf { it.isNotBlank() },
+        )
+
+        "choice" -> ReplyPreview(
+            messageId = id,
+            author = author,
+            text = text.ifBlank { "Options" },
+            kind = ReplyKind.Rich,
+            meta = "Options",
+        )
+
+        else -> ReplyPreview(
+            messageId = id,
+            author = author,
+            text = text,
+            kind = ReplyKind.Text,
         )
     }
 }
@@ -1036,6 +1266,93 @@ private fun formatDuration(durationMs: Long): String {
     val minutes = totalSeconds / 60L
     val seconds = totalSeconds % 60L
     return minutes.toString() + ":" + seconds.toString().padStart(2, '0')
+}
+
+private data class VideoMeta(
+    val thumbnailPath: String?,
+    val duration: String,
+    val aspectRatio: Float,
+)
+
+private fun readImageAspectRatio(path: String): Float {
+    val options = BitmapFactory.Options().apply {
+        inJustDecodeBounds = true
+    }
+    BitmapFactory.decodeFile(path, options)
+    val width = options.outWidth
+    val height = options.outHeight
+    return if (width > 0 && height > 0) {
+        width.toFloat() / height.toFloat()
+    } else {
+        1.25f
+    }
+}
+
+private fun extractVideoMeta(
+    context: android.content.Context,
+    path: String,
+): VideoMeta {
+    val retriever = MediaMetadataRetriever()
+    return try {
+        retriever.setDataSource(path)
+
+        val durationMs = retriever
+            .extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            ?.toLongOrNull()
+            ?: 0L
+
+        val width = retriever
+            .extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+            ?.toFloatOrNull()
+            ?: 16f
+
+        val height = retriever
+            .extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+            ?.toFloatOrNull()
+            ?: 9f
+
+        val rotation = retriever
+            .extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
+            ?.toIntOrNull()
+            ?: 0
+
+        val ratio = if (height > 0f) {
+            if (rotation == 90 || rotation == 270) {
+                height / width.coerceAtLeast(1f)
+            } else {
+                width / height
+            }
+        } else {
+            16f / 9f
+        }
+
+        val thumbPath = retriever.getFrameAtTime(
+            0L,
+            MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+        )?.let { bitmap ->
+            val dir = File(context.filesDir, "night_video_thumbs").apply { mkdirs() }
+            val file = File(dir, "thumb_" + System.currentTimeMillis() + ".jpg")
+            FileOutputStream(file).use { output ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 88, output)
+            }
+            bitmap.recycle()
+            file.absolutePath
+        }
+
+        VideoMeta(
+            thumbnailPath = thumbPath,
+            duration = formatDuration(durationMs),
+            aspectRatio = ratio.coerceIn(0.70f, 1.85f),
+        )
+    } catch (_: Throwable) {
+        VideoMeta(
+            thumbnailPath = null,
+            duration = "0:00",
+            aspectRatio = 16f / 9f,
+        )
+    } finally {
+        runCatching { retriever.release() }
+    }
 }
 
 private fun formatBytes(bytes: Long): String = when {
