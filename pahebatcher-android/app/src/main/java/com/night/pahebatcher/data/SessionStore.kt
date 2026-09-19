@@ -5,6 +5,7 @@ import java.net.URI
 
 data class SessionSnapshot(
     val animeCookieSaved: Boolean,
+    val animeValidated: Boolean,
     val animeHost: String,
     val animeUpdatedAt: Long,
 )
@@ -30,6 +31,15 @@ class SessionStore(context: Context) {
 
     fun animeHost(): String = prefs.getString(KEY_ANIME_HOST, "").orEmpty()
 
+    fun animeValidated(): Boolean =
+        animeCookie().isNotBlank() && prefs.getBoolean(KEY_ANIME_VALIDATED, false)
+
+    fun markAnimeValidated(validated: Boolean) {
+        prefs.edit()
+            .putBoolean(KEY_ANIME_VALIDATED, validated && animeCookie().isNotBlank())
+            .apply()
+    }
+
     fun cookieFor(url: String): String {
         val host = hostOf(url)
         return if (hostMatches(host, animeHost())) animeCookie() else ""
@@ -52,6 +62,7 @@ class SessionStore(context: Context) {
             .putString(KEY_ANIME_HOST, host)
             .putString(KEY_ANIME_UA, userAgent.ifBlank { DEFAULT_UA })
             .putLong(KEY_ANIME_UPDATED, System.currentTimeMillis())
+            .putBoolean(KEY_ANIME_VALIDATED, false)
             // Remove every legacy second-step/session value from old installs.
             .remove(KEY_KWIK_COOKIE)
             .remove(KEY_KWIK_HOST)
@@ -74,6 +85,7 @@ class SessionStore(context: Context) {
 
     fun snapshot(): SessionSnapshot = SessionSnapshot(
         animeCookieSaved = animeCookie().isNotBlank(),
+        animeValidated = animeValidated(),
         animeHost = animeHost(),
         animeUpdatedAt = prefs.getLong(KEY_ANIME_UPDATED, 0L),
     )
@@ -84,6 +96,7 @@ class SessionStore(context: Context) {
         private const val KEY_ANIME_COOKIE = "anime_cookie"
         private const val KEY_ANIME_HOST = "anime_host"
         private const val KEY_ANIME_UPDATED = "anime_updated"
+        private const val KEY_ANIME_VALIDATED = "anime_validated"
 
         // Legacy keys are intentionally removed whenever AnimePahe is verified.
         private const val KEY_KWIK_UA = "kwik_user_agent"
