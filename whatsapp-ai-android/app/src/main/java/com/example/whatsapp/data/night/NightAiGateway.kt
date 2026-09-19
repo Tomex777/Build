@@ -30,6 +30,18 @@ class NightAiGateway private constructor(
             val otherChats = repository.getChats()
                 .filter { it.id != chatId && it.latestSummary.isNotBlank() }
                 .take(12)
+            val latestUserText = messages
+                .lastOrNull { it.role == "user" && it.text.isNotBlank() }
+                ?.text
+                .orEmpty()
+            val recallHits = if (latestUserText.isBlank()) {
+                emptyList()
+            } else {
+                NightRecallEngine(repository).findRelevant(
+                    currentChatId = chatId,
+                    query = latestUserText,
+                )
+            }
 
             val system = buildString {
                 append("You are Night, the user's private AI assistant. ")
@@ -46,6 +58,27 @@ class NightAiGateway private constructor(
                         append(it.latestSummary.take(800))
                         append("\n")
                     }
+                }
+
+                if (recallHits.isNotEmpty()) {
+                    append("\nExact older-message references that may be relevant:\n")
+                    recallHits.forEach { hit ->
+                        append("- [")
+                        append(hit.chatTitle)
+                        append("] ")
+                        append(if (hit.message.role == "assistant") "Night: " else "User: ")
+                        append(hit.message.text.take(700))
+                        hit.libraryItem?.let { file ->
+                            append(" [Library file: ")
+                            append(file.name)
+                            append(", id=")
+                            append(file.id)
+                            append("]")
+                        }
+                        append("\n")
+                    }
+                    append("Use these only when they are relevant to the user's current request. ")
+                    append("Do not claim an attachment's contents unless Night supplied those contents separately.")
                 }
             }
 
