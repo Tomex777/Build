@@ -6,14 +6,21 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "night_provider_profiles",
-    indices = [Index("providerType"), Index("isEnabled")],
+    indices = [
+        Index("providerType"),
+        Index("serviceKind"),
+        Index("isEnabled"),
+    ],
 )
 data class NightProviderProfileEntity(
     @PrimaryKey val id: String,
     val providerType: String, // deepseek | groq | azure
+    val serviceKind: String = "chat", // chat | speech | live_voice
     val displayName: String,
     val secretAlias: String,
     val endpoint: String? = null,
+    val region: String? = null,
+    val capabilities: String = "",
     val isEnabled: Boolean = true,
     val isDefault: Boolean = false,
     val createdAt: Long,
