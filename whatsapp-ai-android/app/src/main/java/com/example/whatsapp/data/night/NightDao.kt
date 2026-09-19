@@ -114,6 +114,15 @@ interface NightDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAppearance(appearance: NightAppearanceEntity)
 
+    @Query("SELECT * FROM night_profile WHERE id = 'me' LIMIT 1")
+    fun observeProfile(): Flow<NightProfileEntity?>
+
+    @Query("SELECT * FROM night_profile WHERE id = 'me' LIMIT 1")
+    suspend fun getProfile(): NightProfileEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertProfile(profile: NightProfileEntity)
+
     @Transaction
     suspend fun appendMessage(chat: NightChatEntity, message: NightMessageEntity) {
         upsertChat(chat)
