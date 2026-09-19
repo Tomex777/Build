@@ -11,13 +11,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.example.whatsapp.presentation.chatscreen.AnimeResultMessage
 import com.example.whatsapp.presentation.chatscreen.ButtonResultMessage
+import com.example.whatsapp.extensions.messages.ExtensionActionStyle
+import com.example.whatsapp.extensions.messages.ExtensionCardAction
+import com.example.whatsapp.extensions.messages.ExtensionCardTemplate
+import com.example.whatsapp.extensions.messages.ExtensionMessageSnapshot
 import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
+import com.example.whatsapp.presentation.chatscreen.ExtensionResultMessage
 import com.example.whatsapp.presentation.chatscreen.LinkPreviewMessage
 import com.example.whatsapp.presentation.chatscreen.MangaResultMessage
 import com.example.whatsapp.presentation.chatscreen.MessageAction
 import com.example.whatsapp.presentation.chatscreen.ReplyKind
 import com.example.whatsapp.presentation.chatscreen.ReplyPreview
-import com.example.whatsapp.presentation.chatscreen.ToolResultMessage
 import com.example.whatsapp.presentation.chatscreen.WhatsAppVisualMessage
 import com.example.whatsapp.presentation.chatscreen.approvedRichPreviewMessages
 import com.example.whatsapp.presentation.chatscreen.mediaPreviewMessages
@@ -248,17 +252,23 @@ private fun richApprovedPreviewMessages(image: String): List<WhatsAppVisualMessa
         coverPath = image,
         primaryActionLabel = "Read Chapter 1",
     ),
-    ToolResultMessage(
+    ExtensionResultMessage(
         id = "notion",
-        toolName = "Productivity • Tool",
-        title = "Notion Assistant",
-        subtitle = "Search, summarize, and write directly in your Notion workspace. Turn ideas into action faster.",
-        time = "14:24",
-        iconText = "N",
-        actions = listOf(
-            MessageAction("open", "Open"),
-            MessageAction("setup", "Setup"),
-            MessageAction("learn", "Learn More"),
+        snapshot = ExtensionMessageSnapshot(
+            extensionId = "notion",
+            messageType = "notion.page",
+            template = ExtensionCardTemplate.Content,
+            extensionName = "Notion Assistant",
+            title = "Notion Assistant",
+            subtitle = "Search, summarize, and write directly in your Notion workspace. Turn ideas into action faster.",
+            iconText = "N",
+            badge = "Productivity • Tool",
+            actions = listOf(
+                ExtensionCardAction("open", "Open", ExtensionActionStyle.Primary),
+                ExtensionCardAction("setup", "Setup"),
+                ExtensionCardAction("learn", "Learn More"),
+            ),
         ),
+        time = "14:24",
     ),
 )
