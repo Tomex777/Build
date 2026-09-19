@@ -115,6 +115,57 @@ class AniListRepository {
         }
     }
 
+    suspend fun episodeAirDates(
+        aniListId: Int,
+        expectedEpisodes: Int,
+    ): Map<Int, Long> = withContext(Dispatchers.IO) {
+        if (aniListId <= 0) return@withContext emptyMap()
+
+        val out = linkedMapOf<Int, Long>()
+        var page = 1
+        var hasNext = true
+        val maxPages = if (expectedEpisodes > 0) {
+            ((expectedEpisodes + 49) / 50).coerceIn(1, 12)
+        } else {
+            6
+        }
+
+        val gql = """
+            query EpisodeAirDates($mediaId: Int, $page: Int) {
+              Page(page: $page, perPage: 50) {
+                pageInfo { hasNextPage }
+                airingSchedules(mediaId: $mediaId, sort: EPISODE) {
+                  episode
+                  airingAt
+                }
+              }
+            }
+        """.trimIndent()
+
+        while (hasNext && page <= maxPages) {
+            val variables = JSONObject()
+                .put("mediaId", aniListId)
+                .put("page", page)
+            val data = execute(gql, variables)
+            val pageNode = data.optJSONObject("Page") ?: break
+            val schedules = pageNode.optJSONArray("airingSchedules")
+            if (schedules != null) {
+                for (index in 0 until schedules.length()) {
+                    val schedule = schedules.optJSONObject(index) ?: continue
+                    val episode = schedule.optInt("episode", 0)
+                    val airingAt = schedule.optLong("airingAt", 0L)
+                    if (episode > 0 && airingAt > 0L) out[episode] = airingAt
+                }
+            }
+            hasNext = pageNode.optJSONObject("pageInfo")
+                ?.optBoolean("hasNextPage", false)
+                ?: false
+            page++
+        }
+
+        out
+    }
+
     suspend fun enrichAvailable(
         sourceItems: List<AnimeSearchResult>,
     ): List<AnimeSearchResult> = withContext(Dispatchers.IO) {
