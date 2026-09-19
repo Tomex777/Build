@@ -1471,3 +1471,81 @@ fun richPreviewMessagesPageTwo(): List<WhatsAppVisualMessage> = listOf(
         time = "19:26",
     ),
 )
+
+
+fun approvedRichPreviewMessages(): List<WhatsAppVisualMessage> = listOf(
+    WhatsAppVisualMessage.TextMessage(
+        id = "approved-watch",
+        text = "Can you recommend something to watch tonight?",
+        time = "14:20",
+        mine = true,
+        read = true,
+    ),
+    ButtonResultMessage(
+        id = "approved-options",
+        title = "What are you in the mood for?",
+        body = "I can suggest anime, movies, or TV shows based on your taste.",
+        actions = listOf(
+            MessageAction("surprise", "Surprise me"),
+            MessageAction("anime", "Anime"),
+            MessageAction("movies", "Movies"),
+        ),
+        time = "14:20",
+    ),
+    WhatsAppVisualMessage.TextMessage(
+        id = "approved-anime-prompt",
+        text = "Show me a popular anime.",
+        time = "14:21",
+        mine = true,
+        read = true,
+    ),
+    AnimeResultMessage(
+        id = "approved-anime",
+        title = "Solo Leveling",
+        episode = "12 Episodes",
+        quality = "1080p",
+        size = "Sub",
+        status = "Ongoing",
+        description = "In a world of hunters and monsters, Sung Jin-Woo gains a mysterious system that lets him level up.",
+        primaryActionLabel = "Play Episode 1",
+        time = "14:21",
+    ),
+    WhatsAppVisualMessage.TextMessage(
+        id = "approved-manga-prompt",
+        text = "Find a good manga too.",
+        time = "14:22",
+        mine = true,
+        read = true,
+    ),
+    MangaResultMessage(
+        id = "approved-manga",
+        title = "Chainsaw Man",
+        chapter = "Chapter 173",
+        source = "MangaPlus",
+        status = "Ongoing",
+        description = "Denji, a boy with a devil’s heart, hunts devils for a better life. A dark and thrilling story of chaos, power, and dreams.",
+        primaryActionLabel = "Read Chapter 1",
+        time = "14:22",
+    ),
+    WhatsAppVisualMessage.TextMessage(
+        id = "approved-tool-prompt",
+        text = "Anything useful for productivity?",
+        time = "14:24",
+        mine = true,
+        read = true,
+    ),
+    ToolResultMessage(
+        id = "approved-notion",
+        toolName = "Productivity • Tool",
+        title = "Notion Assistant",
+        subtitle = "Search, summarize, and write directly in your Notion workspace. Turn ideas into action faster.",
+        iconText = "N",
+        actions = listOf(
+            MessageAction("open", "Open"),
+            MessageAction("setup", "Setup"),
+            MessageAction("learn", "Learn More"),
+        ),
+        time = "14:24",
+    ),
+)
+
