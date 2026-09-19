@@ -34,6 +34,7 @@ import com.example.whatsapp.data.night.NightAppearanceController
 import com.example.whatsapp.data.night.NightAppearanceEntity
 import com.example.whatsapp.data.night.NightCapabilityRouteEntity
 import com.example.whatsapp.data.night.NightLibraryItemEntity
+import com.example.whatsapp.data.night.NightLinkPreviewService
 import com.example.whatsapp.data.night.NightLiveVoiceClient
 import com.example.whatsapp.data.night.NightMessageEntity
 import com.example.whatsapp.data.night.NightProviderManager
@@ -107,6 +108,7 @@ private fun NightApp() {
     val scheduleManager = remember { NightScheduleManager.get(context) }
     val speechService = remember { NightSpeechService.get(context) }
     val liveVoiceClient = remember { NightLiveVoiceClient.get(context) }
+    val linkPreviewService = remember { NightLinkPreviewService.get(context) }
     val scope = rememberCoroutineScope()
 
     var selectedTabName by rememberSaveable { mutableStateOf(MainTab.Chats.name) }
@@ -296,6 +298,7 @@ private fun NightApp() {
             }
             appendParsedAssistantReply(
                 repository = repository,
+                linkPreviewService = linkPreviewService,
                 chatId = activeChatId,
                 rawReply = rawReply,
             )
@@ -774,7 +777,9 @@ private fun NightApp() {
                 messageText = ""
 
                 scope.launch {
-                    repository.appendText(
+                    appendTextWithLinkPreview(
+                        repository = repository,
+                        linkPreviewService = linkPreviewService,
                         chatId = activeChatId,
                         role = "user",
                         text = text,
@@ -803,6 +808,7 @@ private fun NightApp() {
                     }
                     appendParsedAssistantReply(
                         repository = repository,
+                        linkPreviewService = linkPreviewService,
                         chatId = activeChatId,
                         rawReply = rawReply,
                     )
@@ -895,6 +901,18 @@ private fun NightApp() {
                     "Video bubble is ready. The full player comes next.",
                     Toast.LENGTH_SHORT,
                 ).show()
+            },
+            onLinkClick = { url ->
+                runCatching {
+                    context.startActivity(
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            android.net.Uri.parse(url),
+                        )
+                    )
+                }.onFailure {
+                    Toast.makeText(context, "Could not open this link.", Toast.LENGTH_SHORT).show()
+                }
             },
             onCameraClick = { cameraLauncher.launch(null) },
             isRecording = isRecording,
@@ -1174,6 +1192,20 @@ private fun NightMessageEntity.toVisualMessage(
             reply = reply,
         )
 
+        "link" -> WhatsAppVisualMessage.LinkPreviewMessage(
+            id = id,
+            body = text,
+            url = payload?.optString("url").orEmpty(),
+            title = payload?.optString("title").orEmpty(),
+            description = payload?.optString("description").orEmpty(),
+            site = payload?.optString("site").orEmpty(),
+            imageUrl = payload?.optString("imageUrl")?.takeIf { it.isNotBlank() },
+            time = time,
+            mine = mine,
+            read = mine,
+            reply = reply,
+        )
+
         "audio" -> WhatsAppVisualMessage.AudioMessage(
             id = id,
             title = payload?.optString("title").orEmpty().ifBlank { text.ifBlank { "Audio" } },
@@ -1193,6 +1225,7 @@ private fun NightMessageEntity.toVisualMessage(
             read = mine,
             localPath = payload?.optString("localPath")?.takeIf { it.isNotBlank() },
             artworkPath = payload?.optString("artworkPath")?.takeIf { it.isNotBlank() },
+            caption = payload?.optString("caption").orEmpty(),
             reply = reply,
         )
 
@@ -1262,6 +1295,14 @@ private fun NightMessageEntity.toReplyPreview(): ReplyPreview {
             kind = ReplyKind.Video,
             thumbnailPath = payload?.optString("thumbnailPath")?.takeIf { it.isNotBlank() },
             meta = payload?.optString("duration")?.takeIf { it.isNotBlank() },
+        )
+
+        "link" -> ReplyPreview(
+            messageId = id,
+            author = author,
+            text = payload?.optString("title").orEmpty().ifBlank { text.ifBlank { "Link" } },
+            kind = ReplyKind.Rich,
+            meta = payload?.optString("site")?.takeIf { it.isNotBlank() },
         )
 
         "audio" -> ReplyPreview(
@@ -1473,8 +1514,54 @@ private fun repositoryActionToast(context: android.content.Context, message: Str
     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 }
 
+private suspend fun appendTextWithLinkPreview(
+    repository: NightRepository,
+    linkPreviewService: NightLinkPreviewService,
+    chatId: String,
+    role: String,
+    text: String,
+    replyToMessageId: String? = null,
+) {
+    val preview = linkPreviewService.resolveFromText(text)
+
+    if (preview == null) {
+        repository.appendText(
+            chatId = chatId,
+            role = role,
+            text = text,
+            replyToMessageId = replyToMessageId,
+        )
+        return
+    }
+
+    val body = text
+        .replace(preview.url, "")
+        .replace(Regex("\\s+"), " ")
+        .trim()
+
+    repository.appendMessage(
+        NightMessageEntity(
+            id = java.util.UUID.randomUUID().toString(),
+            chatId = chatId,
+            role = role,
+            type = "link",
+            text = body,
+            createdAt = System.currentTimeMillis(),
+            payloadJson = JSONObject()
+                .put("url", preview.url)
+                .put("title", preview.title)
+                .put("description", preview.description)
+                .put("site", preview.site)
+                .put("imageUrl", preview.imageUrl ?: "")
+                .toString(),
+            replyToMessageId = replyToMessageId,
+        )
+    )
+}
+
 private suspend fun appendParsedAssistantReply(
     repository: NightRepository,
+    linkPreviewService: NightLinkPreviewService,
     chatId: String,
     rawReply: String,
 ) {
@@ -1499,7 +1586,9 @@ private suspend fun appendParsedAssistantReply(
     }
 
     if (parsed.text.isNotBlank()) {
-        repository.appendText(
+        appendTextWithLinkPreview(
+            repository = repository,
+            linkPreviewService = linkPreviewService,
             chatId = chatId,
             role = "assistant",
             text = parsed.text,
