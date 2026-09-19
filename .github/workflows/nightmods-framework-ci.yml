@@ -43,24 +43,31 @@ jobs:
         shell: bash
         run: bash nightmods/ci/prepare-libxposed-100.sh
 
-      - name: Clone LSPosed ET snapshot
+      - name: Clone pinned LSPosed ET snapshot
         shell: bash
         run: |
-          git clone --depth 1 --branch master https://github.com/EzequielDevTeam/LSPosed-ET.git lsposed-et
-          cd lsposed-et
-          git rev-parse HEAD | tee ../matched-lsposed-et-source.txt
+          LSPOSED_ET_SHA=dfff0580683ede041bef3897dbca259e42cf0c84
+          git init lsposed-et
+          git -C lsposed-et remote add origin https://github.com/EzequielDevTeam/LSPosed-ET.git
+          git -C lsposed-et fetch --depth 1 origin "$LSPOSED_ET_SHA"
+          git -C lsposed-et checkout --detach FETCH_HEAD
+          test "$(git -C lsposed-et rev-parse HEAD)" = "$LSPOSED_ET_SHA"
+          git -C lsposed-et rev-parse HEAD | tee matched-lsposed-et-source.txt
           git config --global --add safe.directory '*'
-          git submodule update --init --depth 1
-          git -C external/lsplant rm -q --cached -r test || true
-          rm -rf external/lsplant/test
-          git -C external/lsplant submodule update --init --recursive --depth 1
+          git -C lsposed-et submodule update --init --depth 1
+          git -C lsposed-et/external/lsplant rm -q --cached -r test || true
+          rm -rf lsposed-et/external/lsplant/test
+          git -C lsposed-et/external/lsplant submodule update --init --recursive --depth 1
 
-      - name: Apply Night Mods manager overlay
+      - name: Apply Night Mods manager and API-100 compatibility
         shell: bash
         run: |
           python3 nightmods/manager-overlay/apply_nightmods.py lsposed-et
+          python3 nightmods/ci/patch-lsposed-api100.py lsposed-et
           grep -q 'org.lsposed.manager.ui.fragment.ModulesFragment' lsposed-et/app/src/main/res/navigation/modules_nav.xml
           grep -q 'Night Mods' lsposed-et/app/src/main/res/values/strings_untranslatable.xml
+          grep -q 'openRemoteFile(String path)' lsposed-et/daemon/src/main/java/org/lsposed/lspd/service/LSPModuleService.java
+          ! grep -q 'featuredMethod' lsposed-et/daemon/src/main/java/org/lsposed/lspd/service/LSPModuleService.java
 
       - name: Build matched framework and manager
         working-directory: lsposed-et
