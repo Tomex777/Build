@@ -104,6 +104,12 @@ private data class Segment(
     val durationSeconds: Double,
 )
 
+private data class PaheRawResponse(
+    val code: Int,
+    val contentType: String,
+    val body: String,
+)
+
 private class RuntimeCookieJar : CookieJar {
     private val cookies = mutableListOf<Cookie>()
 
@@ -213,15 +219,31 @@ class PaheRepository(
 
     suspend fun recentlyAvailable(): List<AnimeSearchResult> = withContext(Dispatchers.IO) {
         var lastError: Exception? = null
-        var verificationError: VerificationRequired? = null
 
         for (host in animeHosts) {
             try {
-                val body = requestText(
-                    "https://$host/api?m=airing&page=1",
+                var raw = requestAnimeRaw(
+                    url = "https://$host/api?m=airing&page=1",
                     referer = "https://$host/",
                 )
-                val root = JSONObject(body)
+
+                if (raw.code == 429) {
+                    delay(12_000)
+                    raw = requestAnimeRaw(
+                        url = "https://$host/api?m=airing&page=1",
+                        referer = "https://$host/",
+                    )
+                }
+
+                val htmlResponse = raw.contentType.contains("text/html", ignoreCase = true)
+                if (raw.code == 429 || htmlResponse) {
+                    throw IOException("AnimePahe recent releases are temporarily rate limited")
+                }
+                if (raw.code !in 200..299) {
+                    throw IOException("AnimePahe recent releases returned HTTP ${raw.code}")
+                }
+
+                val root = JSONObject(raw.body)
                 val rows = root.optJSONArray("data") ?: return@withContext emptyList()
                 sessions.rememberAnimeHost(host)
 
@@ -248,15 +270,11 @@ class PaheRepository(
                         )
                     }
                 }
-            } catch (e: VerificationRequired) {
-                verificationError = verificationError ?: e
-                lastError = e
             } catch (e: Exception) {
                 lastError = e
             }
         }
 
-        verificationError?.let { throw it }
         throw lastError ?: IOException("AnimePahe recent releases are unavailable")
     }
 
@@ -1018,9 +1036,33 @@ class PaheRepository(
         return null
     }
 
+    private fun requestAnimeRaw(
+        url: String,
+        referer: String? = null,
+    ): PaheRawResponse {
+        val builder = Request.Builder()
+            .url(url)
+            .header("User-Agent", sessions.animeUserAgent())
+            .header("Accept-Language", "en-US,en;q=0.9")
+            .header("Accept", "text/html,application/json,application/vnd.apple.mpegurl")
+        referer?.let { builder.header("Referer", it) }
+        sessions.animeCookie().takeIf { it.isNotBlank() }?.let {
+            builder.header("Cookie", it)
+        }
+
+        client.newCall(builder.build()).execute().use { response ->
+            val body = response.body?.string().orEmpty()
+            return PaheRawResponse(
+                code = response.code,
+                contentType = response.header("Content-Type").orEmpty(),
+                body = body,
+            )
+        }
+    }
+
     private fun requestText(url: String, referer: String? = null): String {
         return requestBytes(url, buildMap {
-            put("Accept", "text/html,application/json;q=0.9,*/*;q=0.8")
+            put("Accept", "text/html,application/json,application/vnd.apple.mpegurl")
             referer?.let { put("Referer", it) }
         }).toString(Charsets.UTF_8)
     }
