@@ -13,6 +13,7 @@ data class NightChatEntity(
     val updatedAt: Long,
     val lastMessagePreview: String = "",
     val selectedProvider: String? = null,
+    val selectedProviderProfileId: String? = null,
     val selectedModel: String? = null,
     val latestSummary: String = "",
     val summaryUpdatedAt: Long? = null,
