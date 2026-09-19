@@ -823,13 +823,24 @@ class PaheRepository(
 
         val remuxedMp4 = File(tempDir, "episode.mp4")
         if (remuxedMp4.exists()) remuxedMp4.delete()
-        val mp4Ready = remuxSegmentsToMp4(
-            segmentFiles = completedFiles,
-            segmentDurationsUs = segments.map { (it.durationSeconds * 1_000_000.0).toLong() },
+
+        var mp4Ready = remuxJoinedTransportStreamToMp4(
+            input = joinedTs,
             output = remuxedMp4,
             expectedDurationUs = expectedDurationUs,
             expectedInputBytes = inputBytes,
         )
+
+        if (!mp4Ready) {
+            if (remuxedMp4.exists()) remuxedMp4.delete()
+            mp4Ready = remuxSegmentsToMp4(
+                segmentFiles = completedFiles,
+                segmentDurationsUs = segments.map { (it.durationSeconds * 1_000_000.0).toLong() },
+                output = remuxedMp4,
+                expectedDurationUs = expectedDurationUs,
+                expectedInputBytes = inputBytes,
+            )
+        }
         val sourceFile = if (mp4Ready) remuxedMp4 else joinedTs
         val extension = if (mp4Ready) "mp4" else "ts"
         val mime = if (mp4Ready) "video/mp4" else "video/mp2t"
@@ -1280,6 +1291,154 @@ class PaheRepository(
         return out
     }
 
+    private fun remuxJoinedTransportStreamToMp4(
+        input: File,
+        output: File,
+        expectedDurationUs: Long,
+        expectedInputBytes: Long,
+    ): Boolean {
+        if (!input.exists() || input.length() <= 0L) return false
+
+        val extractor = MediaExtractor()
+        var muxer: MediaMuxer? = null
+        var muxerStarted = false
+
+        return try {
+            extractor.setDataSource(input.absolutePath)
+
+            val sourceToMux = linkedMapOf<Int, Int>()
+            val muxableFormats = mutableListOf<Pair<Int, android.media.MediaFormat>>()
+            for (track in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(track)
+                val mime = format.getString(android.media.MediaFormat.KEY_MIME).orEmpty()
+                if (mime.startsWith("video/") || mime.startsWith("audio/")) {
+                    muxableFormats += track to format
+                }
+            }
+            if (muxableFormats.isEmpty()) return false
+
+            muxer = MediaMuxer(output.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            muxableFormats.forEach { (sourceTrack, format) ->
+                sourceToMux[sourceTrack] = muxer.addTrack(format)
+                extractor.selectTrack(sourceTrack)
+            }
+
+            muxer.start()
+            muxerStarted = true
+
+            val buffer = ByteBuffer.allocateDirect(4 * 1024 * 1024)
+            val info = MediaCodec.BufferInfo()
+
+            // MPEG-TS timestamps may start at an arbitrary value and can reset
+            // at an HLS discontinuity. Preserve the original timeline whenever
+            // it is monotonic; only add an offset when a track genuinely jumps
+            // backwards.
+            var globalBaseUs: Long? = null
+            val ptsOffsetBySourceTrack = mutableMapOf<Int, Long>()
+            val lastOutputPtsBySourceTrack = mutableMapOf<Int, Long>()
+            val lastRawPtsBySourceTrack = mutableMapOf<Int, Long>()
+
+            while (true) {
+                val sourceTrack = extractor.sampleTrackIndex
+                if (sourceTrack < 0) break
+
+                val muxTrack = sourceToMux[sourceTrack]
+                if (muxTrack == null) {
+                    extractor.advance()
+                    continue
+                }
+
+                buffer.clear()
+                val size = extractor.readSampleData(buffer, 0)
+                if (size < 0) break
+
+                val rawPtsUs = extractor.sampleTime.coerceAtLeast(0L)
+                if (globalBaseUs == null) globalBaseUs = rawPtsUs
+                val baseUs = globalBaseUs ?: rawPtsUs
+
+                var offsetUs = ptsOffsetBySourceTrack[sourceTrack] ?: 0L
+                val previousRawUs = lastRawPtsBySourceTrack[sourceTrack]
+                val previousOutputUs = lastOutputPtsBySourceTrack[sourceTrack]
+
+                // Ignore tiny inter-frame jitter, but repair real TS/HLS clock
+                // resets. 250 ms is comfortably above normal sample reordering.
+                if (
+                    previousRawUs != null &&
+                    previousOutputUs != null &&
+                    rawPtsUs + 250_000L < previousRawUs
+                ) {
+                    val normalizedRawUs = (rawPtsUs - baseUs).coerceAtLeast(0L)
+                    offsetUs = previousOutputUs + 1L - normalizedRawUs
+                    ptsOffsetBySourceTrack[sourceTrack] = offsetUs
+                }
+
+                var outputPtsUs = (rawPtsUs - baseUs).coerceAtLeast(0L) + offsetUs
+                if (previousOutputUs != null && outputPtsUs <= previousOutputUs) {
+                    outputPtsUs = previousOutputUs + 1L
+                }
+
+                info.set(
+                    0,
+                    size,
+                    outputPtsUs,
+                    extractor.sampleFlags,
+                )
+                muxer.writeSampleData(muxTrack, buffer, info)
+
+                lastRawPtsBySourceTrack[sourceTrack] = rawPtsUs
+                lastOutputPtsBySourceTrack[sourceTrack] = outputPtsUs
+                extractor.advance()
+            }
+
+            muxer.stop()
+            muxerStarted = false
+            muxer.release()
+            muxer = null
+
+            validateRemuxedMp4(
+                output = output,
+                expectedDurationUs = expectedDurationUs,
+                expectedInputBytes = expectedInputBytes,
+            )
+        } catch (_: Exception) {
+            false
+        } finally {
+            runCatching { extractor.release() }
+            if (muxerStarted) runCatching { muxer?.stop() }
+            runCatching { muxer?.release() }
+            if (!output.exists() || output.length() == 0L) output.delete()
+        }
+    }
+
+    private fun validateRemuxedMp4(
+        output: File,
+        expectedDurationUs: Long,
+        expectedInputBytes: Long,
+    ): Boolean {
+        if (!output.exists() || output.length() <= 0L) return false
+
+        // TS has container overhead, so a valid copy-remux can be smaller.
+        // A result below 55% is still suspicious enough to reject.
+        if (expectedInputBytes > 0L && output.length() < (expectedInputBytes * 55L / 100L)) {
+            output.delete()
+            return false
+        }
+
+        if (expectedDurationUs > 5_000_000L) {
+            val actualDurationUs = mediaDurationUs(output)
+            if (
+                actualDurationUs <= 0L ||
+                actualDurationUs < (expectedDurationUs * 9L / 10L) ||
+                actualDurationUs > (expectedDurationUs * 11L / 10L)
+            ) {
+                output.delete()
+                return false
+            }
+        }
+
+        return true
+    }
+
     private fun remuxSegmentsToMp4(
         segmentFiles: List<File>,
         segmentDurationsUs: List<Long>,
@@ -1402,22 +1561,11 @@ class PaheRepository(
             muxer.release()
             muxer = null
 
-            if (!output.exists() || output.length() == 0L) return false
-
-            if (expectedInputBytes > 0L && output.length() < (expectedInputBytes * 60L / 100L)) {
-                output.delete()
-                return false
-            }
-
-            if (expectedDurationUs > 5_000_000L) {
-                val actualDurationUs = mediaDurationUs(output)
-                if (actualDurationUs <= 0L || actualDurationUs < (expectedDurationUs * 8L / 10L)) {
-                    output.delete()
-                    return false
-                }
-            }
-
-            true
+            validateRemuxedMp4(
+                output = output,
+                expectedDurationUs = expectedDurationUs,
+                expectedInputBytes = expectedInputBytes,
+            )
         } catch (_: Exception) {
             false
         } finally {
