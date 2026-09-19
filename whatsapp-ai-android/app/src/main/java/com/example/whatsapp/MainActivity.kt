@@ -1,3 +1,4 @@
+// Night visual exact-match validation
 package com.example.whatsapp
 
 import android.Manifest
