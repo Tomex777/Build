@@ -101,6 +101,29 @@ data class GeneratedImageResultMessage(
     val time: String,
 ) : RichResultMessage
 
+enum class CreationKind {
+    Image,
+    Pdf,
+}
+
+enum class CreationState {
+    Working,
+    Ready,
+    Failed,
+}
+
+data class CreationResultMessage(
+    override val id: String,
+    val kind: CreationKind,
+    val state: CreationState,
+    val title: String,
+    val detail: String,
+    val progress: Float? = null,
+    val localPath: String? = null,
+    val fileName: String? = null,
+    val time: String,
+) : RichResultMessage
+
 data class ImageSearchResultMessage(
     override val id: String,
     val source: String,
@@ -143,6 +166,7 @@ fun RichResultBubble(
         is MangaResultMessage -> MangaResultBubble(item, onAction)
         is ChoiceResultMessage -> ChoiceResultBubble(item, onAction)
         is GeneratedImageResultMessage -> GeneratedImageResultBubble(item)
+        is CreationResultMessage -> CreationResultBubble(item)
         is ImageSearchResultMessage -> ImageSearchBubble(item)
         is DownloadResultMessage -> DownloadResultBubble(item)
         is ToolResultMessage -> ToolResultBubble(item)
@@ -631,6 +655,166 @@ private fun RichActionButton(
                 color = RichText,
                 fontSize = 11.sp,
             )
+        }
+    }
+}
+
+@Composable
+private fun CreationResultBubble(item: CreationResultMessage) {
+    BubbleFrame(time = item.time) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 2.dp, end = 2.dp, bottom = 7.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(
+                        when (item.kind) {
+                            CreationKind.Image -> Color(0xFF344A68)
+                            CreationKind.Pdf -> Color(0xFFB9364F)
+                        }
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = when (item.kind) {
+                        CreationKind.Image -> Icons.Default.Image
+                        CreationKind.Pdf -> Icons.Default.Description
+                    },
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(21.dp),
+                )
+            }
+
+            Spacer(modifier = Modifier.width(9.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.title,
+                    color = RichText,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (item.detail.isNotBlank()) {
+                    Text(
+                        text = item.detail,
+                        color = RichMuted,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+            }
+
+            Text(
+                text = when (item.state) {
+                    CreationState.Working -> "Creating"
+                    CreationState.Ready -> "Ready"
+                    CreationState.Failed -> "Failed"
+                },
+                color = when (item.state) {
+                    CreationState.Working -> RichBlue
+                    CreationState.Ready -> RichAccent
+                    CreationState.Failed -> Color(0xFFFF6B78)
+                },
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+
+        if (item.state == CreationState.Working) {
+            LinearProgressIndicator(
+                progress = { item.progress?.coerceIn(0f, 1f) ?: 0.15f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = Color(0xFFCF4A69),
+                trackColor = Color(0xFF41484B),
+            )
+        } else if (item.state == CreationState.Ready) {
+            when (item.kind) {
+                CreationKind.Image -> {
+                    val file = item.localPath?.let(::File)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp)
+                            .clip(RoundedCornerShape(13.dp))
+                            .background(Color(0xFF15191B)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (file != null && file.exists()) {
+                            AsyncImage(
+                                model = file,
+                                contentDescription = item.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxWidth().height(220.dp),
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Image,
+                                contentDescription = null,
+                                tint = RichMuted,
+                                modifier = Modifier.size(42.dp),
+                            )
+                        }
+                    }
+                }
+
+                CreationKind.Pdf -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(13.dp))
+                            .background(RichPanel)
+                            .padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(46.dp)
+                                .height(56.dp)
+                                .clip(RoundedCornerShape(9.dp))
+                                .background(Color(0xFFC43F59)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                "PDF",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Text(
+                            text = item.fileName ?: "Document.pdf",
+                            color = RichText,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = "Open PDF",
+                            tint = RichText,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+            }
         }
     }
 }
