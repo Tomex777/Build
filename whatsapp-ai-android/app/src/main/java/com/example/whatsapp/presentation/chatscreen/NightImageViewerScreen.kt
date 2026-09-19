@@ -38,6 +38,8 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -111,6 +113,7 @@ fun NightMediaViewerScreen(
     val scope = rememberCoroutineScope()
     var controlsVisible by remember { mutableStateOf(true) }
     var zoomed by remember { mutableStateOf(false) }
+    var imageMoreMenu by remember { mutableStateOf(false) }
 
     DisposableEffect(activity) {
         val oldOrientation = activity?.requestedOrientation
@@ -135,6 +138,7 @@ fun NightMediaViewerScreen(
     LaunchedEffect(pagerState.currentPage) {
         zoomed = false
         controlsVisible = true
+        imageMoreMenu = false
         if (!items[pagerState.currentPage].isVideo) {
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
@@ -221,43 +225,46 @@ fun NightMediaViewerScreen(
                     }
                 }
 
-                IconButton(onClick = {}) {
-                    Icon(Icons.Default.MoreVert, "More", tint = Color.White)
+                IconButton(onClick = { shareNightMedia(context, current) }) {
+                    Icon(Icons.Default.Share, "Share", tint = Color.White)
+                }
+
+                IconButton(onClick = { onEdit(current) }) {
+                    Icon(Icons.Default.Edit, "Edit", tint = Color.White)
+                }
+
+                Box {
+                    IconButton(onClick = { imageMoreMenu = true }) {
+                        Icon(Icons.Default.MoreVert, "More", tint = Color.White)
+                    }
+                    DropdownMenu(
+                        expanded = imageMoreMenu,
+                        onDismissRequest = { imageMoreMenu = false },
+                    ) {
+                        DropdownMenuItem(
+                            leadingIcon = { Icon(Icons.Default.Download, null) },
+                            text = { Text("Save") },
+                            onClick = {
+                                imageMoreMenu = false
+                                saveNightMedia(context, current)
+                            },
+                        )
+                    }
                 }
             }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .background(Color.Black.copy(alpha = 0.58f))
-                    .navigationBarsPadding()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-            ) {
-                if (current.caption.isNotBlank()) {
-                    Text(
-                        text = current.caption,
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    MediaAction("Share", Icons.Default.Share) {
-                        shareNightMedia(context, current)
-                    }
-                    MediaAction("Edit", Icons.Default.Edit) {
-                        onEdit(current)
-                    }
-                    MediaAction("Save", Icons.Default.Download) {
-                        saveNightMedia(context, current)
-                    }
-                }
+            if (current.caption.isNotBlank()) {
+                Text(
+                    text = current.caption,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .background(Color.Black.copy(alpha = 0.58f))
+                        .navigationBarsPadding()
+                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                )
             }
         }
     }
