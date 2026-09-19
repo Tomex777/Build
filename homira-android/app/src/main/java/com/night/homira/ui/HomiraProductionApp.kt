@@ -29,6 +29,7 @@ import com.night.homira.data.LiveCallSession
 import com.night.homira.data.LiveVoicemail
 import android.graphics.BitmapFactory
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -549,6 +550,34 @@ fun HomiraProductionApp(
         var pendingOutgoingCall by remember { mutableStateOf<Pair<HomiraPerson, Boolean>?>(null) }
         var pendingIncomingAccept by remember { mutableStateOf(false) }
         var pendingVideoEnable by remember { mutableStateOf(false) }
+
+        BackHandler(
+            enabled =
+                (activePerson != null && !minimized) ||
+                    voicemailOffer != null ||
+                    overlay != OverlayScreen.None
+        ) {
+            when {
+                activePerson != null && !minimized -> {
+                    minimized = true
+                }
+
+                voicemailOffer != null -> {
+                    voicemailOffer = null
+                    tab = MainTab.Recents
+                }
+
+                overlay == OverlayScreen.Voicemail ||
+                    overlay == OverlayScreen.BlockedPeople -> {
+                    overlay = OverlayScreen.Settings
+                }
+
+                overlay != OverlayScreen.None -> {
+                    overlay = OverlayScreen.None
+                }
+            }
+        }
+
         var micPermissionGranted by remember {
             mutableStateOf(
                 ContextCompat.checkSelfPermission(
