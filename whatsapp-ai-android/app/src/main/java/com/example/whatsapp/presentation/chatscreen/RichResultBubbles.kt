@@ -1387,6 +1387,15 @@ fun richPreviewMessagesPageOne(): List<WhatsAppVisualMessage> = listOf(
         description = "In a world of hunters and monsters, Sung Jin-Woo gains a mysterious system that lets him level up.",
         primaryActionLabel = "Play Episode 1",
     ),
+    MangaResultMessage(
+        id = "manga-preview",
+        title = "Solo Leveling",
+        chapter = "Chapter 202",
+        source = "Manga",
+        description = "Sung Jin-Woo continues beyond the gates as the world changes around him.",
+        time = "19:24",
+        primaryActionLabel = "Read Chapter 202",
+    ),
     WhatsAppVisualMessage.TextMessage(
         id = "u3",
         text = "Find Saturn pictures on Pinterest",
