@@ -345,6 +345,14 @@ fun NightMediaComposerScreen(
                         IconButton(onClick = ::enterCropMode) {
                             Icon(Icons.Default.Crop, "Crop", tint = Color.White)
                         }
+                        IconButton(
+                            onClick = {
+                                imageRotation = (imageRotation + 90f) % 360f
+                                photoEditorView?.source?.rotation = imageRotation
+                            },
+                        ) {
+                            Icon(Icons.Default.RotateRight, "Rotate", tint = Color.White)
+                        }
                         IconButton(onClick = { emojiOpen = !emojiOpen }) {
                             Icon(
                                 Icons.Default.SentimentSatisfiedAlt,
