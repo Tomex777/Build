@@ -39,6 +39,19 @@ import androidx.compose.ui.unit.sp
 
 sealed interface RichResultMessage : WhatsAppVisualMessage
 
+data class MessageAction(
+    val id: String,
+    val label: String,
+)
+
+data class ButtonResultMessage(
+    override val id: String,
+    val title: String,
+    val body: String,
+    val actions: List<MessageAction>,
+    val time: String,
+) : RichResultMessage
+
 data class FileResultMessage(
     override val id: String,
     val name: String,
@@ -86,8 +99,12 @@ private val RichAccent = Color(0xFF25D366)
 private val RichBlue = Color(0xFF53BDEB)
 
 @Composable
-fun RichResultBubble(item: RichResultMessage) {
+fun RichResultBubble(
+    item: RichResultMessage,
+    onAction: (messageId: String, actionId: String) -> Unit = { _, _ -> },
+) {
     when (item) {
+        is ButtonResultMessage -> ButtonResultBubble(item, onAction)
         is FileResultMessage -> FileResultBubble(item)
         is AnimeResultMessage -> AnimeResultBubble(item)
         is ImageSearchResultMessage -> ImageSearchBubble(item)
@@ -121,6 +138,55 @@ private fun BubbleFrame(
                 fontSize = 10.sp,
                 modifier = Modifier.align(Alignment.End).padding(top = 4.dp, end = 2.dp),
             )
+        }
+    }
+}
+
+@Composable
+private fun ButtonResultBubble(
+    item: ButtonResultMessage,
+    onAction: (messageId: String, actionId: String) -> Unit,
+) {
+    BubbleFrame(time = item.time) {
+        Text(
+            text = item.title,
+            color = RichText,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        if (item.body.isNotBlank()) {
+            Text(
+                text = item.body,
+                color = RichMuted,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                modifier = Modifier.padding(top = 3.dp),
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            item.actions.forEach { action ->
+                Surface(
+                    color = RichPanel,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onAction(item.id, action.id) },
+                ) {
+                    Text(
+                        text = action.label,
+                        color = RichAccent,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    )
+                }
+            }
         }
     }
 }
@@ -525,6 +591,17 @@ fun richPreviewMessagesPageOne(): List<WhatsAppVisualMessage> = listOf(
 )
 
 fun richPreviewMessagesPageTwo(): List<WhatsAppVisualMessage> = listOf(
+    ButtonResultMessage(
+        id = "buttons",
+        title = "What should I do next?",
+        body = "Buttons are a native Night message type, so extensions can return actions without controlling the bubble UI.",
+        actions = listOf(
+            MessageAction("open_library", "Open Library"),
+            MessageAction("summarize", "Summarize this chat"),
+            MessageAction("choose_ai", "Choose AI"),
+        ),
+        time = "19:25",
+    ),
     WhatsAppVisualMessage.TextMessage(
         id = "u4",
         text = "Download episode 8",
