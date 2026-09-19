@@ -24,8 +24,14 @@ interface NightDao {
     @Query("UPDATE night_chats SET title = :title, updatedAt = :updatedAt WHERE id = :chatId")
     suspend fun renameChat(chatId: String, title: String, updatedAt: Long)
 
-    @Query("UPDATE night_chats SET selectedProvider = :provider, selectedModel = :model, updatedAt = :updatedAt WHERE id = :chatId")
-    suspend fun setChatModel(chatId: String, provider: String?, model: String?, updatedAt: Long)
+    @Query("UPDATE night_chats SET selectedProvider = :provider, selectedProviderProfileId = :profileId, selectedModel = :model, updatedAt = :updatedAt WHERE id = :chatId")
+    suspend fun setChatModel(
+        chatId: String,
+        provider: String?,
+        profileId: String?,
+        model: String?,
+        updatedAt: Long,
+    )
 
     @Query("SELECT * FROM night_messages WHERE chatId = :chatId ORDER BY createdAt ASC")
     fun observeMessages(chatId: String): Flow<List<NightMessageEntity>>
@@ -71,6 +77,42 @@ interface NightDao {
 
     @Query("DELETE FROM night_library_items WHERE id = :id")
     suspend fun deleteLibraryItem(id: String)
+
+    @Query("SELECT * FROM night_provider_profiles ORDER BY providerType, displayName")
+    fun observeProviderProfiles(): Flow<List<NightProviderProfileEntity>>
+
+    @Query("SELECT * FROM night_provider_profiles WHERE id = :id LIMIT 1")
+    suspend fun getProviderProfile(id: String): NightProviderProfileEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertProviderProfile(profile: NightProviderProfileEntity)
+
+    @Query("DELETE FROM night_provider_profiles WHERE id = :id")
+    suspend fun deleteProviderProfile(id: String)
+
+    @Query("SELECT * FROM night_provider_models WHERE profileId = :profileId AND isEnabled = 1 ORDER BY displayName")
+    fun observeModels(profileId: String): Flow<List<NightProviderModelEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertProviderModel(model: NightProviderModelEntity)
+
+    @Query("DELETE FROM night_provider_models WHERE id = :id")
+    suspend fun deleteProviderModel(id: String)
+
+    @Query("SELECT * FROM night_capability_routes WHERE capability = :capability AND isEnabled = 1 LIMIT 1")
+    suspend fun getCapabilityRoute(capability: String): NightCapabilityRouteEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertCapabilityRoute(route: NightCapabilityRouteEntity)
+
+    @Query("SELECT * FROM night_appearance WHERE id = 'global' LIMIT 1")
+    fun observeAppearance(): Flow<NightAppearanceEntity?>
+
+    @Query("SELECT * FROM night_appearance WHERE id = 'global' LIMIT 1")
+    suspend fun getAppearance(): NightAppearanceEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAppearance(appearance: NightAppearanceEntity)
 
     @Transaction
     suspend fun appendMessage(chat: NightChatEntity, message: NightMessageEntity) {
