@@ -146,9 +146,9 @@ private fun ModernTopBar(
     ) {
         Text(
             text = title,
-            color = if (title == "WhatsApp") Green else Primary,
-            fontSize = if (title == "WhatsApp") 26.sp else 24.sp,
-            fontWeight = if (title == "WhatsApp") FontWeight.SemiBold else FontWeight.Medium,
+            color = if (title == "Night") Green else Primary,
+            fontSize = if (title == "Night") 26.sp else 24.sp,
+            fontWeight = if (title == "Night") FontWeight.SemiBold else FontWeight.Medium,
             modifier = Modifier.weight(1f),
         )
 
@@ -268,7 +268,7 @@ data class ChatPreviewRow(
 )
 
 private fun fallbackChats() = listOf(
-    ChatPreviewRow("Assistant", "Anime source resolved • 1080p ready", "07:08", R.drawable.bilal, unread = 2, pinned = true),
+    ChatPreviewRow("Night", "Core ready • extensions off", "07:08", R.drawable.bilal, unread = 2, pinned = true),
     ChatPreviewRow("Second Child", "Since yesterday", "Yesterday", R.drawable.harib),
     ChatPreviewRow("Muhammad Ahmad", "Voice message", "Yesterday", R.drawable.taimoor, unread = 1),
     ChatPreviewRow("Hannan Ahmad", "Photo", "Thursday", R.drawable.hannan_ahmad, muted = true),
@@ -309,7 +309,7 @@ fun ModernChatsTab(
     ModernAppScaffold(
         selectedTab = MainTab.Chats,
         onTabSelected = onTabSelected,
-        title = "WhatsApp",
+        title = "Night",
         onSettingsClick = onSettingsClick,
         floatingAction = {
             FloatingActionButton(
@@ -329,7 +329,7 @@ fun ModernChatsTab(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             SearchPill(
-                placeholder = "Ask Meta AI or Search",
+                placeholder = "Ask Night or Search",
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             )
 
