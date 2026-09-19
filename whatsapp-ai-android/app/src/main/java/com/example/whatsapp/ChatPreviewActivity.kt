@@ -20,13 +20,15 @@ class ChatPreviewActivity : ComponentActivity() {
         window.statusBarColor = Color.BLACK
         window.navigationBarColor = Color.BLACK
 
+        val showAttachments = intent.getBooleanExtra("attachments", false)
+
         setContent {
             WhatsappTheme(darkTheme = true) {
                 var text by remember { mutableStateOf("") }
 
                 CurrentWhatsAppConversation(
-                    contactName = "Second Child",
-                    subtitle = "Business Account",
+                    contactName = "Night",
+                    subtitle = "GPT-6 Astra • Memory on",
                     messages = whatsappPreviewMessages(),
                     messageText = text,
                     onMessageTextChange = { text = it },
@@ -36,7 +38,9 @@ class ChatPreviewActivity : ComponentActivity() {
                     onAttachmentClick = {},
                     onCameraClick = {},
                     onMicClick = {},
+                    onAttachmentAction = {},
                     autoScrollToLatest = false,
+                    attachmentsInitiallyOpen = showAttachments,
                 )
             }
         }
