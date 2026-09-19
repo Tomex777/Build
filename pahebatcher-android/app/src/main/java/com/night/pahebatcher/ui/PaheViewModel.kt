@@ -10,6 +10,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.night.pahebatcher.data.AnimeDetails
 import com.night.pahebatcher.data.AnimeSearchResult
+import com.night.pahebatcher.data.DownloadPreferences
+import com.night.pahebatcher.data.DownloadPreferencesStore
 import com.night.pahebatcher.data.EpisodeInfo
 import com.night.pahebatcher.data.PaheRepository
 import com.night.pahebatcher.data.SessionStore
@@ -21,7 +23,7 @@ import java.net.URI
 import java.util.UUID
 
 enum class MainTab { EXPLORE, DOWNLOADS, SETTINGS }
-enum class VerifyStage { ANIMEPAHE, PREPARING_SECOND, KWIK }
+enum class VerifyStage { ANIMEPAHE, PREPARING_SECOND, KWIK, ANIMEPAHE_SAVED }
 
 data class DownloadUi(
     val id: String,
@@ -38,6 +40,7 @@ data class DownloadUi(
 class PaheViewModel(application: Application) : AndroidViewModel(application) {
     private val sessionStore = SessionStore(application)
     private val repository = PaheRepository(application, sessionStore)
+    private val downloadPreferencesStore = DownloadPreferencesStore(application)
 
     var tab by mutableStateOf(MainTab.EXPLORE)
         private set
@@ -68,6 +71,12 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     var sessions by mutableStateOf(sessionStore.snapshot())
+        private set
+
+    var globalDownloadPreferences by mutableStateOf(downloadPreferencesStore.global())
+        private set
+
+    var currentAnimeOverride by mutableStateOf<DownloadPreferences?>(null)
         private set
 
     val downloads = mutableStateListOf<DownloadUi>()
@@ -108,12 +117,16 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
             host = sessions.animeHost,
             episodes = emptyList(),
         )
+        currentAnimeOverride = downloadPreferencesStore.overrideFor(item)
         detailsLoading = true
         detailsError = null
 
         detailsJob = viewModelScope.launch {
             try {
                 details = repository.loadAnime(item)
+                details?.result?.let {
+                    currentAnimeOverride = downloadPreferencesStore.overrideFor(it)
+                }
                 refreshSessions()
             } catch (e: VerificationRequired) {
                 detailsError = verificationMessage(e.kind)
@@ -135,6 +148,7 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         details = null
         detailsLoading = false
         detailsError = null
+        currentAnimeOverride = null
     }
 
     fun startVerification() {
@@ -181,8 +195,11 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
                     verifyUrl = repository.bootstrapKwikUrl()
                     verifyStage = VerifyStage.KWIK
                 } catch (e: Exception) {
-                    verifyStage = VerifyStage.ANIMEPAHE
-                    verifyError = e.message ?: "Could not open the second verification."
+                    verifyStage = VerifyStage.ANIMEPAHE_SAVED
+                    verifyError =
+                        "AnimePahe is saved and usable. Kwik could not be prepared automatically: " +
+                            (e.message ?: "unknown error") +
+                            ". You can close this screen and continue."
                 }
             }
         } else if (verifyStage == VerifyStage.KWIK) {
@@ -202,58 +219,195 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         refreshSessions()
     }
 
+    fun setGlobalQuality(quality: Int) {
+        downloadPreferencesStore.setGlobalQuality(quality)
+        globalDownloadPreferences = downloadPreferencesStore.global()
+    }
+
+    fun setGlobalAudio(audio: String) {
+        downloadPreferencesStore.setGlobalAudio(audio)
+        globalDownloadPreferences = downloadPreferencesStore.global()
+    }
+
+    fun setCurrentAnimeQuality(quality: Int) {
+        val anime = details?.result ?: return
+        val current = currentAnimeOverride ?: globalDownloadPreferences
+        val updated = current.copy(quality = quality)
+        downloadPreferencesStore.saveOverride(anime, updated)
+        currentAnimeOverride = updated
+    }
+
+    fun setCurrentAnimeAudio(audio: String) {
+        val anime = details?.result ?: return
+        val current = currentAnimeOverride ?: globalDownloadPreferences
+        val updated = current.copy(audio = if (audio == "eng") "eng" else "jpn")
+        downloadPreferencesStore.saveOverride(anime, updated)
+        currentAnimeOverride = updated
+    }
+
+    fun clearCurrentAnimeOverride() {
+        val anime = details?.result ?: return
+        downloadPreferencesStore.clearOverride(anime)
+        currentAnimeOverride = null
+    }
+
+    fun effectiveDownloadPreferences(): DownloadPreferences =
+        currentAnimeOverride ?: globalDownloadPreferences
+
+    fun animePosterReferer(): String =
+        "https://" + sessions.animeHost.ifBlank { "animepahe.pw" } + "/"
+
+    fun animeUserAgent(): String = sessionStore.animeUserAgent()
+
+    fun downloadEpisode(episode: EpisodeInfo) {
+        val preferences = effectiveDownloadPreferences()
+        downloadEpisode(episode, preferences.quality, preferences.audio)
+    }
+
     fun downloadEpisode(
         episode: EpisodeInfo,
         quality: Int,
         audio: String,
     ) {
         val current = details ?: return
+        if (downloads.any {
+                it.animeTitle == current.result.title &&
+                    it.episode == episode.epLabel &&
+                    !it.failed &&
+                    it.progress < 1f
+            }
+        ) {
+            return
+        }
+
+        val id = enqueueDownload(
+            animeTitle = current.result.title,
+            episode = episode,
+            quality = quality,
+            audio = audio,
+            status = "Resolving release…",
+        )
+
+        viewModelScope.launch {
+            performDownload(id, current.result.title, episode, quality, audio)
+        }
+    }
+
+    fun downloadAllCurrent() {
+        val current = details ?: return
+        if (current.episodes.isEmpty()) return
+
+        val preferences = effectiveDownloadPreferences()
+        val episodes = current.episodes
+            .groupBy { it.number }
+            .values
+            .map { variants ->
+                variants.firstOrNull { it.audio == preferences.audio } ?: variants.first()
+            }
+            .sortedBy { it.number }
+
+        val queued = episodes.mapNotNull { episode ->
+            val alreadyQueued = downloads.any {
+                it.animeTitle == current.result.title &&
+                    it.episode == episode.epLabel &&
+                    !it.failed
+            }
+            if (alreadyQueued) {
+                null
+            } else {
+                episode to enqueueDownload(
+                    animeTitle = current.result.title,
+                    episode = episode,
+                    quality = preferences.quality,
+                    audio = preferences.audio,
+                    status = "Queued",
+                )
+            }
+        }
+
+        if (queued.isEmpty()) return
+
+        viewModelScope.launch {
+            for ((episode, id) in queued) {
+                performDownload(
+                    id = id,
+                    animeTitle = current.result.title,
+                    episode = episode,
+                    quality = preferences.quality,
+                    audio = preferences.audio,
+                )
+            }
+        }
+    }
+
+    private fun enqueueDownload(
+        animeTitle: String,
+        episode: EpisodeInfo,
+        quality: Int,
+        audio: String,
+        status: String,
+    ): String {
         val id = UUID.randomUUID().toString()
         downloads.add(
             0,
             DownloadUi(
                 id = id,
-                animeTitle = current.result.title,
+                animeTitle = animeTitle,
                 episode = episode.epLabel,
                 quality = quality,
                 audio = audio,
                 progress = 0f,
-                status = "Resolving release…",
+                status = status,
             )
         )
+        return id
+    }
 
-        viewModelScope.launch {
-            try {
-                val stream = repository.resolveStream(episode, quality, audio)
-                updateDownload(id) {
-                    it.copy(
-                        quality = stream.quality,
-                        audio = stream.audio,
-                        status = "Downloading ${stream.quality}p…",
-                    )
-                }
-                val uri = repository.downloadStream(
-                    stream = stream,
-                    animeTitle = current.result.title,
-                    episode = episode,
-                ) { progress ->
-                    viewModelScope.launch {
-                        updateDownload(id) {
-                            it.copy(progress = progress, status = "Downloading ${(progress * 100).toInt()}%")
-                        }
+    private suspend fun performDownload(
+        id: String,
+        animeTitle: String,
+        episode: EpisodeInfo,
+        quality: Int,
+        audio: String,
+    ) {
+        try {
+            updateDownload(id) { it.copy(status = "Resolving release…") }
+            val stream = repository.resolveStream(episode, quality, audio)
+            updateDownload(id) {
+                it.copy(
+                    quality = stream.quality,
+                    audio = stream.audio,
+                    status = "Downloading ${stream.quality}p…",
+                )
+            }
+            val uri = repository.downloadStream(
+                stream = stream,
+                animeTitle = animeTitle,
+                episode = episode,
+            ) { progress ->
+                viewModelScope.launch {
+                    updateDownload(id) {
+                        it.copy(
+                            progress = progress,
+                            status = "Downloading ${(progress * 100).toInt()}%",
+                        )
                     }
                 }
-                updateDownload(id) {
-                    it.copy(progress = 1f, status = "Saved to Downloads/PaheBatcher", uri = uri)
-                }
-            } catch (e: VerificationRequired) {
-                updateDownload(id) {
-                    it.copy(status = verificationMessage(e.kind), failed = true)
-                }
-            } catch (e: Exception) {
-                updateDownload(id) {
-                    it.copy(status = e.message ?: "Download failed", failed = true)
-                }
+            }
+            updateDownload(id) {
+                it.copy(
+                    progress = 1f,
+                    status = "Saved to Downloads/PaheBatcher",
+                    uri = uri,
+                )
+            }
+        } catch (e: VerificationRequired) {
+            updateDownload(id) {
+                it.copy(status = verificationMessage(e.kind), failed = true)
+            }
+        } catch (e: Exception) {
+            updateDownload(id) {
+                it.copy(status = e.message ?: "Download failed", failed = true)
             }
         }
     }
