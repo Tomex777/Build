@@ -880,7 +880,6 @@ private fun NightMessageEntity.toVisualMessage(): WhatsAppVisualMessage {
             mine = mine,
             read = mine,
             localPath = payload?.optString("localPath")?.takeIf { it.isNotBlank() },
-            transcript = payload?.optString("transcript")?.takeIf { it.isNotBlank() },
         )
 
         "file" -> WhatsAppVisualMessage.FileMessage(
@@ -907,6 +906,7 @@ private fun NightMessageEntity.toVisualMessage(): WhatsAppVisualMessage {
             mine = mine,
             read = mine,
             localPath = payload?.optString("localPath")?.takeIf { it.isNotBlank() },
+            transcript = payload?.optString("transcript")?.takeIf { it.isNotBlank() },
         )
 
         else -> WhatsAppVisualMessage.TextMessage(
