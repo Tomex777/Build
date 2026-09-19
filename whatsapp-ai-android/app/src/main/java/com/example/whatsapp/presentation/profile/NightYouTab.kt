@@ -16,10 +16,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
@@ -137,22 +135,14 @@ fun NightYouTab(
                         .padding(horizontal = 18.dp, vertical = 13.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Surface(
-                        color = YouSurface,
-                        shape = RoundedCornerShape(13.dp),
-                        modifier = Modifier.size(44.dp),
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = row.icon,
-                                contentDescription = null,
-                                tint = YouMuted,
-                                modifier = Modifier.size(22.dp),
-                            )
-                        }
-                    }
+                    Icon(
+                        imageVector = row.icon,
+                        contentDescription = null,
+                        tint = YouMuted,
+                        modifier = Modifier.size(24.dp),
+                    )
 
-                    Spacer(modifier = Modifier.width(13.dp))
+                    Spacer(modifier = Modifier.width(20.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -169,12 +159,7 @@ fun NightYouTab(
                         )
                     }
 
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = YouMuted,
-                        modifier = Modifier.size(20.dp),
-                    )
+
                 }
             }
         }
@@ -185,7 +170,7 @@ fun NightYouTab(
 private fun InfoPill(text: String) {
     Surface(
         color = YouSurface,
-        shape = RoundedCornerShape(18.dp),
+        shape = CircleShape,
     ) {
         Text(
             text = text,
