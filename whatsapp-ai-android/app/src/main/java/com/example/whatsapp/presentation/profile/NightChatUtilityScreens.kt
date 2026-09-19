@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -135,7 +136,7 @@ fun NightChatFilesScreen(
     onBack: () -> Unit,
 ) {
     val media = remember(messages) {
-        messages.filter { it.type in setOf("image", "file", "voice") }
+        messages.filter { it.type in setOf("image", "video", "file", "voice", "audio") }
             .asReversed()
     }
 
@@ -168,6 +169,8 @@ fun NightChatFilesScreen(
                             imageVector = when (message.type) {
                                 "image" -> Icons.Default.Image
                                 "voice" -> Icons.Default.Mic
+                                "video" -> Icons.Default.PlayCircle
+                                "audio" -> Icons.Default.PlayCircle
                                 else -> Icons.Default.Description
                             },
                             contentDescription = null,
@@ -183,6 +186,8 @@ fun NightChatFilesScreen(
                                     when (message.type) {
                                         "image" -> "Image"
                                         "voice" -> "Voice note"
+                                        "video" -> "Video"
+                                        "audio" -> "Audio"
                                         else -> "File"
                                     }
                                 },
