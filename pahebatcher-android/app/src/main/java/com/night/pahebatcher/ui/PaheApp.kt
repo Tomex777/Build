@@ -53,6 +53,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -890,6 +891,7 @@ private fun TitleDownloadSettingsSheet(
                         selected = effective.quality == option,
                         onClick = { onQuality(option) },
                         label = { Text("${option}p") },
+                        colors = downloadChipColors(),
                     )
                 }
             }
@@ -901,11 +903,13 @@ private fun TitleDownloadSettingsSheet(
                     selected = effective.audio == "jpn",
                     onClick = { onAudio("jpn") },
                     label = { Text("SUB") },
+                    colors = downloadChipColors(),
                 )
                 FilterChip(
                     selected = effective.audio == "eng",
                     onClick = { onAudio("eng") },
                     label = { Text("DUB") },
+                    colors = downloadChipColors(),
                 )
             }
             if (override != null) {
@@ -957,6 +961,7 @@ private fun EpisodeDownloadSheet(
                         selected = quality == option,
                         onClick = { quality = option },
                         label = { Text("${option}p") },
+                        colors = downloadChipColors(),
                     )
                 }
             }
@@ -968,11 +973,13 @@ private fun EpisodeDownloadSheet(
                     selected = audio == "jpn",
                     onClick = { audio = "jpn" },
                     label = { Text("SUB") },
+                    colors = downloadChipColors(),
                 )
                 FilterChip(
                     selected = audio == "eng",
                     onClick = { audio = "eng" },
                     label = { Text("DUB") },
+                    colors = downloadChipColors(),
                 )
             }
             Spacer(Modifier.height(24.dp))
@@ -989,6 +996,14 @@ private fun EpisodeDownloadSheet(
         }
     }
 }
+
+@Composable
+private fun downloadChipColors() = FilterChipDefaults.filterChipColors(
+    containerColor = Elevated2,
+    labelColor = TextMuted,
+    selectedContainerColor = AccentSoft,
+    selectedLabelColor = Accent,
+)
 
 @Composable
 private fun DownloadsScreen(vm: PaheViewModel, padding: PaddingValues) {
@@ -1147,6 +1162,7 @@ private fun DownloadPreferencesCard(
                         selected = preferences.quality == option,
                         onClick = { onQuality(option) },
                         label = { Text("${option}p") },
+                        colors = downloadChipColors(),
                     )
                 }
             }
@@ -1158,11 +1174,13 @@ private fun DownloadPreferencesCard(
                     selected = preferences.audio == "jpn",
                     onClick = { onAudio("jpn") },
                     label = { Text("SUB") },
+                    colors = downloadChipColors(),
                 )
                 FilterChip(
                     selected = preferences.audio == "eng",
                     onClick = { onAudio("eng") },
                     label = { Text("DUB") },
+                    colors = downloadChipColors(),
                 )
             }
         }
