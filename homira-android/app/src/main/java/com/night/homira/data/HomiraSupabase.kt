@@ -179,6 +179,8 @@ class HomiraLiveRepository {
 
     fun currentUserId(): String? = client.auth.currentUserOrNull()?.id
 
+    fun currentUserEmail(): String? = client.auth.currentUserOrNull()?.email
+
     suspend fun sendPhoneOtp(phone: String) {
         client.auth.signInWith(OTP) {
             this.phone = phone
@@ -642,6 +644,26 @@ class HomiraLiveRepository {
     suspend fun deleteProfileMedia(storagePath: String) {
         if (storagePath.isBlank()) return
         client.storage["profile-media"].delete(storagePath)
+    }
+
+    suspend fun completeMyProfile(
+        displayName: String,
+        username: String,
+        phoneE164: String
+    ): LiveProfile {
+        val userId = requireNotNull(currentUserId()) { "Not signed in" }
+        val accountEmail = currentUserEmail()
+
+        return client.from("profiles")
+            .update({
+                set("display_name", displayName.trim())
+                set("username", username.trim().lowercase().ifBlank { null })
+                set("phone_e164", phoneE164.trim())
+                set("email", accountEmail)
+            }) {
+                filter { eq("id", userId) }
+            }
+            .decodeSingle<LiveProfile>()
     }
 
     suspend fun updateMyProfile(
