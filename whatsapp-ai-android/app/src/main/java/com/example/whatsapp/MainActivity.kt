@@ -26,6 +26,7 @@ import com.example.whatsapp.presentation.shell.ModernChatsTab
 import com.example.whatsapp.presentation.shell.ModernCommunitiesTab
 import com.example.whatsapp.presentation.shell.ModernSettingsScreen
 import com.example.whatsapp.presentation.files.NightFilesTab
+import com.example.whatsapp.presentation.profile.NightYouTab
 import com.example.whatsapp.ui.theme.WhatsappTheme
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -56,16 +57,42 @@ private fun NightApp() {
         mutableStateOf<List<WhatsAppVisualMessage>>(nightWelcomeMessages())
     }
 
-    val chats = remember {
-        listOf(
-            ChatListModel(
-                name = "Night",
-                phoneNumber = "night-core",
-                userId = "night-core",
-                time = "Now",
-                message = "Core ready • extensions off",
+    var activeChatTitle by rememberSaveable { mutableStateOf("Night") }
+    var chatGeneration by rememberSaveable { mutableStateOf(1) }
+
+    val chats = remember(chatGeneration) {
+        buildList {
+            add(
+                ChatListModel(
+                    name = "Night",
+                    phoneNumber = "night-core",
+                    userId = "night-core",
+                    time = "Now",
+                    message = "Summary synced • Core ready",
+                )
             )
-        )
+            if (chatGeneration > 1) {
+                add(
+                    0,
+                    ChatListModel(
+                        name = "New chat " + chatGeneration,
+                        phoneNumber = "night-chat-" + chatGeneration,
+                        userId = "night-chat-" + chatGeneration,
+                        time = "Now",
+                        message = "Fresh AI conversation",
+                    )
+                )
+            }
+            add(
+                ChatListModel(
+                    name = "Night UI",
+                    phoneNumber = "night-ui",
+                    userId = "night-ui",
+                    time = "Yesterday",
+                    message = "Summary ready • chat + library + memory",
+                )
+            )
+        }
     }
 
     BackHandler(enabled = screen != "tabs") {
@@ -78,7 +105,7 @@ private fun NightApp() {
         )
 
         "chat" -> CurrentWhatsAppConversation(
-            contactName = "Night",
+            contactName = activeChatTitle,
             subtitle = "Core mode • extensions off",
             messages = messages,
             messageText = messageText,
@@ -146,7 +173,18 @@ private fun NightApp() {
                     selectedTabName = it.name
                     screen = "tabs"
                 },
-                onChatClick = { screen = "chat" },
+                onChatClick = {
+                    activeChatTitle = it.name ?: "Night"
+                    messages = nightWelcomeMessages()
+                    screen = "chat"
+                },
+                onNewChat = {
+                    chatGeneration += 1
+                    activeChatTitle = "New chat " + chatGeneration
+                    messages = nightWelcomeMessages()
+                    messageText = ""
+                    screen = "chat"
+                },
                 onSettingsClick = { screen = "settings" },
             )
 
@@ -167,6 +205,14 @@ private fun NightApp() {
             )
 
             MainTab.Calls -> ModernCallsTab(
+                onTabSelected = {
+                    selectedTabName = it.name
+                    screen = "tabs"
+                },
+                onSettingsClick = { screen = "settings" },
+            )
+
+            MainTab.You -> NightYouTab(
                 onTabSelected = {
                     selectedTabName = it.name
                     screen = "tabs"
