@@ -438,7 +438,6 @@ private fun CurrentChatHeader(
     }
 }
 
-@Composable
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CurrentTextBubble(
