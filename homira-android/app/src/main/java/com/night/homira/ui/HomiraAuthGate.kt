@@ -150,7 +150,7 @@ private fun EmailOtpScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 val context = LocalContext.current
-                // Decode directly for reliable mascot rendering across the API 26+ range.
+                // Decode the normalized mascot directly for reliable API 26+ rendering.
                 val mascotBitmap = remember {
                     BitmapFactory.decodeResource(
                         context.resources,
