@@ -19,11 +19,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
@@ -72,6 +78,11 @@ data class AnimeResultMessage(
     val quality: String,
     val size: String,
     val time: String,
+    val coverPath: String? = null,
+    val mediaType: String = "TV",
+    val status: String = "Ongoing",
+    val description: String = "",
+    val primaryActionLabel: String = "Play Episode 1",
 ) : RichResultMessage
 
 data class MangaResultMessage(
@@ -81,6 +92,9 @@ data class MangaResultMessage(
     val source: String,
     val description: String,
     val time: String,
+    val coverPath: String? = null,
+    val status: String = "Ongoing",
+    val primaryActionLabel: String = "Read Chapter 1",
 ) : RichResultMessage
 
 data class ChoiceResultMessage(
@@ -145,6 +159,8 @@ data class ToolResultMessage(
     val title: String,
     val subtitle: String,
     val time: String,
+    val iconText: String = "",
+    val actions: List<MessageAction> = emptyList(),
 ) : RichResultMessage
 
 private val RichBubble = Color(0xFF242625)
@@ -162,14 +178,14 @@ fun RichResultBubble(
     when (item) {
         is ButtonResultMessage -> ButtonResultBubble(item, onAction)
         is FileResultMessage -> FileResultBubble(item)
-        is AnimeResultMessage -> AnimeResultBubble(item)
+        is AnimeResultMessage -> AnimeResultBubble(item, onAction)
         is MangaResultMessage -> MangaResultBubble(item, onAction)
         is ChoiceResultMessage -> ChoiceResultBubble(item, onAction)
         is GeneratedImageResultMessage -> GeneratedImageResultBubble(item)
         is CreationResultMessage -> CreationResultBubble(item)
         is ImageSearchResultMessage -> ImageSearchBubble(item)
         is DownloadResultMessage -> DownloadResultBubble(item)
-        is ToolResultMessage -> ToolResultBubble(item)
+        is ToolResultMessage -> ToolResultBubble(item, onAction)
     }
 }
 
@@ -215,48 +231,113 @@ private fun ButtonResultBubble(
     onAction: (messageId: String, actionId: String) -> Unit,
 ) {
     BubbleFrame(time = item.time) {
-        Text(
-            text = item.title,
-            color = RichText,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-        if (item.body.isNotBlank()) {
-            Text(
-                text = item.body,
-                color = RichMuted,
-                fontSize = 11.sp,
-                lineHeight = 15.sp,
-                modifier = Modifier.padding(top = 3.dp),
-            )
+        Row(
+            verticalAlignment = Alignment.Top,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF4A2934)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Movie,
+                    contentDescription = null,
+                    tint = Color(0xFFFF6D91),
+                    modifier = Modifier.size(25.dp),
+                )
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.title,
+                    color = RichText,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                if (item.body.isNotBlank()) {
+                    Text(
+                        text = item.body,
+                        color = RichMuted,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        modifier = Modifier.padding(top = 3.dp),
+                    )
+                }
+            }
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            item.actions.forEach { action ->
-                Surface(
-                    color = RichPanel,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onAction(item.id, action.id) },
-                ) {
-                    Text(
-                        text = action.label,
-                        color = RichAccent,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                    )
+        if (item.actions.size in 2..3) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                item.actions.forEach { action ->
+                    Surface(
+                        color = RichPanel,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onAction(item.id, action.id) },
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            Icon(
+                                imageVector = actionIcon(action.id),
+                                contentDescription = null,
+                                tint = Color(0xFFFF6D91),
+                                modifier = Modifier.size(17.dp),
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = action.label,
+                                color = Color(0xFFFF7998),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 9.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                item.actions.forEach { action ->
+                    Surface(
+                        color = RichPanel,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onAction(item.id, action.id) },
+                    ) {
+                        Text(
+                            text = action.label,
+                            color = Color(0xFFFF7998),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        )
+                    }
                 }
             }
         }
     }
 }
+
 
 @Composable
 private fun FileResultBubble(item: FileResultMessage) {
@@ -329,73 +410,88 @@ private fun FileResultBubble(item: FileResultMessage) {
 
 
 @Composable
-private fun AnimeResultBubble(item: AnimeResultMessage) {
+private fun AnimeResultBubble(
+    item: AnimeResultMessage,
+    onAction: (messageId: String, actionId: String) -> Unit,
+) {
     BubbleFrame(time = item.time) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .background(RichPanel)
-                .padding(7.dp),
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            Box(
+            MediaCover(
+                model = item.coverPath,
+                fallback = item.title.take(2).uppercase(),
                 modifier = Modifier
-                    .width(78.dp)
-                    .height(108.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color(0xFF243B55), Color(0xFF141E30))
-                        )
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "SL",
-                    color = Color.White,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+                    .width(96.dp)
+                    .height(132.dp),
+            )
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(11.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.title,
                     color = RichText,
-                    fontSize = 15.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = item.episode,
-                    color = RichMuted,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 3.dp),
-                )
-                Text(
-                    text = item.quality + " • " + item.size,
+                    text = item.mediaType + " • " + item.episode + " • " + item.status,
                     color = RichMuted,
                     fontSize = 11.sp,
-                    modifier = Modifier.padding(top = 2.dp),
+                    modifier = Modifier.padding(top = 3.dp),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.padding(top = 7.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    MetaChip(item.quality)
+                    MetaChip(if (item.size.isBlank()) "HD" else item.size)
+                    MetaChip("HD", accent = true)
+                }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    RichActionButton(
-                        label = "Play",
-                        icon = Icons.Default.PlayArrow,
-                    )
-                    RichActionButton(
-                        label = "Download",
-                        icon = Icons.Default.Download,
+                if (item.description.isNotBlank()) {
+                    Text(
+                        text = item.description,
+                        color = RichMuted,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        maxLines = 4,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 7.dp),
                     )
                 }
             }
         }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 9.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            FullActionButton(
+                label = item.primaryActionLabel,
+                icon = Icons.Default.PlayArrow,
+                primary = true,
+                modifier = Modifier.weight(1.4f),
+                onClick = { onAction(item.id, "play") },
+            )
+            FullActionButton(
+                label = "Download",
+                icon = Icons.Default.Download,
+                modifier = Modifier.weight(1f),
+                onClick = { onAction(item.id, "download") },
+            )
+        }
     }
 }
+
 
 @Composable
 private fun MangaResultBubble(
@@ -404,47 +500,41 @@ private fun MangaResultBubble(
 ) {
     BubbleFrame(time = item.time) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(RichPanel)
-                .padding(8.dp),
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            Box(
+            MediaCover(
+                model = item.coverPath,
+                fallback = item.title.take(2).uppercase(),
                 modifier = Modifier
-                    .width(84.dp)
-                    .height(118.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color(0xFFB3262D), Color(0xFF2B1114))
-                        )
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MenuBook,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(34.dp),
-                )
-            }
+                    .width(96.dp)
+                    .height(132.dp),
+            )
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(11.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.title,
                     color = RichText,
-                    fontSize = 15.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = item.chapter + " • " + item.source,
+                    text = "Manga • " + item.chapter + " • " + item.status,
                     color = RichMuted,
                     fontSize = 11.sp,
                     modifier = Modifier.padding(top = 3.dp),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
+
+                MetaChip(
+                    text = item.source,
+                    modifier = Modifier.padding(top = 7.dp),
+                )
+
                 Text(
                     text = item.description,
                     color = RichMuted,
@@ -460,55 +550,32 @@ private fun MangaResultBubble(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 7.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                .padding(top = 9.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
         ) {
-            Surface(
-                color = Color(0xFFB51E42),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onAction(item.id, "read") },
-            ) {
-                Text(
-                    "Read",
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-                )
-            }
-            Surface(
-                color = RichPanel,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onAction(item.id, "download") },
-            ) {
-                Text(
-                    "Download",
-                    color = RichText,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-                )
-            }
-            Surface(
-                color = RichPanel,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onAction(item.id, "library") },
-            ) {
-                Text(
-                    "Library",
-                    color = RichText,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-                )
-            }
+            FullActionButton(
+                label = item.primaryActionLabel,
+                icon = Icons.Default.MenuBook,
+                primary = true,
+                modifier = Modifier.weight(1.25f),
+                onClick = { onAction(item.id, "read") },
+            )
+            FullActionButton(
+                label = "Download",
+                icon = Icons.Default.Download,
+                modifier = Modifier.weight(1f),
+                onClick = { onAction(item.id, "download") },
+            )
+            FullActionButton(
+                label = "Add to Library",
+                icon = Icons.Default.Description,
+                modifier = Modifier.weight(1.15f),
+                onClick = { onAction(item.id, "library") },
+            )
         }
     }
 }
+
 
 @Composable
 private fun ChoiceResultBubble(
@@ -522,46 +589,41 @@ private fun ChoiceResultBubble(
         Text(
             text = item.title,
             color = RichText,
-            fontSize = 14.sp,
-            lineHeight = 18.sp,
+            fontSize = 15.sp,
+            lineHeight = 19.sp,
             fontWeight = FontWeight.SemiBold,
         )
 
-        Column(
-            modifier = Modifier.padding(top = 9.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            item.options.forEachIndexed { index, option ->
-                val selected = item.selectedIndex == index
-                Surface(
-                    color = if (selected) Color(0xFF9D2142) else RichPanel,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = item.selectedIndex == null) {
-                            onAction(item.id, "option_" + index)
-                        },
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        if (selected) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(17.dp),
-                            )
-                            Spacer(modifier = Modifier.width(7.dp))
-                        }
-                        Text(
-                            text = option,
-                            color = RichText,
-                            fontSize = 12.sp,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
+        if (item.options.size in 2..3 && item.options.all { it.length <= 18 }) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 9.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                item.options.forEachIndexed { index, option ->
+                    ChoiceOption(
+                        text = option,
+                        selected = item.selectedIndex == index,
+                        enabled = item.selectedIndex == null,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onAction(item.id, "option_" + index) },
+                    )
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier.padding(top = 9.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                item.options.forEachIndexed { index, option ->
+                    ChoiceOption(
+                        text = option,
+                        selected = item.selectedIndex == index,
+                        enabled = item.selectedIndex == null,
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { onAction(item.id, "option_" + index) },
+                    )
                 }
             }
         }
@@ -576,6 +638,7 @@ private fun ChoiceResultBubble(
         }
     }
 }
+
 
 @Composable
 private fun GeneratedImageResultBubble(item: GeneratedImageResultMessage) {
@@ -628,6 +691,163 @@ private fun GeneratedImageResultBubble(item: GeneratedImageResultMessage) {
         }
     }
 }
+
+@Composable
+private fun MediaCover(
+    model: String?,
+    fallback: String,
+    modifier: Modifier,
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFF49334F), Color(0xFF171D23))
+                )
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        val file = model?.let(::File)
+        when {
+            file != null && file.exists() -> {
+                AsyncImage(
+                    model = file,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxWidth().height(132.dp),
+                )
+            }
+
+            !model.isNullOrBlank() -> {
+                AsyncImage(
+                    model = model,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxWidth().height(132.dp),
+                )
+            }
+
+            else -> {
+                Text(
+                    text = fallback,
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Black,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetaChip(
+    text: String,
+    accent: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = if (accent) Color(0xFF7A263E) else Color(0xFF3A4043),
+        shape = RoundedCornerShape(9.dp),
+        modifier = modifier,
+    ) {
+        Text(
+            text = text,
+            color = if (accent) Color(0xFFFF7B9B) else RichText,
+            fontSize = 10.sp,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+        )
+    }
+}
+
+@Composable
+private fun FullActionButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
+    primary: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Surface(
+        color = if (primary) Color(0xFFB51E42) else RichPanel,
+        shape = RoundedCornerShape(12.dp),
+        modifier = modifier.clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(17.dp),
+            )
+            Spacer(modifier = Modifier.width(5.dp))
+            Text(
+                text = label,
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChoiceOption(
+    text: String,
+    selected: Boolean,
+    enabled: Boolean,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    Surface(
+        color = if (selected) Color(0xFF9D2142) else RichPanel,
+        shape = RoundedCornerShape(12.dp),
+        modifier = modifier.clickable(enabled = enabled, onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(modifier = Modifier.width(5.dp))
+            }
+            Text(
+                text = text,
+                color = if (selected) Color.White else Color(0xFFFF7998),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+private fun actionIcon(id: String): androidx.compose.ui.graphics.vector.ImageVector =
+    when {
+        id.contains("surprise", ignoreCase = true) -> Icons.Default.AutoAwesome
+        id.contains("anime", ignoreCase = true) -> Icons.Default.Movie
+        id.contains("movie", ignoreCase = true) -> Icons.Default.Tv
+        id.contains("open", ignoreCase = true) -> Icons.Default.OpenInNew
+        id.contains("setup", ignoreCase = true) -> Icons.Default.Settings
+        id.contains("learn", ignoreCase = true) -> Icons.Default.Info
+        id.contains("download", ignoreCase = true) -> Icons.Default.Download
+        id.contains("read", ignoreCase = true) -> Icons.Default.MenuBook
+        else -> Icons.Default.AutoAwesome
+    }
 
 @Composable
 private fun RichActionButton(
@@ -956,7 +1176,10 @@ private fun DownloadResultBubble(item: DownloadResultMessage) {
 }
 
 @Composable
-private fun ToolResultBubble(item: ToolResultMessage) {
+private fun ToolResultBubble(
+    item: ToolResultMessage,
+    onAction: (messageId: String, actionId: String) -> Unit,
+) {
     BubbleFrame(time = item.time) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -964,46 +1187,76 @@ private fun ToolResultBubble(item: ToolResultMessage) {
         ) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF2F493A)),
+                    .size(58.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(Color(0xFF343A3D)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    imageVector = Icons.Default.Extension,
-                    contentDescription = null,
-                    tint = RichAccent,
-                    modifier = Modifier.size(21.dp),
-                )
+                if (item.iconText.isNotBlank()) {
+                    Text(
+                        text = item.iconText.take(2),
+                        color = RichText,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black,
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Extension,
+                        contentDescription = null,
+                        tint = RichText,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.width(9.dp))
+            Spacer(modifier = Modifier.width(11.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = item.toolName,
-                    color = RichAccent,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-                Text(
                     text = item.title,
                     color = RichText,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(top = 1.dp),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = item.toolName,
+                    color = RichMuted,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 2.dp),
                 )
                 Text(
                     text = item.subtitle,
                     color = RichMuted,
                     fontSize = 11.sp,
-                    lineHeight = 14.sp,
-                    modifier = Modifier.padding(top = 3.dp),
+                    lineHeight = 15.sp,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 5.dp),
                 )
+            }
+        }
+
+        if (item.actions.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 9.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                item.actions.take(3).forEachIndexed { index, action ->
+                    FullActionButton(
+                        label = action.label,
+                        icon = actionIcon(action.id),
+                        primary = index == 0,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onAction(item.id, action.id) },
+                    )
+                }
             }
         }
     }
 }
+
 
 fun richPreviewMessagesPageOne(): List<WhatsAppVisualMessage> = listOf(
     WhatsAppVisualMessage.TextMessage(
@@ -1029,10 +1282,12 @@ fun richPreviewMessagesPageOne(): List<WhatsAppVisualMessage> = listOf(
     AnimeResultMessage(
         id = "anime",
         title = "Solo Leveling",
-        episode = "Season 2 • Episode 8",
+        episode = "12 Episodes",
         quality = "1080p",
-        size = "428 MB",
+        size = "Sub",
         time = "19:23",
+        description = "In a world of hunters and monsters, Sung Jin-Woo gains a mysterious system that lets him level up.",
+        primaryActionLabel = "Play Episode 1",
     ),
     WhatsAppVisualMessage.TextMessage(
         id = "u3",
@@ -1052,12 +1307,12 @@ fun richPreviewMessagesPageOne(): List<WhatsAppVisualMessage> = listOf(
 fun richPreviewMessagesPageTwo(): List<WhatsAppVisualMessage> = listOf(
     ButtonResultMessage(
         id = "buttons",
-        title = "What should I do next?",
-        body = "Buttons are a native Night message type, so extensions can return actions without controlling the bubble UI.",
+        title = "What are you in the mood for?",
+        body = "I can suggest anime, movies, or TV shows based on your taste.",
         actions = listOf(
-            MessageAction("open_library", "Open Library"),
-            MessageAction("summarize", "Summarize this chat"),
-            MessageAction("choose_ai", "Choose AI"),
+            MessageAction("surprise", "Surprise me"),
+            MessageAction("anime", "Anime"),
+            MessageAction("movies", "Movies"),
         ),
         time = "19:25",
     ),
@@ -1083,10 +1338,16 @@ fun richPreviewMessagesPageTwo(): List<WhatsAppVisualMessage> = listOf(
     ),
     ToolResultMessage(
         id = "tool",
-        toolName = "Extension result",
-        title = "Anime source resolved",
-        subtitle = "AnimePahe returned 3 playable sources. 1080p selected automatically.",
+        toolName = "Productivity • Tool",
+        title = "Notion Assistant",
+        subtitle = "Search, summarize, and write directly in your Notion workspace. Turn ideas into action faster.",
         time = "19:25",
+        iconText = "N",
+        actions = listOf(
+            MessageAction("open", "Open"),
+            MessageAction("setup", "Setup"),
+            MessageAction("learn", "Learn More"),
+        ),
     ),
     WhatsAppVisualMessage.TextMessage(
         id = "u5",
