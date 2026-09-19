@@ -28,6 +28,7 @@ class AniListRepository {
                 media(type: ANIME, search: ${D}search, sort: SEARCH_MATCH) {
                   id
                   title { romaji english native }
+                  synonyms
                   coverImage { extraLarge large }
                   format
                   status
@@ -114,6 +115,54 @@ class AniListRepository {
         }
     }
 
+    suspend fun enrichAvailable(
+        sourceItems: List<AnimeSearchResult>,
+    ): List<AnimeSearchResult> = withContext(Dispatchers.IO) {
+        val items = sourceItems.take(20)
+        if (items.isEmpty()) return@withContext emptyList()
+
+        val variableDefs = items.indices.joinToString(", ") { index -> "$q$index: String" }
+        val fields = """
+            id
+            title { romaji english native }
+            synonyms
+            coverImage { extraLarge large }
+            format
+            status
+            episodes
+            seasonYear
+            averageScore
+            genres
+            description(asHtml: false)
+        """.trimIndent()
+
+        val selections = items.indices.joinToString("\n") { index ->
+            "m$index: Media(type: ANIME, search: $q$index) { $fields }"
+        }
+        val gql = "query AvailableAnime($variableDefs) {\n$selections\n}"
+
+        val variables = JSONObject()
+        items.forEachIndexed { index, item ->
+            variables.put("q$index", item.title)
+        }
+
+        val data = execute(gql, variables)
+        items.mapIndexed { index, source ->
+            val media = data.optJSONObject("m$index")
+            val enriched = media?.let(::parseMedia)
+            if (enriched == null) {
+                source
+            } else {
+                enriched.copy(
+                    session = source.session,
+                    animeId = source.animeId,
+                    sourceQueries = (enriched.sourceQueries + source.title).distinct(),
+                    catalogNote = source.catalogNote.ifBlank { "Available now" },
+                )
+            }
+        }
+    }
+
     private fun execute(query: String, variables: JSONObject): JSONObject {
         val payload = JSONObject()
             .put("query", query)
@@ -174,7 +223,18 @@ class AniListRepository {
             Jsoup.parse(rawDescription).text().trim()
         }
 
-        val sourceQueries = listOf(english, romaji, native)
+        val synonymsArray = media.optJSONArray("synonyms")
+        val synonyms = buildList {
+            if (synonymsArray != null) {
+                for (index in 0 until synonymsArray.length()) {
+                    synonymsArray.optString(index)
+                        .takeIf { it.isNotBlank() && !it.equals("null", true) }
+                        ?.let(::add)
+                }
+            }
+        }
+
+        val sourceQueries = (listOf(english, romaji, native) + synonyms)
             .filter { it.isNotBlank() }
             .distinct()
 
