@@ -43,6 +43,7 @@ private val YouMuted = Color(0xFF9CA5A9)
 private val YouAccent = Color(0xFF21C063)
 
 private data class YouRow(
+    val id: String,
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
     val title: String,
     val subtitle: String,
@@ -50,16 +51,23 @@ private data class YouRow(
 
 @Composable
 fun NightYouTab(
+    displayName: String,
     onTabSelected: (MainTab) -> Unit,
+    onProfileClick: () -> Unit,
+    onProvidersClick: () -> Unit,
+    onMemoryClick: () -> Unit,
+    onLibraryStorageClick: () -> Unit,
+    onAppearanceClick: () -> Unit,
+    onPrivacyClick: () -> Unit,
     onSettingsClick: () -> Unit,
 ) {
     val rows = listOf(
-        YouRow(Icons.Default.AutoAwesome, "AI models", "Choose the model used in new chats"),
-        YouRow(Icons.Default.Memory, "Memory", "Chat summaries and cross-chat references"),
-        YouRow(Icons.Default.Storage, "Library & storage", "Manage Night-owned files"),
-        YouRow(Icons.Default.Palette, "Appearance", "Theme, wallpaper and chat style"),
-        YouRow(Icons.Default.Security, "Privacy", "Local data, permissions and retention"),
-        YouRow(Icons.Default.Settings, "Settings", "General Night settings"),
+        YouRow("providers", Icons.Default.AutoAwesome, "AI & providers", "DeepSeek, Groq, Azure, models and keys"),
+        YouRow("memory", Icons.Default.Memory, "Memory", "Chat summaries and cross-chat references"),
+        YouRow("storage", Icons.Default.Storage, "Library & storage", "Manage Night-owned files"),
+        YouRow("appearance", Icons.Default.Palette, "Appearance", "Bubbles, wallpaper, font and text size"),
+        YouRow("privacy", Icons.Default.Security, "Privacy", "Local data, permissions and retention"),
+        YouRow("settings", Icons.Default.Settings, "Settings", "General Night settings"),
     )
 
     ModernAppScaffold(
@@ -81,6 +89,7 @@ fun NightYouTab(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clickable(onClick = onProfileClick)
                         .padding(horizontal = 18.dp, vertical = 18.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
@@ -100,28 +109,34 @@ fun NightYouTab(
                     }
 
                     Text(
-                        text = "Dawson",
+                        text = displayName,
                         color = YouText,
                         fontSize = 23.sp,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(top = 13.dp),
                     )
                     Text(
-                        text = "Your Night profile",
+                        text = "Your Night profile • tap to edit",
                         color = YouMuted,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 3.dp),
                     )
-
                 }
             }
 
-            items(rows) { row ->
+            items(rows, key = { it.id }) { row ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            if (row.title == "Settings") onSettingsClick()
+                            when (row.id) {
+                                "providers" -> onProvidersClick()
+                                "memory" -> onMemoryClick()
+                                "storage" -> onLibraryStorageClick()
+                                "appearance" -> onAppearanceClick()
+                                "privacy" -> onPrivacyClick()
+                                else -> onSettingsClick()
+                            }
                         }
                         .padding(horizontal = 18.dp, vertical = 13.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -149,11 +164,8 @@ fun NightYouTab(
                             modifier = Modifier.padding(top = 2.dp),
                         )
                     }
-
-
                 }
             }
         }
     }
 }
-
