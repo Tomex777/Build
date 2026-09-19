@@ -32,16 +32,20 @@ jobs:
           "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
-      - name: Clone LSPosed ET
+      - name: Clone pinned LSPosed ET
         shell: bash
         run: |
-          git clone --depth 1 https://github.com/EzequielDevTeam/LSPosed-ET.git lsposed-et
-          cd lsposed-et
+          LSPOSED_ET_SHA=dfff0580683ede041bef3897dbca259e42cf0c84
+          git init lsposed-et
+          git -C lsposed-et remote add origin https://github.com/EzequielDevTeam/LSPosed-ET.git
+          git -C lsposed-et fetch --depth 1 origin "$LSPOSED_ET_SHA"
+          git -C lsposed-et checkout --detach FETCH_HEAD
+          test "$(git -C lsposed-et rev-parse HEAD)" = "$LSPOSED_ET_SHA"
           git config --global --add safe.directory '*'
-          git submodule update --init --depth 1
-          git -C external/lsplant rm -q --cached -r test || true
-          rm -rf external/lsplant/test
-          git -C external/lsplant submodule update --init --recursive --depth 1
+          git -C lsposed-et submodule update --init --depth 1
+          git -C lsposed-et/external/lsplant rm -q --cached -r test || true
+          rm -rf lsposed-et/external/lsplant/test
+          git -C lsposed-et/external/lsplant submodule update --init --recursive --depth 1
       - name: Apply Night Mods overlay
         shell: bash
         run: |
@@ -240,7 +244,17 @@ jobs:
             sleep 4
             adb shell uiautomator dump /sdcard/nightmods.xml || true
             adb pull /sdcard/nightmods.xml smoke/nightmods.xml || true
-            grep -q 'Night Core' smoke/nightmods.xml
+            python3 - <<'PY'
+            import xml.etree.ElementTree as ET
+            root = ET.parse('smoke/nightmods.xml').getroot()
+            for label in ('Modules', 'Repository', 'Logs', 'Settings'):
+                matches = [
+                    node for node in root.iter('node')
+                    if node.attrib.get('text') == label or node.attrib.get('content-desc') == label
+                ]
+                assert matches, f'{label} navigation item missing'
+                assert any(node.attrib.get('enabled') == 'true' for node in matches), f'{label} navigation item disabled'
+            PY
 
             adb shell am force-stop org.lsposed.manager || true
             adb shell am start -W -a android.intent.action.VIEW -d 'lsposed://night-core/bubble-styler' -n org.lsposed.manager/.ui.activity.MainActivity | tee smoke/bubble-start.txt
