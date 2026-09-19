@@ -20,3 +20,10 @@ jobs:
           echo "=== original WebP ==="
           file homira-android/app/src/main/res/drawable-nodpi/homira_call_mascot.webp
           ls -lh homira-android/app/src/main/res/drawable-nodpi/homira_call_mascot.webp
+
+      - name: Upload current mascot
+        uses: actions/upload-artifact@v4
+        with:
+          name: homira-current-mascot
+          path: homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.png
+          if-no-files-found: error
