@@ -396,9 +396,6 @@ private fun LiveProfileHost(
                 existingProfile = profile,
                 onComplete = { saved ->
                     profile = saved
-                    contacts = runCatching {
-                        repository.loadContacts()
-                    }.getOrDefault(emptyList())
                 },
                 onSignOut = onSignedOut
             )
