@@ -30,26 +30,32 @@ class NightCapabilityRouter(
         capability: String,
     ): NightResolvedModel? {
         val selected = resolveChatModel(chatId)
+        val selectedSupports = selected?.model?.capabilities
+            ?.split(",")
+            ?.map { it.trim().lowercase() }
+            ?.contains(capability.lowercase())
+            ?: false
 
-        if (
-            selected != null &&
-            selected.model.capabilities
-                .split(",")
-                .map { it.trim().lowercase() }
-                .contains(capability.lowercase())
-        ) {
+        val route = repository.capabilityRoute(capability)
+
+        if (selectedSupports && (route == null || route.useSelectedChatModelFirst)) {
             return selected
         }
 
-        val route = repository.capabilityRoute(capability) ?: return null
-        val profile = repository.getProviderProfile(route.providerProfileId) ?: return null
+        if (route != null) {
+            val profile = repository.getProviderProfile(route.providerProfileId)
+            if (profile != null) {
+                val model = route.modelId
+                    ?.let { repository.getProviderModel(it) }
+                    ?.takeIf { it.profileId == profile.id && it.isEnabled }
+                    ?: repository.defaultProviderModel(profile.id)
 
-        val model = route.modelId
-            ?.let { repository.getProviderModel(it) }
-            ?.takeIf { it.profileId == profile.id && it.isEnabled }
-            ?: repository.defaultProviderModel(profile.id)
-            ?: return null
+                if (model != null) {
+                    return NightResolvedModel(profile, model)
+                }
+            }
+        }
 
-        return NightResolvedModel(profile, model)
+        return if (selectedSupports) selected else null
     }
 }
