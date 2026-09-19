@@ -466,8 +466,8 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         )
 
         workManager.enqueueUniqueWork(
-            DOWNLOAD_QUEUE_NAME,
-            ExistingWorkPolicy.APPEND_OR_REPLACE,
+            "$DOWNLOAD_QUEUE_NAME:$id",
+            ExistingWorkPolicy.REPLACE,
             request,
         )
         syncDownloads()
@@ -495,7 +495,7 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun resumePausedDownloads() {
         downloadStore.all()
-            .filter { it.state == StoredDownloadTask.STATE_PAUSED }
+            .filter { it.state == StoredDownloadTask.STATE_PAUSED && !it.manualPaused }
             .forEach { task ->
                 task.workId.takeIf { it.isNotBlank() }?.let { oldId ->
                     runCatching { workManager.cancelWorkById(UUID.fromString(oldId)) }
@@ -508,8 +508,8 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
                     status = "Verified — resuming download",
                 )
                 workManager.enqueueUniqueWork(
-                    DOWNLOAD_QUEUE_NAME,
-                    ExistingWorkPolicy.APPEND_OR_REPLACE,
+                    "$DOWNLOAD_QUEUE_NAME:${task.id}",
+                    ExistingWorkPolicy.REPLACE,
                     request,
                 )
             }
