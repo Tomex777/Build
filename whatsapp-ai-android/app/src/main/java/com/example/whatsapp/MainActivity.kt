@@ -1,3 +1,4 @@
+// Night true-latest visual validation
 package com.example.whatsapp
 
 import android.Manifest
