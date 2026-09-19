@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
@@ -158,6 +159,8 @@ sealed interface WhatsAppVisualMessage {
         val time: String,
         val mine: Boolean,
         val read: Boolean = false,
+        val localPath: String? = null,
+        val mimeType: String? = null,
         val reply: ReplyPreview? = null,
     ) : WhatsAppVisualMessage
 
@@ -253,6 +256,7 @@ fun CurrentWhatsAppConversation(
     onImageClick: (String) -> Unit = {},
     onVideoClick: (String) -> Unit = {},
     onLinkClick: (String) -> Unit = {},
+    onFileClick: (String, String?) -> Unit = { _, _ -> },
     onEmojiClick: () -> Unit = {},
     autoScrollToLatest: Boolean = true,
     attachmentsInitiallyOpen: Boolean = false,
@@ -345,6 +349,7 @@ fun CurrentWhatsAppConversation(
                                 is WhatsAppVisualMessage.FileMessage -> CurrentFileBubble(
                                     item,
                                     appearance,
+                                    onFileClick,
                                     onReplyPreviewClick = { targetId ->
                                         val index = messages.indexOfFirst { it.id == targetId }
                                         if (index >= 0) scope.launch { state.animateScrollToItem(index) }
@@ -781,7 +786,26 @@ private fun ReplyTypePreview(reply: ReplyPreview) {
         }
 
         ReplyKind.Voice -> ReplyIconPreview(Icons.Default.Mic)
-        ReplyKind.File -> ReplyIconPreview(Icons.Default.Description)
+        ReplyKind.File -> {
+            if (reply.meta?.contains("pdf", ignoreCase = true) == true) {
+                Surface(
+                    color = Color(0xFFC83D58),
+                    shape = RoundedCornerShape(7.dp),
+                    modifier = Modifier.size(42.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "PDF",
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            } else {
+                ReplyIconPreview(Icons.Default.Description)
+            }
+        }
         ReplyKind.Audio -> ReplyIconPreview(Icons.Default.PlayArrow)
         ReplyKind.Rich -> ReplyIconPreview(Icons.Default.AutoAwesome)
         ReplyKind.Text -> Unit
@@ -1040,20 +1064,25 @@ private fun CurrentVideoBubble(
 private fun CurrentFileBubble(
     item: WhatsAppVisualMessage.FileMessage,
     appearance: NightChatAppearance,
+    onFileClick: (String, String?) -> Unit,
     onReplyPreviewClick: (String) -> Unit,
 ) {
+    val isPdf =
+        item.mimeType?.contains("pdf", ignoreCase = true) == true ||
+            item.name.endsWith(".pdf", ignoreCase = true)
+
     Box(
         modifier = Modifier.fillMaxWidth(),
         contentAlignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart,
     ) {
         Column(
             modifier = Modifier
-                .widthIn(min = 250.dp, max = 340.dp)
+                .widthIn(min = 270.dp, max = 350.dp)
                 .clip(
                     if (item.mine) {
-                        RoundedCornerShape(14.dp, 3.dp, 14.dp, 14.dp)
+                        RoundedCornerShape(17.dp, 5.dp, 17.dp, 17.dp)
                     } else {
-                        RoundedCornerShape(3.dp, 14.dp, 14.dp, 14.dp)
+                        RoundedCornerShape(5.dp, 17.dp, 17.dp, 17.dp)
                     }
                 )
                 .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
@@ -1070,48 +1099,89 @@ private fun CurrentFileBubble(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(11.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(Color(0xFF303436))
-                    .padding(9.dp),
+                    .clickable {
+                        item.localPath?.let { onFileClick(it, item.mimeType) }
+                    }
+                    .padding(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-            Surface(
-                color = Color(0xFF343A3D),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.size(44.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.Description,
-                        contentDescription = null,
-                        tint = PrimaryText,
-                        modifier = Modifier.size(23.dp),
+                Box(
+                    modifier = Modifier
+                        .width(52.dp)
+                        .height(62.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(if (isPdf) Color(0xFFC83D58) else Color(0xFF41484B)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isPdf) {
+                        Text(
+                            text = "PDF",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Description,
+                            contentDescription = null,
+                            tint = PrimaryText,
+                            modifier = Modifier.size(25.dp),
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(11.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.name,
+                        color = PrimaryText,
+                        fontSize = (14f * appearance.messageFontScale).sp,
+                        fontFamily = appearance.fontFamily,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = item.detail,
+                        color = SecondaryText,
+                        fontSize = 11.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 3.dp),
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.width(9.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.name,
-                    color = PrimaryText,
-                    fontSize = (13f * appearance.messageFontScale).sp,
-                    fontFamily = appearance.fontFamily,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = item.detail,
-                    color = SecondaryText,
-                    fontSize = 10.sp,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
+                Surface(
+                    color = Color.Transparent,
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clickable {
+                            item.localPath?.let { onFileClick(it, item.mimeType) }
+                        },
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        Color(0xFF9BA4A8),
+                    ),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = "Open file",
+                            tint = PrimaryText,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
                 }
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 5.dp, end = 2.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 5.dp, end = 2.dp),
                 horizontalArrangement = Arrangement.End,
             ) {
                 MessageMeta(item.time, item.mine, item.read)
@@ -1119,6 +1189,7 @@ private fun CurrentFileBubble(
         }
     }
 }
+
 
 @Composable
 private fun CompactPhotoBubble(item: WhatsAppVisualMessage.PhotoMessage) {
