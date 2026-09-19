@@ -395,6 +395,7 @@ class PaheRepository(
         stream: StreamInfo,
         animeTitle: String,
         episode: EpisodeInfo,
+        downloadKey: String,
         onProgress: (Float) -> Unit,
     ): Uri = withContext(Dispatchers.IO) {
         val headers = linkedMapOf(
@@ -414,76 +415,131 @@ class PaheRepository(
         val segments = parseSegments(manifest, manifestUrl)
         if (segments.isEmpty()) throw IOException("The HLS playlist did not contain any media segments")
 
-        val tempDir = File(context.cacheDir, "pahe_hls_${System.currentTimeMillis()}_${SecureRandom().nextInt(9999)}")
-        tempDir.mkdirs()
-        val keyCache = segments
-            .mapNotNull { it.keyUrl }
-            .distinct()
-            .associateWith { keyUrl -> requestBytes(keyUrl, headers) }
+        val expectedDurationUs = segments
+            .sumOf { (it.durationSeconds * 1_000_000.0).toLong() }
+            .coerceAtLeast(0L)
 
-        try {
-            val limiter = Semaphore(12)
-            val completed = AtomicInteger(0)
+        val tempDir = File(context.filesDir, "pahe_downloads/$downloadKey")
+        if (!tempDir.exists() && !tempDir.mkdirs()) {
+            throw IOException("Could not create persistent download workspace")
+        }
+
+        val marker = File(tempDir, "manifest.meta")
+        val markerValue = listOf(
+            segments.size.toString(),
+            expectedDurationUs.toString(),
+            stream.quality.toString(),
+            stream.audio,
+        ).joinToString("|")
+
+        if (marker.takeIf { it.exists() }?.readText().orEmpty() != markerValue) {
+            tempDir.listFiles()?.forEach { file ->
+                if (file.name.endsWith(".ts") ||
+                    file.name.endsWith(".part") ||
+                    file.name == "joined.ts" ||
+                    file.name == "episode.mp4"
+                ) {
+                    file.delete()
+                }
+            }
+            marker.writeText(markerValue)
+        }
+
+        val segmentFiles = segments.indices.map { index ->
+            File(tempDir, "%06d.ts".format(index))
+        }
+
+        val existingCount = segmentFiles.count { it.exists() && it.length() > 0L }
+        onProgress(existingCount.toFloat() / segments.size.toFloat())
+
+        val missingIndexes = segments.indices.filter { index ->
+            val file = segmentFiles[index]
+            !file.exists() || file.length() <= 0L
+        }
+
+        if (missingIndexes.isNotEmpty()) {
+            val keyCache = missingIndexes
+                .mapNotNull { index -> segments[index].keyUrl }
+                .distinct()
+                .associateWith { keyUrl -> requestBytes(keyUrl, headers) }
+
+            val limiter = Semaphore(6)
+            val completed = AtomicInteger(existingCount)
             coroutineScope {
-                segments.mapIndexed { index, segment ->
+                missingIndexes.map { index ->
                     async {
                         limiter.withPermit {
+                            val segment = segments[index]
                             var bytes = requestBytes(segment.url, headers)
                             if (segment.keyUrl != null && segment.iv != null) {
                                 val key = keyCache[segment.keyUrl]
                                     ?: throw IOException("Missing AES key for HLS segment")
                                 bytes = decryptAes128(bytes, key, segment.iv)
                             }
-                            File(tempDir, "%06d.ts".format(index)).writeBytes(bytes)
+
+                            val finalFile = segmentFiles[index]
+                            val partFile = File(tempDir, "%06d.part".format(index))
+                            partFile.writeBytes(bytes)
+                            if (finalFile.exists()) finalFile.delete()
+                            if (!partFile.renameTo(finalFile)) {
+                                partFile.copyTo(finalFile, overwrite = true)
+                                partFile.delete()
+                            }
+
                             val done = completed.incrementAndGet()
                             onProgress(done.toFloat() / segments.size.toFloat())
                         }
                     }
                 }.awaitAll()
             }
-
-            val segmentFiles = tempDir.listFiles()
-                ?.filter { it.extension == "ts" && it.name != "joined.ts" }
-                ?.sortedBy { it.name }
-                .orEmpty()
-            if (segmentFiles.size != segments.size) {
-                throw IOException("Only ${segmentFiles.size} of ${segments.size} HLS segments were written")
-            }
-
-            val joinedTs = File(tempDir, "joined.ts")
-            joinedTs.outputStream().use { out ->
-                segmentFiles.forEach { file ->
-                    file.inputStream().use { it.copyTo(out) }
-                }
-            }
-
-            val expectedDurationUs = segments
-                .sumOf { (it.durationSeconds * 1_000_000.0).toLong() }
-                .coerceAtLeast(0L)
-
-            val remuxedMp4 = File(tempDir, "episode.mp4")
-            val mp4Ready = remuxSegmentsToMp4(
-                segmentFiles = segmentFiles,
-                output = remuxedMp4,
-                expectedDurationUs = expectedDurationUs,
-            )
-            val sourceFile = if (mp4Ready) remuxedMp4 else joinedTs
-            val extension = if (mp4Ready) "mp4" else "ts"
-            val mime = if (mp4Ready) "video/mp4" else "video/mp2t"
-
-            val safeTitle = sanitize(animeTitle).ifBlank { "Anime" }
-            val safeEpisode = episode.epLabel.replace(".", "_")
-            val suffix = if (stream.audio == "eng") "_DUB" else ""
-            val displayName = "$safeTitle - Ep $safeEpisode$suffix - ${stream.quality}p.$extension"
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                saveModernDownload(sourceFile, displayName, mime)
-            } else {
-                saveLegacyDownload(sourceFile, displayName)
-            }
-        } finally {
-            tempDir.deleteRecursively()
         }
+
+        val completedFiles = segmentFiles.filter { it.exists() && it.length() > 0L }
+        if (completedFiles.size != segments.size) {
+            throw IOException(
+                "Only ${completedFiles.size} of ${segments.size} HLS segments are available; " +
+                    "the download will resume when connectivity returns"
+            )
+        }
+
+        val joinedTs = File(tempDir, "joined.ts")
+        if (joinedTs.exists()) joinedTs.delete()
+        joinedTs.outputStream().buffered().use { out ->
+            completedFiles.forEach { file ->
+                file.inputStream().buffered().use { it.copyTo(out) }
+            }
+        }
+
+        val inputBytes = completedFiles.sumOf { it.length() }
+        if (joinedTs.length() < inputBytes) {
+            throw IOException("The joined episode file is incomplete")
+        }
+
+        val remuxedMp4 = File(tempDir, "episode.mp4")
+        if (remuxedMp4.exists()) remuxedMp4.delete()
+        val mp4Ready = remuxSegmentsToMp4(
+            segmentFiles = completedFiles,
+            output = remuxedMp4,
+            expectedDurationUs = expectedDurationUs,
+            expectedInputBytes = inputBytes,
+        )
+        val sourceFile = if (mp4Ready) remuxedMp4 else joinedTs
+        val extension = if (mp4Ready) "mp4" else "ts"
+        val mime = if (mp4Ready) "video/mp4" else "video/mp2t"
+
+        val safeTitle = sanitize(animeTitle).ifBlank { "Anime" }
+        val safeEpisode = episode.epLabel.replace(".", "_")
+        val suffix = if (stream.audio == "eng") "_DUB" else ""
+        val displayName = "$safeTitle - Ep $safeEpisode$suffix - ${stream.quality}p.$extension"
+
+        val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            saveModernDownload(sourceFile, displayName, mime)
+        } else {
+            saveLegacyDownload(sourceFile, displayName)
+        }
+
+        tempDir.deleteRecursively()
+        uri
     }
 
     @android.annotation.TargetApi(Build.VERSION_CODES.Q)
@@ -886,6 +942,7 @@ class PaheRepository(
         segmentFiles: List<File>,
         output: File,
         expectedDurationUs: Long,
+        expectedInputBytes: Long,
     ): Boolean {
         if (segmentFiles.isEmpty()) return false
 
@@ -1004,6 +1061,11 @@ class PaheRepository(
             muxer = null
 
             if (!output.exists() || output.length() == 0L) return false
+
+            if (expectedInputBytes > 0L && output.length() < (expectedInputBytes * 60L / 100L)) {
+                output.delete()
+                return false
+            }
 
             if (expectedDurationUs > 5_000_000L) {
                 val actualDurationUs = mediaDurationUs(output)
