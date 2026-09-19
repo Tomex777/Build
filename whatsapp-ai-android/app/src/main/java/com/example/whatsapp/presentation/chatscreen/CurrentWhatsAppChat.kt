@@ -87,6 +87,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.whatsapp.R
+import java.io.File
 
 private val HeaderBlack = Color(0xFF0A0A0A)
 private val IncomingBubble = Color(0xFF242625)
@@ -118,6 +119,16 @@ sealed interface WhatsAppVisualMessage {
         val mine: Boolean,
         val read: Boolean = false,
         val compact: Boolean = false,
+        val localPath: String? = null,
+    ) : WhatsAppVisualMessage
+
+    data class FileMessage(
+        override val id: String,
+        val name: String,
+        val detail: String,
+        val time: String,
+        val mine: Boolean,
+        val read: Boolean = false,
     ) : WhatsAppVisualMessage
 
     data class VoiceMessage(
@@ -211,6 +222,7 @@ fun CurrentWhatsAppConversation(
                     when (item) {
                         is WhatsAppVisualMessage.TextMessage -> CurrentTextBubble(item, appearance)
                         is WhatsAppVisualMessage.PhotoMessage -> CurrentPhotoBubble(item, appearance)
+                        is WhatsAppVisualMessage.FileMessage -> CurrentFileBubble(item, appearance)
                         is WhatsAppVisualMessage.VoiceMessage -> CurrentVoiceBubble(item, appearance)
                         is WhatsAppVisualMessage.DateSeparator -> CurrentDateSeparator(item.label)
                         is RichResultMessage -> RichResultBubble(item, onMessageButtonClick)
@@ -547,12 +559,24 @@ private fun CurrentPhotoBubble(
                 .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
                 .padding(5.dp),
         ) {
-            DemoMediaArtwork(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(220.dp)
-                    .clip(RoundedCornerShape(10.dp)),
-            )
+            if (!item.localPath.isNullOrBlank() && File(item.localPath).exists()) {
+                AsyncImage(
+                    model = File(item.localPath),
+                    contentDescription = item.caption,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                        .clip(RoundedCornerShape(10.dp)),
+                )
+            } else {
+                DemoMediaArtwork(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                        .clip(RoundedCornerShape(10.dp)),
+                )
+            }
 
             if (item.caption.isNotBlank()) {
                 Row(
@@ -565,6 +589,72 @@ private fun CurrentPhotoBubble(
                         fontSize = 14.sp,
                         modifier = Modifier.weight(1f),
                     )
+                    MessageMeta(item.time, item.mine, item.read)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CurrentFileBubble(
+    item: WhatsAppVisualMessage.FileMessage,
+    appearance: NightChatAppearance,
+) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart,
+    ) {
+        Row(
+            modifier = Modifier
+                .widthIn(min = 220.dp, max = 320.dp)
+                .clip(
+                    if (item.mine) {
+                        RoundedCornerShape(14.dp, 3.dp, 14.dp, 14.dp)
+                    } else {
+                        RoundedCornerShape(3.dp, 14.dp, 14.dp, 14.dp)
+                    }
+                )
+                .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
+                .padding(9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                color = Color(0xFF343A3D),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.size(44.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Description,
+                        contentDescription = null,
+                        tint = PrimaryText,
+                        modifier = Modifier.size(23.dp),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(9.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.name,
+                    color = PrimaryText,
+                    fontSize = (13f * appearance.messageFontScale).sp,
+                    fontFamily = appearance.fontFamily,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = item.detail,
+                    color = SecondaryText,
+                    fontSize = 10.sp,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
                     MessageMeta(item.time, item.mine, item.read)
                 }
             }
