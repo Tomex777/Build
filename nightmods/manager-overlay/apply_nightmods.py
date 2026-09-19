@@ -138,7 +138,7 @@ def main() -> None:
     activity_text = main_activity.read_text(encoding="utf-8")
     activity_text = replace_once(activity_text,
         r'''\s*if \(!ConfigManager\.isBinderAlive\(\)\) \{\s*nav\.getMenu\(\)\.removeItem\(R\.id\.logs_fragment\);\s*nav\.getMenu\(\)\.removeItem\(R\.id\.modules_nav\);\s*if \(!ConfigManager\.isMagiskInstalled\(\)\) \{\s*nav\.getMenu\(\)\.removeItem\(R\.id\.repo_nav\);\s*\}\s*\}''',
-        '''\n            var modulesItem = nav.getMenu().findItem(R.id.modules_nav);\n            var logsItem = nav.getMenu().findItem(R.id.logs_fragment);\n            var repoItem = nav.getMenu().findItem(R.id.repo_nav);\n            if (modulesItem != null) modulesItem.setEnabled(true);\n            if (logsItem != null) logsItem.setEnabled(ConfigManager.isBinderAlive());\n            if (repoItem != null) repoItem.setEnabled(ConfigManager.isMagiskInstalled());''',
+        '''\n            var modulesItem = nav.getMenu().findItem(R.id.modules_nav);\n            var logsItem = nav.getMenu().findItem(R.id.logs_fragment);\n            var repoItem = nav.getMenu().findItem(R.id.repo_nav);\n            if (modulesItem != null) modulesItem.setEnabled(true);\n            if (logsItem != null) logsItem.setEnabled(true);\n            if (repoItem != null) repoItem.setEnabled(true);''',
         "persistent Night Mods navigation")
     main_activity.write_text(activity_text, encoding="utf-8")
 
@@ -149,7 +149,7 @@ def main() -> None:
         "framework-aware module summary")
     modules_text = replace_once(modules_text,
         r'''safeNavigate\(ModulesFragmentDirections\.actionModulesFragmentToAppListFragment\(item\.packageName, item\.userId\)\);''',
-        '''Bundle args = new Bundle();\n                    args.putString("modulePackageName", item.packageName);\n                    args.putInt("moduleUserId", item.userId);\n                    try {\n                        getNavController().navigate(R.id.action_modules_fragment_to_app_list_fragment, args);\n                    } catch (IllegalArgumentException ignored) {\n                    }''',
+        '''if ("dev.nightmods.core".equals(item.packageName)) {\n                        try {\n                            getNavController().navigate(R.id.action_modules_fragment_to_night_core);\n                        } catch (IllegalArgumentException ignored) {\n                        }\n                    } else {\n                        Bundle args = new Bundle();\n                        args.putString("modulePackageName", item.packageName);\n                        args.putInt("moduleUserId", item.userId);\n                        try {\n                            getNavController().navigate(R.id.action_modules_fragment_to_app_list_fragment, args);\n                        } catch (IllegalArgumentException ignored) {\n                        }\n                    }''',
         "fallback ModulesFragment navigation without Safe Args class")
     modules_fragment.write_text(modules_text, encoding="utf-8")
 
