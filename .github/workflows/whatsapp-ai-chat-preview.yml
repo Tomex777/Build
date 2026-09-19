@@ -137,6 +137,16 @@ jobs:
             adb exec-out screencap -p > whatsapp-ai-preview/night-attachments.png
 
             adb shell am force-stop com.example.whatsapp
+            adb shell am start -W -n com.example.whatsapp/.ChatPreviewActivity --ez emoji true
+            sleep 2
+            adb exec-out screencap -p > whatsapp-ai-preview/night-emoji.png
+
+            adb shell am force-stop com.example.whatsapp
+            adb shell am start -W -n com.example.whatsapp/.ChatPreviewActivity --ez menu true
+            sleep 2
+            adb exec-out screencap -p > whatsapp-ai-preview/night-menu.png
+
+            adb shell am force-stop com.example.whatsapp
             adb shell am start -W -n com.example.whatsapp/.ChatPreviewActivity
             sleep 2
             adb shell input tap 300 1440
