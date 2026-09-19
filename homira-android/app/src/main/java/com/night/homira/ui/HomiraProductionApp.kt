@@ -8,6 +8,7 @@ import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.media.RingtoneManager
 import android.net.Uri
+import com.night.homira.BuildConfig
 import com.night.homira.call.HomiraWebRtcState
 import com.night.homira.call.HomiraAudioRecorder
 import com.night.homira.call.HomiraAudioPlayer
@@ -1596,6 +1597,13 @@ fun HomiraProductionApp(
                 return@LaunchedEffect
             }
 
+            val turnConfiguration = runCatching {
+                liveRepository.loadTurnConfiguration()
+            }.getOrNull()
+            val iceServers = HomiraWebRtcVoiceEngine.iceServersFrom(
+                turnConfiguration
+            )
+
             val engine = HomiraWebRtcVoiceEngine(
                 context = context,
                 callId = session.id,
@@ -1603,7 +1611,9 @@ fun HomiraProductionApp(
                 caller = session.callerId == localUserId,
                 initialVideoEnabled = activeVideo && cameraPermissionGranted,
                 lowDataMode = localSettings.lowDataCalls,
-                signaling = HomiraCallSignaling(session.id)
+                signaling = HomiraCallSignaling(session.id),
+                iceServers = iceServers,
+                forceRelayOnly = BuildConfig.HOMIRA_FORCE_TURN_RELAY
             )
             voiceEngine = engine
 
