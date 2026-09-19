@@ -324,7 +324,7 @@ private fun ExploreScreen(vm: PaheViewModel, padding: PaddingValues) {
                         Text("Browser verification", color = TextMain, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(7.dp))
                         Text(
-                            "AnimePahe and Kwik keep separate browser cookies. Run the two-step check whenever either one expires.",
+                            "AnimePahe is the only manual browser verification step. Kwik is resolved automatically when an episode is downloaded.",
                             color = TextMuted,
                             lineHeight = 20.sp,
                             fontSize = 14.sp,
@@ -357,6 +357,7 @@ private fun ExploreScreen(vm: PaheViewModel, padding: PaddingValues) {
                     anime = anime,
                     referer = vm.animePosterReferer(),
                     userAgent = vm.animeUserAgent(),
+                    cookie = vm.animeCookie(),
                     onClick = { vm.openAnime(anime) },
                 )
             }
@@ -386,6 +387,7 @@ private fun AnimeResultRow(
     anime: AnimeSearchResult,
     referer: String,
     userAgent: String,
+    cookie: String,
     onClick: () -> Unit,
 ) {
     Surface(
@@ -403,6 +405,7 @@ private fun AnimeResultRow(
                 url = anime.poster,
                 referer = referer,
                 userAgent = userAgent,
+                cookie = cookie,
                 modifier = Modifier
                     .width(88.dp)
                     .aspectRatio(0.68f)
@@ -437,6 +440,7 @@ private fun Poster(
     url: String,
     referer: String,
     userAgent: String,
+    cookie: String,
     modifier: Modifier = Modifier,
 ) {
     if (url.isBlank()) {
@@ -445,15 +449,18 @@ private fun Poster(
         }
     } else {
         val context = LocalContext.current
-        val request = remember(url, referer, userAgent) {
+        val request = remember(url, referer, userAgent, cookie) {
+            val headers = Headers.Builder()
+                .add("Referer", referer)
+                .add("User-Agent", userAgent)
+                .apply {
+                    if (cookie.isNotBlank()) add("Cookie", cookie)
+                }
+                .build()
+
             ImageRequest.Builder(context)
                 .data(url)
-                .headers(
-                    Headers.Builder()
-                        .add("Referer", referer)
-                        .add("User-Agent", userAgent)
-                        .build()
-                )
+                .headers(headers)
                 .build()
         }
         AsyncImage(
@@ -577,6 +584,7 @@ private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
                         url = details.result.poster,
                         referer = vm.animePosterReferer(),
                         userAgent = vm.animeUserAgent(),
+                        cookie = vm.animeCookie(),
                         modifier = Modifier
                             .fillMaxSize()
                             .background(Elevated),
@@ -1098,7 +1106,7 @@ private fun SettingsScreen(vm: PaheViewModel, padding: PaddingValues) {
         item {
             Text("Settings", color = TextMain, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
-            Text("Browser sessions are manual by design.", color = TextMuted, fontSize = 13.sp)
+            Text("AnimePahe browser verification is manual by design.", color = TextMuted, fontSize = 13.sp)
             Spacer(Modifier.height(14.dp))
         }
         item {
@@ -1125,7 +1133,7 @@ private fun SettingsScreen(vm: PaheViewModel, padding: PaddingValues) {
                 }
             }
         }
-        if (vm.sessions.animeCookieSaved || vm.sessions.kwikCookieSaved) {
+        if (vm.sessions.animeCookieSaved) {
             item {
                 TextButton(onClick = vm::clearVerificationSessions) {
                     Icon(Icons.Rounded.DeleteOutline, null, tint = Error)
@@ -1197,9 +1205,10 @@ private fun VerificationCard(
             Text("Web verification", color = TextMain, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(7.dp))
             Text(
-                "Run both stages whenever either Cloudflare cookie expires.",
+                "Verify AnimePahe when its browser session expires. Kwik does not need a separate manual verification step.",
                 color = TextMuted,
                 fontSize = 13.sp,
+                lineHeight = 19.sp,
             )
             Spacer(Modifier.height(18.dp))
             SessionRow(
@@ -1207,13 +1216,6 @@ private fun VerificationCard(
                 host = sessions.animeHost.ifBlank { "Not saved" },
                 saved = sessions.animeCookieSaved,
                 updatedAt = sessions.animeUpdatedAt,
-            )
-            Spacer(Modifier.height(13.dp))
-            SessionRow(
-                title = "Kwik",
-                host = sessions.kwikHost.ifBlank { "Not saved" },
-                saved = sessions.kwikCookieSaved,
-                updatedAt = sessions.kwikUpdatedAt,
             )
             Spacer(Modifier.height(19.dp))
             Button(
@@ -1270,7 +1272,7 @@ private fun VerificationScreen(vm: PaheViewModel) {
 
     BackHandler {
         val browser = webView
-        if (vm.verifyStage != VerifyStage.PREPARING_SECOND && browser?.canGoBack() == true) {
+        if (browser?.canGoBack() == true) {
             browser.goBack()
         } else {
             vm.closeVerification()
@@ -1295,33 +1297,19 @@ private fun VerificationScreen(vm: PaheViewModel) {
             }
             Column(Modifier.weight(1f)) {
                 Text(
-                    when (vm.verifyStage) {
-                        VerifyStage.ANIMEPAHE -> "Step 1 of 2 · AnimePahe"
-                        VerifyStage.PREPARING_SECOND -> "Preparing step 2"
-                        VerifyStage.KWIK -> "Step 2 of 2 · Kwik"
-                        VerifyStage.ANIMEPAHE_SAVED -> "AnimePahe saved"
-                    },
+                    "AnimePahe verification",
                     color = TextMain,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    when (vm.verifyStage) {
-                        VerifyStage.ANIMEPAHE -> "Complete the browser check, then confirm below."
-                        VerifyStage.PREPARING_SECOND -> "Using the AnimePahe session to open a real episode."
-                        VerifyStage.KWIK -> "Complete the second browser check, then confirm."
-                        VerifyStage.ANIMEPAHE_SAVED -> "Kwik could not be prepared, but AnimePahe is ready."
-                    },
+                    "Complete the browser check, then confirm below.",
                     color = TextMuted,
                     fontSize = 10.sp,
                     maxLines = 1,
                 )
             }
-            IconButton(
-                enabled = vm.verifyStage != VerifyStage.PREPARING_SECOND &&
-                    vm.verifyStage != VerifyStage.ANIMEPAHE_SAVED,
-                onClick = { webView?.reload() },
-            ) {
+            IconButton(onClick = { webView?.reload() }) {
                 Icon(Icons.Rounded.Refresh, null, tint = TextMuted)
             }
         }
@@ -1338,7 +1326,6 @@ private fun VerificationScreen(vm: PaheViewModel) {
                         settings.javaScriptEnabled = true
                         settings.domStorageEnabled = true
                         settings.databaseEnabled = true
-                        settings.userAgentString = settings.userAgentString
                         CookieManager.getInstance().setAcceptCookie(true)
                         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                         webViewClient = WebViewClient()
@@ -1347,38 +1334,13 @@ private fun VerificationScreen(vm: PaheViewModel) {
                 },
                 update = { view ->
                     val target = vm.verifyUrl
-                    if (
-                        target.isNotBlank() &&
-                        vm.verifyStage != VerifyStage.PREPARING_SECOND &&
-                        vm.verifyStage != VerifyStage.ANIMEPAHE_SAVED &&
-                        view.tag != target
-                    ) {
+                    if (target.isNotBlank() && view.tag != target) {
                         view.tag = target
-                        if (vm.verifyStage == VerifyStage.KWIK) {
-                            val animeHost = vm.sessions.animeHost.ifBlank { "animepahe.pw" }
-                            view.loadUrl(target, mapOf("Referer" to "https://$animeHost/"))
-                        } else {
-                            view.loadUrl(target)
-                        }
+                        view.loadUrl(target)
                     }
                 },
                 modifier = Modifier.fillMaxSize(),
             )
-
-            if (vm.verifyStage == VerifyStage.PREPARING_SECOND) {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(Bg.copy(alpha = 0.88f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = Accent)
-                        Spacer(Modifier.height(14.dp))
-                        Text("Opening Kwik…", color = TextMain, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
         }
 
         vm.verifyError?.let {
@@ -1395,17 +1357,12 @@ private fun VerificationScreen(vm: PaheViewModel) {
 
         Surface(color = Elevated, tonalElevation = 0.dp) {
             Button(
-                enabled = vm.verifyStage != VerifyStage.PREPARING_SECOND,
                 onClick = {
-                    if (vm.verifyStage == VerifyStage.ANIMEPAHE_SAVED) {
-                        vm.closeVerification()
-                    } else {
-                        val page = webView?.url.orEmpty().ifBlank { vm.verifyUrl }
-                        val cookie = CookieManager.getInstance().getCookie(page).orEmpty()
-                        val ua = webView?.settings?.userAgentString.orEmpty()
-                        CookieManager.getInstance().flush()
-                        vm.completeVerificationStep(page, cookie, ua)
-                    }
+                    val page = webView?.url.orEmpty().ifBlank { vm.verifyUrl }
+                    val cookie = CookieManager.getInstance().getCookie(page).orEmpty()
+                    val ua = webView?.settings?.userAgentString.orEmpty()
+                    CookieManager.getInstance().flush()
+                    vm.completeVerificationStep(page, cookie, ua)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1414,15 +1371,7 @@ private fun VerificationScreen(vm: PaheViewModel) {
                 shape = RoundedCornerShape(15.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Accent),
             ) {
-                Text(
-                    when (vm.verifyStage) {
-                        VerifyStage.ANIMEPAHE -> "I’ve completed AnimePahe"
-                        VerifyStage.PREPARING_SECOND -> "Opening second verification…"
-                        VerifyStage.KWIK -> "I’ve completed Kwik"
-                        VerifyStage.ANIMEPAHE_SAVED -> "Continue with AnimePahe"
-                    },
-                    fontWeight = FontWeight.Bold,
-                )
+                Text("I’ve completed AnimePahe", fontWeight = FontWeight.Bold)
             }
         }
     }
