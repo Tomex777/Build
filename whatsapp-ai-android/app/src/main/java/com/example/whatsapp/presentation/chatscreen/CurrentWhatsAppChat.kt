@@ -1,5 +1,6 @@
 package com.example.whatsapp.presentation.chatscreen
 
+import coil.compose.AsyncImage
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
