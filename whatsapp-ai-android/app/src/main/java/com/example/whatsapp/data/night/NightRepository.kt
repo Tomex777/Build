@@ -115,6 +115,8 @@ class NightRepository private constructor(
     suspend fun getChats(): List<NightChatEntity> = dao.getChats()
     suspend fun getMessages(chatId: String): List<NightMessageEntity> = dao.getMessages(chatId)
     suspend fun getMessage(messageId: String): NightMessageEntity? = dao.getMessage(messageId)
+    suspend fun getRecentMessagesAcrossChats(limit: Int = 600): List<NightMessageEntity> =
+        dao.getRecentMessagesAcrossChats(limit)
     suspend fun renameChat(chatId: String, title: String) = dao.renameChat(chatId, title, System.currentTimeMillis())
     suspend fun clearChat(chatId: String) = dao.clearMessages(chatId)
     suspend fun deleteChat(chatId: String) = dao.deleteChat(chatId)
