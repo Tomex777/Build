@@ -187,6 +187,11 @@ jobs:
             adb exec-out screencap -p > whatsapp-ai-preview/night-approved-rich.png
 
             adb shell am force-stop com.example.whatsapp
+            adb shell am start -W -n com.example.whatsapp/.ChatPreviewActivity --es mode extension
+            sleep 2
+            adb exec-out screencap -p > whatsapp-ai-preview/night-extension-schema.png
+
+            adb shell am force-stop com.example.whatsapp
             adb shell am start -W -n com.example.whatsapp/.ChatPreviewActivity --es mode utility
             sleep 2
             adb exec-out screencap -p > whatsapp-ai-preview/night-approved-files-links.png
