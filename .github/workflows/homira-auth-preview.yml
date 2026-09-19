@@ -6,6 +6,7 @@ on:
     paths:
       - 'homira-android/app/src/main/java/com/night/homira/ui/HomiraAuthGate.kt'
       - 'homira-android/app/src/main/res/drawable-nodpi/homira_call_mascot.webp'
+      - 'homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.png'
       - '.github/workflows/homira-auth-preview.yml'
   workflow_dispatch:
 
@@ -32,6 +33,13 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.6.0'
+
+      - name: Inspect mascot resource
+        run: |
+          file homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.png
+          file homira-android/app/src/main/res/drawable-nodpi/homira_call_mascot.webp
+          ls -lh homira-android/app/src/main/res/drawable-nodpi/homira_call_companion.png
+          ls -lh homira-android/app/src/main/res/drawable-nodpi/homira_call_mascot.webp
 
       - name: Build debug APK
         working-directory: homira-android
