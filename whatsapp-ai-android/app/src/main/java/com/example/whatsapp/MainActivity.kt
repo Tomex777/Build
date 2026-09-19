@@ -36,6 +36,7 @@ import com.example.whatsapp.data.night.NightMessageEntity
 import com.example.whatsapp.data.night.NightProviderManager
 import com.example.whatsapp.data.night.NightRepository
 import com.example.whatsapp.data.night.NightScheduleManager
+import com.example.whatsapp.data.night.NightSpeechService
 import com.example.whatsapp.data.night.NightVoiceRecorder
 import com.example.whatsapp.presentation.chat_box.ChatListModel
 import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
@@ -91,6 +92,7 @@ private fun NightApp() {
     val appearanceController = remember { NightAppearanceController(repository) }
     val voiceRecorder = remember { NightVoiceRecorder(context.applicationContext) }
     val scheduleManager = remember { NightScheduleManager.get(context) }
+    val speechService = remember { NightSpeechService.get(context) }
     val scope = rememberCoroutineScope()
 
     var selectedTabName by rememberSaveable { mutableStateOf(MainTab.Chats.name) }
@@ -228,22 +230,51 @@ private fun NightApp() {
             )
         )
 
-        repository.appendMessage(
-            NightMessageEntity(
-                id = java.util.UUID.randomUUID().toString(),
-                chatId = activeChatId,
-                role = "user",
-                type = "voice",
-                text = saved.name,
-                createdAt = System.currentTimeMillis(),
-                libraryFileId = saved.id,
-                payloadJson = JSONObject()
-                    .put("localPath", saved.localPath)
-                    .put("duration", formatDuration(recorded.durationMs))
-                    .put("durationMs", recorded.durationMs)
-                    .toString(),
-            )
+        val messageId = java.util.UUID.randomUUID().toString()
+        val initialPayload = JSONObject()
+            .put("localPath", saved.localPath)
+            .put("duration", formatDuration(recorded.durationMs))
+            .put("durationMs", recorded.durationMs)
+
+        val voiceMessage = NightMessageEntity(
+            id = messageId,
+            chatId = activeChatId,
+            role = "user",
+            type = "voice",
+            text = "",
+            createdAt = System.currentTimeMillis(),
+            libraryFileId = saved.id,
+            payloadJson = initialPayload.toString(),
         )
+        repository.appendMessage(voiceMessage)
+
+        val transcript = speechService.transcribe(saved.localPath).getOrNull()
+        if (!transcript.isNullOrBlank()) {
+            val updatedPayload = JSONObject(voiceMessage.payloadJson)
+                .put("transcript", transcript)
+
+            repository.appendMessage(
+                voiceMessage.copy(
+                    text = transcript,
+                    payloadJson = updatedPayload.toString(),
+                )
+            )
+
+            val result = aiGateway.reply(activeChatId, displayName)
+            repository.appendText(
+                chatId = activeChatId,
+                role = "assistant",
+                text = result.getOrElse { error ->
+                    when {
+                        error.message?.contains("No chat AI") == true ->
+                            "I transcribed the voice note, but no AI is selected for this chat yet."
+                        else ->
+                            "I transcribed the voice note, but I couldn't reach the selected AI. " +
+                                (error.message ?: "Check the provider settings.")
+                    }
+                },
+            )
+        }
     }
 
     fun startVoiceRecording() {
@@ -362,6 +393,23 @@ private fun NightApp() {
                         .toString(),
                 )
             )
+        }
+    }
+
+    fun playAudio(path: String) {
+        runCatching {
+            activePlayer?.release()
+            activePlayer = MediaPlayer().apply {
+                setDataSource(path)
+                prepare()
+                setOnCompletionListener { player ->
+                    player.release()
+                    if (activePlayer === player) activePlayer = null
+                }
+                start()
+            }
+        }.onFailure {
+            Toast.makeText(context, "Could not play audio.", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -642,19 +690,43 @@ private fun NightApp() {
                 }
             },
             onVoiceClick = { path ->
-                runCatching {
-                    activePlayer?.release()
-                    activePlayer = MediaPlayer().apply {
-                        setDataSource(path)
-                        prepare()
-                        setOnCompletionListener { player ->
-                            player.release()
-                            if (activePlayer === player) activePlayer = null
-                        }
-                        start()
+                playAudio(path)
+            },
+            onTranscribeVoice = { messageId, path ->
+                scope.launch {
+                    val transcript = speechService.transcribe(path)
+                    transcript.onSuccess { text ->
+                        val existing = repository.getMessage(messageId) ?: return@onSuccess
+                        val payload = runCatching { JSONObject(existing.payloadJson) }
+                            .getOrElse { JSONObject() }
+                            .put("transcript", text)
+                            .put("localPath", path)
+                        repository.appendMessage(
+                            existing.copy(
+                                text = text,
+                                payloadJson = payload.toString(),
+                            )
+                        )
+                    }.onFailure {
+                        Toast.makeText(
+                            context,
+                            it.message ?: "Could not transcribe this voice note.",
+                            Toast.LENGTH_LONG,
+                        ).show()
                     }
-                }.onFailure {
-                    Toast.makeText(context, "Could not play this voice note.", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onSpeakText = { text ->
+                scope.launch {
+                    speechService.synthesize(text)
+                        .onSuccess { file -> playAudio(file.absolutePath) }
+                        .onFailure {
+                            Toast.makeText(
+                                context,
+                                it.message ?: "Could not synthesize speech.",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
                 }
             },
         )
@@ -808,6 +880,7 @@ private fun NightMessageEntity.toVisualMessage(): WhatsAppVisualMessage {
             mine = mine,
             read = mine,
             localPath = payload?.optString("localPath")?.takeIf { it.isNotBlank() },
+            transcript = payload?.optString("transcript")?.takeIf { it.isNotBlank() },
         )
 
         "file" -> WhatsAppVisualMessage.FileMessage(
