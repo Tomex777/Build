@@ -49,6 +49,11 @@ class NightAiGateway private constructor(
                 append(displayName)
                 append(". Use that name naturally when appropriate. ")
                 append("Stay within the current conversation, but use the compact summaries below when relevant. ")
+                append("Night supports a two-person Options card. When a compact set of choices would genuinely help, ")
+                append("you may add exactly one final line in this format: ")
+                append("NIGHT_OPTIONS:{\"title\":\"Question\",\"options\":[\"Option 1\",\"Option 2\"]}. ")
+                append("Use 2 to 6 concise options. This is not a poll: never include votes, percentages, or imaginary participants. ")
+                append("The NIGHT_OPTIONS line is machine-readable and will not be shown as normal chat text. ")
                 if (otherChats.isNotEmpty()) {
                     append("\n\nOther Night chat summaries:\n")
                     otherChats.forEach {
