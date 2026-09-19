@@ -76,7 +76,7 @@ fun NightFilesTab(
     ModernAppScaffold(
         selectedTab = MainTab.Updates,
         onTabSelected = onTabSelected,
-        title = "Files",
+        title = "Library",
         onSettingsClick = onSettingsClick,
         floatingAction = {
             FloatingActionButton(
@@ -107,7 +107,7 @@ fun NightFilesTab(
                 item {
                     Column(modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)) {
                         Text(
-                            text = "Night Library",
+                            text = "Library",
                             color = Primary,
                             fontSize = 19.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -155,7 +155,7 @@ private fun EmptyLibrary(onAdd: () -> Unit) {
                 }
             }
             Text(
-                text = "Night Library",
+                text = "Library",
                 color = Primary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
