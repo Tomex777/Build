@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.VideoCall
 import androidx.compose.material.icons.filled.Poll
@@ -167,6 +168,7 @@ fun CurrentWhatsAppConversation(
     onAttachmentAction: (String) -> Unit = {},
     onCameraClick: () -> Unit = {},
     onMicClick: () -> Unit = {},
+    isRecording: Boolean = false,
     onVoiceClick: (String) -> Unit = {},
     onEmojiClick: () -> Unit = {},
     autoScrollToLatest: Boolean = true,
@@ -244,6 +246,7 @@ fun CurrentWhatsAppConversation(
                 },
                 onCameraClick = onCameraClick,
                 onMicClick = onMicClick,
+                isRecording = isRecording,
                 onEmojiClick = {
                     keyboardController?.hide()
                     showAttachments = false
@@ -923,6 +926,7 @@ private fun CurrentComposer(
     onAttachmentClick: () -> Unit,
     onCameraClick: () -> Unit,
     onMicClick: () -> Unit,
+    isRecording: Boolean = false,
     onEmojiClick: () -> Unit,
     applyNavigationPadding: Boolean = true,
     appearance: NightChatAppearance = NightChatAppearance(),
@@ -1024,8 +1028,16 @@ private fun CurrentComposer(
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    imageVector = if (text.isBlank()) Icons.Default.Mic else Icons.Default.Send,
-                    contentDescription = if (text.isBlank()) "Voice message" else "Send",
+                    imageVector = when {
+                        text.isNotBlank() -> Icons.Default.Send
+                        isRecording -> Icons.Default.Stop
+                        else -> Icons.Default.Mic
+                    },
+                    contentDescription = when {
+                        text.isNotBlank() -> "Send"
+                        isRecording -> "Stop recording"
+                        else -> "Voice message"
+                    },
                     tint = Color(0xFF10161A),
                     modifier = Modifier.size(24.dp),
                 )
