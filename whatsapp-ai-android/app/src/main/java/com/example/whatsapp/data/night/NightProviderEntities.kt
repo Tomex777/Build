@@ -20,6 +20,8 @@ data class NightProviderProfileEntity(
     val secretAlias: String,
     val endpoint: String? = null,
     val region: String? = null,
+    val language: String = "en-US",
+    val voiceName: String? = null,
     val capabilities: String = "",
     val isEnabled: Boolean = true,
     val isDefault: Boolean = false,
