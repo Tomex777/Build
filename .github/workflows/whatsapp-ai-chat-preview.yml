@@ -1,4 +1,4 @@
-name: WhatsApp AI Current Chat Preview
+name: WhatsApp AI Full UI Preview
 
 on:
   push:
@@ -96,18 +96,43 @@ jobs:
             mkdir -p whatsapp-ai-preview
 
             adb shell am force-stop com.example.whatsapp
+            adb shell am start -W -n com.example.whatsapp/.MainTabsPreviewActivity --es tab chats
+            sleep 3
+            adb exec-out screencap -p > whatsapp-ai-preview/tab-chats.png
+
+            adb shell am force-stop com.example.whatsapp
+            adb shell am start -W -n com.example.whatsapp/.MainTabsPreviewActivity --es tab updates
+            sleep 3
+            adb exec-out screencap -p > whatsapp-ai-preview/tab-updates.png
+
+            adb shell am force-stop com.example.whatsapp
+            adb shell am start -W -n com.example.whatsapp/.MainTabsPreviewActivity --es tab communities
+            sleep 3
+            adb exec-out screencap -p > whatsapp-ai-preview/tab-communities.png
+
+            adb shell am force-stop com.example.whatsapp
+            adb shell am start -W -n com.example.whatsapp/.MainTabsPreviewActivity --es tab calls
+            sleep 3
+            adb exec-out screencap -p > whatsapp-ai-preview/tab-calls.png
+
+            adb shell am force-stop com.example.whatsapp
+            adb shell am start -W -n com.example.whatsapp/.MainTabsPreviewActivity --es tab settings
+            sleep 3
+            adb exec-out screencap -p > whatsapp-ai-preview/settings.png
+
+            adb shell am force-stop com.example.whatsapp
             adb shell am start -W -n com.example.whatsapp/.ChatPreviewActivity
-            sleep 4
+            sleep 3
             adb exec-out screencap -p > whatsapp-ai-preview/chat-current.png
 
             adb shell am force-stop com.example.whatsapp
             adb shell am start -W -n com.example.whatsapp/.RichBubblePreviewActivity --ei page 1
-            sleep 4
+            sleep 3
             adb exec-out screencap -p > whatsapp-ai-preview/rich-bubbles-1.png
 
             adb shell am force-stop com.example.whatsapp
             adb shell am start -W -n com.example.whatsapp/.RichBubblePreviewActivity --ei page 2
-            sleep 4
+            sleep 3
             adb exec-out screencap -p > whatsapp-ai-preview/rich-bubbles-2.png
 
       - name: Commit rendered screenshot
@@ -117,7 +142,7 @@ jobs:
           git rebase origin/whatsapp-ai-ui-ci || true
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add whatsapp-ai-preview/chat-current.png || true
+          git add whatsapp-ai-preview || true
           git diff --cached --quiet && exit 0
           git commit -m "Update current WhatsApp chat preview"
           git push origin HEAD:whatsapp-ai-ui-ci
@@ -126,9 +151,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: whatsapp-ai-chat-preview
+          name: whatsapp-ai-full-ui-preview
           path: |
-            whatsapp-ai-preview/chat-current.png
-            whatsapp-ai-preview/rich-bubbles-1.png
-            whatsapp-ai-preview/rich-bubbles-2.png
+            whatsapp-ai-preview/*.png
           if-no-files-found: warn
