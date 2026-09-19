@@ -38,8 +38,24 @@ data class NightProviderModelEntity(
     val modelId: String,
     val displayName: String,
     val deploymentName: String? = null,
+    val capabilities: String = "text",
     val isEnabled: Boolean = true,
     val isDefault: Boolean = false,
     val createdAt: Long,
+    val updatedAt: Long,
+)
+
+
+@Entity(
+    tableName = "night_capability_routes",
+    indices = [Index("capability")],
+)
+data class NightCapabilityRouteEntity(
+    @PrimaryKey val id: String,
+    val capability: String, // vision | stt | tts | translation | live_voice
+    val providerProfileId: String,
+    val modelId: String? = null,
+    val useSelectedChatModelFirst: Boolean = true,
+    val isEnabled: Boolean = true,
     val updatedAt: Long,
 )
