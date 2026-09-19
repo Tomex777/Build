@@ -1,0 +1,102 @@
+name: Night Core APK
+
+on:
+  push:
+    branches:
+      - whatsapp-ai-ui-ci
+    paths:
+      - "whatsapp-ai-android/**"
+      - ".github/workflows/night-core-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: night-core-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 36 SDK
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Add build Firebase config
+        run: |
+          cat > whatsapp-ai-android/app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "123456789012",
+              "project_id": "night-core-build",
+              "storage_bucket": "night-core-build.appspot.com"
+            },
+            "client": [{
+              "client_info": {
+                "mobilesdk_app_id": "1:123456789012:android:0123456789abcdef",
+                "android_client_info": {"package_name": "com.example.whatsapp"}
+              },
+              "oauth_client": [],
+              "api_key": [{"current_key": "AIzaSyDUMMY_PREVIEW_KEY_NOT_FOR_NETWORK_USE"}],
+              "services": {"appinvite_service": {"other_platform_oauth_client": []}}
+            }],
+            "configuration_version": "1"
+          }
+          JSON
+
+      - name: Build Night debug APK
+        run: |
+          cd whatsapp-ai-android
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Stage Night APK
+        if: success()
+        run: |
+          mkdir -p night-build-output
+          cp whatsapp-ai-android/app/build/outputs/apk/debug/app-debug.apk night-build-output/Night.apk
+
+      - name: Upload Night APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-apk
+          path: night-build-output/Night.apk
+          if-no-files-found: error
+
+      - name: Publish build marker
+        if: always()
+        run: |
+          mkdir -p night-build-output
+          {
+            echo "run_id=${{ github.run_id }}"
+            echo "sha=${{ github.sha }}"
+            echo "status=${{ job.status }}"
+          } > night-build-output/night-build-status.txt
+
+          git fetch origin whatsapp-ai-ui-ci
+          git rebase origin/whatsapp-ai-ui-ci || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add night-build-output/night-build-status.txt
+          git diff --cached --quiet && exit 0
+          git commit -m "Publish Night build status"
+          git push origin HEAD:whatsapp-ai-ui-ci
