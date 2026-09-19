@@ -91,6 +91,27 @@ def screenshot(name: str) -> None:
     with (ROOT / name).open("wb") as fp:
         subprocess.run(["adb", "exec-out", "screencap", "-p"], check=True, stdout=fp)
 
+def recover_from_launcher_anr() -> None:
+    for _ in range(3):
+        try:
+            texts = visible_texts(dump_ui())
+        except Exception:
+            texts = []
+        if "Pixel Launcher isn't responding" in texts:
+            try:
+                tap_text("Wait")
+            except Exception:
+                adb("shell", "input", "keyevent", "4", check=False)
+            time.sleep(1.5)
+        adb("shell", "am", "start", "-W", "-n", "com.night.pahebatcher/.MainActivity", check=False)
+        time.sleep(2.0)
+        try:
+            if "PaheBatcher" in visible_texts(dump_ui()):
+                return
+        except Exception:
+            pass
+
+recover_from_launcher_anr()
 assert_text("PaheBatcher")
 assert_text("Explore")
 assert_text("Downloads")
