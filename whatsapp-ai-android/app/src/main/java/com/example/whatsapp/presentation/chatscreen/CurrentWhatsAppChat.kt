@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
@@ -170,7 +171,11 @@ fun CurrentWhatsAppConversation(
     ) {
         WhatsAppWallpaper()
 
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding(),
+        ) {
             CurrentChatHeader(
                 contactName = contactName,
                 subtitle = subtitle,
@@ -783,11 +788,19 @@ private fun CurrentComposer(
     onEmojiClick: () -> Unit,
     applyNavigationPadding: Boolean = true,
 ) {
+    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.Transparent)
-            .then(if (applyNavigationPadding) Modifier.navigationBarsPadding() else Modifier)
+            .then(
+                if (applyNavigationPadding && imeBottom == 0.dp) {
+                    Modifier.navigationBarsPadding()
+                } else {
+                    Modifier
+                }
+            )
             .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
