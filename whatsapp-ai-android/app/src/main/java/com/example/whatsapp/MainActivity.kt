@@ -1,8 +1,10 @@
 package com.example.whatsapp
 
+import android.Manifest
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.media.MediaPlayer
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -12,6 +14,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -22,6 +25,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import com.example.whatsapp.data.NightFileLibrary
 import com.example.whatsapp.data.night.NightAiGateway
 import com.example.whatsapp.data.night.NightAppearanceController
@@ -30,6 +34,7 @@ import com.example.whatsapp.data.night.NightLibraryItemEntity
 import com.example.whatsapp.data.night.NightMessageEntity
 import com.example.whatsapp.data.night.NightProviderManager
 import com.example.whatsapp.data.night.NightRepository
+import com.example.whatsapp.data.night.NightVoiceRecorder
 import com.example.whatsapp.presentation.chat_box.ChatListModel
 import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
 import com.example.whatsapp.presentation.chatscreen.NightChatAppearance
@@ -79,6 +84,7 @@ private fun NightApp() {
     val providerManager = remember { NightProviderManager.get(context) }
     val aiGateway = remember { NightAiGateway.get(context) }
     val appearanceController = remember { NightAppearanceController(repository) }
+    val voiceRecorder = remember { NightVoiceRecorder(context.applicationContext) }
     val scope = rememberCoroutineScope()
 
     var selectedTabName by rememberSaveable { mutableStateOf(MainTab.Chats.name) }
@@ -88,6 +94,8 @@ private fun NightApp() {
     var messageText by rememberSaveable { mutableStateOf("") }
     var renameOpen by remember { mutableStateOf(false) }
     var renameValue by rememberSaveable { mutableStateOf("") }
+    var isRecording by remember { mutableStateOf(false) }
+    var activePlayer by remember { mutableStateOf<MediaPlayer?>(null) }
 
     val chats by repository.observeChats().collectAsState(initial = emptyList())
     val profiles by repository.observeProviderProfiles().collectAsState(initial = emptyList())
@@ -179,6 +187,81 @@ private fun NightApp() {
             if (repository.unsummarizedMessages(activeChatId).isNotEmpty()) {
                 checkpoint(activeChatId)
             }
+        }
+    }
+
+    suspend fun persistVoiceRecording() {
+        val recorded = voiceRecorder.stop()
+        isRecording = false
+        if (recorded == null) {
+            Toast.makeText(context, "Voice recording was too short.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val saved = withContext(Dispatchers.IO) {
+            NightFileLibrary.registerLocalFile(
+                context = context,
+                source = recorded.file,
+                name = "Voice " + SimpleDateFormat("yyyy-MM-dd HH-mm-ss", Locale.getDefault()).format(Date()) + ".m4a",
+                mimeType = "audio/mp4",
+            )
+        } ?: return
+
+        repository.addLibraryItem(
+            NightLibraryItemEntity(
+                id = saved.id,
+                name = saved.name,
+                mimeType = saved.mimeType,
+                sizeBytes = saved.sizeBytes,
+                localPath = saved.localPath,
+                createdAt = saved.createdAt,
+                sourceChatId = activeChatId,
+            )
+        )
+
+        repository.appendMessage(
+            NightMessageEntity(
+                id = java.util.UUID.randomUUID().toString(),
+                chatId = activeChatId,
+                role = "user",
+                type = "voice",
+                text = saved.name,
+                createdAt = System.currentTimeMillis(),
+                libraryFileId = saved.id,
+                payloadJson = JSONObject()
+                    .put("localPath", saved.localPath)
+                    .put("duration", formatDuration(recorded.durationMs))
+                    .put("durationMs", recorded.durationMs)
+                    .toString(),
+            )
+        )
+    }
+
+    fun startVoiceRecording() {
+        runCatching {
+            voiceRecorder.start()
+            isRecording = true
+        }.onFailure {
+            isRecording = false
+            Toast.makeText(
+                context,
+                it.message ?: "Could not start recording.",
+                Toast.LENGTH_LONG,
+            ).show()
+        }
+    }
+
+    val recordPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            startVoiceRecording()
+        } else {
+            Toast.makeText(
+                context,
+                "Microphone permission is required for voice notes.",
+                Toast.LENGTH_SHORT,
+            ).show()
         }
     }
 
@@ -501,8 +584,36 @@ private fun NightApp() {
                 }
             },
             onCameraClick = { cameraLauncher.launch(null) },
+            isRecording = isRecording,
             onMicClick = {
-                repositoryActionToast(context, "Voice-note recording is the next core input being connected.")
+                if (isRecording) {
+                    scope.launch { persistVoiceRecording() }
+                } else if (
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.RECORD_AUDIO,
+                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) {
+                    startVoiceRecording()
+                } else {
+                    recordPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                }
+            },
+            onVoiceClick = { path ->
+                runCatching {
+                    activePlayer?.release()
+                    activePlayer = MediaPlayer().apply {
+                        setDataSource(path)
+                        prepare()
+                        setOnCompletionListener { player ->
+                            player.release()
+                            if (activePlayer === player) activePlayer = null
+                        }
+                        start()
+                    }
+                }.onFailure {
+                    Toast.makeText(context, "Could not play this voice note.", Toast.LENGTH_SHORT).show()
+                }
             },
         )
 
@@ -558,6 +669,13 @@ private fun NightApp() {
             else -> {
                 selectedTabName = MainTab.Chats.name
             }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            voiceRecorder.cancel()
+            activePlayer?.release()
         }
     }
 
@@ -644,6 +762,7 @@ private fun NightMessageEntity.toVisualMessage(): WhatsAppVisualMessage {
             time = time,
             mine = mine,
             read = mine,
+            localPath = payload?.optString("localPath")?.takeIf { it.isNotBlank() },
         )
 
         else -> WhatsAppVisualMessage.TextMessage(
@@ -661,6 +780,13 @@ private fun nightTime(timestamp: Long = System.currentTimeMillis()): String =
 
 private fun formatChatListTime(timestamp: Long): String =
     if (timestamp <= 0L) "" else nightTime(timestamp)
+
+private fun formatDuration(durationMs: Long): String {
+    val totalSeconds = (durationMs / 1000L).coerceAtLeast(0L)
+    val minutes = totalSeconds / 60L
+    val seconds = totalSeconds % 60L
+    return minutes.toString() + ":" + seconds.toString().padStart(2, '0')
+}
 
 private fun formatBytes(bytes: Long): String = when {
     bytes >= 1024L * 1024L -> String.format(Locale.getDefault(), "%.1f MB", bytes / (1024f * 1024f))
