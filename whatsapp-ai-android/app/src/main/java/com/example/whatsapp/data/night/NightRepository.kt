@@ -21,7 +21,9 @@ class NightRepository private constructor(
     suspend fun ensureProfile(): NightProfileEntity {
         val existing = dao.getProfile()
         if (existing != null) return existing
-        return NightProfileEntity(updatedAt = System.currentTimeMillis()).also(dao::upsertProfile)
+        val created = NightProfileEntity(updatedAt = System.currentTimeMillis())
+        dao.upsertProfile(created)
+        return created
     }
 
     suspend fun setDisplayName(name: String) {
@@ -37,7 +39,9 @@ class NightRepository private constructor(
     suspend fun ensureAppearance(): NightAppearanceEntity {
         val existing = dao.getAppearance()
         if (existing != null) return existing
-        return NightAppearanceEntity(updatedAt = System.currentTimeMillis()).also(dao::upsertAppearance)
+        val created = NightAppearanceEntity(updatedAt = System.currentTimeMillis())
+        dao.upsertAppearance(created)
+        return created
     }
 
     suspend fun setAppearance(appearance: NightAppearanceEntity) {
@@ -51,12 +55,14 @@ class NightRepository private constructor(
     ): NightChatEntity {
         val existing = dao.getChat(chatId)
         if (existing != null) return existing
-        return NightChatEntity(
+        val created = NightChatEntity(
             id = chatId,
             title = title,
             createdAt = now,
             updatedAt = now,
-        ).also(dao::upsertChat)
+        )
+        dao.upsertChat(created)
+        return created
     }
 
     suspend fun createChat(
