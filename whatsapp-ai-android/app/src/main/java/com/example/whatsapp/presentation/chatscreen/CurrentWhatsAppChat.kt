@@ -155,6 +155,7 @@ fun CurrentWhatsAppConversation(
     autoScrollToLatest: Boolean = true,
     attachmentsInitiallyOpen: Boolean = false,
     emojiInitiallyOpen: Boolean = false,
+    menuInitiallyOpen: Boolean = false,
 ) {
     val state = rememberLazyListState()
     var showAttachments by remember { mutableStateOf(attachmentsInitiallyOpen) }
@@ -184,6 +185,7 @@ fun CurrentWhatsAppConversation(
                 onBackClick = onBackClick,
                 onCallClick = onCallClick,
                 onMenuAction = onMenuAction,
+                menuInitiallyOpen = menuInitiallyOpen,
             )
 
             LazyColumn(
@@ -290,6 +292,7 @@ private fun CurrentChatHeader(
     onBackClick: () -> Unit,
     onCallClick: () -> Unit,
     onMenuAction: (String) -> Unit,
+    menuInitiallyOpen: Boolean = false,
 ) {
     Surface(
         color = HeaderBlack,
@@ -354,7 +357,7 @@ private fun CurrentChatHeader(
                 )
             }
 
-            var showMoreMenu by remember { mutableStateOf(false) }
+            var showMoreMenu by remember { mutableStateOf(menuInitiallyOpen) }
             Box {
                 IconButton(onClick = { showMoreMenu = true }) {
                     Icon(
