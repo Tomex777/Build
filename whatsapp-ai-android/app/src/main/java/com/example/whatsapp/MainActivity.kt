@@ -87,6 +87,7 @@ private fun NightApp() {
     var activeChatId by rememberSaveable { mutableStateOf("night-core") }
     var messageText by rememberSaveable { mutableStateOf("") }
     var renameOpen by remember { mutableStateOf(false) }
+    var renameValue by rememberSaveable { mutableStateOf("") }
 
     val chats by repository.observeChats().collectAsState(initial = emptyList())
     val profiles by repository.observeProviderProfiles().collectAsState(initial = emptyList())
@@ -454,7 +455,10 @@ private fun NightApp() {
                         selectedTabName = MainTab.Updates.name
                         screen = "tabs"
                     }
-                    "Rename chat" -> renameOpen = true
+                    "Rename chat" -> {
+                        renameValue = activeChat?.title.orEmpty()
+                        renameOpen = true
+                    }
                     "Choose AI" -> screen = "choose_ai"
                     "Clear chat" -> scope.launch { repository.clearChat(activeChatId) }
                     "Delete chat" -> scope.launch {
@@ -562,24 +566,17 @@ private fun NightApp() {
             onDismissRequest = { renameOpen = false },
             title = { androidx.compose.material3.Text("Rename chat") },
             text = {
-                var renameValue by remember(activeChatId, renameOpen) {
-                    mutableStateOf(activeChat?.title ?: "")
-                }
                 androidx.compose.material3.OutlinedTextField(
                     value = renameValue,
                     onValueChange = { renameValue = it.take(80) },
                     singleLine = true,
                     label = { androidx.compose.material3.Text("Chat name") },
                 )
-                androidx.compose.runtime.DisposableEffect(renameValue) {
-                    onDispose {}
-                }
-                RenameValueHolder.value = renameValue
             },
             confirmButton = {
                 androidx.compose.material3.TextButton(
                     onClick = {
-                        val value = RenameValueHolder.value.trim()
+                        val value = renameValue.trim()
                         if (value.isNotBlank()) {
                             scope.launch { repository.renameChat(activeChatId, value) }
                         }
@@ -596,9 +593,6 @@ private fun NightApp() {
     }
 }
 
-private object RenameValueHolder {
-    var value: String = ""
-}
 
 private fun NightAppearanceEntity.toChatAppearance(): NightChatAppearance =
     NightChatAppearance(
