@@ -260,22 +260,22 @@ private fun ExploreScreen(vm: PaheViewModel, padding: PaddingValues) {
                 }
                 Box {
                     Surface(
-                        color = if (vm.sessions.animeValidated) Color(0xFF142019) else Elevated2,
+                        color = if (vm.sessions.animeCookieSaved) Color(0xFF142019) else Elevated2,
                         shape = CircleShape,
                     ) {
                         IconButton(onClick = vm::startVerification) {
                             Icon(
                                 Icons.Rounded.Language,
-                                contentDescription = if (vm.sessions.animeValidated) {
+                                contentDescription = if (vm.sessions.animeCookieSaved) {
                                     "AnimePahe browser verified"
                                 } else {
                                     "Verify AnimePahe browser"
                                 },
-                                tint = if (vm.sessions.animeValidated) Success else TextMuted,
+                                tint = if (vm.sessions.animeCookieSaved) Success else TextMuted,
                             )
                         }
                     }
-                    if (vm.sessions.animeValidated) {
+                    if (vm.sessions.animeCookieSaved) {
                         Icon(
                             Icons.Rounded.CheckCircle,
                             contentDescription = null,
@@ -1284,16 +1284,16 @@ private fun SettingsScreen(vm: PaheViewModel, padding: PaddingValues) {
                     SettingsActionRow(
                         title = "AnimePahe browser",
                         subtitle = when {
-                            vm.sessions.animeValidated -> "Verified · browser session ready"
-                            vm.sessions.animeCookieSaved -> "Session expired or needs verification again"
+                            vm.sessions.animeCookieSaved -> "Verified · browser session ready"
+                            vm.sessions.animeCookieSaved -> "Browser session saved"
                             else -> "Verification required before downloading"
                         },
                         onClick = vm::startVerification,
                         trailing = {
                             Icon(
-                                if (vm.sessions.animeValidated) Icons.Rounded.CheckCircle else Icons.Rounded.Language,
+                                if (vm.sessions.animeCookieSaved) Icons.Rounded.CheckCircle else Icons.Rounded.Language,
                                 contentDescription = null,
-                                tint = if (vm.sessions.animeValidated) Success else TextMuted,
+                                tint = if (vm.sessions.animeCookieSaved) Success else TextMuted,
                             )
                         },
                     )
