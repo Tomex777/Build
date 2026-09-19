@@ -12,6 +12,17 @@ data class SessionSnapshot(
 class SessionStore(context: Context) {
     private val prefs = context.getSharedPreferences("pahe_sessions", Context.MODE_PRIVATE)
 
+    init {
+        // Old builds had a second manual verification stage. Purge that state on
+        // every startup so upgrading cannot resurrect the removed flow.
+        prefs.edit()
+            .remove(KEY_KWIK_COOKIE)
+            .remove(KEY_KWIK_HOST)
+            .remove(KEY_KWIK_UA)
+            .remove(KEY_KWIK_UPDATED)
+            .apply()
+    }
+
     fun animeUserAgent(): String =
         prefs.getString(KEY_ANIME_UA, prefs.getString(KEY_LEGACY_UA, DEFAULT_UA)) ?: DEFAULT_UA
 
