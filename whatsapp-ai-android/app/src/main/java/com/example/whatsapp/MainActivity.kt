@@ -30,6 +30,7 @@ import com.example.whatsapp.data.NightFileLibrary
 import com.example.whatsapp.data.night.NightAiGateway
 import com.example.whatsapp.data.night.NightAppearanceController
 import com.example.whatsapp.data.night.NightAppearanceEntity
+import com.example.whatsapp.data.night.NightCapabilityRouteEntity
 import com.example.whatsapp.data.night.NightLibraryItemEntity
 import com.example.whatsapp.data.night.NightMessageEntity
 import com.example.whatsapp.data.night.NightProviderManager
@@ -43,6 +44,7 @@ import com.example.whatsapp.presentation.chatscreen.WhatsAppVisualMessage
 import com.example.whatsapp.presentation.files.NightFilesTab
 import com.example.whatsapp.presentation.profile.NightAiSelectorScreen
 import com.example.whatsapp.presentation.profile.NightAppearanceScreen
+import com.example.whatsapp.presentation.profile.NightCapabilityRoutesScreen
 import com.example.whatsapp.presentation.profile.NightChatMemoryScreen
 import com.example.whatsapp.presentation.profile.NightMemoryScreen
 import com.example.whatsapp.presentation.profile.NightProfileScreen
@@ -108,6 +110,7 @@ private fun NightApp() {
     val profile by repository.observeProfile().collectAsState(initial = null)
     val appearanceEntity by repository.observeAppearance().collectAsState(initial = null)
     val scheduledTasks by repository.observeScheduledTasks().collectAsState(initial = emptyList())
+    val capabilityRoutes by repository.observeCapabilityRoutes().collectAsState(initial = emptyList())
 
     val messageFlow = remember(activeChatId) { repository.observeMessages(activeChatId) }
     val messageEntities by messageFlow.collectAsState(initial = emptyList())
@@ -400,6 +403,7 @@ private fun NightApp() {
             profiles = profiles,
             models = providerModels,
             onBack = { screen = "tabs" },
+            onCapabilityRoutingClick = { screen = "capability_routes" },
             onAddProfile = { provider, service, name, key, endpoint, region, makeDefault ->
                 scope.launch {
                     runCatching {
@@ -474,6 +478,28 @@ private fun NightApp() {
             onBack = { screen = "chat" },
             onRefresh = {
                 scope.launch { checkpoint(activeChatId) }
+            },
+        )
+
+        "capability_routes" -> NightCapabilityRoutesScreen(
+            profiles = profiles,
+            models = providerModels,
+            routes = capabilityRoutes,
+            onBack = { screen = "providers" },
+            onSetRoute = { capability, providerProfile, model, useSelectedFirst ->
+                scope.launch {
+                    repository.setCapabilityRoute(
+                        NightCapabilityRouteEntity(
+                            id = capability,
+                            capability = capability,
+                            providerProfileId = providerProfile.id,
+                            modelId = model?.id,
+                            useSelectedChatModelFirst = useSelectedFirst,
+                            isEnabled = true,
+                            updatedAt = System.currentTimeMillis(),
+                        )
+                    )
+                }
             },
         )
 
