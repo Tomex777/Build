@@ -90,6 +90,9 @@ interface NightDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertProviderProfile(profile: NightProviderProfileEntity)
 
+    @Query("UPDATE night_provider_profiles SET isDefault = 0 WHERE serviceKind = :serviceKind")
+    suspend fun clearDefaultProviderProfiles(serviceKind: String)
+
     @Query("DELETE FROM night_provider_profiles WHERE id = :id")
     suspend fun deleteProviderProfile(id: String)
 
@@ -101,6 +104,9 @@ interface NightDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertProviderModel(model: NightProviderModelEntity)
+
+    @Query("UPDATE night_provider_models SET isDefault = 0 WHERE profileId = :profileId")
+    suspend fun clearDefaultProviderModels(profileId: String)
 
     @Query("SELECT * FROM night_provider_models WHERE id = :id LIMIT 1")
     suspend fun getProviderModel(id: String): NightProviderModelEntity?
