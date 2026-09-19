@@ -7,6 +7,7 @@ import android.media.AudioManager
 import android.media.projection.MediaProjection
 import com.night.homira.data.CallSignalEnvelope
 import com.night.homira.data.HomiraCallSignaling
+import com.night.homira.data.HomiraTurnConfiguration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -61,7 +62,8 @@ class HomiraWebRtcVoiceEngine(
     private val initialVideoEnabled: Boolean = false,
     private val lowDataMode: Boolean = false,
     private val signaling: HomiraCallSignaling,
-    private val iceServers: List<PeerConnection.IceServer> = defaultIceServers()
+    private val iceServers: List<PeerConnection.IceServer> = defaultIceServers(),
+    private val forceRelayOnly: Boolean = false
 ) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -154,6 +156,11 @@ class HomiraWebRtcVoiceEngine(
         val config = PeerConnection.RTCConfiguration(iceServers).apply {
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
             continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+            iceTransportsType = if (forceRelayOnly) {
+                PeerConnection.IceTransportsType.RELAY
+            } else {
+                PeerConnection.IceTransportsType.ALL
+            }
         }
 
         peerConnection = requireNotNull(factory).createPeerConnection(config, peerObserver)
@@ -710,6 +717,35 @@ class HomiraWebRtcVoiceEngine(
                         .createInitializationOptions()
                 )
             }
+        }
+
+        fun iceServersFrom(
+            config: HomiraTurnConfiguration?
+        ): List<PeerConnection.IceServer> {
+            val configured = config?.iceServers
+                .orEmpty()
+                .flatMap { server ->
+                    server.urls.mapNotNull { url ->
+                        val normalized = url.trim()
+                        if (normalized.isBlank()) {
+                            null
+                        } else {
+                            PeerConnection.IceServer
+                                .builder(normalized)
+                                .apply {
+                                    server.username
+                                        ?.takeIf { it.isNotBlank() }
+                                        ?.let(::setUsername)
+                                    server.credential
+                                        ?.takeIf { it.isNotBlank() }
+                                        ?.let(::setPassword)
+                                }
+                                .createIceServer()
+                        }
+                    }
+                }
+
+            return configured.ifEmpty { defaultIceServers() }
         }
 
         fun defaultIceServers(): List<PeerConnection.IceServer> = listOf(
