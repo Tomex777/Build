@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -83,9 +84,10 @@ private val Missed = Color(0xFFFF4B62)
 
 enum class MainTab(val label: String) {
     Chats("Chats"),
-    Updates("Files"),
+    Updates("Library"),
     Communities("Communities"),
     Calls("Calls"),
+    You("You"),
 }
 
 @Composable
@@ -140,7 +142,8 @@ private fun ModernTopBar(
             .fillMaxWidth()
             .background(TopBar)
             .windowInsetsPadding(WindowInsets.statusBars)
-            .height(58.dp)
+            .padding(top = 4.dp)
+            .height(64.dp)
             .padding(start = 16.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -189,9 +192,9 @@ private fun ModernBottomBar(
             .fillMaxWidth()
             .background(TopBar)
             .windowInsetsPadding(WindowInsets.navigationBars)
-            .height(64.dp),
+            .height(66.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceEvenly,
+        horizontalArrangement = Arrangement.SpaceAround,
     ) {
         BottomItem(
             tab = MainTab.Chats,
@@ -206,15 +209,9 @@ private fun ModernBottomBar(
             onClick = onSelected,
         )
         BottomItem(
-            tab = MainTab.Communities,
-            selected = selected == MainTab.Communities,
-            icon = Icons.Default.Groups,
-            onClick = onSelected,
-        )
-        BottomItem(
-            tab = MainTab.Calls,
-            selected = selected == MainTab.Calls,
-            icon = Icons.Default.Phone,
+            tab = MainTab.You,
+            selected = selected == MainTab.You,
+            icon = Icons.Default.Person,
             onClick = onSelected,
         )
     }
@@ -281,6 +278,7 @@ fun ModernChatsTab(
     chats: List<ChatListModel>,
     onTabSelected: (MainTab) -> Unit,
     onChatClick: (ChatListModel) -> Unit,
+    onNewChat: () -> Unit = {},
     onSettingsClick: () -> Unit,
 ) {
     val rows = remember(chats) {
@@ -313,7 +311,7 @@ fun ModernChatsTab(
         onSettingsClick = onSettingsClick,
         floatingAction = {
             FloatingActionButton(
-                onClick = {},
+                onClick = onNewChat,
                 containerColor = Green,
                 contentColor = Color(0xFF08110C),
                 shape = RoundedCornerShape(18.dp),
@@ -329,7 +327,7 @@ fun ModernChatsTab(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             SearchPill(
-                placeholder = "Ask Night or Search",
+                placeholder = "Search your chats",
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             )
 
