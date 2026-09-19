@@ -34,6 +34,7 @@ import com.example.whatsapp.data.night.NightLibraryItemEntity
 import com.example.whatsapp.data.night.NightMessageEntity
 import com.example.whatsapp.data.night.NightProviderManager
 import com.example.whatsapp.data.night.NightRepository
+import com.example.whatsapp.data.night.NightScheduleManager
 import com.example.whatsapp.data.night.NightVoiceRecorder
 import com.example.whatsapp.presentation.chat_box.ChatListModel
 import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
@@ -46,6 +47,8 @@ import com.example.whatsapp.presentation.profile.NightChatMemoryScreen
 import com.example.whatsapp.presentation.profile.NightMemoryScreen
 import com.example.whatsapp.presentation.profile.NightProfileScreen
 import com.example.whatsapp.presentation.profile.NightProvidersScreen
+import com.example.whatsapp.presentation.profile.NightScheduleDialog
+import com.example.whatsapp.presentation.profile.NightScheduledTasksScreen
 import com.example.whatsapp.presentation.profile.NightYouTab
 import com.example.whatsapp.presentation.shell.MainTab
 import com.example.whatsapp.presentation.shell.ModernChatsTab
@@ -85,6 +88,7 @@ private fun NightApp() {
     val aiGateway = remember { NightAiGateway.get(context) }
     val appearanceController = remember { NightAppearanceController(repository) }
     val voiceRecorder = remember { NightVoiceRecorder(context.applicationContext) }
+    val scheduleManager = remember { NightScheduleManager.get(context) }
     val scope = rememberCoroutineScope()
 
     var selectedTabName by rememberSaveable { mutableStateOf(MainTab.Chats.name) }
@@ -96,12 +100,14 @@ private fun NightApp() {
     var renameValue by rememberSaveable { mutableStateOf("") }
     var isRecording by remember { mutableStateOf(false) }
     var activePlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var scheduleOpen by remember { mutableStateOf(false) }
 
     val chats by repository.observeChats().collectAsState(initial = emptyList())
     val profiles by repository.observeProviderProfiles().collectAsState(initial = emptyList())
     val providerModels by repository.observeAllProviderModels().collectAsState(initial = emptyList())
     val profile by repository.observeProfile().collectAsState(initial = null)
     val appearanceEntity by repository.observeAppearance().collectAsState(initial = null)
+    val scheduledTasks by repository.observeScheduledTasks().collectAsState(initial = emptyList())
 
     val messageFlow = remember(activeChatId) { repository.observeMessages(activeChatId) }
     val messageEntities by messageFlow.collectAsState(initial = emptyList())
@@ -471,6 +477,14 @@ private fun NightApp() {
             },
         )
 
+        "scheduled_tasks" -> NightScheduledTasksScreen(
+            tasks = scheduledTasks,
+            onBack = { screen = "tabs" },
+            onDelete = { task ->
+                scope.launch { scheduleManager.cancel(task) }
+            },
+        )
+
         "settings" -> ModernSettingsScreen(
             onBack = { screen = "tabs" },
         )
@@ -577,7 +591,7 @@ private fun NightApp() {
                     "Document" -> attachmentPicker.launch(arrayOf("*/*"))
                     "Camera" -> cameraLauncher.launch(null)
                     "Choose AI" -> screen = "choose_ai"
-                    "Schedule" -> repositoryActionToast(context, "Scheduling will use Night's persistent scheduler.")
+                    "Schedule" -> scheduleOpen = true
                     "Location" -> repositoryActionToast(context, "Location is a Night message type; the location capability is not configured yet.")
                     "Poll" -> repositoryActionToast(context, "Poll UI is available; persistent poll data is next.")
                     "AI images" -> repositoryActionToast(context, "Choose an image-capable provider or extension first.")
@@ -657,6 +671,7 @@ private fun NightApp() {
                 onProfileClick = { screen = "profile" },
                 onProvidersClick = { screen = "providers" },
                 onMemoryClick = { screen = "memory" },
+                onSchedulesClick = { screen = "scheduled_tasks" },
                 onLibraryStorageClick = {
                     selectedTabName = MainTab.Updates.name
                     screen = "tabs"
@@ -677,6 +692,34 @@ private fun NightApp() {
             voiceRecorder.cancel()
             activePlayer?.release()
         }
+    }
+
+    if (scheduleOpen) {
+        NightScheduleDialog(
+            initialPrompt = messageText,
+            onDismiss = { scheduleOpen = false },
+            onSchedule = { prompt, delayMs, repeatMinutes ->
+                scope.launch {
+                    runCatching {
+                        scheduleManager.create(
+                            chatId = activeChatId,
+                            prompt = prompt,
+                            runAt = System.currentTimeMillis() + delayMs,
+                            repeatMinutes = repeatMinutes,
+                        )
+                    }.onSuccess {
+                        Toast.makeText(context, "Scheduled with Night.", Toast.LENGTH_SHORT).show()
+                    }.onFailure {
+                        Toast.makeText(
+                            context,
+                            it.message ?: "Could not create schedule.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+                scheduleOpen = false
+            },
+        )
     }
 
     if (renameOpen) {
