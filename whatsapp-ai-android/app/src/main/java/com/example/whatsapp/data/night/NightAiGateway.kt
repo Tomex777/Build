@@ -54,6 +54,9 @@ class NightAiGateway private constructor(
                 append("NIGHT_OPTIONS:{\"title\":\"Question\",\"options\":[\"Option 1\",\"Option 2\"]}. ")
                 append("Use 2 to 6 concise options. This is not a poll: never include votes, percentages, or imaginary participants. ")
                 append("The NIGHT_OPTIONS line is machine-readable and will not be shown as normal chat text. ")
+                append("When the user asks you to choose from an existing Options card, you may add exactly one final line: ")
+                append("NIGHT_CHOICE_SELECTION:{\"messageId\":\"the-choice-message-id\",\"index\":0}. ")
+                append("Indexes are zero-based. Only select an option that exists in that card. ")
                 if (otherChats.isNotEmpty()) {
                     append("\n\nOther Night chat summaries:\n")
                     otherChats.forEach {
@@ -97,6 +100,58 @@ class NightAiGateway private constructor(
                     "assistant" -> "assistant"
                     "system" -> "system"
                     else -> "user"
+                }
+
+                if (message.type == "choice") {
+                    val choicePayload = runCatching { JSONObject(message.payloadJson) }.getOrNull()
+                    val optionsArray = choicePayload?.optJSONArray("options")
+                    val options = buildList {
+                        if (optionsArray != null) {
+                            for (index in 0 until optionsArray.length()) {
+                                val value = optionsArray.optString(index).trim()
+                                if (value.isNotBlank()) add(value)
+                            }
+                        }
+                    }
+
+                    val choiceText = buildString {
+                        append(message.text.ifBlank { "Choose an option" })
+                        append("\n[Options message id: ")
+                        append(message.id)
+                        append("]")
+                        if (options.isNotEmpty()) {
+                            append("\nOptions:")
+                            options.forEachIndexed { index, option ->
+                                append("\n")
+                                append(index)
+                                append(": ")
+                                append(option)
+                            }
+                        }
+
+                        if (choicePayload?.has("selectedIndex") == true &&
+                            !choicePayload.isNull("selectedIndex")
+                        ) {
+                            val selected = choicePayload.optInt("selectedIndex", -1)
+                            if (selected in options.indices) {
+                                append("\nSelected: ")
+                                append(options[selected])
+                                choicePayload.optString("selectedBy")
+                                    .takeIf { it.isNotBlank() }
+                                    ?.let {
+                                        append(" by ")
+                                        append(it)
+                                    }
+                            }
+                        }
+                    }
+
+                    payloadMessages.put(
+                        JSONObject()
+                            .put("role", role)
+                            .put("content", choiceText)
+                    )
+                    continue
                 }
 
                 if (message.type == "image" && role == "user") {
