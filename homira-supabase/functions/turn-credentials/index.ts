@@ -9,7 +9,8 @@ type IceServer = {
 
 const DEVELOPMENT_TURN_URLS = [
   "turn:staticauth.openrelay.metered.ca:80",
-  "turn:staticauth.openrelay.metered.ca:443?transport=tcp",
+  "turn:staticauth.openrelay.metered.ca:80?transport=tcp",
+  "turns:staticauth.openrelay.metered.ca:443?transport=tcp",
 ];
 const DEVELOPMENT_TURN_SHARED_SECRET = "openrelayprojectsecret";
 
