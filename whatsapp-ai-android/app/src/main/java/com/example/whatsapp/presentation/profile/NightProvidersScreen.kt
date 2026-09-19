@@ -55,6 +55,7 @@ fun NightProvidersScreen(
     profiles: List<NightProviderProfileEntity>,
     models: List<NightProviderModelEntity>,
     onBack: () -> Unit,
+    onCapabilityRoutingClick: () -> Unit,
     onAddProfile: (
         providerType: String,
         serviceKind: String,
@@ -99,6 +100,9 @@ fun NightProvidersScreen(
                 fontSize = 22.sp,
                 modifier = Modifier.weight(1f),
             )
+            TextButton(onClick = onCapabilityRoutingClick) {
+                Text("Routing", color = ProviderAccent)
+            }
             IconButton(onClick = { showAddProfile = true }) {
                 Icon(Icons.Default.Add, "Add provider", tint = ProviderAccent)
             }
