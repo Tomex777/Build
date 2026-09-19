@@ -606,21 +606,63 @@ private fun NightApp() {
         screen = "chat"
     }
 
-    fun sendMediaDraft() {
+    fun sendMediaDraft(
+        preparedPath: String? = null,
+        preparedMimeType: String? = null,
+        preparedName: String? = null,
+    ) {
         val draft = mediaDraft ?: return
         val chatId = activeChatId
         val caption = mediaCaption.trim()
         val messageId = java.util.UUID.randomUUID().toString()
 
         scope.launch {
+            val finalPath = preparedPath ?: draft.localPath
+            val finalMimeType = preparedMimeType ?: draft.mimeType
+            val finalName = preparedName ?: draft.name
+            val finalFile = File(finalPath)
+
+            val finalPayload = runCatching { JSONObject(draft.payloadJson) }
+                .getOrElse { JSONObject() }
+                .put("localPath", finalPath)
+                .put("mimeType", finalMimeType)
+                .put("sizeBytes", finalFile.length())
+
+            var finalThumbnail = draft.thumbnailPath
+            if (finalMimeType.startsWith("video/")) {
+                val videoMeta = withContext(Dispatchers.IO) {
+                    extractVideoMeta(context, finalPath)
+                }
+                finalPayload
+                    .put("duration", videoMeta.duration)
+                    .put("aspectRatio", videoMeta.aspectRatio)
+                videoMeta.thumbnailPath?.let {
+                    finalPayload.put("thumbnailPath", it)
+                    finalThumbnail = it
+                }
+            } else if (finalMimeType.startsWith("image/")) {
+                finalPayload.put("aspectRatio", readImageAspectRatio(finalPath))
+                finalPayload.remove("thumbnailPath")
+                finalThumbnail = null
+            }
+
+            val finalDraft = draft.copy(
+                name = finalName,
+                mimeType = finalMimeType,
+                sizeBytes = finalFile.length(),
+                localPath = finalPath,
+                payloadJson = finalPayload.toString(),
+                thumbnailPath = finalThumbnail,
+            )
+
             repository.addLibraryItem(
                 NightLibraryItemEntity(
-                    id = draft.libraryId,
-                    name = draft.name,
-                    mimeType = draft.mimeType,
-                    sizeBytes = draft.sizeBytes,
-                    localPath = draft.localPath,
-                    createdAt = draft.createdAt,
+                    id = finalDraft.libraryId,
+                    name = finalDraft.name,
+                    mimeType = finalDraft.mimeType,
+                    sizeBytes = finalDraft.sizeBytes,
+                    localPath = finalDraft.localPath,
+                    createdAt = finalDraft.createdAt,
                     sourceChatId = chatId,
                     sourceMessageId = messageId,
                 )
@@ -631,14 +673,21 @@ private fun NightApp() {
                     id = messageId,
                     chatId = chatId,
                     role = "user",
-                    type = draft.messageType,
+                    type = finalDraft.messageType,
                     text = caption,
                     createdAt = System.currentTimeMillis(),
-                    libraryFileId = draft.libraryId,
-                    payloadJson = draft.payloadJson,
-                    replyToMessageId = draft.replyToMessageId,
+                    libraryFileId = finalDraft.libraryId,
+                    payloadJson = finalDraft.payloadJson,
+                    replyToMessageId = finalDraft.replyToMessageId,
                 )
             )
+
+            if (finalDraft.localPath != draft.localPath) {
+                runCatching { File(draft.localPath).delete() }
+                if (draft.thumbnailPath != finalDraft.thumbnailPath) {
+                    draft.thumbnailPath?.let { runCatching { File(it).delete() } }
+                }
+            }
 
             mediaDraft = null
             mediaCaption = ""
@@ -754,7 +803,13 @@ private fun NightApp() {
                     caption = mediaCaption,
                     onCaptionChange = { mediaCaption = it },
                     onCancel = ::cancelMediaDraft,
-                    onSend = ::sendMediaDraft,
+                    onPreparedSend = { path, mime, name ->
+                        sendMediaDraft(
+                            preparedPath = path,
+                            preparedMimeType = mime,
+                            preparedName = name,
+                        )
+                    },
                 )
             } else {
                 screen = "chat"

@@ -124,4 +124,8 @@ dependencies {
 
     // Night video engine (VLC/libVLC)
     implementation("org.videolan.android:libvlc-all:3.7.6")
+
+    // Night full-screen media editor
+    implementation("com.burhanrashid52:photoeditor:3.1.1")
+    implementation("androidx.media3:media3-transformer:1.11.1")
 }

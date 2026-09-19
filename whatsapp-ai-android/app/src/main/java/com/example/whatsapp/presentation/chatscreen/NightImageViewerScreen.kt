@@ -139,7 +139,7 @@ fun NightMediaViewerScreen(
         ) { page ->
             val item = items[page]
             if (item.isVideo) {
-                NightVlcVideo(
+                NightVlcVideoSurface(
                     path = item.localPath,
                     showControls = controlsVisible && page == pagerState.currentPage,
                     onToggleControls = { controlsVisible = !controlsVisible },
@@ -313,7 +313,7 @@ private fun NightZoomableImage(
 }
 
 @Composable
-private fun NightVlcVideo(
+internal fun NightVlcVideoSurface(
     path: String,
     showControls: Boolean,
     onToggleControls: () -> Unit,
