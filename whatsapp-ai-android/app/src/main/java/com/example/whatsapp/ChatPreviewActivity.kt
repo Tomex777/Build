@@ -19,6 +19,9 @@ import com.example.whatsapp.presentation.chatscreen.ReplyKind
 import com.example.whatsapp.presentation.chatscreen.ReplyPreview
 import com.example.whatsapp.presentation.chatscreen.ToolResultMessage
 import com.example.whatsapp.presentation.chatscreen.WhatsAppVisualMessage
+import com.example.whatsapp.presentation.chatscreen.mediaPreviewMessages
+import com.example.whatsapp.presentation.chatscreen.richPreviewMessagesPageOne
+import com.example.whatsapp.presentation.chatscreen.richPreviewMessagesPageTwo
 import com.example.whatsapp.presentation.chatscreen.whatsappPreviewMessages
 import com.example.whatsapp.ui.theme.WhatsappTheme
 
@@ -32,6 +35,7 @@ class ChatPreviewActivity : ComponentActivity() {
         val showAttachments = intent.getBooleanExtra("attachments", false)
         val showEmoji = intent.getBooleanExtra("emoji", false)
         val showMenu = intent.getBooleanExtra("menu", false)
+        val previewMode = intent.getStringExtra("mode").orEmpty()
         val mode = intent.getStringExtra("mode").orEmpty()
         val previewImage = "android.resource://" + packageName + "/" + R.drawable.bilal
 
