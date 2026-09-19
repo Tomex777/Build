@@ -31,6 +31,7 @@ data class StoredDownloadTask(
     val progress: Float = 0f,
     val status: String = "Queued",
     val state: String = STATE_QUEUED,
+    val manualPaused: Boolean = false,
     val uri: String = "",
     val createdAt: Long = System.currentTimeMillis(),
 ) {
@@ -113,7 +114,13 @@ class DownloadTaskStore(private val context: Context) {
     }
 
     fun markRunning(id: String, status: String) =
-        update(id) { it.copy(state = StoredDownloadTask.STATE_RUNNING, status = status) }
+        update(id) {
+            it.copy(
+                state = StoredDownloadTask.STATE_RUNNING,
+                manualPaused = false,
+                status = status,
+            )
+        }
 
     fun markProgress(id: String, progress: Float, status: String) =
         update(id) {
@@ -124,8 +131,14 @@ class DownloadTaskStore(private val context: Context) {
             )
         }
 
-    fun markPaused(id: String, status: String) =
-        update(id) { it.copy(state = StoredDownloadTask.STATE_PAUSED, status = status) }
+    fun markPaused(id: String, status: String, manual: Boolean = false) =
+        update(id) {
+            it.copy(
+                state = StoredDownloadTask.STATE_PAUSED,
+                manualPaused = manual,
+                status = status,
+            )
+        }
 
     fun markFailed(id: String, status: String) =
         update(id) { it.copy(state = StoredDownloadTask.STATE_FAILED, status = status) }
@@ -156,6 +169,7 @@ class DownloadTaskStore(private val context: Context) {
             it.copy(
                 workId = workId,
                 state = StoredDownloadTask.STATE_QUEUED,
+                manualPaused = false,
                 status = status,
             )
         }
@@ -223,6 +237,7 @@ class DownloadTaskStore(private val context: Context) {
         .put("progress", progress.toDouble())
         .put("status", status)
         .put("state", state)
+        .put("manualPaused", manualPaused)
         .put("uri", uri)
         .put("createdAt", createdAt)
 
@@ -258,6 +273,7 @@ class DownloadTaskStore(private val context: Context) {
         progress = optDouble("progress", 0.0).toFloat(),
         status = optString("status", "Queued"),
         state = optString("state", StoredDownloadTask.STATE_QUEUED),
+        manualPaused = optBoolean("manualPaused", false),
         uri = optString("uri"),
         createdAt = optLong("createdAt", System.currentTimeMillis()),
     )
