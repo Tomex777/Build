@@ -53,7 +53,9 @@ import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
 import com.example.whatsapp.presentation.chatscreen.ExtensionResultMessage
 import com.example.whatsapp.presentation.chatscreen.NightChatAppearance
 import com.example.whatsapp.presentation.chatscreen.NightChoiceDialog
-import com.example.whatsapp.presentation.chatscreen.NightImageViewerScreen
+import com.example.whatsapp.presentation.chatscreen.NightChatMediaItem
+import com.example.whatsapp.presentation.chatscreen.NightMediaViewerScreen
+import com.example.whatsapp.presentation.chatscreen.NightPdfSheet
 import com.example.whatsapp.presentation.chatscreen.NightMediaComposerScreen
 import com.example.whatsapp.presentation.chatscreen.ReplyKind
 import com.example.whatsapp.presentation.chatscreen.ReplyPreview
@@ -135,7 +137,8 @@ private fun NightApp() {
     var liveVoiceError by remember { mutableStateOf<String?>(null) }
     var replyingToId by rememberSaveable { mutableStateOf<String?>(null) }
     var choiceOpen by remember { mutableStateOf(false) }
-    var imageViewerPath by rememberSaveable { mutableStateOf<String?>(null) }
+    var mediaViewerPath by rememberSaveable { mutableStateOf<String?>(null) }
+    var pdfSheetPath by rememberSaveable { mutableStateOf<String?>(null) }
     var mediaDraft by remember { mutableStateOf<NightMediaDraft?>(null) }
     var mediaCaption by rememberSaveable { mutableStateOf("") }
 
@@ -160,6 +163,36 @@ private fun NightApp() {
     val replyingTo = replyingToId?.let(messageById::get)
     val visualMessages = remember(messageEntities, messageById) {
         messageEntities.map { it.toVisualMessage(messageById) }
+    }
+
+    val chatMediaItems = remember(visualMessages, activeChat?.title) {
+        visualMessages.mapNotNull { message ->
+            when (message) {
+                is WhatsAppVisualMessage.PhotoMessage -> message.localPath?.let { path ->
+                    NightChatMediaItem(
+                        id = message.id,
+                        localPath = path,
+                        mimeType = "image/*",
+                        caption = message.caption,
+                        time = message.time,
+                        sender = if (message.mine) "You" else (activeChat?.title ?: "Night"),
+                    )
+                }
+                is WhatsAppVisualMessage.VideoMessage -> message.localPath?.let { path ->
+                    NightChatMediaItem(
+                        id = message.id,
+                        localPath = path,
+                        mimeType = "video/*",
+                        caption = message.caption,
+                        time = message.time,
+                        sender = if (message.mine) "You" else (activeChat?.title ?: "Night"),
+                        thumbnailPath = message.thumbnailPath,
+                        duration = message.duration,
+                    )
+                }
+                else -> null
+            }
+        }
     }
 
     val chatRows = remember(chats) {
@@ -698,8 +731,8 @@ private fun NightApp() {
                 liveVoiceClient.stop()
                 screen = "chat"
             }
-            "image_viewer" -> {
-                imageViewerPath = null
+            "media_viewer" -> {
+                mediaViewerPath = null
                 screen = "chat"
             }
             "media_compose" -> cancelMediaDraft()
@@ -728,17 +761,75 @@ private fun NightApp() {
             }
         }
 
-        "image_viewer" -> {
-            val pathToShow = imageViewerPath
-            if (pathToShow != null) {
-                NightImageViewerScreen(
-                    localPath = pathToShow,
+        "media_viewer" -> {
+            val pathToShow = mediaViewerPath
+            if (pathToShow != null && chatMediaItems.isNotEmpty()) {
+                val initialIndex = chatMediaItems.indexOfFirst { it.localPath == pathToShow }
+                    .takeIf { it >= 0 }
+                    ?: 0
+                NightMediaViewerScreen(
+                    items = chatMediaItems,
+                    initialIndex = initialIndex,
                     onBack = {
-                        imageViewerPath = null
+                        mediaViewerPath = null
                         screen = "chat"
+                    },
+                    onEdit = { item ->
+                        val source = File(item.localPath)
+                        if (!source.exists()) {
+                            Toast.makeText(context, "This media is not available locally.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            scope.launch {
+                                val saved = withContext(Dispatchers.IO) {
+                                    NightFileLibrary.registerLocalFile(
+                                        context = context,
+                                        source = source,
+                                        name = "Edited " + source.name,
+                                        mimeType = item.mimeType,
+                                    )
+                                }
+                                if (saved != null) {
+                                    val payload = JSONObject()
+                                        .put("localPath", saved.localPath)
+                                        .put("mimeType", saved.mimeType)
+                                        .put("sizeBytes", saved.sizeBytes)
+                                    if (item.isVideo) {
+                                        val meta = withContext(Dispatchers.IO) {
+                                            extractVideoMeta(context, saved.localPath)
+                                        }
+                                        payload
+                                            .put("duration", meta.duration)
+                                            .put("aspectRatio", meta.aspectRatio)
+                                        meta.thumbnailPath?.let { payload.put("thumbnailPath", it) }
+                                    } else {
+                                        payload.put("aspectRatio", readImageAspectRatio(saved.localPath))
+                                    }
+                                    mediaDraft = NightMediaDraft(
+                                        libraryId = saved.id,
+                                        name = saved.name,
+                                        mimeType = saved.mimeType,
+                                        sizeBytes = saved.sizeBytes,
+                                        localPath = saved.localPath,
+                                        createdAt = saved.createdAt,
+                                        messageType = if (item.isVideo) "video" else "image",
+                                        payloadJson = payload.toString(),
+                                        thumbnailPath = if (item.isVideo) {
+                                            payload.optString("thumbnailPath").takeIf { it.isNotBlank() }
+                                        } else {
+                                            null
+                                        },
+                                        replyToMessageId = null,
+                                    )
+                                    mediaCaption = item.caption
+                                    mediaViewerPath = null
+                                    screen = "media_compose"
+                                }
+                            }
+                        }
                     },
                 )
             } else {
+                mediaViewerPath = null
                 screen = "chat"
             }
         }
@@ -1035,15 +1126,12 @@ private fun NightApp() {
             replyPreview = replyingTo?.toReplyPreview(),
             onCancelReply = { replyingToId = null },
             onImageClick = { path ->
-                imageViewerPath = path
-                screen = "image_viewer"
+                mediaViewerPath = path
+                screen = "media_viewer"
             },
-            onVideoClick = {
-                Toast.makeText(
-                    context,
-                    "Video bubble is ready. The full player comes next.",
-                    Toast.LENGTH_SHORT,
-                ).show()
+            onVideoClick = { path ->
+                mediaViewerPath = path
+                screen = "media_viewer"
             },
             onLinkClick = { url ->
                 runCatching {
@@ -1058,23 +1146,30 @@ private fun NightApp() {
                 }
             },
             onFileClick = { path, mimeType ->
-                runCatching {
-                    val file = File(path)
-                    val uri = FileProvider.getUriForFile(
-                        context,
-                        context.packageName + ".files",
-                        file,
-                    )
-                    context.startActivity(
-                        Intent(Intent.ACTION_VIEW)
-                            .setDataAndType(
-                                uri,
-                                mimeType ?: "application/octet-stream",
-                            )
-                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    )
-                }.onFailure {
-                    Toast.makeText(context, "Could not open this file.", Toast.LENGTH_SHORT).show()
+                if (
+                    mimeType.equals("application/pdf", ignoreCase = true) ||
+                    path.endsWith(".pdf", ignoreCase = true)
+                ) {
+                    pdfSheetPath = path
+                } else {
+                    runCatching {
+                        val file = File(path)
+                        val uri = FileProvider.getUriForFile(
+                            context,
+                            context.packageName + ".files",
+                            file,
+                        )
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW)
+                                .setDataAndType(
+                                    uri,
+                                    mimeType ?: "application/octet-stream",
+                                )
+                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        )
+                    }.onFailure {
+                        Toast.makeText(context, "Could not open this file.", Toast.LENGTH_SHORT).show()
+                    }
                 }
             },
             onCameraClick = { cameraLauncher.launch(null) },
@@ -1201,6 +1296,14 @@ private fun NightApp() {
                 selectedTabName = MainTab.Chats.name
             }
         }
+    }
+
+
+    pdfSheetPath?.let { pdfPath ->
+        NightPdfSheet(
+            localPath = pdfPath,
+            onDismiss = { pdfSheetPath = null },
+        )
     }
 
     DisposableEffect(Unit) {

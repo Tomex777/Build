@@ -24,6 +24,11 @@
             android:exported="true"
             android:theme="@style/Theme.Whatsapp" />
         <activity
+            android:name=".MediaViewerPreviewActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Whatsapp" />
+        <activity
             android:name=".ChatPreviewActivity"
             android:exported="true"
             android:windowSoftInputMode="adjustResize"
