@@ -3,7 +3,6 @@ package com.example.whatsapp.data.night
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
-import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
@@ -76,14 +75,21 @@ class NightLiveVoiceClient private constructor(
             request,
             object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) {
-                    configureSession(
-                        webSocket = webSocket,
-                        displayName = displayName,
-                        voiceName = profile.voiceName ?: "alloy",
-                        chatSummary = chat?.latestSummary.orEmpty(),
-                    )
-                    listener.onState(State.CONNECTED)
-                    startAudio(webSocket, listener)
+                    runCatching {
+                        configureSession(
+                            webSocket = webSocket,
+                            displayName = displayName,
+                            voiceName = profile.voiceName ?: "alloy",
+                            chatSummary = chat?.latestSummary.orEmpty(),
+                        )
+                        listener.onState(State.CONNECTED)
+                        startAudio(webSocket, listener)
+                    }.onFailure {
+                        listener.onError(it.message ?: "Could not start Live Voice audio.")
+                        listener.onState(State.ENDED)
+                        webSocket.close(1011, "Audio initialization failed")
+                        stopAudio()
+                    }
                 }
 
                 override fun onMessage(webSocket: WebSocket, text: String) {
