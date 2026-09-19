@@ -6,6 +6,7 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -66,7 +67,6 @@ import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.Transformer
 import com.canhub.cropper.CropImageView
-import com.canhub.cropper.Guidelines
 import ja.burhanrashid52.photoeditor.PhotoEditor
 import ja.burhanrashid52.photoeditor.PhotoEditorView
 import ja.burhanrashid52.photoeditor.SaveFileResult
@@ -408,7 +408,7 @@ fun NightMediaComposerScreen(
                             AndroidView(
                                 factory = { ctx ->
                                     CropImageView(ctx).also { view ->
-                                        view.guidelines = Guidelines.ON
+                                        view.guidelines = CropImageView.Guidelines.ON
                                         view.setImageUriAsync(Uri.fromFile(File(workingPath)))
                                         cropView = view
                                     }
