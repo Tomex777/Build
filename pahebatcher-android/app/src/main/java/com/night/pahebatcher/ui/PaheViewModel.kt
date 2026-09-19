@@ -23,7 +23,7 @@ import java.net.URI
 import java.util.UUID
 
 enum class MainTab { EXPLORE, DOWNLOADS, SETTINGS }
-enum class VerifyStage { ANIMEPAHE, PREPARING_SECOND, KWIK, ANIMEPAHE_SAVED }
+enum class VerifyStage { ANIMEPAHE }
 
 data class DownloadUi(
     val id: String,
@@ -170,7 +170,6 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         cookie: String,
         userAgent: String,
     ) {
-        if (verifyStage == VerifyStage.PREPARING_SECOND) return
         if (cookie.isBlank()) {
             verifyError = "No cookies were found yet. Finish the browser check before continuing."
             return
@@ -180,38 +179,16 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
             verifyError = "This page does not have a valid host yet."
             return
         }
-
-        if (verifyStage == VerifyStage.ANIMEPAHE) {
-            if (!host.contains("animepahe") && host != "pahe.win") {
-                verifyError = "Finish the AnimePahe check and return to the AnimePahe page before confirming."
-                return
-            }
-            sessionStore.saveAnime(cookie, host, userAgent)
-            refreshSessions()
-            verifyStage = VerifyStage.PREPARING_SECOND
-            verifyError = null
-            viewModelScope.launch {
-                try {
-                    verifyUrl = repository.bootstrapKwikUrl()
-                    verifyStage = VerifyStage.KWIK
-                } catch (e: Exception) {
-                    verifyStage = VerifyStage.ANIMEPAHE_SAVED
-                    verifyError =
-                        "AnimePahe is saved and usable. Kwik could not be prepared automatically: " +
-                            (e.message ?: "unknown error") +
-                            ". You can close this screen and continue."
-                }
-            }
-        } else if (verifyStage == VerifyStage.KWIK) {
-            if (!host.startsWith("kwik.") && !host.contains(".kwik.")) {
-                verifyError = "Finish the Kwik check and return to the Kwik page before confirming."
-                return
-            }
-            sessionStore.saveKwik(cookie, host, userAgent)
-            refreshSessions()
-            verificationActive = false
-            tab = MainTab.SETTINGS
+        if (!host.contains("animepahe") && host != "pahe.win") {
+            verifyError = "Finish the AnimePahe check and return to the AnimePahe page before confirming."
+            return
         }
+
+        sessionStore.saveAnime(cookie, host, userAgent)
+        refreshSessions()
+        verifyError = null
+        verificationActive = false
+        tab = MainTab.SETTINGS
     }
 
     fun clearVerificationSessions() {
@@ -258,6 +235,8 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         "https://" + sessions.animeHost.ifBlank { "animepahe.pw" } + "/"
 
     fun animeUserAgent(): String = sessionStore.animeUserAgent()
+
+    fun animeCookie(): String = sessionStore.animeCookie()
 
     fun downloadEpisode(episode: EpisodeInfo) {
         val preferences = effectiveDownloadPreferences()
@@ -428,6 +407,5 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
     private fun verificationMessage(kind: VerificationKind): String =
         when (kind) {
             VerificationKind.ANIMEPAHE -> "AnimePahe verification is needed. Open the verification browser in Settings."
-            VerificationKind.KWIK -> "Kwik verification is needed. Run the two-step verification again in Settings."
         }
 }
