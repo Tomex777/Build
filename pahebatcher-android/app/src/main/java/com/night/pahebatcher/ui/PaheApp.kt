@@ -260,22 +260,22 @@ private fun ExploreScreen(vm: PaheViewModel, padding: PaddingValues) {
                 }
                 Box {
                     Surface(
-                        color = if (vm.sessions.animeCookieSaved) Color(0xFF142019) else Elevated2,
+                        color = if (vm.sessions.animeValidated) Color(0xFF142019) else Elevated2,
                         shape = CircleShape,
                     ) {
                         IconButton(onClick = vm::startVerification) {
                             Icon(
                                 Icons.Rounded.Language,
-                                contentDescription = if (vm.sessions.animeCookieSaved) {
+                                contentDescription = if (vm.sessions.animeValidated) {
                                     "AnimePahe browser verified"
                                 } else {
                                     "Verify AnimePahe browser"
                                 },
-                                tint = if (vm.sessions.animeCookieSaved) Success else TextMuted,
+                                tint = if (vm.sessions.animeValidated) Success else TextMuted,
                             )
                         }
                     }
-                    if (vm.sessions.animeCookieSaved) {
+                    if (vm.sessions.animeValidated) {
                         Icon(
                             Icons.Rounded.CheckCircle,
                             contentDescription = null,
@@ -843,9 +843,7 @@ private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
                 details.episodes,
                 key = { "${it.number}_${it.audio}" },
             ) { episode ->
-                val download = vm.downloads.firstOrNull {
-                    it.animeTitle == details.result.title && it.episode == episode.epLabel
-                }
+                val download = vm.downloadFor(details.result, episode)
                 EpisodeRow(
                     episode = episode,
                     download = download,
@@ -1269,6 +1267,7 @@ private fun SettingsScreen(vm: PaheViewModel, padding: PaddingValues) {
                 preferences = vm.globalDownloadPreferences,
                 onQuality = vm::setGlobalQuality,
                 onAudio = vm::setGlobalAudio,
+                onParallel = vm::setParallelDownloads,
             )
         }
 
@@ -1284,17 +1283,17 @@ private fun SettingsScreen(vm: PaheViewModel, padding: PaddingValues) {
                 Column {
                     SettingsActionRow(
                         title = "AnimePahe browser",
-                        subtitle = if (vm.sessions.animeCookieSaved) {
-                            "Browser session saved"
-                        } else {
-                            "Verification required before downloading"
+                        subtitle = when {
+                            vm.sessions.animeValidated -> "Verified · browser session ready"
+                            vm.sessions.animeCookieSaved -> "Session expired or needs verification again"
+                            else -> "Verification required before downloading"
                         },
                         onClick = vm::startVerification,
                         trailing = {
                             Icon(
-                                if (vm.sessions.animeCookieSaved) Icons.Rounded.CheckCircle else Icons.Rounded.Language,
+                                if (vm.sessions.animeValidated) Icons.Rounded.CheckCircle else Icons.Rounded.Language,
                                 contentDescription = null,
-                                tint = if (vm.sessions.animeCookieSaved) Success else TextMuted,
+                                tint = if (vm.sessions.animeValidated) Success else TextMuted,
                             )
                         },
                     )
@@ -1308,7 +1307,7 @@ private fun SettingsScreen(vm: PaheViewModel, padding: PaddingValues) {
                         )
                         SettingsActionRow(
                             title = "Clear browser session",
-                            subtitle = "Use this only if AnimePahe verification actually expires.",
+                            subtitle = "Remove the saved AnimePahe browser cookies.",
                             onClick = vm::clearVerificationSessions,
                             titleColor = Error,
                         )
@@ -1468,6 +1467,7 @@ private fun DownloadPreferencesCard(
     preferences: DownloadPreferences,
     onQuality: (Int) -> Unit,
     onAudio: (String) -> Unit,
+    onParallel: (Int) -> Unit,
 ) {
     Surface(color = Elevated, shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp)) {
@@ -1516,6 +1516,32 @@ private fun DownloadPreferencesCard(
                 } else {
                     "Prefer Japanese audio with subtitles when available."
                 },
+                color = TextMuted,
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+            )
+            Spacer(Modifier.height(18.dp))
+            Text(
+                "Simultaneous downloads",
+                color = TextMuted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                listOf(1, 2, 4, 6, 8).forEach { option ->
+                    FilterChip(
+                        selected = preferences.parallelDownloads == option,
+                        onClick = { onParallel(option) },
+                        label = { Text(option.toString()) },
+                        colors = downloadChipColors(),
+                    )
+                }
+            }
+            Spacer(Modifier.height(7.dp))
+            Text(
+                "Up to ${preferences.parallelDownloads} episode" +
+                    if (preferences.parallelDownloads == 1) " at a time." else "s at a time.",
                 color = TextMuted,
                 fontSize = 11.sp,
                 lineHeight = 16.sp,
