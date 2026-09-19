@@ -54,6 +54,7 @@ class NightLiveVoiceClient private constructor(
         this.listener = listener
         listener.onState(State.CONNECTING)
 
+        val chat = repository.getChat(chatId)
         val profile = resolveLiveProfile()
             ?: error("No Azure Live Voice profile is configured.")
         val model = repository.defaultProviderModel(profile.id)
@@ -79,6 +80,7 @@ class NightLiveVoiceClient private constructor(
                         webSocket = webSocket,
                         displayName = displayName,
                         voiceName = profile.voiceName ?: "alloy",
+                        chatSummary = chat?.latestSummary.orEmpty(),
                     )
                     listener.onState(State.CONNECTED)
                     startAudio(webSocket, listener)
@@ -140,6 +142,7 @@ class NightLiveVoiceClient private constructor(
         webSocket: WebSocket,
         displayName: String,
         voiceName: String,
+        chatSummary: String,
     ) {
         val session = JSONObject()
             .put("type", "realtime")
@@ -147,7 +150,8 @@ class NightLiveVoiceClient private constructor(
                 "instructions",
                 "You are Night, the user's private AI assistant. " +
                     "The user's preferred name is " + displayName + ". " +
-                    "Speak naturally and concisely. This is a live voice conversation."
+                    "Speak naturally and concisely. This is a live voice conversation. " +
+                    if (chatSummary.isBlank()) "" else "Conversation summary: " + chatSummary.take(3000)
             )
             .put("output_modalities", org.json.JSONArray().put("audio"))
             .put(
