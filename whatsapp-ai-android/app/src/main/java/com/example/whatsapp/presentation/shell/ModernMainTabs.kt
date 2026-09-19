@@ -342,7 +342,6 @@ fun ModernChatsTab(
                 FilterChip("All", selected = true)
                 FilterChip("Unread")
                 FilterChip("Favorites")
-                FilterChip("Groups")
             }
 
             LazyColumn(
