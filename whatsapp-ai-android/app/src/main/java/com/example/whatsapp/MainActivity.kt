@@ -1,3 +1,4 @@
+// Night UI validation pass 2
 package com.example.whatsapp
 
 import android.graphics.Color
