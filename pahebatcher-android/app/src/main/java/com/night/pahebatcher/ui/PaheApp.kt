@@ -42,6 +42,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Explore
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
@@ -92,6 +93,7 @@ import com.night.pahebatcher.data.AnimeSearchResult
 import com.night.pahebatcher.data.DownloadPreferences
 import com.night.pahebatcher.data.EpisodeInfo
 import com.night.pahebatcher.data.SessionSnapshot
+import java.net.URI
 import java.text.DateFormat
 import java.util.Date
 import okhttp3.Headers
@@ -251,17 +253,34 @@ private fun ExploreScreen(vm: PaheViewModel, padding: PaddingValues) {
                         fontWeight = FontWeight.Bold,
                     )
                 }
-                Surface(
-                    color = if (vm.sessions.animeCookieSaved) Color(0xFF142019) else Elevated2,
-                    shape = CircleShape,
-                ) {
-                    Text(
-                        if (vm.sessions.animeCookieSaved) "SESSION READY" else "VERIFY",
-                        color = if (vm.sessions.animeCookieSaved) Success else TextMuted,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    )
+                Box {
+                    Surface(
+                        color = if (vm.sessions.animeCookieSaved) Color(0xFF142019) else Elevated2,
+                        shape = CircleShape,
+                    ) {
+                        IconButton(onClick = vm::startVerification) {
+                            Icon(
+                                Icons.Rounded.Language,
+                                contentDescription = if (vm.sessions.animeCookieSaved) {
+                                    "AnimePahe browser verified"
+                                } else {
+                                    "Verify AnimePahe browser"
+                                },
+                                tint = if (vm.sessions.animeCookieSaved) Success else TextMuted,
+                            )
+                        }
+                    }
+                    if (vm.sessions.animeCookieSaved) {
+                        Icon(
+                            Icons.Rounded.CheckCircle,
+                            contentDescription = null,
+                            tint = Success,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(17.dp)
+                                .background(Bg, CircleShape),
+                        )
+                    }
                 }
             }
         }
@@ -269,10 +288,13 @@ private fun ExploreScreen(vm: PaheViewModel, padding: PaddingValues) {
         item {
             OutlinedTextField(
                 value = vm.query,
-                onValueChange = { vm.query = it },
+                onValueChange = {
+                    vm.query = it
+                    if (it.isBlank()) vm.clearSearch()
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                placeholder = { Text("Search AnimePahe", color = TextMuted) },
+                placeholder = { Text("Search anime", color = TextMuted) },
                 leadingIcon = { Icon(Icons.Rounded.Search, null, tint = TextMuted) },
                 trailingIcon = {
                     if (vm.searching) {
@@ -313,46 +335,76 @@ private fun ExploreScreen(vm: PaheViewModel, padding: PaddingValues) {
             }
         }
 
-        if (!vm.sessions.animeCookieSaved && vm.results.isEmpty() && vm.query.isBlank()) {
+        if (vm.query.isNotBlank()) {
+            if (vm.results.isNotEmpty()) {
+                item {
+                    Text(
+                        "Results",
+                        color = TextMain,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+                items(
+                    vm.results,
+                    key = { it.aniListId?.let { id -> "anilist_$id" } ?: it.session.ifBlank { it.title } },
+                ) { anime ->
+                    AnimeResultRow(
+                        anime = anime,
+                        referer = vm.animePosterReferer(),
+                        userAgent = vm.animeUserAgent(),
+                        cookie = vm.animeCookieFor(anime.poster),
+                        onClick = { vm.openAnime(anime) },
+                    )
+                }
+            }
+        } else {
             item {
-                Surface(
-                    color = Elevated,
-                    shape = RoundedCornerShape(22.dp),
-                    modifier = Modifier.fillMaxWidth(),
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(Modifier.padding(20.dp)) {
-                        Text("Browser verification", color = TextMain, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(7.dp))
+                    Column(Modifier.weight(1f)) {
                         Text(
-                            "AnimePahe is the only manual browser verification step. Kwik is resolved automatically when an episode is downloaded.",
-                            color = TextMuted,
-                            lineHeight = 20.sp,
-                            fontSize = 14.sp,
+                            "Recently aired",
+                            color = TextMain,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold,
                         )
-                        Spacer(Modifier.height(16.dp))
-                        Button(
-                            onClick = vm::startVerification,
-                            colors = ButtonDefaults.buttonColors(containerColor = Accent),
-                            shape = RoundedCornerShape(14.dp),
-                        ) {
-                            Text("Open verification browser", fontWeight = FontWeight.Bold)
-                        }
+                        Spacer(Modifier.height(3.dp))
+                        Text(
+                            "Discovery and artwork from AniList",
+                            color = TextMuted,
+                            fontSize = 11.sp,
+                        )
+                    }
+                    if (vm.recentLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = Accent,
+                        )
                     }
                 }
             }
-        }
 
-        if (vm.results.isNotEmpty()) {
-            item {
-                Text(
-                    "Results",
-                    color = TextMain,
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
+            vm.recentError?.let { message ->
+                item {
+                    MessageCard(
+                        message = message,
+                        action = "Retry",
+                        onAction = vm::refreshRecent,
+                    )
+                }
             }
-            items(vm.results, key = { it.session }) { anime ->
+
+            items(
+                vm.recentAnime,
+                key = { it.aniListId?.let { id -> "recent_$id" } ?: it.title },
+            ) { anime ->
                 AnimeResultRow(
                     anime = anime,
                     referer = vm.animePosterReferer(),
@@ -361,20 +413,14 @@ private fun ExploreScreen(vm: PaheViewModel, padding: PaddingValues) {
                     onClick = { vm.openAnime(anime) },
                 )
             }
-        } else if (vm.query.isBlank() && vm.sessions.animeCookieSaved) {
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 42.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text("Search the live catalog", color = TextMain, fontSize = 19.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(8.dp))
+
+            if (!vm.recentLoading && vm.recentAnime.isEmpty() && vm.recentError == null) {
+                item {
                     Text(
-                        "No placeholder shows. What you see here comes from AnimePahe.",
+                        "No recent airing entries were returned.",
                         color = TextMuted,
                         fontSize = 13.sp,
+                        modifier = Modifier.padding(top = 28.dp),
                     )
                 }
             }
@@ -425,10 +471,21 @@ private fun AnimeResultRow(
                 Spacer(Modifier.height(8.dp))
                 val meta = buildList {
                     anime.type.takeIf { it.isNotBlank() }?.let(::add)
+                    anime.year?.let { add(it.toString()) }
                     if (anime.episodes > 0) add("${anime.episodes} eps")
+                    anime.score?.let { add("${it}%") }
                     anime.status.takeIf { it.isNotBlank() }?.let(::add)
                 }.joinToString("  ·  ")
                 Text(meta.ifBlank { "Anime" }, color = TextMuted, fontSize = 12.sp, maxLines = 1)
+                if (anime.catalogNote.isNotBlank()) {
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        anime.catalogNote,
+                        color = Accent,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
             Icon(Icons.Rounded.ChevronRight, null, tint = TextMuted)
         }
@@ -450,18 +507,19 @@ private fun Poster(
     } else {
         val context = LocalContext.current
         val request = remember(url, referer, userAgent, cookie) {
-            val headers = Headers.Builder()
-                .add("Referer", referer)
-                .add("User-Agent", userAgent)
-                .apply {
-                    if (cookie.isNotBlank()) add("Cookie", cookie)
-                }
-                .build()
-
-            ImageRequest.Builder(context)
-                .data(url)
-                .headers(headers)
-                .build()
+            val host = runCatching { URI(url).host.orEmpty().lowercase() }.getOrDefault("")
+            val builder = ImageRequest.Builder(context).data(url)
+            if (host.contains("animepahe") || host == "pahe.win") {
+                val headers = Headers.Builder()
+                    .add("Referer", referer)
+                    .add("User-Agent", userAgent)
+                    .apply {
+                        if (cookie.isNotBlank()) add("Cookie", cookie)
+                    }
+                    .build()
+                builder.headers(headers)
+            }
+            builder.build()
         }
         AsyncImage(
             model = request,
@@ -669,6 +727,34 @@ private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
                     }
                 }
             }
+            if (details.result.description.isNotBlank() || details.result.genres.isNotEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+                    ) {
+                        if (details.result.genres.isNotEmpty()) {
+                            Text(
+                                details.result.genres.take(4).joinToString("  ·  "),
+                                color = Accent,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Spacer(Modifier.height(10.dp))
+                        }
+                        if (details.result.description.isNotBlank()) {
+                            Text(
+                                details.result.description,
+                                color = TextMuted,
+                                fontSize = 13.sp,
+                                lineHeight = 20.sp,
+                                maxLines = 6,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+
             item {
                 Column(
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
@@ -723,8 +809,18 @@ private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
                     Box(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
                         MessageCard(
                             message = message,
-                            action = "Retry",
-                            onAction = vm::retryDetails,
+                            action = if (message.contains("verification", true)) {
+                                "Verify AnimePahe"
+                            } else {
+                                "Retry"
+                            },
+                            onAction = {
+                                if (message.contains("verification", true)) {
+                                    vm.startVerification()
+                                } else {
+                                    vm.retryDetails()
+                                }
+                            },
                         )
                     }
                 }
@@ -1106,7 +1202,7 @@ private fun SettingsScreen(vm: PaheViewModel, padding: PaddingValues) {
         item {
             Text("Settings", color = TextMain, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
-            Text("AnimePahe browser verification is manual by design.", color = TextMuted, fontSize = 13.sp)
+            Text("Download defaults and app preferences.", color = TextMuted, fontSize = 13.sp)
             Spacer(Modifier.height(14.dp))
         }
         item {
@@ -1115,9 +1211,6 @@ private fun SettingsScreen(vm: PaheViewModel, padding: PaddingValues) {
                 onQuality = vm::setGlobalQuality,
                 onAudio = vm::setGlobalAudio,
             )
-        }
-        item {
-            VerificationCard(vm.sessions, onVerify = vm::startVerification)
         }
         item {
             Surface(color = Elevated, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
@@ -1190,41 +1283,6 @@ private fun DownloadPreferencesCard(
                     label = { Text("DUB") },
                     colors = downloadChipColors(),
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun VerificationCard(
-    sessions: SessionSnapshot,
-    onVerify: () -> Unit,
-) {
-    Surface(color = Elevated, shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(20.dp)) {
-            Text("Web verification", color = TextMain, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(7.dp))
-            Text(
-                "Verify AnimePahe when its browser session expires. Kwik does not need a separate manual verification step.",
-                color = TextMuted,
-                fontSize = 13.sp,
-                lineHeight = 19.sp,
-            )
-            Spacer(Modifier.height(18.dp))
-            SessionRow(
-                title = "AnimePahe",
-                host = sessions.animeHost.ifBlank { "Not saved" },
-                saved = sessions.animeCookieSaved,
-                updatedAt = sessions.animeUpdatedAt,
-            )
-            Spacer(Modifier.height(19.dp))
-            Button(
-                onClick = onVerify,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(15.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Accent),
-            ) {
-                Text("Open verification browser", fontWeight = FontWeight.Bold)
             }
         }
     }
