@@ -9,6 +9,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
@@ -50,10 +53,8 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.VideoCall
-import androidx.compose.material.icons.filled.Poll
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Image as ImageIcon
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Description
@@ -72,7 +73,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -81,8 +84,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -123,6 +129,21 @@ sealed interface WhatsAppVisualMessage {
         val read: Boolean = false,
         val compact: Boolean = false,
         val localPath: String? = null,
+        val aspectRatio: Float = 1.25f,
+        val reply: ReplyPreview? = null,
+    ) : WhatsAppVisualMessage
+
+    data class VideoMessage(
+        override val id: String,
+        val caption: String,
+        val duration: String,
+        val time: String,
+        val mine: Boolean,
+        val read: Boolean = false,
+        val localPath: String? = null,
+        val thumbnailPath: String? = null,
+        val aspectRatio: Float = 16f / 9f,
+        val reply: ReplyPreview? = null,
     ) : WhatsAppVisualMessage
 
     data class FileMessage(
@@ -132,6 +153,7 @@ sealed interface WhatsAppVisualMessage {
         val time: String,
         val mine: Boolean,
         val read: Boolean = false,
+        val reply: ReplyPreview? = null,
     ) : WhatsAppVisualMessage
 
     data class VoiceMessage(
@@ -142,6 +164,7 @@ sealed interface WhatsAppVisualMessage {
         val read: Boolean = false,
         val localPath: String? = null,
         val transcript: String? = null,
+        val reply: ReplyPreview? = null,
     ) : WhatsAppVisualMessage
 
     data class DateSeparator(
@@ -150,9 +173,23 @@ sealed interface WhatsAppVisualMessage {
     ) : WhatsAppVisualMessage
 }
 
+enum class ReplyKind {
+    Text,
+    Image,
+    Video,
+    Voice,
+    File,
+    Audio,
+    Rich,
+}
+
 data class ReplyPreview(
+    val messageId: String,
     val author: String,
     val text: String,
+    val kind: ReplyKind = ReplyKind.Text,
+    val thumbnailPath: String? = null,
+    val meta: String? = null,
 )
 
 @Composable
@@ -175,6 +212,11 @@ fun CurrentWhatsAppConversation(
     onVoiceClick: (String) -> Unit = {},
     onTranscribeVoice: (String, String) -> Unit = { _, _ -> },
     onSpeakText: (String) -> Unit = {},
+    onReplyRequest: (String) -> Unit = {},
+    replyPreview: ReplyPreview? = null,
+    onCancelReply: () -> Unit = {},
+    onImageClick: (String) -> Unit = {},
+    onVideoClick: (String) -> Unit = {},
     onEmojiClick: () -> Unit = {},
     autoScrollToLatest: Boolean = true,
     attachmentsInitiallyOpen: Boolean = false,
@@ -183,6 +225,7 @@ fun CurrentWhatsAppConversation(
     appearance: NightChatAppearance = NightChatAppearance(),
 ) {
     val state = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
     var showAttachments by remember { mutableStateOf(attachmentsInitiallyOpen) }
     var showEmojiPicker by remember { mutableStateOf(emojiInitiallyOpen) }
@@ -228,18 +271,63 @@ fun CurrentWhatsAppConversation(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 items(messages, key = { it.id }) { item ->
-                    when (item) {
-                        is WhatsAppVisualMessage.TextMessage -> CurrentTextBubble(item, appearance, onSpeakText)
-                        is WhatsAppVisualMessage.PhotoMessage -> CurrentPhotoBubble(item, appearance)
-                        is WhatsAppVisualMessage.FileMessage -> CurrentFileBubble(item, appearance)
-                        is WhatsAppVisualMessage.VoiceMessage -> CurrentVoiceBubble(
-                            item,
-                            appearance,
-                            onVoiceClick,
-                            onTranscribeVoice,
-                        )
-                        is WhatsAppVisualMessage.DateSeparator -> CurrentDateSeparator(item.label)
-                        is RichResultMessage -> RichResultBubble(item, onMessageButtonClick)
+                    if (item is WhatsAppVisualMessage.DateSeparator) {
+                        CurrentDateSeparator(item.label)
+                    } else {
+                        SwipeToReplyContainer(
+                            messageId = item.id,
+                            onReplyRequest = onReplyRequest,
+                        ) {
+                            when (item) {
+                                is WhatsAppVisualMessage.TextMessage -> CurrentTextBubble(
+                                    item,
+                                    appearance,
+                                    onSpeakText,
+                                    onReplyPreviewClick = { targetId ->
+                                        val index = messages.indexOfFirst { it.id == targetId }
+                                        if (index >= 0) scope.launch { state.animateScrollToItem(index) }
+                                    },
+                                )
+                                is WhatsAppVisualMessage.PhotoMessage -> CurrentPhotoBubble(
+                                    item,
+                                    appearance,
+                                    onImageClick,
+                                    onReplyPreviewClick = { targetId ->
+                                        val index = messages.indexOfFirst { it.id == targetId }
+                                        if (index >= 0) scope.launch { state.animateScrollToItem(index) }
+                                    },
+                                )
+                                is WhatsAppVisualMessage.VideoMessage -> CurrentVideoBubble(
+                                    item,
+                                    appearance,
+                                    onVideoClick,
+                                    onReplyPreviewClick = { targetId ->
+                                        val index = messages.indexOfFirst { it.id == targetId }
+                                        if (index >= 0) scope.launch { state.animateScrollToItem(index) }
+                                    },
+                                )
+                                is WhatsAppVisualMessage.FileMessage -> CurrentFileBubble(
+                                    item,
+                                    appearance,
+                                    onReplyPreviewClick = { targetId ->
+                                        val index = messages.indexOfFirst { it.id == targetId }
+                                        if (index >= 0) scope.launch { state.animateScrollToItem(index) }
+                                    },
+                                )
+                                is WhatsAppVisualMessage.VoiceMessage -> CurrentVoiceBubble(
+                                    item,
+                                    appearance,
+                                    onVoiceClick,
+                                    onTranscribeVoice,
+                                    onReplyPreviewClick = { targetId ->
+                                        val index = messages.indexOfFirst { it.id == targetId }
+                                        if (index >= 0) scope.launch { state.animateScrollToItem(index) }
+                                    },
+                                )
+                                is RichResultMessage -> RichResultBubble(item, onMessageButtonClick)
+                                is WhatsAppVisualMessage.DateSeparator -> Unit
+                            }
+                        }
                     }
                 }
             }
@@ -265,6 +353,8 @@ fun CurrentWhatsAppConversation(
                 },
                 applyNavigationPadding = !showAttachments && !showEmojiPicker,
                 appearance = appearance,
+                replyPreview = replyPreview,
+                onCancelReply = onCancelReply,
             )
 
             if (showAttachments) {
@@ -444,6 +534,7 @@ private fun CurrentTextBubble(
     item: WhatsAppVisualMessage.TextMessage,
     appearance: NightChatAppearance,
     onSpeakText: (String) -> Unit,
+    onReplyPreviewClick: (String) -> Unit,
 ) {
     val alignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart
     val bubbleColor = if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor
@@ -487,7 +578,13 @@ private fun CurrentTextBubble(
                     bottom = 5.dp,
                 ),
         ) {
-            item.reply?.let { CurrentReplyBlock(it, appearance) }
+            item.reply?.let {
+                CurrentReplyBlock(
+                    reply = it,
+                    appearance = appearance,
+                    onClick = { onReplyPreviewClick(it.messageId) },
+                )
+            }
 
             Row(
                 verticalAlignment = Alignment.Bottom,
@@ -517,13 +614,15 @@ private fun CurrentTextBubble(
 private fun CurrentReplyBlock(
     reply: ReplyPreview,
     appearance: NightChatAppearance,
+    onClick: () -> Unit = {},
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
-            .clip(RoundedCornerShape(7.dp))
-            .background(Color(0xFF343638)),
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFF343638))
+            .clickable(onClick = onClick),
     ) {
         Box(
             modifier = Modifier
@@ -532,25 +631,48 @@ private fun CurrentReplyBlock(
                 .background(appearance.accentColor),
         )
 
-        Column(
+        Row(
             modifier = Modifier
                 .weight(1f)
-                .padding(start = 8.dp, end = 8.dp, top = 5.dp, bottom = 6.dp),
+                .padding(start = 8.dp, end = 7.dp, top = 6.dp, bottom = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = reply.author,
-                color = appearance.accentColor,
-                fontSize = 11.sp,
-                lineHeight = 13.sp,
-            )
-            Text(
-                text = reply.text,
-                color = Color(0xFFB8BEC1),
-                fontSize = 12.sp,
-                lineHeight = 15.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            ReplyTypePreview(reply)
+
+            if (reply.kind != ReplyKind.Text) {
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = reply.author,
+                    color = appearance.accentColor,
+                    fontSize = 11.sp,
+                    lineHeight = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+
+                Text(
+                    text = reply.text,
+                    color = Color(0xFFB8BEC1),
+                    fontSize = 12.sp,
+                    lineHeight = 15.sp,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+
+                reply.meta?.takeIf { it.isNotBlank() }?.let { meta ->
+                    Text(
+                        text = meta,
+                        color = Color(0xFF899397),
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 1.dp),
+                    )
+                }
+            }
         }
     }
 
@@ -558,13 +680,90 @@ private fun CurrentReplyBlock(
 }
 
 @Composable
+private fun ReplyTypePreview(reply: ReplyPreview) {
+    when (reply.kind) {
+        ReplyKind.Image,
+        ReplyKind.Video -> {
+            val file = reply.thumbnailPath?.let(::File)
+            if (file != null && file.exists()) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(7.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AsyncImage(
+                        model = file,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    if (reply.kind == ReplyKind.Video) {
+                        Surface(
+                            color = Color.Black.copy(alpha = 0.55f),
+                            shape = CircleShape,
+                            modifier = Modifier.size(24.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(17.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                ReplyIconPreview(
+                    icon = if (reply.kind == ReplyKind.Video) Icons.Default.PlayArrow else Icons.Default.ImageIcon,
+                )
+            }
+        }
+
+        ReplyKind.Voice -> ReplyIconPreview(Icons.Default.Mic)
+        ReplyKind.File -> ReplyIconPreview(Icons.Default.Description)
+        ReplyKind.Audio -> ReplyIconPreview(Icons.Default.PlayArrow)
+        ReplyKind.Rich -> ReplyIconPreview(Icons.Default.AutoAwesome)
+        ReplyKind.Text -> Unit
+    }
+}
+
+@Composable
+private fun ReplyIconPreview(icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Surface(
+        color = Color(0xFF45494B),
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.size(42.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = PrimaryText,
+                modifier = Modifier.size(21.dp),
+            )
+        }
+    }
+}
+
+@Composable
 private fun CurrentPhotoBubble(
     item: WhatsAppVisualMessage.PhotoMessage,
     appearance: NightChatAppearance,
+    onImageClick: (String) -> Unit,
+    onReplyPreviewClick: (String) -> Unit,
 ) {
     if (item.compact) {
         CompactPhotoBubble(item)
         return
+    }
+
+    val shape = if (item.mine) {
+        RoundedCornerShape(18.dp, 5.dp, 18.dp, 18.dp)
+    } else {
+        RoundedCornerShape(5.dp, 18.dp, 18.dp, 18.dp)
     }
 
     Box(
@@ -573,47 +772,200 @@ private fun CurrentPhotoBubble(
     ) {
         Column(
             modifier = Modifier
-                .widthIn(max = 330.dp)
-                .clip(
-                    if (item.mine) {
-                        RoundedCornerShape(14.dp, 3.dp, 14.dp, 14.dp)
-                    } else {
-                        RoundedCornerShape(3.dp, 14.dp, 14.dp, 14.dp)
-                    }
-                )
-                .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
-                .padding(5.dp),
+                .fillMaxWidth(0.86f)
+                .widthIn(min = 260.dp, max = 370.dp)
+                .clip(shape),
         ) {
-            if (!item.localPath.isNullOrBlank() && File(item.localPath).exists()) {
-                AsyncImage(
-                    model = File(item.localPath),
-                    contentDescription = item.caption,
-                    contentScale = ContentScale.Crop,
+            item.reply?.let {
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp)
-                        .clip(RoundedCornerShape(10.dp)),
-                )
-            } else {
-                DemoMediaArtwork(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp)
-                        .clip(RoundedCornerShape(10.dp)),
-                )
+                        .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
+                        .padding(start = 7.dp, end = 7.dp, top = 7.dp),
+                ) {
+                    CurrentReplyBlock(
+                        reply = it,
+                        appearance = appearance,
+                        onClick = { onReplyPreviewClick(it.messageId) },
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(item.aspectRatio.coerceIn(0.70f, 1.85f))
+                    .background(Color(0xFF15191B))
+                    .clickable {
+                        item.localPath?.let(onImageClick)
+                    },
+            ) {
+                if (!item.localPath.isNullOrBlank() && File(item.localPath).exists()) {
+                    AsyncImage(
+                        model = File(item.localPath),
+                        contentDescription = item.caption,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    DemoMediaArtwork(modifier = Modifier.fillMaxSize())
+                }
+
+                if (item.caption.isBlank()) {
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.48f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(7.dp),
+                    ) {
+                        Box(modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)) {
+                            MessageMeta(item.time, item.mine, item.read)
+                        }
+                    }
+                }
             }
 
             if (item.caption.isNotBlank()) {
                 Row(
-                    modifier = Modifier.padding(start = 6.dp, end = 3.dp, top = 7.dp, bottom = 2.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
+                        .padding(start = 11.dp, end = 8.dp, top = 8.dp, bottom = 7.dp),
                     verticalAlignment = Alignment.Bottom,
                 ) {
                     Text(
                         text = item.caption,
                         color = PrimaryText,
                         fontSize = 14.sp,
+                        lineHeight = 18.sp,
                         modifier = Modifier.weight(1f),
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    MessageMeta(item.time, item.mine, item.read)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CurrentVideoBubble(
+    item: WhatsAppVisualMessage.VideoMessage,
+    appearance: NightChatAppearance,
+    onVideoClick: (String) -> Unit,
+    onReplyPreviewClick: (String) -> Unit,
+) {
+    val shape = if (item.mine) {
+        RoundedCornerShape(18.dp, 5.dp, 18.dp, 18.dp)
+    } else {
+        RoundedCornerShape(5.dp, 18.dp, 18.dp, 18.dp)
+    }
+
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth(0.86f)
+                .widthIn(min = 260.dp, max = 370.dp)
+                .clip(shape),
+        ) {
+            item.reply?.let {
+                Box(
+                    modifier = Modifier
+                        .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
+                        .padding(start = 7.dp, end = 7.dp, top = 7.dp),
+                ) {
+                    CurrentReplyBlock(
+                        reply = it,
+                        appearance = appearance,
+                        onClick = { onReplyPreviewClick(it.messageId) },
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(item.aspectRatio.coerceIn(0.75f, 1.85f))
+                    .background(Color(0xFF121617))
+                    .clickable {
+                        item.localPath?.let(onVideoClick)
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                val thumb = item.thumbnailPath?.let(::File)
+                if (thumb != null && thumb.exists()) {
+                    AsyncImage(
+                        model = thumb,
+                        contentDescription = item.caption,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                Surface(
+                    color = Color.Black.copy(alpha = 0.58f),
+                    shape = CircleShape,
+                    modifier = Modifier.size(56.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Play video",
+                            tint = Color.White,
+                            modifier = Modifier.size(35.dp),
+                        )
+                    }
+                }
+
+                Surface(
+                    color = Color.Black.copy(alpha = 0.55f),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(8.dp),
+                ) {
+                    Text(
+                        text = item.duration,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
+                    )
+                }
+
+                if (item.caption.isBlank()) {
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.48f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp),
+                    ) {
+                        Box(modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)) {
+                            MessageMeta(item.time, item.mine, item.read)
+                        }
+                    }
+                }
+            }
+
+            if (item.caption.isNotBlank()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
+                        .padding(start = 11.dp, end = 8.dp, top = 8.dp, bottom = 7.dp),
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    Text(
+                        text = item.caption,
+                        color = PrimaryText,
+                        fontSize = 14.sp,
+                        lineHeight = 18.sp,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     MessageMeta(item.time, item.mine, item.read)
                 }
             }
@@ -625,14 +977,15 @@ private fun CurrentPhotoBubble(
 private fun CurrentFileBubble(
     item: WhatsAppVisualMessage.FileMessage,
     appearance: NightChatAppearance,
+    onReplyPreviewClick: (String) -> Unit,
 ) {
     Box(
         modifier = Modifier.fillMaxWidth(),
         contentAlignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart,
     ) {
-        Row(
+        Column(
             modifier = Modifier
-                .widthIn(min = 220.dp, max = 320.dp)
+                .widthIn(min = 250.dp, max = 340.dp)
                 .clip(
                     if (item.mine) {
                         RoundedCornerShape(14.dp, 3.dp, 14.dp, 14.dp)
@@ -641,9 +994,24 @@ private fun CurrentFileBubble(
                     }
                 )
                 .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
-                .padding(9.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .padding(8.dp),
         ) {
+            item.reply?.let {
+                CurrentReplyBlock(
+                    reply = it,
+                    appearance = appearance,
+                    onClick = { onReplyPreviewClick(it.messageId) },
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(Color(0xFF303436))
+                    .padding(9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
             Surface(
                 color = Color(0xFF343A3D),
                 shape = RoundedCornerShape(10.dp),
@@ -676,12 +1044,14 @@ private fun CurrentFileBubble(
                     fontSize = 10.sp,
                     modifier = Modifier.padding(top = 2.dp),
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    MessageMeta(item.time, item.mine, item.read)
                 }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 5.dp, end = 2.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                MessageMeta(item.time, item.mine, item.read)
             }
         }
     }
@@ -764,6 +1134,7 @@ private fun CurrentVoiceBubble(
     appearance: NightChatAppearance,
     onVoiceClick: (String) -> Unit,
     onTranscribeVoice: (String, String) -> Unit,
+    onReplyPreviewClick: (String) -> Unit,
 ) {
     Box(
         modifier = Modifier.fillMaxWidth(),
@@ -771,7 +1142,7 @@ private fun CurrentVoiceBubble(
     ) {
         Column(
             modifier = Modifier
-                .widthIn(min = 280.dp, max = 300.dp)
+                .widthIn(min = 280.dp, max = 320.dp)
                 .clip(
                     if (item.mine) {
                         RoundedCornerShape(14.dp, 3.dp, 14.dp, 14.dp)
@@ -782,6 +1153,14 @@ private fun CurrentVoiceBubble(
                 .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
                 .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 6.dp),
         ) {
+            item.reply?.let {
+                CurrentReplyBlock(
+                    reply = it,
+                    appearance = appearance,
+                    onClick = { onReplyPreviewClick(it.messageId) },
+                )
+            }
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -856,27 +1235,7 @@ private fun CurrentVoiceBubble(
                 }
             }
 
-            if (!item.transcript.isNullOrBlank()) {
-                Text(
-                    text = item.transcript,
-                    color = SecondaryText,
-                    fontSize = (11f * appearance.messageFontScale).sp,
-                    fontFamily = appearance.fontFamily,
-                    lineHeight = (15f * appearance.messageFontScale).sp,
-                    modifier = Modifier.padding(start = 51.dp, top = 5.dp, end = 4.dp),
-                )
-            } else if (!item.localPath.isNullOrBlank()) {
-                Text(
-                    text = "Transcribe",
-                    color = appearance.accentColor,
-                    fontSize = 10.sp,
-                    modifier = Modifier
-                        .padding(start = 51.dp, top = 4.dp)
-                        .clickable {
-                            onTranscribeVoice(item.id, item.localPath)
-                        },
-                )
-            }
+
         }
     }
 }
@@ -901,6 +1260,72 @@ private fun VoiceWaveform(modifier: Modifier = Modifier) {
                     .clip(RoundedCornerShape(2.dp))
                     .background(Color(0xFFCE8B9D)),
             )
+        }
+    }
+}
+
+@Composable
+private fun SwipeToReplyContainer(
+    messageId: String,
+    onReplyRequest: (String) -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val density = LocalDensity.current
+    val thresholdPx = with(density) { 64.dp.toPx() }
+    val maxPx = with(density) { 88.dp.toPx() }
+    var offset by remember(messageId) { mutableFloatStateOf(0f) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(messageId) {
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { change, dragAmount ->
+                        if (dragAmount > 0f || offset > 0f) {
+                            change.consume()
+                            offset = (offset + dragAmount).coerceIn(0f, maxPx)
+                        }
+                    },
+                    onDragEnd = {
+                        if (offset >= thresholdPx) {
+                            onReplyRequest(messageId)
+                        }
+                        offset = 0f
+                    },
+                    onDragCancel = {
+                        offset = 0f
+                    },
+                )
+            }
+    ) {
+        Box(
+            modifier = Modifier.graphicsLayer {
+                translationX = offset
+            }
+        ) {
+            content()
+        }
+
+        if (offset > 8f) {
+            Surface(
+                color = Color(0xFF202628),
+                shape = CircleShape,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 6.dp)
+                    .size(34.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Reply",
+                        tint = PrimaryText,
+                        modifier = Modifier
+                            .size(19.dp)
+                            .graphicsLayer { rotationZ = 180f },
+                    )
+                }
+            }
         }
     }
 }
@@ -966,10 +1391,12 @@ private fun CurrentComposer(
     onEmojiClick: () -> Unit,
     applyNavigationPadding: Boolean = true,
     appearance: NightChatAppearance = NightChatAppearance(),
+    replyPreview: ReplyPreview? = null,
+    onCancelReply: () -> Unit = {},
 ) {
     val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.Transparent)
@@ -979,10 +1406,41 @@ private fun CurrentComposer(
                 } else {
                     Modifier
                 }
-            )
-            .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
-        verticalAlignment = Alignment.Bottom,
+            ),
     ) {
+        replyPreview?.let { preview ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 18.dp, end = 18.dp, top = 5.dp, bottom = 1.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF171D20))
+                    .padding(start = 8.dp, top = 7.dp, bottom = 7.dp, end = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    CurrentReplyBlock(
+                        reply = preview,
+                        appearance = appearance,
+                    )
+                }
+                IconButton(onClick = onCancelReply) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Cancel reply",
+                        tint = SecondaryText,
+                        modifier = Modifier.size(21.dp),
+                    )
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
         Surface(
             color = ComposerBackground,
             shape = RoundedCornerShape(28.dp),
@@ -1080,6 +1538,7 @@ private fun CurrentComposer(
             }
         }
     }
+    }
 }
 
 @Composable
@@ -1089,10 +1548,9 @@ private fun AttachmentTray(
     val items = listOf(
         Triple("Gallery", Icons.Default.ImageIcon, Color(0xFF2196F3)),
         Triple("Camera", Icons.Default.PhotoCamera, Color(0xFFE91E63)),
-        Triple("Location", Icons.Default.LocationOn, Color(0xFF20C997)),
         Triple("Choose AI", Icons.Default.Psychology, Color(0xFF039BE5)),
         Triple("Document", Icons.Default.Description, Color(0xFF7E57C2)),
-        Triple("Poll", Icons.Default.Poll, Color(0xFFFFB300)),
+        Triple("Options", Icons.Default.CheckCircle, Color(0xFFFFB300)),
         Triple("Schedule", Icons.Default.Schedule, Color(0xFFE91E63)),
         Triple("AI images", Icons.Default.AutoAwesome, Color(0xFF1976D2)),
     )
@@ -1171,6 +1629,7 @@ fun whatsappPreviewMessages(): List<WhatsAppVisualMessage> = listOf(
         time = "22:19",
         mine = false,
         reply = ReplyPreview(
+            messageId = "photo",
             author = "You",
             text = "I learnt about balance, unity, contrasts, emphasis and repetition/patterns",
         ),
