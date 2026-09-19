@@ -30,6 +30,10 @@ def wait_for_text(text: str, timeout: float = 35.0) -> None:
         try:
             root = dump_ui()
             last = visible_texts(root)
+            if "Pixel Launcher isn't responding" in last:
+                recover_from_launcher_anr()
+                root = dump_ui()
+                last = visible_texts(root)
             if text in last:
                 return
         except Exception:
@@ -92,24 +96,60 @@ def screenshot(name: str) -> None:
         subprocess.run(["adb", "exec-out", "screencap", "-p"], check=True, stdout=fp)
 
 def recover_from_launcher_anr() -> None:
-    for _ in range(3):
+    for _ in range(6):
         try:
             texts = visible_texts(dump_ui())
         except Exception:
             texts = []
+
         if "Pixel Launcher isn't responding" in texts:
+            # The hosted emulator occasionally boots with the launcher ANR
+            # dialog covering the app. This is an emulator failure, not an app
+            # failure. Dismiss it aggressively before relaunching PaheBatcher.
             try:
                 tap_text("Wait")
             except Exception:
-                adb("shell", "input", "keyevent", "4", check=False)
-            time.sleep(1.5)
-        adb("shell", "am", "start", "-W", "-n", "com.night.pahebatcher/.MainActivity", check=False)
+                pass
+            time.sleep(0.8)
+
+            try:
+                texts = visible_texts(dump_ui())
+            except Exception:
+                texts = []
+            if "Pixel Launcher isn't responding" in texts:
+                try:
+                    tap_text("Close app")
+                except Exception:
+                    adb("shell", "input", "keyevent", "4", check=False)
+
+            adb(
+                "shell",
+                "am",
+                "force-stop",
+                "com.google.android.apps.nexuslauncher",
+                check=False,
+            )
+            time.sleep(1.0)
+
+        adb(
+            "shell",
+            "am",
+            "start",
+            "-W",
+            "-n",
+            "com.night.pahebatcher/.MainActivity",
+            check=False,
+        )
         time.sleep(2.0)
+
         try:
-            if "PaheBatcher" in visible_texts(dump_ui()):
+            texts = visible_texts(dump_ui())
+            if "PaheBatcher" in texts:
                 return
         except Exception:
             pass
+
+    raise AssertionError("Could not recover emulator from Pixel Launcher ANR")
 
 recover_from_launcher_anr()
 assert_text("PaheBatcher")
