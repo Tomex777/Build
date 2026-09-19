@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.media.MediaCodec
 import android.media.MediaExtractor
+import android.media.MediaMetadataRetriever
 import android.media.MediaMuxer
 import android.net.Uri
 import android.os.Build
@@ -13,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
@@ -34,7 +36,7 @@ import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-enum class VerificationKind { ANIMEPAHE, KWIK }
+enum class VerificationKind { ANIMEPAHE }
 
 class VerificationRequired(
     val kind: VerificationKind,
@@ -90,6 +92,7 @@ private data class Segment(
     val url: String,
     val keyUrl: String?,
     val iv: ByteArray?,
+    val durationSeconds: Double,
 )
 
 class PaheRepository(
@@ -142,8 +145,8 @@ class PaheRepository(
         val host = sessions.animeHost().ifBlank { animeHosts.first() }
         val normalizedTitle = normalizeTitle(result.title)
 
-        // AnimePahe rotates the session UUID used in /anime/{session}. Refresh it from
-        // the search API before loading episodes, using the stable anime ID when available.
+        // AnimePahe rotates the session UUID. Refresh it from the search API using
+        // the stable anime ID whenever possible.
         val variants = runCatching { searchOnHost(host, result.title) }.getOrDefault(emptyList())
         val refreshed = variants.firstOrNull { candidate ->
             result.animeId != null && candidate.animeId == result.animeId
@@ -159,25 +162,30 @@ class PaheRepository(
         }.filter { it.session.isNotBlank() }
             .distinctBy { it.session }
 
-        val unique = linkedMapOf<Pair<Double, String>, EpisodeInfo>()
         var firstVerificationError: VerificationRequired? = null
         var lastFailure: Exception? = null
 
         for (candidate in candidates) {
             val animeSession = candidate.session
+            val complete = linkedMapOf<Pair<Double, String>, EpisodeInfo>()
+
             try {
                 var page = 1
                 while (true) {
                     val data = releasePage(host, animeSession, page)
-                    val rows = data.optJSONArray("data") ?: break
+                    val rows = data.optJSONArray("data")
+                        ?: throw IOException("AnimePahe release page $page returned no episode data")
+
                     for (index in 0 until rows.length()) {
                         val item = rows.optJSONObject(index) ?: continue
                         val epSession = item.optString("session")
                         if (epSession.isBlank()) continue
+
                         var audio = item.optString("audio", "jpn").trim().lowercase(Locale.US)
                         val title = item.optString("title").let { if (it == "?") "" else it.trim() }
                         if (audio == "jpn" && title.contains("dub", true)) audio = "eng"
                         if (audio == "eng" && title.contains("sub", true)) audio = "jpn"
+
                         val number = item.optDouble("episode", 0.0)
                         val ep = EpisodeInfo(
                             number = number,
@@ -187,11 +195,27 @@ class PaheRepository(
                             audio = audio,
                             playUrl = "https://$host/play/$animeSession/$epSession",
                         )
-                        unique.putIfAbsent(number to audio, ep)
+                        complete.putIfAbsent(number to audio, ep)
                     }
-                    val lastPage = data.optInt("last_page", 1).coerceAtLeast(1)
-                    if (page >= lastPage) break
-                    page++
+
+                    val currentPage = data.optInt("current_page", page).coerceAtLeast(page)
+                    val lastPage = data.optInt("last_page", currentPage).coerceAtLeast(currentPage)
+                    if (currentPage >= lastPage) break
+
+                    // AnimePahe rate-limits rapid release pagination. The maintained
+                    // source deliberately spaces page requests.
+                    delay(3_000)
+                    page = currentPage + 1
+                }
+
+                if (complete.isNotEmpty()) {
+                    return@withContext AnimeDetails(
+                        result = currentResult,
+                        host = host,
+                        episodes = complete.values.sortedWith(
+                            compareBy<EpisodeInfo> { it.number }.thenBy { it.audio },
+                        ),
+                    )
                 }
             } catch (e: VerificationRequired) {
                 if (firstVerificationError == null) firstVerificationError = e
@@ -199,19 +223,10 @@ class PaheRepository(
             } catch (e: Exception) {
                 lastFailure = e
             }
-
         }
 
-        if (unique.isEmpty()) {
-            firstVerificationError?.let { throw it }
-            lastFailure?.let { throw it }
-        }
-
-        AnimeDetails(
-            result = currentResult,
-            host = host,
-            episodes = unique.values.sortedWith(compareBy<EpisodeInfo> { it.number }.thenBy { it.audio }),
-        )
+        firstVerificationError?.let { throw it }
+        throw lastFailure ?: IOException("AnimePahe returned no complete episode list")
     }
 
     suspend fun bootstrapKwikUrl(): String = withContext(Dispatchers.IO) {
@@ -308,16 +323,31 @@ class PaheRepository(
                 }.awaitAll()
             }
 
-            val joinedTs = File(tempDir, "joined.ts")
-            joinedTs.outputStream().use { out ->
-                tempDir.listFiles()
-                    ?.filter { it.extension == "ts" && it.name != joinedTs.name }
-                    ?.sortedBy { it.name }
-                    ?.forEach { file -> file.inputStream().use { it.copyTo(out) } }
+            val segmentFiles = tempDir.listFiles()
+                ?.filter { it.extension == "ts" && it.name != "joined.ts" }
+                ?.sortedBy { it.name }
+                .orEmpty()
+            if (segmentFiles.size != segments.size) {
+                throw IOException("Only ${segmentFiles.size} of ${segments.size} HLS segments were written")
             }
 
+            val joinedTs = File(tempDir, "joined.ts")
+            joinedTs.outputStream().use { out ->
+                segmentFiles.forEach { file ->
+                    file.inputStream().use { it.copyTo(out) }
+                }
+            }
+
+            val expectedDurationUs = segments
+                .sumOf { (it.durationSeconds * 1_000_000.0).toLong() }
+                .coerceAtLeast(0L)
+
             val remuxedMp4 = File(tempDir, "episode.mp4")
-            val mp4Ready = remuxTsToMp4(joinedTs, remuxedMp4)
+            val mp4Ready = remuxSegmentsToMp4(
+                segmentFiles = segmentFiles,
+                output = remuxedMp4,
+                expectedDurationUs = expectedDurationUs,
+            )
             val sourceFile = if (mp4Ready) remuxedMp4 else joinedTs
             val extension = if (mp4Ready) "mp4" else "ts"
             val mime = if (mp4Ready) "video/mp4" else "video/mp2t"
@@ -408,7 +438,7 @@ class PaheRepository(
         }
     }
 
-    private fun releasePage(
+    private suspend fun releasePage(
         host: String,
         session: String,
         page: Int,
@@ -422,13 +452,26 @@ class PaheRepository(
         var lastFailure: Exception? = null
 
         for (url in urls) {
-            try {
-                return JSONObject(requestText(url, referer = "https://$host/"))
-            } catch (e: VerificationRequired) {
-                verification = verification ?: e
-                lastFailure = e
-            } catch (e: Exception) {
-                lastFailure = e
+            var retriedRateLimit = false
+            while (true) {
+                try {
+                    return JSONObject(requestText(url, referer = "https://$host/"))
+                } catch (e: VerificationRequired) {
+                    verification = verification ?: e
+                    lastFailure = e
+                    break
+                } catch (e: IOException) {
+                    lastFailure = e
+                    if (!retriedRateLimit && e.message.orEmpty().contains("HTTP 429")) {
+                        retriedRateLimit = true
+                        delay(12_000)
+                        continue
+                    }
+                    break
+                } catch (e: Exception) {
+                    lastFailure = e
+                    break
+                }
             }
         }
 
@@ -538,10 +581,7 @@ class PaheRepository(
             ) {
                 throw VerificationRequired(
                     verificationKind,
-                    if (verificationKind == VerificationKind.KWIK)
-                        "Kwik needs browser verification"
-                    else
-                        "AnimePahe needs browser verification",
+                    "AnimePahe needs browser verification",
                 )
             }
             if (!response.isSuccessful) {
@@ -579,7 +619,6 @@ class PaheRepository(
     private fun kindFor(url: String): VerificationKind? {
         val host = runCatching { URI(url).host.orEmpty().lowercase(Locale.US) }.getOrDefault("")
         return when {
-            host.startsWith("kwik.") || host.contains(".kwik.") -> VerificationKind.KWIK
             host.contains("animepahe") || host == "pahe.win" -> VerificationKind.ANIMEPAHE
             else -> null
         }
@@ -686,11 +725,21 @@ class PaheRepository(
         var keyUrl: String? = null
         var explicitIv: ByteArray? = null
         var sequence = 0L
+        var pendingDuration = 0.0
+
         content.lineSequence().forEach { raw ->
             val line = raw.trim()
             when {
                 line.startsWith("#EXT-X-MEDIA-SEQUENCE:") -> {
                     sequence = line.substringAfter(":").toLongOrNull() ?: sequence
+                }
+                line.startsWith("#EXTINF:") -> {
+                    pendingDuration = line
+                        .substringAfter(":")
+                        .substringBefore(",")
+                        .toDoubleOrNull()
+                        ?.coerceAtLeast(0.0)
+                        ?: 0.0
                 }
                 line.startsWith("#EXT-X-KEY:") -> {
                     if (line.contains("METHOD=AES-128", true)) {
@@ -705,7 +754,13 @@ class PaheRepository(
                 }
                 line.isNotBlank() && !line.startsWith("#") -> {
                     val iv = if (keyUrl != null) explicitIv ?: sequenceIv(sequence) else null
-                    out += Segment(resolveUrl(baseUrl, line), keyUrl, iv)
+                    out += Segment(
+                        url = resolveUrl(baseUrl, line),
+                        keyUrl = keyUrl,
+                        iv = iv,
+                        durationSeconds = pendingDuration,
+                    )
+                    pendingDuration = 0.0
                     sequence++
                 }
             }
@@ -713,56 +768,171 @@ class PaheRepository(
         return out
     }
 
-    private fun remuxTsToMp4(input: File, output: File): Boolean {
-        val extractor = MediaExtractor()
+    private fun remuxSegmentsToMp4(
+        segmentFiles: List<File>,
+        output: File,
+        expectedDurationUs: Long,
+    ): Boolean {
+        if (segmentFiles.isEmpty()) return false
+
         var muxer: MediaMuxer? = null
         var muxerStarted = false
+
         return try {
-            extractor.setDataSource(input.absolutePath)
-            if (extractor.trackCount == 0) return false
+            // Discover stable audio/video formats from the first usable segment.
+            val formatByMime = linkedMapOf<String, android.media.MediaFormat>()
+            for (file in segmentFiles) {
+                val extractor = MediaExtractor()
+                try {
+                    extractor.setDataSource(file.absolutePath)
+                    for (track in 0 until extractor.trackCount) {
+                        val format = extractor.getTrackFormat(track)
+                        val mime = format.getString(android.media.MediaFormat.KEY_MIME).orEmpty()
+                        if ((mime.startsWith("video/") || mime.startsWith("audio/")) &&
+                            mime !in formatByMime
+                        ) {
+                            formatByMime[mime] = format
+                        }
+                    }
+                } finally {
+                    runCatching { extractor.release() }
+                }
+                if (formatByMime.keys.any { it.startsWith("video/") } &&
+                    formatByMime.keys.any { it.startsWith("audio/") }
+                ) {
+                    break
+                }
+            }
+
+            if (formatByMime.isEmpty()) return false
 
             muxer = MediaMuxer(output.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-            val trackMap = mutableMapOf<Int, Int>()
-            for (track in 0 until extractor.trackCount) {
-                val format = extractor.getTrackFormat(track)
-                val mime = format.getString(android.media.MediaFormat.KEY_MIME).orEmpty()
-                if (!mime.startsWith("video/") && !mime.startsWith("audio/")) continue
-                trackMap[track] = muxer.addTrack(format)
-                extractor.selectTrack(track)
-            }
-            if (trackMap.isEmpty()) return false
-
+            val muxTrackByMime = formatByMime.mapValues { (_, format) -> muxer.addTrack(format) }
             muxer.start()
             muxerStarted = true
+
             val buffer = ByteBuffer.allocateDirect(4 * 1024 * 1024)
             val info = MediaCodec.BufferInfo()
+            val lastPtsByTrack = mutableMapOf<Int, Long>()
+            var segmentBaseUs = 0L
 
-            while (true) {
-                val sourceTrack = extractor.sampleTrackIndex
-                if (sourceTrack < 0) break
-                val targetTrack = trackMap[sourceTrack]
-                if (targetTrack == null) {
-                    extractor.advance()
-                    continue
+            segmentFiles.forEachIndexed { index, file ->
+                val extractor = MediaExtractor()
+                try {
+                    extractor.setDataSource(file.absolutePath)
+                    val sourceToMux = mutableMapOf<Int, Int>()
+                    for (track in 0 until extractor.trackCount) {
+                        val format = extractor.getTrackFormat(track)
+                        val mime = format.getString(android.media.MediaFormat.KEY_MIME).orEmpty()
+                        val muxTrack = muxTrackByMime[mime] ?: continue
+                        sourceToMux[track] = muxTrack
+                        extractor.selectTrack(track)
+                    }
+
+                    if (sourceToMux.isEmpty()) {
+                        throw IOException("HLS segment ${index + 1} had no muxable audio/video tracks")
+                    }
+
+                    val firstSampleUs = extractor.sampleTime.coerceAtLeast(0L)
+                    var maxRelativeUs = 0L
+
+                    while (true) {
+                        val sourceTrack = extractor.sampleTrackIndex
+                        if (sourceTrack < 0) break
+
+                        val muxTrack = sourceToMux[sourceTrack]
+                        if (muxTrack == null) {
+                            extractor.advance()
+                            continue
+                        }
+
+                        buffer.clear()
+                        val size = extractor.readSampleData(buffer, 0)
+                        if (size < 0) break
+
+                        val relativeUs = (extractor.sampleTime - firstSampleUs).coerceAtLeast(0L)
+                        var outputPtsUs = segmentBaseUs + relativeUs
+                        val previousPts = lastPtsByTrack[muxTrack]
+                        if (previousPts != null && outputPtsUs <= previousPts) {
+                            outputPtsUs = previousPts + 1L
+                        }
+
+                        info.set(
+                            0,
+                            size,
+                            outputPtsUs,
+                            extractor.sampleFlags,
+                        )
+                        muxer.writeSampleData(muxTrack, buffer, info)
+                        lastPtsByTrack[muxTrack] = outputPtsUs
+                        maxRelativeUs = maxOf(maxRelativeUs, relativeUs)
+                        extractor.advance()
+                    }
+
+                    val manifestDurationUs = expectedSegmentDurationUs(
+                        segmentIndex = index,
+                        segmentCount = segmentFiles.size,
+                        totalExpectedDurationUs = expectedDurationUs,
+                    )
+                    segmentBaseUs += if (manifestDurationUs > 0L) {
+                        manifestDurationUs
+                    } else {
+                        maxRelativeUs + 50_000L
+                    }
+                } finally {
+                    runCatching { extractor.release() }
                 }
-                buffer.clear()
-                val size = extractor.readSampleData(buffer, 0)
-                if (size < 0) break
-                info.set(0, size, extractor.sampleTime.coerceAtLeast(0L), extractor.sampleFlags)
-                muxer.writeSampleData(targetTrack, buffer, info)
-                extractor.advance()
             }
 
             muxer.stop()
             muxerStarted = false
-            output.exists() && output.length() > 0L
+            muxer.release()
+            muxer = null
+
+            if (!output.exists() || output.length() == 0L) return false
+
+            if (expectedDurationUs > 5_000_000L) {
+                val actualDurationUs = mediaDurationUs(output)
+                if (actualDurationUs <= 0L || actualDurationUs < (expectedDurationUs * 8L / 10L)) {
+                    output.delete()
+                    return false
+                }
+            }
+
+            true
         } catch (_: Exception) {
             false
         } finally {
-            runCatching { extractor.release() }
             if (muxerStarted) runCatching { muxer?.stop() }
             runCatching { muxer?.release() }
             if (!output.exists() || output.length() == 0L) output.delete()
+        }
+    }
+
+    private fun expectedSegmentDurationUs(
+        segmentIndex: Int,
+        segmentCount: Int,
+        totalExpectedDurationUs: Long,
+    ): Long {
+        if (totalExpectedDurationUs <= 0L || segmentCount <= 0) return 0L
+        // Use the manifest total as the continuity clock. Individual segment
+        // durations are already summed into totalExpectedDurationUs.
+        return totalExpectedDurationUs / segmentCount.toLong()
+    }
+
+    private fun mediaDurationUs(file: File): Long {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(file.absolutePath)
+            val durationMs = retriever
+                .extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toLongOrNull()
+                ?: 0L
+            durationMs * 1_000L
+        } catch (_: Exception) {
+            0L
+        } finally {
+            runCatching { retriever.release() }
         }
     }
 
