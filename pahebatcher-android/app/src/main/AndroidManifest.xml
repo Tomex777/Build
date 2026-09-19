@@ -9,6 +9,7 @@
         android:maxSdkVersion="28" />
 
     <application
+        android:name=".PaheApplication"
         android:allowBackup="true"
         android:label="PaheBatcher"
         android:icon="@mipmap/ic_launcher"
