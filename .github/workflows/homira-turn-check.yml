@@ -15,15 +15,126 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Install Coturn test client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y coturn
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
 
-      - name: Verify Open Relay allocation
-        run: |
-          timeout 45s turnutils_uclient             -t -y -c -n 1             -u openrelayproject             -w openrelayproject             -p 80             openrelay.metered.ca
+      - name: Install browser probe
+        run: python -m pip install --quiet selenium
 
-      - name: Verify TURN REST shared-secret allocation
+      - name: Verify relay ICE candidates in Chromium
         run: |
-          timeout 45s turnutils_uclient             -t -y -c -n 1             -W openrelayprojectsecret             -p 80             staticauth.openrelay.metered.ca
+          python - <<'PY'
+          import base64
+          import hashlib
+          import hmac
+          import json
+          import time
+
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+
+          def relay_probe(name, ice_server):
+              options = Options()
+              options.add_argument("--headless=new")
+              options.add_argument("--no-sandbox")
+              options.add_argument("--disable-dev-shm-usage")
+              options.add_argument("--disable-gpu")
+              driver = webdriver.Chrome(options=options)
+              driver.set_script_timeout(35)
+              try:
+                  driver.get("data:text/html,<html><body>Homira TURN probe</body></html>")
+                  result = driver.execute_async_script(
+                      """
+                      const config = arguments[0];
+                      const done = arguments[arguments.length - 1];
+                      const pc = new RTCPeerConnection({
+                        iceServers: [config],
+                        iceTransportPolicy: "relay"
+                      });
+                      const candidates = [];
+                      let finished = false;
+
+                      function finish(ok, error) {
+                        if (finished) return;
+                        finished = true;
+                        try { pc.close(); } catch (_) {}
+                        done({ ok, candidates, error: error || null });
+                      }
+
+                      pc.onicecandidate = (event) => {
+                        if (event.candidate) {
+                          candidates.push(event.candidate.candidate);
+                          if (event.candidate.candidate.includes(" typ relay ")) {
+                            finish(true, null);
+                          }
+                        } else if (pc.iceGatheringState === "complete") {
+                          finish(candidates.some((c) => c.includes(" typ relay ")), null);
+                        }
+                      };
+
+                      pc.onicecandidateerror = (event) => {
+                        candidates.push(
+                          "ICE_ERROR " +
+                          (event.url || "") + " " +
+                          (event.errorCode || "") + " " +
+                          (event.errorText || "")
+                        );
+                      };
+
+                      pc.createDataChannel("homira-turn-probe");
+                      pc.createOffer()
+                        .then((offer) => pc.setLocalDescription(offer))
+                        .catch((error) => finish(false, String(error)));
+
+                      setTimeout(() => {
+                        finish(
+                          candidates.some((c) => c.includes(" typ relay ")),
+                          "timeout"
+                        );
+                      }, 25000);
+                      """,
+                      ice_server,
+                  )
+                  print(name, json.dumps(result, indent=2))
+                  if not result.get("ok"):
+                      raise SystemExit(f"{name}: no relay candidate gathered")
+              finally:
+                  driver.quit()
+
+          relay_probe(
+              "static-auth",
+              {
+                  "urls": [
+                      "turn:openrelay.metered.ca:80",
+                      "turn:openrelay.metered.ca:80?transport=tcp",
+                      "turns:openrelay.metered.ca:443?transport=tcp",
+                  ],
+                  "username": "openrelayproject",
+                  "credential": "openrelayproject",
+              },
+          )
+
+          expires = int(time.time()) + 3600
+          username = f"{expires}:homira-ci"
+          credential = base64.b64encode(
+              hmac.new(
+                  b"openrelayprojectsecret",
+                  username.encode(),
+                  hashlib.sha1,
+              ).digest()
+          ).decode()
+
+          relay_probe(
+              "turn-rest",
+              {
+                  "urls": [
+                      "turn:staticauth.openrelay.metered.ca:80",
+                      "turn:staticauth.openrelay.metered.ca:80?transport=tcp",
+                      "turns:staticauth.openrelay.metered.ca:443?transport=tcp",
+                  ],
+                  "username": username,
+                  "credential": credential,
+              },
+          )
+          PY
