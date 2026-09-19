@@ -9,7 +9,7 @@ Set these Supabase Edge Function secrets:
 ```text
 HOMIRA_CLOUDFLARE_TURN_KEY_ID=<Cloudflare TURN key ID>
 HOMIRA_CLOUDFLARE_TURN_API_TOKEN=<token belonging to that TURN key>
-HOMIRA_TURN_TTL_SECONDS=3600
+HOMIRA_TURN_TTL_SECONDS=86400
 ```
 
 The Edge Function calls Cloudflare's `generate-ice-servers` endpoint and returns only the short-lived ICE username/credential to Homira. Port 53 URLs are filtered because browsers may block them; Homira retains UDP/TCP/TLS relay URLs on the standard Cloudflare ports.
@@ -35,7 +35,7 @@ Then set these Supabase secrets:
 ```text
 HOMIRA_TURN_SHARED_SECRET=<same secret as Coturn>
 HOMIRA_TURN_URLS=["turn:turn.example.com:3478","turn:turn.example.com:3478?transport=tcp"]
-HOMIRA_TURN_TTL_SECONDS=3600
+HOMIRA_TURN_TTL_SECONDS=86400
 ```
 
 The Edge Function mints standard Coturn TURN-REST credentials in `expiry:user-id` form with HMAC-SHA1.
@@ -53,3 +53,6 @@ HOMIRA_FORCE_TURN_RELAY=true
 ```
 
 The dedicated `Homira TURN Relay Android` workflow does this automatically. In that APK, WebRTC uses `PeerConnection.IceTransportsType.RELAY`. A successful connected call therefore proves the media path has TURN relay candidates available.
+
+
+The default TURN credential TTL is 24 hours. This is intentionally longer than a normal Homira call so long-running calls do not lose the ability to refresh TURN allocations mid-session.
