@@ -16,6 +16,7 @@ class NightRepository private constructor(
     fun observeAppearance(): Flow<NightAppearanceEntity?> = dao.observeAppearance()
     fun observeProfile(): Flow<NightProfileEntity?> = dao.observeProfile()
     fun observeScheduledTasks(): Flow<List<NightScheduledTaskEntity>> = dao.observeScheduledTasks()
+    fun observeCapabilityRoutes(): Flow<List<NightCapabilityRouteEntity>> = dao.observeCapabilityRoutes()
 
     suspend fun ensureProfile(): NightProfileEntity {
         val existing = dao.getProfile()
