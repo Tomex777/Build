@@ -59,14 +59,14 @@ class EpisodeDownloadWorker(
 
             Result.success()
         } catch (e: VerificationRequired) {
-            store.markPaused(
-                taskId,
-                "Paused — verify AnimePahe to resume",
-            )
-            notifyCurrent(
-                "Paused — verify AnimePahe to resume",
-                store.get(taskId)?.progress ?: 0f,
-            )
+            val hasSavedBrowserSession = sessionStore.animeCookie().isNotBlank()
+            val status = if (hasSavedBrowserSession) {
+                "Paused — AnimePahe source blocked; retrying with saved browser session"
+            } else {
+                "Paused — verify AnimePahe to resume"
+            }
+            store.markPaused(taskId, status)
+            notifyCurrent(status, store.get(taskId)?.progress ?: 0f)
             Result.retry()
         } catch (e: CancellationException) {
             store.markPaused(taskId, "Paused — will resume automatically")
