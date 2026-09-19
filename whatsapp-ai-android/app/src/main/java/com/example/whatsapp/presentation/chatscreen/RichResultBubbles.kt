@@ -2,6 +2,7 @@ package com.example.whatsapp.presentation.chatscreen
 
 import coil.compose.AsyncImage
 import com.example.whatsapp.extensions.messages.ExtensionActionStyle
+import com.example.whatsapp.extensions.messages.ExtensionCardAction
 import com.example.whatsapp.extensions.messages.ExtensionCardTemplate
 import com.example.whatsapp.extensions.messages.ExtensionMessageSnapshot
 import com.example.whatsapp.extensions.messages.NightExtensionMessageApi
@@ -1840,16 +1841,22 @@ fun approvedRichPreviewMessages(): List<WhatsAppVisualMessage> = listOf(
         mine = true,
         read = true,
     ),
-    ToolResultMessage(
+    ExtensionResultMessage(
         id = "approved-notion",
-        toolName = "Productivity • Tool",
-        title = "Notion Assistant",
-        subtitle = "Search, summarize, and write directly in your Notion workspace. Turn ideas into action faster.",
-        iconText = "N",
-        actions = listOf(
-            MessageAction("open", "Open"),
-            MessageAction("setup", "Setup"),
-            MessageAction("learn", "Learn More"),
+        snapshot = ExtensionMessageSnapshot(
+            extensionId = "notion",
+            messageType = "notion.page",
+            template = ExtensionCardTemplate.Content,
+            extensionName = "Notion Assistant",
+            title = "Notion Assistant",
+            subtitle = "Search, summarize, and write directly in your Notion workspace. Turn ideas into action faster.",
+            iconText = "N",
+            badge = "Productivity • Tool",
+            actions = listOf(
+                ExtensionCardAction("open", "Open", ExtensionActionStyle.Primary),
+                ExtensionCardAction("setup", "Setup"),
+                ExtensionCardAction("learn", "Learn More"),
+            ),
         ),
         time = "14:24",
     ),
