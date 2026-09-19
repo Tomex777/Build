@@ -685,6 +685,9 @@ fun HomiraProductionApp(
         var profileEmail by rememberSaveable(initialProfile?.id) {
             mutableStateOf(initialProfile?.email.orEmpty())
         }
+        var profilePhone by rememberSaveable(initialProfile?.id) {
+            mutableStateOf(initialProfile?.phoneE164.orEmpty())
+        }
         var voicemailEnabled by rememberSaveable(initialProfile?.id) {
             mutableStateOf(initialProfile?.voicemailEnabled ?: true)
         }
@@ -2278,6 +2281,7 @@ fun HomiraProductionApp(
                                 username = profileUsername,
                                 about = profileAbout,
                                 email = profileEmail,
+                                phone = profilePhone,
                                 avatarUri = avatarUri,
                                 callCardUri = callCardUri,
                                 onEdit = { overlay = OverlayScreen.EditProfile },
@@ -3300,6 +3304,7 @@ private fun MeScreen(
     username: String,
     about: String,
     email: String,
+    phone: String,
     avatarUri: String?,
     callCardUri: String?,
     onEdit: () -> Unit,
@@ -3365,7 +3370,11 @@ private fun MeScreen(
         }
         item {
             SectionTitleP("Your profile")
-            InfoRowP(Icons.Rounded.Phone, "Phone number", "+234 ••• ••••")
+            InfoRowP(
+                Icons.Rounded.Phone,
+                "Phone number",
+                phone.ifBlank { "Not set" }
+            )
             InfoRowP(Icons.Rounded.Person, "Username", "@$username")
             InfoRowP(Icons.Rounded.Email, "Email", email)
             InfoRowP(Icons.Rounded.Info, "About", about)
