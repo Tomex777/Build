@@ -148,7 +148,7 @@ private fun EmailOtpScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 Image(
-                    painter = painterResource(R.drawable.homira_call_mascot),
+                    painter = painterResource(R.drawable.homira_call_companion),
                     contentDescription = "Homira call companion",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
