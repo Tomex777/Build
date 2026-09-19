@@ -32,6 +32,7 @@ import com.example.whatsapp.data.night.NightAppearanceController
 import com.example.whatsapp.data.night.NightAppearanceEntity
 import com.example.whatsapp.data.night.NightCapabilityRouteEntity
 import com.example.whatsapp.data.night.NightLibraryItemEntity
+import com.example.whatsapp.data.night.NightLiveVoiceClient
 import com.example.whatsapp.data.night.NightMessageEntity
 import com.example.whatsapp.data.night.NightProviderManager
 import com.example.whatsapp.data.night.NightRepository
@@ -50,6 +51,7 @@ import com.example.whatsapp.presentation.profile.NightChatMemoryScreen
 import com.example.whatsapp.presentation.profile.NightChatFilesScreen
 import com.example.whatsapp.presentation.profile.NightChatSearchScreen
 import com.example.whatsapp.presentation.profile.NightMemoryScreen
+import com.example.whatsapp.presentation.profile.NightLiveVoiceScreen
 import com.example.whatsapp.presentation.profile.NightProfileScreen
 import com.example.whatsapp.presentation.profile.NightProvidersScreen
 import com.example.whatsapp.presentation.profile.NightScheduleDialog
@@ -95,6 +97,7 @@ private fun NightApp() {
     val voiceRecorder = remember { NightVoiceRecorder(context.applicationContext) }
     val scheduleManager = remember { NightScheduleManager.get(context) }
     val speechService = remember { NightSpeechService.get(context) }
+    val liveVoiceClient = remember { NightLiveVoiceClient.get(context) }
     val scope = rememberCoroutineScope()
 
     var selectedTabName by rememberSaveable { mutableStateOf(MainTab.Chats.name) }
@@ -107,6 +110,8 @@ private fun NightApp() {
     var isRecording by remember { mutableStateOf(false) }
     var activePlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     var scheduleOpen by remember { mutableStateOf(false) }
+    var liveVoiceState by remember { mutableStateOf(NightLiveVoiceClient.State.ENDED) }
+    var liveVoiceError by remember { mutableStateOf<String?>(null) }
 
     val chats by repository.observeChats().collectAsState(initial = emptyList())
     val profiles by repository.observeProviderProfiles().collectAsState(initial = emptyList())
@@ -294,6 +299,58 @@ private fun NightApp() {
         }
     }
 
+    fun startLiveVoiceCall() {
+        val callChatId = activeChatId
+        liveVoiceError = null
+        liveVoiceState = NightLiveVoiceClient.State.CONNECTING
+        screen = "live_voice"
+
+        scope.launch {
+            runCatching {
+                liveVoiceClient.connect(
+                    chatId = callChatId,
+                    displayName = displayName,
+                    listener = object : NightLiveVoiceClient.Listener {
+                        override fun onState(state: NightLiveVoiceClient.State) {
+                            scope.launch(Dispatchers.Main) {
+                                liveVoiceState = state
+                            }
+                        }
+
+                        override fun onUserTranscript(text: String) {
+                            scope.launch {
+                                repository.appendText(
+                                    chatId = callChatId,
+                                    role = "user",
+                                    text = text,
+                                )
+                            }
+                        }
+
+                        override fun onAssistantTranscript(text: String) {
+                            scope.launch {
+                                repository.appendText(
+                                    chatId = callChatId,
+                                    role = "assistant",
+                                    text = text,
+                                )
+                            }
+                        }
+
+                        override fun onError(message: String) {
+                            scope.launch(Dispatchers.Main) {
+                                liveVoiceError = message
+                            }
+                        }
+                    },
+                )
+            }.onFailure {
+                liveVoiceError = it.message ?: "Could not start Live Voice."
+                liveVoiceState = NightLiveVoiceClient.State.ENDED
+            }
+        }
+    }
+
     val recordPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -303,6 +360,20 @@ private fun NightApp() {
             Toast.makeText(
                 context,
                 "Microphone permission is required for voice notes.",
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+
+    val liveVoicePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            startLiveVoiceCall()
+        } else {
+            Toast.makeText(
+                context,
+                "Microphone permission is required for Live Voice.",
                 Toast.LENGTH_SHORT,
             ).show()
         }
@@ -429,14 +500,29 @@ private fun NightApp() {
     }
 
     BackHandler(enabled = screen != "tabs") {
-        if (screen == "chat") {
-            leaveChat()
-        } else {
-            screen = if (selectedTab == MainTab.You) "tabs" else "chat"
+        when (screen) {
+            "chat" -> leaveChat()
+            "live_voice" -> {
+                liveVoiceClient.stop()
+                screen = "chat"
+            }
+            else -> {
+                screen = if (selectedTab == MainTab.You) "tabs" else "chat"
+            }
         }
     }
 
     when (screen) {
+        "live_voice" -> NightLiveVoiceScreen(
+            chatTitle = activeChat?.title ?: "Night",
+            state = liveVoiceState,
+            error = liveVoiceError,
+            onEndCall = {
+                liveVoiceClient.stop()
+                screen = "chat"
+            },
+        )
+
         "profile" -> NightProfileScreen(
             displayName = displayName,
             onBack = { screen = "tabs" },
@@ -636,11 +722,16 @@ private fun NightApp() {
                 }
             },
             onCallClick = {
-                Toast.makeText(
-                    context,
-                    "Configure Azure Live Voice in You → AI & providers.",
-                    Toast.LENGTH_SHORT,
-                ).show()
+                if (
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.RECORD_AUDIO,
+                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) {
+                    startLiveVoiceCall()
+                } else {
+                    liveVoicePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                }
             },
             onMenuAction = { action ->
                 when (action) {
@@ -804,6 +895,7 @@ private fun NightApp() {
     DisposableEffect(Unit) {
         onDispose {
             voiceRecorder.cancel()
+            liveVoiceClient.stop()
             activePlayer?.release()
         }
     }
