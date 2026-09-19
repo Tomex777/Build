@@ -45,6 +45,9 @@ interface NightDao {
     @Query("SELECT * FROM night_messages WHERE id = :messageId LIMIT 1")
     suspend fun getMessage(messageId: String): NightMessageEntity?
 
+    @Query("SELECT * FROM night_messages ORDER BY createdAt DESC LIMIT :limit")
+    suspend fun getRecentMessagesAcrossChats(limit: Int): List<NightMessageEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertMessage(message: NightMessageEntity)
 
