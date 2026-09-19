@@ -35,6 +35,8 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -54,6 +56,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Schedule
@@ -71,6 +74,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -230,6 +235,14 @@ data class ReplyPreview(
     val iconText: String? = null,
 )
 
+data class AudioPlaybackUiState(
+    val activePath: String? = null,
+    val isPlaying: Boolean = false,
+    val progress: Float = 0f,
+    val positionLabel: String = "0:00",
+)
+
+
 @Composable
 fun CurrentWhatsAppConversation(
     contactName: String,
@@ -249,6 +262,8 @@ fun CurrentWhatsAppConversation(
     isRecording: Boolean = false,
     onVoiceClick: (String) -> Unit = {},
     onAudioClick: (String) -> Unit = {},
+    audioPlaybackState: AudioPlaybackUiState = AudioPlaybackUiState(),
+    onAudioSeek: (String, Float) -> Unit = { _, _ -> },
     onTranscribeVoice: (String, String) -> Unit = { _, _ -> },
     onSpeakText: (String) -> Unit = {},
     onReplyRequest: (String) -> Unit = {},
@@ -360,6 +375,8 @@ fun CurrentWhatsAppConversation(
                                     item,
                                     appearance,
                                     onAudioClick,
+                                    audioPlaybackState,
+                                    onAudioSeek,
                                     onReplyPreviewClick = { targetId ->
                                         val index = messages.indexOfFirst { it.id == targetId }
                                         if (index >= 0) scope.launch { state.animateScrollToItem(index) }
@@ -642,6 +659,7 @@ private fun CurrentTextBubble(
                 CurrentReplyBlock(
                     reply = it,
                     appearance = appearance,
+                    mine = item.mine,
                     onClick = { onReplyPreviewClick(it.messageId) },
                 )
             }
@@ -670,18 +688,32 @@ private fun CurrentTextBubble(
     }
 }
 
+private fun Color.darken(factor: Float): Color {
+    val safe = factor.coerceIn(0f, 1f)
+    return Color(
+        red = red * safe,
+        green = green * safe,
+        blue = blue * safe,
+        alpha = alpha,
+    )
+}
+
 @Composable
 private fun CurrentReplyBlock(
     reply: ReplyPreview,
     appearance: NightChatAppearance,
+    mine: Boolean = false,
     onClick: () -> Unit = {},
 ) {
+    val parentColor = if (mine) appearance.userBubbleColor else appearance.aiBubbleColor
+    val replyColor = parentColor.darken(if (mine) 0.74f else 0.82f)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
             .clip(RoundedCornerShape(11.dp))
-            .background(Color(0xFF343638))
+            .background(replyColor)
             .clickable(onClick = onClick),
     ) {
         Box(
@@ -885,6 +917,7 @@ private fun CurrentPhotoBubble(
                 CurrentReplyBlock(
                     reply = it,
                     appearance = appearance,
+                    mine = item.mine,
                     onClick = { onReplyPreviewClick(it.messageId) },
                 )
             }
@@ -978,6 +1011,7 @@ private fun CurrentVideoBubble(
                 CurrentReplyBlock(
                     reply = it,
                     appearance = appearance,
+                    mine = item.mine,
                     onClick = { onReplyPreviewClick(it.messageId) },
                 )
             }
@@ -1112,6 +1146,7 @@ private fun CurrentFileBubble(
                 CurrentReplyBlock(
                     reply = it,
                     appearance = appearance,
+                    mine = item.mine,
                     onClick = { onReplyPreviewClick(it.messageId) },
                 )
             }
@@ -1312,6 +1347,7 @@ private fun CurrentLinkPreviewBubble(
                 CurrentReplyBlock(
                     reply = it,
                     appearance = appearance,
+                    mine = item.mine,
                     onClick = { onReplyPreviewClick(it.messageId) },
                 )
             }
@@ -1417,9 +1453,19 @@ private fun CurrentAudioBubble(
     item: WhatsAppVisualMessage.AudioMessage,
     appearance: NightChatAppearance,
     onAudioClick: (String) -> Unit,
+    playback: AudioPlaybackUiState,
+    onAudioSeek: (String, Float) -> Unit,
     onReplyPreviewClick: (String) -> Unit,
 ) {
     val bubbleColor = if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor
+    val isActive = !item.localPath.isNullOrBlank() && playback.activePath == item.localPath
+    val shownProgress = when {
+        isActive -> playback.progress.coerceIn(0f, 1f)
+        item.localPath.isNullOrBlank() -> 0.34f
+        else -> 0f
+    }
+    val shownPosition = if (isActive) playback.positionLabel else "0:00"
+    val playerPanel = bubbleColor.darken(if (item.mine) 0.76f else 0.82f)
 
     Box(
         modifier = Modifier.fillMaxWidth(),
@@ -1427,7 +1473,7 @@ private fun CurrentAudioBubble(
     ) {
         Column(
             modifier = Modifier
-                .widthIn(min = 290.dp, max = 350.dp)
+                .widthIn(min = 300.dp, max = 360.dp)
                 .clip(
                     if (item.mine) {
                         RoundedCornerShape(17.dp, 5.dp, 17.dp, 17.dp)
@@ -1442,90 +1488,135 @@ private fun CurrentAudioBubble(
                 CurrentReplyBlock(
                     reply = it,
                     appearance = appearance,
+                    mine = item.mine,
                     onClick = { onReplyPreviewClick(it.messageId) },
                 )
             }
 
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF303436))
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(playerPanel)
+                    .padding(horizontal = 10.dp, vertical = 9.dp),
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(74.dp)
-                        .clip(RoundedCornerShape(11.dp))
-                        .background(Color(0xFF45494B)),
-                    contentAlignment = Alignment.Center,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    val artwork = item.artworkPath?.let(::File)
-                    if (!item.artworkPath.isNullOrBlank()) {
-                        AsyncImage(
-                            model = if (artwork != null && artwork.exists()) artwork else item.artworkPath,
-                            contentDescription = item.title,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
+                    Box(
+                        modifier = Modifier
+                            .size(68.dp)
+                            .clip(RoundedCornerShape(11.dp))
+                            .background(Color(0xFF45494B)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        val artwork = item.artworkPath?.let(::File)
+                        if (!item.artworkPath.isNullOrBlank()) {
+                            AsyncImage(
+                                model = if (artwork != null && artwork.exists()) artwork else item.artworkPath,
+                                contentDescription = item.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.MusicNote,
+                                contentDescription = null,
+                                tint = appearance.accentColor,
+                                modifier = Modifier.size(31.dp),
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(11.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = item.title,
+                            color = PrimaryText,
+                            fontSize = (15f * appearance.messageFontScale).sp,
+                            fontFamily = appearance.fontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = null,
-                            tint = appearance.accentColor,
-                            modifier = Modifier.size(32.dp),
+                        Text(
+                            text = item.artist.ifBlank { "Audio" },
+                            color = SecondaryText,
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 2.dp),
                         )
+                        if (item.detail.isNotBlank()) {
+                            Text(
+                                text = item.detail,
+                                color = SecondaryText,
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(top = 3.dp),
+                            )
+                        }
+                    }
+
+                    Surface(
+                        color = if (isActive && playback.isPlaying) appearance.accentColor else Color(0xFF505557),
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clickable(enabled = !item.localPath.isNullOrBlank()) {
+                                item.localPath?.let(onAudioClick)
+                            },
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = if (isActive && playback.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (isActive && playback.isPlaying) "Pause audio" else "Play audio",
+                                tint = Color.White,
+                                modifier = Modifier.size(26.dp),
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.width(11.dp))
+                Slider(
+                    value = shownProgress,
+                    onValueChange = { value ->
+                        item.localPath?.let { path ->
+                            if (isActive) onAudioSeek(path, value)
+                        }
+                    },
+                    enabled = isActive,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(30.dp)
+                        .padding(horizontal = 1.dp),
+                    colors = SliderDefaults.colors(
+                        thumbColor = appearance.accentColor,
+                        activeTrackColor = appearance.accentColor,
+                        inactiveTrackColor = Color(0xFF5B6062),
+                        disabledThumbColor = appearance.accentColor,
+                        disabledActiveTrackColor = appearance.accentColor,
+                        disabledInactiveTrackColor = Color(0xFF5B6062),
+                    ),
+                )
 
-                Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
-                        text = item.title,
-                        color = PrimaryText,
-                        fontSize = (15f * appearance.messageFontScale).sp,
-                        fontFamily = appearance.fontFamily,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = item.artist.ifBlank { "Audio" },
-                        color = SecondaryText,
-                        fontSize = 12.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 3.dp),
-                    )
-                    Text(
-                        text = item.detail.ifBlank { item.duration },
+                        text = shownPosition,
                         color = SecondaryText,
                         fontSize = 10.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 4.dp),
                     )
-                }
-
-                Surface(
-                    color = Color(0xFF505557),
-                    shape = CircleShape,
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clickable {
-                            item.localPath?.let(onAudioClick)
-                        },
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Play audio",
-                            tint = PrimaryText,
-                            modifier = Modifier.size(27.dp),
-                        )
-                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    Text(
+                        text = item.duration,
+                        color = SecondaryText,
+                        fontSize = 10.sp,
+                    )
                 }
             }
 
@@ -1584,6 +1675,7 @@ private fun CurrentVoiceBubble(
                 CurrentReplyBlock(
                     reply = it,
                     appearance = appearance,
+                    mine = item.mine,
                     onClick = { onReplyPreviewClick(it.messageId) },
                 )
             }
@@ -2232,7 +2324,7 @@ fun EmojiPicker(
             }
             .build()
     }
-    val emojis = listOf(
+    val fluentAssets = mapOf(
         "😀" to "file:///android_asset/fluent_emoji/grinning.svg",
         "😂" to "file:///android_asset/fluent_emoji/joy.svg",
         "🥹" to "file:///android_asset/fluent_emoji/holding_tears.svg",
@@ -2244,6 +2336,21 @@ fun EmojiPicker(
         "🙏" to "file:///android_asset/fluent_emoji/folded_hands.svg",
         "🔥" to "file:///android_asset/fluent_emoji/fire.svg",
     )
+    val categories = listOf(
+        "Recent" to listOf("😀","😂","🥹","😍","😭","😎","👍","❤️","🙏","🔥","✨","💀","🤝","🫡","🥲","🤣"),
+        "Smileys" to listOf("😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇","🙂","🙃","😉","😌","😍","🥰","😘","😗","😙","😚","😋","😛","😝","😜","🤪","🤨","🧐","🤓","😎","🥸","🤩","🥳","🙂‍↕️","😏","😒","😞","😔","😟","😕","🙁","☹️","😣","😖","😫","😩","🥺","🥹","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🫣","🤗","🫡","🤔","🫢","🤭","🤫","🤥","😶","😶‍🌫️","😐","😑","😬","🫨","🫠"),
+        "People" to listOf("👋","🤚","🖐️","✋","🖖","🫱","🫲","🫳","🫴","👌","🤌","🤏","✌️","🤞","🫰","🤟","🤘","🤙","👈","👉","👆","👇","☝️","🫵","👍","👎","✊","👊","🤛","🤜","👏","🙌","🫶","👐","🤲","🤝","🙏","✍️","💅","🤳","💪","🦾","🦵","🦶","👂","👃","🧠","🫀","🫁","👀","👁️","👄"),
+        "Hearts" to listOf("❤️","🩷","🧡","💛","💚","💙","🩵","💜","🤎","🖤","🩶","🤍","💔","❤️‍🔥","❤️‍🩹","❣️","💕","💞","💓","💗","💖","💘","💝","💟","♥️","💋","✨","⭐","🌟","💫","🔥"),
+        "Animals" to listOf("🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐻‍❄️","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🙈","🙉","🙊","🐒","🐔","🐧","🐦","🐤","🦆","🦅","🦉","🦇","🐺","🐗","🐴","🦄","🐝","🪱","🐛","🦋","🐌","🐞","🐜","🪰","🪲","🪳","🕷️","🦂","🐢","🐍","🦎","🐙","🦑","🦐","🦀","🐠","🐟","🐬","🐳","🦈"),
+        "Food" to listOf("🍏","🍎","🍐","🍊","🍋","🍌","🍉","🍇","🍓","🫐","🍈","🍒","🍑","🥭","🍍","🥥","🥝","🍅","🍆","🥑","🥦","🥬","🥒","🌶️","🫑","🌽","🥕","🫒","🧄","🧅","🥔","🍠","🥐","🥯","🍞","🥖","🥨","🧀","🥚","🍳","🥞","🧇","🥓","🍔","🍟","🍕","🌭","🥪","🌮","🌯","🥗","🍝","🍜","🍣","🍱","🍛","🍚","🍰","🎂","🍫","🍿","☕","🧋"),
+        "Activities" to listOf("⚽","🏀","🏈","⚾","🥎","🎾","🏐","🏉","🥏","🎱","🪀","🏓","🏸","🏒","🏑","🥍","🏏","🪃","🥅","⛳","🪁","🏹","🎣","🤿","🥊","🥋","🎽","🛹","🛼","🛷","⛸️","🥌","🎿","⛷️","🏂","🪂","🏋️","🤸","⛹️","🤺","🤾","🏌️","🏇","🧘","🏄","🏊","🚴","🚵","🎮","🎲","🎯","🎳","🎸","🎹","🥁","🎧","🎤"),
+        "Travel" to listOf("🚗","🚕","🚙","🚌","🚎","🏎️","🚓","🚑","🚒","🚐","🛻","🚚","🚛","🚜","🛵","🏍️","🛺","🚲","🛴","🚨","🚔","🚍","🚘","🚖","✈️","🛫","🛬","🚀","🛸","🚁","⛵","🚤","🛥️","🛳️","🚢","⚓","🗺️","🗿","🗽","🗼","🏰","🏯","🏟️","🎡","🎢","🎠","⛲","⛺","🏖️","🏝️","🏜️","🏕️","🌋","⛰️","🏔️","🌍","🌎","🌏","🌙","☀️","🌈"),
+        "Objects" to listOf("⌚","📱","💻","⌨️","🖥️","🖨️","🖱️","🕹️","🗜️","💽","💾","💿","📀","📷","📸","📹","🎥","📞","☎️","📺","📻","🎙️","⏱️","⏰","⌛","🔋","🪫","🔌","💡","🔦","🕯️","🧯","🛢️","💸","💵","💳","💎","⚖️","🧰","🔧","🔨","⚒️","🛠️","⛏️","🪓","🪚","🔩","⚙️","🧲","🧪","🧬","🔭","🔬","💊","🩹","🩺","🔑","🗝️","🚪","🪑","🛏️","🎁","🎈","🎉"),
+        "Symbols" to listOf("✅","☑️","✔️","❌","❎","➕","➖","➗","✖️","♾️","‼️","⁉️","❓","❔","❕","❗","〰️","💯","🔴","🟠","🟡","🟢","🔵","🟣","⚫","⚪","🟤","🔺","🔻","🔸","🔹","🔶","🔷","🔳","🔲","▪️","▫️","◾","◽","◼️","◻️","🟥","🟧","🟨","🟩","🟦","🟪","⬛","⬜","🔔","🔕","🎵","🎶","➰","➿","🔱","📛","🔰"),
+    )
+    var selectedCategory by remember { mutableStateOf(0) }
+    val selectedEmojis = categories[selectedCategory].second
+    val scroll = rememberScrollState()
 
     Surface(
         color = ComposerBackground,
@@ -2251,24 +2358,105 @@ fun EmojiPicker(
             .fillMaxWidth()
             .navigationBarsPadding(),
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
+                .height(330.dp),
         ) {
-            emojis.forEach { (emoji, asset) ->
-                AsyncImage(
-                    model = asset,
-                    imageLoader = emojiImageLoader,
-                    contentDescription = emoji,
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .clickable { onEmojiSelected(emoji) }
-                        .padding(3.dp),
-                )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 7.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                categories.forEachIndexed { index, (label, _) ->
+                    Surface(
+                        color = if (selectedCategory == index) Color(0xFF343D40) else Color.Transparent,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable {
+                                selectedCategory = index
+                            },
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(vertical = 7.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = when (label) {
+                                    "Recent" -> "🕘"
+                                    "Smileys" -> "😀"
+                                    "People" -> "👋"
+                                    "Hearts" -> "❤️"
+                                    "Animals" -> "🐻"
+                                    "Food" -> "🍕"
+                                    "Activities" -> "⚽"
+                                    "Travel" -> "✈️"
+                                    "Objects" -> "💡"
+                                    else -> "🔣"
+                                },
+                                fontSize = 17.sp,
+                            )
+                        }
+                    }
+                }
+            }
+
+            Text(
+                text = categories[selectedCategory].first,
+                color = SecondaryText,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(start = 14.dp, top = 3.dp, bottom = 5.dp),
+            )
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(scroll)
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                selectedEmojis.chunked(8).forEach { rowItems ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        rowItems.forEach { emoji ->
+                            val asset = fluentAssets[emoji]
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(9.dp))
+                                    .clickable { onEmojiSelected(emoji) },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (asset != null) {
+                                    AsyncImage(
+                                        model = asset,
+                                        imageLoader = emojiImageLoader,
+                                        contentDescription = emoji,
+                                        modifier = Modifier
+                                            .size(34.dp)
+                                            .padding(2.dp),
+                                    )
+                                } else {
+                                    Text(
+                                        text = emoji,
+                                        fontSize = 28.sp,
+                                    )
+                                }
+                            }
+                        }
+                        repeat(8 - rowItems.size) {
+                            Spacer(modifier = Modifier.size(42.dp))
+                        }
+                    }
+                }
             }
         }
     }
