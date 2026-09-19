@@ -39,7 +39,15 @@ class MainTabsPreviewActivity : ComponentActivity() {
                         onSettingsClick = {},
                     )
                     "you" -> NightYouTab(
+                        displayName = "Dawson",
                         onTabSelected = {},
+                        onProfileClick = {},
+                        onProvidersClick = {},
+                        onMemoryClick = {},
+                        onSchedulesClick = {},
+                        onLibraryStorageClick = {},
+                        onAppearanceClick = {},
+                        onPrivacyClick = {},
                         onSettingsClick = {},
                     )
                     "settings" -> ModernSettingsScreen(
