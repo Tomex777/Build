@@ -165,7 +165,7 @@ private fun EmailOtpScreen(
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = if (codeSent) {
-                        "Enter the 6-digit code sent to $email"
+                        "Enter the verification code sent to $email"
                     } else {
                         "Sign in to your call hub"
                     },
@@ -189,10 +189,10 @@ private fun EmailOtpScreen(
                 } else {
                     OutlinedTextField(
                         value = otp,
-                        onValueChange = { otp = it.filter(Char::isDigit).take(6) },
+                        onValueChange = { otp = it.filter(Char::isDigit).take(10) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        label = { Text("6-digit code") },
+                        label = { Text("Verification code") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                         shape = RoundedCornerShape(18.dp)
                     )
@@ -225,7 +225,7 @@ private fun EmailOtpScreen(
                                     repository.sendEmailOtp(email)
                                     codeSent = true
                                 } else {
-                                    require(otp.length == 6) { "Enter the 6-digit code." }
+                                    require(otp.length in 6..10) { "Enter the verification code." }
                                     repository.verifyEmailOtp(email, otp)
                                     onSignedIn()
                                 }
