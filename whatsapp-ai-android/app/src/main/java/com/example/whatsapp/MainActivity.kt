@@ -6,6 +6,9 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.Canvas
+import android.graphics.Matrix
+import android.graphics.Paint
 import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
 import android.os.Bundle
@@ -133,6 +136,9 @@ private fun NightApp() {
     var videoViewerPath by rememberSaveable { mutableStateOf<String?>(null) }
     var mediaDraft by remember { mutableStateOf<NightMediaDraft?>(null) }
     var mediaCaption by rememberSaveable { mutableStateOf("") }
+    var mediaImageRotation by rememberSaveable { mutableStateOf(0) }
+    var mediaCropSquare by rememberSaveable { mutableStateOf(false) }
+    var mediaOverlayText by rememberSaveable { mutableStateOf("") }
 
     val chats by repository.observeChats().collectAsState(initial = emptyList())
     val profiles by repository.observeProviderProfiles().collectAsState(initial = emptyList())
@@ -452,6 +458,9 @@ private fun NightApp() {
                     replyToMessageId = replyId,
                 )
                 mediaCaption = ""
+                mediaImageRotation = 0
+                mediaCropSquare = false
+                mediaOverlayText = ""
                 replyingToId = null
                 screen = "media_compose"
                 return@launch
@@ -565,6 +574,9 @@ private fun NightApp() {
         draft.thumbnailPath?.let { runCatching { File(it).delete() } }
         mediaDraft = null
         mediaCaption = ""
+        mediaImageRotation = 0
+        mediaCropSquare = false
+        mediaOverlayText = ""
         screen = "chat"
     }
 
@@ -575,12 +587,37 @@ private fun NightApp() {
         val messageId = java.util.UUID.randomUUID().toString()
 
         scope.launch {
+            var payloadJson = draft.payloadJson
+            var finalSizeBytes = draft.sizeBytes
+
+            if (draft.messageType == "image" &&
+                (mediaImageRotation % 360 != 0 || mediaCropSquare || mediaOverlayText.isNotBlank())
+            ) {
+                withContext(Dispatchers.IO) {
+                    applyImageEdits(
+                        path = draft.localPath,
+                        mimeType = draft.mimeType,
+                        rotationDegrees = mediaImageRotation,
+                        cropSquare = mediaCropSquare,
+                        overlayText = mediaOverlayText,
+                    )
+                }
+                finalSizeBytes = File(draft.localPath).length()
+                payloadJson = runCatching { JSONObject(draft.payloadJson) }
+                    .getOrElse { JSONObject() }
+                    .put("localPath", draft.localPath)
+                    .put("mimeType", draft.mimeType)
+                    .put("sizeBytes", finalSizeBytes)
+                    .put("aspectRatio", readImageAspectRatio(draft.localPath))
+                    .toString()
+            }
+
             repository.addLibraryItem(
                 NightLibraryItemEntity(
                     id = draft.libraryId,
                     name = draft.name,
                     mimeType = draft.mimeType,
-                    sizeBytes = draft.sizeBytes,
+                    sizeBytes = finalSizeBytes,
                     localPath = draft.localPath,
                     createdAt = draft.createdAt,
                     sourceChatId = chatId,
@@ -597,13 +634,16 @@ private fun NightApp() {
                     text = caption,
                     createdAt = System.currentTimeMillis(),
                     libraryFileId = draft.libraryId,
-                    payloadJson = draft.payloadJson,
+                    payloadJson = payloadJson,
                     replyToMessageId = draft.replyToMessageId,
                 )
             )
 
             mediaDraft = null
             mediaCaption = ""
+            mediaImageRotation = 0
+            mediaCropSquare = false
+            mediaOverlayText = ""
             screen = "chat"
         }
     }
@@ -664,6 +704,16 @@ private fun NightApp() {
                     videoThumbnailPath = draft.thumbnailPath,
                     caption = mediaCaption,
                     onCaptionChange = { mediaCaption = it },
+                    imageRotationDegrees = mediaImageRotation,
+                    cropSquare = mediaCropSquare,
+                    overlayText = mediaOverlayText,
+                    onRotateImage = {
+                        mediaImageRotation = (mediaImageRotation + 90) % 360
+                    },
+                    onToggleSquareCrop = {
+                        mediaCropSquare = !mediaCropSquare
+                    },
+                    onOverlayTextChange = { mediaOverlayText = it.take(80) },
                     onCancel = ::cancelMediaDraft,
                     onSend = ::sendMediaDraft,
                 )
@@ -1637,6 +1687,72 @@ private fun extractVideoMeta(
     } finally {
         runCatching { retriever.release() }
     }
+}
+
+private fun applyImageEdits(
+    path: String,
+    mimeType: String,
+    rotationDegrees: Int,
+    cropSquare: Boolean,
+    overlayText: String,
+) {
+    val source = BitmapFactory.decodeFile(path) ?: return
+    var working = source
+
+    if (rotationDegrees % 360 != 0) {
+        val matrix = Matrix().apply {
+            postRotate((rotationDegrees % 360).toFloat())
+        }
+        val rotated = Bitmap.createBitmap(
+            working,
+            0,
+            0,
+            working.width,
+            working.height,
+            matrix,
+            true,
+        )
+        if (working !== source) working.recycle()
+        working = rotated
+    }
+
+    if (cropSquare && working.width != working.height) {
+        val side = minOf(working.width, working.height)
+        val left = (working.width - side) / 2
+        val top = (working.height - side) / 2
+        val cropped = Bitmap.createBitmap(working, left, top, side, side)
+        if (working !== source) working.recycle()
+        working = cropped
+    }
+
+    if (overlayText.isNotBlank()) {
+        val mutable = working.copy(Bitmap.Config.ARGB_8888, true)
+        if (working !== source) working.recycle()
+        working = mutable
+
+        val canvas = Canvas(working)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textAlign = Paint.Align.CENTER
+            textSize = (working.width * 0.075f).coerceAtLeast(34f)
+            setShadowLayer(7f, 0f, 2f, Color.BLACK)
+        }
+        val x = working.width / 2f
+        val y = working.height * 0.48f
+        canvas.drawText(overlayText.trim(), x, y, paint)
+    }
+
+    FileOutputStream(File(path)).use { output ->
+        when {
+            mimeType.contains("png", ignoreCase = true) ->
+                working.compress(Bitmap.CompressFormat.PNG, 100, output)
+            else ->
+                working.compress(Bitmap.CompressFormat.JPEG, 95, output)
+        }
+    }
+
+    if (working !== source) working.recycle()
+    source.recycle()
 }
 
 private fun formatBytes(bytes: Long): String = when {
