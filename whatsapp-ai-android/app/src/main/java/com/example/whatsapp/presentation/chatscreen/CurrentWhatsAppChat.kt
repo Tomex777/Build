@@ -174,6 +174,20 @@ sealed interface WhatsAppVisualMessage {
         val reply: ReplyPreview? = null,
     ) : WhatsAppVisualMessage
 
+    data class LinkPreviewMessage(
+        override val id: String,
+        val body: String,
+        val url: String,
+        val title: String,
+        val description: String,
+        val site: String,
+        val imageUrl: String? = null,
+        val time: String,
+        val mine: Boolean,
+        val read: Boolean = false,
+        val reply: ReplyPreview? = null,
+    ) : WhatsAppVisualMessage
+
     data class VoiceMessage(
         override val id: String,
         val duration: String,
@@ -236,6 +250,7 @@ fun CurrentWhatsAppConversation(
     onCancelReply: () -> Unit = {},
     onImageClick: (String) -> Unit = {},
     onVideoClick: (String) -> Unit = {},
+    onLinkClick: (String) -> Unit = {},
     onEmojiClick: () -> Unit = {},
     autoScrollToLatest: Boolean = true,
     attachmentsInitiallyOpen: Boolean = false,
@@ -337,6 +352,15 @@ fun CurrentWhatsAppConversation(
                                     item,
                                     appearance,
                                     onAudioClick,
+                                    onReplyPreviewClick = { targetId ->
+                                        val index = messages.indexOfFirst { it.id == targetId }
+                                        if (index >= 0) scope.launch { state.animateScrollToItem(index) }
+                                    },
+                                )
+                                is WhatsAppVisualMessage.LinkPreviewMessage -> CurrentLinkPreviewBubble(
+                                    item = item,
+                                    appearance = appearance,
+                                    onLinkClick = onLinkClick,
                                     onReplyPreviewClick = { targetId ->
                                         val index = messages.indexOfFirst { it.id == targetId }
                                         if (index >= 0) scope.launch { state.animateScrollToItem(index) }
@@ -1162,6 +1186,136 @@ private fun DemoMediaArtwork(modifier: Modifier = Modifier) {
             fontWeight = FontWeight.Black,
             letterSpacing = 0.6.sp,
         )
+    }
+}
+
+@Composable
+private fun CurrentLinkPreviewBubble(
+    item: WhatsAppVisualMessage.LinkPreviewMessage,
+    appearance: NightChatAppearance,
+    onLinkClick: (String) -> Unit,
+    onReplyPreviewClick: (String) -> Unit,
+) {
+    val bubbleColor = if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor
+
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart,
+    ) {
+        Column(
+            modifier = Modifier
+                .widthIn(min = 280.dp, max = 355.dp)
+                .clip(
+                    if (item.mine) {
+                        RoundedCornerShape(17.dp, 5.dp, 17.dp, 17.dp)
+                    } else {
+                        RoundedCornerShape(5.dp, 17.dp, 17.dp, 17.dp)
+                    }
+                )
+                .background(bubbleColor)
+                .padding(8.dp),
+        ) {
+            item.reply?.let {
+                CurrentReplyBlock(
+                    reply = it,
+                    appearance = appearance,
+                    onClick = { onReplyPreviewClick(it.messageId) },
+                )
+            }
+
+            if (item.body.isNotBlank()) {
+                Text(
+                    text = item.body,
+                    color = PrimaryText,
+                    fontSize = (14f * appearance.messageFontScale).sp,
+                    lineHeight = (18f * appearance.messageFontScale).sp,
+                    fontFamily = appearance.fontFamily,
+                    modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 7.dp),
+                )
+            }
+
+            Surface(
+                color = Color(0xFF303436),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onLinkClick(item.url) },
+            ) {
+                Row(
+                    modifier = Modifier.heightIn(min = 92.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(116.dp)
+                            .height(92.dp)
+                            .background(Color(0xFF23292C)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (!item.imageUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = item.imageUrl,
+                                contentDescription = item.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Language,
+                                contentDescription = null,
+                                tint = appearance.accentColor,
+                                modifier = Modifier.size(30.dp),
+                            )
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                    ) {
+                        Text(
+                            text = item.title,
+                            color = PrimaryText,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+
+                        if (item.description.isNotBlank()) {
+                            Text(
+                                text = item.description,
+                                color = SecondaryText,
+                                fontSize = 11.sp,
+                                lineHeight = 14.sp,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(top = 3.dp),
+                            )
+                        }
+
+                        Text(
+                            text = item.site,
+                            color = SecondaryText,
+                            fontSize = 10.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 5.dp, end = 2.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                MessageMeta(item.time, item.mine, item.read)
+            }
+        }
     }
 }
 
