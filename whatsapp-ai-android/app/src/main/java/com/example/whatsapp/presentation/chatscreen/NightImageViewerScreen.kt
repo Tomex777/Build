@@ -51,6 +51,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,9 +65,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import coil.compose.AsyncImage
 import java.io.File
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
@@ -103,14 +108,24 @@ fun NightMediaViewerScreen(
         initialPage = initialIndex.coerceIn(0, items.lastIndex),
         pageCount = { items.size },
     )
+    val scope = rememberCoroutineScope()
     var controlsVisible by remember { mutableStateOf(true) }
     var zoomed by remember { mutableStateOf(false) }
-    var landscapeOverride by remember { mutableStateOf(false) }
 
     DisposableEffect(activity) {
         val oldOrientation = activity?.requestedOrientation
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        activity?.window?.let { window ->
+            val controller = WindowCompat.getInsetsController(window, window.decorView)
+            controller.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+        }
         onDispose {
+            activity?.window?.let { window ->
+                WindowCompat.getInsetsController(window, window.decorView)
+                    .show(WindowInsetsCompat.Type.systemBars())
+            }
             if (oldOrientation != null) {
                 activity.requestedOrientation = oldOrientation
             }
@@ -119,9 +134,8 @@ fun NightMediaViewerScreen(
 
     LaunchedEffect(pagerState.currentPage) {
         zoomed = false
-        val current = items[pagerState.currentPage]
-        if (!current.isVideo && landscapeOverride) {
-            landscapeOverride = false
+        controlsVisible = true
+        if (!items[pagerState.currentPage].isVideo) {
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
     }
@@ -139,11 +153,25 @@ fun NightMediaViewerScreen(
         ) { page ->
             val item = items[page]
             if (item.isVideo) {
-                NightVlcVideoSurface(
-                    path = item.localPath,
+                NightAniyomiVlcPlayer(
+                    item = item,
                     active = page == pagerState.currentPage,
-                    showControls = controlsVisible && page == pagerState.currentPage,
-                    onToggleControls = { controlsVisible = !controlsVisible },
+                    hasPrevious = page > 0,
+                    hasNext = page < items.lastIndex,
+                    onPrevious = {
+                        if (page > 0) {
+                            scope.launch { pagerState.animateScrollToPage(page - 1) }
+                        }
+                    },
+                    onNext = {
+                        if (page < items.lastIndex) {
+                            scope.launch { pagerState.animateScrollToPage(page + 1) }
+                        }
+                    },
+                    onBack = onBack,
+                    onShare = { shareNightMedia(context, item) },
+                    onEdit = { onEdit(item) },
+                    onSave = { saveNightMedia(context, item) },
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
@@ -159,7 +187,7 @@ fun NightMediaViewerScreen(
             }
         }
 
-        if (controlsVisible) {
+        if (controlsVisible && !items[pagerState.currentPage].isVideo) {
             val current = items[pagerState.currentPage]
 
             Row(
@@ -190,21 +218,6 @@ fun NightMediaViewerScreen(
                             color = Color(0xFFBEC3C6),
                             fontSize = 11.sp,
                         )
-                    }
-                }
-
-                if (current.isVideo) {
-                    IconButton(
-                        onClick = {
-                            landscapeOverride = !landscapeOverride
-                            activity?.requestedOrientation = if (landscapeOverride) {
-                                ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                            } else {
-                                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                            }
-                        }
-                    ) {
-                        Icon(Icons.Default.ScreenRotation, "Rotate", tint = Color.White)
                     }
                 }
 
