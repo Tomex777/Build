@@ -2,7 +2,6 @@ package com.example.whatsapp.presentation.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -114,14 +113,6 @@ fun NightYouTab(
                         modifier = Modifier.padding(top = 3.dp),
                     )
 
-                    Row(
-                        modifier = Modifier.padding(top = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        InfoPill("3 chats")
-                        InfoPill("Library ready")
-                        InfoPill("Memory on")
-                    }
                 }
             }
 
@@ -166,17 +157,3 @@ fun NightYouTab(
     }
 }
 
-@Composable
-private fun InfoPill(text: String) {
-    Surface(
-        color = YouSurface,
-        shape = CircleShape,
-    ) {
-        Text(
-            text = text,
-            color = YouMuted,
-            fontSize = 10.sp,
-            modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
-        )
-    }
-}
