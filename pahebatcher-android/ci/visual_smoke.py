@@ -83,7 +83,7 @@ assert_text("Open verification browser")
 screenshot("settings.png")
 
 tap_text("Open verification browser")
-assert_text("Step 1 of 2 · AnimePahe")
+assert_text("AnimePahe verification")
 screenshot("verification.png")
 
 # GitHub runner IPs are frequently blocked by AnimePahe/Cloudflare. The visual
