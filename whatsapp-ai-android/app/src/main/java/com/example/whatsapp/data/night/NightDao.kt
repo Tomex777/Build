@@ -12,6 +12,9 @@ interface NightDao {
     @Query("SELECT * FROM night_chats ORDER BY updatedAt DESC")
     fun observeChats(): Flow<List<NightChatEntity>>
 
+    @Query("SELECT * FROM night_chats ORDER BY updatedAt DESC")
+    suspend fun getChats(): List<NightChatEntity>
+
     @Query("SELECT * FROM night_chats WHERE id = :chatId LIMIT 1")
     suspend fun getChat(chatId: String): NightChatEntity?
 
@@ -95,6 +98,15 @@ interface NightDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertProviderModel(model: NightProviderModelEntity)
+
+    @Query("SELECT * FROM night_provider_models WHERE id = :id LIMIT 1")
+    suspend fun getProviderModel(id: String): NightProviderModelEntity?
+
+    @Query("SELECT * FROM night_provider_models WHERE profileId = :profileId AND isDefault = 1 AND isEnabled = 1 LIMIT 1")
+    suspend fun getDefaultProviderModel(profileId: String): NightProviderModelEntity?
+
+    @Query("SELECT * FROM night_provider_profiles WHERE serviceKind = :serviceKind AND isDefault = 1 AND isEnabled = 1 LIMIT 1")
+    suspend fun getDefaultProviderProfile(serviceKind: String): NightProviderProfileEntity?
 
     @Query("DELETE FROM night_provider_models WHERE id = :id")
     suspend fun deleteProviderModel(id: String)
