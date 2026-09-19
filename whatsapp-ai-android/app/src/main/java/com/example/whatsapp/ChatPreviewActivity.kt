@@ -1,3 +1,4 @@
+// Night final independent screenshot validation
 package com.example.whatsapp
 
 import android.graphics.Color
