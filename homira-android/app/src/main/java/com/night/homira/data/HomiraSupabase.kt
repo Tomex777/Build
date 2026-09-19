@@ -25,6 +25,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import io.ktor.client.call.body
 import io.ktor.http.ContentType
 import java.io.File
 import java.time.Instant
@@ -150,6 +151,21 @@ data class LiveProfile(
     @SerialName("voicemail_enabled") val voicemailEnabled: Boolean = true,
     @SerialName("voicemail_greeting_mode") val voicemailGreetingMode: String = "default",
     @SerialName("voicemail_greeting_path") val voicemailGreetingPath: String? = null
+)
+
+@Serializable
+data class HomiraIceServerConfig(
+    val urls: List<String>,
+    val username: String? = null,
+    val credential: String? = null
+)
+
+@Serializable
+data class HomiraTurnConfiguration(
+    val configured: Boolean = false,
+    val provider: String? = null,
+    @SerialName("expires_at") val expiresAt: String? = null,
+    @SerialName("ice_servers") val iceServers: List<HomiraIceServerConfig> = emptyList()
 )
 
 class HomiraLiveRepository {
@@ -308,6 +324,13 @@ class HomiraLiveRepository {
                 put("call_id", callId)
             }
         )
+    }
+
+    suspend fun loadTurnConfiguration(): HomiraTurnConfiguration {
+        requireNotNull(currentUserId()) { "Not signed in" }
+        return client.functions
+            .invoke(function = "turn-credentials")
+            .body<HomiraTurnConfiguration>()
     }
 
     suspend fun startCall(calleeId: String, video: Boolean): LiveCallSession {
