@@ -10,7 +10,7 @@ import com.example.whatsapp.presentation.shell.ModernCallsTab
 import com.example.whatsapp.presentation.shell.ModernChatsTab
 import com.example.whatsapp.presentation.shell.ModernCommunitiesTab
 import com.example.whatsapp.presentation.shell.ModernSettingsScreen
-import com.example.whatsapp.presentation.shell.ModernUpdatesTab
+import com.example.whatsapp.presentation.files.NightFilesTab
 import com.example.whatsapp.ui.theme.WhatsappTheme
 
 class MainTabsPreviewActivity : ComponentActivity() {
@@ -25,7 +25,7 @@ class MainTabsPreviewActivity : ComponentActivity() {
         setContent {
             WhatsappTheme(darkTheme = true) {
                 when (tab) {
-                    "updates" -> ModernUpdatesTab(
+                    "updates", "files" -> NightFilesTab(
                         onTabSelected = {},
                         onSettingsClick = {},
                     )
