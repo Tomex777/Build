@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -41,7 +43,17 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.VideoCall
+import androidx.compose.material.icons.filled.Poll
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Image as ImageIcon
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.SentimentSatisfiedAlt
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
@@ -132,12 +144,15 @@ fun CurrentWhatsAppConversation(
     onSendClick: () -> Unit,
     onCallClick: () -> Unit = {},
     onAttachmentClick: () -> Unit = {},
+    onAttachmentAction: (String) -> Unit = {},
     onCameraClick: () -> Unit = {},
     onMicClick: () -> Unit = {},
     onEmojiClick: () -> Unit = {},
     autoScrollToLatest: Boolean = true,
+    attachmentsInitiallyOpen: Boolean = false,
 ) {
     val state = rememberLazyListState()
+    var showAttachments by remember { mutableStateOf(attachmentsInitiallyOpen) }
 
     LaunchedEffect(messages.size, autoScrollToLatest) {
         if (autoScrollToLatest && messages.isNotEmpty()) {
@@ -188,11 +203,23 @@ fun CurrentWhatsAppConversation(
                 text = messageText,
                 onTextChange = onMessageTextChange,
                 onSendClick = onSendClick,
-                onAttachmentClick = onAttachmentClick,
+                onAttachmentClick = {
+                    showAttachments = !showAttachments
+                    onAttachmentClick()
+                },
                 onCameraClick = onCameraClick,
                 onMicClick = onMicClick,
                 onEmojiClick = onEmojiClick,
             )
+
+            if (showAttachments) {
+                AttachmentTray(
+                    onAction = { action ->
+                        showAttachments = false
+                        onAttachmentAction(action)
+                    },
+                )
+            }
         }
     }
 }
@@ -245,8 +272,9 @@ private fun CurrentChatHeader(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.statusBars)
-                .height(58.dp)
-                .padding(start = 3.dp, end = 7.dp),
+                .padding(top = 6.dp)
+                .height(68.dp)
+                .padding(start = 5.dp, end = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBackClick) {
@@ -262,7 +290,7 @@ private fun CurrentChatHeader(
                 painter = painterResource(R.drawable.ic_night),
                 contentDescription = null,
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(44.dp)
                     .clip(CircleShape),
                 contentScale = ContentScale.Crop,
             )
@@ -276,7 +304,7 @@ private fun CurrentChatHeader(
                 Text(
                     text = contactName,
                     color = PrimaryText,
-                    fontSize = 16.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Normal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -284,27 +312,56 @@ private fun CurrentChatHeader(
                 Text(
                     text = subtitle,
                     color = SecondaryText,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
 
-            IconButton(onClick = onCallClick) {
-                Icon(
-                    imageVector = Icons.Default.Phone,
-                    contentDescription = "Call",
-                    tint = PrimaryText,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
+            var showCallMenu by remember { mutableStateOf(false) }
+            Box {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { showCallMenu = true },
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Phone,
+                        contentDescription = "Call options",
+                        tint = PrimaryText,
+                        modifier = Modifier.size(23.dp),
+                    )
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = PrimaryText,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
 
-            Icon(
-                imageVector = Icons.Default.ArrowDropDown,
-                contentDescription = null,
-                tint = PrimaryText,
-                modifier = Modifier.size(23.dp),
-            )
+                DropdownMenu(
+                    expanded = showCallMenu,
+                    onDismissRequest = { showCallMenu = false },
+                    containerColor = Color(0xFF151B1E),
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Voice call", color = PrimaryText) },
+                        leadingIcon = {
+                            Icon(Icons.Default.Phone, null, tint = SecondaryText)
+                        },
+                        onClick = {
+                            showCallMenu = false
+                            onCallClick()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Video call", color = PrimaryText) },
+                        leadingIcon = {
+                            Icon(Icons.Default.VideoCall, null, tint = SecondaryText)
+                        },
+                        onClick = { showCallMenu = false },
+                    )
+                }
+            }
 
             IconButton(onClick = {}) {
                 Icon(
@@ -722,15 +779,13 @@ private fun CurrentComposer(
     onMicClick: () -> Unit,
     onEmojiClick: () -> Unit,
 ) {
-    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
-    val bottomPadding = if (imeBottom > 0.dp) 5.dp else navBottom.coerceAtLeast(6.dp)
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.Transparent)
-            .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = bottomPadding),
+            .navigationBarsPadding()
+            .imePadding()
+            .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
         Surface(
@@ -817,6 +872,79 @@ private fun CurrentComposer(
                     tint = Color(0xFF10161A),
                     modifier = Modifier.size(24.dp),
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AttachmentTray(
+    onAction: (String) -> Unit,
+) {
+    val items = listOf(
+        Triple("Gallery", Icons.Default.ImageIcon, Color(0xFF2196F3)),
+        Triple("Camera", Icons.Default.PhotoCamera, Color(0xFFE91E63)),
+        Triple("Location", Icons.Default.LocationOn, Color(0xFF20C997)),
+        Triple("Contact", Icons.Default.Person, Color(0xFF039BE5)),
+        Triple("Document", Icons.Default.Description, Color(0xFF7E57C2)),
+        Triple("Poll", Icons.Default.Poll, Color(0xFFFFB300)),
+        Triple("Event", Icons.Default.Event, Color(0xFFE91E63)),
+        Triple("AI images", Icons.Default.AutoAwesome, Color(0xFF1976D2)),
+    )
+
+    Surface(
+        color = Color(0xFF111719),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 14.dp, bottom = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .width(34.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color(0xFF788287)),
+            )
+
+            items.chunked(4).forEach { rowItems ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                ) {
+                    rowItems.forEach { item ->
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onAction(item.first) },
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Surface(
+                                color = Color(0xFF141B1E),
+                                shape = RoundedCornerShape(18.dp),
+                                modifier = Modifier.size(58.dp),
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = item.second,
+                                        contentDescription = item.first,
+                                        tint = item.third,
+                                        modifier = Modifier.size(29.dp),
+                                    )
+                                }
+                            }
+                            Text(
+                                text = item.first,
+                                color = SecondaryText,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(top = 7.dp),
+                            )
+                        }
+                    }
+                }
             }
         }
     }
