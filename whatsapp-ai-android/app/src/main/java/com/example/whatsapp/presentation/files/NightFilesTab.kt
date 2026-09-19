@@ -78,6 +78,7 @@ fun NightFilesTab(
         onTabSelected = onTabSelected,
         title = "Library",
         onSettingsClick = onSettingsClick,
+        showCamera = false,
         floatingAction = {
             FloatingActionButton(
                 onClick = { picker.launch(arrayOf("*/*")) },
