@@ -5,11 +5,8 @@ import java.net.URI
 
 data class SessionSnapshot(
     val animeCookieSaved: Boolean,
-    val kwikCookieSaved: Boolean,
     val animeHost: String,
-    val kwikHost: String,
     val animeUpdatedAt: Long,
-    val kwikUpdatedAt: Long,
 )
 
 class SessionStore(context: Context) {
@@ -17,30 +14,17 @@ class SessionStore(context: Context) {
 
     fun animeUserAgent(): String =
         prefs.getString(KEY_ANIME_UA, prefs.getString(KEY_LEGACY_UA, DEFAULT_UA)) ?: DEFAULT_UA
-    fun kwikUserAgent(): String =
-        prefs.getString(KEY_KWIK_UA, prefs.getString(KEY_LEGACY_UA, DEFAULT_UA)) ?: DEFAULT_UA
+
     fun animeCookie(): String = prefs.getString(KEY_ANIME_COOKIE, "").orEmpty()
-    fun kwikCookie(): String = prefs.getString(KEY_KWIK_COOKIE, "").orEmpty()
+
     fun animeHost(): String = prefs.getString(KEY_ANIME_HOST, "").orEmpty()
-    fun kwikHost(): String = prefs.getString(KEY_KWIK_HOST, "").orEmpty()
 
     fun cookieFor(url: String): String {
         val host = hostOf(url)
-        return when {
-            hostMatches(host, animeHost()) -> animeCookie()
-            hostMatches(host, kwikHost()) -> kwikCookie()
-            else -> ""
-        }
+        return if (hostMatches(host, animeHost())) animeCookie() else ""
     }
 
-    fun userAgentFor(url: String): String {
-        val host = hostOf(url)
-        return when {
-            hostMatches(host, kwikHost()) || isKwikHost(host) -> kwikUserAgent()
-            hostMatches(host, animeHost()) || isAnimePaheHost(host) -> animeUserAgent()
-            else -> animeUserAgent()
-        }
-    }
+    fun userAgentFor(url: String): String = animeUserAgent()
 
     private fun hostOf(url: String): String =
         runCatching { URI(url).host.orEmpty().lowercase() }.getOrDefault("")
@@ -51,39 +35,26 @@ class SessionStore(context: Context) {
         return actual == normalizedSaved || actual.endsWith(".$normalizedSaved")
     }
 
-    private fun isAnimePaheHost(host: String): Boolean =
-        host.contains("animepahe") || host == "pahe.win"
-
-    private fun isKwikHost(host: String): Boolean =
-        host.startsWith("kwik.") || host.contains(".kwik.")
-
     fun saveAnime(cookie: String, host: String, userAgent: String) {
         prefs.edit()
             .putString(KEY_ANIME_COOKIE, cookie)
             .putString(KEY_ANIME_HOST, host)
             .putString(KEY_ANIME_UA, userAgent.ifBlank { DEFAULT_UA })
             .putLong(KEY_ANIME_UPDATED, System.currentTimeMillis())
+            // Remove every legacy second-step/session value from old installs.
+            .remove(KEY_KWIK_COOKIE)
+            .remove(KEY_KWIK_HOST)
+            .remove(KEY_KWIK_UA)
+            .remove(KEY_KWIK_UPDATED)
             .apply()
     }
 
     fun rememberAnimeHost(host: String) {
         if (host.isBlank()) return
 
-        // Once a browser verification has produced a cf_clearance cookie, keep that
-        // cookie bound to the exact AnimePahe origin it came from. A fallback search
-        // succeeding on another mirror must not silently re-label the saved cookie.
         if (animeCookie().isNotBlank() && animeHost().isNotBlank()) return
 
         prefs.edit().putString(KEY_ANIME_HOST, host).apply()
-    }
-
-    fun saveKwik(cookie: String, host: String, userAgent: String) {
-        prefs.edit()
-            .putString(KEY_KWIK_COOKIE, cookie)
-            .putString(KEY_KWIK_HOST, host)
-            .putString(KEY_KWIK_UA, userAgent.ifBlank { DEFAULT_UA })
-            .putLong(KEY_KWIK_UPDATED, System.currentTimeMillis())
-            .apply()
     }
 
     fun clear() {
@@ -92,22 +63,21 @@ class SessionStore(context: Context) {
 
     fun snapshot(): SessionSnapshot = SessionSnapshot(
         animeCookieSaved = animeCookie().isNotBlank(),
-        kwikCookieSaved = kwikCookie().isNotBlank(),
         animeHost = animeHost(),
-        kwikHost = kwikHost(),
         animeUpdatedAt = prefs.getLong(KEY_ANIME_UPDATED, 0L),
-        kwikUpdatedAt = prefs.getLong(KEY_KWIK_UPDATED, 0L),
     )
 
     companion object {
         private const val KEY_LEGACY_UA = "user_agent"
         private const val KEY_ANIME_UA = "anime_user_agent"
-        private const val KEY_KWIK_UA = "kwik_user_agent"
         private const val KEY_ANIME_COOKIE = "anime_cookie"
-        private const val KEY_KWIK_COOKIE = "kwik_cookie"
         private const val KEY_ANIME_HOST = "anime_host"
-        private const val KEY_KWIK_HOST = "kwik_host"
         private const val KEY_ANIME_UPDATED = "anime_updated"
+
+        // Legacy keys are intentionally removed whenever AnimePahe is verified.
+        private const val KEY_KWIK_UA = "kwik_user_agent"
+        private const val KEY_KWIK_COOKIE = "kwik_cookie"
+        private const val KEY_KWIK_HOST = "kwik_host"
         private const val KEY_KWIK_UPDATED = "kwik_updated"
 
         const val DEFAULT_UA =
