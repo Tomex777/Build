@@ -103,7 +103,7 @@ function normalizeCloudflareIceServers(
       // Browsers commonly block the alternate TURN/STUN port 53.
       const urls = rawUrls
         .map((url) => url.trim())
-        .filter((url) => url.length > 0 && !url.includes(":53"));
+        .filter((url) => url.length > 0 && !/:53(?:\\?|$)/.test(url));
 
       return {
         urls,
@@ -184,7 +184,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: "invalid_user" }, 401);
   }
 
-  const requestedTtl = Number(Deno.env.get("HOMIRA_TURN_TTL_SECONDS") ?? "3600");
+  const requestedTtl = Number(Deno.env.get("HOMIRA_TURN_TTL_SECONDS") ?? "86400");
   const ttlSeconds = Number.isFinite(requestedTtl)
     ? Math.min(Math.max(Math.floor(requestedTtl), 300), 86400)
     : 3600;
