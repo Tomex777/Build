@@ -69,6 +69,8 @@ data class EpisodeInfo(
     val fansub: String,
     val audio: String,
     val playUrl: String,
+    val airedAt: Long? = null,
+    val uploadedAt: Long? = null,
 ) {
     val epLabel: String
         get() = if (number == number.toInt().toDouble()) number.toInt().toString() else number.toString()
