@@ -264,7 +264,6 @@ class PaheRepository(
 
             try {
                 var page = 1
-                var pageSize = 0
                 var declaredLastPage = 1
                 var expectedEpisodeCount = maxOf(
                     displayResult.episodes,
@@ -278,9 +277,6 @@ class PaheRepository(
                     val rows = data.optJSONArray("data")
                         ?: throw IOException("AnimePahe release page $page returned no episode data")
 
-                    if (pageSize == 0 && rows.length() > 0) {
-                        pageSize = rows.length()
-                    }
                     expectedEpisodeCount = maxOf(
                         expectedEpisodeCount,
                         data.optInt("total", 0),
@@ -316,35 +312,25 @@ class PaheRepository(
                     )
 
                     val distinctEpisodes = complete.keys.map { it.first }.distinct().size
-                    if (expectedEpisodeCount > 0 && distinctEpisodes >= expectedEpisodeCount) {
+
+                    if (expectedEpisodeCount > 0) {
+                        if (distinctEpisodes >= expectedEpisodeCount) break
+                        if (rows.length() == 0) {
+                            throw IOException(
+                                "AnimePahe episode list stopped early on page $currentPage " +
+                                    "with $distinctEpisodes of $expectedEpisodeCount episodes"
+                            )
+                        }
+                    } else if (currentPage >= declaredLastPage) {
                         break
-                    }
-
-                    val expectedPages = if (expectedEpisodeCount > 0 && pageSize > 0) {
-                        (expectedEpisodeCount + pageSize - 1) / pageSize
-                    } else {
-                        declaredLastPage
-                    }
-                    val targetPage = maxOf(declaredLastPage, expectedPages)
-
-                    if (currentPage >= targetPage) {
-                        if (expectedEpisodeCount <= 0) break
-                        throw IOException(
-                            "AnimePahe episode list incomplete: got $distinctEpisodes of " +
-                                "$expectedEpisodeCount episodes after $currentPage pages"
-                        )
-                    }
-
-                    if (rows.length() == 0) {
-                        throw IOException(
-                            "AnimePahe episode list stopped early on page $currentPage " +
-                                "with $distinctEpisodes of $expectedEpisodeCount episodes"
-                        )
                     }
 
                     safetyPages++
                     if (safetyPages > 60) {
-                        throw IOException("AnimePahe pagination exceeded the safety limit")
+                        throw IOException(
+                            "AnimePahe pagination exceeded the safety limit with " +
+                                "$distinctEpisodes of $expectedEpisodeCount episodes"
+                        )
                     }
 
                     delay(3_000)
@@ -625,12 +611,19 @@ class PaheRepository(
 
         var verification: VerificationRequired? = null
         var lastFailure: Exception? = null
+        var emptyResponse: JSONObject? = null
 
         for (url in urls) {
             var retriedRateLimit = false
             while (true) {
                 try {
-                    return JSONObject(requestText(url, referer = "https://$host/"))
+                    val data = JSONObject(requestText(url, referer = "https://$host/"))
+                    val rows = data.optJSONArray("data")
+                    if (rows != null && rows.length() > 0) {
+                        return data
+                    }
+                    emptyResponse = data
+                    break
                 } catch (e: VerificationRequired) {
                     verification = verification ?: e
                     lastFailure = e
@@ -650,6 +643,7 @@ class PaheRepository(
             }
         }
 
+        emptyResponse?.let { return it }
         verification?.let { throw it }
         throw lastFailure ?: IOException("AnimePahe release API returned no usable response")
     }
