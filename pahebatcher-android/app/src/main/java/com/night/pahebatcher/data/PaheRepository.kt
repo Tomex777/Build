@@ -18,6 +18,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import okhttp3.Cookie
+import okhttp3.CookieJar
+import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
@@ -28,7 +31,6 @@ import java.net.URI
 import java.net.URLEncoder
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
-import java.security.SecureRandom
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -102,11 +104,39 @@ private data class Segment(
     val durationSeconds: Double,
 )
 
+private class RuntimeCookieJar : CookieJar {
+    private val cookies = mutableListOf<Cookie>()
+
+    @Synchronized
+    override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+        val now = System.currentTimeMillis()
+        this.cookies.removeAll { existing ->
+            existing.expiresAt < now ||
+                cookies.any { incoming ->
+                    incoming.name == existing.name &&
+                        incoming.domain == existing.domain &&
+                        incoming.path == existing.path
+                }
+        }
+        this.cookies += cookies.filter { it.expiresAt >= now }
+    }
+
+    @Synchronized
+    override fun loadForRequest(url: HttpUrl): List<Cookie> {
+        val now = System.currentTimeMillis()
+        cookies.removeAll { it.expiresAt < now }
+        return cookies.filter { it.matches(url) }
+    }
+}
+
 class PaheRepository(
     private val context: Context,
     val sessions: SessionStore,
 ) {
+    private val runtimeCookieJar = RuntimeCookieJar()
+
     private val client = OkHttpClient.Builder()
+        .cookieJar(runtimeCookieJar)
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .followRedirects(true)
@@ -290,30 +320,6 @@ class PaheRepository(
         throw lastFailure ?: IOException("AnimePahe returned no complete episode list")
     }
 
-    suspend fun bootstrapKwikUrl(): String = withContext(Dispatchers.IO) {
-        val seed = search("One Piece").firstOrNull()
-            ?: search("Naruto").firstOrNull()
-            ?: throw IOException("Could not find an anime to open the second verification")
-        val host = sessions.animeHost().ifBlank { animeHosts.first() }
-        val page = releasePage(host, seed.session, 1)
-        val rows = page.optJSONArray("data")
-            ?: throw IOException("AnimePahe returned no episodes for verification")
-        var last: Exception? = null
-        for (index in 0 until minOf(rows.length(), 5)) {
-            val epSession = rows.optJSONObject(index)?.optString("session").orEmpty()
-            if (epSession.isBlank()) continue
-            val playUrl = "https://$host/play/${seed.session}/$epSession"
-            try {
-                val html = requestText(playUrl, referer = "https://$host/")
-                val options = parseReleaseOptions(html)
-                options.firstOrNull()?.url?.let { return@withContext it }
-            } catch (e: Exception) {
-                last = e
-            }
-        }
-        throw last ?: IOException("Could not locate Kwik from an AnimePahe episode")
-    }
-
     suspend fun resolveStream(
         episode: EpisodeInfo,
         requestedQuality: Int,
@@ -322,7 +328,7 @@ class PaheRepository(
         val host = URI(episode.playUrl).host.orEmpty()
         val playHtml = requestText(episode.playUrl, referer = "https://$host/")
         val options = parseReleaseOptions(playHtml)
-        if (options.isEmpty()) throw IOException("No Kwik release was found on this episode")
+        if (options.isEmpty()) throw IOException("No stream release was found on this episode")
 
         val wantsDub = requestedAudio == "eng"
         val matchingAudio = options.filter { it.isDub == wantsDub }.ifEmpty { options }
@@ -330,7 +336,7 @@ class PaheRepository(
         val chosen = sorted.firstOrNull { it.resolution <= requestedQuality } ?: sorted.last()
 
         resolveKwik(chosen.url, chosen)
-            ?: throw IOException("Kwik loaded, but no HLS stream URL could be extracted")
+            ?: throw IOException("Stream page loaded, but no HLS URL could be extracted")
     }
 
     suspend fun downloadStream(
@@ -581,37 +587,32 @@ class PaheRepository(
     ): StreamInfo? {
         val candidates = buildList {
             add(initialUrl)
-            val currentTld = runCatching { URI(initialUrl).host.orEmpty().substringAfterLast(".") }.getOrDefault("")
-            val verifiedTld = sessions.kwikHost().substringAfterLast(".", missingDelimiterValue = "")
-            if (verifiedTld.isNotBlank() && verifiedTld != currentTld) {
-                swapKwikDomain(initialUrl, verifiedTld)?.let(::add)
-            }
+            val currentTld = runCatching {
+                URI(initialUrl).host.orEmpty().substringAfterLast(".")
+            }.getOrDefault("")
             for (tld in listOf("cx", "gg", "si", "me", "net", "in", "cc")) {
                 if (tld != currentTld) swapKwikDomain(initialUrl, tld)?.let(::add)
             }
         }.distinct()
 
-        var verificationError: VerificationRequired? = null
         for (url in candidates) {
             try {
                 val html = requestText(url, referer = animeReferer())
                 val hls = extractM3u8(html) ?: continue
                 return StreamInfo(
                     url = hls,
-                    cookie = sessions.kwikCookie(),
-                    userAgent = sessions.userAgentFor(url),
+                    cookie = "",
+                    userAgent = sessions.animeUserAgent(),
                     referer = url,
                     quality = chosen.resolution,
                     audio = if (chosen.isDub) "eng" else "jpn",
                     fansub = chosen.fansub,
                 )
-            } catch (e: VerificationRequired) {
-                verificationError = e
             } catch (_: Exception) {
-                // Try another provider mirror.
+                // Provider/session cookies are captured automatically by the
+                // runtime CookieJar. There is never a second manual verify step.
             }
         }
-        verificationError?.let { throw it }
         return null
     }
 
