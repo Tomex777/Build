@@ -37,7 +37,6 @@ class ChatPreviewActivity : ComponentActivity() {
         val showAttachments = intent.getBooleanExtra("attachments", false)
         val showEmoji = intent.getBooleanExtra("emoji", false)
         val showMenu = intent.getBooleanExtra("menu", false)
-        val previewMode = intent.getStringExtra("mode").orEmpty()
         val mode = intent.getStringExtra("mode").orEmpty()
         val previewImage = "android.resource://" + packageName + "/" + R.drawable.bilal
 
@@ -53,6 +52,10 @@ class ChatPreviewActivity : ComponentActivity() {
                         "audio" -> audioPreviewMessages(previewImage)
                         "docs" -> docsPreviewMessages(previewImage)
                         "rich" -> richApprovedPreviewMessages(previewImage)
+                        "rich1" -> richPreviewMessagesPageOne()
+                        "rich2" -> richPreviewMessagesPageTwo()
+                        "approved-rich" -> approvedRichPreviewMessages()
+                        "utility" -> utilityPreviewMessages()
                         else -> whatsappPreviewMessages()
                     },
                     messageText = text,
