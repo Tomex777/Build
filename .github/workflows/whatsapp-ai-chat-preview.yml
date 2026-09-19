@@ -145,6 +145,12 @@ jobs:
       - name: Commit rendered screenshot
         if: always()
         run: |
+          mkdir -p whatsapp-ai-preview
+          {
+            echo "run_id=${{ github.run_id }}"
+            echo "sha=${{ github.sha }}"
+            echo "status=${{ job.status }}"
+          } > whatsapp-ai-preview/night-ci-status.txt
           git fetch origin whatsapp-ai-ui-ci
           git rebase origin/whatsapp-ai-ui-ci || true
           git config user.name "github-actions[bot]"
