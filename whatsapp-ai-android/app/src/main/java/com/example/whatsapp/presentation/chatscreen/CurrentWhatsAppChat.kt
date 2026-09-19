@@ -153,6 +153,7 @@ sealed interface WhatsAppVisualMessage {
         override val id: String,
         val name: String,
         val detail: String,
+        val caption: String = "",
         val time: String,
         val mine: Boolean,
         val read: Boolean = false,
@@ -647,13 +648,13 @@ private fun CurrentReplyBlock(
         modifier = Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(11.dp))
             .background(Color(0xFF343638))
             .clickable(onClick = onClick),
     ) {
         Box(
             modifier = Modifier
-                .width(3.dp)
+                .width(4.dp)
                 .fillMaxHeight()
                 .background(appearance.accentColor),
         )
@@ -661,12 +662,11 @@ private fun CurrentReplyBlock(
         Row(
             modifier = Modifier
                 .weight(1f)
-                .padding(start = 8.dp, end = 7.dp, top = 6.dp, bottom = 7.dp),
+                .padding(start = 9.dp, end = 7.dp, top = 7.dp, bottom = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ReplyTypePreview(reply)
-
-            if (reply.kind != ReplyKind.Text) {
+            if (reply.kind !in setOf(ReplyKind.Text, ReplyKind.Image, ReplyKind.Video)) {
+                ReplyTypePreview(reply)
                 Spacer(modifier = Modifier.width(8.dp))
             }
 
@@ -682,7 +682,7 @@ private fun CurrentReplyBlock(
 
                 Text(
                     text = reply.text,
-                    color = Color(0xFFB8BEC1),
+                    color = Color(0xFFC4C9CB),
                     fontSize = 12.sp,
                     lineHeight = 15.sp,
                     maxLines = 3,
@@ -700,10 +700,15 @@ private fun CurrentReplyBlock(
                     )
                 }
             }
+
+            if (reply.kind == ReplyKind.Image || reply.kind == ReplyKind.Video) {
+                Spacer(modifier = Modifier.width(8.dp))
+                ReplyTypePreview(reply)
+            }
         }
     }
 
-    Spacer(modifier = Modifier.height(5.dp))
+    Spacer(modifier = Modifier.height(6.dp))
 }
 
 @Composable
@@ -787,6 +792,7 @@ private fun CurrentPhotoBubble(
         return
     }
 
+    val bubbleColor = if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor
     val shape = if (item.mine) {
         RoundedCornerShape(18.dp, 5.dp, 18.dp, 18.dp)
     } else {
@@ -801,26 +807,23 @@ private fun CurrentPhotoBubble(
             modifier = Modifier
                 .fillMaxWidth(0.94f)
                 .widthIn(min = 280.dp, max = 390.dp)
-                .clip(shape),
+                .clip(shape)
+                .background(bubbleColor)
+                .padding(7.dp),
         ) {
             item.reply?.let {
-                Box(
-                    modifier = Modifier
-                        .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
-                        .padding(start = 7.dp, end = 7.dp, top = 7.dp),
-                ) {
-                    CurrentReplyBlock(
-                        reply = it,
-                        appearance = appearance,
-                        onClick = { onReplyPreviewClick(it.messageId) },
-                    )
-                }
+                CurrentReplyBlock(
+                    reply = it,
+                    appearance = appearance,
+                    onClick = { onReplyPreviewClick(it.messageId) },
+                )
             }
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(item.aspectRatio.coerceIn(0.70f, 1.85f))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(Color(0xFF15191B))
                     .clickable {
                         item.localPath?.let(onImageClick)
@@ -840,7 +843,7 @@ private fun CurrentPhotoBubble(
                 if (item.caption.isBlank()) {
                     Surface(
                         color = Color.Black.copy(alpha = 0.48f),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(11.dp),
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(7.dp),
@@ -856,8 +859,7 @@ private fun CurrentPhotoBubble(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
-                        .padding(start = 11.dp, end = 8.dp, top = 8.dp, bottom = 7.dp),
+                        .padding(start = 4.dp, end = 2.dp, top = 8.dp, bottom = 1.dp),
                     verticalAlignment = Alignment.Bottom,
                 ) {
                     Text(
@@ -882,6 +884,7 @@ private fun CurrentVideoBubble(
     onVideoClick: (String) -> Unit,
     onReplyPreviewClick: (String) -> Unit,
 ) {
+    val bubbleColor = if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor
     val shape = if (item.mine) {
         RoundedCornerShape(18.dp, 5.dp, 18.dp, 18.dp)
     } else {
@@ -896,26 +899,23 @@ private fun CurrentVideoBubble(
             modifier = Modifier
                 .fillMaxWidth(0.94f)
                 .widthIn(min = 280.dp, max = 390.dp)
-                .clip(shape),
+                .clip(shape)
+                .background(bubbleColor)
+                .padding(7.dp),
         ) {
             item.reply?.let {
-                Box(
-                    modifier = Modifier
-                        .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
-                        .padding(start = 7.dp, end = 7.dp, top = 7.dp),
-                ) {
-                    CurrentReplyBlock(
-                        reply = it,
-                        appearance = appearance,
-                        onClick = { onReplyPreviewClick(it.messageId) },
-                    )
-                }
+                CurrentReplyBlock(
+                    reply = it,
+                    appearance = appearance,
+                    onClick = { onReplyPreviewClick(it.messageId) },
+                )
             }
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(item.aspectRatio.coerceIn(0.75f, 1.85f))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(Color(0xFF121617))
                     .clickable {
                         item.localPath?.let(onVideoClick)
@@ -935,37 +935,45 @@ private fun CurrentVideoBubble(
                 Surface(
                     color = Color.Black.copy(alpha = 0.58f),
                     shape = CircleShape,
-                    modifier = Modifier.size(56.dp),
+                    modifier = Modifier.size(58.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = "Play video",
                             tint = Color.White,
-                            modifier = Modifier.size(35.dp),
+                            modifier = Modifier.size(36.dp),
                         )
                     }
                 }
 
-                Surface(
-                    color = Color.Black.copy(alpha = 0.55f),
-                    shape = RoundedCornerShape(10.dp),
+                Row(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(8.dp),
+                        .padding(8.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(Color.Black.copy(alpha = 0.55f))
+                        .padding(horizontal = 7.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    Icon(
+                        imageVector = Icons.Default.VideoCall,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
                     Text(
                         text = item.duration,
                         color = Color.White,
                         fontSize = 11.sp,
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
                     )
                 }
 
                 if (item.caption.isBlank()) {
                     Surface(
                         color = Color.Black.copy(alpha = 0.48f),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(11.dp),
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(8.dp),
@@ -981,8 +989,7 @@ private fun CurrentVideoBubble(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
-                        .padding(start = 11.dp, end = 8.dp, top = 8.dp, bottom = 7.dp),
+                        .padding(start = 4.dp, end = 2.dp, top = 8.dp, bottom = 1.dp),
                     verticalAlignment = Alignment.Bottom,
                 ) {
                     Text(
@@ -1162,21 +1169,23 @@ private fun CurrentAudioBubble(
     onAudioClick: (String) -> Unit,
     onReplyPreviewClick: (String) -> Unit,
 ) {
+    val bubbleColor = if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor
+
     Box(
         modifier = Modifier.fillMaxWidth(),
         contentAlignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart,
     ) {
         Column(
             modifier = Modifier
-                .widthIn(min = 280.dp, max = 340.dp)
+                .widthIn(min = 290.dp, max = 350.dp)
                 .clip(
                     if (item.mine) {
-                        RoundedCornerShape(16.dp, 5.dp, 16.dp, 16.dp)
+                        RoundedCornerShape(17.dp, 5.dp, 17.dp, 17.dp)
                     } else {
-                        RoundedCornerShape(5.dp, 16.dp, 16.dp, 16.dp)
+                        RoundedCornerShape(5.dp, 17.dp, 17.dp, 17.dp)
                     }
                 )
-                .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
+                .background(bubbleColor)
                 .padding(8.dp),
         ) {
             item.reply?.let {
@@ -1197,8 +1206,8 @@ private fun CurrentAudioBubble(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(58.dp)
-                        .clip(RoundedCornerShape(10.dp))
+                        .size(74.dp)
+                        .clip(RoundedCornerShape(11.dp))
                         .background(Color(0xFF45494B)),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -1215,46 +1224,46 @@ private fun CurrentAudioBubble(
                             imageVector = Icons.Default.MusicNote,
                             contentDescription = null,
                             tint = appearance.accentColor,
-                            modifier = Modifier.size(28.dp),
+                            modifier = Modifier.size(32.dp),
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(11.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = item.title,
                         color = PrimaryText,
-                        fontSize = (14f * appearance.messageFontScale).sp,
+                        fontSize = (15f * appearance.messageFontScale).sp,
                         fontFamily = appearance.fontFamily,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = item.artist.ifBlank { item.detail },
+                        text = item.artist.ifBlank { "Audio" },
                         color = SecondaryText,
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 2.dp),
+                        modifier = Modifier.padding(top = 3.dp),
                     )
                     Text(
-                        text = item.duration + if (item.detail.isBlank()) "" else " • " + item.detail,
+                        text = item.detail.ifBlank { item.duration },
                         color = SecondaryText,
                         fontSize = 10.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 2.dp),
+                        modifier = Modifier.padding(top = 4.dp),
                     )
                 }
 
                 Surface(
-                    color = Color(0xFF474D50),
+                    color = Color(0xFF505557),
                     shape = CircleShape,
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(46.dp)
                         .clickable {
                             item.localPath?.let(onAudioClick)
                         },
@@ -1264,16 +1273,27 @@ private fun CurrentAudioBubble(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = "Play audio",
                             tint = PrimaryText,
-                            modifier = Modifier.size(25.dp),
+                            modifier = Modifier.size(27.dp),
                         )
                     }
                 }
             }
 
+            if (item.caption.isNotBlank()) {
+                Text(
+                    text = item.caption,
+                    color = PrimaryText,
+                    fontSize = (13f * appearance.messageFontScale).sp,
+                    lineHeight = (18f * appearance.messageFontScale).sp,
+                    fontFamily = appearance.fontFamily,
+                    modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 8.dp),
+                )
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 5.dp, end = 2.dp),
+                    .padding(top = 6.dp, end = 2.dp),
                 horizontalArrangement = Arrangement.End,
             ) {
                 MessageMeta(item.time, item.mine, item.read)
@@ -1290,22 +1310,25 @@ private fun CurrentVoiceBubble(
     onTranscribeVoice: (String, String) -> Unit,
     onReplyPreviewClick: (String) -> Unit,
 ) {
+    val bubbleColor = if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor
+    val playColor = if (item.mine) Color(0xFFD83D67) else Color(0xFF4A4E50)
+
     Box(
         modifier = Modifier.fillMaxWidth(),
         contentAlignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart,
     ) {
         Column(
             modifier = Modifier
-                .widthIn(min = 280.dp, max = 320.dp)
+                .widthIn(min = 285.dp, max = 350.dp)
                 .clip(
                     if (item.mine) {
-                        RoundedCornerShape(14.dp, 3.dp, 14.dp, 14.dp)
+                        RoundedCornerShape(17.dp, 5.dp, 17.dp, 17.dp)
                     } else {
-                        RoundedCornerShape(3.dp, 14.dp, 14.dp, 14.dp)
+                        RoundedCornerShape(5.dp, 17.dp, 17.dp, 17.dp)
                     }
                 )
-                .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
-                .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 6.dp),
+                .background(bubbleColor)
+                .padding(start = 10.dp, end = 10.dp, top = 9.dp, bottom = 7.dp),
         ) {
             item.reply?.let {
                 CurrentReplyBlock(
@@ -1318,84 +1341,62 @@ private fun CurrentVoiceBubble(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box {
-                    Image(
-                        painter = painterResource(R.drawable.bilal),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop,
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(16.dp)
-                            .clip(CircleShape)
-                            .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Mic,
-                            contentDescription = null,
-                            tint = PrimaryText,
-                            modifier = Modifier.size(12.dp),
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(7.dp))
-
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Play voice note",
-                    tint = PrimaryText,
+                Surface(
+                    color = playColor,
+                    shape = CircleShape,
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(54.dp)
                         .clickable {
                             item.localPath?.let(onVoiceClick)
                         },
-                )
-
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 2.dp),
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(9.dp)
-                                .clip(CircleShape)
-                                .background(PrimaryText),
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Play voice note",
+                            tint = Color.White,
+                            modifier = Modifier.size(30.dp),
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        VoiceWaveform(modifier = Modifier.weight(1f))
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Bottom,
-                    ) {
-                        Text(
-                            text = item.duration,
-                            color = SecondaryText,
-                            fontSize = 10.sp,
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        MessageMeta(item.time, item.mine, item.read)
                     }
                 }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                VoiceWaveform(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(38.dp),
+                    mine = item.mine,
+                )
+
+                Spacer(modifier = Modifier.width(9.dp))
+
+                Text(
+                    text = item.duration,
+                    color = PrimaryText,
+                    fontSize = 12.sp,
+                )
             }
 
-
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Spacer(modifier = Modifier.weight(1f))
+                MessageMeta(item.time, item.mine, item.read)
+            }
         }
     }
 }
 
+
 @Composable
-private fun VoiceWaveform(modifier: Modifier = Modifier) {
+private fun VoiceWaveform(
+    modifier: Modifier = Modifier,
+    mine: Boolean = false,
+) {
     val heights = listOf(
         7, 12, 9, 18, 10, 7, 16, 23, 13, 8, 11, 20, 26, 14, 9, 18, 24, 12,
         8, 15, 21, 10, 7, 18, 13, 23, 16, 8, 11, 20, 9, 14, 24, 12, 7, 16,
@@ -1412,7 +1413,7 @@ private fun VoiceWaveform(modifier: Modifier = Modifier) {
                     .width(2.dp)
                     .height(h.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(Color(0xFFCE8B9D)),
+                    .background(if (mine) Color(0xFFFF8DAA) else Color(0xFFB7BEC1)),
             )
         }
     }
