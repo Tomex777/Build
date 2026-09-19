@@ -53,6 +53,7 @@ class DownloadPreferencesStore(context: Context) {
     }
 
     private fun animeKey(anime: AnimeSearchResult): String {
+        anime.aniListId?.let { return "anilist_${it}" }
         anime.animeId?.let { return "anime_${it}" }
         val normalized = anime.title
             .lowercase(Locale.US)
