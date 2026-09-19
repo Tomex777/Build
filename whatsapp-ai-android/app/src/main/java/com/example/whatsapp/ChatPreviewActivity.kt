@@ -1,3 +1,4 @@
+// Night approved-media visual validation
 package com.example.whatsapp
 
 import android.graphics.Color
