@@ -7,6 +7,12 @@ on:
     paths:
       - "whatsapp-ai-android/**"
       - ".github/workflows/night-core-apk.yml"
+  pull_request:
+    branches:
+      - whatsapp-ai-ui-ci
+    paths:
+      - "whatsapp-ai-android/**"
+      - ".github/workflows/night-core-apk.yml"
   workflow_dispatch:
 
 permissions:
@@ -86,7 +92,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish build marker
-        if: always()
+        if: always() && github.event_name == 'push'
         run: |
           mkdir -p night-build-output
           {
