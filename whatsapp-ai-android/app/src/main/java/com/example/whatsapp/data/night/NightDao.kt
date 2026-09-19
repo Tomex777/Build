@@ -96,6 +96,9 @@ interface NightDao {
     @Query("SELECT * FROM night_provider_models WHERE profileId = :profileId AND isEnabled = 1 ORDER BY displayName")
     fun observeModels(profileId: String): Flow<List<NightProviderModelEntity>>
 
+    @Query("SELECT * FROM night_provider_models ORDER BY providerType, displayName")
+    fun observeAllProviderModels(): Flow<List<NightProviderModelEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertProviderModel(model: NightProviderModelEntity)
 
