@@ -63,6 +63,8 @@ fun NightProvidersScreen(
         apiKey: String,
         endpoint: String?,
         region: String?,
+        language: String,
+        voiceName: String?,
         makeDefault: Boolean,
     ) -> Unit,
     onAddModel: (
@@ -164,8 +166,8 @@ fun NightProvidersScreen(
     if (showAddProfile) {
         AddProviderDialog(
             onDismiss = { showAddProfile = false },
-            onAdd = { provider, service, name, key, endpoint, region, makeDefault ->
-                onAddProfile(provider, service, name, key, endpoint, region, makeDefault)
+            onAdd = { provider, service, name, key, endpoint, region, language, voiceName, makeDefault ->
+                onAddProfile(provider, service, name, key, endpoint, region, language, voiceName, makeDefault)
                 showAddProfile = false
             },
         )
@@ -267,7 +269,7 @@ private fun ProviderProfileRow(
 @Composable
 private fun AddProviderDialog(
     onDismiss: () -> Unit,
-    onAdd: (String, String, String, String, String?, String?, Boolean) -> Unit,
+    onAdd: (String, String, String, String, String?, String?, String, String?, Boolean) -> Unit,
 ) {
     var provider by remember { mutableStateOf("deepseek") }
     var service by remember { mutableStateOf("chat") }
@@ -275,6 +277,8 @@ private fun AddProviderDialog(
     var key by remember { mutableStateOf("") }
     var endpoint by remember { mutableStateOf("") }
     var region by remember { mutableStateOf("") }
+    var language by remember { mutableStateOf("en-US") }
+    var voiceName by remember { mutableStateOf("") }
     var makeDefault by remember { mutableStateOf(true) }
 
     AlertDialog(
@@ -317,8 +321,21 @@ private fun AddProviderDialog(
                 )
 
                 if (provider == "azure") {
-                    ProviderField(endpoint, { endpoint = it }, "Azure endpoint")
-                    ProviderField(region, { region = it }, "Region (optional)")
+                    ProviderField(
+                        endpoint,
+                        { endpoint = it },
+                        if (service == "speech") "Speech resource endpoint (optional)" else "Azure endpoint",
+                    )
+                    ProviderField(
+                        region,
+                        { region = it },
+                        if (service == "speech") "Speech region" else "Region (optional)",
+                    )
+
+                    if (service == "speech") {
+                        ProviderField(language, { language = it }, "Speech language")
+                        ProviderField(voiceName, { voiceName = it }, "TTS voice name (optional)")
+                    }
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -340,10 +357,16 @@ private fun AddProviderDialog(
                         key,
                         endpoint.ifBlank { null },
                         region.ifBlank { null },
+                        language,
+                        voiceName.ifBlank { null },
                         makeDefault,
                     )
                 },
-                enabled = key.isNotBlank() && (provider != "azure" || endpoint.isNotBlank()),
+                enabled = key.isNotBlank() && (
+                    provider != "azure" ||
+                        (service == "speech" && (endpoint.isNotBlank() || region.isNotBlank())) ||
+                        (service != "speech" && endpoint.isNotBlank())
+                    ),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ProviderAccent,
                     contentColor = Color(0xFF07110B),
