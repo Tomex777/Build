@@ -553,9 +553,27 @@ class PaheRepository(
 
     private fun looksLikeChallenge(body: String): Boolean {
         if (body.length > 500_000) return false
-        return body.contains("cf-chl-", true) ||
-            body.contains("Just a moment", true) ||
-            body.contains("challenge-platform", true)
+
+        val document = Jsoup.parse(body)
+        val title = document.title().trim()
+        val visibleText = document.body()?.text().orEmpty().take(2_000)
+
+        val challengeTitle =
+            title.contains("Just a moment", true) ||
+                title.contains("Attention Required", true)
+
+        val challengeText =
+            visibleText.contains("Checking your browser", true) ||
+                visibleText.contains("Verify you are human", true) ||
+                visibleText.contains("Performing security verification", true) ||
+                visibleText.contains("Enable JavaScript and cookies to continue", true)
+
+        val cloudflareShell =
+            body.contains("cf-chl-", true) ||
+                body.contains("challenge-platform", true) ||
+                body.contains("cf-turnstile", true)
+
+        return challengeTitle || (cloudflareShell && challengeText)
     }
 
     private fun kindFor(url: String): VerificationKind? {
