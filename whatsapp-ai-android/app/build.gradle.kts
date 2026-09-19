@@ -121,4 +121,7 @@ dependencies {
 
     // Night scheduled AI tasks
     implementation("androidx.work:work-runtime-ktx:2.10.3")
+
+    // Night full-screen video playback — VLC is the primary engine
+    implementation("org.videolan.android:libvlc-all:3.7.6")
 }
