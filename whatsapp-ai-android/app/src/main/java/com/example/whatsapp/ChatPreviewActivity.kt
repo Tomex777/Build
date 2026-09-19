@@ -21,6 +21,7 @@ class ChatPreviewActivity : ComponentActivity() {
         window.navigationBarColor = Color.BLACK
 
         val showAttachments = intent.getBooleanExtra("attachments", false)
+        val showEmoji = intent.getBooleanExtra("emoji", false)
 
         setContent {
             WhatsappTheme(darkTheme = true) {
@@ -41,6 +42,7 @@ class ChatPreviewActivity : ComponentActivity() {
                     onAttachmentAction = {},
                     autoScrollToLatest = false,
                     attachmentsInitiallyOpen = showAttachments,
+                    emojiInitiallyOpen = showEmoji,
                 )
             }
         }
