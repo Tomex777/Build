@@ -34,13 +34,14 @@ jobs:
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: platform-tools
-
       - name: Install Android 36 SDK
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+        run: |
+          SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Enable KVM
         run: |
@@ -104,43 +105,37 @@ jobs:
 
             adb shell am force-stop com.example.whatsapp
             adb shell am start -W -n com.example.whatsapp/.MainTabsPreviewActivity --es tab chats
-            sleep 3
-            adb exec-out screencap -p > whatsapp-ai-preview/tab-chats.png
+            sleep 2
+            adb exec-out screencap -p > whatsapp-ai-preview/night-chats.png
 
             adb shell am force-stop com.example.whatsapp
-            adb shell am start -W -n com.example.whatsapp/.MainTabsPreviewActivity --es tab updates
-            sleep 3
-            adb exec-out screencap -p > whatsapp-ai-preview/tab-updates.png
+            adb shell am start -W -n com.example.whatsapp/.MainTabsPreviewActivity --es tab library
+            sleep 2
+            adb exec-out screencap -p > whatsapp-ai-preview/night-library.png
 
             adb shell am force-stop com.example.whatsapp
-            adb shell am start -W -n com.example.whatsapp/.MainTabsPreviewActivity --es tab communities
-            sleep 3
-            adb exec-out screencap -p > whatsapp-ai-preview/tab-communities.png
-
-            adb shell am force-stop com.example.whatsapp
-            adb shell am start -W -n com.example.whatsapp/.MainTabsPreviewActivity --es tab calls
-            sleep 3
-            adb exec-out screencap -p > whatsapp-ai-preview/tab-calls.png
-
-            adb shell am force-stop com.example.whatsapp
-            adb shell am start -W -n com.example.whatsapp/.MainTabsPreviewActivity --es tab settings
-            sleep 3
-            adb exec-out screencap -p > whatsapp-ai-preview/settings.png
+            adb shell am start -W -n com.example.whatsapp/.MainTabsPreviewActivity --es tab you
+            sleep 2
+            adb exec-out screencap -p > whatsapp-ai-preview/night-you.png
 
             adb shell am force-stop com.example.whatsapp
             adb shell am start -W -n com.example.whatsapp/.ChatPreviewActivity
-            sleep 3
-            adb exec-out screencap -p > whatsapp-ai-preview/chat-current.png
+            sleep 2
+            adb exec-out screencap -p > whatsapp-ai-preview/night-chat.png
 
             adb shell am force-stop com.example.whatsapp
-            adb shell am start -W -n com.example.whatsapp/.RichBubblePreviewActivity --ei page 1
-            sleep 3
-            adb exec-out screencap -p > whatsapp-ai-preview/rich-bubbles-1.png
+            adb shell am start -W -n com.example.whatsapp/.ChatPreviewActivity --ez attachments true
+            sleep 2
+            adb exec-out screencap -p > whatsapp-ai-preview/night-attachments.png
 
             adb shell am force-stop com.example.whatsapp
-            adb shell am start -W -n com.example.whatsapp/.RichBubblePreviewActivity --ei page 2
-            sleep 3
-            adb exec-out screencap -p > whatsapp-ai-preview/rich-bubbles-2.png
+            adb shell am start -W -n com.example.whatsapp/.ChatPreviewActivity
+            sleep 2
+            adb shell input tap 300 1440
+            sleep 2
+            adb shell input text "Night"
+            sleep 1
+            adb exec-out screencap -p > whatsapp-ai-preview/night-keyboard.png
 
       - name: Commit rendered screenshot
         if: always()
@@ -164,7 +159,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: whatsapp-ai-full-ui-preview
+          name: night-ui-preview
           path: |
             whatsapp-ai-preview/*.png
           if-no-files-found: warn
