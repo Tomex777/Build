@@ -1850,6 +1850,57 @@ fun whatsappPreviewMessages(): List<WhatsAppVisualMessage> = listOf(
 )
 
 
+fun mediaPreviewMessages(): List<WhatsAppVisualMessage> = listOf(
+    WhatsAppVisualMessage.PhotoMessage(
+        id = "media-photo",
+        caption = "This composition is exactly the direction I mean",
+        time = "18:41",
+        mine = false,
+        aspectRatio = 1.18f,
+    ),
+    WhatsAppVisualMessage.TextMessage(
+        id = "media-photo-reply",
+        text = "Yeah, make the image card this large.",
+        time = "18:42",
+        mine = true,
+        read = true,
+        reply = ReplyPreview(
+            messageId = "media-photo",
+            author = "Night",
+            text = "This composition is exactly the direction I mean and this preview can continue until the third rendered line before it gets cut off properly…",
+            kind = ReplyKind.Image,
+        ),
+    ),
+    WhatsAppVisualMessage.VideoMessage(
+        id = "media-video",
+        caption = "Video can use this bubble before the player is finished",
+        duration = "2:14",
+        time = "18:43",
+        mine = true,
+        read = true,
+        aspectRatio = 16f / 9f,
+    ),
+    WhatsAppVisualMessage.VoiceMessage(
+        id = "media-voice",
+        duration = "0:23",
+        time = "18:44",
+        mine = false,
+    ),
+    WhatsAppVisualMessage.AudioMessage(
+        id = "media-audio",
+        title = "Midnight Drive",
+        artist = "Night Library",
+        duration = "3:42",
+        detail = "MP3 • 8.6 MB",
+        caption = "This is the separate music/audio message type.",
+        time = "18:45",
+        mine = true,
+        read = true,
+    ),
+)
+
+
+
 @Composable
 fun ChatInputBar(
     messageText: String,
