@@ -2128,6 +2128,56 @@ fun mediaPreviewMessages(): List<WhatsAppVisualMessage> = listOf(
 
 
 
+fun utilityPreviewMessages(): List<WhatsAppVisualMessage> = listOf(
+    WhatsAppVisualMessage.TextMessage(
+        id = "utility-intro",
+        text = "Here’s the project brief I mentioned yesterday. Take a look when you have a moment.",
+        time = "10:16",
+        mine = false,
+    ),
+    WhatsAppVisualMessage.FileMessage(
+        id = "utility-pdf",
+        name = "Project_Brief_v1.pdf",
+        detail = "2.4 MB • PDF Document",
+        time = "10:16",
+        mine = false,
+        mimeType = "application/pdf",
+    ),
+    WhatsAppVisualMessage.TextMessage(
+        id = "utility-thanks",
+        text = "Thanks! This looks perfect.",
+        time = "10:18",
+        mine = true,
+        read = true,
+    ),
+    WhatsAppVisualMessage.LinkPreviewMessage(
+        id = "utility-link",
+        body = "I also found this article that might be helpful for the app design.",
+        url = "https://developer.android.com/design",
+        title = "Material Design for Android",
+        description = "Build beautiful, usable apps with modern Android design guidance.",
+        site = "developer.android.com",
+        time = "10:19",
+        mine = true,
+        read = true,
+    ),
+    WhatsAppVisualMessage.TextMessage(
+        id = "utility-quote",
+        text = "I’ll review this in more detail and share my notes this evening.",
+        time = "10:23",
+        mine = false,
+        reply = ReplyPreview(
+            messageId = "utility-pdf",
+            author = "You",
+            text = "Project_Brief_v1.pdf",
+            kind = ReplyKind.File,
+            meta = "2.4 MB • PDF",
+        ),
+    ),
+)
+
+
+
 @Composable
 fun ChatInputBar(
     messageText: String,
