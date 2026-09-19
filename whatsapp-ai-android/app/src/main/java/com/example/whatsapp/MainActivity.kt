@@ -1480,6 +1480,24 @@ private suspend fun appendParsedAssistantReply(
 ) {
     val parsed = NightStructuredReplyParser.parse(rawReply)
 
+    parsed.choiceSelection?.let { selection ->
+        val existing = repository.getMessage(selection.messageId)
+        if (existing != null && existing.chatId == chatId && existing.type == "choice") {
+            val payload = runCatching { JSONObject(existing.payloadJson) }
+                .getOrElse { JSONObject() }
+
+            val options = payload.optJSONArray("options")
+            if (options != null && selection.index in 0 until options.length()) {
+                payload
+                    .put("selectedIndex", selection.index)
+                    .put("selectedBy", "Night")
+                repository.appendMessage(
+                    existing.copy(payloadJson = payload.toString())
+                )
+            }
+        }
+    }
+
     if (parsed.text.isNotBlank()) {
         repository.appendText(
             chatId = chatId,
