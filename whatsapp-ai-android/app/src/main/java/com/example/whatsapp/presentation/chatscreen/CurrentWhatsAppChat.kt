@@ -259,7 +259,7 @@ private fun CurrentChatHeader(
             }
 
             Image(
-                painter = painterResource(R.drawable.bilal),
+                painter = painterResource(R.drawable.ic_night),
                 contentDescription = null,
                 modifier = Modifier
                     .size(38.dp)
