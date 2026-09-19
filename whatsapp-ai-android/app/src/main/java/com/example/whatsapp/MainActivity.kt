@@ -21,6 +21,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -46,6 +47,7 @@ import com.example.whatsapp.data.night.NightStructuredReplyParser
 import com.example.whatsapp.data.night.NightVoiceRecorder
 import com.example.whatsapp.extensions.messages.ExtensionMessageCodec
 import com.example.whatsapp.presentation.chat_box.ChatListModel
+import com.example.whatsapp.presentation.chatscreen.AudioPlaybackUiState
 import com.example.whatsapp.presentation.chatscreen.ChoiceResultMessage
 import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
 import com.example.whatsapp.presentation.chatscreen.ExtensionResultMessage
@@ -124,6 +126,10 @@ private fun NightApp() {
     var renameValue by rememberSaveable { mutableStateOf("") }
     var isRecording by remember { mutableStateOf(false) }
     var activePlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var activeAudioPath by remember { mutableStateOf<String?>(null) }
+    var audioIsPlaying by remember { mutableStateOf(false) }
+    var audioProgress by remember { mutableFloatStateOf(0f) }
+    var audioPositionLabel by remember { mutableStateOf("0:00") }
     var scheduleOpen by remember { mutableStateOf(false) }
     var liveVoiceState by remember { mutableStateOf(NightLiveVoiceClient.State.ENDED) }
     var liveVoiceError by remember { mutableStateOf<String?>(null) }
@@ -609,18 +615,73 @@ private fun NightApp() {
 
     fun playAudio(path: String) {
         runCatching {
-            activePlayer?.release()
-            activePlayer = MediaPlayer().apply {
+            val current = activePlayer
+            if (activeAudioPath == path && current != null) {
+                if (current.isPlaying) {
+                    current.pause()
+                    audioIsPlaying = false
+                } else {
+                    current.start()
+                    audioIsPlaying = true
+                }
+                return@runCatching
+            }
+
+            current?.release()
+            val player = MediaPlayer().apply {
                 setDataSource(path)
                 prepare()
-                setOnCompletionListener { player ->
-                    player.release()
-                    if (activePlayer === player) activePlayer = null
+                setOnCompletionListener { finished ->
+                    finished.release()
+                    if (activePlayer === finished) {
+                        activePlayer = null
+                        activeAudioPath = null
+                        audioIsPlaying = false
+                        audioProgress = 0f
+                        audioPositionLabel = "0:00"
+                    }
                 }
                 start()
             }
+            activePlayer = player
+            activeAudioPath = path
+            audioIsPlaying = true
+            audioProgress = 0f
+            audioPositionLabel = "0:00"
         }.onFailure {
             Toast.makeText(context, "Could not play audio.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun seekAudio(path: String, progress: Float) {
+        val player = activePlayer ?: return
+        if (activeAudioPath != path) return
+        val duration = runCatching { player.duration }.getOrDefault(0)
+        if (duration <= 0) return
+
+        val clamped = progress.coerceIn(0f, 1f)
+        val target = (duration * clamped).toInt()
+        runCatching { player.seekTo(target) }
+        audioProgress = clamped
+        audioPositionLabel = formatDuration(target.toLong())
+    }
+
+    LaunchedEffect(activeAudioPath, audioIsPlaying) {
+        while (activeAudioPath != null) {
+            val player = activePlayer ?: break
+            val duration = runCatching { player.duration }.getOrDefault(0)
+            val position = runCatching { player.currentPosition }.getOrDefault(0)
+
+            if (duration > 0) {
+                audioProgress = (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+                audioPositionLabel = formatDuration(position.toLong())
+            }
+
+            if (!player.isPlaying) {
+                audioIsPlaying = false
+                break
+            }
+            delay(250)
         }
     }
 
@@ -1037,6 +1098,15 @@ private fun NightApp() {
             },
             onAudioClick = { path ->
                 playAudio(path)
+            },
+            audioPlaybackState = AudioPlaybackUiState(
+                activePath = activeAudioPath,
+                isPlaying = audioIsPlaying,
+                progress = audioProgress,
+                positionLabel = audioPositionLabel,
+            ),
+            onAudioSeek = { path, progress ->
+                seekAudio(path, progress)
             },
             onTranscribeVoice = { messageId, path ->
                 scope.launch {
