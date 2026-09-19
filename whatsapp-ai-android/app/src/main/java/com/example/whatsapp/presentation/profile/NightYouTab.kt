@@ -70,6 +70,9 @@ fun NightYouTab(
         onTabSelected = onTabSelected,
         title = "You",
         onSettingsClick = onSettingsClick,
+        showCamera = false,
+        showSearch = false,
+        showMenu = false,
     ) {
         LazyColumn(
             modifier = Modifier
