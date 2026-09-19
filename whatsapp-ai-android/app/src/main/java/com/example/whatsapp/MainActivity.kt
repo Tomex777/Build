@@ -436,6 +436,19 @@ private fun NightApp() {
                     meta.thumbnailPath?.let { payload.put("thumbnailPath", it) }
                 }
 
+                mime.startsWith("audio/") -> {
+                    messageType = "audio"
+                    messageTextValue = saved.name
+                    val meta = withContext(Dispatchers.IO) {
+                        extractAudioMeta(context, saved.localPath, saved.name)
+                    }
+                    payload
+                        .put("title", meta.title)
+                        .put("artist", meta.artist)
+                        .put("duration", meta.duration)
+                    meta.artworkPath?.let { payload.put("artworkPath", it) }
+                }
+
                 else -> {
                     messageType = "file"
                     messageTextValue = saved.name
@@ -859,6 +872,7 @@ private fun NightApp() {
                 when (action) {
                     "Gallery" -> attachmentPicker.launch(arrayOf("image/*", "video/*"))
                     "Document" -> attachmentPicker.launch(arrayOf("*/*"))
+                    "Audio" -> attachmentPicker.launch(arrayOf("audio/*"))
                     "Camera" -> cameraLauncher.launch(null)
                     "Choose AI" -> screen = "choose_ai"
                     "Schedule" -> scheduleOpen = true
@@ -899,6 +913,9 @@ private fun NightApp() {
                 }
             },
             onVoiceClick = { path ->
+                playAudio(path)
+            },
+            onAudioClick = { path ->
                 playAudio(path)
             },
             onTranscribeVoice = { messageId, path ->
@@ -1157,6 +1174,28 @@ private fun NightMessageEntity.toVisualMessage(
             reply = reply,
         )
 
+        "audio" -> WhatsAppVisualMessage.AudioMessage(
+            id = id,
+            title = payload?.optString("title").orEmpty().ifBlank { text.ifBlank { "Audio" } },
+            artist = payload?.optString("artist").orEmpty(),
+            duration = payload?.optString("duration").orEmpty().ifBlank { "0:00" },
+            detail = buildString {
+                val mime = payload?.optString("mimeType").orEmpty()
+                if (mime.isNotBlank()) append(mime.substringAfterLast('/').uppercase())
+                val bytes = payload?.optLong("sizeBytes", 0L) ?: 0L
+                if (bytes > 0L) {
+                    if (isNotEmpty()) append(" • ")
+                    append(formatBytes(bytes))
+                }
+            },
+            time = time,
+            mine = mine,
+            read = mine,
+            localPath = payload?.optString("localPath")?.takeIf { it.isNotBlank() },
+            artworkPath = payload?.optString("artworkPath")?.takeIf { it.isNotBlank() },
+            reply = reply,
+        )
+
         "voice" -> WhatsAppVisualMessage.VoiceMessage(
             id = id,
             duration = payload?.optString("duration").orEmpty().ifBlank { "0:00" },
@@ -1225,6 +1264,15 @@ private fun NightMessageEntity.toReplyPreview(): ReplyPreview {
             meta = payload?.optString("duration")?.takeIf { it.isNotBlank() },
         )
 
+        "audio" -> ReplyPreview(
+            messageId = id,
+            author = author,
+            text = payload?.optString("title").orEmpty().ifBlank { text.ifBlank { "Audio" } },
+            kind = ReplyKind.Audio,
+            thumbnailPath = payload?.optString("artworkPath")?.takeIf { it.isNotBlank() },
+            meta = payload?.optString("duration")?.takeIf { it.isNotBlank() },
+        )
+
         "voice" -> ReplyPreview(
             messageId = id,
             author = author,
@@ -1269,6 +1317,63 @@ private fun formatDuration(durationMs: Long): String {
     val minutes = totalSeconds / 60L
     val seconds = totalSeconds % 60L
     return minutes.toString() + ":" + seconds.toString().padStart(2, '0')
+}
+
+private data class AudioMeta(
+    val title: String,
+    val artist: String,
+    val duration: String,
+    val artworkPath: String?,
+)
+
+private fun extractAudioMeta(
+    context: android.content.Context,
+    path: String,
+    fallbackName: String,
+): AudioMeta {
+    val retriever = MediaMetadataRetriever()
+    return try {
+        retriever.setDataSource(path)
+
+        val title = retriever
+            .extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
+            ?.trim()
+            .takeUnless { it.isNullOrBlank() }
+            ?: fallbackName.substringBeforeLast('.')
+
+        val artist = retriever
+            .extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+            ?.trim()
+            .orEmpty()
+
+        val durationMs = retriever
+            .extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            ?.toLongOrNull()
+            ?: 0L
+
+        val artworkPath = retriever.embeddedPicture?.let { bytes ->
+            val dir = File(context.filesDir, "night_audio_art").apply { mkdirs() }
+            val file = File(dir, "art_" + System.currentTimeMillis() + ".jpg")
+            file.writeBytes(bytes)
+            file.absolutePath
+        }
+
+        AudioMeta(
+            title = title,
+            artist = artist,
+            duration = formatDuration(durationMs),
+            artworkPath = artworkPath,
+        )
+    } catch (_: Throwable) {
+        AudioMeta(
+            title = fallbackName.substringBeforeLast('.'),
+            artist = "",
+            duration = "0:00",
+            artworkPath = null,
+        )
+    } finally {
+        runCatching { retriever.release() }
+    }
 }
 
 private data class VideoMeta(
