@@ -297,7 +297,7 @@ fun ModernChatsTab(
 ) {
     val rows = remember(chats) {
         if (chats.isEmpty()) {
-            fallbackChats()
+            emptyList()
         } else {
             val avatars = listOf(
                 R.drawable.bilal,
