@@ -394,6 +394,8 @@ fun CurrentWhatsAppConversation(
                                     item,
                                     appearance,
                                     onVoiceClick,
+                                    audioPlaybackState,
+                                    onAudioSeek,
                                     onTranscribeVoice,
                                     onReplyPreviewClick = { targetId ->
                                         val index = messages.indexOfFirst { it.id == targetId }
@@ -1697,11 +1699,20 @@ private fun CurrentVoiceBubble(
     item: WhatsAppVisualMessage.VoiceMessage,
     appearance: NightChatAppearance,
     onVoiceClick: (String) -> Unit,
+    playback: AudioPlaybackUiState,
+    onVoiceSeek: (String, Float) -> Unit,
     onTranscribeVoice: (String, String) -> Unit,
     onReplyPreviewClick: (String) -> Unit,
 ) {
     val bubbleColor = if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor
-    val playColor = if (item.mine) Color(0xFFD83D67) else Color(0xFF4A4E50)
+    val isActive = !item.localPath.isNullOrBlank() && playback.activePath == item.localPath
+    val progress = if (isActive) playback.progress.coerceIn(0f, 1f) else 0f
+    val elapsed = if (isActive) playback.positionLabel else "0:00"
+    val playColor = if (item.mine) {
+        appearance.accentColor
+    } else {
+        Color(0xFF4A4E50)
+    }
 
     Box(
         modifier = Modifier.fillMaxWidth(),
@@ -1709,7 +1720,7 @@ private fun CurrentVoiceBubble(
     ) {
         Column(
             modifier = Modifier
-                .widthIn(min = 285.dp, max = 350.dp)
+                .widthIn(min = 292.dp, max = 350.dp)
                 .clip(
                     if (item.mine) {
                         RoundedCornerShape(17.dp, 5.dp, 17.dp, 17.dp)
@@ -1733,46 +1744,87 @@ private fun CurrentVoiceBubble(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Surface(
-                    color = playColor,
+                    color = if (isActive && playback.isPlaying) appearance.accentColor else playColor,
                     shape = CircleShape,
                     modifier = Modifier
-                        .size(54.dp)
-                        .clickable {
+                        .size(50.dp)
+                        .clickable(enabled = !item.localPath.isNullOrBlank()) {
                             item.localPath?.let(onVoiceClick)
                         },
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Play voice note",
+                            imageVector = if (isActive && playback.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isActive && playback.isPlaying) "Pause voice note" else "Play voice note",
                             tint = Color.White,
-                            modifier = Modifier.size(30.dp),
+                            modifier = Modifier.size(28.dp),
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
-                VoiceWaveform(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(38.dp),
-                    mine = item.mine,
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(42.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        VoiceWaveform(
+                            progress = progress,
+                            mine = item.mine,
+                            accent = appearance.accentColor,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(34.dp),
+                        )
 
-                Spacer(modifier = Modifier.width(9.dp))
+                        Slider(
+                            value = progress,
+                            onValueChange = { value ->
+                                item.localPath?.let { path ->
+                                    if (isActive) onVoiceSeek(path, value)
+                                }
+                            },
+                            enabled = isActive,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(42.dp),
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color.Transparent,
+                                activeTrackColor = Color.Transparent,
+                                inactiveTrackColor = Color.Transparent,
+                                disabledThumbColor = Color.Transparent,
+                                disabledActiveTrackColor = Color.Transparent,
+                                disabledInactiveTrackColor = Color.Transparent,
+                            ),
+                        )
+                    }
 
-                Text(
-                    text = item.duration,
-                    color = PrimaryText,
-                    fontSize = 12.sp,
-                )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = elapsed,
+                            color = SecondaryText,
+                            fontSize = 10.sp,
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        Text(
+                            text = item.duration,
+                            color = SecondaryText,
+                            fontSize = 10.sp,
+                        )
+                    }
+                }
             }
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 5.dp),
+                    .padding(top = 3.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Spacer(modifier = Modifier.weight(1f))
@@ -1782,33 +1834,40 @@ private fun CurrentVoiceBubble(
     }
 }
 
-
 @Composable
 private fun VoiceWaveform(
+    progress: Float,
+    mine: Boolean,
+    accent: Color,
     modifier: Modifier = Modifier,
-    mine: Boolean = false,
 ) {
     val heights = listOf(
-        7, 12, 9, 18, 10, 7, 16, 23, 13, 8, 11, 20, 26, 14, 9, 18, 24, 12,
-        8, 15, 21, 10, 7, 18, 13, 23, 16, 8, 11, 20, 9, 14, 24, 12, 7, 16,
+        9, 14, 7, 19, 11, 16, 8, 23, 13, 18, 9, 25, 14, 20, 8, 16,
+        11, 27, 15, 21, 10, 18, 8, 24, 12, 17, 9, 26, 14, 19, 7, 22,
+        11, 16, 8, 24, 13, 18, 10, 27, 15, 20, 9, 17, 12, 23, 8, 15,
     )
+    val completed = (progress.coerceIn(0f, 1f) * heights.size).toInt()
+    val playedColor = if (mine) Color(0xFFFFAEC2) else accent
+    val remainingColor = if (mine) Color(0xFFB85B73) else Color(0xFF7C8589)
 
     Row(
-        modifier = modifier.height(30.dp),
+        modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        heights.forEach { h ->
+        heights.forEachIndexed { index, h ->
             Box(
                 modifier = Modifier
-                    .width(2.dp)
+                    .weight(1f)
+                    .widthIn(min = 2.dp, max = 3.dp)
                     .height(h.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(if (mine) Color(0xFFFF8DAA) else Color(0xFFB7BEC1)),
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(if (index < completed) playedColor else remainingColor),
             )
         }
     }
 }
+
 
 @Composable
 private fun SwipeToReplyContainer(
