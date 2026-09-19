@@ -5,12 +5,13 @@ on:
   push:
     branches: [homira-call-ci]
     paths:
+      - 'homira-turn/**'
       - '.github/workflows/homira-turn-check.yml'
 
 jobs:
   relay:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v5
 
@@ -21,7 +22,133 @@ jobs:
       - name: Install browser probe
         run: python -m pip install --quiet selenium
 
-      - name: Verify Cloudflare relay ICE candidate
+      - name: Start local Coturn 4.18
+        run: |
+          TURN_IP="$(hostname -I | awk '{print $1}')"
+          echo "TURN_IP=$TURN_IP" >> "$GITHUB_ENV"
+
+          docker run -d             --name homira-turn             --network host             coturn/coturn:4.18.0             --fingerprint             --use-auth-secret             --static-auth-secret=homira-ci-shared-secret             --realm=homira-ci             --server-name=homira-ci             --listening-ip="$TURN_IP"             --relay-ip="$TURN_IP"             --listening-port=3478             --min-port=49160             --max-port=49170             --no-tls             --log-file=stdout
+
+          for attempt in {1..20}; do
+            if docker logs homira-turn 2>&1 | grep -q "listener opened"; then
+              break
+            fi
+            sleep 1
+          done
+
+          docker ps --filter name=homira-turn
+          docker logs homira-turn | tail -80
+
+      - name: Verify Coturn REST relay candidate
+        env:
+          TURN_SHARED_SECRET: homira-ci-shared-secret
+        run: |
+          python - <<'PY'
+          import base64
+          import hashlib
+          import hmac
+          import json
+          import os
+          import time
+
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+
+          turn_ip = os.environ["TURN_IP"]
+          shared_secret = os.environ["TURN_SHARED_SECRET"].encode()
+          expires = int(time.time()) + 3600
+          username = f"{expires}:homira-ci"
+          credential = base64.b64encode(
+              hmac.new(shared_secret, username.encode(), hashlib.sha1).digest()
+          ).decode()
+
+          ice_servers = [{
+              "urls": [
+                  f"turn:{turn_ip}:3478?transport=udp",
+                  f"turn:{turn_ip}:3478?transport=tcp",
+              ],
+              "username": username,
+              "credential": credential,
+          }]
+
+          options = Options()
+          options.add_argument("--headless=new")
+          options.add_argument("--no-sandbox")
+          options.add_argument("--disable-dev-shm-usage")
+          options.add_argument("--disable-gpu")
+
+          driver = webdriver.Chrome(options=options)
+          driver.set_script_timeout(35)
+          try:
+              driver.get("data:text/html,<html><body>Homira local Coturn probe</body></html>")
+              result = driver.execute_async_script(
+                  """
+                  const iceServers = arguments[0];
+                  const done = arguments[arguments.length - 1];
+                  const pc = new RTCPeerConnection({
+                    iceServers,
+                    iceTransportPolicy: "relay"
+                  });
+                  const candidates = [];
+                  let finished = false;
+
+                  function finish(ok, error) {
+                    if (finished) return;
+                    finished = true;
+                    try { pc.close(); } catch (_) {}
+                    done({ ok, candidates, error: error || null });
+                  }
+
+                  pc.onicecandidate = (event) => {
+                    if (event.candidate) {
+                      candidates.push(event.candidate.candidate);
+                      if (event.candidate.candidate.includes(" typ relay ")) {
+                        finish(true, null);
+                      }
+                    } else if (pc.iceGatheringState === "complete") {
+                      finish(
+                        candidates.some((candidate) => candidate.includes(" typ relay ")),
+                        null
+                      );
+                    }
+                  };
+
+                  pc.onicecandidateerror = (event) => {
+                    candidates.push(
+                      "ICE_ERROR " +
+                      (event.url || "") + " " +
+                      (event.errorCode || "") + " " +
+                      (event.errorText || "")
+                    );
+                  };
+
+                  pc.createDataChannel("homira-turn-probe");
+                  pc.createOffer()
+                    .then((offer) => pc.setLocalDescription(offer))
+                    .catch((error) => finish(false, String(error)));
+
+                  setTimeout(() => {
+                    finish(
+                      candidates.some((candidate) => candidate.includes(" typ relay ")),
+                      "timeout"
+                    );
+                  }, 25000);
+                  """,
+                  ice_servers,
+              )
+
+              print(json.dumps(result, indent=2))
+              if not result.get("ok"):
+                  raise SystemExit("Local Coturn did not produce a relay ICE candidate")
+          finally:
+              driver.quit()
+          PY
+
+      - name: Show Coturn diagnostics on failure
+        if: failure()
+        run: docker logs homira-turn || true
+
+      - name: Verify Cloudflare relay when configured
         env:
           TURN_KEY_ID: ${{ secrets.HOMIRA_CLOUDFLARE_TURN_KEY_ID }}
           TURN_API_TOKEN: ${{ secrets.HOMIRA_CLOUDFLARE_TURN_API_TOKEN }}
@@ -38,7 +165,7 @@ jobs:
           api_token = os.environ.get("TURN_API_TOKEN", "").strip()
 
           if not key_id or not api_token:
-              print("Cloudflare TURN CI secrets are not configured; relay probe skipped.")
+              print("Cloudflare TURN CI secrets are not configured; managed relay probe skipped.")
               raise SystemExit(0)
 
           request = urllib.request.Request(
@@ -70,7 +197,7 @@ jobs:
           driver = webdriver.Chrome(options=options)
           driver.set_script_timeout(35)
           try:
-              driver.get("data:text/html,<html><body>Homira TURN probe</body></html>")
+              driver.get("data:text/html,<html><body>Homira managed TURN probe</body></html>")
               result = driver.execute_async_script(
                   """
                   const iceServers = arguments[0];
@@ -96,7 +223,10 @@ jobs:
                         finish(true, null);
                       }
                     } else if (pc.iceGatheringState === "complete") {
-                      finish(candidates.some((c) => c.includes(" typ relay ")), null);
+                      finish(
+                        candidates.some((candidate) => candidate.includes(" typ relay ")),
+                        null
+                      );
                     }
                   };
 
@@ -109,14 +239,14 @@ jobs:
                     );
                   };
 
-                  pc.createDataChannel("homira-turn-probe");
+                  pc.createDataChannel("homira-cloudflare-turn-probe");
                   pc.createOffer()
                     .then((offer) => pc.setLocalDescription(offer))
                     .catch((error) => finish(false, String(error)));
 
                   setTimeout(() => {
                     finish(
-                      candidates.some((c) => c.includes(" typ relay ")),
+                      candidates.some((candidate) => candidate.includes(" typ relay ")),
                       "timeout"
                     );
                   }, 25000);
@@ -126,7 +256,7 @@ jobs:
 
               print(json.dumps(result, indent=2))
               if not result.get("ok"):
-                  raise SystemExit("No TURN relay candidate gathered")
+                  raise SystemExit("Cloudflare TURN did not produce a relay ICE candidate")
           finally:
               driver.quit()
           PY
