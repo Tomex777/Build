@@ -47,6 +47,8 @@ import com.example.whatsapp.presentation.profile.NightAiSelectorScreen
 import com.example.whatsapp.presentation.profile.NightAppearanceScreen
 import com.example.whatsapp.presentation.profile.NightCapabilityRoutesScreen
 import com.example.whatsapp.presentation.profile.NightChatMemoryScreen
+import com.example.whatsapp.presentation.profile.NightChatFilesScreen
+import com.example.whatsapp.presentation.profile.NightChatSearchScreen
 import com.example.whatsapp.presentation.profile.NightMemoryScreen
 import com.example.whatsapp.presentation.profile.NightProfileScreen
 import com.example.whatsapp.presentation.profile.NightProvidersScreen
@@ -538,6 +540,18 @@ private fun NightApp() {
             },
         )
 
+        "chat_search" -> NightChatSearchScreen(
+            title = activeChat?.title ?: "Night",
+            messages = messageEntities,
+            onBack = { screen = "chat" },
+        )
+
+        "chat_files" -> NightChatFilesScreen(
+            title = activeChat?.title ?: "Night",
+            messages = messageEntities,
+            onBack = { screen = "chat" },
+        )
+
         "capability_routes" -> NightCapabilityRoutesScreen(
             profiles = profiles,
             models = providerModels,
@@ -631,10 +645,7 @@ private fun NightApp() {
             onMenuAction = { action ->
                 when (action) {
                     "Memory & summary" -> screen = "chat_memory"
-                    "Files in chat" -> {
-                        selectedTabName = MainTab.Updates.name
-                        screen = "tabs"
-                    }
+                    "Files in chat" -> screen = "chat_files"
                     "Rename chat" -> {
                         renameValue = activeChat?.title.orEmpty()
                         renameOpen = true
@@ -650,11 +661,7 @@ private fun NightApp() {
                     "Export chat" -> scope.launch {
                         exportChat(context, activeChat?.title ?: "Night", messageEntities)
                     }
-                    "Search chat" -> Toast.makeText(
-                        context,
-                        "Chat search is being wired to the persistent message index.",
-                        Toast.LENGTH_SHORT,
-                    ).show()
+                    "Search chat" -> screen = "chat_search"
                 }
             },
             onMessageButtonClick = { _, actionId ->
