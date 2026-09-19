@@ -1122,7 +1122,7 @@ private fun DownloadsScreen(vm: PaheViewModel, padding: PaddingValues) {
         item {
             Text("Downloads", color = TextMain, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
-            Text("Saved files go to Downloads/PaheBatcher.", color = TextMuted, fontSize = 13.sp)
+            Text("Downloads continue in the background and resume after connection drops.", color = TextMuted, fontSize = 13.sp)
             Spacer(Modifier.height(14.dp))
         }
 
@@ -1218,7 +1218,7 @@ private fun SettingsScreen(vm: PaheViewModel, padding: PaddingValues) {
                     Text("About this build", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Native Android port of PaheBatcher 3.4.0's AnimePahe → Kwik → HLS pipeline. Finished streams are remuxed to MP4 with Android's media stack when possible, with a transport-stream fallback.",
+                        "AniList handles catalog artwork and metadata. AnimePahe is the only browser-verified episode source. Downloads resume in the background and fall back to a full transport stream if Android cannot safely remux the episode to MP4.",
                         color = TextMuted,
                         fontSize = 13.sp,
                         lineHeight = 19.sp,
