@@ -69,6 +69,14 @@ jobs:
           fi
           echo "No Tor/Orbot/SOCKS test plumbing is packaged in any APK."
 
+      - name: Verify single AnimePahe verification UI
+        run: |
+          if grep -R -E -i 'Kwik|Step 2 of 2|two-step|second verification' pahebatcher-android/app/src/main/java/com/night/pahebatcher/ui; then
+            echo "Legacy second-step verification wording found in the real app UI" >&2
+            exit 1
+          fi
+          echo "Real app exposes AnimePahe as the only manual browser verification."
+
       - name: Build debug APKs
         working-directory: pahebatcher-android
         run: gradle :app:assembleDebug :diagnostics:assembleDebug :kwik-manual:assembleDebug --stacktrace
