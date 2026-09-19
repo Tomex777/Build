@@ -1,3 +1,4 @@
+// Night buttons/settings validation
 package com.example.whatsapp
 
 import android.graphics.Color
