@@ -22,8 +22,8 @@ jobs:
 
       - name: Verify Open Relay allocation
         run: |
-          timeout 45s turnutils_uclient             -t -y -c -n 1             -u openrelayproject             -w openrelayproject             -p 443             openrelay.metered.ca
+          timeout 45s turnutils_uclient             -t -y -c -n 1             -u openrelayproject             -w openrelayproject             -p 80             openrelay.metered.ca
 
       - name: Verify TURN REST shared-secret allocation
         run: |
-          timeout 45s turnutils_uclient             -t -y -c -n 1             -W openrelayprojectsecret             -p 443             staticauth.openrelay.metered.ca
+          timeout 45s turnutils_uclient             -t -y -c -n 1             -W openrelayprojectsecret             -p 80             staticauth.openrelay.metered.ca
