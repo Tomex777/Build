@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
@@ -56,6 +57,7 @@ fun NightYouTab(
     onProfileClick: () -> Unit,
     onProvidersClick: () -> Unit,
     onMemoryClick: () -> Unit,
+    onSchedulesClick: () -> Unit,
     onLibraryStorageClick: () -> Unit,
     onAppearanceClick: () -> Unit,
     onPrivacyClick: () -> Unit,
@@ -64,6 +66,7 @@ fun NightYouTab(
     val rows = listOf(
         YouRow("providers", Icons.Default.AutoAwesome, "AI & providers", "DeepSeek, Groq, Azure, models and keys"),
         YouRow("memory", Icons.Default.Memory, "Memory", "Chat summaries and cross-chat references"),
+        YouRow("scheduled", Icons.Default.Schedule, "Scheduled", "Tasks Night will run later"),
         YouRow("storage", Icons.Default.Storage, "Library & storage", "Manage Night-owned files"),
         YouRow("appearance", Icons.Default.Palette, "Appearance", "Bubbles, wallpaper, font and text size"),
         YouRow("privacy", Icons.Default.Security, "Privacy", "Local data, permissions and retention"),
@@ -132,6 +135,7 @@ fun NightYouTab(
                             when (row.id) {
                                 "providers" -> onProvidersClick()
                                 "memory" -> onMemoryClick()
+                                "scheduled" -> onSchedulesClick()
                                 "storage" -> onLibraryStorageClick()
                                 "appearance" -> onAppearanceClick()
                                 "privacy" -> onPrivacyClick()
