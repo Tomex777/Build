@@ -1,3 +1,4 @@
+// Night Fluent Emoji render validation
 package com.example.whatsapp
 
 import android.graphics.Color
