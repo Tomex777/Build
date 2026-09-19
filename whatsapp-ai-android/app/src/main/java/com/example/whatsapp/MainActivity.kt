@@ -25,7 +25,7 @@ import com.example.whatsapp.presentation.shell.ModernCallsTab
 import com.example.whatsapp.presentation.shell.ModernChatsTab
 import com.example.whatsapp.presentation.shell.ModernCommunitiesTab
 import com.example.whatsapp.presentation.shell.ModernSettingsScreen
-import com.example.whatsapp.presentation.shell.ModernUpdatesTab
+import com.example.whatsapp.presentation.files.NightFilesTab
 import com.example.whatsapp.ui.theme.WhatsappTheme
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -150,7 +150,7 @@ private fun NightApp() {
                 onSettingsClick = { screen = "settings" },
             )
 
-            MainTab.Updates -> ModernUpdatesTab(
+            MainTab.Updates -> NightFilesTab(
                 onTabSelected = {
                     selectedTabName = it.name
                     screen = "tabs"
