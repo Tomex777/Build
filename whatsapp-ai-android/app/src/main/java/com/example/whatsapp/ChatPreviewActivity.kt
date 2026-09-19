@@ -56,6 +56,7 @@ class ChatPreviewActivity : ComponentActivity() {
                     messages = when (mode) {
                         "media" -> mediaPreviewMessages(previewImage)
                         "audio" -> audioPreviewMessages(previewImage)
+                        "voice" -> audioPreviewMessages(previewImage)
                         "docs" -> docsPreviewMessages(previewImage)
                         "rich" -> richApprovedPreviewMessages(previewImage)
                         "rich1" -> richPreviewMessagesPageOne()
@@ -75,15 +76,20 @@ class ChatPreviewActivity : ComponentActivity() {
                     onMicClick = {},
                     onAttachmentAction = {},
                     onMessageButtonClick = { _, _ -> },
-                    audioPlaybackState = if (mode == "audio") {
-                        AudioPlaybackUiState(
+                    audioPlaybackState = when (mode) {
+                        "audio" -> AudioPlaybackUiState(
                             activePath = "preview-audio",
                             isPlaying = true,
                             progress = 0.42f,
                             positionLabel = "1:34",
                         )
-                    } else {
-                        AudioPlaybackUiState()
+                        "voice" -> AudioPlaybackUiState(
+                            activePath = "preview-voice-in",
+                            isPlaying = true,
+                            progress = 0.47f,
+                            positionLabel = "0:08",
+                        )
+                        else -> AudioPlaybackUiState()
                     },
                     autoScrollToLatest = false,
                     attachmentsInitiallyOpen = showAttachments,
@@ -153,12 +159,14 @@ private fun audioPreviewMessages(image: String): List<WhatsAppVisualMessage> = l
         time = "14:31",
         mine = true,
         read = true,
+        localPath = "preview-voice-out",
     ),
     WhatsAppVisualMessage.VoiceMessage(
         id = "voice-in",
         duration = "0:17",
         time = "14:32",
         mine = false,
+        localPath = "preview-voice-in",
     ),
     WhatsAppVisualMessage.TextMessage(
         id = "voice-reply",
