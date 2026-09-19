@@ -5,6 +5,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import com.example.whatsapp.data.NightFileLibrary
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,6 +59,37 @@ private fun NightApp() {
     var messageText by rememberSaveable { mutableStateOf("") }
     var messages by remember {
         mutableStateOf<List<WhatsAppVisualMessage>>(nightWelcomeMessages())
+    }
+    val context = LocalContext.current
+    var pendingPickerKind by rememberSaveable { mutableStateOf("Document") }
+    val attachmentPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            val saved = NightFileLibrary.importUri(context, uri)
+            val time = nightTime()
+            val id = System.nanoTime().toString()
+            if (saved != null) {
+                messages = messages + when {
+                    saved.mimeType.startsWith("image/") ->
+                        WhatsAppVisualMessage.PhotoMessage(
+                            id = "photo_$id",
+                            caption = saved.name,
+                            time = time,
+                            mine = true,
+                            read = true,
+                        )
+                    else ->
+                        WhatsAppVisualMessage.TextMessage(
+                            id = "file_$id",
+                            text = "📎 " + saved.name,
+                            time = time,
+                            mine = true,
+                            read = true,
+                        )
+                }
+            }
+        }
     }
 
     var activeChatTitle by rememberSaveable { mutableStateOf("Night") }
@@ -137,31 +172,53 @@ private fun NightApp() {
                     time = nightTime(),
                 )
             },
-            onAttachmentClick = {
-                messages = messages + ToolResultMessage(
-                    id = "attach_${System.nanoTime()}",
-                    toolName = "Files",
-                    title = "Attachment surface is ready",
-                    subtitle = "File tools will plug into this surface without changing the chat UI.",
-                    time = nightTime(),
-                )
+            onAttachmentClick = {},
+            onAttachmentAction = { action ->
+                when (action) {
+                    "Gallery" -> {
+                        pendingPickerKind = action
+                        attachmentPicker.launch(arrayOf("image/*"))
+                    }
+                    "Document" -> {
+                        pendingPickerKind = action
+                        attachmentPicker.launch(arrayOf("*/*"))
+                    }
+                    "Camera" -> {
+                        messages = messages + WhatsAppVisualMessage.PhotoMessage(
+                            id = "camera_${System.nanoTime()}",
+                            caption = "Photo",
+                            time = nightTime(),
+                            mine = true,
+                            read = true,
+                        )
+                    }
+                    else -> {
+                        messages = messages + WhatsAppVisualMessage.TextMessage(
+                            id = "attachment_${System.nanoTime()}",
+                            text = "Attached " + action.lowercase(Locale.getDefault()),
+                            time = nightTime(),
+                            mine = true,
+                            read = true,
+                        )
+                    }
+                }
             },
             onCameraClick = {
-                messages = messages + ToolResultMessage(
+                messages = messages + WhatsAppVisualMessage.PhotoMessage(
                     id = "camera_${System.nanoTime()}",
-                    toolName = "Camera",
-                    title = "Camera input is not connected in this core build",
-                    subtitle = "The composer keeps the normal chat layout while integrations stay optional.",
+                    caption = "Photo",
                     time = nightTime(),
+                    mine = true,
+                    read = true,
                 )
             },
             onMicClick = {
-                messages = messages + ToolResultMessage(
-                    id = "mic_${System.nanoTime()}",
-                    toolName = "Voice",
-                    title = "Voice message surface is ready",
-                    subtitle = "Speech transcription/TTS can be connected later without rebuilding the shell.",
+                messages = messages + WhatsAppVisualMessage.VoiceMessage(
+                    id = "voice_${System.nanoTime()}",
+                    duration = "0:08",
                     time = nightTime(),
+                    mine = true,
+                    read = true,
                 )
             },
         )
