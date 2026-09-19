@@ -138,6 +138,20 @@ class PaheRepository(
 
     private val client = OkHttpClient.Builder()
         .cookieJar(runtimeCookieJar)
+        .addNetworkInterceptor { chain ->
+            val request = chain.request()
+            val host = request.url.host.lowercase(Locale.US)
+            if (host.contains("animepahe") || host == "pahe.win") {
+                val builder = request.newBuilder()
+                    .header("User-Agent", sessions.animeUserAgent())
+                sessions.animeCookie().takeIf { it.isNotBlank() }?.let {
+                    builder.header("Cookie", it)
+                }
+                chain.proceed(builder.build())
+            } else {
+                chain.proceed(request)
+            }
+        }
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .followRedirects(true)
@@ -160,17 +174,41 @@ class PaheRepository(
     suspend fun validateAnimeSession(): Boolean = withContext(Dispatchers.IO) {
         val host = sessions.animeHost()
         if (host.isBlank() || sessions.animeCookie().isBlank()) {
+            sessions.markAnimeValidated(false)
             throw VerificationRequired(
                 VerificationKind.ANIMEPAHE,
                 "AnimePahe browser session is missing",
             )
         }
 
-        requestText(
+        var verificationError: VerificationRequired? = null
+        var lastFailure: Exception? = null
+        val probes = listOf(
+            "https://$host/api?m=search&q=bleach",
             "https://$host/api?m=airing&page=1",
-            referer = "https://$host/",
+            "https://$host/",
         )
-        true
+
+        for (url in probes) {
+            try {
+                val body = requestText(url, referer = "https://$host/")
+                if (body.isNotBlank()) {
+                    sessions.markAnimeValidated(true)
+                    return@withContext true
+                }
+            } catch (e: VerificationRequired) {
+                verificationError = e
+                lastFailure = e
+            } catch (e: Exception) {
+                lastFailure = e
+            }
+        }
+
+        if (verificationError != null) {
+            sessions.markAnimeValidated(false)
+            throw verificationError
+        }
+        throw lastFailure ?: IOException("AnimePahe session validation failed")
     }
 
     suspend fun recentlyAvailable(): List<AnimeSearchResult> = withContext(Dispatchers.IO) {
@@ -1005,6 +1043,9 @@ class PaheRepository(
                 verificationKind != null &&
                 (response.code == 403 || response.code == 503 || looksLikeChallenge(preview))
             ) {
+                if (verificationKind == VerificationKind.ANIMEPAHE) {
+                    sessions.markAnimeValidated(false)
+                }
                 throw VerificationRequired(
                     verificationKind,
                     "AnimePahe needs browser verification",
