@@ -4,9 +4,11 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -139,6 +141,7 @@ sealed interface WhatsAppVisualMessage {
         val mine: Boolean,
         val read: Boolean = false,
         val localPath: String? = null,
+        val transcript: String? = null,
     ) : WhatsAppVisualMessage
 
     data class DateSeparator(
@@ -170,6 +173,8 @@ fun CurrentWhatsAppConversation(
     onMicClick: () -> Unit = {},
     isRecording: Boolean = false,
     onVoiceClick: (String) -> Unit = {},
+    onTranscribeVoice: (String, String) -> Unit = { _, _ -> },
+    onSpeakText: (String) -> Unit = {},
     onEmojiClick: () -> Unit = {},
     autoScrollToLatest: Boolean = true,
     attachmentsInitiallyOpen: Boolean = false,
@@ -224,10 +229,15 @@ fun CurrentWhatsAppConversation(
             ) {
                 items(messages, key = { it.id }) { item ->
                     when (item) {
-                        is WhatsAppVisualMessage.TextMessage -> CurrentTextBubble(item, appearance)
+                        is WhatsAppVisualMessage.TextMessage -> CurrentTextBubble(item, appearance, onSpeakText)
                         is WhatsAppVisualMessage.PhotoMessage -> CurrentPhotoBubble(item, appearance)
                         is WhatsAppVisualMessage.FileMessage -> CurrentFileBubble(item, appearance)
-                        is WhatsAppVisualMessage.VoiceMessage -> CurrentVoiceBubble(item, appearance, onVoiceClick)
+                        is WhatsAppVisualMessage.VoiceMessage -> CurrentVoiceBubble(
+                            item,
+                            appearance,
+                            onVoiceClick,
+                            onTranscribeVoice,
+                        )
                         is WhatsAppVisualMessage.DateSeparator -> CurrentDateSeparator(item.label)
                         is RichResultMessage -> RichResultBubble(item, onMessageButtonClick)
                     }
@@ -429,9 +439,12 @@ private fun CurrentChatHeader(
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
 private fun CurrentTextBubble(
     item: WhatsAppVisualMessage.TextMessage,
     appearance: NightChatAppearance,
+    onSpeakText: (String) -> Unit,
 ) {
     val alignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart
     val bubbleColor = if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor
@@ -460,6 +473,14 @@ private fun CurrentTextBubble(
                 .widthIn(max = 320.dp)
                 .clip(shape)
                 .background(bubbleColor)
+                .combinedClickable(
+                    onClick = {},
+                    onLongClick = {
+                        if (!item.mine && item.text.isNotBlank()) {
+                            onSpeakText(item.text)
+                        }
+                    },
+                )
                 .padding(
                     start = 10.dp,
                     top = if (item.reply == null) 7.dp else 6.dp,
@@ -743,6 +764,7 @@ private fun CurrentVoiceBubble(
     item: WhatsAppVisualMessage.VoiceMessage,
     appearance: NightChatAppearance,
     onVoiceClick: (String) -> Unit,
+    onTranscribeVoice: (String, String) -> Unit,
 ) {
     Box(
         modifier = Modifier.fillMaxWidth(),
@@ -835,12 +857,27 @@ private fun CurrentVoiceBubble(
                 }
             }
 
-            Text(
-                text = "Setting up transcripts, Stop",
-                color = Color(0xFFCE8B9D),
-                fontSize = 9.sp,
-                modifier = Modifier.padding(start = 51.dp, top = 2.dp),
-            )
+            if (!item.transcript.isNullOrBlank()) {
+                Text(
+                    text = item.transcript,
+                    color = SecondaryText,
+                    fontSize = (11f * appearance.messageFontScale).sp,
+                    fontFamily = appearance.fontFamily,
+                    lineHeight = (15f * appearance.messageFontScale).sp,
+                    modifier = Modifier.padding(start = 51.dp, top = 5.dp, end = 4.dp),
+                )
+            } else if (!item.localPath.isNullOrBlank()) {
+                Text(
+                    text = "Transcribe",
+                    color = appearance.accentColor,
+                    fontSize = 10.sp,
+                    modifier = Modifier
+                        .padding(start = 51.dp, top = 4.dp)
+                        .clickable {
+                            onTranscribeVoice(item.id, item.localPath)
+                        },
+                )
+            }
         }
     }
 }
