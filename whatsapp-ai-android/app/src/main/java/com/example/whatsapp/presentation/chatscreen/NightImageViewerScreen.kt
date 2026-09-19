@@ -141,6 +141,7 @@ fun NightMediaViewerScreen(
             if (item.isVideo) {
                 NightVlcVideoSurface(
                     path = item.localPath,
+                    active = page == pagerState.currentPage,
                     showControls = controlsVisible && page == pagerState.currentPage,
                     onToggleControls = { controlsVisible = !controlsVisible },
                     modifier = Modifier.fillMaxSize(),
@@ -315,6 +316,7 @@ private fun NightZoomableImage(
 @Composable
 internal fun NightVlcVideoSurface(
     path: String,
+    active: Boolean = true,
     showControls: Boolean,
     onToggleControls: () -> Unit,
     modifier: Modifier = Modifier,
@@ -334,16 +336,7 @@ internal fun NightVlcVideoSurface(
     var length by remember(path) { mutableLongStateOf(0L) }
     var position by remember(path) { mutableLongStateOf(0L) }
 
-    DisposableEffect(player, libVlc) {
-        onDispose {
-            runCatching { player.stop() }
-            runCatching { player.detachViews() }
-            runCatching { player.release() }
-            runCatching { libVlc.release() }
-        }
-    }
-
-    LaunchedEffect(path) {
+    DisposableEffect(player, libVlc, path) {
         val uri = when {
             path.startsWith("http://") || path.startsWith("https://") ||
                 path.startsWith("content://") || path.startsWith("file://") -> Uri.parse(path)
@@ -355,14 +348,28 @@ internal fun NightVlcVideoSurface(
         }
         player.media = media
         media.release()
-        player.play()
-        playing = true
 
-        while (true) {
-            length = player.length.coerceAtLeast(0L)
-            position = player.time.coerceAtLeast(0L)
-            playing = player.isPlaying
-            delay(250)
+        onDispose {
+            runCatching { player.stop() }
+            runCatching { player.detachViews() }
+            runCatching { player.release() }
+            runCatching { libVlc.release() }
+        }
+    }
+
+    LaunchedEffect(active, player) {
+        if (active) {
+            player.play()
+            playing = true
+            while (true) {
+                length = player.length.coerceAtLeast(0L)
+                position = player.time.coerceAtLeast(0L)
+                playing = player.isPlaying
+                delay(250)
+            }
+        } else {
+            runCatching { player.pause() }
+            playing = false
         }
     }
 

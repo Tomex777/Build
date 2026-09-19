@@ -1,11 +1,11 @@
 package com.example.whatsapp.presentation.chatscreen
 
+import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Redo
 import androidx.compose.material.icons.filled.RotateRight
@@ -46,6 +47,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -63,11 +65,16 @@ import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.Transformer
+import com.canhub.cropper.CropImageView
+import com.canhub.cropper.Guidelines
 import ja.burhanrashid52.photoeditor.PhotoEditor
 import ja.burhanrashid52.photoeditor.PhotoEditorView
 import ja.burhanrashid52.photoeditor.SaveFileResult
 import java.io.File
+import java.io.FileOutputStream
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val EditorAccent = Color(0xFFE94B72)
 private val EditorBar = Color(0xFF111719)
@@ -87,10 +94,13 @@ fun NightMediaComposerScreen(
     val scope = rememberCoroutineScope()
     val isVideo = mimeType.startsWith("video/")
 
-    var photoEditor by remember(localPath) { mutableStateOf<PhotoEditor?>(null) }
-    var photoEditorView by remember(localPath) { mutableStateOf<PhotoEditorView?>(null) }
-    var drawing by remember(localPath) { mutableStateOf(false) }
-    var imageRotation by remember(localPath) { mutableStateOf(0f) }
+    var workingPath by remember(localPath) { mutableStateOf(localPath) }
+    var photoEditor by remember(workingPath) { mutableStateOf<PhotoEditor?>(null) }
+    var photoEditorView by remember(workingPath) { mutableStateOf<PhotoEditorView?>(null) }
+    var cropView by remember(workingPath) { mutableStateOf<CropImageView?>(null) }
+    var cropMode by remember(localPath) { mutableStateOf(false) }
+    var drawing by remember(workingPath) { mutableStateOf(false) }
+    var imageRotation by remember(workingPath) { mutableStateOf(0f) }
     var textDialogOpen by remember(localPath) { mutableStateOf(false) }
     var textDraft by remember(localPath) { mutableStateOf("") }
     var emojiOpen by remember(localPath) { mutableStateOf(false) }
@@ -112,13 +122,86 @@ fun NightMediaComposerScreen(
         onDispose {
             transformer?.cancel()
             transformer = null
+            if (workingPath != localPath) {
+                runCatching { File(workingPath).delete() }
+            }
+        }
+    }
+
+    fun enterCropMode() {
+        if (exporting || isVideo) return
+        val editor = photoEditor
+        if (editor == null) {
+            cropMode = true
+            return
+        }
+
+        exporting = true
+        exportError = null
+        scope.launch {
+            val dir = File(context.cacheDir, "night_crop_stage").apply { mkdirs() }
+            val flattened = File(dir, "flatten_" + System.currentTimeMillis() + ".jpg")
+            when (val result = editor.saveAsFile(flattened.absolutePath)) {
+                is SaveFileResult.Success -> {
+                    val previous = workingPath
+                    workingPath = flattened.absolutePath
+                    cropMode = true
+                    exporting = false
+                    if (previous != localPath) {
+                        runCatching { File(previous).delete() }
+                    }
+                }
+                is SaveFileResult.Failure -> {
+                    exporting = false
+                    exportError = result.exception.message ?: "Could not prepare the image for cropping."
+                }
+            }
+        }
+    }
+
+    fun applyCrop() {
+        if (exporting) return
+        val view = cropView ?: return
+        val bitmap = runCatching { view.getCroppedImage() }.getOrNull()
+        if (bitmap == null) {
+            exportError = "The crop is still loading."
+            return
+        }
+
+        exporting = true
+        exportError = null
+        scope.launch {
+            val dir = File(context.cacheDir, "night_crop_stage").apply { mkdirs() }
+            val output = File(dir, "crop_" + System.currentTimeMillis() + ".jpg")
+            val saved = withContext(Dispatchers.IO) {
+                runCatching {
+                    FileOutputStream(output).use { stream ->
+                        check(bitmap.compress(Bitmap.CompressFormat.JPEG, 96, stream))
+                    }
+                    true
+                }.getOrDefault(false)
+            }
+            bitmap.recycle()
+
+            if (saved) {
+                val previous = workingPath
+                workingPath = output.absolutePath
+                cropMode = false
+                exporting = false
+                if (previous != localPath) {
+                    runCatching { File(previous).delete() }
+                }
+            } else {
+                exporting = false
+                exportError = "Could not save the crop."
+            }
         }
     }
 
     fun exportImageAndSend() {
         val editor = photoEditor
         if (editor == null) {
-            onPreparedSend(localPath, mimeType, fileName)
+            onPreparedSend(workingPath, mimeType, fileName)
             return
         }
 
@@ -141,10 +224,10 @@ fun NightMediaComposerScreen(
     }
 
     fun exportVideoAndSend() {
-        val startMs = (trimRange.start * 1000f).toLong()
-            .coerceIn(0L, durationMs.coerceAtLeast(1L))
-        val endMs = (trimRange.endInclusive * 1000f).toLong()
-            .coerceIn((startMs + 1L).coerceAtMost(durationMs.coerceAtLeast(1L)), durationMs.coerceAtLeast(1L))
+        val safeDuration = durationMs.coerceAtLeast(1L)
+        val startMs = (trimRange.start * 1000f).toLong().coerceIn(0L, safeDuration)
+        val minimumEnd = (startMs + 1L).coerceAtMost(safeDuration)
+        val endMs = (trimRange.endInclusive * 1000f).toLong().coerceIn(minimumEnd, safeDuration)
         val trimmed = startMs > 120L || endMs < durationMs - 120L
 
         if (!trimmed && !muted) {
@@ -203,7 +286,11 @@ fun NightMediaComposerScreen(
 
     fun finish() {
         if (exporting) return
-        if (isVideo) exportVideoAndSend() else exportImageAndSend()
+        when {
+            cropMode -> applyCrop()
+            isVideo -> exportVideoAndSend()
+            else -> exportImageAndSend()
+        }
     }
 
     Box(
@@ -220,69 +307,81 @@ fun NightMediaComposerScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.Black.copy(alpha = 0.76f))
-                    .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 3.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onCancel) {
+                IconButton(
+                    onClick = {
+                        if (cropMode) {
+                            cropMode = false
+                        } else {
+                            onCancel()
+                        }
+                    }
+                ) {
                     Icon(Icons.Default.ArrowBack, "Back", tint = Color.White)
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
-
-                if (isVideo) {
-                    IconButton(onClick = { muted = !muted }) {
-                        Icon(
-                            imageVector = if (muted) Icons.Default.MicOff else Icons.Default.VolumeUp,
-                            contentDescription = if (muted) "Unmute" else "Mute",
-                            tint = if (muted) EditorAccent else Color.White,
-                        )
-                    }
-                } else {
-                    IconButton(
-                        onClick = {
-                            imageRotation = (imageRotation + 90f) % 360f
-                            photoEditorView?.source?.rotation = imageRotation
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (isVideo) {
+                        IconButton(onClick = { muted = !muted }) {
+                            Icon(
+                                imageVector = if (muted) Icons.Default.MicOff else Icons.Default.VolumeUp,
+                                contentDescription = if (muted) "Unmute" else "Mute",
+                                tint = if (muted) EditorAccent else Color.White,
+                            )
                         }
-                    ) {
-                        Icon(Icons.Default.RotateRight, "Rotate", tint = Color.White)
-                    }
-                    IconButton(
-                        onClick = {
-                            drawing = !drawing
-                            photoEditor?.setBrushDrawingMode(drawing)
-                            if (drawing) {
-                                photoEditor?.brushColor = AndroidColor.WHITE
-                                photoEditor?.brushSize = 12f
+                    } else if (cropMode) {
+                        IconButton(onClick = { cropView?.rotateImage(90) }) {
+                            Icon(Icons.Default.RotateRight, "Rotate crop", tint = Color.White)
+                        }
+                    } else {
+                        IconButton(onClick = ::enterCropMode) {
+                            Icon(Icons.Default.Crop, "Crop", tint = Color.White)
+                        }
+                        IconButton(onClick = { emojiOpen = !emojiOpen }) {
+                            Icon(
+                                Icons.Default.SentimentSatisfiedAlt,
+                                "Emoji",
+                                tint = if (emojiOpen) EditorAccent else Color.White,
+                            )
+                        }
+                        IconButton(onClick = { textDialogOpen = true }) {
+                            Icon(Icons.Default.TextFields, "Text", tint = Color.White)
+                        }
+                        IconButton(
+                            onClick = {
+                                drawing = !drawing
+                                photoEditor?.setBrushDrawingMode(drawing)
+                                if (drawing) {
+                                    photoEditor?.brushColor = AndroidColor.WHITE
+                                    photoEditor?.brushSize = 12f
+                                }
                             }
+                        ) {
+                            Icon(
+                                Icons.Default.Brush,
+                                "Draw",
+                                tint = if (drawing) EditorAccent else Color.White,
+                            )
                         }
-                    ) {
-                        Icon(
-                            Icons.Default.Brush,
-                            "Draw",
-                            tint = if (drawing) EditorAccent else Color.White,
-                        )
+                        IconButton(onClick = { photoEditor?.undo() }) {
+                            Icon(Icons.Default.Undo, "Undo", tint = Color.White)
+                        }
+                        IconButton(onClick = { photoEditor?.redo() }) {
+                            Icon(Icons.Default.Redo, "Redo", tint = Color.White)
+                        }
                     }
-                    IconButton(onClick = { textDialogOpen = true }) {
-                        Icon(Icons.Default.TextFields, "Text", tint = Color.White)
-                    }
-                    IconButton(onClick = { emojiOpen = !emojiOpen }) {
-                        Icon(
-                            Icons.Default.SentimentSatisfiedAlt,
-                            "Emoji",
-                            tint = if (emojiOpen) EditorAccent else Color.White,
-                        )
-                    }
-                    IconButton(onClick = { photoEditor?.undo() }) {
-                        Icon(Icons.Default.Undo, "Undo", tint = Color.White)
-                    }
-                    IconButton(onClick = { photoEditor?.redo() }) {
-                        Icon(Icons.Default.Redo, "Redo", tint = Color.White)
-                    }
-                }
 
-                IconButton(onClick = ::finish) {
-                    Icon(Icons.Default.Check, "Done", tint = Color.White)
+                    IconButton(onClick = ::finish) {
+                        Icon(Icons.Default.Check, if (cropMode) "Apply crop" else "Done", tint = Color.White)
+                    }
                 }
             }
 
@@ -293,27 +392,52 @@ fun NightMediaComposerScreen(
                     .background(Color.Black),
                 contentAlignment = Alignment.Center,
             ) {
-                if (isVideo) {
-                    NightVlcVideoSurface(
-                        path = localPath,
-                        showControls = true,
-                        onToggleControls = {},
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    AndroidView(
-                        factory = { ctx ->
-                            PhotoEditorView(ctx).also { editorView ->
-                                editorView.source.setImageURI(Uri.fromFile(File(localPath)))
-                                photoEditorView = editorView
-                                photoEditor = PhotoEditor.Builder(ctx, editorView)
-                                    .setPinchTextScalable(true)
-                                    .setClipSourceImage(true)
-                                    .build()
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                when {
+                    isVideo -> {
+                        NightVlcVideoSurface(
+                            path = localPath,
+                            active = true,
+                            showControls = true,
+                            onToggleControls = {},
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+
+                    cropMode -> {
+                        key(workingPath) {
+                            AndroidView(
+                                factory = { ctx ->
+                                    CropImageView(ctx).also { view ->
+                                        view.guidelines = Guidelines.ON
+                                        view.setImageUriAsync(Uri.fromFile(File(workingPath)))
+                                        cropView = view
+                                    }
+                                },
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                    }
+
+                    else -> {
+                        key(workingPath) {
+                            AndroidView(
+                                factory = { ctx ->
+                                    PhotoEditorView(ctx).also { editorView ->
+                                        editorView.source.setImageURI(Uri.fromFile(File(workingPath)))
+                                        photoEditorView = editorView
+                                        photoEditor = PhotoEditor.Builder(ctx, editorView)
+                                            .setPinchTextScalable(true)
+                                            .setClipSourceImage(true)
+                                            .build()
+                                        if (imageRotation != 0f) {
+                                            editorView.source.rotation = imageRotation
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                    }
                 }
 
                 if (exporting) {
@@ -340,11 +464,7 @@ fun NightMediaComposerScreen(
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "Trim",
-                            color = Color.White,
-                            fontSize = 13.sp,
-                        )
+                        Text("Trim", color = Color.White, fontSize = 13.sp)
                         Spacer(modifier = Modifier.weight(1f))
                         Text(
                             formatEditorTime(trimRange.start) + " – " + formatEditorTime(trimRange.endInclusive),
@@ -372,61 +492,61 @@ fun NightMediaComposerScreen(
                 )
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(EditorBar)
-                    .imePadding()
-                    .navigationBarsPadding()
-                    .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                Surface(
-                    color = Color(0xFF20272A),
-                    shape = RoundedCornerShape(25.dp),
-                    modifier = Modifier.weight(1f),
+            if (!cropMode) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(EditorBar)
+                        .imePadding()
+                        .navigationBarsPadding()
+                        .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.Bottom,
                 ) {
-                    TextField(
-                        value = caption,
-                        onValueChange = { onCaptionChange(it.take(1024)) },
-                        placeholder = {
-                            Text("Add a caption…", color = Color(0xFF8F999E))
-                        },
-                        maxLines = 4,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            cursorColor = EditorAccent,
-                        ),
-                    )
-                }
-
-                Spacer(modifier = Modifier.size(8.dp))
-
-                Surface(
-                    color = EditorAccent,
-                    shape = CircleShape,
-                    modifier = Modifier.size(50.dp),
-                    onClick = ::finish,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.Send,
-                            "Send media",
-                            tint = Color(0xFF111416),
-                            modifier = Modifier.size(25.dp),
+                    Surface(
+                        color = Color(0xFF20272A),
+                        shape = RoundedCornerShape(25.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        TextField(
+                            value = caption,
+                            onValueChange = { onCaptionChange(it.take(1024)) },
+                            placeholder = { Text("Add a caption…", color = Color(0xFF8F999E)) },
+                            maxLines = 4,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                cursorColor = EditorAccent,
+                            ),
                         )
+                    }
+
+                    Spacer(modifier = Modifier.size(8.dp))
+
+                    Surface(
+                        color = EditorAccent,
+                        shape = CircleShape,
+                        modifier = Modifier.size(50.dp),
+                        onClick = ::finish,
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.Send,
+                                "Send media",
+                                tint = Color(0xFF111416),
+                                modifier = Modifier.size(25.dp),
+                            )
+                        }
                     }
                 }
             }
         }
 
-        if (emojiOpen && !isVideo) {
+        if (emojiOpen && !isVideo && !cropMode) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -444,7 +564,7 @@ fun NightMediaComposerScreen(
         }
     }
 
-    if (textDialogOpen && !isVideo) {
+    if (textDialogOpen && !isVideo && !cropMode) {
         AlertDialog(
             onDismissRequest = { textDialogOpen = false },
             title = { Text("Add text") },
