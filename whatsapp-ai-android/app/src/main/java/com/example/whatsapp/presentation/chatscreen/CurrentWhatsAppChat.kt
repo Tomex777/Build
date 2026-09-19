@@ -797,8 +797,8 @@ private fun CurrentPhotoBubble(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth(0.86f)
-                .widthIn(min = 260.dp, max = 370.dp)
+                .fillMaxWidth(0.94f)
+                .widthIn(min = 280.dp, max = 390.dp)
                 .clip(shape),
         ) {
             item.reply?.let {
@@ -892,8 +892,8 @@ private fun CurrentVideoBubble(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth(0.86f)
-                .widthIn(min = 260.dp, max = 370.dp)
+                .fillMaxWidth(0.94f)
+                .widthIn(min = 280.dp, max = 390.dp)
                 .clip(shape),
         ) {
             item.reply?.let {
