@@ -57,6 +57,16 @@ android {
                 ).orNull.orEmpty()
             )
         )
+
+        val forceTurnRelay =
+            providers.gradleProperty("HOMIRA_FORCE_TURN_RELAY")
+                .orNull
+                ?.equals("true", ignoreCase = true) == true
+        buildConfigField(
+            "boolean",
+            "HOMIRA_FORCE_TURN_RELAY",
+            forceTurnRelay.toString()
+        )
     }
 
     buildFeatures {
