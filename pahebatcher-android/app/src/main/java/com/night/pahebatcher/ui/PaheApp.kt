@@ -42,12 +42,15 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Explore
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -82,12 +85,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.night.pahebatcher.data.AnimeDetails
 import com.night.pahebatcher.data.AnimeSearchResult
+import com.night.pahebatcher.data.DownloadPreferences
 import com.night.pahebatcher.data.EpisodeInfo
 import com.night.pahebatcher.data.SessionSnapshot
 import java.text.DateFormat
 import java.util.Date
+import okhttp3.Headers
 
 private val Bg = Color(0xFF0B0B0D)
 private val Elevated = Color(0xFF151518)
@@ -346,7 +352,12 @@ private fun ExploreScreen(vm: PaheViewModel, padding: PaddingValues) {
                 )
             }
             items(vm.results, key = { it.session }) { anime ->
-                AnimeResultRow(anime, onClick = { vm.openAnime(anime) })
+                AnimeResultRow(
+                    anime = anime,
+                    referer = vm.animePosterReferer(),
+                    userAgent = vm.animeUserAgent(),
+                    onClick = { vm.openAnime(anime) },
+                )
             }
         } else if (vm.query.isBlank() && vm.sessions.animeCookieSaved) {
             item {
@@ -370,7 +381,12 @@ private fun ExploreScreen(vm: PaheViewModel, padding: PaddingValues) {
 }
 
 @Composable
-private fun AnimeResultRow(anime: AnimeSearchResult, onClick: () -> Unit) {
+private fun AnimeResultRow(
+    anime: AnimeSearchResult,
+    referer: String,
+    userAgent: String,
+    onClick: () -> Unit,
+) {
     Surface(
         color = Elevated,
         shape = RoundedCornerShape(20.dp),
@@ -384,6 +400,8 @@ private fun AnimeResultRow(anime: AnimeSearchResult, onClick: () -> Unit) {
         ) {
             Poster(
                 url = anime.poster,
+                referer = referer,
+                userAgent = userAgent,
                 modifier = Modifier
                     .width(88.dp)
                     .aspectRatio(0.68f)
@@ -414,14 +432,31 @@ private fun AnimeResultRow(anime: AnimeSearchResult, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Poster(url: String, modifier: Modifier = Modifier) {
+private fun Poster(
+    url: String,
+    referer: String,
+    userAgent: String,
+    modifier: Modifier = Modifier,
+) {
     if (url.isBlank()) {
         Box(modifier.background(Elevated2), contentAlignment = Alignment.Center) {
             Text("PAHE", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
     } else {
+        val context = LocalContext.current
+        val request = remember(url, referer, userAgent) {
+            ImageRequest.Builder(context)
+                .data(url)
+                .headers(
+                    Headers.Builder()
+                        .add("Referer", referer)
+                        .add("User-Agent", userAgent)
+                        .build()
+                )
+                .build()
+        }
         AsyncImage(
-            model = url,
+            model = request,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = modifier.background(Elevated2),
@@ -466,21 +501,56 @@ private fun DetailHost(vm: PaheViewModel) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
-    var sheetEpisode by remember { mutableStateOf<EpisodeInfo?>(null) }
-    var pendingLegacyDownload by remember {
-        mutableStateOf<Triple<EpisodeInfo, Int, String>?>(null)
-    }
+    var menuExpanded by remember { mutableStateOf(false) }
+    var showDownloadSettings by remember { mutableStateOf(false) }
+    var pendingEpisode by remember { mutableStateOf<EpisodeInfo?>(null) }
+    var pendingDownloadAll by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val effectivePreferences = vm.effectiveDownloadPreferences()
+
     val storagePermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        val pending = pendingLegacyDownload
-        pendingLegacyDownload = null
-        if (granted && pending != null) {
-            vm.downloadEpisode(pending.first, pending.second, pending.third)
-            vm.navigateToTab(MainTab.DOWNLOADS)
-        } else if (pending != null) {
-            sheetEpisode = pending.first
+        val episode = pendingEpisode
+        val downloadAll = pendingDownloadAll
+        pendingEpisode = null
+        pendingDownloadAll = false
+        if (granted) {
+            if (downloadAll) {
+                vm.downloadAllCurrent()
+            } else if (episode != null) {
+                vm.downloadEpisode(episode)
+            }
+        }
+    }
+
+    val startEpisodeDownload: (EpisodeInfo) -> Unit = { episode ->
+        val needsLegacyStoragePermission =
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                ) != PackageManager.PERMISSION_GRANTED
+        if (needsLegacyStoragePermission) {
+            pendingEpisode = episode
+            storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        } else {
+            vm.downloadEpisode(episode)
+        }
+    }
+
+    val startDownloadAll: () -> Unit = {
+        val needsLegacyStoragePermission =
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                ) != PackageManager.PERMISSION_GRANTED
+        if (needsLegacyStoragePermission) {
+            pendingDownloadAll = true
+            storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        } else {
+            vm.downloadAllCurrent()
         }
     }
 
@@ -503,8 +573,10 @@ private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
                         .background(Elevated),
                 ) {
                     Poster(
-                        details.result.poster,
-                        Modifier
+                        url = details.result.poster,
+                        referer = vm.animePosterReferer(),
+                        userAgent = vm.animeUserAgent(),
+                        modifier = Modifier
                             .fillMaxSize()
                             .background(Elevated),
                     )
@@ -521,6 +593,41 @@ private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
                             .background(Color.Black.copy(alpha = 0.55f), CircleShape),
                     ) {
                         Icon(Icons.Rounded.ArrowBack, null, tint = TextMain)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .statusBarsPadding()
+                            .padding(12.dp),
+                    ) {
+                        IconButton(
+                            onClick = { menuExpanded = true },
+                            modifier = Modifier.background(Color.Black.copy(alpha = 0.55f), CircleShape),
+                        ) {
+                            Icon(Icons.Rounded.MoreVert, "Anime options", tint = TextMain)
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false },
+                            containerColor = Elevated,
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Download settings") },
+                                onClick = {
+                                    menuExpanded = false
+                                    showDownloadSettings = true
+                                },
+                            )
+                            if (vm.currentAnimeOverride != null) {
+                                DropdownMenuItem(
+                                    text = { Text("Use global settings") },
+                                    onClick = {
+                                        vm.clearCurrentAnimeOverride()
+                                        menuExpanded = false
+                                    },
+                                )
+                            }
+                        }
                     }
                     Column(
                         Modifier
@@ -554,17 +661,36 @@ private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
                 }
             }
             item {
-                Row(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                Column(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
                 ) {
-                    Text("Episodes", color = TextMain, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        if (vm.detailsLoading) "Loading…" else "Tap to download",
-                        color = TextMuted,
-                        fontSize = 12.sp,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Episodes", color = TextMain, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(3.dp))
+                            Text(
+                                if (vm.detailsLoading) {
+                                    "Loading…"
+                                } else {
+                                    "${effectivePreferences.quality}p · ${if (effectivePreferences.audio == "eng") "DUB" else "SUB"}" +
+                                        if (vm.currentAnimeOverride != null) " · This anime" else " · Global"
+                                },
+                                color = TextMuted,
+                                fontSize = 11.sp,
+                            )
+                        }
+                        TextButton(
+                            onClick = startDownloadAll,
+                            enabled = details.episodes.isNotEmpty() && !vm.detailsLoading,
+                        ) {
+                            Icon(Icons.Rounded.Download, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text("Download all", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
                 }
             }
 
@@ -610,39 +736,38 @@ private fun DetailScreen(vm: PaheViewModel, details: AnimeDetails) {
                 details.episodes,
                 key = { "${it.session}_${it.audio}" },
             ) { episode ->
-                EpisodeRow(episode, onClick = { sheetEpisode = episode })
+                val download = vm.downloads.firstOrNull {
+                    it.animeTitle == details.result.title && it.episode == episode.epLabel
+                }
+                EpisodeRow(
+                    episode = episode,
+                    download = download,
+                    onClick = { startEpisodeDownload(episode) },
+                )
             }
         }
     }
 
-    sheetEpisode?.let { episode ->
-        EpisodeDownloadSheet(
-            episode = episode,
-            onDismiss = { sheetEpisode = null },
-            onDownload = { quality, audio ->
-                val needsLegacyStoragePermission =
-                    Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
-                        ContextCompat.checkSelfPermission(
-                            context,
-                            Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                        ) != PackageManager.PERMISSION_GRANTED
-
-                if (needsLegacyStoragePermission) {
-                    pendingLegacyDownload = Triple(episode, quality, audio)
-                    sheetEpisode = null
-                    storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                } else {
-                    vm.downloadEpisode(episode, quality, audio)
-                    sheetEpisode = null
-                    vm.navigateToTab(MainTab.DOWNLOADS)
-                }
-            },
+    if (showDownloadSettings) {
+        TitleDownloadSettingsSheet(
+            title = details.result.title,
+            global = vm.globalDownloadPreferences,
+            override = vm.currentAnimeOverride,
+            onDismiss = { showDownloadSettings = false },
+            onQuality = vm::setCurrentAnimeQuality,
+            onAudio = vm::setCurrentAnimeAudio,
+            onUseGlobal = vm::clearCurrentAnimeOverride,
         )
     }
+
 }
 
 @Composable
-private fun EpisodeRow(episode: EpisodeInfo, onClick: () -> Unit) {
+private fun EpisodeRow(
+    episode: EpisodeInfo,
+    download: DownloadUi?,
+    onClick: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -671,16 +796,38 @@ private fun EpisodeRow(episode: EpisodeInfo, onClick: () -> Unit) {
             )
             Spacer(Modifier.height(5.dp))
             Text(
-                listOfNotNull(
+                download?.status ?: listOfNotNull(
                     episode.fansub.takeIf { it.isNotBlank() },
                     if (episode.audio == "eng") "DUB" else "SUB",
                 ).joinToString("  ·  "),
-                color = if (episode.audio == "eng") Accent else TextMuted,
+                color = when {
+                    download?.failed == true -> Error
+                    download != null -> Accent
+                    episode.audio == "eng" -> Accent
+                    else -> TextMuted
+                },
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
-        Icon(Icons.Rounded.Download, null, tint = TextMuted, modifier = Modifier.size(20.dp))
+        when {
+            download?.failed == true -> Icon(Icons.Rounded.Close, null, tint = Error, modifier = Modifier.size(20.dp))
+            download != null && download.progress >= 1f -> {
+                Icon(Icons.Rounded.CheckCircle, null, tint = Success, modifier = Modifier.size(20.dp))
+            }
+            download != null -> {
+                CircularProgressIndicator(
+                    progress = { download.progress.coerceIn(0f, 1f) },
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = Accent,
+                    trackColor = Elevated2,
+                )
+            }
+            else -> Icon(Icons.Rounded.Download, null, tint = TextMuted, modifier = Modifier.size(20.dp))
+        }
     }
     Box(
         Modifier
@@ -689,6 +836,86 @@ private fun EpisodeRow(episode: EpisodeInfo, onClick: () -> Unit) {
             .height(1.dp)
             .background(Divider),
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TitleDownloadSettingsSheet(
+    title: String,
+    global: DownloadPreferences,
+    override: DownloadPreferences?,
+    onDismiss: () -> Unit,
+    onQuality: (Int) -> Unit,
+    onAudio: (String) -> Unit,
+    onUseGlobal: () -> Unit,
+) {
+    val effective = override ?: global
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Elevated,
+        contentColor = TextMain,
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 22.dp)
+                .padding(bottom = 22.dp),
+        ) {
+            Text("Download settings", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(5.dp))
+            Text(
+                title,
+                color = TextMuted,
+                fontSize = 13.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(5.dp))
+            Text(
+                if (override == null) {
+                    "Using global defaults."
+                } else {
+                    "These settings apply only to this anime."
+                },
+                color = if (override == null) TextMuted else Accent,
+                fontSize = 12.sp,
+            )
+            Spacer(Modifier.height(22.dp))
+            Text("Quality", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(1080, 720, 360).forEach { option ->
+                    FilterChip(
+                        selected = effective.quality == option,
+                        onClick = { onQuality(option) },
+                        label = { Text("${option}p") },
+                    )
+                }
+            }
+            Spacer(Modifier.height(18.dp))
+            Text("Audio", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = effective.audio == "jpn",
+                    onClick = { onAudio("jpn") },
+                    label = { Text("SUB") },
+                )
+                FilterChip(
+                    selected = effective.audio == "eng",
+                    onClick = { onAudio("eng") },
+                    label = { Text("DUB") },
+                )
+            }
+            if (override != null) {
+                Spacer(Modifier.height(18.dp))
+                TextButton(onClick = onUseGlobal) {
+                    Text("Use global settings", color = Accent, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -860,6 +1087,13 @@ private fun SettingsScreen(vm: PaheViewModel, padding: PaddingValues) {
             Spacer(Modifier.height(14.dp))
         }
         item {
+            DownloadPreferencesCard(
+                preferences = vm.globalDownloadPreferences,
+                onQuality = vm::setGlobalQuality,
+                onAudio = vm::setGlobalAudio,
+            )
+        }
+        item {
             VerificationCard(vm.sessions, onVerify = vm::startVerification)
         }
         item {
@@ -883,6 +1117,53 @@ private fun SettingsScreen(vm: PaheViewModel, padding: PaddingValues) {
                     Spacer(Modifier.width(6.dp))
                     Text("Clear saved browser sessions", color = Error)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DownloadPreferencesCard(
+    preferences: DownloadPreferences,
+    onQuality: (Int) -> Unit,
+    onAudio: (String) -> Unit,
+) {
+    Surface(color = Elevated, shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp)) {
+            Text("Download preferences", color = TextMain, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(7.dp))
+            Text(
+                "Used by default for every episode. A title can override these from its three-dot menu.",
+                color = TextMuted,
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+            )
+            Spacer(Modifier.height(18.dp))
+            Text("Quality", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(1080, 720, 360).forEach { option ->
+                    FilterChip(
+                        selected = preferences.quality == option,
+                        onClick = { onQuality(option) },
+                        label = { Text("${option}p") },
+                    )
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            Text("Audio", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = preferences.audio == "jpn",
+                    onClick = { onAudio("jpn") },
+                    label = { Text("SUB") },
+                )
+                FilterChip(
+                    selected = preferences.audio == "eng",
+                    onClick = { onAudio("eng") },
+                    label = { Text("DUB") },
+                )
             }
         }
     }
@@ -1000,6 +1281,7 @@ private fun VerificationScreen(vm: PaheViewModel) {
                         VerifyStage.ANIMEPAHE -> "Step 1 of 2 · AnimePahe"
                         VerifyStage.PREPARING_SECOND -> "Preparing step 2"
                         VerifyStage.KWIK -> "Step 2 of 2 · Kwik"
+                        VerifyStage.ANIMEPAHE_SAVED -> "AnimePahe saved"
                     },
                     color = TextMain,
                     fontSize = 15.sp,
@@ -1010,6 +1292,7 @@ private fun VerificationScreen(vm: PaheViewModel) {
                         VerifyStage.ANIMEPAHE -> "Complete the browser check, then confirm below."
                         VerifyStage.PREPARING_SECOND -> "Using the AnimePahe session to open a real episode."
                         VerifyStage.KWIK -> "Complete the second browser check, then confirm."
+                        VerifyStage.ANIMEPAHE_SAVED -> "Kwik could not be prepared, but AnimePahe is ready."
                     },
                     color = TextMuted,
                     fontSize = 10.sp,
@@ -1017,7 +1300,8 @@ private fun VerificationScreen(vm: PaheViewModel) {
                 )
             }
             IconButton(
-                enabled = vm.verifyStage != VerifyStage.PREPARING_SECOND,
+                enabled = vm.verifyStage != VerifyStage.PREPARING_SECOND &&
+                    vm.verifyStage != VerifyStage.ANIMEPAHE_SAVED,
                 onClick = { webView?.reload() },
             ) {
                 Icon(Icons.Rounded.Refresh, null, tint = TextMuted)
@@ -1048,6 +1332,7 @@ private fun VerificationScreen(vm: PaheViewModel) {
                     if (
                         target.isNotBlank() &&
                         vm.verifyStage != VerifyStage.PREPARING_SECOND &&
+                        vm.verifyStage != VerifyStage.ANIMEPAHE_SAVED &&
                         view.tag != target
                     ) {
                         view.tag = target
@@ -1094,11 +1379,15 @@ private fun VerificationScreen(vm: PaheViewModel) {
             Button(
                 enabled = vm.verifyStage != VerifyStage.PREPARING_SECOND,
                 onClick = {
-                    val page = webView?.url.orEmpty().ifBlank { vm.verifyUrl }
-                    val cookie = CookieManager.getInstance().getCookie(page).orEmpty()
-                    val ua = webView?.settings?.userAgentString.orEmpty()
-                    CookieManager.getInstance().flush()
-                    vm.completeVerificationStep(page, cookie, ua)
+                    if (vm.verifyStage == VerifyStage.ANIMEPAHE_SAVED) {
+                        vm.closeVerification()
+                    } else {
+                        val page = webView?.url.orEmpty().ifBlank { vm.verifyUrl }
+                        val cookie = CookieManager.getInstance().getCookie(page).orEmpty()
+                        val ua = webView?.settings?.userAgentString.orEmpty()
+                        CookieManager.getInstance().flush()
+                        vm.completeVerificationStep(page, cookie, ua)
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1112,6 +1401,7 @@ private fun VerificationScreen(vm: PaheViewModel) {
                         VerifyStage.ANIMEPAHE -> "I’ve completed AnimePahe"
                         VerifyStage.PREPARING_SECOND -> "Opening second verification…"
                         VerifyStage.KWIK -> "I’ve completed Kwik"
+                        VerifyStage.ANIMEPAHE_SAVED -> "Continue with AnimePahe"
                     },
                     fontWeight = FontWeight.Bold,
                 )
