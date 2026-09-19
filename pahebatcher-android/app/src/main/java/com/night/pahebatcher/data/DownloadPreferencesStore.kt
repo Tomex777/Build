@@ -6,6 +6,7 @@ import java.util.Locale
 data class DownloadPreferences(
     val quality: Int = 1080,
     val audio: String = "jpn",
+    val parallelDownloads: Int = 2,
 )
 
 class DownloadPreferencesStore(context: Context) {
@@ -14,6 +15,7 @@ class DownloadPreferencesStore(context: Context) {
     fun global(): DownloadPreferences = DownloadPreferences(
         quality = sanitizeQuality(prefs.getInt(KEY_GLOBAL_QUALITY, 1080)),
         audio = sanitizeAudio(prefs.getString(KEY_GLOBAL_AUDIO, "jpn")),
+        parallelDownloads = sanitizeParallel(prefs.getInt(KEY_PARALLEL_DOWNLOADS, 2)),
     )
 
     fun setGlobalQuality(quality: Int) {
@@ -24,6 +26,10 @@ class DownloadPreferencesStore(context: Context) {
         prefs.edit().putString(KEY_GLOBAL_AUDIO, sanitizeAudio(audio)).apply()
     }
 
+    fun setParallelDownloads(value: Int) {
+        prefs.edit().putInt(KEY_PARALLEL_DOWNLOADS, sanitizeParallel(value)).apply()
+    }
+
     fun overrideFor(anime: AnimeSearchResult): DownloadPreferences? {
         val key = animeKey(anime)
         if (!prefs.getBoolean("${key}_enabled", false)) return null
@@ -31,6 +37,7 @@ class DownloadPreferencesStore(context: Context) {
         return DownloadPreferences(
             quality = sanitizeQuality(prefs.getInt("${key}_quality", fallback.quality)),
             audio = sanitizeAudio(prefs.getString("${key}_audio", fallback.audio)),
+            parallelDownloads = fallback.parallelDownloads,
         )
     }
 
@@ -72,8 +79,15 @@ class DownloadPreferencesStore(context: Context) {
     private fun sanitizeAudio(value: String?): String =
         if (value.equals("eng", true)) "eng" else "jpn"
 
+    private fun sanitizeParallel(value: Int): Int =
+        when (value) {
+            1, 2, 4, 6, 8 -> value
+            else -> 2
+        }
+
     companion object {
         private const val KEY_GLOBAL_QUALITY = "global_quality"
         private const val KEY_GLOBAL_AUDIO = "global_audio"
+        private const val KEY_PARALLEL_DOWNLOADS = "parallel_downloads"
     }
 }
