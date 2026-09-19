@@ -134,6 +134,7 @@ class PaheRepository(
     val sessions: SessionStore,
 ) {
     private val runtimeCookieJar = RuntimeCookieJar()
+    private val sourceMatches = SourceMatchStore(context)
 
     private val client = OkHttpClient.Builder()
         .cookieJar(runtimeCookieJar)
@@ -155,6 +156,251 @@ class PaheRepository(
                 addAll(listOf("animepahe.pw", "animepahe.com", "animepahe.org"))
             }.distinct()
         }
+
+    suspend fun recentlyAvailable(): List<AnimeSearchResult> = withContext(Dispatchers.IO) {
+        var lastError: Exception? = null
+        var verificationError: VerificationRequired? = null
+
+        for (host in animeHosts) {
+            try {
+                val body = requestText(
+                    "https://$host/api?m=airing&page=1",
+                    referer = "https://$host/",
+                )
+                val root = JSONObject(body)
+                val rows = root.optJSONArray("data") ?: return@withContext emptyList()
+                sessions.rememberAnimeHost(host)
+
+                return@withContext buildList {
+                    for (index in 0 until rows.length()) {
+                        val item = rows.optJSONObject(index) ?: continue
+                        val animeId = item.optInt("anime_id", 0)
+                        val session = item.optString("anime_session")
+                        val title = item.optString("anime_title").trim()
+                        if (animeId <= 0 || session.isBlank() || title.isBlank()) continue
+
+                        add(
+                            AnimeSearchResult(
+                                session = session,
+                                title = title,
+                                poster = normalizePoster(item.optString("snapshot"), host),
+                                type = "Anime",
+                                episodes = 0,
+                                status = "",
+                                animeId = animeId,
+                                sourceQueries = listOf(title),
+                                catalogNote = "Available now",
+                            )
+                        )
+                    }
+                }
+            } catch (e: VerificationRequired) {
+                verificationError = verificationError ?: e
+                lastError = e
+            } catch (e: Exception) {
+                lastError = e
+            }
+        }
+
+        verificationError?.let { throw it }
+        throw lastError ?: IOException("AnimePahe recent releases are unavailable")
+    }
+
+    suspend fun resolveCatalogEpisode(
+        catalog: AnimeSearchResult,
+        episodeNumber: Double,
+        preferredAudio: String,
+    ): EpisodeInfo = withContext(Dispatchers.IO) {
+        var source = matchCatalogSource(catalog, forceRefresh = false)
+
+        try {
+            return@withContext findEpisodeOnSource(source, episodeNumber, preferredAudio)
+        } catch (_: VerificationRequired) {
+            source = matchCatalogSource(catalog, forceRefresh = true)
+            return@withContext findEpisodeOnSource(source, episodeNumber, preferredAudio)
+        } catch (_: IOException) {
+            source = matchCatalogSource(catalog, forceRefresh = true)
+            return@withContext findEpisodeOnSource(source, episodeNumber, preferredAudio)
+        }
+    }
+
+    private suspend fun matchCatalogSource(
+        catalog: AnimeSearchResult,
+        forceRefresh: Boolean,
+    ): AnimeSearchResult {
+        if (!forceRefresh && catalog.animeId != null && catalog.session.isNotBlank()) {
+            catalog.aniListId?.let { aniListId ->
+                sourceMatches.put(
+                    SourceMatch(
+                        aniListId = aniListId,
+                        animeId = catalog.animeId,
+                        session = catalog.session,
+                        host = sessions.animeHost().ifBlank { animeHosts.first() },
+                        sourceTitle = catalog.title,
+                    )
+                )
+            }
+            return catalog
+        }
+
+        if (!forceRefresh) {
+            catalog.aniListId?.let { aniListId ->
+                sourceMatches.get(aniListId)?.let { cached ->
+                    return catalog.copy(
+                        animeId = cached.animeId,
+                        session = cached.session,
+                        sourceQueries = (catalog.sourceQueries + cached.sourceTitle).distinct(),
+                    )
+                }
+            }
+        }
+
+        val aliases = (catalog.sourceQueries + catalog.title)
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .take(8)
+
+        var lastError: Exception? = null
+        var verificationError: VerificationRequired? = null
+
+        for (host in animeHosts) {
+            val candidates = mutableListOf<AnimeSearchResult>()
+
+            for (query in aliases) {
+                try {
+                    candidates += searchOnHost(host, query)
+                } catch (e: VerificationRequired) {
+                    verificationError = verificationError ?: e
+                    lastError = e
+                    break
+                } catch (e: Exception) {
+                    lastError = e
+                }
+
+                val exact = candidates.firstOrNull { candidate ->
+                    val normalized = normalizeTitle(candidate.title)
+                    aliases.any { alias -> normalizeTitle(alias) == normalized }
+                }
+                if (exact != null) {
+                    sessions.rememberAnimeHost(host)
+                    catalog.aniListId?.let { aniListId ->
+                        exact.animeId?.let { animeId ->
+                            sourceMatches.put(
+                                SourceMatch(
+                                    aniListId = aniListId,
+                                    animeId = animeId,
+                                    session = exact.session,
+                                    host = host,
+                                    sourceTitle = exact.title,
+                                )
+                            )
+                        }
+                    }
+                    return exact.copy(
+                        aniListId = catalog.aniListId,
+                        sourceQueries = aliases,
+                    )
+                }
+            }
+
+            val fallback = candidates
+                .map { candidate ->
+                    val normalized = normalizeTitle(candidate.title)
+                    val score = aliases.maxOfOrNull { alias ->
+                        val normalizedAlias = normalizeTitle(alias)
+                        when {
+                            normalized == normalizedAlias -> 3
+                            normalized.contains(normalizedAlias) || normalizedAlias.contains(normalized) -> 2
+                            else -> 0
+                        }
+                    } ?: 0
+                    score to candidate
+                }
+                .filter { it.first > 0 }
+                .maxByOrNull { it.first }
+                ?.second
+
+            if (fallback != null) {
+                sessions.rememberAnimeHost(host)
+                catalog.aniListId?.let { aniListId ->
+                    fallback.animeId?.let { animeId ->
+                        sourceMatches.put(
+                            SourceMatch(
+                                aniListId = aniListId,
+                                animeId = animeId,
+                                session = fallback.session,
+                                host = host,
+                                sourceTitle = fallback.title,
+                            )
+                        )
+                    }
+                }
+                return fallback.copy(
+                    aniListId = catalog.aniListId,
+                    sourceQueries = aliases,
+                )
+            }
+        }
+
+        verificationError?.let { throw it }
+        throw lastError ?: IOException("This AniList title could not be matched on AnimePahe")
+    }
+
+    private suspend fun findEpisodeOnSource(
+        source: AnimeSearchResult,
+        episodeNumber: Double,
+        preferredAudio: String,
+    ): EpisodeInfo {
+        val host = sessions.animeHost().ifBlank { animeHosts.first() }
+        val variants = mutableListOf<EpisodeInfo>()
+        var page = 1
+        var safety = 0
+
+        while (true) {
+            val data = releasePage(host, source.session, page)
+            val rows = data.optJSONArray("data")
+                ?: throw IOException("AnimePahe returned no episode data")
+
+            for (index in 0 until rows.length()) {
+                val item = rows.optJSONObject(index) ?: continue
+                val number = item.optDouble("episode", 0.0)
+                if (number != episodeNumber) continue
+
+                val epSession = item.optString("session")
+                if (epSession.isBlank()) continue
+
+                var audio = item.optString("audio", "jpn").trim().lowercase(Locale.US)
+                val title = item.optString("title").let { if (it == "?") "" else it.trim() }
+                if (audio == "jpn" && title.contains("dub", true)) audio = "eng"
+                if (audio == "eng" && title.contains("sub", true)) audio = "jpn"
+
+                variants += EpisodeInfo(
+                    number = number,
+                    session = epSession,
+                    title = title,
+                    fansub = item.optString("fansub").trim(),
+                    audio = audio,
+                    playUrl = "https://$host/play/${source.session}/$epSession",
+                )
+            }
+
+            if (variants.isNotEmpty()) {
+                return variants.firstOrNull { it.audio == preferredAudio } ?: variants.first()
+            }
+
+            val currentPage = data.optInt("current_page", page).coerceAtLeast(page)
+            val lastPage = data.optInt("last_page", currentPage).coerceAtLeast(currentPage)
+            if (rows.length() == 0 || currentPage >= lastPage) break
+
+            safety++
+            if (safety > 60) break
+            delay(3_000)
+            page = currentPage + 1
+        }
+
+        throw IOException("Episode ${episodeNumber.toInt()} is not available on AnimePahe")
+    }
 
     suspend fun search(query: String): List<AnimeSearchResult> = withContext(Dispatchers.IO) {
         val clean = query.trim()
