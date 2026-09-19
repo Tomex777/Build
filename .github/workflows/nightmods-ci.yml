@@ -244,17 +244,7 @@ jobs:
             sleep 4
             adb shell uiautomator dump /sdcard/nightmods.xml || true
             adb pull /sdcard/nightmods.xml smoke/nightmods.xml || true
-            python3 - <<'PY'
-            import xml.etree.ElementTree as ET
-            root = ET.parse('smoke/nightmods.xml').getroot()
-            for label in ('Modules', 'Repository', 'Logs', 'Settings'):
-                matches = [
-                    node for node in root.iter('node')
-                    if node.attrib.get('text') == label or node.attrib.get('content-desc') == label
-                ]
-                assert matches, f'{label} navigation item missing'
-                assert any(node.attrib.get('enabled') == 'true' for node in matches), f'{label} navigation item disabled'
-            PY
+            python3 -c "import xml.etree.ElementTree as ET; root=ET.parse('smoke/nightmods.xml').getroot(); labels=('Modules','Repository','Logs','Settings'); assert all(any(n.attrib.get('enabled') == 'true' for n in root.iter('node') if n.attrib.get('text') == label or n.attrib.get('content-desc') == label) for label in labels)"
 
             adb shell am force-stop org.lsposed.manager || true
             adb shell am start -W -a android.intent.action.VIEW -d 'lsposed://night-core/bubble-styler' -n org.lsposed.manager/.ui.activity.MainActivity | tee smoke/bubble-start.txt
