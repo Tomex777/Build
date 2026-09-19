@@ -127,7 +127,41 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         detailsError = null
     }
 
+    fun onQueryChanged(value: String) {
+        query = value
+        searchJob?.cancel()
+
+        val clean = value.trim()
+        if (clean.isBlank()) {
+            results = emptyList()
+            searchError = null
+            searching = false
+            return
+        }
+
+        if (clean.length < 2) {
+            results = emptyList()
+            searchError = null
+            searching = false
+            return
+        }
+
+        searchJob = viewModelScope.launch {
+            delay(250)
+            searching = true
+            searchError = null
+            try {
+                results = aniListRepository.search(clean)
+            } catch (e: Exception) {
+                searchError = e.message ?: "AniList search failed."
+            } finally {
+                searching = false
+            }
+        }
+    }
+
     fun submitSearch() {
+        searchJob?.cancel()
         val clean = query.trim()
         if (clean.isBlank()) {
             clearSearch()
@@ -148,9 +182,11 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun clearSearch() {
+        searchJob?.cancel()
         if (query.isBlank()) {
             results = emptyList()
             searchError = null
+            searching = false
         }
     }
 
@@ -179,6 +215,8 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openAnime(item: AnimeSearchResult) {
+        airDateJob?.cancel()
+
         val episodeSlots = if (item.episodes > 0) {
             (1..item.episodes).map { number ->
                 EpisodeInfo(
@@ -202,6 +240,27 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
         currentAnimeOverride = downloadPreferencesStore.overrideFor(item)
         detailsLoading = false
         detailsError = null
+
+        val aniListId = item.aniListId
+        if (aniListId != null && episodeSlots.isNotEmpty()) {
+            airDateJob = viewModelScope.launch {
+                val dates = runCatching {
+                    aniListRepository.episodeAirDates(aniListId, item.episodes)
+                }.getOrDefault(emptyMap())
+                if (dates.isEmpty()) return@launch
+
+                val current = details ?: return@launch
+                if (current.result.aniListId != aniListId) return@launch
+
+                details = current.copy(
+                    episodes = current.episodes.map { episode ->
+                        episode.copy(
+                            airedAt = dates[episode.number.toInt()]?.times(1000L),
+                        )
+                    }
+                )
+            }
+        }
     }
 
     fun retryDetails() {
@@ -209,6 +268,8 @@ class PaheViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun closeDetails() {
+        airDateJob?.cancel()
+        airDateJob = null
         details = null
         detailsLoading = false
         detailsError = null
