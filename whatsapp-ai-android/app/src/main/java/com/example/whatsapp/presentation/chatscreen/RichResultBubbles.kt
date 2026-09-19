@@ -1452,7 +1452,7 @@ private fun ExtensionResultBubble(
                         model = if (artworkFile.exists()) artworkFile else snapshot.artworkPath,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.size(leadingSize),
                     )
                 } else {
                     Surface(
@@ -1486,7 +1486,7 @@ private fun ExtensionResultBubble(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = snapshot.extensionName,
+                    text = snapshot.badge.ifBlank { snapshot.extensionName },
                     color = RichMuted,
                     fontSize = 11.sp,
                     modifier = Modifier.padding(top = 2.dp),
@@ -1520,7 +1520,6 @@ private fun ExtensionResultBubble(
         }
 
         val badges = buildList {
-            if (snapshot.badge.isNotBlank()) add(snapshot.badge)
             if (snapshot.status.isNotBlank()) add(snapshot.status)
             snapshot.metadata.take(3).forEach { metadata ->
                 add(
