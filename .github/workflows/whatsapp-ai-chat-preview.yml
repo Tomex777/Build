@@ -7,6 +7,12 @@ on:
     paths:
       - "whatsapp-ai-android/**"
       - ".github/workflows/whatsapp-ai-chat-preview.yml"
+  pull_request:
+    branches:
+      - whatsapp-ai-ui-ci
+    paths:
+      - "whatsapp-ai-android/**"
+      - ".github/workflows/whatsapp-ai-chat-preview.yml"
   workflow_dispatch:
 
 permissions:
@@ -138,7 +144,7 @@ jobs:
             adb exec-out screencap -p > whatsapp-ai-preview/night-keyboard.png
 
       - name: Commit rendered screenshot
-        if: always()
+        if: always() && github.event_name == 'push'
         run: |
           mkdir -p whatsapp-ai-preview
           {
