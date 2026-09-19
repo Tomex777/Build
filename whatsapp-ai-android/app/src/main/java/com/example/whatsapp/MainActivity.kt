@@ -1,3 +1,4 @@
+// Night media exact-current validation
 package com.example.whatsapp
 
 import android.Manifest
