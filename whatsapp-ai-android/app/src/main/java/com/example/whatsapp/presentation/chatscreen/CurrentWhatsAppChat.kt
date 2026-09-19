@@ -1,3 +1,4 @@
+// Night keyboard preview validation
 package com.example.whatsapp.presentation.chatscreen
 
 import androidx.compose.foundation.Canvas
