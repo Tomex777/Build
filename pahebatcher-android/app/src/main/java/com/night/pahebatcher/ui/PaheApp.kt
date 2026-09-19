@@ -94,8 +94,6 @@ import com.night.pahebatcher.data.DownloadPreferences
 import com.night.pahebatcher.data.EpisodeInfo
 import com.night.pahebatcher.data.SessionSnapshot
 import java.net.URI
-import java.text.DateFormat
-import java.util.Date
 import okhttp3.Headers
 
 private val Bg = Color(0xFF0B0B0D)
@@ -1231,7 +1229,7 @@ private fun SettingsScreen(vm: PaheViewModel, padding: PaddingValues) {
                 TextButton(onClick = vm::clearVerificationSessions) {
                     Icon(Icons.Rounded.DeleteOutline, null, tint = Error)
                     Spacer(Modifier.width(6.dp))
-                    Text("Clear saved browser sessions", color = Error)
+                    Text("Clear AnimePahe browser session", color = Error)
                 }
             }
         }
@@ -1286,40 +1284,6 @@ private fun DownloadPreferencesCard(
             }
         }
     }
-}
-
-@Composable
-private fun SessionRow(title: String, host: String, saved: Boolean, updatedAt: Long) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Surface(
-            color = if (saved) Color(0xFF142019) else Elevated2,
-            shape = CircleShape,
-            modifier = Modifier.size(38.dp),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                if (saved) {
-                    Icon(Icons.Rounded.CheckCircle, null, tint = Success, modifier = Modifier.size(19.dp))
-                } else {
-                    Text("—", color = TextMuted, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, color = TextMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            Text(host, color = TextMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        Text(
-            if (saved) formatSaved(updatedAt) else "Not verified",
-            color = if (saved) Success else TextMuted,
-            fontSize = 10.sp,
-        )
-    }
-}
-
-private fun formatSaved(time: Long): String {
-    if (time <= 0L) return "Saved"
-    return DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(time))
 }
 
 @SuppressLint("SetJavaScriptEnabled")
