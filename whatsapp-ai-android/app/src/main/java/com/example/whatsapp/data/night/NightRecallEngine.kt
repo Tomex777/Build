@@ -19,37 +19,42 @@ class NightRecallEngine(
         if (tokens.isEmpty()) return emptyList()
 
         val chats = repository.getChats().associateBy { it.id }
-        val recent = repository.getRecentMessagesAcrossChats()
-            .asSequence()
-            .filter { it.chatId != currentChatId }
-            .filter { it.text.isNotBlank() }
-            .mapNotNull { message ->
-                val haystack = message.text.lowercase()
-                val matched = tokens.count { token -> token in haystack }
-                if (matched == 0) return@mapNotNull null
+        val candidates = mutableListOf<Pair<NightMessageEntity, Int>>()
 
-                val exactPhraseBonus =
-                    if (query.length >= 12 && haystack.contains(query.lowercase())) 5 else 0
+        for (message in repository.getRecentMessagesAcrossChats()) {
+            if (message.chatId == currentChatId || message.text.isBlank()) continue
 
-                val score = matched * 2 + exactPhraseBonus
-                val library = message.libraryFileId
-                    ?.let { repository.getLibraryItem(it) }
+            val haystack = message.text.lowercase()
+            val matched = tokens.count { token -> token in haystack }
+            if (matched == 0) continue
 
-                NightRecallHit(
-                    chatTitle = chats[message.chatId]?.title ?: "Older chat",
-                    message = message,
-                    libraryItem = library,
-                    score = score,
-                )
-            }
+            val exactPhraseBonus =
+                if (query.length >= 12 && haystack.contains(query.lowercase())) 5 else 0
+
+            candidates += message to (matched * 2 + exactPhraseBonus)
+        }
+
+        val ranked = candidates
             .sortedWith(
-                compareByDescending<NightRecallHit> { it.score }
-                    .thenByDescending { it.message.createdAt }
+                compareByDescending<Pair<NightMessageEntity, Int>> { it.second }
+                    .thenByDescending { it.first.createdAt }
             )
             .take(limit)
-            .toList()
 
-        return recent
+        val hits = mutableListOf<NightRecallHit>()
+        for ((message, score) in ranked) {
+            val library = message.libraryFileId
+                ?.let { repository.getLibraryItem(it) }
+
+            hits += NightRecallHit(
+                chatTitle = chats[message.chatId]?.title ?: "Older chat",
+                message = message,
+                libraryItem = library,
+                score = score,
+            )
+        }
+
+        return hits
     }
 
     private fun meaningfulTokens(text: String): Set<String> {
