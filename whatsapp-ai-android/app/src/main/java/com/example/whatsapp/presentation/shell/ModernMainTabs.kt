@@ -265,12 +265,11 @@ data class ChatPreviewRow(
 )
 
 private fun fallbackChats() = listOf(
-    ChatPreviewRow("Night", "Core ready • extensions off", "07:08", R.drawable.bilal, unread = 2, pinned = true),
-    ChatPreviewRow("Second Child", "Since yesterday", "Yesterday", R.drawable.harib),
-    ChatPreviewRow("Muhammad Ahmad", "Voice message", "Yesterday", R.drawable.taimoor, unread = 1),
-    ChatPreviewRow("Hannan Ahmad", "Photo", "Thursday", R.drawable.hannan_ahmad, muted = true),
-    ChatPreviewRow("Night Team", "Dawson: the build passed", "Wednesday", R.drawable.abdussalam),
-    ChatPreviewRow("Saleh Hayat", "Okay, I’ll check it", "Tuesday", R.drawable.salleh),
+    ChatPreviewRow("Night UI", "Summary synced • chat, library and memory", "Now", R.drawable.ic_night, unread = 2, pinned = true),
+    ChatPreviewRow("Sora architecture", "Summary ready • extensions and media flow", "Yesterday", R.drawable.ic_night),
+    ChatPreviewRow("Azure models", "Astra pricing and model routing", "Yesterday", R.drawable.ic_night, unread = 1),
+    ChatPreviewRow("Research notes", "6 messages • 2 Library references", "Thursday", R.drawable.ic_night),
+    ChatPreviewRow("App planning", "Summary ready • Android implementation", "Wednesday", R.drawable.ic_night),
 )
 
 @Composable
