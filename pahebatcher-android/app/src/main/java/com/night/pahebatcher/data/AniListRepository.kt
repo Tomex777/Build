@@ -131,10 +131,10 @@ class AniListRepository {
         }
 
         val gql = """
-            query EpisodeAirDates($mediaId: Int, $page: Int) {
-              Page(page: $page, perPage: 50) {
+            query EpisodeAirDates(${D}mediaId: Int, ${D}page: Int) {
+              Page(page: ${D}page, perPage: 50) {
                 pageInfo { hasNextPage }
-                airingSchedules(mediaId: $mediaId, sort: EPISODE) {
+                airingSchedules(mediaId: ${D}mediaId, sort: EPISODE) {
                   episode
                   airingAt
                 }
