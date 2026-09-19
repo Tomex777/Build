@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PlayArrow
@@ -156,6 +157,20 @@ sealed interface WhatsAppVisualMessage {
         val reply: ReplyPreview? = null,
     ) : WhatsAppVisualMessage
 
+    data class AudioMessage(
+        override val id: String,
+        val title: String,
+        val artist: String,
+        val duration: String,
+        val detail: String,
+        val time: String,
+        val mine: Boolean,
+        val read: Boolean = false,
+        val localPath: String? = null,
+        val artworkPath: String? = null,
+        val reply: ReplyPreview? = null,
+    ) : WhatsAppVisualMessage
+
     data class VoiceMessage(
         override val id: String,
         val duration: String,
@@ -210,6 +225,7 @@ fun CurrentWhatsAppConversation(
     onMicClick: () -> Unit = {},
     isRecording: Boolean = false,
     onVoiceClick: (String) -> Unit = {},
+    onAudioClick: (String) -> Unit = {},
     onTranscribeVoice: (String, String) -> Unit = { _, _ -> },
     onSpeakText: (String) -> Unit = {},
     onReplyRequest: (String) -> Unit = {},
@@ -309,6 +325,15 @@ fun CurrentWhatsAppConversation(
                                 is WhatsAppVisualMessage.FileMessage -> CurrentFileBubble(
                                     item,
                                     appearance,
+                                    onReplyPreviewClick = { targetId ->
+                                        val index = messages.indexOfFirst { it.id == targetId }
+                                        if (index >= 0) scope.launch { state.animateScrollToItem(index) }
+                                    },
+                                )
+                                is WhatsAppVisualMessage.AudioMessage -> CurrentAudioBubble(
+                                    item,
+                                    appearance,
+                                    onAudioClick,
                                     onReplyPreviewClick = { targetId ->
                                         val index = messages.indexOfFirst { it.id == targetId }
                                         if (index >= 0) scope.launch { state.animateScrollToItem(index) }
@@ -1129,6 +1154,133 @@ private fun DemoMediaArtwork(modifier: Modifier = Modifier) {
 }
 
 @Composable
+private fun CurrentAudioBubble(
+    item: WhatsAppVisualMessage.AudioMessage,
+    appearance: NightChatAppearance,
+    onAudioClick: (String) -> Unit,
+    onReplyPreviewClick: (String) -> Unit,
+) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = if (item.mine) Alignment.CenterEnd else Alignment.CenterStart,
+    ) {
+        Column(
+            modifier = Modifier
+                .widthIn(min = 280.dp, max = 340.dp)
+                .clip(
+                    if (item.mine) {
+                        RoundedCornerShape(16.dp, 5.dp, 16.dp, 16.dp)
+                    } else {
+                        RoundedCornerShape(5.dp, 16.dp, 16.dp, 16.dp)
+                    }
+                )
+                .background(if (item.mine) appearance.userBubbleColor else appearance.aiBubbleColor)
+                .padding(8.dp),
+        ) {
+            item.reply?.let {
+                CurrentReplyBlock(
+                    reply = it,
+                    appearance = appearance,
+                    onClick = { onReplyPreviewClick(it.messageId) },
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF303436))
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(58.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFF45494B)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val artwork = item.artworkPath?.let(::File)
+                    if (artwork != null && artwork.exists()) {
+                        AsyncImage(
+                            model = artwork,
+                            contentDescription = item.title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = null,
+                            tint = appearance.accentColor,
+                            modifier = Modifier.size(28.dp),
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.title,
+                        color = PrimaryText,
+                        fontSize = (14f * appearance.messageFontScale).sp,
+                        fontFamily = appearance.fontFamily,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = item.artist.ifBlank { item.detail },
+                        color = SecondaryText,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                    Text(
+                        text = item.duration + if (item.detail.isBlank()) "" else " • " + item.detail,
+                        color = SecondaryText,
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+
+                Surface(
+                    color = Color(0xFF474D50),
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clickable {
+                            item.localPath?.let(onAudioClick)
+                        },
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Play audio",
+                            tint = PrimaryText,
+                            modifier = Modifier.size(25.dp),
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 5.dp, end = 2.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                MessageMeta(item.time, item.mine, item.read)
+            }
+        }
+    }
+}
+
+@Composable
 private fun CurrentVoiceBubble(
     item: WhatsAppVisualMessage.VoiceMessage,
     appearance: NightChatAppearance,
@@ -1550,6 +1702,7 @@ private fun AttachmentTray(
         Triple("Camera", Icons.Default.PhotoCamera, Color(0xFFE91E63)),
         Triple("Choose AI", Icons.Default.Psychology, Color(0xFF039BE5)),
         Triple("Document", Icons.Default.Description, Color(0xFF7E57C2)),
+        Triple("Audio", Icons.Default.MusicNote, Color(0xFF8E7CFF)),
         Triple("Options", Icons.Default.CheckCircle, Color(0xFFFFB300)),
         Triple("Schedule", Icons.Default.Schedule, Color(0xFFE91E63)),
         Triple("AI images", Icons.Default.AutoAwesome, Color(0xFF1976D2)),
