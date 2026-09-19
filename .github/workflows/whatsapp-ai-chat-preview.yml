@@ -19,7 +19,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: whatsapp-ai-chat-preview
+  group: whatsapp-ai-chat-preview-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
