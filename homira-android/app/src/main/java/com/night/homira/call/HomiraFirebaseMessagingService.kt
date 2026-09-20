@@ -1,5 +1,6 @@
 package com.night.homira.call
 
+import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.night.homira.data.HomiraLiveRepository
@@ -37,7 +38,22 @@ class HomiraFirebaseMessagingService : FirebaseMessagingService() {
                         token = target,
                         platform = "android"
                     )
+                    Log.i(
+                        "HomiraPush",
+                        "Push target registered for signed-in user"
+                    )
+                } else {
+                    Log.i(
+                        "HomiraPush",
+                        "Push target cached until sign-in completes"
+                    )
                 }
+            }.onFailure { error ->
+                Log.e(
+                    "HomiraPush",
+                    "Could not register push target",
+                    error
+                )
             }
         }
     }
@@ -58,7 +74,18 @@ class HomiraFirebaseMessagingService : FirebaseMessagingService() {
                         ),
                         notificationShown = notificationShown
                     )
+                    Log.i(
+                        "HomiraPush",
+                        "Push receipt acknowledged for $callId; " +
+                            "notificationShown=$notificationShown"
+                    )
                 }
+            }.onFailure { error ->
+                Log.e(
+                    "HomiraPush",
+                    "Could not acknowledge push receipt for $callId",
+                    error
+                )
             }
         }
     }
@@ -77,6 +104,11 @@ class HomiraFirebaseMessagingService : FirebaseMessagingService() {
         val callId = data["call_id"]?.trim()
             ?.takeIf { it.isNotBlank() }
             ?: return
+
+        Log.i(
+            "HomiraPush",
+            "Received $type push for $callId"
+        )
 
         val callerName = data["caller_name"]
             ?.trim()
@@ -153,6 +185,11 @@ class HomiraFirebaseMessagingService : FirebaseMessagingService() {
                 timeoutMs = timeoutMs
             )
         }.getOrDefault(false)
+
+        Log.i(
+            "HomiraPush",
+            "Incoming call $callId notificationShown=$notificationShown"
+        )
 
         acknowledgeIncomingPush(
             callId = callId,
