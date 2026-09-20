@@ -54,7 +54,7 @@ jobs:
           profile: pixel_2
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             adb wait-for-device
             adb install -r homira-android/app/build/outputs/apk/debug/app-debug.apk
             mkdir -p homira-android/app/build/ui-smoke
