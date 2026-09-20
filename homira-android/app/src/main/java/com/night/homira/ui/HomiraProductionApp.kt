@@ -2074,7 +2074,8 @@ fun HomiraProductionApp(
             activePerson != null && !minimized -> Box(
                 modifier = Modifier.fillMaxSize()
             ) {
-                person = activePerson ?: mimiP,
+                ActiveCallScreen(
+                    person = activePerson ?: mimiP,
                 startsWithVideo = activeVideo,
                 liveState = if (liveMode) activeSession?.state else null,
                 mediaState = if (liveMode) webRtcState else null,
