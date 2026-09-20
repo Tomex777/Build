@@ -462,10 +462,11 @@ fun HomiraProductionApp(
         }
         var notificationPermissionGranted by remember {
             mutableStateOf(
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.POST_NOTIFICATIONS
+                    ) == PackageManager.PERMISSION_GRANTED
             )
         }
         val notificationPermissionLauncher =
@@ -519,6 +520,7 @@ fun HomiraProductionApp(
             notificationPermissionGranted
         ) {
             if (
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 liveBackendReady &&
                 localSettings.callNotifications &&
                 !localSettings.notificationPermissionRequested &&
@@ -653,10 +655,22 @@ fun HomiraProductionApp(
         ) { result ->
             val projectionData = result.data
             if (result.resultCode == Activity.RESULT_OK && projectionData != null) {
-                ContextCompat.startForegroundService(
-                    context,
-                    Intent(context, HomiraScreenShareService::class.java)
-                )
+                val foregroundStarted = runCatching {
+                    ContextCompat.startForegroundService(
+                        context,
+                        Intent(context, HomiraScreenShareService::class.java)
+                    )
+                }.isSuccess
+
+                if (!foregroundStarted) {
+                    Toast.makeText(
+                        context,
+                        "Could not start screen sharing.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@rememberLauncherForActivityResult
+                }
+
                 liveScope.launch {
                     val ready = withTimeoutOrNull(3_000L) {
                         HomiraScreenShareService.foregroundReady
@@ -1656,7 +1670,7 @@ fun HomiraProductionApp(
         }
 
         LaunchedEffect(liveBackendReady, activeSession?.id, micPermissionGranted) {
-            voiceEngine?.close()
+            runCatching { voiceEngine?.close() }
             voiceEngine = null
             webRtcState = HomiraWebRtcState.New
 
@@ -1675,17 +1689,27 @@ fun HomiraProductionApp(
                 turnConfiguration
             )
 
-            val engine = HomiraWebRtcVoiceEngine(
-                context = context,
-                callId = session.id,
-                localUserId = localUserId,
-                caller = session.callerId == localUserId,
-                initialVideoEnabled = activeVideo && cameraPermissionGranted,
-                lowDataMode = localSettings.lowDataCalls,
-                signaling = HomiraCallSignaling(session.id),
-                iceServers = iceServers,
-                forceRelayOnly = BuildConfig.HOMIRA_FORCE_TURN_RELAY
-            )
+            val engine = runCatching {
+                HomiraWebRtcVoiceEngine(
+                    context = context,
+                    callId = session.id,
+                    localUserId = localUserId,
+                    caller = session.callerId == localUserId,
+                    initialVideoEnabled = activeVideo && cameraPermissionGranted,
+                    lowDataMode = localSettings.lowDataCalls,
+                    signaling = HomiraCallSignaling(session.id),
+                    iceServers = iceServers,
+                    forceRelayOnly = BuildConfig.HOMIRA_FORCE_TURN_RELAY
+                )
+            }.getOrElse { error ->
+                webRtcState = HomiraWebRtcState.Failed
+                Toast.makeText(
+                    context,
+                    error.message ?: "Could not initialize the call engine.",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@LaunchedEffect
+            }
             voiceEngine = engine
 
             try {
@@ -1711,7 +1735,7 @@ fun HomiraProductionApp(
                     Toast.LENGTH_SHORT
                 ).show()
             } finally {
-                engine.close()
+                runCatching { engine.close() }
                 if (voiceEngine === engine) {
                     voiceEngine = null
                 }
@@ -1841,7 +1865,11 @@ fun HomiraProductionApp(
                         activeVideo = false
                     } else if (!cameraPermissionGranted) {
                         pendingVideoEnable = true
-                        callPermissionLauncher.launch(arrayOf(Manifest.permission.CAMERA))
+                        runCatching {
+                            callPermissionLauncher.launch(
+                                arrayOf(Manifest.permission.CAMERA)
+                            )
+                        }
                     } else {
                         val started = voiceEngine?.setVideoEnabled(true) == true
                         if (started) {
@@ -1860,9 +1888,17 @@ fun HomiraProductionApp(
                     if (!liveMode) {
                         screenSharing = shouldShare
                     } else if (shouldShare) {
-                        screenShareLauncher.launch(
-                            mediaProjectionManager.createScreenCaptureIntent()
-                        )
+                        runCatching {
+                            screenShareLauncher.launch(
+                                mediaProjectionManager.createScreenCaptureIntent()
+                            )
+                        }.onFailure {
+                            Toast.makeText(
+                                context,
+                                "Could not request screen sharing.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     } else {
                         voiceEngine?.stopScreenShare()
                     }
@@ -1890,10 +1926,16 @@ fun HomiraProductionApp(
                 onNotificationsChanged = { enabled ->
                     settingsStore.setCallNotifications(enabled)
                     localSettings = settingsStore.load()
-                    if (enabled && !notificationPermissionGranted) {
-                        notificationPermissionLauncher.launch(
-                            Manifest.permission.POST_NOTIFICATIONS
-                        )
+                    if (
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                        enabled &&
+                        !notificationPermissionGranted
+                    ) {
+                        runCatching {
+                            notificationPermissionLauncher.launch(
+                                Manifest.permission.POST_NOTIFICATIONS
+                            )
+                        }
                     }
                 },
                 onRingtone = {
@@ -1927,7 +1969,15 @@ fun HomiraProductionApp(
                             existingUri
                         )
                     }
-                    ringtonePickerLauncher.launch(intent)
+                    runCatching {
+                        ringtonePickerLauncher.launch(intent)
+                    }.onFailure {
+                        Toast.makeText(
+                            context,
+                            "Could not open the ringtone picker.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 },
                 onVoicemailEnabledChanged = { enabled ->
                     if (!liveMode) {

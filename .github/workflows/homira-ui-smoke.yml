@@ -1,13 +1,14 @@
 name: Homira UI Smoke
 
+concurrency:
+  group: homira-ui-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [homira-call-ci]
     paths:
-      - 'homira-android/app/src/main/java/com/night/homira/ui/HomiraProductionApp.kt'
-      - 'homira-android/app/src/main/java/com/night/homira/ui/HomiraAuthGate.kt'
-      - 'homira-android/app/src/main/java/com/night/homira/call/**'
-      - 'homira-android/app/src/debug/**'
+      - 'homira-android/**'
       - '.github/workflows/homira-ui-smoke.yml'
   workflow_dispatch:
 
@@ -46,6 +47,16 @@ jobs:
       - name: Build debug APK
         working-directory: homira-android
         run: gradle :app:assembleDebug --stacktrace
+
+      - name: Build release-mode startup APK
+        if: matrix.api-level == 36
+        working-directory: homira-android
+        run: |
+          set -euo pipefail
+          gradle :app:assembleRelease --stacktrace
+          keytool -genkeypair -noprompt             -keystore /tmp/homira-smoke.jks             -storepass homira-smoke             -keypass homira-smoke             -alias smoke             -keyalg RSA             -keysize 2048             -validity 1             -dname "CN=Homira Smoke"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -p -f 4             app/build/outputs/apk/release/app-release-unsigned.apk             /tmp/homira-release-aligned.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign             --ks /tmp/homira-smoke.jks             --ks-key-alias smoke             --ks-pass pass:homira-smoke             --key-pass pass:homira-smoke             --out app/build/outputs/apk/release/homira-release-smoke.apk             /tmp/homira-release-aligned.apk
 
       - name: Enable KVM
         run: |
@@ -106,10 +117,44 @@ jobs:
             adb shell pidof com.night.homira | grep -q .
             adb exec-out screencap -p > homira-android/app/build/ui-smoke/live-main.png
 
+            adb logcat -c
+            adb shell am force-stop com.night.homira
+            adb shell am start -W -n com.night.homira/.HomiraCachedStartupSmokeActivity
+            sleep 5
+            adb logcat -d > homira-android/app/build/ui-smoke/cached-startup-logcat.txt
+            ! grep -q "FATAL EXCEPTION" homira-android/app/build/ui-smoke/cached-startup-logcat.txt
+            adb shell pidof com.night.homira | grep -q .
+            adb exec-out screencap -p > homira-android/app/build/ui-smoke/cached-startup.png
+
+            if [ "${{ matrix.api-level }}" = "36" ]; then
+              adb uninstall com.night.homira
+              adb install homira-android/app/build/outputs/apk/release/homira-release-smoke.apk
+              adb logcat -c
+              adb shell am start -W -n com.night.homira/.MainActivity
+              sleep 5
+              adb logcat -d > homira-android/app/build/ui-smoke/release-startup-logcat.txt
+              ! grep -q "FATAL EXCEPTION" homira-android/app/build/ui-smoke/release-startup-logcat.txt
+              adb shell pidof com.night.homira | grep -q .
+              adb exec-out screencap -p > homira-android/app/build/ui-smoke/release-startup.png
+            fi
+
       - name: Run Android lint
+        id: lint
         if: matrix.api-level == 36
+        continue-on-error: true
         working-directory: homira-android
         run: gradle :app:lintDebug --stacktrace
+
+      - name: Upload lint reports
+        if: matrix.api-level == 36 && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: homira-lint-debug
+          path: |
+            homira-android/app/build/reports/lint-results-debug.html
+            homira-android/app/build/reports/lint-results-debug.sarif
+            homira-android/app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt
+          if-no-files-found: warn
 
       - name: Upload smoke artifacts
         if: always()
@@ -117,4 +162,8 @@ jobs:
         with:
           name: homira-ui-smoke-api-${{ matrix.api-level }}
           path: homira-android/app/build/ui-smoke/
-          if-no-files-found: error
+          if-no-files-found: warn
+
+      - name: Require clean lint
+        if: matrix.api-level == 36 && always()
+        run: test "${{ steps.lint.outcome }}" = "success"

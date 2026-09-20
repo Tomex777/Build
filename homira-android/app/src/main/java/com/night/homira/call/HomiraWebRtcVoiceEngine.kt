@@ -6,10 +6,12 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.projection.MediaProjection
 import android.os.Build
+import android.util.Log
 import com.night.homira.data.CallSignalEnvelope
 import com.night.homira.data.HomiraCallSignaling
 import com.night.homira.data.HomiraTurnConfiguration
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -67,7 +69,12 @@ class HomiraWebRtcVoiceEngine(
     private val forceRelayOnly: Boolean = false
 ) {
     private val appContext = context.applicationContext
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val exceptionHandler = CoroutineExceptionHandler { _, error ->
+        Log.e("HomiraWebRTC", "Background WebRTC task failed", error)
+    }
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Default + exceptionHandler
+    )
     private val audioManager = appContext.getSystemService(AudioManager::class.java)
     private val originalAudioMode = audioManager.mode
     @Suppress("DEPRECATION")
@@ -569,22 +576,22 @@ class HomiraWebRtcVoiceEngine(
         audioDeviceModule?.release()
         audioDeviceModule = null
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val originalDevice = originalCommunicationDeviceId?.let { deviceId ->
-                audioManager.availableCommunicationDevices.firstOrNull { it.id == deviceId }
-            }
-            if (originalDevice != null) {
-                audioManager.setCommunicationDevice(originalDevice)
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val originalDevice = originalCommunicationDeviceId?.let { deviceId ->
+                    audioManager.availableCommunicationDevices.firstOrNull { it.id == deviceId }
+                }
+                if (originalDevice != null) {
+                    audioManager.setCommunicationDevice(originalDevice)
+                } else {
+                    audioManager.clearCommunicationDevice()
+                }
             } else {
-                audioManager.clearCommunicationDevice()
-            }
-        } else {
-            @Suppress("DEPRECATION")
-            runCatching {
+                @Suppress("DEPRECATION")
                 audioManager.isSpeakerphoneOn = originalSpeakerphoneOn
             }
+            audioManager.mode = originalAudioMode
         }
-        audioManager.mode = originalAudioMode
 
         eglBase.release()
         scope.cancel()

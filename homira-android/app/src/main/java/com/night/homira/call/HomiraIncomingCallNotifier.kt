@@ -63,13 +63,15 @@ class HomiraIncomingCallNotifier(
             MIN_RING_TIMEOUT_MS,
             MAX_RING_TIMEOUT_MS
         )
-        scheduleRingTimeout(
-            callId = callId,
-            callerId = callerId,
-            callerName = callerName,
-            mediaType = mediaType,
-            timeoutMs = safeTimeoutMs
-        )
+        runCatching {
+            scheduleRingTimeout(
+                callId = callId,
+                callerId = callerId,
+                callerName = callerName,
+                mediaType = mediaType,
+                timeoutMs = safeTimeoutMs
+            )
+        }
 
         if (!notificationsEnabled) return false
 
@@ -171,18 +173,20 @@ class HomiraIncomingCallNotifier(
             }
             .build()
 
-        notificationManager.notify(
-            NOTIFICATION_TAG,
-            notificationId(callId),
-            notification
-        )
-        HomiraRingtonePlayback.play(
-            context = appContext,
-            uriString = ringtoneUri,
-            callId = callId,
-            timeoutMs = safeTimeoutMs
-        )
-        return true
+        return runCatching {
+            notificationManager.notify(
+                NOTIFICATION_TAG,
+                notificationId(callId),
+                notification
+            )
+            HomiraRingtonePlayback.play(
+                context = appContext,
+                uriString = ringtoneUri,
+                callId = callId,
+                timeoutMs = safeTimeoutMs
+            )
+            true
+        }.getOrDefault(false)
     }
 
     fun showOngoing(
@@ -265,21 +269,25 @@ class HomiraIncomingCallNotifier(
             )
             .build()
 
-        HomiraRingtonePlayback.stop()
-        notificationManager.notify(
-            NOTIFICATION_TAG,
-            notificationId(callId),
-            notification
-        )
-        return true
+        return runCatching {
+            HomiraRingtonePlayback.stop()
+            notificationManager.notify(
+                NOTIFICATION_TAG,
+                notificationId(callId),
+                notification
+            )
+            true
+        }.getOrDefault(false)
     }
 
     fun cancel(callId: String) {
-        cancelRingTimeout(callId)
-        notificationManager.cancel(
-            NOTIFICATION_TAG,
-            notificationId(callId)
-        )
+        runCatching { cancelRingTimeout(callId) }
+        runCatching {
+            notificationManager.cancel(
+                NOTIFICATION_TAG,
+                notificationId(callId)
+            )
+        }
         HomiraRingtonePlayback.stop()
     }
 

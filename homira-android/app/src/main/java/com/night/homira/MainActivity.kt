@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.night.homira.call.HomiraIncomingCallNotifier
 import com.night.homira.ui.HomiraAuthGate
+import com.night.homira.ui.HomiraTheme
 
 class MainActivity : ComponentActivity() {
     private val requestedCallId = mutableStateOf<String?>(null)
@@ -38,13 +39,15 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(HomiraCrashReporter.peek(context))
             }
 
-            HomiraAuthGate(
-                requestedCallId = requestedCallId.value,
-                requestedAnswerCall = requestedAnswerCall.value
-            )
-
-            crashReport.value?.let { report ->
-                AlertDialog(
+            val report = crashReport.value
+            if (report == null) {
+                HomiraAuthGate(
+                    requestedCallId = requestedCallId.value,
+                    requestedAnswerCall = requestedAnswerCall.value
+                )
+            } else {
+                HomiraTheme {
+                    AlertDialog(
                     onDismissRequest = {
                         HomiraCrashReporter.clear(context)
                         crashReport.value = null
@@ -85,7 +88,8 @@ class MainActivity : ComponentActivity() {
                             Text("Dismiss")
                         }
                     }
-                )
+                    )
+                }
             }
         }
     }
