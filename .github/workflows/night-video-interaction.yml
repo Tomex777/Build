@@ -130,7 +130,7 @@ jobs:
           ram-size: 2048M
           emulator-boot-timeout: 420
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -accel on -wipe-data
+          emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -accel on -wipe-data
           script: bash .github/scripts/night-video-interaction.sh
 
       - name: Upload video interaction evidence
