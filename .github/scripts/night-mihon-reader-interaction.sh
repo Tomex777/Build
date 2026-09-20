@@ -55,7 +55,7 @@ read_saved_progress() {
 
 read_media_volume() {
   local raw volume
-  raw="$(adb shell media volume --stream 3 --get 2>/dev/null || true)"
+  raw="$(adb shell cmd media_session volume --stream 3 --get 2>/dev/null || true)"
   printf '%s\n' "$raw" > mihon-interaction-artifacts/media-volume-latest.txt
   volume="$(printf '%s\n' "$raw" | sed -n 's/.*volume is \([0-9][0-9]*\).*/\1/p' | tail -n 1)"
   if [ -z "$volume" ]; then
@@ -282,7 +282,7 @@ sleep 1
 
 # Put the media stream in the middle of its range. If Night fails to consume
 # either hardware key, Android will visibly move this value and the test fails.
-adb shell media volume --stream 3 --set 7 >/dev/null
+adb shell cmd media_session volume --stream 3 --set 7 >/dev/null
 baseline_media_volume="$(read_media_volume)"
 if [ "$baseline_media_volume" != "7" ]; then
   echo "Could not establish media-volume baseline at 7 (got $baseline_media_volume)." >&2
