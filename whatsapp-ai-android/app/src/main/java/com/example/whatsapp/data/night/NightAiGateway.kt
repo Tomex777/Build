@@ -193,6 +193,21 @@ class NightAiGateway private constructor(
             .put(JSONObject().put("role", "system").put("content", system))
 
         val selectedHasVision = supports(selected.model, "vision")
+        val recentReadableFileIds = if (hasTools) {
+            emptySet()
+        } else {
+            messages
+                .takeLast(16)
+                .filter { it.type == "file" && !it.libraryFileId.isNullOrBlank() }
+                .takeLast(2)
+                .mapNotNull { it.libraryFileId }
+                .toSet()
+        }
+        val fileContext = if (recentReadableFileIds.isEmpty()) {
+            null
+        } else {
+            NightFileContextService.get(context)
+        }
 
         for (message in messages.takeLast(60)) {
             val role = when (message.role.lowercase()) {
@@ -326,7 +341,29 @@ class NightAiGateway private constructor(
                             append(", id=")
                             append(it)
                         }
-                        append(". Use read_library_file before discussing its contents.]")
+                        append(".")
+
+                        val fileId = message.libraryFileId
+                        if (
+                            fileId != null &&
+                            fileId in recentReadableFileIds &&
+                            fileContext != null
+                        ) {
+                            val extracted = fileContext.read(
+                                id = fileId,
+                                query = latestUserText,
+                                maxChars = 12_000,
+                            ).getOrNull()
+                            if (extracted != null) {
+                                append("\nExtracted document context:\n")
+                                append(extracted.text)
+                            } else {
+                                append(" No readable text could be extracted automatically.")
+                            }
+                        } else if (hasTools) {
+                            append(" Use read_library_file before discussing its contents.")
+                        }
+                        append("]")
                     }
                     "voice" -> message.text + "\n[Voice note attached in Night Library.]"
                     else -> message.text
