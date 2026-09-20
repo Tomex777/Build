@@ -428,9 +428,12 @@ internal fun NightVlcVideoSurface(
                     !userPaused &&
                     length > 0L &&
                     position < (length - 1500L).coerceAtLeast(0L) &&
-                    now - startedAt >= 3500L &&
-                    now - lastAdvanceAt >= 2500L
+                    (
+                        (lastObservedPosition >= 500L && now - lastAdvanceAt >= 2500L) ||
+                            (lastObservedPosition < 500L && now - startedAt >= 9000L)
+                        )
                 ) {
+                    // Do not mistake normal surface/decoder startup for a 0ms stall.
                     fallbackResumePosition = position
                     Log.w(
                         "NightVideo",
@@ -459,7 +462,7 @@ internal fun NightVlcVideoSurface(
                         if (attachedPlayer !== player) {
                             runCatching { attachedPlayer?.detachViews() }
                             val attached = runCatching {
-                                player.attachViews(layout, null, false, false)
+                                player.attachViews(layout, null, false, true)
                             }.isSuccess
                             if (attached) {
                                 attachedPlayer = player
