@@ -3828,6 +3828,7 @@ private fun ContactsScreen(
     var infoPerson by remember { mutableStateOf<HomiraPerson?>(null) }
     var deletePerson by remember { mutableStateOf<HomiraPerson?>(null) }
     var qrPerson by remember { mutableStateOf<HomiraPerson?>(null) }
+    var contactPhotoPerson by remember { mutableStateOf<HomiraPerson?>(null) }
     var editPerson by remember { mutableStateOf<HomiraPerson?>(null) }
     var editedContactName by rememberSaveable { mutableStateOf("") }
 
@@ -4079,7 +4080,27 @@ private fun ContactsScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    PersonAvatarP(person, 82)
+                    Box(
+                        modifier = Modifier.then(
+                            if (person.avatarUri != null) {
+                                Modifier.clickable {
+                                    contactPhotoPerson = person
+                                }
+                            } else {
+                                Modifier
+                            }
+                        )
+                    ) {
+                        PersonAvatarP(person, 82)
+                    }
+                    if (person.avatarUri != null) {
+                        Spacer(Modifier.height(5.dp))
+                        Text(
+                            "Tap photo to view",
+                            color = HomiraMuted.copy(alpha = .72f),
+                            fontSize = 10.sp
+                        )
+                    }
                     Spacer(Modifier.height(12.dp))
                     Text(
                         person.number.ifBlank { "Homira contact" },
@@ -4197,6 +4218,39 @@ private fun ContactsScreen(
                 }
             },
             containerColor = HomiraSurface
+        )
+    }
+
+    contactPhotoPerson?.let { person ->
+        val photo = rememberBitmapP(person.avatarUri)
+        AlertDialog(
+            onDismissRequest = {
+                contactPhotoPerson = null
+            },
+            text = {
+                if (photo != null) {
+                    Image(
+                        bitmap = photo,
+                        contentDescription =
+                            "${person.name} profile photo",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(360.dp)
+                            .clip(RoundedCornerShape(24.dp)),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        contactPhotoPerson = null
+                    }
+                ) {
+                    Text("Close", color = HomiraGreen)
+                }
+            },
+            containerColor = HomiraBackground
         )
     }
 
