@@ -94,19 +94,44 @@ class NightFileContextService private constructor(
     }
 
     private fun extractPdf(file: File): String {
+        require(file.length() <= MAX_DOCUMENT_BYTES) {
+            "This PDF is too large to read safely on-device."
+        }
         PDFBoxResourceLoader.init(appContext)
         return PDDocument.load(file).use { document ->
             PDFTextStripper().apply {
                 sortByPosition = true
+                startPage = 1
+                endPage = minOf(document.numberOfPages, MAX_PDF_PAGES)
             }.getText(document)
         }
     }
 
-    private fun extractDocx(file: File): String =
-        ZipFile(file).use { zip ->
+    private fun extractDocx(file: File): String {
+        require(file.length() <= MAX_DOCUMENT_BYTES) {
+            "This Word document is too large to read safely on-device."
+        }
+        return ZipFile(file).use { zip ->
             val entry = zip.getEntry("word/document.xml")
                 ?: error("This Word document has no readable document body.")
-            val xml = zip.getInputStream(entry).bufferedReader().use { it.readText() }
+            require(entry.size < 0L || entry.size <= MAX_DOCX_XML_BYTES) {
+                "This Word document expands to too much text to read safely."
+            }
+            val xml = zip.getInputStream(entry).use { input ->
+                val output = java.io.ByteArrayOutputStream()
+                val buffer = ByteArray(16 * 1024)
+                var total = 0
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read < 0) break
+                    total += read
+                    require(total <= MAX_DOCX_XML_BYTES) {
+                        "This Word document expands to too much text to read safely."
+                    }
+                    output.write(buffer, 0, read)
+                }
+                output.toString(Charsets.UTF_8.name())
+            }
             val paragraphs = xml
                 .replace(Regex("</w:p\\s*>", RegexOption.IGNORE_CASE), "\n")
                 .replace(Regex("<w:tab[^>]*/>", RegexOption.IGNORE_CASE), "\t")
@@ -120,6 +145,7 @@ class NightFileContextService private constructor(
                     decodeXml(paragraphs.replace(Regex("<[^>]+>"), " "))
                 }
         }
+    }
 
     private fun extractPlain(file: File, extension: String): String {
         require(file.length() <= 8L * 1024L * 1024L) {
@@ -181,6 +207,10 @@ class NightFileContextService private constructor(
     }
 
     companion object {
+        private const val MAX_DOCUMENT_BYTES = 32L * 1024L * 1024L
+        private const val MAX_DOCX_XML_BYTES = 8 * 1024 * 1024
+        private const val MAX_PDF_PAGES = 160
+
         @Volatile private var instance: NightFileContextService? = null
 
         fun get(context: Context): NightFileContextService =
