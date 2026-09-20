@@ -1,0 +1,283 @@
+name: Night Mihon Reader Interaction
+
+on:
+  pull_request:
+    branches:
+      - whatsapp-ai-ui-ci
+    paths:
+      - "whatsapp-ai-android/**"
+      - ".github/workflows/night-mihon-reader-interaction.yml"
+  workflow_dispatch:
+
+jobs:
+  mihon-reader-interaction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Android 36 SDK
+        run: |
+          SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Add test Firebase config
+        run: |
+          cat > whatsapp-ai-android/app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "123456789012",
+              "project_id": "whatsapp-ai-preview",
+              "storage_bucket": "whatsapp-ai-preview.appspot.com"
+            },
+            "client": [{
+              "client_info": {
+                "mobilesdk_app_id": "1:123456789012:android:0123456789abcdef",
+                "android_client_info": {"package_name": "com.example.whatsapp"}
+              },
+              "oauth_client": [],
+              "api_key": [{"current_key": "AIzaSyDUMMY_PREVIEW_KEY_NOT_FOR_NETWORK_USE"}],
+              "services": {"appinvite_service": {"other_platform_oauth_client": []}}
+            }],
+            "configuration_version": "1"
+          }
+          JSON
+
+      - name: Build debug APK
+        run: |
+          cd whatsapp-ai-android
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Exercise Mihon reader interactions
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          cores: 2
+          ram-size: 2048M
+          emulator-boot-timeout: 420
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -accel on -wipe-data
+          script: |
+            set -euo pipefail
+
+            APK="whatsapp-ai-android/app/build/outputs/apk/debug/app-debug.apk"
+            PACKAGE="com.example.whatsapp"
+            ARCHIVE="/data/user/0/$PACKAGE/cache/mihon-reader-preview.cbz"
+
+            adb install --no-streaming -r "$APK"
+            adb shell wm size 709x1536
+            adb shell wm density 240
+            mkdir -p mihon-interaction-artifacts
+            adb logcat -c
+
+            cat >/tmp/night_uia.py <<'PY'
+            import re
+            import sys
+            import xml.etree.ElementTree as ET
+
+            mode, value = sys.argv[1], sys.argv[2]
+            attr = "text" if mode == "text" else "content-desc"
+            root = ET.parse("/tmp/window.xml").getroot()
+            for node in root.iter("node"):
+                if node.attrib.get(attr) == value:
+                    nums = [int(x) for x in re.findall(r"\d+", node.attrib.get("bounds", ""))]
+                    if len(nums) == 4:
+                        print((nums[0] + nums[2]) // 2, (nums[1] + nums[3]) // 2)
+                        raise SystemExit(0)
+            raise SystemExit(2)
+            PY
+
+            refresh_ui() {
+              adb shell uiautomator dump /sdcard/window.xml >/dev/null
+              adb exec-out cat /sdcard/window.xml > /tmp/window.xml
+            }
+
+            assert_alive() {
+              adb shell pidof "$PACKAGE" >/dev/null
+            }
+
+            assert_text() {
+              refresh_ui
+              python3 /tmp/night_uia.py text "$1" >/dev/null
+            }
+
+            assert_desc() {
+              refresh_ui
+              python3 /tmp/night_uia.py desc "$1" >/dev/null
+            }
+
+            tap_text() {
+              refresh_ui
+              read -r X Y < <(python3 /tmp/night_uia.py text "$1")
+              adb shell input tap "$X" "$Y"
+              sleep 1
+            }
+
+            tap_desc() {
+              refresh_ui
+              read -r X Y < <(python3 /tmp/night_uia.py desc "$1")
+              adb shell input tap "$X" "$Y"
+              sleep 1
+            }
+
+            find_and_tap_text() {
+              local target="$1"
+              local tries="${2:-8}"
+              for _ in $(seq 1 "$tries"); do
+                refresh_ui
+                if read -r X Y < <(python3 /tmp/night_uia.py text "$target"); then
+                  adb shell input tap "$X" "$Y"
+                  sleep 1
+                  return 0
+                fi
+                adb shell input swipe 350 1200 350 450 260
+                sleep 1
+              done
+              echo "Could not find UI text: $target" >&2
+              return 1
+            }
+
+            assert_no_crash() {
+              if adb logcat -d -v brief | grep -A8 -E "FATAL EXCEPTION|AndroidRuntime" | grep -q "$PACKAGE"; then
+                echo "Night crashed during Mihon interaction test" >&2
+                adb logcat -d > mihon-interaction-artifacts/logcat.txt
+                exit 1
+              fi
+              assert_alive
+            }
+
+            # Seed a real CBZ using the preview's in-app archive creator.
+            adb shell am force-stop "$PACKAGE"
+            adb shell am start -W -n "$PACKAGE/.MihonReaderPreviewActivity"
+            sleep 3
+            assert_alive
+            adb shell run-as "$PACKAGE" test -s cache/mihon-reader-preview.cbz
+            adb exec-out screencap -p > mihon-interaction-artifacts/01-seeded-cbz.png
+
+            # Use the real production reader activity for the remaining tests.
+            adb shell am force-stop "$PACKAGE"
+            adb shell am start -W -n "$PACKAGE/.NightMihonReaderActivity"               --es mihon.archivePath "$ARCHIVE"               --es mihon.title "Mihon Interaction Test.cbz"
+            sleep 3
+            assert_alive
+            assert_desc "Reading mode"
+            assert_desc "Reader settings"
+            adb exec-out screencap -p > mihon-interaction-artifacts/02-reader-open.png
+
+            # Hide controls and move one page through Mihon's RTL tap zone.
+            adb shell input tap 354 760
+            sleep 1
+            assert_text "1 / 8"
+            adb shell input tap 110 760
+            sleep 1
+            assert_text "2 / 8"
+            adb shell run-as "$PACKAGE" cat shared_prefs/night_mihon_reader.xml               > mihon-interaction-artifacts/prefs-after-page.xml
+            grep -Eq 'progress:archive:.*value="1"' mihon-interaction-artifacts/prefs-after-page.xml
+            assert_no_crash
+
+            # Restart the production reader and verify the saved page is restored.
+            adb shell am force-stop "$PACKAGE"
+            adb shell am start -W -n "$PACKAGE/.NightMihonReaderActivity"               --es mihon.archivePath "$ARCHIVE"               --es mihon.title "Mihon Interaction Test.cbz"
+            sleep 3
+            adb shell input tap 354 760
+            sleep 1
+            assert_text "2 / 8"
+            adb exec-out screencap -p > mihon-interaction-artifacts/03-progress-restored.png
+            assert_no_crash
+
+            # Long-press a page and verify Mihon's page-action sheet appears.
+            adb shell input swipe 354 760 354 760 1000
+            sleep 1
+            assert_text "Set as cover"
+            assert_text "Copy to clipboard"
+            assert_text "Share"
+            assert_text "Save"
+            adb exec-out screencap -p > mihon-interaction-artifacts/04-page-actions.png
+            adb shell input keyevent KEYCODE_BACK
+            sleep 1
+            assert_no_crash
+
+            # Show reader chrome, inspect paged settings, and change scale type.
+            adb shell input tap 354 760
+            sleep 1
+            tap_desc "Reader settings"
+            assert_text "Reader settings"
+            assert_text "Scale type"
+            assert_text "Fit screen"
+            find_and_tap_text "Fit width" 3
+            adb shell input keyevent KEYCODE_BACK
+            sleep 1
+            adb shell run-as "$PACKAGE" cat shared_prefs/night_mihon_reader.xml               > mihon-interaction-artifacts/prefs-after-scale.xml
+            grep -q 'name="imageScaleType" value="FIT_WIDTH"' mihon-interaction-artifacts/prefs-after-scale.xml
+            assert_no_crash
+
+            # Switch from paged RTL to Mihon's Long strip mode.
+            tap_desc "Reading mode"
+            tap_text "Long strip"
+            tap_text "Apply"
+            sleep 2
+            adb shell run-as "$PACKAGE" cat shared_prefs/night_mihon_reader.xml               > mihon-interaction-artifacts/prefs-long-strip.xml
+            grep -q 'value="WEBTOON"' mihon-interaction-artifacts/prefs-long-strip.xml
+            assert_no_crash
+
+            # Scroll the long strip and verify no crash.
+            adb shell input tap 354 760
+            sleep 1
+            adb shell input swipe 350 1180 350 350 350
+            sleep 2
+            adb exec-out screencap -p > mihon-interaction-artifacts/05-long-strip.png
+            assert_no_crash
+
+            # Open long-strip settings and confirm mode-specific controls exist.
+            adb shell input tap 354 760
+            sleep 1
+            tap_desc "Reader settings"
+            assert_text "Long strip side padding · 0%"
+            assert_text "Double tap zoom"
+            assert_text "Tap zones"
+            assert_text "Invert tapping"
+
+            # Enable volume navigation from the real activity and exercise both keys.
+            find_and_tap_text "Volume keys" 10
+            adb shell input keyevent KEYCODE_BACK
+            sleep 1
+            adb shell input keyevent KEYCODE_VOLUME_DOWN
+            sleep 1
+            adb shell input keyevent KEYCODE_VOLUME_UP
+            sleep 1
+            assert_no_crash
+
+            adb exec-out screencap -p > mihon-interaction-artifacts/06-after-volume-nav.png
+            adb logcat -d > mihon-interaction-artifacts/logcat.txt
+
+      - name: Upload interaction evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mihon-reader-interaction-evidence
+          path: mihon-interaction-artifacts/
+          if-no-files-found: warn
