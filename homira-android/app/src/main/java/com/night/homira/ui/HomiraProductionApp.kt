@@ -4663,10 +4663,15 @@ private fun BlockedPeopleScreen(
                 onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                label = { Text("Search contacts") },
+                placeholder = { Text("Search contacts") },
                 leadingIcon = {
-                    Icon(Icons.Rounded.Search, contentDescription = null)
-                }
+                    Icon(
+                        Icons.Rounded.Search,
+                        contentDescription = null,
+                        tint = HomiraMuted
+                    )
+                },
+                shape = RoundedCornerShape(28.dp)
             )
         }
 
