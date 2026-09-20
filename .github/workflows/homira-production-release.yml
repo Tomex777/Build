@@ -32,14 +32,14 @@ jobs:
         with:
           gradle-version: '9.6.0'
 
-      - name: Build production release APK and AAB
+      - name: Build installable non-debuggable release APK
         working-directory: homira-android
         run: |
-          gradle :app:assembleRelease :app:bundleRelease --stacktrace
+          gradle :app:assembleRelease -PHOMIRA_SIGN_RELEASE_WITH_CI_KEY=true --stacktrace
 
       - name: Confirm release is non-debuggable
         run: |
-          APK=homira-android/app/build/outputs/apk/release/app-release-unsigned.apk
+          APK=homira-android/app/build/outputs/apk/release/app-release.apk
           test -f "$APK"
           aapt dump badging "$APK" | tee /tmp/homira-badging.txt
           if grep -q "application-debuggable" /tmp/homira-badging.txt; then
@@ -47,11 +47,20 @@ jobs:
             exit 1
           fi
 
-      - name: Upload unsigned production outputs
+      - name: Verify APK signature
+        run: |
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose             homira-android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Prepare release artifact
+        run: |
+          cp homira-android/app/build/outputs/apk/release/app-release.apk             homira-android/app/build/outputs/apk/release/Homira-Production-v1.0.0.apk
+          sha256sum homira-android/app/build/outputs/apk/release/Homira-Production-v1.0.0.apk             > homira-android/app/build/outputs/apk/release/Homira-Production-v1.0.0.apk.sha256
+
+      - name: Upload production release
         uses: actions/upload-artifact@v4
         with:
-          name: homira-production-unsigned
+          name: homira-production-v1.0.0
           path: |
-            homira-android/app/build/outputs/apk/release/app-release-unsigned.apk
-            homira-android/app/build/outputs/bundle/release/app-release.aab
+            homira-android/app/build/outputs/apk/release/Homira-Production-v1.0.0.apk
+            homira-android/app/build/outputs/apk/release/Homira-Production-v1.0.0.apk.sha256
           if-no-files-found: error
