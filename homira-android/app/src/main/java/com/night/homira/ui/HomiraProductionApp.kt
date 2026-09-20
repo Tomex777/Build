@@ -1216,25 +1216,94 @@ fun HomiraProductionApp(
         fun acceptIncomingNow() {
             val session = incomingSession
             val person = incomingPerson
+
             if (session != null && person != null) {
+                val previousSession = activeSession
+                    ?.takeIf { it.id != session.id }
+
                 liveScope.launch {
                     runCatching {
-                        liveRepository.setCallState(session.id, "active")
+                        if (previousSession != null) {
+                            runCatching {
+                                voiceEngine?.close()
+                            }
+                            voiceEngine = null
+
+                            runCatching {
+                                telecomBridge?.disconnect()
+                            }
+
+                            val localUserId =
+                                liveRepository.currentUserId()
+                            val previousState = when (
+                                previousSession.state
+                            ) {
+                                "ringing", "connecting" -> {
+                                    if (
+                                        previousSession.callerId ==
+                                        localUserId
+                                    ) {
+                                        "cancelled"
+                                    } else {
+                                        "declined"
+                                    }
+                                }
+
+                                else -> "ended"
+                            }
+
+                            runCatching {
+                                liveRepository.setCallState(
+                                    previousSession.id,
+                                    previousState
+                                )
+                            }
+
+                            incomingCallNotifier?.cancel(
+                                previousSession.id
+                            )
+
+                            callHistoryStore.markTerminal(
+                                previousSession.id,
+                                if (
+                                    previousSession.state == "active"
+                                ) {
+                                    HomiraCallHistoryStore
+                                        .OUTCOME_ANSWERED
+                                } else if (
+                                    previousState == "cancelled"
+                                ) {
+                                    HomiraCallHistoryStore
+                                        .OUTCOME_CANCELLED
+                                } else {
+                                    HomiraCallHistoryStore
+                                        .OUTCOME_DECLINED
+                                }
+                            )
+                        }
+
+                        liveRepository.setCallState(
+                            session.id,
+                            "active"
+                        )
                     }.onSuccess { updated ->
                         incomingCallNotifier?.cancel(updated.id)
                         callHistoryStore.markAnswered(updated.id)
-                        localCallHistory = callHistoryStore.listRecent()
+                        localCallHistory =
+                            callHistoryStore.listRecent()
 
                         activeSession = updated
                         activePerson = person
-                        activeVideo = updated.mediaType == "video"
+                        activeVideo =
+                            updated.mediaType == "video"
                         minimized = false
                         incomingSession = null
                         incomingPerson = null
                     }.onFailure {
                         Toast.makeText(
                             context,
-                            it.message ?: "Could not answer the call.",
+                            it.message
+                                ?: "Could not answer the call.",
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -1812,7 +1881,7 @@ fun HomiraProductionApp(
         }
 
         when {
-            incomingSession != null && incomingPerson != null && activePerson == null -> IncomingCallScreen(
+            incomingSession != null && incomingPerson != null -> IncomingCallScreen(
                 person = incomingPerson ?: mimiP,
                 video = incomingSession?.mediaType == "video",
                 onAccept = {
