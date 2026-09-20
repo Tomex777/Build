@@ -50,9 +50,7 @@ object HomiraPushBootstrap {
         runCatching {
             if (!initialize(context)) return@runCatching
 
-            val messaging = FirebaseMessaging.getInstance()
-            messaging.isAutoInitEnabled = true
-            messaging.register()
+            FirebaseMessaging.getInstance().register()
         }
     }
 

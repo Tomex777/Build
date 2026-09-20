@@ -3,6 +3,7 @@ package com.night.homira.call
 import android.content.Context
 import android.media.MediaPlayer
 import android.media.MediaRecorder
+import android.os.Build
 import java.io.File
 
 class HomiraAudioRecorder(
@@ -18,7 +19,15 @@ class HomiraAudioRecorder(
             outputFile.delete()
         }
 
-        recorder = MediaRecorder(context).apply {
+        @Suppress("DEPRECATION")
+        val nextRecorder =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                MediaRecorder(context)
+            } else {
+                MediaRecorder()
+            }
+
+        recorder = nextRecorder.apply {
             setAudioSource(MediaRecorder.AudioSource.MIC)
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             setAudioEncoder(MediaRecorder.AudioEncoder.AAC)

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.projection.MediaProjection
+import android.os.Build
 import com.night.homira.data.CallSignalEnvelope
 import com.night.homira.data.HomiraCallSignaling
 import com.night.homira.data.HomiraTurnConfiguration
@@ -69,7 +70,14 @@ class HomiraWebRtcVoiceEngine(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val audioManager = appContext.getSystemService(AudioManager::class.java)
     private val originalAudioMode = audioManager.mode
-    private val originalCommunicationDeviceId = audioManager.communicationDevice?.id
+    @Suppress("DEPRECATION")
+    private val originalSpeakerphoneOn = audioManager.isSpeakerphoneOn
+    private val originalCommunicationDeviceId =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            audioManager.communicationDevice?.id
+        } else {
+            null
+        }
 
     private val _state = MutableStateFlow(HomiraWebRtcState.New)
     val state: StateFlow<HomiraWebRtcState> = _state.asStateFlow()
@@ -449,19 +457,26 @@ class HomiraWebRtcVoiceEngine(
     }
 
     fun setSpeakerEnabled(enabled: Boolean) {
-        val desiredType = if (enabled) {
-            AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val desiredType = if (enabled) {
+                AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+            } else {
+                AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
+            }
+
+            val device = audioManager.availableCommunicationDevices
+                .firstOrNull { it.type == desiredType }
+
+            if (device != null) {
+                audioManager.setCommunicationDevice(device)
+            } else if (!enabled) {
+                audioManager.clearCommunicationDevice()
+            }
         } else {
-            AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
-        }
-
-        val device = audioManager.availableCommunicationDevices
-            .firstOrNull { it.type == desiredType }
-
-        if (device != null) {
-            audioManager.setCommunicationDevice(device)
-        } else if (!enabled) {
-            audioManager.clearCommunicationDevice()
+            @Suppress("DEPRECATION")
+            runCatching {
+                audioManager.isSpeakerphoneOn = enabled
+            }
         }
     }
 
@@ -554,13 +569,20 @@ class HomiraWebRtcVoiceEngine(
         audioDeviceModule?.release()
         audioDeviceModule = null
 
-        val originalDevice = originalCommunicationDeviceId?.let { deviceId ->
-            audioManager.availableCommunicationDevices.firstOrNull { it.id == deviceId }
-        }
-        if (originalDevice != null) {
-            audioManager.setCommunicationDevice(originalDevice)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val originalDevice = originalCommunicationDeviceId?.let { deviceId ->
+                audioManager.availableCommunicationDevices.firstOrNull { it.id == deviceId }
+            }
+            if (originalDevice != null) {
+                audioManager.setCommunicationDevice(originalDevice)
+            } else {
+                audioManager.clearCommunicationDevice()
+            }
         } else {
-            audioManager.clearCommunicationDevice()
+            @Suppress("DEPRECATION")
+            runCatching {
+                audioManager.isSpeakerphoneOn = originalSpeakerphoneOn
+            }
         }
         audioManager.mode = originalAudioMode
 

@@ -53,24 +53,28 @@ private enum class LiveGateState {
 
 private const val PROFILE_CACHE_PREFS = "homira_profile_cache"
 
-private fun loadCachedProfile(context: Context): LiveProfile? {
-    val prefs = context.getSharedPreferences(PROFILE_CACHE_PREFS, Context.MODE_PRIVATE)
-    val id = prefs.getString("id", null)?.takeIf { it.isNotBlank() } ?: return null
-    val name = prefs.getString("display_name", null)?.takeIf { it.isNotBlank() } ?: return null
-    return LiveProfile(
-        id = id,
-        displayName = name,
-        username = prefs.getString("username", null),
-        phoneE164 = prefs.getString("phone_e164", null),
-        email = prefs.getString("email", null),
-        about = prefs.getString("about", "").orEmpty(),
-        avatarPath = prefs.getString("avatar_path", null),
-        callCardPath = prefs.getString("call_card_path", null),
-        voicemailEnabled = prefs.getBoolean("voicemail_enabled", true),
-        voicemailGreetingMode = prefs.getString("voicemail_greeting_mode", "default") ?: "default",
-        voicemailGreetingPath = prefs.getString("voicemail_greeting_path", null)
-    )
-}
+private fun loadCachedProfile(context: Context): LiveProfile? =
+    runCatching {
+        val prefs = context.getSharedPreferences(PROFILE_CACHE_PREFS, Context.MODE_PRIVATE)
+        val id = prefs.getString("id", null)?.takeIf { it.isNotBlank() }
+            ?: return@runCatching null
+        val name = prefs.getString("display_name", null)?.takeIf { it.isNotBlank() }
+            ?: return@runCatching null
+
+        LiveProfile(
+            id = id,
+            displayName = name,
+            username = prefs.getString("username", null),
+            phoneE164 = prefs.getString("phone_e164", null),
+            email = prefs.getString("email", null),
+            about = prefs.getString("about", "").orEmpty(),
+            avatarPath = prefs.getString("avatar_path", null),
+            callCardPath = prefs.getString("call_card_path", null),
+            voicemailEnabled = prefs.getBoolean("voicemail_enabled", true),
+            voicemailGreetingMode = prefs.getString("voicemail_greeting_mode", "default") ?: "default",
+            voicemailGreetingPath = prefs.getString("voicemail_greeting_path", null)
+        )
+    }.getOrNull()
 
 private fun saveCachedProfile(context: Context, profile: LiveProfile) {
     context.getSharedPreferences(PROFILE_CACHE_PREFS, Context.MODE_PRIVATE)
@@ -165,8 +169,12 @@ fun HomiraAuthGate(
     }
 
     LaunchedEffect(Unit) {
-        runCatching { repository.initialize() }
-        gateState = if (repository.isSignedIn()) {
+        val signedIn = runCatching {
+            repository.initialize()
+            repository.isSignedIn()
+        }.getOrDefault(false)
+
+        gateState = if (signedIn) {
             LiveGateState.SignedIn
         } else {
             cachedProfile = null
@@ -439,9 +447,12 @@ private fun LiveProfileHost(
     var repositoryReady by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        runCatching { repository.initialize() }
+        val signedIn = runCatching {
+            repository.initialize()
+            repository.isSignedIn()
+        }.getOrDefault(false)
 
-        if (!repository.isSignedIn()) {
+        if (!signedIn) {
             loading = false
             onSignedOut()
             return@LaunchedEffect

@@ -6,7 +6,6 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.Person
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -16,7 +15,10 @@ import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.os.Build
 import android.os.SystemClock
+import androidx.core.app.NotificationCompat
+import androidx.core.app.Person
 import androidx.core.content.ContextCompat
 import com.night.homira.MainActivity
 import com.night.homira.data.LiveCallSession
@@ -31,7 +33,7 @@ class HomiraIncomingCallNotifier(
         appContext.getSystemService(AlarmManager::class.java)
 
     init {
-        ensureChannel()
+        runCatching { ensureChannel() }
     }
 
     fun show(
@@ -130,7 +132,7 @@ class HomiraIncomingCallNotifier(
             .setImportant(true)
             .build()
 
-        val notification = Notification.Builder(
+        val notification = NotificationCompat.Builder(
             appContext,
             CHANNEL_INCOMING_CALLS
         )
@@ -143,21 +145,27 @@ class HomiraIncomingCallNotifier(
                     "Incoming voice call"
                 }
             )
-            .setCategory(Notification.CATEGORY_CALL)
-            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setAutoCancel(false)
             .setTimeoutAfter(safeTimeoutMs)
             .setContentIntent(openPendingIntent)
             .setStyle(
-                Notification.CallStyle.forIncomingCall(
+                NotificationCompat.CallStyle.forIncomingCall(
                     caller,
                     declinePendingIntent,
                     answerPendingIntent
                 )
             )
             .apply {
-                if (notificationManager.canUseFullScreenIntent()) {
+                val fullScreenAllowed =
+                    Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
+                        runCatching {
+                            notificationManager.canUseFullScreenIntent()
+                        }.getOrDefault(false)
+
+                if (fullScreenAllowed) {
                     setFullScreenIntent(openPendingIntent, true)
                 }
             }
@@ -230,7 +238,7 @@ class HomiraIncomingCallNotifier(
             .setImportant(true)
             .build()
 
-        val notification = Notification.Builder(
+        val notification = NotificationCompat.Builder(
             appContext,
             CHANNEL_INCOMING_CALLS
         )
@@ -244,13 +252,13 @@ class HomiraIncomingCallNotifier(
                     else -> "Call in progress"
                 }
             )
-            .setCategory(Notification.CATEGORY_CALL)
-            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setAutoCancel(false)
             .setContentIntent(openPendingIntent)
             .setStyle(
-                Notification.CallStyle.forOngoingCall(
+                NotificationCompat.CallStyle.forOngoingCall(
                     peer,
                     hangUpPendingIntent
                 )
@@ -396,7 +404,9 @@ private object HomiraRingtonePlayback {
             .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build()
-        ringtone.isLooping = true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            ringtone.isLooping = true
+        }
         active = ringtone
         activeCallId = callId
 

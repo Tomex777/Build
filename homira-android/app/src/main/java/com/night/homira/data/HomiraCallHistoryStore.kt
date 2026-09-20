@@ -268,7 +268,10 @@ class HomiraCallHistoryStore(
             oldVersion: Int,
             newVersion: Int
         ) {
-            // Version 1 is the first local-only Homira call-history schema.
+            // Homira is still pre-release. Prefer a clean local history DB
+            // over crashing on a stale development schema.
+            db.execSQL("DROP TABLE IF EXISTS $TABLE")
+            onCreate(db)
         }
     }
 
@@ -283,7 +286,7 @@ class HomiraCallHistoryStore(
         const val OUTCOME_CANCELLED = "cancelled"
         const val OUTCOME_FAILED = "failed"
 
-        private const val DB_VERSION = 1
+        private const val DB_VERSION = 2
 
         private fun databaseNameFor(ownerKey: String): String {
             val normalized = ownerKey.ifBlank { "anonymous" }

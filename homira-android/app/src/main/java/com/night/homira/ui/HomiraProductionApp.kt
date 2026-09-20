@@ -8,6 +8,7 @@ import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.media.RingtoneManager
 import android.net.Uri
+import android.os.Build
 import com.night.homira.BuildConfig
 import com.night.homira.call.HomiraWebRtcState
 import com.night.homira.call.HomiraAudioRecorder
@@ -29,6 +30,7 @@ import com.night.homira.data.LiveCallSession
 import com.night.homira.data.LiveVoicemail
 import android.graphics.BitmapFactory
 import android.widget.Toast
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -440,13 +442,15 @@ fun HomiraProductionApp(
         val settingsStore = remember(context) { HomiraSettingsStore(context) }
         var localSettings by remember { mutableStateOf(settingsStore.load()) }
         val incomingCallNotifier = remember(context) {
-            HomiraIncomingCallNotifier(context)
+            runCatching {
+                HomiraIncomingCallNotifier(context)
+            }.getOrNull()
         }
         val telecomBridge = remember(context) {
             runCatching { HomiraTelecomBridge(context) }.getOrNull()
         }
 
-        LaunchedEffect(liveMode) {
+        LaunchedEffect(liveBackendReady) {
             if (!liveBackendReady) return@LaunchedEffect
             HomiraPushBootstrap.requestRegistration(context)
             runCatching {
@@ -478,10 +482,17 @@ fun HomiraProductionApp(
                 ActivityResultContracts.StartActivityForResult()
             ) { result ->
                 if (result.resultCode == Activity.RESULT_OK) {
-                    val pickedUri = result.data?.getParcelableExtra(
-                        RingtoneManager.EXTRA_RINGTONE_PICKED_URI,
-                        Uri::class.java
-                    )
+                    @Suppress("DEPRECATION")
+                    val pickedUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        result.data?.getParcelableExtra(
+                            RingtoneManager.EXTRA_RINGTONE_PICKED_URI,
+                            Uri::class.java
+                        )
+                    } else {
+                        result.data?.getParcelableExtra(
+                            RingtoneManager.EXTRA_RINGTONE_PICKED_URI
+                        )
+                    }
                     settingsStore.setRingtoneUri(pickedUri?.toString())
                     localSettings = settingsStore.load()
                 }
@@ -502,20 +513,22 @@ fun HomiraProductionApp(
         }
 
         LaunchedEffect(
-            liveMode,
+            liveBackendReady,
             localSettings.callNotifications,
             localSettings.notificationPermissionRequested,
             notificationPermissionGranted
         ) {
             if (
-                liveMode &&
+                liveBackendReady &&
                 localSettings.callNotifications &&
                 !localSettings.notificationPermissionRequested &&
                 !notificationPermissionGranted
             ) {
-                notificationPermissionLauncher.launch(
-                    Manifest.permission.POST_NOTIFICATIONS
-                )
+                runCatching {
+                    notificationPermissionLauncher.launch(
+                        Manifest.permission.POST_NOTIFICATIONS
+                    )
+                }
             }
         }
         val historyOwnerKey =
@@ -716,7 +729,7 @@ fun HomiraProductionApp(
         }
         var profileSaving by remember { mutableStateOf(false) }
 
-        LaunchedEffect(liveMode, initialProfile?.id) {
+        LaunchedEffect(liveBackendReady, initialProfile?.id) {
             if (!liveBackendReady) return@LaunchedEffect
             val ownerId = initialProfile?.id ?: return@LaunchedEffect
 
@@ -745,7 +758,7 @@ fun HomiraProductionApp(
         var playingVoicemailId by rememberSaveable { mutableStateOf<String?>(null) }
         var voicemailPlaybackFile by remember { mutableStateOf<File?>(null) }
 
-        LaunchedEffect(liveMode, liveContacts) {
+        LaunchedEffect(liveBackendReady, liveContacts) {
             if (!liveBackendReady) return@LaunchedEffect
 
             val media = linkedMapOf<String, Pair<String?, String?>>()
@@ -831,13 +844,19 @@ fun HomiraProductionApp(
             callEntries
         }
 
-        LaunchedEffect(liveMode) {
+        LaunchedEffect(liveBackendReady) {
             if (!liveBackendReady) return@LaunchedEffect
-            callHistoryStore.normalizeInterruptedRinging()
-            localCallHistory = callHistoryStore.listRecent()
+            runCatching {
+                callHistoryStore.normalizeInterruptedRinging()
+                callHistoryStore.listRecent()
+            }.onSuccess { history ->
+                localCallHistory = history
+            }.onFailure {
+                Log.e("HomiraStartup", "Call history startup failed", it)
+            }
         }
 
-        LaunchedEffect(liveMode) {
+        LaunchedEffect(liveBackendReady) {
             if (!liveBackendReady) return@LaunchedEffect
             blockedUserIds = runCatching {
                 liveRepository.listBlockedUserIds()
@@ -845,14 +864,15 @@ fun HomiraProductionApp(
         }
 
         LaunchedEffect(
-            liveMode,
+            liveBackendReady,
             appContacts,
             requestedCallId,
             requestedAnswerCall
         ) {
             if (!liveBackendReady) return@LaunchedEffect
 
-            val knownPeople = appContacts.associateBy { it.id }
+            runCatching {
+                val knownPeople = appContacts.associateBy { it.id }
 
             suspend fun toRecentEntry(voicemail: LiveVoicemail): CallEntry {
                 val person = knownPeople[voicemail.senderId] ?: run {
@@ -929,6 +949,9 @@ fun HomiraProductionApp(
                 } else {
                     listOf(entry) + liveVoicemailEntries
                 }
+            }
+            }.onFailure {
+                Log.e("HomiraRealtime", "Voicemail sync stopped", it)
             }
         }
 
@@ -1080,7 +1103,7 @@ fun HomiraProductionApp(
                     activePerson = refreshedPerson
                     activeVideo = video
                     minimized = false
-                    incomingCallNotifier.showOngoing(
+                    incomingCallNotifier?.showOngoing(
                         callId = session.id,
                         mediaType = session.mediaType,
                         peerName = refreshedPerson.name,
@@ -1119,7 +1142,7 @@ fun HomiraProductionApp(
                         terminalState
                     )
                 }
-                incomingCallNotifier.cancel(session.id)
+                incomingCallNotifier?.cancel(session.id)
             }
         }
 
@@ -1164,7 +1187,7 @@ fun HomiraProductionApp(
                     runCatching {
                         liveRepository.setCallState(session.id, "active")
                     }.onSuccess { updated ->
-                        incomingCallNotifier.cancel(updated.id)
+                        incomingCallNotifier?.cancel(updated.id)
                         callHistoryStore.markAnswered(updated.id)
                         localCallHistory = callHistoryStore.listRecent()
 
@@ -1233,7 +1256,7 @@ fun HomiraProductionApp(
             }
         }
 
-        LaunchedEffect(liveMode) {
+        LaunchedEffect(liveBackendReady) {
             if (!liveBackendReady) return@LaunchedEffect
 
             val bridge = telecomBridge ?: return@LaunchedEffect
@@ -1319,10 +1342,11 @@ fun HomiraProductionApp(
             }
         }
 
-        LaunchedEffect(liveMode, appContacts) {
+        LaunchedEffect(liveBackendReady, appContacts) {
             if (!liveBackendReady) return@LaunchedEffect
 
-            suspend fun resolvePerson(userId: String): HomiraPerson {
+            runCatching {
+                suspend fun resolvePerson(userId: String): HomiraPerson {
                 appContacts.firstOrNull { it.id == userId }?.let { return it }
 
                 val profile = liveRepository.loadProfileById(userId)
@@ -1369,7 +1393,7 @@ fun HomiraProductionApp(
                 localCallHistory = callHistoryStore.listRecent()
                 incomingSession = it
                 incomingPerson = person
-                incomingCallNotifier.show(
+                incomingCallNotifier?.show(
                     session = it,
                     callerName = person.name,
                     notificationsEnabled = localSettings.callNotifications,
@@ -1384,16 +1408,18 @@ fun HomiraProductionApp(
                         it.mediaType == "video" && !cameraPermissionGranted
 
                     if (needsMicrophone || needsCamera) {
-                        callPermissionLauncher.launch(
-                            buildList {
-                                if (needsMicrophone) {
-                                    add(Manifest.permission.RECORD_AUDIO)
-                                }
-                                if (needsCamera) {
-                                    add(Manifest.permission.CAMERA)
-                                }
-                            }.toTypedArray()
-                        )
+                        runCatching {
+                            callPermissionLauncher.launch(
+                                buildList {
+                                    if (needsMicrophone) {
+                                        add(Manifest.permission.RECORD_AUDIO)
+                                    }
+                                    if (needsCamera) {
+                                        add(Manifest.permission.CAMERA)
+                                    }
+                                }.toTypedArray()
+                            )
+                        }
                     }
                 }
             }
@@ -1413,7 +1439,7 @@ fun HomiraProductionApp(
                         localCallHistory = callHistoryStore.listRecent()
                         incomingSession = session
                         incomingPerson = person
-                        incomingCallNotifier.show(
+                        incomingCallNotifier?.show(
                             session = session,
                             callerName = person.name,
                             notificationsEnabled = localSettings.callNotifications,
@@ -1422,7 +1448,7 @@ fun HomiraProductionApp(
                     }
 
                     "missed", "declined", "cancelled", "failed", "ended" -> {
-                        incomingCallNotifier.cancel(session.id)
+                        incomingCallNotifier?.cancel(session.id)
                         runCatching { telecomBridge?.disconnect() }
                         val outcome = when (session.state) {
                             "missed" -> HomiraCallHistoryStore.OUTCOME_MISSED
@@ -1441,10 +1467,13 @@ fun HomiraProductionApp(
                     }
                 }
             }
+            }.onFailure {
+                Log.e("HomiraRealtime", "Incoming-call sync stopped", it)
+            }
         }
 
         LaunchedEffect(
-            liveMode,
+            liveBackendReady,
             incomingSession?.id,
             incomingSession?.state
         ) {
@@ -1463,7 +1492,7 @@ fun HomiraProductionApp(
                 runCatching {
                     liveRepository.setCallState(session.id, "missed")
                 }.onSuccess { missed ->
-                    incomingCallNotifier.cancel(missed.id)
+                    incomingCallNotifier?.cancel(missed.id)
                     runCatching { telecomBridge?.disconnect() }
                     callHistoryStore.markTerminal(
                         missed.id,
@@ -1476,25 +1505,26 @@ fun HomiraProductionApp(
             }
         }
 
-        LaunchedEffect(liveMode, activeSession?.id) {
+        LaunchedEffect(liveBackendReady, activeSession?.id) {
             if (!liveBackendReady) return@LaunchedEffect
             val callId = activeSession?.id ?: return@LaunchedEffect
             val localUserId = liveRepository.currentUserId()
 
-            liveRepository.observeCallSession(callId).collect { session ->
+            runCatching {
+                liveRepository.observeCallSession(callId).collect { session ->
                 activeSession = session
 
                 if (session.state == "active") {
                     val peer = activePerson
                     if (peer != null) {
-                        incomingCallNotifier.showOngoing(
+                        incomingCallNotifier?.showOngoing(
                             callId = session.id,
                             mediaType = session.mediaType,
                             peerName = peer.name,
                             calling = false
                         )
                     } else {
-                        incomingCallNotifier.cancel(session.id)
+                        incomingCallNotifier?.cancel(session.id)
                     }
 
                     callHistoryStore.markAnswered(session.id)
@@ -1524,7 +1554,7 @@ fun HomiraProductionApp(
                         "ended" -> HomiraCallHistoryStore.OUTCOME_ANSWERED
                         else -> HomiraCallHistoryStore.OUTCOME_FAILED
                     }
-                    incomingCallNotifier.cancel(session.id)
+                    incomingCallNotifier?.cancel(session.id)
                     runCatching { telecomBridge?.disconnect() }
                     callHistoryStore.markTerminal(session.id, outcome)
                     localCallHistory = callHistoryStore.listRecent()
@@ -1558,10 +1588,13 @@ fun HomiraProductionApp(
                     minimized = false
                 }
             }
+            }.onFailure {
+                Log.e("HomiraRealtime", "Active-call sync stopped", it)
+            }
         }
 
         LaunchedEffect(
-            liveMode,
+            liveBackendReady,
             activeSession?.id,
             activeSession?.state
         ) {
@@ -1593,7 +1626,7 @@ fun HomiraProductionApp(
         }
 
         LaunchedEffect(
-            liveMode,
+            liveBackendReady,
             activeSession?.id,
             activeSession?.state
         ) {
@@ -1622,7 +1655,7 @@ fun HomiraProductionApp(
             }
         }
 
-        LaunchedEffect(liveMode, activeSession?.id, micPermissionGranted) {
+        LaunchedEffect(liveBackendReady, activeSession?.id, micPermissionGranted) {
             voiceEngine?.close()
             voiceEngine = null
             webRtcState = HomiraWebRtcState.New
@@ -1631,7 +1664,7 @@ fun HomiraProductionApp(
             val person = activePerson
             val localUserId = liveRepository.currentUserId()
 
-            if (!liveMode || !micPermissionGranted || session == null || person == null || localUserId == null) {
+            if (!liveBackendReady || !micPermissionGranted || session == null || person == null || localUserId == null) {
                 return@LaunchedEffect
             }
 
@@ -1752,7 +1785,7 @@ fun HomiraProductionApp(
                     incomingSession = null
                     incomingPerson = null
                     if (session != null) {
-                        incomingCallNotifier.cancel(session.id)
+                        incomingCallNotifier?.cancel(session.id)
                         liveScope.launch {
                             runCatching {
                                 liveRepository.setCallState(session.id, "declined")

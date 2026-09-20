@@ -13,13 +13,16 @@ class HomiraSettingsStore(context: Context) {
     private val preferences = context.applicationContext
         .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    fun load(): HomiraLocalSettings = HomiraLocalSettings(
-        lowDataCalls = preferences.getBoolean(KEY_LOW_DATA_CALLS, false),
-        callNotifications = preferences.getBoolean(KEY_CALL_NOTIFICATIONS, true),
-        ringtoneUri = preferences.getString(KEY_RINGTONE_URI, null),
-        notificationPermissionRequested =
-            preferences.getBoolean(KEY_NOTIFICATION_PERMISSION_REQUESTED, false)
-    )
+    fun load(): HomiraLocalSettings =
+        runCatching {
+            HomiraLocalSettings(
+                lowDataCalls = preferences.getBoolean(KEY_LOW_DATA_CALLS, false),
+                callNotifications = preferences.getBoolean(KEY_CALL_NOTIFICATIONS, true),
+                ringtoneUri = preferences.getString(KEY_RINGTONE_URI, null),
+                notificationPermissionRequested =
+                    preferences.getBoolean(KEY_NOTIFICATION_PERMISSION_REQUESTED, false)
+            )
+        }.getOrDefault(HomiraLocalSettings())
 
     fun setLowDataCalls(enabled: Boolean) {
         preferences.edit()
