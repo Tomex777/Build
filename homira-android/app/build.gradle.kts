@@ -122,6 +122,7 @@ dependencies {
     implementation("io.ktor:ktor-client-android:3.5.2")
 
     implementation("io.github.webrtc-sdk:android:150.7871.01")
+    implementation("com.google.zxing:core:3.5.4")
 
     implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
     implementation("com.google.firebase:firebase-messaging")
