@@ -35,6 +35,8 @@ import com.example.whatsapp.presentation.reader.mihon.encodeMihonPages
 import com.example.whatsapp.ui.theme.WhatsappTheme
 import java.io.File
 import java.io.FileOutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 class NightMihonReaderActivity :
     ComponentActivity() {
@@ -240,46 +242,48 @@ class MihonReaderPreviewActivity :
         window.statusBarColor = Color.BLACK
         window.navigationBarColor = Color.BLACK
 
-        val preview =
+        val archive =
             File(
                 cacheDir,
-                "mihon-reader-preview.jpg",
+                "mihon-reader-preview.cbz",
             )
 
-        if (!preview.exists()) {
+        if (!archive.exists() || archive.length() == 0L) {
             val bitmap =
                 BitmapFactory.decodeResource(
                     resources,
                     R.drawable.bilal,
                 )
 
-            FileOutputStream(preview).use {
-                output ->
-                bitmap.compress(
-                    Bitmap.CompressFormat.JPEG,
-                    95,
-                    output,
-                )
+            ZipOutputStream(
+                FileOutputStream(archive),
+            ).use { zip ->
+                repeat(8) { index ->
+                    zip.putNextEntry(
+                        ZipEntry(
+                            (index + 1)
+                                .toString()
+                                .padStart(3, '0') +
+                                ".jpg",
+                        ),
+                    )
+                    bitmap.compress(
+                        Bitmap.CompressFormat.JPEG,
+                        95,
+                        zip,
+                    )
+                    zip.closeEntry()
+                }
             }
             bitmap.recycle()
         }
 
-        val pages =
-            List(8) { index ->
-                MihonPageSpec(
-                    index = index,
-                    source = preview.absolutePath,
-                )
-            }
-
         setContent {
             WhatsappTheme(darkTheme = true) {
-                NightMihonReaderScreen(
-                    mangaTitle = "Chainsaw Man",
-                    chapterTitle = "Chapter 173",
-                    pages = pages,
-                    initialPage = 0,
-                    readerKey = "preview:chainsaw-man",
+                ArchiveReaderEntry(
+                    archivePath = archive.absolutePath,
+                    displayName =
+                        "Chainsaw Man - Chapter 173.cbz",
                     onBack = {},
                 )
             }
