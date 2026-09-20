@@ -280,6 +280,26 @@ class HomiraLiveRepository {
             }
     }
 
+    suspend fun setContactLocalName(
+        contactUserId: String,
+        localName: String?
+    ) {
+        val ownerId = requireNotNull(currentUserId()) { "Not signed in" }
+        val cleaned = localName
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+
+        client.from("contacts")
+            .update({
+                set("local_name", cleaned)
+            }) {
+                filter {
+                    eq("owner_id", ownerId)
+                    eq("contact_user_id", contactUserId)
+                }
+            }
+    }
+
     suspend fun deleteContact(contactUserId: String) {
         val ownerId = requireNotNull(currentUserId()) { "Not signed in" }
         client.from("contacts")
