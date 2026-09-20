@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Base64
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -460,9 +461,15 @@ class NightAiGateway private constructor(
 
             messages.put(step.assistantMessage())
             step.toolCalls.forEach { call ->
-                val result = executedToolResults[call.id]
+                val dedupeKey =
+                    if (call.id.startsWith("night_tool_")) {
+                        call.name + "\u0000" + call.argumentsJson
+                    } else {
+                        call.id
+                    }
+                val result = executedToolResults[dedupeKey]
                     ?: tools.execute(chatId, call).also {
-                        executedToolResults[call.id] = it
+                        executedToolResults[dedupeKey] = it
                     }
 
                 if (
@@ -927,7 +934,12 @@ class NightAiGateway private constructor(
                     repository = repository,
                     router = NightCapabilityRouter(repository),
                     secrets = NightSecretStore.get(app),
-                    http = OkHttpClient.Builder().build(),
+                    http = OkHttpClient.Builder()
+                        .connectTimeout(20, TimeUnit.SECONDS)
+                        .writeTimeout(30, TimeUnit.SECONDS)
+                        .readTimeout(90, TimeUnit.SECONDS)
+                        .callTimeout(180, TimeUnit.SECONDS)
+                        .build(),
                     tools = NightAgentToolExecutor.get(app),
                 ).also { instance = it }
             }
