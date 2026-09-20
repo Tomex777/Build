@@ -654,7 +654,7 @@ class HomiraLiveRepository {
         val userId = requireNotNull(currentUserId()) { "Not signed in" }
         val accountEmail = currentUserEmail()
 
-        return client.from("profiles")
+        client.from("profiles")
             .update({
                 set("display_name", displayName.trim())
                 set("username", username.trim().lowercase().ifBlank { null })
@@ -663,12 +663,16 @@ class HomiraLiveRepository {
             }) {
                 filter { eq("id", userId) }
             }
-            .decodeSingle<LiveProfile>()
+
+        return requireNotNull(loadMyProfile()) {
+            "Profile was saved but could not be reloaded."
+        }
     }
 
     suspend fun updateMyProfile(
         displayName: String,
         username: String,
+        phoneE164: String,
         about: String,
         email: String,
         avatarPath: String?,
@@ -679,6 +683,7 @@ class HomiraLiveRepository {
             .update({
                 set("display_name", displayName.trim())
                 set("username", username.trim().lowercase().ifBlank { null })
+                set("phone_e164", phoneE164.trim().ifBlank { null })
                 set("about", about.trim())
                 set("email", email.trim().ifBlank { null })
                 set("avatar_path", avatarPath)
