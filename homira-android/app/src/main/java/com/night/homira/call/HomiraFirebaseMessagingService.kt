@@ -42,6 +42,27 @@ class HomiraFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
+    private fun acknowledgeIncomingPush(
+        callId: String,
+        notificationShown: Boolean
+    ) {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            val repository = HomiraLiveRepository()
+            runCatching {
+                repository.initialize()
+                if (repository.isSignedIn()) {
+                    repository.acknowledgeIncomingCallPush(
+                        callId = callId,
+                        deviceId = HomiraPushBootstrap.deviceId(
+                            this@HomiraFirebaseMessagingService
+                        ),
+                        notificationShown = notificationShown
+                    )
+                }
+            }
+        }
+    }
+
     override fun onMessageReceived(message: RemoteMessage) {
         val data = message.data
         val type = data["type"] ?: return
@@ -90,6 +111,10 @@ class HomiraFirebaseMessagingService : FirebaseMessagingService() {
             expiresAt != null &&
             !expiresAt.isAfter(Instant.now())
         ) {
+            acknowledgeIncomingPush(
+                callId = callId,
+                notificationShown = false
+            )
             return
         }
 
@@ -113,7 +138,7 @@ class HomiraFirebaseMessagingService : FirebaseMessagingService() {
                     .DEFAULT_RING_TIMEOUT_MS
         )
 
-        runCatching {
+        val notificationShown = runCatching {
             val settings =
                 HomiraSettingsStore(this).load()
 
@@ -127,7 +152,12 @@ class HomiraFirebaseMessagingService : FirebaseMessagingService() {
                 ringtoneUri = settings.ringtoneUri,
                 timeoutMs = timeoutMs
             )
-        }
+        }.getOrDefault(false)
+
+        acknowledgeIncomingPush(
+            callId = callId,
+            notificationShown = notificationShown
+        )
     }
 
     companion object {
