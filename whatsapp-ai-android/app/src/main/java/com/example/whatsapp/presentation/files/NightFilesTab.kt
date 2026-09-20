@@ -43,8 +43,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.whatsapp.NightMihonReaderActivity
 import com.example.whatsapp.data.NightFileLibrary
 import com.example.whatsapp.data.NightLibraryFile
+import com.example.whatsapp.presentation.reader.mihon.NightMihonArchiveLoader
 import com.example.whatsapp.presentation.shell.MainTab
 import com.example.whatsapp.presentation.shell.ModernAppScaffold
 import java.text.DateFormat
@@ -124,7 +126,25 @@ fun NightFilesTab(
                 }
 
                 items(files, key = { it.id }) { file ->
-                    LibraryFileRow(file)
+                    val readableManga = NightMihonArchiveLoader.isSupportedArchive(
+                        fileName = file.name,
+                        mimeType = file.mimeType,
+                    )
+                    LibraryFileRow(
+                        file = file,
+                        readableManga = readableManga,
+                        onClick = {
+                            if (readableManga) {
+                                context.startActivity(
+                                    NightMihonReaderActivity.archiveIntent(
+                                        context = context,
+                                        localPath = file.localPath,
+                                        displayName = file.name,
+                                    )
+                                )
+                            }
+                        },
+                    )
                 }
             }
         }
@@ -195,11 +215,17 @@ private fun EmptyLibrary(onAdd: () -> Unit) {
 }
 
 @Composable
-private fun LibraryFileRow(file: NightLibraryFile) {
+private fun LibraryFileRow(
+    file: NightLibraryFile,
+    readableManga: Boolean,
+    onClick: () -> Unit,
+) {
     Surface(
         color = SurfaceDark,
         shape = RoundedCornerShape(15.dp),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = readableManga, onClick = onClick),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
@@ -244,7 +270,11 @@ private fun LibraryFileRow(file: NightLibraryFile) {
                     modifier = Modifier.padding(top = 3.dp),
                 )
                 Text(
-                    text = "Available to Night • ID " + file.id.take(8),
+                    text = if (readableManga) {
+                        "Mihon reader • Tap to read"
+                    } else {
+                        "Available to Night • ID " + file.id.take(8)
+                    },
                     color = Accent,
                     fontSize = 10.sp,
                     modifier = Modifier.padding(top = 3.dp),
