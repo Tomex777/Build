@@ -12,6 +12,8 @@ import android.os.Build
 import android.os.Environment
 import android.os.SystemClock
 import android.util.Log
+import android.view.View
+import android.view.ViewGroup
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -341,6 +343,16 @@ private fun NightZoomableImage(
     }
 }
 
+private fun View.installNightEditorTapHandler(onTap: () -> Unit) {
+    isClickable = true
+    setOnClickListener { onTap() }
+    if (this is ViewGroup) {
+        for (index in 0 until childCount) {
+            getChildAt(index).installNightEditorTapHandler(onTap)
+        }
+    }
+}
+
 @Composable
 internal fun NightVlcVideoSurface(
     path: String,
@@ -455,8 +467,13 @@ internal fun NightVlcVideoSurface(
         contentAlignment = Alignment.Center,
     ) {
         AndroidView(
-            factory = { ctx -> VLCVideoLayout(ctx) },
+            factory = { ctx ->
+                VLCVideoLayout(ctx).also { layout ->
+                    layout.installNightEditorTapHandler(onToggleControls)
+                }
+            },
             update = { layout ->
+                layout.installNightEditorTapHandler(onToggleControls)
                 if (attachedPlayer !== player) {
                     layout.post {
                         if (attachedPlayer !== player) {
@@ -466,6 +483,7 @@ internal fun NightVlcVideoSurface(
                             }.isSuccess
                             if (attached) {
                                 attachedPlayer = player
+                                layout.installNightEditorTapHandler(onToggleControls)
                             } else {
                                 Log.e("NightVideo", "Could not attach editor VLC player to video surface.")
                             }
@@ -473,11 +491,7 @@ internal fun NightVlcVideoSurface(
                     }
                 }
             },
-            modifier = Modifier
-                .fillMaxSize()
-                // AndroidView owns the real touch target; attach the Compose
-                // click modifier here instead of relying on a sibling overlay.
-                .clickable { onToggleControls() },
+            modifier = Modifier.fillMaxSize(),
         )
 
         if (showControls) {
