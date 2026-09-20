@@ -13,19 +13,16 @@ class NightCapabilityRouter(
 
         val profile = chat.selectedProviderProfileId
             ?.let { repository.getProviderProfile(it) }
-
-private fun NightProviderModelEntity.supportsCapability(capability: String): Boolean =
-    capabilities
-        .split(",")
-        .map { it.trim().lowercase() }
-        .contains(capability.trim().lowercase())
+            ?.takeIf { it.isEnabled }
             ?: repository.defaultProviderProfile("chat")
+                ?.takeIf { it.isEnabled }
             ?: return null
 
         val model = chat.selectedModel
             ?.let { repository.getProviderModel(it) }
             ?.takeIf { it.profileId == profile.id && it.isEnabled }
             ?: repository.defaultProviderModel(profile.id)
+                ?.takeIf { it.isEnabled }
             ?: return null
 
         return NightResolvedModel(profile, model)
@@ -50,11 +47,7 @@ private fun NightProviderModelEntity.supportsCapability(capability: String): Boo
         capability: String,
     ): NightResolvedModel? {
         val selected = resolveChatModel(chatId)
-        val selectedSupports = selected?.model?.capabilities
-            ?.split(",")
-            ?.map { it.trim().lowercase() }
-            ?.contains(capability.lowercase())
-            ?: false
+        val selectedSupports = selected?.model?.supportsCapability(capability) ?: false
 
         val route = repository.capabilityRoute(capability)
 
@@ -85,3 +78,9 @@ private fun NightProviderModelEntity.supportsCapability(capability: String): Boo
         return if (selectedSupports) selected else null
     }
 }
+
+private fun NightProviderModelEntity.supportsCapability(capability: String): Boolean =
+    capabilities
+        .split(",")
+        .map { it.trim().lowercase() }
+        .contains(capability.trim().lowercase())
