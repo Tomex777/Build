@@ -1,10 +1,12 @@
 package com.example.whatsapp.presentation.chatscreen
 
+import android.Manifest
 import android.app.Activity
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -66,6 +68,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -503,6 +507,8 @@ private fun shareNightMedia(context: Context, item: NightChatMediaItem) {
     }
 }
 
+private const val NIGHT_LEGACY_MEDIA_WRITE_REQUEST = 4821
+
 private fun saveNightMedia(context: Context, item: NightChatMediaItem) {
     val source = File(item.localPath)
     if (!source.exists()) {
@@ -510,40 +516,80 @@ private fun saveNightMedia(context: Context, item: NightChatMediaItem) {
         return
     }
 
+    if (
+        Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+        ) != PackageManager.PERMISSION_GRANTED
+    ) {
+        val activity = context as? Activity
+        if (activity != null) {
+            ActivityCompat.requestPermissions(
+                activity,
+                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                NIGHT_LEGACY_MEDIA_WRITE_REQUEST,
+            )
+            Toast.makeText(
+                context,
+                "Allow storage access, then tap Save again.",
+                Toast.LENGTH_SHORT,
+            ).show()
+        } else {
+            Toast.makeText(context, "Storage permission is required to save.", Toast.LENGTH_SHORT).show()
+        }
+        return
+    }
+
     runCatching {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val resolver = context.contentResolver
-            val displayName = source.name.ifBlank {
-                (if (item.isVideo) "Night video " else "Night image ") + System.currentTimeMillis()
-            }
-            val values = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
-                put(MediaStore.MediaColumns.MIME_TYPE, item.mimeType)
+        val resolver = context.contentResolver
+        val displayName = source.name.ifBlank {
+            (if (item.isVideo) "Night video " else "Night image ") + System.currentTimeMillis()
+        }
+
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+            put(MediaStore.MediaColumns.TITLE, displayName.substringBeforeLast("."))
+            put(MediaStore.MediaColumns.MIME_TYPE, item.mimeType)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 put(
                     MediaStore.MediaColumns.RELATIVE_PATH,
                     if (item.isVideo) "Movies/Night" else "Pictures/Night",
                 )
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
-            val collection = if (item.isVideo) {
+        }
+
+        val collection = if (item.isVideo) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
             } else {
-                MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI
             }
-            val uri = checkNotNull(resolver.insert(collection, values))
+        } else {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            } else {
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            }
+        }
+
+        val uri = checkNotNull(resolver.insert(collection, values))
+        try {
             resolver.openOutputStream(uri).use { output ->
                 requireNotNull(output)
                 source.inputStream().use { input -> input.copyTo(output) }
             }
-            values.clear()
-            values.put(MediaStore.MediaColumns.IS_PENDING, 0)
-            resolver.update(uri, values, null, null)
-        } else {
-            val targetDir = context.getExternalFilesDir(
-                if (item.isVideo) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES
-            ) ?: context.filesDir
-            source.copyTo(File(targetDir, source.name), overwrite = true)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                values.clear()
+                values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                resolver.update(uri, values, null, null)
+            }
+        } catch (failure: Throwable) {
+            runCatching { resolver.delete(uri, null, null) }
+            throw failure
         }
+
         Toast.makeText(context, "Saved.", Toast.LENGTH_SHORT).show()
     }.onFailure {
         Toast.makeText(context, "Could not save this media.", Toast.LENGTH_SHORT).show()
