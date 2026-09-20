@@ -75,13 +75,6 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
 
-            if (
-                providers.gradleProperty("HOMIRA_SIGN_RELEASE_WITH_CI_KEY")
-                    .orNull
-                    ?.equals("true", ignoreCase = true) == true
-            ) {
-                signingConfig = signingConfigs.getByName("debug")
-            }
         }
     }
 
