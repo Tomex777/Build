@@ -32,7 +32,6 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -133,6 +132,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -530,6 +530,7 @@ fun HomiraProductionApp(
             mutableStateOf<List<LocalCallHistoryRecord>>(emptyList())
         }
         var tab by rememberSaveable { mutableStateOf(MainTab.Keypad) }
+        val tabStateHolder = rememberSaveableStateHolder()
         var overlay by rememberSaveable { mutableStateOf(OverlayScreen.None) }
         var activePerson by remember { mutableStateOf<HomiraPerson?>(null) }
         var activeVideo by rememberSaveable { mutableStateOf(false) }
@@ -2166,12 +2167,9 @@ fun HomiraProductionApp(
                             }
                         )
                     }
-                    AnimatedContent(
-                        targetState = tab,
-                        label = "mainTabs",
-                        modifier = Modifier.fillMaxSize()
-                    ) { current ->
-                        when (current) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        tabStateHolder.SaveableStateProvider(tab.name) {
+                            when (tab) {
                             MainTab.Keypad -> KeypadScreen(
                                 contacts = appContacts,
                                 resolvingDial = resolvingDial,
@@ -2295,6 +2293,7 @@ fun HomiraProductionApp(
                                 onEdit = { overlay = OverlayScreen.EditProfile },
                                 onSettings = { overlay = OverlayScreen.Settings }
                             )
+                            }
                         }
                     }
                 }
