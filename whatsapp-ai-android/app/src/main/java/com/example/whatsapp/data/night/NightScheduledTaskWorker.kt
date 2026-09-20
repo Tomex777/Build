@@ -37,6 +37,11 @@ class NightScheduledTaskWorker(
                 role = "assistant",
                 text = reply,
             )
+            NightNotificationHelper.notifyScheduledResult(
+                context = applicationContext,
+                task = task,
+                reply = reply,
+            )
 
             val now = System.currentTimeMillis()
             val repeat = task.repeatMinutes
