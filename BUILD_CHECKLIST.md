@@ -25,7 +25,7 @@ This checklist is a release gate, not a marketing list. An item is checked only 
 - [x] Unicode-codepoint backspace source path.
 - [x] Editor-action-aware Enter source path.
 - [x] Secondary-character long press source path.
-- [ ] Backspace hold/repeat implemented and verified on emulator/device.
+- [x] Backspace hold/repeat implemented and verified on Android 16 emulator.
 - [ ] Email, URL, number, multiline, search, password and chat fields verified end-to-end.
 - [ ] RTL behavior verified.
 
@@ -115,10 +115,10 @@ This checklist is a release gate, not a marketing list. An item is checked only 
 ## 8. Emoji
 - [x] Emoji toolbar/panel exists.
 - [x] Selecting an emoji entry commits the corresponding Unicode emoji to the target app in source.
-- [ ] Picker artwork uses custom Compose vector/Canvas artwork instead of system emoji glyph rendering.
+- [x] Picker artwork uses custom Compose vector/Canvas artwork instead of system emoji glyph rendering.
 - [ ] Full custom emoji library.
 - [ ] Categories/search/recents/favorites in native app.
-- [ ] Emoji insertion verified through the real Android IME harness.
+- [x] Emoji insertion verified through the real Android 16 IME harness.
 - [ ] Rendering/performance stress test with a large pack.
 
 ## 9. AI and voice scope
