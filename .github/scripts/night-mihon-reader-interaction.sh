@@ -53,6 +53,42 @@ read_saved_progress() {
     head -n 1
 }
 
+read_media_volume() {
+  local raw volume audio_dump current_line
+
+  # Android 11's media_session shell command can emit its [V] diagnostics on
+  # stderr, so capture both streams before parsing the reported music volume.
+  raw="$(adb shell cmd media_session volume --stream 3 --get 2>&1 || true)"
+  volume="$(printf '%s\n' "$raw" | sed -n 's/.*volume is \([0-9][0-9]*\).*/\1/p' | tail -n 1)"
+
+  # Keep a second, framework-level path so the consumption assertion is not
+  # tied to shell-command output formatting.
+  if [ -z "$volume" ]; then
+    audio_dump="$(adb shell dumpsys audio 2>&1 || true)"
+    current_line="$(
+      printf '%s\n' "$audio_dump" |
+        awk '
+          /- STREAM_MUSIC:/ { in_music = 1; next }
+          in_music && /Current:/ { print; exit }
+        '
+    )"
+    volume="$(
+      printf '%s\n' "$current_line" |
+        sed -n 's/.*(speaker):[[:space:]]*\([0-9][0-9]*\).*/\1/p'
+    )"
+    raw="$raw
+$current_line"
+  fi
+
+  printf '%s\n' "$raw" > mihon-interaction-artifacts/media-volume-latest.txt
+  if [ -z "$volume" ]; then
+    echo "Could not read Android media volume for volume-key consumption test." >&2
+    printf '%s\n' "$raw" >&2
+    exit 1
+  fi
+  printf '%s\n' "$volume"
+}
+
 assert_desc() {
   refresh_ui
   python3 /tmp/night_uia.py desc "$1" >/dev/null
@@ -95,6 +131,110 @@ find_and_tap_text() {
     sleep 1
   done
   echo "Could not find UI text: $target" >&2
+  return 1
+}
+
+settings_sheet_visible() {
+  local marker
+  for marker in \
+    "Reader settings" \
+    "Long strip side padding · 0%" \
+    "Double tap zoom" \
+    "Tap zones" \
+    "Invert tapping" \
+    "Keep screen on" \
+    "Fullscreen" \
+    "Show page number" \
+    "Volume keys" \
+    "Invert volume keys" \
+    "Disable zoom out" \
+    "Background color"; do
+    if text_is_visible "$marker"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+dismiss_reader_settings() {
+  local context_label="${1:-reader navigation}"
+  local attempt
+
+  # This helper is called immediately after interacting with the real settings
+  # sheet, so close it deterministically once before probing. The sheet can
+  # scroll far enough that any single label disappears from UiAutomator.
+  adb shell input keyevent KEYCODE_BACK
+  sleep 1
+
+  for attempt in 1 2; do
+    if ! settings_sheet_visible; then
+      return 0
+    fi
+    adb shell input keyevent KEYCODE_BACK
+    sleep 1
+  done
+
+  if ! settings_sheet_visible; then
+    return 0
+  fi
+
+  echo "Reader settings sheet did not close before $context_label." >&2
+  adb exec-out screencap -p > mihon-interaction-artifacts/failure-settings-dismiss.png
+  return 1
+}
+
+hide_reader_chrome() {
+  local context_label="${1:-reader navigation}"
+  local attempt
+
+  # Mihon only routes volume keys to the viewer when its chrome is hidden.
+  # Do not assume one center tap has a particular starting state: inspect the
+  # actual top-bar title and keep toggling until the chrome is definitely gone.
+  for attempt in 1 2 3; do
+    if ! text_is_visible "Mihon Interaction Test"; then
+      return 0
+    fi
+    adb shell input tap 354 760
+    sleep 1
+  done
+
+  echo "Reader chrome remained visible before $context_label." >&2
+  adb exec-out screencap -p > mihon-interaction-artifacts/failure-reader-chrome-visible.png
+  return 1
+}
+
+position_long_strip_for_volume_test() {
+  local progress attempt
+  local last_page=7
+
+  progress="$(read_saved_progress)"
+  test -n "$progress"
+
+  # The earlier Long strip scroll intentionally exercises a large gesture and
+  # can leave this tiny 8-page landscape fixture at its last page. Put the
+  # production reader back at an interior position using ordinary reader
+  # scrolling before testing hardware-key direction.
+  for attempt in 1 2 3 4 5 6 7 8; do
+    if [ "$progress" -gt 0 ] && [ "$progress" -lt "$last_page" ]; then
+      printf '%s\n' "$progress"
+      return 0
+    fi
+
+    if [ "$progress" -ge "$last_page" ]; then
+      # Finger moves down => Long strip moves backward.
+      adb shell input swipe 350 420 350 1180 320
+    else
+      # Finger moves up => Long strip moves forward.
+      adb shell input swipe 350 1180 350 420 320
+    fi
+    sleep 2
+    assert_no_crash
+    progress="$(read_saved_progress)"
+    test -n "$progress"
+  done
+
+  echo "Could not position Long strip away from an edge for volume navigation." >&2
+  adb exec-out screencap -p > mihon-interaction-artifacts/failure-volume-positioning.png
   return 1
 }
 
@@ -247,45 +387,201 @@ grep -Eq '<boolean name="volumeKeys" value="true" ?/>' mihon-interaction-artifac
 
 # Dismiss the settings sheet, then hide the reader chrome. Mihon only
 # intercepts volume keys for page navigation while the reader menu is hidden.
-# A tall Material bottom sheet can consume one Back for its internal state,
-# so keep backing out until the sheet text is actually gone.
-for attempt in 1 2 3; do
-  if ! text_is_visible "Reader settings"; then
-    break
-  fi
-  adb shell input keyevent KEYCODE_BACK
-  sleep 1
-done
-if text_is_visible "Reader settings"; then
-  echo "Reader settings sheet did not close before volume navigation." >&2
-  adb exec-out screencap -p > mihon-interaction-artifacts/failure-settings-dismiss.png
+dismiss_reader_settings "volume navigation"
+
+# Explicitly verify Mihon's menu-hidden state before injecting hardware keys.
+hide_reader_chrome "volume navigation"
+
+# The earlier Long strip gesture can legitimately leave the small preview at
+# its final page. Reposition with normal touch scrolling so both directions
+# have room before testing hardware keys.
+position_long_strip_for_volume_test >/dev/null
+adb exec-out screencap -p > mihon-interaction-artifacts/07-volume-start.png
+
+# Put the media stream in the middle of its range. If Night fails to consume
+# either hardware key, Android will visibly move this value and the test fails.
+adb shell cmd media_session volume --stream 3 --set 7 >/dev/null 2>&1
+baseline_media_volume="$(read_media_volume)"
+if [ "$baseline_media_volume" != "7" ]; then
+  echo "Could not establish media-volume baseline at 7 (got $baseline_media_volume)." >&2
   exit 1
 fi
-
-# Reader chrome may be visible after the sheet closes. Toggle the center once
-# so hardware keys are tested in the same menu-hidden state Mihon uses.
-adb shell input tap 354 760
-sleep 1
 
 before_volume_progress="$(read_saved_progress)"
 test -n "$before_volume_progress"
 adb logcat -c
 
-adb shell input keyevent KEYCODE_VOLUME_DOWN
-sleep 2
-assert_no_crash
-after_volume_down_progress="$(read_saved_progress)"
-test -n "$after_volume_down_progress"
+# Normal Mihon mapping: Volume Down moves forward. A 3/4-screen Webtoon scroll
+# may remain within the same active page, so allow a few real key presses while
+# requiring every one to stay consumed by Night.
+after_volume_down_progress="$before_volume_progress"
+for attempt in 1 2 3; do
+  adb shell input keyevent KEYCODE_VOLUME_DOWN
+  sleep 2
+  assert_no_crash
+  after_volume_down_progress="$(read_saved_progress)"
+  after_volume_down_media="$(read_media_volume)"
+  test -n "$after_volume_down_progress"
+  if [ "$after_volume_down_media" != "$baseline_media_volume" ]; then
+    echo "Volume Down changed Android media volume instead of being consumed by Night." >&2
+    exit 1
+  fi
+  if [ "$after_volume_down_progress" -gt "$before_volume_progress" ]; then
+    break
+  fi
+done
 
-if [ "$after_volume_down_progress" = "$before_volume_progress" ]; then
-  echo "Volume Down was not consumed as Mihon reader navigation." >&2
+if [ "$after_volume_down_progress" -le "$before_volume_progress" ]; then
+  echo "Volume Down did not move forward in Long strip." >&2
   adb exec-out screencap -p > mihon-interaction-artifacts/failure-volume-down.png
   exit 1
 fi
 
-adb shell input keyevent KEYCODE_VOLUME_UP
-sleep 2
+# Normal Mihon mapping: Volume Up moves backward.
+after_volume_up_progress="$after_volume_down_progress"
+for attempt in 1 2 3; do
+  adb shell input keyevent KEYCODE_VOLUME_UP
+  sleep 2
+  assert_no_crash
+  after_volume_up_progress="$(read_saved_progress)"
+  after_volume_up_media="$(read_media_volume)"
+  test -n "$after_volume_up_progress"
+  if [ "$after_volume_up_media" != "$baseline_media_volume" ]; then
+    echo "Volume Up changed Android media volume instead of being consumed by Night." >&2
+    exit 1
+  fi
+  if [ "$after_volume_up_progress" -lt "$after_volume_down_progress" ]; then
+    break
+  fi
+done
+
+if [ "$after_volume_up_progress" -ge "$after_volume_down_progress" ]; then
+  echo "Volume Up did not move backward in Long strip." >&2
+  adb exec-out screencap -p > mihon-interaction-artifacts/failure-volume-up.png
+  exit 1
+fi
+
+# Make sure there is room to navigate backward before testing inversion.
+seed_progress="$after_volume_up_progress"
+for attempt in 1 2 3; do
+  if [ "$seed_progress" -gt 0 ]; then
+    break
+  fi
+  adb shell input keyevent KEYCODE_VOLUME_DOWN
+  sleep 2
+  assert_no_crash
+  seed_progress="$(read_saved_progress)"
+done
+if [ "$seed_progress" -le 0 ]; then
+  echo "Could not move away from the first page before inverted-volume test." >&2
+  exit 1
+fi
+
+# Turn on Mihon's inverted-volume option from the real settings sheet.
+adb shell input tap 354 760
+sleep 1
+adb shell input tap 582 1500
+sleep 1
+assert_text "Reader settings"
+find_and_tap_text "Invert volume keys" 10
+adb shell run-as "$PACKAGE" cat shared_prefs/night_mihon_reader.xml \
+  > mihon-interaction-artifacts/prefs-invert-volume-keys.xml
+grep -Eq '<boolean name="invertVolumeKeys" value="true" ?/>' mihon-interaction-artifacts/prefs-invert-volume-keys.xml
+
+dismiss_reader_settings "inverted-volume navigation"
+
+# Reopen the production reader after inversion is persisted. Long strip restores
+# the saved page with scrollToPositionWithOffset(page, 0), giving this assertion
+# a known page boundary instead of an arbitrary in-page offset.
+adb shell am force-stop "$PACKAGE"
+adb shell am start -W -n "$PACKAGE/.MihonReaderPreviewActivity" \
+  --ez mihon.preview.openProductionReader true
+sleep 3
+assert_alive
 assert_no_crash
+hide_reader_chrome "inverted-volume navigation"
+
+adb shell run-as "$PACKAGE" cat shared_prefs/night_mihon_reader.xml \
+  > mihon-interaction-artifacts/prefs-inverted-after-restart.xml
+before_inverted_progress="$(read_saved_progress)"
+before_inverted_media="$(read_media_volume)"
+test -n "$before_inverted_progress"
+if [ "$before_inverted_progress" -le 0 ]; then
+  echo "Inverted-volume restart did not restore a page with backward room." >&2
+  exit 1
+fi
+adb exec-out screencap -p > mihon-interaction-artifacts/07-inverted-start.png
+
+# Inverted mapping: Volume Down moves backward.
+after_inverted_down_progress="$before_inverted_progress"
+for attempt in 1 2 3; do
+  adb shell input keyevent KEYCODE_VOLUME_DOWN
+  sleep 2
+  assert_no_crash
+  after_inverted_down_progress="$(read_saved_progress)"
+  after_inverted_down_media="$(read_media_volume)"
+  if [ "$after_inverted_down_media" != "$before_inverted_media" ]; then
+    echo "Inverted Volume Down leaked to Android media volume." >&2
+    exit 1
+  fi
+  if [ "$after_inverted_down_progress" -lt "$before_inverted_progress" ]; then
+    break
+  fi
+done
+
+cat > mihon-interaction-artifacts/volume-navigation-partial.txt <<EOF
+baselineMediaVolume=$baseline_media_volume
+normalStartPage=$before_volume_progress
+normalAfterDownPage=$after_volume_down_progress
+normalAfterUpPage=$after_volume_up_progress
+invertedStartPage=$before_inverted_progress
+invertedAfterDownPage=$after_inverted_down_progress
+invertedMediaBefore=$before_inverted_media
+invertedMediaAfterDown=$after_inverted_down_media
+EOF
+
+if [ "$after_inverted_down_progress" -ge "$before_inverted_progress" ]; then
+  echo "Inverted Volume Down did not move backward in Long strip." >&2
+  adb exec-out screencap -p > mihon-interaction-artifacts/failure-inverted-volume-down.png
+  exit 1
+fi
+
+# Inverted mapping: Volume Up moves forward.
+after_inverted_up_progress="$after_inverted_down_progress"
+for attempt in 1 2 3; do
+  adb shell input keyevent KEYCODE_VOLUME_UP
+  sleep 2
+  assert_no_crash
+  after_inverted_up_progress="$(read_saved_progress)"
+  after_inverted_up_media="$(read_media_volume)"
+  if [ "$after_inverted_up_media" != "$before_inverted_media" ]; then
+    echo "Inverted Volume Up leaked to Android media volume." >&2
+    exit 1
+  fi
+  if [ "$after_inverted_up_progress" -gt "$after_inverted_down_progress" ]; then
+    break
+  fi
+done
+
+if [ "$after_inverted_up_progress" -le "$after_inverted_down_progress" ]; then
+  echo "Inverted Volume Up did not move forward in Long strip." >&2
+  adb exec-out screencap -p > mihon-interaction-artifacts/failure-inverted-volume-up.png
+  exit 1
+fi
+
+cat > mihon-interaction-artifacts/volume-navigation.txt <<EOF
+volumeKeys=true
+baselineMediaVolume=$baseline_media_volume
+normalStartPage=$before_volume_progress
+normalAfterDownPage=$after_volume_down_progress
+normalAfterUpPage=$after_volume_up_progress
+invertVolumeKeys=true
+invertedStartPage=$before_inverted_progress
+invertedAfterDownPage=$after_inverted_down_progress
+invertedAfterUpPage=$after_inverted_up_progress
+finalMediaVolume=$after_inverted_up_media
+EOF
 
 adb exec-out screencap -p > mihon-interaction-artifacts/07-after-volume-nav.png
 adb logcat -d > mihon-interaction-artifacts/logcat.txt
+assert_no_crash

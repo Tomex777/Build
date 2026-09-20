@@ -415,6 +415,9 @@ internal class MihonReaderHostView(
         }
 
     private fun buildWebtoon() {
+        val initialPage = currentPage
+        var acceptPageChanges = false
+
         val recycler =
             MihonWebtoonRecyclerView(context).apply {
                 layoutParams =
@@ -562,16 +565,23 @@ internal class MihonReaderHostView(
                     dx: Int,
                     dy: Int,
                 ) {
-                    val first =
+                    if (!acceptPageChanges) return
+
+                    // Match Mihon's WebtoonViewer active-page rule. The
+                    // first visible item can still be the previous page when
+                    // only a sliver remains on screen, which is especially
+                    // common after restoring a requested page. Mihon tracks
+                    // the last page whose end is visible instead.
+                    val active =
                         manager
-                            .findFirstVisibleItemPosition()
+                            .findLastEndVisibleItemPosition()
                     if (
-                        first !=
+                        active !=
                         RecyclerView.NO_POSITION &&
-                        first != currentPage
+                        active != currentPage
                     ) {
-                        currentPage = first
-                        onPageChanged?.invoke(first)
+                        currentPage = active
+                        onPageChanged?.invoke(active)
                     }
                 }
             },
@@ -600,16 +610,26 @@ internal class MihonReaderHostView(
         addView(frame)
         webtoon = recycler
         manager.scrollToPositionWithOffset(
-            currentPage,
+            initialPage,
             0,
         )
 
-        // Reveal on the next frame, after RecyclerView has had a chance to
-        // finish attaching its holders and Compose has completed the current
-        // AndroidView layout pass.
+        // Match Mihon's first-layout ownership: the requested/restored page
+        // remains authoritative while the hidden recycler is being attached.
+        // Do not replace it with a transient visible-position query during
+        // reveal; re-apply the requested position, then publish later scrolls.
         recycler.postOnAnimation {
             if (webtoon === recycler && recycler.isAttachedToWindow) {
                 recycler.visibility = View.VISIBLE
+                manager.scrollToPositionWithOffset(
+                    initialPage,
+                    0,
+                )
+                recycler.postOnAnimation {
+                    if (webtoon === recycler && recycler.isAttachedToWindow) {
+                        acceptPageChanges = true
+                    }
+                }
             }
         }
     }
