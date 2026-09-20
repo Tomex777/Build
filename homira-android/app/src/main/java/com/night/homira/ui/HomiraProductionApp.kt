@@ -3253,21 +3253,21 @@ private fun RecentsScreen(
         visibleByBlocked && visibleByQuery
     }
 
-    val filtered = buildList {
+    val filtered = buildList<CallEntry> {
         visibleRaw.forEach { entry ->
-            val last = lastOrNull()
+            val previous = this.lastOrNull()
             val canGroup =
-                last != null &&
-                    last.person.id == entry.person.id &&
-                    last.day == entry.day &&
-                    last.direction == entry.direction &&
-                    last.video == entry.video &&
-                    last.voicemailId == null &&
+                previous != null &&
+                    previous.person.id == entry.person.id &&
+                    previous.day == entry.day &&
+                    previous.direction == entry.direction &&
+                    previous.video == entry.video &&
+                    previous.voicemailId == null &&
                     entry.voicemailId == null
 
-            if (canGroup) {
-                this[lastIndex] = requireNotNull(last).copy(
-                    count = last.count + entry.count
+            if (canGroup && previous != null) {
+                this[this.lastIndex] = previous.copy(
+                    count = previous.count + entry.count
                 )
             } else {
                 add(entry)
