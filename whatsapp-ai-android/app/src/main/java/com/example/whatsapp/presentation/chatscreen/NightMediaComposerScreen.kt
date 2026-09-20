@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -117,6 +118,16 @@ fun NightMediaComposerScreen(
         mutableStateOf(0f..durationSeconds)
     }
     var muted by remember(localPath) { mutableStateOf(false) }
+
+    BackHandler(enabled = cropMode || emojiOpen) {
+        when {
+            emojiOpen -> emojiOpen = false
+            cropMode -> {
+                cropMode = false
+                cropView = null
+            }
+        }
+    }
 
     DisposableEffect(localPath) {
         onDispose {
@@ -344,6 +355,14 @@ fun NightMediaComposerScreen(
                     } else {
                         IconButton(onClick = ::enterCropMode) {
                             Icon(Icons.Default.Crop, "Crop", tint = Color.White)
+                        }
+                        IconButton(
+                            onClick = {
+                                imageRotation = (imageRotation + 90f) % 360f
+                                photoEditorView?.source?.rotation = imageRotation
+                            },
+                        ) {
+                            Icon(Icons.Default.RotateRight, "Rotate", tint = Color.White)
                         }
                         IconButton(onClick = { emojiOpen = !emojiOpen }) {
                             Icon(

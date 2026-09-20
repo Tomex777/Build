@@ -129,7 +129,6 @@ internal fun NightAniyomiVlcPlayer(
 
     var subtitleMenu by remember { mutableStateOf(false) }
     var audioMenu by remember { mutableStateOf(false) }
-    var qualityMenu by remember { mutableStateOf(false) }
     var speedMenu by remember { mutableStateOf(false) }
     var moreMenu by remember { mutableStateOf(false) }
 
@@ -140,7 +139,7 @@ internal fun NightAniyomiVlcPlayer(
         mutableStateOf<List<Pair<Int, String>>>(emptyList())
     }
 
-    val menuOpen = subtitleMenu || audioMenu || qualityMenu || speedMenu || moreMenu
+    val menuOpen = subtitleMenu || audioMenu || speedMenu || moreMenu
 
     DisposableEffect(player, libVlc, item.localPath) {
         val uri = when {
@@ -300,15 +299,6 @@ internal fun NightAniyomiVlcPlayer(
                             }
                         }
 
-                        Switch(
-                            checked = autoplayNext,
-                            onCheckedChange = {
-                                autoplayNext = it
-                                controlsVisible = true
-                            },
-                            modifier = Modifier.size(width = 42.dp, height = 26.dp),
-                        )
-
                         Box {
                             CompactPlayerButton(
                                 onClick = { subtitleMenu = true },
@@ -347,51 +337,6 @@ internal fun NightAniyomiVlcPlayer(
 
                         Box {
                             CompactPlayerButton(
-                                onClick = { audioMenu = true },
-                            ) {
-                                Icon(Icons.Default.Audiotrack, "Audio", tint = Color.White)
-                            }
-                            DropdownMenu(
-                                expanded = audioMenu,
-                                onDismissRequest = { audioMenu = false },
-                            ) {
-                                audioTracks.forEach { (id, name) ->
-                                    DropdownMenuItem(
-                                        text = { Text(name) },
-                                        onClick = {
-                                            runCatching { player.setAudioTrack(id) }
-                                            audioMenu = false
-                                        },
-                                    )
-                                }
-                                if (audioTracks.isEmpty()) {
-                                    DropdownMenuItem(
-                                        text = { Text("Default audio") },
-                                        onClick = { audioMenu = false },
-                                    )
-                                }
-                            }
-                        }
-
-                        Box {
-                            CompactPlayerButton(
-                                onClick = { qualityMenu = true },
-                            ) {
-                                Icon(Icons.Default.HighQuality, "Quality", tint = Color.White)
-                            }
-                            DropdownMenu(
-                                expanded = qualityMenu,
-                                onDismissRequest = { qualityMenu = false },
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Auto · source quality") },
-                                    onClick = { qualityMenu = false },
-                                )
-                            }
-                        }
-
-                        Box {
-                            CompactPlayerButton(
                                 onClick = { moreMenu = true },
                             ) {
                                 Icon(Icons.Default.MoreVert, "More", tint = Color.White)
@@ -400,6 +345,24 @@ internal fun NightAniyomiVlcPlayer(
                                 expanded = moreMenu,
                                 onDismissRequest = { moreMenu = false },
                             ) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            if (autoplayNext) "Autoplay next · On"
+                                            else "Autoplay next · Off"
+                                        )
+                                    },
+                                    onClick = {
+                                        autoplayNext = !autoplayNext
+                                        moreMenu = false
+                                        controlsVisible = true
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    leadingIcon = { Icon(Icons.Default.HighQuality, null) },
+                                    text = { Text("Quality · source") },
+                                    onClick = { moreMenu = false },
+                                )
                                 DropdownMenuItem(
                                     leadingIcon = { Icon(Icons.Default.Share, null) },
                                     text = { Text("Share") },
@@ -524,6 +487,34 @@ internal fun NightAniyomiVlcPlayer(
                             }
 
                             Box {
+                                CompactPlayerButton(
+                                    onClick = { audioMenu = true },
+                                ) {
+                                    Icon(Icons.Default.Audiotrack, "Audio", tint = Color.White)
+                                }
+                                DropdownMenu(
+                                    expanded = audioMenu,
+                                    onDismissRequest = { audioMenu = false },
+                                ) {
+                                    audioTracks.forEach { (id, name) ->
+                                        DropdownMenuItem(
+                                            text = { Text(name) },
+                                            onClick = {
+                                                runCatching { player.setAudioTrack(id) }
+                                                audioMenu = false
+                                            },
+                                        )
+                                    }
+                                    if (audioTracks.isEmpty()) {
+                                        DropdownMenuItem(
+                                            text = { Text("Default audio") },
+                                            onClick = { audioMenu = false },
+                                        )
+                                    }
+                                }
+                            }
+
+                            Box {
                                 TextButton(
                                     onClick = { speedMenu = true },
                                     modifier = Modifier.padding(horizontal = 0.dp),
@@ -556,6 +547,7 @@ internal fun NightAniyomiVlcPlayer(
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                                 CompactPlayerButton(
                                     onClick = {
+                                        controlsVisible = false
                                         runCatching {
                                             activity?.enterPictureInPictureMode(
                                                 PictureInPictureParams.Builder().build()
