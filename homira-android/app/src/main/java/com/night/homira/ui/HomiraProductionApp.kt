@@ -1680,7 +1680,18 @@ fun HomiraProductionApp(
 
                     "missed", "declined", "cancelled", "failed", "ended" -> {
                         incomingCallNotifier?.cancel(session.id)
-                        runCatching { telecomBridge?.disconnect() }
+
+                        // A terminal waiting call must never tear down a
+                        // different call that is already active.
+                        if (
+                            activeSession == null ||
+                            activeSession?.id == session.id
+                        ) {
+                            runCatching {
+                                telecomBridge?.disconnect()
+                            }
+                        }
+
                         val outcome = when (session.state) {
                             "missed" -> HomiraCallHistoryStore.OUTCOME_MISSED
                             "declined" -> HomiraCallHistoryStore.OUTCOME_DECLINED
@@ -1724,7 +1735,16 @@ fun HomiraProductionApp(
                     liveRepository.setCallState(session.id, "missed")
                 }.onSuccess { missed ->
                     incomingCallNotifier?.cancel(missed.id)
-                    runCatching { telecomBridge?.disconnect() }
+
+                    if (
+                        activeSession == null ||
+                        activeSession?.id == missed.id
+                    ) {
+                        runCatching {
+                            telecomBridge?.disconnect()
+                        }
+                    }
+
                     callHistoryStore.markTerminal(
                         missed.id,
                         HomiraCallHistoryStore.OUTCOME_MISSED
