@@ -1287,6 +1287,14 @@ fun HomiraProductionApp(
                 liveScope.launch {
                     runCatching {
                         if (previousSession != null) {
+                            Log.i(
+                                "HomiraCallSwap",
+                                "Replacing active call " +
+                                    previousSession.id +
+                                    " with waiting call " +
+                                    session.id
+                            )
+
                             // Tear down the old media path immediately.
                             // The old server-session update runs in parallel
                             // so it can never delay answering the new call.
@@ -1368,6 +1376,10 @@ fun HomiraProductionApp(
                             "active"
                         )
                     }.onSuccess { updated ->
+                        Log.i(
+                            "HomiraCallSwap",
+                            "Waiting call accepted: ${updated.id}"
+                        )
                         incomingCallNotifier?.cancel(updated.id)
                         callHistoryStore.markAnswered(updated.id)
                         localCallHistory =
@@ -1432,6 +1444,10 @@ fun HomiraProductionApp(
             incomingPerson = null
             pendingIncomingAccept = false
             incomingCallNotifier?.cancel(session.id)
+            Log.i(
+                "HomiraIncoming",
+                "Waiting call declined: ${session.id}"
+            )
 
             if (!liveMode) return
 
