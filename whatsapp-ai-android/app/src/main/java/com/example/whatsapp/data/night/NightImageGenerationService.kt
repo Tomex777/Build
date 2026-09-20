@@ -50,7 +50,6 @@ class NightImageGenerationService private constructor(
                 .put("prompt", prompt.trim())
                 .put("size", normalizeSize(size))
                 .put("n", 1)
-                .put("response_format", "b64_json")
 
             val request = Request.Builder()
                 .url(endpoint)
@@ -111,7 +110,8 @@ class NightImageGenerationService private constructor(
 
     private fun normalizeSize(value: String): String =
         when (value.trim().lowercase()) {
-            "1024x1024", "1024x1536", "1536x1024" -> value.trim().lowercase()
+            "1024x1024", "1024x1536", "1536x1024", "1024x1792", "1792x1024" ->
+                value.trim().lowercase()
             else -> "1024x1024"
         }
 
