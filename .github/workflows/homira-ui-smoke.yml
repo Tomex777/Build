@@ -126,17 +126,7 @@ jobs:
             adb shell pidof com.night.homira | grep -q .
             adb exec-out screencap -p > homira-android/app/build/ui-smoke/cached-startup.png
 
-            if [ "${{ matrix.api-level }}" = "36" ]; then
-              adb uninstall com.night.homira
-              adb install homira-android/app/build/outputs/apk/release/homira-release-smoke.apk
-              adb logcat -c || true
-              adb shell am start -W -n com.night.homira/.MainActivity
-              sleep 5
-              adb logcat -d > homira-android/app/build/ui-smoke/release-startup-logcat.txt
-              ! grep -q "FATAL EXCEPTION" homira-android/app/build/ui-smoke/release-startup-logcat.txt
-              adb shell pidof com.night.homira | grep -q .
-              adb exec-out screencap -p > homira-android/app/build/ui-smoke/release-startup.png
-            fi
+            test "${{ matrix.api-level }}" != "36" || (adb uninstall com.night.homira && adb install homira-android/app/build/outputs/apk/release/homira-release-smoke.apk && (adb logcat -c || true) && adb shell am start -W -n com.night.homira/.MainActivity && sleep 5 && adb logcat -d > homira-android/app/build/ui-smoke/release-startup-logcat.txt && ! grep -q "FATAL EXCEPTION" homira-android/app/build/ui-smoke/release-startup-logcat.txt && adb shell pidof com.night.homira | grep -q . && adb exec-out screencap -p > homira-android/app/build/ui-smoke/release-startup.png)
 
       - name: Run Android lint
         id: lint
