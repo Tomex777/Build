@@ -171,7 +171,11 @@ private fun RoutePickerDialog(
     val candidates: List<Pair<NightProviderProfileEntity, NightProviderModelEntity?>> =
         when (capability.id) {
             "vision", "image_generation" -> profiles
-                .filter { it.serviceKind == "chat" && it.isEnabled }
+                .filter {
+                    it.serviceKind == "chat" &&
+                        it.isEnabled &&
+                        (capability.id != "image_generation" || it.providerType == "azure")
+                }
                 .flatMap { profile ->
                     models
                         .filter {
