@@ -1,0 +1,57 @@
+name: Homira Production Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [homira-call-ci]
+    paths:
+      - 'homira-android/**'
+      - '.github/workflows/homira-production-release.yml'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android SDK
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Build production release APK and AAB
+        working-directory: homira-android
+        run: |
+          gradle :app:assembleRelease :app:bundleRelease --stacktrace
+
+      - name: Confirm release is non-debuggable
+        run: |
+          APK=homira-android/app/build/outputs/apk/release/app-release-unsigned.apk
+          test -f "$APK"
+          aapt dump badging "$APK" | tee /tmp/homira-badging.txt
+          if grep -q "application-debuggable" /tmp/homira-badging.txt; then
+            echo "Release APK is debuggable"
+            exit 1
+          fi
+
+      - name: Upload unsigned production outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: homira-production-unsigned
+          path: |
+            homira-android/app/build/outputs/apk/release/app-release-unsigned.apk
+            homira-android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
