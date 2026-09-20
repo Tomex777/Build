@@ -90,7 +90,7 @@ private fun View.installNightVideoTapHandler(onTap: () -> Unit) {
     }
 }
 
-private fun shouldNightStartWithSoftwareVideoDecode(): Boolean {
+private fun isNightVirtualVideoDevice(): Boolean {
     val fingerprint = Build.FINGERPRINT.orEmpty()
     val model = Build.MODEL.orEmpty()
     val manufacturer = Build.MANUFACTURER.orEmpty()
@@ -138,8 +138,10 @@ internal fun NightAniyomiVlcPlayer(
     val context = androidx.compose.ui.platform.LocalContext.current
     val activity = remember(context) { context.findNightActivity() }
     val appContext = context.applicationContext
-    val startWithSoftwareDecode = remember { shouldNightStartWithSoftwareVideoDecode() }
-    var softwareDecode by remember(item.localPath) { mutableStateOf(startWithSoftwareDecode) }
+    val virtualVideoDevice = remember { isNightVirtualVideoDevice() }
+    var softwareDecode by remember(item.localPath) { mutableStateOf(false) }
+    var hardwareRetryGeneration by remember(item.localPath) { mutableIntStateOf(0) }
+    var hardwareRetryCount by remember(item.localPath) { mutableIntStateOf(0) }
     var userPaused by remember(item.localPath) { mutableStateOf(false) }
     var fallbackResumePosition by remember(item.localPath) { mutableLongStateOf(0L) }
 
@@ -153,7 +155,7 @@ internal fun NightAniyomiVlcPlayer(
         }
     }
 
-    val libVlc = remember(item.localPath, softwareDecode) {
+    val libVlc = remember(item.localPath, softwareDecode, hardwareRetryGeneration) {
         val options = arrayListOf(
             "--audio-time-stretch",
             "--network-caching=1500",
@@ -161,7 +163,7 @@ internal fun NightAniyomiVlcPlayer(
         )
         LibVLC(appContext, options)
     }
-    val player = remember(item.localPath, softwareDecode) { MediaPlayer(libVlc) }
+    val player = remember(item.localPath, softwareDecode, hardwareRetryGeneration) { MediaPlayer(libVlc) }
     var attachedPlayer by remember(item.localPath) {
         mutableStateOf<MediaPlayer?>(null)
     }
@@ -235,7 +237,7 @@ internal fun NightAniyomiVlcPlayer(
         }
 
         player.play()
-        if (softwareDecode && fallbackResumePosition > 0L) {
+        if (fallbackResumePosition > 0L) {
             runCatching { player.setTime(fallbackResumePosition) }
         }
         runCatching { player.setRate(playbackSpeed) }
@@ -273,6 +275,15 @@ internal fun NightAniyomiVlcPlayer(
                 // Before the first 500ms, allow a longer startup window so slow
                 // surface/codec initialization does not trigger a false fallback at 0ms.
                 fallbackResumePosition = position
+                if (virtualVideoDevice && hardwareRetryCount < 2) {
+                    hardwareRetryCount += 1
+                    Log.w(
+                        "NightVideo",
+                        "Virtual-device hardware playback stalled at ${position}ms; recreating VLC hardware player (retry $hardwareRetryCount).",
+                    )
+                    hardwareRetryGeneration += 1
+                    return@LaunchedEffect
+                }
                 Log.w(
                     "NightVideo",
                     "Hardware playback stalled at ${position}ms; recreating VLC with software decoding.",
