@@ -487,6 +487,9 @@ fun HomiraProductionApp(
             ) { granted ->
                 notificationPermissionGranted = granted
                 settingsStore.setNotificationPermissionRequested(true)
+                if (!granted) {
+                    settingsStore.setCallNotifications(false)
+                }
                 localSettings = settingsStore.load()
             }
 
