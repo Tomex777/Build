@@ -20,38 +20,40 @@ object HomiraPushBootstrap {
             BuildConfig.FIREBASE_SENDER_ID.isNotBlank()
 
     @Synchronized
-    fun initialize(context: Context): Boolean {
-        val appContext = context.applicationContext
-
+    fun initialize(context: Context): Boolean =
         runCatching {
-            FirebaseApp.getInstance()
-        }.getOrNull()?.let {
-            return true
-        }
+            val appContext = context.applicationContext
 
-        FirebaseApp.initializeApp(appContext)?.let {
-            return true
-        }
+            runCatching {
+                FirebaseApp.getInstance()
+            }.getOrNull()?.let {
+                return@runCatching true
+            }
 
-        if (!isConfigured()) return false
+            FirebaseApp.initializeApp(appContext)?.let {
+                return@runCatching true
+            }
 
-        val options = FirebaseOptions.Builder()
-            .setProjectId(BuildConfig.FIREBASE_PROJECT_ID)
-            .setApplicationId(BuildConfig.FIREBASE_APP_ID)
-            .setApiKey(BuildConfig.FIREBASE_API_KEY)
-            .setGcmSenderId(BuildConfig.FIREBASE_SENDER_ID)
-            .build()
+            if (!isConfigured()) return@runCatching false
 
-        FirebaseApp.initializeApp(appContext, options)
-        return true
-    }
+            val options = FirebaseOptions.Builder()
+                .setProjectId(BuildConfig.FIREBASE_PROJECT_ID)
+                .setApplicationId(BuildConfig.FIREBASE_APP_ID)
+                .setApiKey(BuildConfig.FIREBASE_API_KEY)
+                .setGcmSenderId(BuildConfig.FIREBASE_SENDER_ID)
+                .build()
+
+            FirebaseApp.initializeApp(appContext, options) != null
+        }.getOrDefault(false)
 
     fun requestRegistration(context: Context) {
-        if (!initialize(context)) return
+        runCatching {
+            if (!initialize(context)) return@runCatching
 
-        val messaging = FirebaseMessaging.getInstance()
-        messaging.isAutoInitEnabled = true
-        messaging.register()
+            val messaging = FirebaseMessaging.getInstance()
+            messaging.isAutoInitEnabled = true
+            messaging.register()
+        }
     }
 
     fun storeTarget(
