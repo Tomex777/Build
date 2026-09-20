@@ -81,7 +81,8 @@ class EndlessRenderer(
     private var pendingYaw = 0.0
     private var pendingPitch = 0.0
     private val dampingFactor = 0.055
-    private val rotateSpeed = 0.30
+    private val rotateSpeedFocused = 0.26
+    private val rotateSpeedOverview = 0.20
 
     private var selectedId: String? = "earth"
     private var overview = false
@@ -225,14 +226,18 @@ class EndlessRenderer(
     @Synchronized
     fun orbitBy(dx: Float, dy: Float, viewportHeight: Int) {
         val h = max(1, viewportHeight)
-        val radiansPerPixel = (2.0 * PI * rotateSpeed) / h.toDouble()
+        val speed = if (overview) rotateSpeedOverview else rotateSpeedFocused
+        val radiansPerPixel = (2.0 * PI * speed) / h.toDouble()
 
-        // Deliberately follows the finger direction. M2 used the opposite sign.
-        pendingYaw += dx.coerceIn(-140f, 140f) * radiansPerPixel
-        pendingPitch += dy.coerceIn(-140f, 140f) * radiansPerPixel
+        // Follow the finger direction. Overview is deliberately slower because
+        // tiny distant targets need fine control.
+        pendingYaw += dx.coerceIn(-120f, 120f) * radiansPerPixel
+        pendingPitch += dy.coerceIn(-120f, 120f) * radiansPerPixel
 
-        pendingYaw = pendingYaw.coerceIn(-1.5, 1.5)
-        pendingPitch = pendingPitch.coerceIn(-1.2, 1.2)
+        val yawLimit = if (overview) 0.95 else 1.25
+        val pitchLimit = if (overview) 0.75 else 1.0
+        pendingYaw = pendingYaw.coerceIn(-yawLimit, yawLimit)
+        pendingPitch = pendingPitch.coerceIn(-pitchLimit, pitchLimit)
     }
 
     @Synchronized
@@ -283,27 +288,24 @@ class EndlessRenderer(
             savedFocus = CameraState(selectedId, yaw, pitch, distance, targetDistance)
             overview = true
             selectedId = null
-            yaw = .72
-            pitch = .38
-            distance = 43.0
+
+            // Fly outward instead of snapping. The stored focus state is kept
+            // untouched so Return still goes back to the exact prior view.
+            pendingYaw += (.72 - yaw)
+            pendingPitch += (.38 - pitch)
             targetDistance = 43.0
-            cameraTarget = Vec3d.ZERO
             onSelectionChanged(null)
         } else {
             val state = savedFocus
             overview = false
             if (state != null) {
                 selectedId = state.selectedId
-                yaw = state.yaw
-                pitch = state.pitch
-                distance = state.distance
+                pendingYaw += (state.yaw - yaw)
+                pendingPitch += (state.pitch - pitch)
                 targetDistance = state.targetDistance
-                cameraTarget = selectedId?.let { byId[it]?.position } ?: Vec3d.ZERO
             } else {
                 selectedId = "earth"
-                distance = 5.0
                 targetDistance = 5.0
-                cameraTarget = byId["earth"]?.position ?: Vec3d.ZERO
             }
             onSelectionChanged(selectedId)
         }
@@ -315,13 +317,12 @@ class EndlessRenderer(
         val body = bodies.firstOrNull { it.id == id } ?: return
         overview = false
         selectedId = id
+
+        // Preserve the current viewing direction and fly to the body.
+        // This is much less disorienting than resetting yaw/pitch on every tap.
         targetDistance = max(body.radius * 7.5, 2.0)
-        distance = targetDistance
-        yaw = .72
-        pitch = .28
         pendingYaw = 0.0
         pendingPitch = 0.0
-        cameraTarget = body.position
         onSelectionChanged(id)
     }
 
@@ -405,18 +406,18 @@ class EndlessRenderer(
             pendingPitch = 0.0
         }
 
-        val zoomAlpha = 1.0 - exp(-14.0 * dt)
+        // Critically-smoothed zoom/fly distance. This removes the abrupt
+        // M3.2 "teleport" feel when focusing a distant planet.
+        val zoomAlpha = 1.0 - exp(-9.0 * dt)
         distance += (targetDistance - distance) * zoomAlpha
     }
 
     @Synchronized
     private fun updateCamera(dt: Double) {
         val desiredTarget = selectedId?.let { byId[it]?.position } ?: Vec3d.ZERO
-        val targetAlpha = if (selectedId != null) {
-            1.0 - (1.0 - .18).pow((dt * 60.0).coerceIn(0.0, 3.0))
-        } else {
-            1.0
-        }
+        val perFrameTargetDamping = if (selectedId != null) .16 else .11
+        val targetAlpha =
+            1.0 - (1.0 - perFrameTargetDamping).pow((dt * 60.0).coerceIn(0.0, 3.0))
 
         cameraTarget += (desiredTarget - cameraTarget) * targetAlpha
 
