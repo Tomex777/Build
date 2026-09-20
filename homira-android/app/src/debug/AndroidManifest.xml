@@ -4,5 +4,8 @@
         <activity
             android:name=".HomiraSmokeActivity"
             android:exported="true" />
+        <activity
+            android:name=".HomiraLiveSmokeActivity"
+            android:exported="true" />
     </application>
 </manifest>
