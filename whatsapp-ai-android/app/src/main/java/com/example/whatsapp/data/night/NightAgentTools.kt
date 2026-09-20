@@ -335,6 +335,14 @@ class NightAgentToolExecutor private constructor(
 }
 
 object NightAgentToolSchemas {
+    fun isSideEffect(name: String): Boolean =
+        name in setOf(
+            "schedule_task",
+            "set_appearance",
+            "create_options",
+            "generate_image",
+        ) || name.startsWith("ext__")
+
     fun all(): JSONArray = JSONArray()
         .put(function(
             name = "get_current_time",
