@@ -44,6 +44,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -149,6 +151,9 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.calculatePan
+import androidx.compose.ui.input.pointer.calculateZoom
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -6815,57 +6820,91 @@ private fun ActiveCallScreen(
                             availableWidthPx,
                             availableHeightPx
                         ) {
-                            detectTransformGestures {
-                                    _,
-                                    pan,
-                                    zoom,
-                                    _ ->
+                            awaitEachGesture {
+                                awaitFirstDown(
+                                    requireUnconsumed = false
+                                )
 
-                                val nextScale =
-                                    (
-                                        selfViewScale *
-                                            zoom
-                                    ).coerceIn(
-                                        .65f,
-                                        1.25f
-                                    )
-                                selfViewScale = nextScale
+                                do {
+                                    val event = awaitPointerEvent()
+                                    val zoom =
+                                        event.calculateZoom()
+                                    val pan =
+                                        event.calculatePan()
 
-                                val currentWidthPx =
-                                    baseWidthPx *
-                                        nextScale
-                                val currentHeightPx =
-                                    baseHeightPx *
-                                        nextScale
-                                val maxHorizontalTravel =
-                                    (
-                                        availableWidthPx -
-                                            currentWidthPx -
-                                            sidePaddingPx
-                                    ).coerceAtLeast(0f)
-                                val maxVerticalTravel =
-                                    (
-                                        availableHeightPx -
-                                            currentHeightPx -
-                                            bottomReservedPx
-                                    ).coerceAtLeast(0f)
+                                    val nextScale =
+                                        (
+                                            selfViewScale *
+                                                zoom
+                                        ).coerceIn(
+                                            .65f,
+                                            1.25f
+                                        )
+                                    selfViewScale = nextScale
 
-                                selfViewOffsetX =
-                                    (
-                                        selfViewOffsetX +
-                                            pan.x
-                                    ).coerceIn(
-                                        -maxHorizontalTravel,
-                                        0f
-                                    )
-                                selfViewOffsetY =
-                                    (
-                                        selfViewOffsetY +
-                                            pan.y
-                                    ).coerceIn(
-                                        0f,
-                                        maxVerticalTravel
-                                    )
+                                    val currentWidthPx =
+                                        baseWidthPx *
+                                            nextScale
+                                    val currentHeightPx =
+                                        baseHeightPx *
+                                            nextScale
+                                    val maxHorizontalTravel =
+                                        (
+                                            availableWidthPx -
+                                                currentWidthPx -
+                                                sidePaddingPx
+                                        ).coerceAtLeast(0f)
+                                    val maxVerticalTravel =
+                                        (
+                                            availableHeightPx -
+                                                currentHeightPx -
+                                                bottomReservedPx
+                                        ).coerceAtLeast(0f)
+
+                                    selfViewOffsetX =
+                                        (
+                                            selfViewOffsetX +
+                                                pan.x
+                                        ).coerceIn(
+                                            -maxHorizontalTravel,
+                                            0f
+                                        )
+                                    selfViewOffsetY =
+                                        (
+                                            selfViewOffsetY +
+                                                pan.y
+                                        ).coerceIn(
+                                            0f,
+                                            maxVerticalTravel
+                                        )
+
+                                    if (
+                                        zoom != 1f ||
+                                        pan.x != 0f ||
+                                        pan.y != 0f
+                                    ) {
+                                        event.changes.forEach {
+                                            change ->
+                                            if (
+                                                change
+                                                    .positionChanged()
+                                            ) {
+                                                change.consume()
+                                            }
+                                        }
+                                    }
+                                } while (
+                                    event.changes.any {
+                                        it.pressed
+                                    }
+                                )
+
+                                // WhatsApp-style elastic upper bound:
+                                // the tile may stretch while touched,
+                                // then returns to its normal maximum.
+                                if (selfViewScale > 1f) {
+                                    selfViewScale = 1f
+                                }
                             }
                         },
                     shape = RoundedCornerShape(20.dp),
