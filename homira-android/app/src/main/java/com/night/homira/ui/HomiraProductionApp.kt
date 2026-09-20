@@ -2007,16 +2007,18 @@ fun HomiraProductionApp(
             overlay == OverlayScreen.EditProfile -> EditProfileScreen(
                 name = profileName,
                 username = profileUsername,
+                phone = profilePhone,
                 about = profileAbout,
                 email = profileEmail,
                 avatarUri = avatarUri,
                 callCardUri = callCardUri,
                 saving = profileSaving,
                 onBack = { if (!profileSaving) overlay = OverlayScreen.None },
-                onSave = { name, username, about, email, avatar, card ->
+                onSave = { name, username, phone, about, email, avatar, card ->
                     if (!liveMode) {
                         profileName = name
                         profileUsername = username
+                        profilePhone = phone
                         profileAbout = about
                         profileEmail = email
                         avatarUri = avatar
@@ -2081,9 +2083,13 @@ fun HomiraProductionApp(
                                     }
                                 }
 
+                                val normalizedPhone = normalizeDirectDialP(phone)
+                                    ?: error("Use the full phone number with country code, like +234…")
+
                                 liveRepository.updateMyProfile(
                                     displayName = name,
                                     username = username,
+                                    phoneE164 = normalizedPhone,
                                     about = about,
                                     email = email,
                                     avatarPath = nextAvatarPath,
@@ -2111,6 +2117,7 @@ fun HomiraProductionApp(
 
                                 profileName = saved.displayName.ifBlank { "You" }
                                 profileUsername = saved.username.orEmpty()
+                                profilePhone = saved.phoneE164.orEmpty()
                                 profileAbout = saved.about
                                 profileEmail = saved.email.orEmpty()
                                 avatarStoragePath = saved.avatarPath
@@ -3391,16 +3398,18 @@ private fun MeScreen(
 private fun EditProfileScreen(
     name: String,
     username: String,
+    phone: String,
     about: String,
     email: String,
     avatarUri: String?,
     callCardUri: String?,
     saving: Boolean,
     onBack: () -> Unit,
-    onSave: (String, String, String, String, String?, String?) -> Unit
+    onSave: (String, String, String, String, String, String?, String?) -> Unit
 ) {
     var editedName by rememberSaveable { mutableStateOf(name) }
     var editedUsername by rememberSaveable { mutableStateOf(username) }
+    var editedPhone by rememberSaveable { mutableStateOf(phone) }
     var editedAbout by rememberSaveable { mutableStateOf(about) }
     var editedEmail by rememberSaveable { mutableStateOf(email) }
     var editedAvatar by rememberSaveable { mutableStateOf(avatarUri) }
@@ -3431,6 +3440,7 @@ private fun EditProfileScreen(
                         onSave(
                             editedName,
                             editedUsername,
+                            editedPhone,
                             editedAbout,
                             editedEmail,
                             editedAvatar,
@@ -3482,6 +3492,7 @@ private fun EditProfileScreen(
         }
         item { ProfileFieldP("Name", editedName) { editedName = it } }
         item { ProfileFieldP("Username", editedUsername) { editedUsername = it.replace(" ", "").lowercase() } }
+        item { ProfileFieldP("Phone number", editedPhone) { editedPhone = it } }
         item { ProfileFieldP("About", editedAbout) { editedAbout = it } }
         item { ProfileFieldP("Email", editedEmail) { editedEmail = it } }
     }
