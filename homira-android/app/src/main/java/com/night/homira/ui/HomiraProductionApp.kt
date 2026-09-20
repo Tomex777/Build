@@ -2854,23 +2854,37 @@ private fun PlainDialPad(
 
 @Composable
 private fun RecentsScreen(
-    contacts: List<HomiraPerson>,
     entries: List<CallEntry>,
+    blockedUserIds: Set<String>,
     playingVoicemailId: String?,
     onVoicemail: (CallEntry) -> Unit,
-    onSettings: () -> Unit,
-    onBlockedPeople: () -> Unit,
+    onDeleteAll: () -> Unit,
     onVoiceCall: (HomiraPerson) -> Unit,
     onVideoCall: (HomiraPerson) -> Unit
 ) {
-    var filter by rememberSaveable { mutableStateOf(RecentFilter.All) }
+    var filter by rememberSaveable {
+        mutableStateOf(RecentFilter.All)
+    }
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
+    var menuOpen by remember { mutableStateOf(false) }
+    var filterOpen by remember { mutableStateOf(false) }
+    var confirmDeleteAll by remember { mutableStateOf(false) }
+    var hideBlocked by rememberSaveable { mutableStateOf(false) }
 
     val filteredByType = when (filter) {
         RecentFilter.All -> entries
         RecentFilter.Missed -> entries.filter {
             it.direction == CallDirection.Missed
+        }
+        RecentFilter.Rejected -> entries.filter {
+            it.direction == CallDirection.Declined
+        }
+        RecentFilter.Outgoing -> entries.filter {
+            it.direction == CallDirection.Outgoing
+        }
+        RecentFilter.Incoming -> entries.filter {
+            it.direction == CallDirection.Incoming
         }
         RecentFilter.Voicemail -> entries.filter {
             it.voicemailSeconds != null
@@ -2878,35 +2892,142 @@ private fun RecentsScreen(
     }
 
     val normalizedQuery = query.trim()
-    val filtered = filteredByType.filter { entry ->
-        normalizedQuery.isBlank() ||
-            entry.person.name.contains(normalizedQuery, ignoreCase = true) ||
-            entry.person.number.contains(normalizedQuery) ||
-            directionLabel(entry.direction)
-                .contains(normalizedQuery, ignoreCase = true)
+    val visibleRaw = filteredByType.filter { entry ->
+        val visibleByBlocked =
+            !hideBlocked || entry.person.id !in blockedUserIds
+        val visibleByQuery =
+            normalizedQuery.isBlank() ||
+                entry.person.name.contains(
+                    normalizedQuery,
+                    ignoreCase = true
+                ) ||
+                entry.person.number.contains(normalizedQuery) ||
+                directionLabel(entry.direction).contains(
+                    normalizedQuery,
+                    ignoreCase = true
+                )
+
+        visibleByBlocked && visibleByQuery
     }
 
-    val days = filtered
-        .map { it.day }
-        .distinct()
-    val topMissed = filtered
-        .firstOrNull { it.direction == CallDirection.Missed }
+    val filtered = buildList {
+        visibleRaw.forEach { entry ->
+            val last = lastOrNull()
+            val canGroup =
+                last != null &&
+                    last.person.id == entry.person.id &&
+                    last.day == entry.day &&
+                    last.direction == entry.direction &&
+                    last.video == entry.video &&
+                    last.voicemailId == null &&
+                    entry.voicemailId == null
+
+            if (canGroup) {
+                this[lastIndex] = requireNotNull(last).copy(
+                    count = last.count + entry.count
+                )
+            } else {
+                add(entry)
+            }
+        }
+    }
+
+    val days = filtered.map { it.day }.distinct()
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().safeDrawingPadding(),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .safeDrawingPadding(),
+        contentPadding = PaddingValues(
+            horizontal = 20.dp,
+            vertical = 14.dp
+        ),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            HeaderActions(
-                title = "Recents",
-                onSettings = onSettings,
-                onSearch = {
-                    searching = !searching
-                    if (!searching) query = ""
-                },
-                onBlockedPeople = onBlockedPeople
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Recents",
+                    color = HomiraText,
+                    fontSize = 31.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(
+                    onClick = {
+                        searching = !searching
+                        if (!searching) query = ""
+                    }
+                ) {
+                    Icon(
+                        Icons.Rounded.Search,
+                        contentDescription = "Search calls",
+                        tint = HomiraText
+                    )
+                }
+                IconButton(onClick = { filterOpen = true }) {
+                    Icon(
+                        Icons.Rounded.FilterList,
+                        contentDescription = "Filter calls",
+                        tint = if (filter == RecentFilter.All) {
+                            HomiraText
+                        } else {
+                            HomiraBlue
+                        }
+                    )
+                }
+                Box {
+                    IconButton(onClick = { menuOpen = true }) {
+                        Icon(
+                            Icons.Rounded.MoreVert,
+                            contentDescription = "More",
+                            tint = HomiraText
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuOpen,
+                        onDismissRequest = { menuOpen = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (hideBlocked) {
+                                        "Show blocked calls"
+                                    } else {
+                                        "Hide blocked calls"
+                                    }
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Rounded.Block,
+                                    contentDescription = null
+                                )
+                            },
+                            onClick = {
+                                hideBlocked = !hideBlocked
+                                menuOpen = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete call history") },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Rounded.CallEnd,
+                                    contentDescription = null
+                                )
+                            },
+                            onClick = {
+                                menuOpen = false
+                                confirmDeleteAll = true
+                            }
+                        )
+                    }
+                }
+            }
         }
 
         if (searching) {
@@ -2923,84 +3044,127 @@ private fun RecentsScreen(
                         )
                     },
                     placeholder = { Text("Search recent calls") },
-                    shape = RoundedCornerShape(20.dp)
+                    shape = RoundedCornerShape(28.dp)
                 )
             }
         }
 
-        if (topMissed != null) {
+        if (filter != RecentFilter.All) {
             item {
-                MissedSummaryCard(
-                    call = topMissed,
-                    voicemailPlaying = playingVoicemailId == topMissed.voicemailPlaybackKey(),
-                    onCallBack = { onVoiceCall(topMissed.person) },
-                    onVoicemail = { onVoicemail(topMissed) }
+                Surface(
+                    shape = RoundedCornerShape(99.dp),
+                    color = HomiraSurfaceRaised
+                ) {
+                    Text(
+                        when (filter) {
+                            RecentFilter.All -> "All calls"
+                            RecentFilter.Missed -> "Missed calls"
+                            RecentFilter.Rejected -> "Rejected calls"
+                            RecentFilter.Outgoing -> "Outgoing calls"
+                            RecentFilter.Incoming -> "Incoming calls"
+                            RecentFilter.Voicemail -> "Direct voicemail"
+                        },
+                        color = HomiraBlue,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(
+                            horizontal = 13.dp,
+                            vertical = 8.dp
+                        )
+                    )
+                }
+            }
+        }
+
+        if (filtered.isNotEmpty()) {
+            item {
+                Text(
+                    "Swipe right for voice · left for video",
+                    color = HomiraMuted.copy(alpha = .72f),
+                    fontSize = 11.sp
                 )
             }
         }
 
-        item {
-            Text("Quick call", color = HomiraMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(9.dp))
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                contacts.filter { it.favorite }.forEach { person ->
-                    QuickPerson(person, onVoice = { onVoiceCall(person) }, onVideo = { onVideoCall(person) })
-                }
-                contacts.filterNot { it.favorite }.take(2).forEach { person ->
-                    QuickPerson(person, onVoice = { onVoiceCall(person) }, onVideo = { onVideoCall(person) })
+        if (filtered.isEmpty()) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = HomiraSurface
+                    )
+                ) {
+                    Text(
+                        if (
+                            query.isNotBlank() ||
+                            filter != RecentFilter.All ||
+                            hideBlocked
+                        ) {
+                            "No calls match this view."
+                        } else {
+                            "No recent calls yet."
+                        },
+                        color = HomiraMuted,
+                        fontSize = 13.sp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(22.dp),
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
-        }
-
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                FilterChip("All", filter == RecentFilter.All) { filter = RecentFilter.All }
-                Spacer(Modifier.width(8.dp))
-                FilterChip("Missed", filter == RecentFilter.Missed) { filter = RecentFilter.Missed }
-                Spacer(Modifier.width(8.dp))
-                FilterChip("Voicemail", filter == RecentFilter.Voicemail) { filter = RecentFilter.Voicemail }
-                Spacer(Modifier.weight(1f))
-                Icon(Icons.Rounded.FilterList, contentDescription = "Filter", tint = HomiraMuted, modifier = Modifier.size(21.dp))
-            }
-        }
-
-        item {
-            Text(
-                "Swipe right for voice · left for video",
-                color = HomiraMuted.copy(alpha = .72f),
-                fontSize = 11.sp
-            )
         }
 
         days.forEach { day ->
-            val entries = filtered.filter { it.day == day }
+            val dayEntries = filtered.filter { it.day == day }
             item(key = "day-$day") {
                 Column {
-                    Text(day, color = HomiraMuted, fontSize = 13.sp, modifier = Modifier.padding(start = 4.dp, bottom = 7.dp))
+                    Text(
+                        day,
+                        color = HomiraMuted,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(
+                            start = 4.dp,
+                            bottom = 7.dp
+                        )
+                    )
                     Card(
                         shape = RoundedCornerShape(26.dp),
-                        colors = CardDefaults.cardColors(containerColor = HomiraSurface)
+                        colors = CardDefaults.cardColors(
+                            containerColor = HomiraSurface
+                        )
                     ) {
                         Column {
-                            entries.forEachIndexed { index, entry ->
+                            dayEntries.forEachIndexed { index, entry ->
                                 SwipeCallRow(
                                     person = entry.person,
-                                    onVoice = { onVoiceCall(entry.person) },
-                                    onVideo = { onVideoCall(entry.person) }
+                                    onVoice = {
+                                        onVoiceCall(entry.person)
+                                    },
+                                    onVideo = {
+                                        onVideoCall(entry.person)
+                                    }
                                 ) {
                                     RecentEntryRow(
                                         entry = entry,
-                                        voicemailPlaying = playingVoicemailId == entry.voicemailPlaybackKey(),
-                                        onVoicemail = { onVoicemail(entry) },
-                                        onCall = { onVoiceCall(entry.person) }
+                                        voicemailPlaying =
+                                            playingVoicemailId ==
+                                                entry.voicemailPlaybackKey(),
+                                        onVoicemail = {
+                                            onVoicemail(entry)
+                                        },
+                                        onCall = {
+                                            onVoiceCall(entry.person)
+                                        }
                                     )
                                 }
-                                if (index != entries.lastIndex) {
+
+                                if (index != dayEntries.lastIndex) {
                                     HorizontalDivider(
-                                        modifier = Modifier.padding(start = 66.dp, end = 18.dp),
+                                        modifier = Modifier.padding(
+                                            start = 66.dp,
+                                            end = 18.dp
+                                        ),
                                         color = HomiraLine.copy(alpha = .7f)
                                     )
                                 }
@@ -3012,6 +3176,129 @@ private fun RecentsScreen(
         }
 
         item { Spacer(Modifier.height(10.dp)) }
+    }
+
+    if (filterOpen) {
+        AlertDialog(
+            onDismissRequest = { filterOpen = false },
+            title = {
+                Text(
+                    "Filter calls",
+                    color = HomiraText,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    listOf(
+                        RecentFilter.All to "All calls",
+                        RecentFilter.Missed to "Missed calls",
+                        RecentFilter.Rejected to "Rejected calls",
+                        RecentFilter.Outgoing to "Outgoing calls",
+                        RecentFilter.Incoming to "Incoming calls",
+                        RecentFilter.Voicemail to "Direct voicemail"
+                    ).forEach { (option, label) ->
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    filter = option
+                                    filterOpen = false
+                                },
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (filter == option) {
+                                HomiraSurfaceRaised
+                            } else {
+                                Color.Transparent
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(
+                                    horizontal = 14.dp,
+                                    vertical = 12.dp
+                                ),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    modifier = Modifier.size(20.dp),
+                                    shape = CircleShape,
+                                    color = if (filter == option) {
+                                        HomiraBlue
+                                    } else {
+                                        HomiraLine
+                                    }
+                                ) {
+                                    if (filter == option) {
+                                        Box(
+                                            contentAlignment =
+                                                Alignment.Center
+                                        ) {
+                                            Surface(
+                                                modifier = Modifier.size(8.dp),
+                                                shape = CircleShape,
+                                                color = HomiraBackground
+                                            ) {}
+                                        }
+                                    }
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    label,
+                                    color = HomiraText,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { filterOpen = false }) {
+                    Text("Done", color = HomiraGreen)
+                }
+            },
+            containerColor = HomiraSurface
+        )
+    }
+
+    if (confirmDeleteAll) {
+        AlertDialog(
+            onDismissRequest = { confirmDeleteAll = false },
+            title = {
+                Text(
+                    "Delete call history?",
+                    color = HomiraText
+                )
+            },
+            text = {
+                Text(
+                    "This clears Homira's local recent-call history on this device.",
+                    color = HomiraMuted
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmDeleteAll = false
+                        onDeleteAll()
+                    }
+                ) {
+                    Text("Delete", color = HomiraDanger)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        confirmDeleteAll = false
+                    }
+                ) {
+                    Text("Cancel", color = HomiraMuted)
+                }
+            },
+            containerColor = HomiraSurface
+        )
     }
 }
 
