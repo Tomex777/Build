@@ -95,6 +95,8 @@ fun NightMihonReaderScreen(
     chapterTitle: String,
     pages: List<MihonPageSpec>,
     initialPage: Int = 0,
+    readerKey: String = mangaTitle,
+    progressKey: String? = null,
     onBack: () -> Unit,
     onPreviousChapter: (() -> Unit)? = null,
     onNextChapter: (() -> Unit)? = null,
@@ -108,11 +110,18 @@ fun NightMihonReaderScreen(
         )
     }
 
-    var modeName by rememberSaveable {
+    val modePreferenceKey = remember(readerKey) {
+        "mode:" + readerKey.trim().ifBlank { mangaTitle }
+    }
+
+    var modeName by rememberSaveable(readerKey) {
         mutableStateOf(
             preferences.getString(
-                "mode",
-                MihonReadingMode.RIGHT_TO_LEFT.name,
+                modePreferenceKey,
+                preferences.getString(
+                    "mode",
+                    MihonReadingMode.RIGHT_TO_LEFT.name,
+                ) ?: MihonReadingMode.RIGHT_TO_LEFT.name,
             ) ?: MihonReadingMode.RIGHT_TO_LEFT.name,
         )
     }
@@ -170,13 +179,28 @@ fun NightMihonReaderScreen(
             MihonReaderOrientation.FREE,
         )
 
-    var currentPage by rememberSaveable {
+    val savedProgress = remember(progressKey, pages.size) {
+        progressKey
+            ?.let { preferences.getInt("progress:" + it, -1) }
+            ?.takeIf { it >= 0 }
+    }
+
+    var currentPage by rememberSaveable(progressKey, pages.size) {
         mutableIntStateOf(
-            initialPage.coerceIn(
+            (savedProgress ?: initialPage).coerceIn(
                 0,
                 (pages.size - 1).coerceAtLeast(0),
             ),
         )
+    }
+
+    LaunchedEffect(currentPage, progressKey) {
+        progressKey?.let {
+            preferences
+                .edit()
+                .putInt("progress:" + it, currentPage)
+                .apply()
+        }
     }
     var controlsVisible by rememberSaveable {
         mutableStateOf(true)
@@ -559,7 +583,7 @@ fun NightMihonReaderScreen(
                 preferences
                     .edit()
                     .putString(
-                        "mode",
+                        modePreferenceKey,
                         selected.name,
                     )
                     .apply()
