@@ -1378,6 +1378,66 @@ fun HomiraProductionApp(
             }
         }
 
+        fun requestAcceptIncoming() {
+            val session = incomingSession ?: return
+            val needsMicrophone = !micPermissionGranted
+            val needsCamera =
+                session.mediaType == "video" &&
+                    !cameraPermissionGranted
+
+            if (!needsMicrophone && !needsCamera) {
+                acceptIncomingNow()
+                return
+            }
+
+            pendingIncomingAccept = true
+            runCatching {
+                callPermissionLauncher.launch(
+                    buildList {
+                        if (needsMicrophone) {
+                            add(Manifest.permission.RECORD_AUDIO)
+                        }
+                        if (needsCamera) {
+                            add(Manifest.permission.CAMERA)
+                        }
+                    }.toTypedArray()
+                )
+            }.onFailure {
+                pendingIncomingAccept = false
+                Toast.makeText(
+                    context,
+                    "Could not request call permissions.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        fun declineIncomingNow() {
+            val session = incomingSession ?: return
+            incomingSession = null
+            incomingPerson = null
+            pendingIncomingAccept = false
+            incomingCallNotifier?.cancel(session.id)
+
+            if (!liveMode) return
+
+            liveScope.launch {
+                runCatching {
+                    liveRepository.setCallState(
+                        session.id,
+                        "declined"
+                    )
+                }.onFailure {
+                    Log.e(
+                        "HomiraIncoming",
+                        "Could not decline incoming call " +
+                            session.id,
+                        it
+                    )
+                }
+            }
+        }
+
         val telecomSession = activeSession ?: incomingSession
         val telecomPerson = activePerson ?: incomingPerson
 
@@ -1985,40 +2045,14 @@ fun HomiraProductionApp(
         }
 
         when {
-            incomingSession != null && incomingPerson != null -> IncomingCallScreen(
-                person = incomingPerson ?: mimiP,
-                video = incomingSession?.mediaType == "video",
-                onAccept = {
-                    val needsCamera =
-                        incomingSession?.mediaType == "video" && !cameraPermissionGranted
-                    val needsMicrophone = !micPermissionGranted
-
-                    if (!needsMicrophone && !needsCamera) {
-                        acceptIncomingNow()
-                    } else {
-                        pendingIncomingAccept = true
-                        callPermissionLauncher.launch(
-                            buildList {
-                                if (needsMicrophone) add(Manifest.permission.RECORD_AUDIO)
-                                if (needsCamera) add(Manifest.permission.CAMERA)
-                            }.toTypedArray()
-                        )
-                    }
-                },
-                onDecline = {
-                    val session = incomingSession
-                    incomingSession = null
-                    incomingPerson = null
-                    if (session != null) {
-                        incomingCallNotifier?.cancel(session.id)
-                        liveScope.launch {
-                            runCatching {
-                                liveRepository.setCallState(session.id, "declined")
-                            }
-                        }
-                    }
-                }
-            )
+            incomingSession != null &&
+                incomingPerson != null &&
+                (activePerson == null || minimized) -> IncomingCallScreen(
+                    person = incomingPerson ?: mimiP,
+                    video = incomingSession?.mediaType == "video",
+                    onAccept = ::requestAcceptIncoming,
+                    onDecline = ::declineIncomingNow
+                )
 
             voicemailOffer != null -> LeaveVoicemailScreen(
                 offer = requireNotNull(voicemailOffer),
@@ -2037,7 +2071,9 @@ fun HomiraProductionApp(
                 }
             )
 
-            activePerson != null && !minimized -> ActiveCallScreen(
+            activePerson != null && !minimized -> Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
                 person = activePerson ?: mimiP,
                 startsWithVideo = activeVideo,
                 liveState = if (liveMode) activeSession?.state else null,
@@ -2113,6 +2149,28 @@ fun HomiraProductionApp(
                     finishLiveCall(session)
                 }
             )
+
+                val waitingPerson = incomingPerson
+                val waitingSession = incomingSession
+                if (
+                    waitingPerson != null &&
+                    waitingSession != null
+                ) {
+                    WaitingIncomingCallBannerP(
+                        person = waitingPerson,
+                        video = waitingSession.mediaType == "video",
+                        onAccept = ::requestAcceptIncoming,
+                        onDecline = ::declineIncomingNow,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .statusBarsPadding()
+                            .padding(
+                                horizontal = 12.dp,
+                                vertical = 10.dp
+                            )
+                    )
+                }
+            }
 
             overlay == OverlayScreen.Voicemail -> VoicemailSettingsScreen(
                 repository = liveRepository,
