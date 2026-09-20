@@ -234,7 +234,7 @@ class NightAgentToolExecutor private constructor(
 
         val payload = JSONObject().put("options", JSONArray(values))
         val message = NightMessageEntity(
-            id = messageId,
+            id = UUID.randomUUID().toString(),
             chatId = chatId,
             role = "assistant",
             type = "choice",
@@ -288,7 +288,7 @@ class NightAgentToolExecutor private constructor(
         }
 
         val message = NightMessageEntity(
-            id = UUID.randomUUID().toString(),
+            id = messageId,
             chatId = chatId,
             role = "assistant",
             type = "image",
