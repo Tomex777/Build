@@ -103,6 +103,7 @@ data class LiveCallSession(
 
 @Serializable
 private data class NewCallSession(
+    val id: String,
     @SerialName("caller_id") val callerId: String,
     @SerialName("callee_id") val calleeId: String,
     @SerialName("media_type") val mediaType: String
@@ -131,6 +132,7 @@ data class LiveVoicemail(
 
 @Serializable
 private data class NewVoicemail(
+    val id: String,
     @SerialName("sender_id") val senderId: String,
     @SerialName("recipient_id") val recipientId: String,
     @SerialName("call_session_id") val callSessionId: String? = null,
@@ -337,15 +339,21 @@ class HomiraLiveRepository {
 
     suspend fun startCall(calleeId: String, video: Boolean): LiveCallSession {
         val callerId = requireNotNull(currentUserId()) { "Not signed in" }
-        return client.from("call_sessions")
+        val callId = UUID.randomUUID().toString()
+
+        client.from("call_sessions")
             .insert(
                 NewCallSession(
+                    id = callId,
                     callerId = callerId,
                     calleeId = calleeId,
                     mediaType = if (video) "video" else "audio"
                 )
             )
-            .decodeSingle<LiveCallSession>()
+
+        return requireNotNull(loadCallSessionById(callId)) {
+            "Call was created but could not be reloaded."
+        }
     }
 
     suspend fun loadCallSessionById(callId: String): LiveCallSession? {
@@ -396,14 +404,22 @@ class HomiraLiveRepository {
                 .decodeSingle<LiveProfile>()
         }.getOrNull()
 
-    suspend fun setCallState(callId: String, state: String): LiveCallSession =
+    suspend fun setCallState(callId: String, state: String): LiveCallSession {
         client.from("call_sessions")
             .update({
                 set("state", state)
             }) {
                 filter { eq("id", callId) }
             }
-            .decodeSingle<LiveCallSession>()
+
+        val updated = requireNotNull(loadCallSessionById(callId)) {
+            "Call state changed but the call could not be reloaded."
+        }
+        require(updated.state == state) {
+            "Call state update was not applied."
+        }
+        return updated
+    }
 
     fun observeIncomingCallChanges(): Flow<LiveCallSession> = flow {
         val userId = currentUserId() ?: return@flow
@@ -481,13 +497,17 @@ class HomiraLiveRepository {
 
     suspend fun setVoicemailEnabled(enabled: Boolean): LiveProfile {
         val userId = requireNotNull(currentUserId()) { "Not signed in" }
-        return client.from("profiles")
+
+        client.from("profiles")
             .update({
                 set("voicemail_enabled", enabled)
             }) {
                 filter { eq("id", userId) }
             }
-            .decodeSingle<LiveProfile>()
+
+        return requireNotNull(loadMyProfile()) {
+            "Voicemail setting was saved but the profile could not be reloaded."
+        }
     }
 
     suspend fun saveVoicemailGreeting(audioFile: File): LiveProfile {
@@ -505,14 +525,17 @@ class HomiraLiveRepository {
         }
 
         return try {
-            val updated = client.from("profiles")
+            client.from("profiles")
                 .update({
                     set("voicemail_greeting_mode", "voice")
                     set("voicemail_greeting_path", newPath)
                 }) {
                     filter { eq("id", userId) }
                 }
-                .decodeSingle<LiveProfile>()
+
+            val updated = requireNotNull(loadMyProfile()) {
+                "Greeting was saved but the profile could not be reloaded."
+            }
 
             if (!oldPath.isNullOrBlank() && oldPath != newPath) {
                 runCatching { bucket.delete(oldPath) }
@@ -530,14 +553,17 @@ class HomiraLiveRepository {
         val current = loadMyProfile()
         val oldPath = current?.voicemailGreetingPath
 
-        val updated = client.from("profiles")
+        client.from("profiles")
             .update({
                 set("voicemail_greeting_mode", "default")
                 set("voicemail_greeting_path", null as String?)
             }) {
                 filter { eq("id", userId) }
             }
-            .decodeSingle<LiveProfile>()
+
+        val updated = requireNotNull(loadMyProfile()) {
+            "Greeting setting was saved but the profile could not be reloaded."
+        }
 
         if (!oldPath.isNullOrBlank()) {
             runCatching { client.storage["voicemail"].delete(oldPath) }
@@ -570,7 +596,8 @@ class HomiraLiveRepository {
         require(durationMs in 1..120_000) { "Voicemail must be between 1 ms and 2 minutes" }
         require(audioFile.exists() && audioFile.length() > 0L) { "Voicemail audio is empty" }
 
-        val path = "$senderId/${UUID.randomUUID()}.m4a"
+        val voicemailId = UUID.randomUUID().toString()
+        val path = "$senderId/$voicemailId.m4a"
         val bucket = client.storage["voicemail"]
 
         bucket.upload(path, audioFile) {
@@ -582,6 +609,7 @@ class HomiraLiveRepository {
             client.from("voicemails")
                 .insert(
                     NewVoicemail(
+                        id = voicemailId,
                         senderId = senderId,
                         recipientId = recipientId,
                         callSessionId = callSessionId,
@@ -589,7 +617,10 @@ class HomiraLiveRepository {
                         durationMs = durationMs
                     )
                 )
-                .decodeSingle<LiveVoicemail>()
+
+            requireNotNull(loadVoicemailById(voicemailId)) {
+                "Voicemail was saved but could not be reloaded."
+            }
         } catch (error: Throwable) {
             runCatching { bucket.delete(path) }
             throw error
@@ -600,14 +631,28 @@ class HomiraLiveRepository {
         client.storage["voicemail"]
             .downloadAuthenticated(voicemail.storagePath)
 
-    suspend fun markVoicemailListened(voicemailId: String): LiveVoicemail =
+    private suspend fun loadVoicemailById(voicemailId: String): LiveVoicemail? =
+        runCatching {
+            client.from("voicemails")
+                .select {
+                    filter { eq("id", voicemailId) }
+                }
+                .decodeList<LiveVoicemail>()
+                .firstOrNull()
+        }.getOrNull()
+
+    suspend fun markVoicemailListened(voicemailId: String): LiveVoicemail {
         client.from("voicemails")
             .update({
                 set("listened_at", Instant.now().toString())
             }) {
                 filter { eq("id", voicemailId) }
             }
-            .decodeSingle<LiveVoicemail>()
+
+        return requireNotNull(loadVoicemailById(voicemailId)) {
+            "Voicemail was updated but could not be reloaded."
+        }
+    }
 
     suspend fun deleteVoicemail(voicemail: LiveVoicemail) {
         client.storage["voicemail"].delete(voicemail.storagePath)
@@ -679,7 +724,8 @@ class HomiraLiveRepository {
         callCardPath: String?
     ): LiveProfile {
         val userId = requireNotNull(currentUserId()) { "Not signed in" }
-        return client.from("profiles")
+
+        client.from("profiles")
             .update({
                 set("display_name", displayName.trim())
                 set("username", username.trim().lowercase().ifBlank { null })
@@ -691,6 +737,9 @@ class HomiraLiveRepository {
             }) {
                 filter { eq("id", userId) }
             }
-            .decodeSingle<LiveProfile>()
+
+        return requireNotNull(loadMyProfile()) {
+            "Profile was saved but could not be reloaded."
+        }
     }
 }
