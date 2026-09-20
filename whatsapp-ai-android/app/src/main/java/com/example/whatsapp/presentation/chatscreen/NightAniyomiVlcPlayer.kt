@@ -316,6 +316,17 @@ internal fun NightAniyomiVlcPlayer(
             modifier = Modifier.fillMaxSize(),
         )
 
+        // VLCVideoLayout consumes touch events before the parent Compose Box can
+        // observe them. Put a transparent Compose hit target above VLC only while
+        // controls are hidden so one tap reliably brings the chrome back.
+        if (!controlsVisible) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { controlsVisible = true },
+            )
+        }
+
         AnimatedVisibility(
             visible = controlsVisible,
             modifier = Modifier.fillMaxSize(),
