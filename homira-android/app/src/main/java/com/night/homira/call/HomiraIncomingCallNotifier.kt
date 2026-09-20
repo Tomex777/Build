@@ -76,6 +76,7 @@ class HomiraIncomingCallNotifier(
         if (!notificationsEnabled) return false
 
         if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(
                 appContext,
                 Manifest.permission.POST_NOTIFICATIONS
@@ -198,6 +199,7 @@ class HomiraIncomingCallNotifier(
         cancelRingTimeout(callId)
 
         if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(
                 appContext,
                 Manifest.permission.POST_NOTIFICATIONS

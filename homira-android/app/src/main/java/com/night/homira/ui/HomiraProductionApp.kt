@@ -446,8 +446,8 @@ fun HomiraProductionApp(
                 HomiraIncomingCallNotifier(context)
             }.getOrNull()
         }
-        val telecomBridge = remember(context) {
-            runCatching { HomiraTelecomBridge(context) }.getOrNull()
+        var telecomBridge by remember(context) {
+            mutableStateOf<HomiraTelecomBridge?>(null)
         }
 
         LaunchedEffect(liveBackendReady) {
@@ -1226,7 +1226,7 @@ fun HomiraProductionApp(
         val telecomPerson = activePerson ?: incomingPerson
 
         LaunchedEffect(
-            liveMode,
+            liveBackendReady,
             telecomSession?.id,
             telecomPerson?.id,
             micPermissionGranted,
@@ -1235,7 +1235,7 @@ fun HomiraProductionApp(
             val session = telecomSession
             val person = telecomPerson
             if (
-                !liveMode ||
+                !liveBackendReady ||
                 session == null ||
                 person == null
             ) {
@@ -1257,8 +1257,14 @@ fun HomiraProductionApp(
                 return@LaunchedEffect
             }
 
+            val bridge = telecomBridge ?: runCatching {
+                HomiraTelecomBridge(context)
+            }.getOrNull()?.also {
+                telecomBridge = it
+            } ?: return@LaunchedEffect
+
             runCatching {
-                telecomBridge?.registerCall(
+                bridge.registerCall(
                     callId = session.id,
                     peerName = person.name,
                     peerAddress = person.number.ifBlank {
@@ -1270,7 +1276,7 @@ fun HomiraProductionApp(
             }
         }
 
-        LaunchedEffect(liveBackendReady) {
+        LaunchedEffect(liveBackendReady, telecomBridge) {
             if (!liveBackendReady) return@LaunchedEffect
 
             val bridge = telecomBridge ?: return@LaunchedEffect
@@ -1610,7 +1616,8 @@ fun HomiraProductionApp(
         LaunchedEffect(
             liveBackendReady,
             activeSession?.id,
-            activeSession?.state
+            activeSession?.state,
+            telecomBridge
         ) {
             if (!liveBackendReady) return@LaunchedEffect
 
@@ -1619,23 +1626,24 @@ fun HomiraProductionApp(
 
             val localUserId =
                 liveRepository.currentUserId() ?: return@LaunchedEffect
+            val bridge = telecomBridge ?: return@LaunchedEffect
 
             val telecomReady = withTimeoutOrNull(5_000L) {
-                telecomBridge?.ready
-                    ?.filter { it }
-                    ?.first()
+                bridge.ready
+                    .filter { it }
+                    .first()
             } != null
 
             if (!telecomReady) return@LaunchedEffect
 
             if (session.calleeId == localUserId) {
                 runCatching {
-                    telecomBridge?.answer(
+                    bridge.answer(
                         session.mediaType == "video"
                     )
                 }
             } else {
-                runCatching { telecomBridge?.markActive() }
+                runCatching { bridge.markActive() }
             }
         }
 
