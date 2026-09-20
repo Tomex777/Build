@@ -180,7 +180,7 @@ adb shell input keyevent KEYCODE_BACK
 sleep 1
 adb shell run-as "$PACKAGE" cat shared_prefs/night_mihon_reader.xml \
   > mihon-interaction-artifacts/prefs-after-scale.xml
-grep -q 'name="imageScaleType" value="FIT_WIDTH"' mihon-interaction-artifacts/prefs-after-scale.xml
+grep -Eq '<string name="imageScaleType">FIT_WIDTH</string>' mihon-interaction-artifacts/prefs-after-scale.xml
 assert_no_crash
 
 # Switch from paged RTL to Mihon's Long strip mode.
@@ -192,7 +192,7 @@ tap_text "Apply"
 sleep 2
 adb shell run-as "$PACKAGE" cat shared_prefs/night_mihon_reader.xml \
   > mihon-interaction-artifacts/prefs-long-strip.xml
-grep -q 'value="WEBTOON"' mihon-interaction-artifacts/prefs-long-strip.xml
+grep -Eq '<string name="mode:[^"]+">WEBTOON</string>' mihon-interaction-artifacts/prefs-long-strip.xml
 assert_no_crash
 
 # Scroll the long strip and verify no crash.
