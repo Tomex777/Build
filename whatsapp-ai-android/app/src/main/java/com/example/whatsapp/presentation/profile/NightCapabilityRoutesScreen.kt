@@ -179,7 +179,7 @@ private fun RoutePickerDialog(
                                 it.isEnabled &&
                                 it.capabilities
                                     .split(",")
-                                    .map(String::trim)
+                                    .map { it.trim() }
                                     .contains(capability.id)
                         }
                         .map { profile to it }
