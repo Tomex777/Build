@@ -65,6 +65,29 @@ class NightAiGateway private constructor(
         }
     }
 
+    suspend fun testModel(
+        profile: NightProviderProfileEntity,
+        model: NightProviderModelEntity,
+    ): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            require(profile.id == model.profileId) { "Model does not belong to this provider profile." }
+            performSimpleChat(
+                NightResolvedModel(profile, model),
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("role", "system")
+                            .put("content", "You are a connectivity diagnostic. Follow the user instruction exactly.")
+                    )
+                    .put(
+                        JSONObject()
+                            .put("role", "user")
+                            .put("content", "Reply with exactly: NIGHT_OK")
+                    ),
+            ).take(200)
+        }
+    }
+
     suspend fun summarize(
         chatId: String,
         displayName: String,
