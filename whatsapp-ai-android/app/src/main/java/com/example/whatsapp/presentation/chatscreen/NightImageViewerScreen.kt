@@ -366,11 +366,6 @@ internal fun NightVlcVideoSurface(
             "--network-caching=1500",
         )
         if (softwareDecode) {
-            // MediaCodec has much higher decoder priority than avcodec on Android.
-            // Disable it at the LibVLC instance level so a broken device decoder
-            // cannot be selected again during the software recovery pass.
-            options += "--no-mediacodec"
-            options += "--no-mediacodec-dr"
             options += "--codec=avcodec"
             options += "--avcodec-hw=none"
         }
@@ -385,11 +380,6 @@ internal fun NightVlcVideoSurface(
     DisposableEffect(player, libVlc, path) {
         val media = Media(libVlc, mediaUri).apply {
             if (softwareDecode) {
-                // Duplicate the hard-disable on the media input as well. This is
-                // intentional: decoder options can be inherited at different VLC
-                // object levels depending on the module/version.
-                addOption(":no-mediacodec")
-                addOption(":no-mediacodec-dr")
                 addOption(":codec=avcodec")
                 addOption(":avcodec-hw=none")
             } else {
@@ -438,7 +428,7 @@ internal fun NightVlcVideoSurface(
                     fallbackResumePosition = position
                     Log.w(
                         "NightVideo",
-                        "Editor playback stalled at ${position}ms; recreating VLC with MediaCodec disabled.",
+                        "Editor playback stalled at ${position}ms; recreating VLC with software decoding.",
                     )
                     softwareDecode = true
                     return@LaunchedEffect
