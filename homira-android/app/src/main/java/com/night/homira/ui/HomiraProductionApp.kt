@@ -1256,6 +1256,9 @@ fun HomiraProductionApp(
                 liveScope.launch {
                     runCatching {
                         if (previousSession != null) {
+                            // Tear down the old media path immediately.
+                            // The old server-session update runs in parallel
+                            // so it can never delay answering the new call.
                             runCatching {
                                 voiceEngine?.close()
                             }
@@ -1264,6 +1267,10 @@ fun HomiraProductionApp(
                             runCatching {
                                 telecomBridge?.disconnect()
                             }
+
+                            incomingCallNotifier?.cancel(
+                                previousSession.id
+                            )
 
                             val localUserId =
                                 liveRepository.currentUserId()
@@ -1284,34 +1291,45 @@ fun HomiraProductionApp(
                                 else -> "ended"
                             }
 
-                            runCatching {
-                                liveRepository.setCallState(
-                                    previousSession.id,
-                                    previousState
-                                )
+                            launch {
+                                runCatching {
+                                    liveRepository.setCallState(
+                                        previousSession.id,
+                                        previousState
+                                    )
+                                }.onFailure {
+                                    Log.e(
+                                        "HomiraCallSwap",
+                                        "Could not close previous call " +
+                                            previousSession.id,
+                                        it
+                                    )
+                                }
                             }
 
-                            incomingCallNotifier?.cancel(
-                                previousSession.id
-                            )
-
-                            callHistoryStore.markTerminal(
-                                previousSession.id,
-                                if (
-                                    previousSession.state == "active"
-                                ) {
-                                    HomiraCallHistoryStore
-                                        .OUTCOME_ANSWERED
-                                } else if (
-                                    previousState == "cancelled"
-                                ) {
-                                    HomiraCallHistoryStore
-                                        .OUTCOME_CANCELLED
-                                } else {
-                                    HomiraCallHistoryStore
-                                        .OUTCOME_DECLINED
+                            launch {
+                                runCatching {
+                                    callHistoryStore.markTerminal(
+                                        previousSession.id,
+                                        if (
+                                            previousSession.state ==
+                                            "active"
+                                        ) {
+                                            HomiraCallHistoryStore
+                                                .OUTCOME_ANSWERED
+                                        } else if (
+                                            previousState ==
+                                            "cancelled"
+                                        ) {
+                                            HomiraCallHistoryStore
+                                                .OUTCOME_CANCELLED
+                                        } else {
+                                            HomiraCallHistoryStore
+                                                .OUTCOME_DECLINED
+                                        }
+                                    )
                                 }
-                            )
+                            }
                         }
 
                         liveRepository.setCallState(
