@@ -2383,12 +2383,26 @@ fun HomiraProductionApp(
                             )
 
                             MainTab.Recents -> RecentsScreen(
-                                contacts = appContacts,
                                 entries = appCallEntries,
+                                blockedUserIds = blockedUserIds,
                                 playingVoicemailId = playingVoicemailId,
                                 onVoicemail = { toggleVoicemailPlayback(it) },
-                                onSettings = { overlay = OverlayScreen.Settings },
-                                onBlockedPeople = { overlay = OverlayScreen.BlockedPeople },
+                                onDeleteAll = {
+                                    liveScope.launch {
+                                        runCatching {
+                                            callHistoryStore.deleteAll()
+                                        }.onSuccess {
+                                            localCallHistory = emptyList()
+                                        }.onFailure {
+                                            Toast.makeText(
+                                                context,
+                                                it.message
+                                                    ?: "Could not clear call history.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                },
                                 onVoiceCall = { beginCall(it, false) },
                                 onVideoCall = { beginCall(it, true) }
                             )
