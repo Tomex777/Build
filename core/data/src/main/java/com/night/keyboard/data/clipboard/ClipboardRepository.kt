@@ -45,8 +45,25 @@ class ClipboardRepository @Inject constructor(
         dao.update(item.toEntity().copy(pinned = false, expiresAt = RetentionPolicy.expiryFor(preset, now)))
     }
 
+    suspend fun setCustomRetention(item: ClipboardItem, durationMinutes: Long, now: Long = System.currentTimeMillis()) {
+        val safeMinutes = durationMinutes.coerceIn(1L, 525_600L)
+        val durationMillis = Math.multiplyExact(safeMinutes, 60_000L)
+        dao.update(item.toEntity().copy(pinned = false, expiresAt = Math.addExact(now, durationMillis)))
+    }
+
     suspend fun delete(item: ClipboardItem) = dao.deleteById(item.id)
     suspend fun restore(item: ClipboardItem) { dao.insert(item.toEntity()) }
+
+    suspend fun clearUnpinnedWithBackup(): List<ClipboardItem> {
+        val backup = dao.allOnce().filterNot { it.pinned }.map(ClipboardEntity::toModel)
+        dao.clearUnpinned()
+        return backup
+    }
+
+    suspend fun restoreAll(items: List<ClipboardItem>) {
+        items.forEach { dao.insert(it.toEntity()) }
+    }
+
     suspend fun clearUnpinned() = dao.clearUnpinned()
 
     suspend fun move(item: ClipboardItem, direction: Int) {
