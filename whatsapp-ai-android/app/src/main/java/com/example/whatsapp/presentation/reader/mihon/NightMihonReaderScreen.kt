@@ -219,6 +219,70 @@ fun NightMihonReaderScreen(
             ) ?: MihonReaderBackground.BLACK.name,
         )
     }
+    var scaleTypeName by rememberSaveable {
+        mutableStateOf(
+            preferences.getString(
+                "imageScaleType",
+                MihonImageScaleType.FIT_SCREEN.name,
+            ) ?: MihonImageScaleType.FIT_SCREEN.name,
+        )
+    }
+    var zoomStartName by rememberSaveable {
+        mutableStateOf(
+            preferences.getString(
+                "zoomStart",
+                MihonZoomStart.AUTOMATIC.name,
+            ) ?: MihonZoomStart.AUTOMATIC.name,
+        )
+    }
+    var landscapeZoom by rememberSaveable {
+        mutableStateOf(
+            preferences.getBoolean(
+                "landscapeZoom",
+                true,
+            ),
+        )
+    }
+    var navigateToPan by rememberSaveable {
+        mutableStateOf(
+            preferences.getBoolean(
+                "navigateToPan",
+                true,
+            ),
+        )
+    }
+    var pagerTapZoneName by rememberSaveable {
+        mutableStateOf(
+            preferences.getString(
+                "pagerTapZone",
+                MihonTapZone.RIGHT_AND_LEFT.name,
+            ) ?: MihonTapZone.RIGHT_AND_LEFT.name,
+        )
+    }
+    var webtoonTapZoneName by rememberSaveable {
+        mutableStateOf(
+            preferences.getString(
+                "webtoonTapZone",
+                MihonTapZone.L.name,
+            ) ?: MihonTapZone.L.name,
+        )
+    }
+    var pagerTapInvertName by rememberSaveable {
+        mutableStateOf(
+            preferences.getString(
+                "pagerTapInvert",
+                MihonTapInvertMode.NONE.name,
+            ) ?: MihonTapInvertMode.NONE.name,
+        )
+    }
+    var webtoonTapInvertName by rememberSaveable {
+        mutableStateOf(
+            preferences.getString(
+                "webtoonTapInvert",
+                MihonTapInvertMode.NONE.name,
+            ) ?: MihonTapInvertMode.NONE.name,
+        )
+    }
 
     val mode =
         runCatching {
@@ -237,6 +301,43 @@ fun NightMihonReaderScreen(
         runCatching {
             MihonReaderBackground.valueOf(backgroundName)
         }.getOrDefault(MihonReaderBackground.BLACK)
+    val imageScaleType =
+        runCatching {
+            MihonImageScaleType.valueOf(scaleTypeName)
+        }.getOrDefault(MihonImageScaleType.FIT_SCREEN)
+    val zoomStart =
+        runCatching {
+            MihonZoomStart.valueOf(zoomStartName)
+        }.getOrDefault(MihonZoomStart.AUTOMATIC)
+    val isWebtoonMode =
+        mode == MihonReadingMode.WEBTOON ||
+            mode == MihonReadingMode.CONTINUOUS_VERTICAL
+    val tapZone =
+        runCatching {
+            MihonTapZone.valueOf(
+                if (isWebtoonMode) {
+                    webtoonTapZoneName
+                } else {
+                    pagerTapZoneName
+                },
+            )
+        }.getOrDefault(
+            if (isWebtoonMode) {
+                MihonTapZone.L
+            } else {
+                MihonTapZone.RIGHT_AND_LEFT
+            },
+        )
+    val tapInvertMode =
+        runCatching {
+            MihonTapInvertMode.valueOf(
+                if (isWebtoonMode) {
+                    webtoonTapInvertName
+                } else {
+                    pagerTapInvertName
+                },
+            )
+        }.getOrDefault(MihonTapInvertMode.NONE)
     val readerBackgroundColor =
         when (readerBackground) {
             MihonReaderBackground.BLACK -> Color.Black
@@ -455,6 +556,12 @@ fun NightMihonReaderScreen(
                         webtoonDoubleTapZoom,
                     webtoonZoomOutDisabled =
                         webtoonZoomOutDisabled,
+                    scaleType = imageScaleType,
+                    zoomStart = zoomStart,
+                    landscapeZoom = landscapeZoom,
+                    navigateToPan = navigateToPan,
+                    tapZone = tapZone,
+                    tapInvertMode = tapInvertMode,
                 )
             },
             modifier = Modifier.fillMaxSize(),
@@ -739,6 +846,7 @@ fun NightMihonReaderScreen(
 
     if (settingsSheet) {
         MihonReaderSettingsSheet(
+            isWebtoonMode = isWebtoonMode,
             sidePadding = sidePadding,
             onSidePaddingChanged = {
                 sidePadding = it
@@ -761,6 +869,62 @@ fun NightMihonReaderScreen(
                         it,
                     )
                     .apply()
+            },
+            scaleType = imageScaleType,
+            onScaleTypeChanged = {
+                scaleTypeName = it.name
+                preferences.edit()
+                    .putString("imageScaleType", it.name)
+                    .apply()
+            },
+            zoomStart = zoomStart,
+            onZoomStartChanged = {
+                zoomStartName = it.name
+                preferences.edit()
+                    .putString("zoomStart", it.name)
+                    .apply()
+            },
+            landscapeZoom = landscapeZoom,
+            onLandscapeZoomChanged = {
+                landscapeZoom = it
+                preferences.edit()
+                    .putBoolean("landscapeZoom", it)
+                    .apply()
+            },
+            navigateToPan = navigateToPan,
+            onNavigateToPanChanged = {
+                navigateToPan = it
+                preferences.edit()
+                    .putBoolean("navigateToPan", it)
+                    .apply()
+            },
+            tapZone = tapZone,
+            onTapZoneChanged = {
+                if (isWebtoonMode) {
+                    webtoonTapZoneName = it.name
+                    preferences.edit()
+                        .putString("webtoonTapZone", it.name)
+                        .apply()
+                } else {
+                    pagerTapZoneName = it.name
+                    preferences.edit()
+                        .putString("pagerTapZone", it.name)
+                        .apply()
+                }
+            },
+            tapInvertMode = tapInvertMode,
+            onTapInvertModeChanged = {
+                if (isWebtoonMode) {
+                    webtoonTapInvertName = it.name
+                    preferences.edit()
+                        .putString("webtoonTapInvert", it.name)
+                        .apply()
+                } else {
+                    pagerTapInvertName = it.name
+                    preferences.edit()
+                        .putString("pagerTapInvert", it.name)
+                        .apply()
+                }
             },
             keepScreenOn = keepScreenOn,
             onKeepScreenOnChanged = {
