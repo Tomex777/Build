@@ -79,6 +79,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.example.whatsapp.NightMihonReaderActivity
 
 /*
  * Reader chrome is adapted from Mihon's ReaderAppBars, ReaderTopBar,
@@ -164,6 +165,54 @@ fun NightMihonReaderScreen(
             ),
         )
     }
+    var fullscreen by rememberSaveable {
+        mutableStateOf(
+            preferences.getBoolean(
+                "fullscreen",
+                true,
+            ),
+        )
+    }
+    var showPageNumber by rememberSaveable {
+        mutableStateOf(
+            preferences.getBoolean(
+                "showPageNumber",
+                true,
+            ),
+        )
+    }
+    var volumeKeys by rememberSaveable {
+        mutableStateOf(
+            preferences.getBoolean(
+                "volumeKeys",
+                false,
+            ),
+        )
+    }
+    var invertVolumeKeys by rememberSaveable {
+        mutableStateOf(
+            preferences.getBoolean(
+                "invertVolumeKeys",
+                false,
+            ),
+        )
+    }
+    var webtoonZoomOutDisabled by rememberSaveable {
+        mutableStateOf(
+            preferences.getBoolean(
+                "webtoonZoomOutDisabled",
+                false,
+            ),
+        )
+    }
+    var backgroundName by rememberSaveable {
+        mutableStateOf(
+            preferences.getString(
+                "background",
+                MihonReaderBackground.BLACK.name,
+            ) ?: MihonReaderBackground.BLACK.name,
+        )
+    }
 
     val mode =
         runCatching {
@@ -178,6 +227,18 @@ fun NightMihonReaderScreen(
         }.getOrDefault(
             MihonReaderOrientation.FREE,
         )
+    val readerBackground =
+        runCatching {
+            MihonReaderBackground.valueOf(backgroundName)
+        }.getOrDefault(MihonReaderBackground.BLACK)
+    val readerBackgroundColor =
+        when (readerBackground) {
+            MihonReaderBackground.BLACK -> Color.Black
+            MihonReaderBackground.GRAY -> Color(0xFF303030)
+            MihonReaderBackground.WHITE -> Color.White
+            MihonReaderBackground.AUTOMATIC ->
+                if (isSystemInDarkTheme()) Color.Black else Color.White
+        }
 
     val savedProgress = remember(progressKey, pages.size) {
         progressKey
@@ -296,11 +357,61 @@ fun NightMihonReaderScreen(
         }
     }
 
+    LaunchedEffect(fullscreen, activity) {
+        activity?.window?.let { window ->
+            val controller =
+                WindowCompat.getInsetsController(
+                    window,
+                    window.decorView,
+                )
+            if (fullscreen) {
+                controller.hide(
+                    WindowInsetsCompat.Type.systemBars(),
+                )
+            } else {
+                controller.show(
+                    WindowInsetsCompat.Type.systemBars(),
+                )
+            }
+        }
+    }
+
+    DisposableEffect(
+        activity,
+        host,
+        volumeKeys,
+        invertVolumeKeys,
+    ) {
+        val readerActivity =
+            activity as? NightMihonReaderActivity
+        readerActivity?.setVolumeKeyHandler { volumeDown ->
+            if (!volumeKeys || host == null) {
+                false
+            } else {
+                val moveNext =
+                    if (invertVolumeKeys) {
+                        !volumeDown
+                    } else {
+                        volumeDown
+                    }
+                if (moveNext) {
+                    host?.moveNextByInput()
+                } else {
+                    host?.movePreviousByInput()
+                }
+                true
+            }
+        }
+        onDispose {
+            readerActivity?.setVolumeKeyHandler(null)
+        }
+    }
+
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Color.Black),
+                .background(readerBackgroundColor),
     ) {
         AndroidView(
             factory = { viewContext ->
@@ -325,6 +436,8 @@ fun NightMihonReaderScreen(
                     sidePadding = sidePadding,
                     webtoonDoubleTapZoom =
                         webtoonDoubleTapZoom,
+                    webtoonZoomOutDisabled =
+                        webtoonZoomOutDisabled,
                 )
             },
             modifier = Modifier.fillMaxSize(),
@@ -332,6 +445,7 @@ fun NightMihonReaderScreen(
 
         if (
             !controlsVisible &&
+            showPageNumber &&
             pages.isNotEmpty()
         ) {
             MihonPageIndicator(
@@ -646,6 +760,48 @@ fun NightMihonReaderScreen(
                         "keepScreenOn",
                         it,
                     )
+                    .apply()
+            },
+            fullscreen = fullscreen,
+            onFullscreenChanged = {
+                fullscreen = it
+                preferences.edit()
+                    .putBoolean("fullscreen", it)
+                    .apply()
+            },
+            showPageNumber = showPageNumber,
+            onShowPageNumberChanged = {
+                showPageNumber = it
+                preferences.edit()
+                    .putBoolean("showPageNumber", it)
+                    .apply()
+            },
+            volumeKeys = volumeKeys,
+            onVolumeKeysChanged = {
+                volumeKeys = it
+                preferences.edit()
+                    .putBoolean("volumeKeys", it)
+                    .apply()
+            },
+            invertVolumeKeys = invertVolumeKeys,
+            onInvertVolumeKeysChanged = {
+                invertVolumeKeys = it
+                preferences.edit()
+                    .putBoolean("invertVolumeKeys", it)
+                    .apply()
+            },
+            zoomOutDisabled = webtoonZoomOutDisabled,
+            onZoomOutDisabledChanged = {
+                webtoonZoomOutDisabled = it
+                preferences.edit()
+                    .putBoolean("webtoonZoomOutDisabled", it)
+                    .apply()
+            },
+            background = readerBackground,
+            onBackgroundChanged = {
+                backgroundName = it.name
+                preferences.edit()
+                    .putString("background", it.name)
                     .apply()
             },
             onDismiss = {
