@@ -164,6 +164,10 @@ private fun NightApp(initialChatId: String? = null) {
     val messageFlow = remember(activeChatId) { repository.observeMessages(activeChatId) }
     val messageEntities by messageFlow.collectAsState(initial = emptyList())
 
+    LaunchedEffect(activeChatId) {
+        directImageMode = false
+    }
+
     val displayName = profile?.displayName ?: "Dawson"
     val appearance = (appearanceEntity ?: NightAppearanceEntity()).toChatAppearance()
     val activeChat = chats.firstOrNull { it.id == activeChatId }
@@ -1241,6 +1245,7 @@ private fun NightApp(initialChatId: String? = null) {
             },
             onAttachmentClick = {},
             onAttachmentAction = { action ->
+                directImageMode = false
                 when (action) {
                     "Gallery" -> attachmentPicker.launch(arrayOf("image/*", "video/*"))
                     "Document" -> attachmentPicker.launch(arrayOf("*/*"))
