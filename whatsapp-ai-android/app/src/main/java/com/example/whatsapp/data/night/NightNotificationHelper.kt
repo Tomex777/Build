@@ -37,7 +37,7 @@ object NightNotificationHelper {
 
         val intent = Intent(app, MainActivity::class.java)
             .putExtra("night_chat_id", task.chatId)
-            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         val pending = PendingIntent.getActivity(
             app,
             task.id.hashCode(),
