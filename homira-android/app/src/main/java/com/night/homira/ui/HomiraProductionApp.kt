@@ -6598,44 +6598,18 @@ private fun ActiveCallScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             AnimatedVisibility(!video || controlsVisible) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(onClick = onMinimize) {
-                        Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "Minimize", tint = HomiraText)
+                        Icon(
+                            Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = "Minimize",
+                            tint = HomiraText
+                        )
                     }
                     Spacer(Modifier.weight(1f))
-                    Box {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = HomiraText)
-                        }
-                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            DropdownMenuItem(
-                                text = { Text(if (screenSharing) "Stop sharing screen" else "Share screen") },
-                                leadingIcon = { Icon(Icons.Rounded.ScreenShare, contentDescription = null) },
-                                onClick = {
-                                    onScreenShareChanged(!screenSharing)
-                                    menuOpen = false
-                                }
-                            )
-                            if (localVideo) {
-                                DropdownMenuItem(
-                                    text = { Text("Switch camera") },
-                                    leadingIcon = { Icon(Icons.Rounded.CameraAlt, contentDescription = null) },
-                                    onClick = {
-                                        onSwitchCamera()
-                                        menuOpen = false
-                                    }
-                                )
-                            }
-                            DropdownMenuItem(
-                                text = { Text("Call info") },
-                                leadingIcon = { Icon(Icons.Rounded.Info, contentDescription = null) },
-                                onClick = {
-                                    callInfoOpen = true
-                                    menuOpen = false
-                                }
-                            )
-                        }
-                    }
                 }
             }
 
@@ -6711,28 +6685,165 @@ private fun ActiveCallScreen(
             }
 
             AnimatedVisibility(!video || controlsVisible) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Spacer(Modifier.height(20.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        CallControlP(Icons.Rounded.MicOff, "Mute", muted) {
-                            muted = !muted
-                            onMuteChanged(muted)
+
+                    if (!video) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement =
+                                Arrangement.SpaceEvenly
+                        ) {
+                            CallControlP(
+                                Icons.Rounded.VolumeUp,
+                                "Speaker",
+                                speaker
+                            ) {
+                                speaker = !speaker
+                                onSpeakerChanged(speaker)
+                            }
+                            CallControlP(
+                                Icons.Rounded.Videocam,
+                                "Video",
+                                localVideo
+                            ) {
+                                onVideoChanged(!localVideo)
+                                controlsVisible = true
+                            }
+                            CallControlP(
+                                Icons.Rounded.MicOff,
+                                "Mute",
+                                muted
+                            ) {
+                                muted = !muted
+                                onMuteChanged(muted)
+                            }
                         }
-                        CallControlP(Icons.Rounded.VolumeUp, "Speaker", speaker) {
-                            speaker = !speaker
-                            onSpeakerChanged(speaker)
+
+                        Spacer(Modifier.height(22.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement =
+                                Arrangement.SpaceEvenly
+                        ) {
+                            Box {
+                                CallControlP(
+                                    Icons.Rounded.MoreVert,
+                                    "More",
+                                    false
+                                ) {
+                                    menuOpen = true
+                                }
+                                CallOptionsMenuP(
+                                    expanded = menuOpen,
+                                    screenSharing = screenSharing,
+                                    localVideo = localVideo,
+                                    onDismiss = {
+                                        menuOpen = false
+                                    },
+                                    onShare = {
+                                        onScreenShareChanged(
+                                            !screenSharing
+                                        )
+                                        menuOpen = false
+                                    },
+                                    onSwitchCamera = {
+                                        onSwitchCamera()
+                                        menuOpen = false
+                                    },
+                                    onCallInfo = {
+                                        callInfoOpen = true
+                                        menuOpen = false
+                                    }
+                                )
+                            }
+
+                            CallControlP(
+                                Icons.Rounded.ScreenShare,
+                                "Share",
+                                screenSharing
+                            ) {
+                                onScreenShareChanged(!screenSharing)
+                            }
+
+                            EndCallControlP(onEnd)
                         }
-                        CallControlP(Icons.Rounded.Videocam, "Video", localVideo) {
-                            onVideoChanged(!localVideo)
-                            controlsVisible = true
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement =
+                                Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Box {
+                                CallControlP(
+                                    Icons.Rounded.MoreVert,
+                                    "More",
+                                    false
+                                ) {
+                                    menuOpen = true
+                                    controlsVisible = true
+                                }
+                                CallOptionsMenuP(
+                                    expanded = menuOpen,
+                                    screenSharing = screenSharing,
+                                    localVideo = localVideo,
+                                    onDismiss = {
+                                        menuOpen = false
+                                    },
+                                    onShare = {
+                                        onScreenShareChanged(
+                                            !screenSharing
+                                        )
+                                        menuOpen = false
+                                    },
+                                    onSwitchCamera = {
+                                        onSwitchCamera()
+                                        menuOpen = false
+                                    },
+                                    onCallInfo = {
+                                        callInfoOpen = true
+                                        menuOpen = false
+                                    }
+                                )
+                            }
+
+                            CallControlP(
+                                Icons.Rounded.Videocam,
+                                "Video",
+                                localVideo
+                            ) {
+                                onVideoChanged(!localVideo)
+                                controlsVisible = true
+                            }
+
+                            CallControlP(
+                                Icons.Rounded.VolumeUp,
+                                "Speaker",
+                                speaker
+                            ) {
+                                speaker = !speaker
+                                onSpeakerChanged(speaker)
+                                controlsVisible = true
+                            }
+
+                            CallControlP(
+                                Icons.Rounded.MicOff,
+                                "Mute",
+                                muted
+                            ) {
+                                muted = !muted
+                                onMuteChanged(muted)
+                                controlsVisible = true
+                            }
+
+                            EndCallControlP(onEnd)
                         }
                     }
-                    Spacer(Modifier.height(26.dp))
-                    Surface(modifier = Modifier.size(68.dp).clickable(onClick = onEnd), shape = CircleShape, color = HomiraDanger) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Rounded.CallEnd, contentDescription = "End call", tint = Color.White, modifier = Modifier.size(30.dp))
-                        }
-                    }
+
                     Spacer(Modifier.height(20.dp))
                 }
             }
@@ -6933,6 +7044,95 @@ private fun CircleAction(icon: ImageVector, accent: Color, label: String, onClic
         Box(contentAlignment = Alignment.Center) {
             Icon(icon, contentDescription = label, tint = accent, modifier = Modifier.size(18.dp))
         }
+    }
+}
+
+@Composable
+private fun CallOptionsMenuP(
+    expanded: Boolean,
+    screenSharing: Boolean,
+    localVideo: Boolean,
+    onDismiss: () -> Unit,
+    onShare: () -> Unit,
+    onSwitchCamera: () -> Unit,
+    onCallInfo: () -> Unit
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss
+    ) {
+        DropdownMenuItem(
+            text = {
+                Text(
+                    if (screenSharing) {
+                        "Stop sharing screen"
+                    } else {
+                        "Share screen"
+                    }
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    Icons.Rounded.ScreenShare,
+                    contentDescription = null
+                )
+            },
+            onClick = onShare
+        )
+
+        if (localVideo) {
+            DropdownMenuItem(
+                text = { Text("Switch camera") },
+                leadingIcon = {
+                    Icon(
+                        Icons.Rounded.CameraAlt,
+                        contentDescription = null
+                    )
+                },
+                onClick = onSwitchCamera
+            )
+        }
+
+        DropdownMenuItem(
+            text = { Text("Call info") },
+            leadingIcon = {
+                Icon(
+                    Icons.Rounded.Info,
+                    contentDescription = null
+                )
+            },
+            onClick = onCallInfo
+        )
+    }
+}
+
+@Composable
+private fun EndCallControlP(
+    onEnd: () -> Unit
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Surface(
+            modifier = Modifier
+                .size(56.dp)
+                .clickable(onClick = onEnd),
+            shape = CircleShape,
+            color = HomiraDanger
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.Rounded.CallEnd,
+                    contentDescription = "End call",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+        Spacer(Modifier.height(7.dp))
+        Text(
+            "End",
+            color = HomiraMuted,
+            fontSize = 11.sp
+        )
     }
 }
 
