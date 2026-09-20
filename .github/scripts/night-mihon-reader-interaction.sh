@@ -359,7 +359,7 @@ hide_reader_chrome "volume navigation"
 
 # Put the media stream in the middle of its range. If Night fails to consume
 # either hardware key, Android will visibly move this value and the test fails.
-adb shell cmd media_session volume --stream 3 --set 7 >/dev/null 2>&1
+adb shell cmd media_session volume --stream 3 --set 7 >/dev/null 2>&1 2>&1
 baseline_media_volume="$(read_media_volume)"
 if [ "$baseline_media_volume" != "7" ]; then
   echo "Could not establish media-volume baseline at 7 (got $baseline_media_volume)." >&2
