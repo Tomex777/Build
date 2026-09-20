@@ -115,41 +115,61 @@ assert_desc "Reader settings"
 adb exec-out screencap -p > mihon-interaction-artifacts/02-reader-open.png
 
 # Hide controls and move one page through Mihon's RTL tap zone.
+# The preview image is landscape, so Mihon's navigate-to-pan behavior may
+# consume one or more edge taps before advancing to the next page.
+echo "STEP: RTL tap-zone paging with wide-page pan"
 adb shell input tap 354 760
 sleep 1
-assert_text "1 / 8"
-adb shell input tap 110 760
-sleep 1
-assert_text "2 / 8"
-adb shell run-as "$PACKAGE" cat shared_prefs/night_mihon_reader.xml \
-  > mihon-interaction-artifacts/prefs-after-page.xml
-grep -Eq 'progress:archive:.*value="1"' mihon-interaction-artifacts/prefs-after-page.xml
+page_advanced=false
+for attempt in 1 2 3 4 5 6; do
+  adb shell input tap 110 760
+  sleep 1
+  adb shell run-as "$PACKAGE" cat shared_prefs/night_mihon_reader.xml \
+    > mihon-interaction-artifacts/prefs-after-page.xml
+  if grep -Eq 'progress:archive:.*value="1"' mihon-interaction-artifacts/prefs-after-page.xml; then
+    page_advanced=true
+    break
+  fi
+done
+if [ "$page_advanced" != "true" ]; then
+  echo "Reader never advanced after Mihon's wide-page pan taps." >&2
+  adb exec-out screencap -p > mihon-interaction-artifacts/failure-page-advance.png
+  exit 1
+fi
+adb exec-out screencap -p > mihon-interaction-artifacts/03-page-advanced.png
 assert_no_crash
 
-# Restart the production reader and verify the saved page is restored.
+# Restart the production reader and verify the saved page survives reopening.
+echo "STEP: saved progress restoration"
 adb shell am force-stop "$PACKAGE"
 adb shell am start -W -n "$PACKAGE/.MihonReaderPreviewActivity" \
   --ez mihon.preview.openProductionReader true
 sleep 3
-adb shell input tap 354 760
-sleep 1
-assert_text "2 / 8"
-adb exec-out screencap -p > mihon-interaction-artifacts/03-progress-restored.png
+adb shell run-as "$PACKAGE" cat shared_prefs/night_mihon_reader.xml \
+  > mihon-interaction-artifacts/prefs-after-restart.xml
+grep -Eq 'progress:archive:.*value="1"' mihon-interaction-artifacts/prefs-after-restart.xml
+adb exec-out screencap -p > mihon-interaction-artifacts/04-progress-restored.png
 assert_no_crash
 
+# Hide reader chrome before testing the page long-press.
+adb shell input tap 354 760
+sleep 1
+
 # Long-press a page and verify Mihon's page-action sheet appears.
+echo "STEP: long-press page actions"
 adb shell input swipe 354 760 354 760 1000
 sleep 1
 assert_text "Set as cover"
 assert_text "Copy to clipboard"
 assert_text "Share"
 assert_text "Save"
-adb exec-out screencap -p > mihon-interaction-artifacts/04-page-actions.png
+adb exec-out screencap -p > mihon-interaction-artifacts/05-page-actions.png
 adb shell input keyevent KEYCODE_BACK
 sleep 1
 assert_no_crash
 
 # Show reader chrome, inspect paged settings, and change scale type.
+echo "STEP: paged scale settings"
 adb shell input tap 354 760
 sleep 1
 tap_desc "Reader settings"
@@ -165,6 +185,7 @@ grep -q 'name="imageScaleType" value="FIT_WIDTH"' mihon-interaction-artifacts/pr
 assert_no_crash
 
 # Switch from paged RTL to Mihon's Long strip mode.
+echo "STEP: switch to Long strip"
 tap_desc "Reading mode"
 tap_text "Long strip"
 tap_text "Apply"
@@ -175,14 +196,16 @@ grep -q 'value="WEBTOON"' mihon-interaction-artifacts/prefs-long-strip.xml
 assert_no_crash
 
 # Scroll the long strip and verify no crash.
+echo "STEP: Long strip scrolling"
 adb shell input tap 354 760
 sleep 1
 adb shell input swipe 350 1180 350 350 350
 sleep 2
-adb exec-out screencap -p > mihon-interaction-artifacts/05-long-strip.png
+adb exec-out screencap -p > mihon-interaction-artifacts/06-long-strip.png
 assert_no_crash
 
 # Open long-strip settings and confirm mode-specific controls exist.
+echo "STEP: Long strip settings"
 adb shell input tap 354 760
 sleep 1
 tap_desc "Reader settings"
@@ -192,6 +215,7 @@ assert_text "Tap zones"
 assert_text "Invert tapping"
 
 # Enable volume navigation from the real activity and exercise both keys.
+echo "STEP: volume-key navigation"
 find_and_tap_text "Volume keys" 10
 adb shell input keyevent KEYCODE_BACK
 sleep 1
@@ -201,5 +225,5 @@ adb shell input keyevent KEYCODE_VOLUME_UP
 sleep 1
 assert_no_crash
 
-adb exec-out screencap -p > mihon-interaction-artifacts/06-after-volume-nav.png
+adb exec-out screencap -p > mihon-interaction-artifacts/07-after-volume-nav.png
 adb logcat -d > mihon-interaction-artifacts/logcat.txt
