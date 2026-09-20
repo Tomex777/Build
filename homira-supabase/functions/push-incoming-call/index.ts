@@ -3,6 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 type PushBody = {
   call_id?: string;
+  event?: "incoming_call" | "missed_call";
 };
 
 function json(data: unknown, status = 200): Response {
@@ -63,6 +64,7 @@ async function sendToFcmWithRetry(
   accessToken: string,
   fid: string,
   payload: Record<string, string>,
+  ttl: string,
 ): Promise<PushAttemptResult> {
   const delays = [0, 250, 750];
 
@@ -85,7 +87,7 @@ async function sendToFcmWithRetry(
             data: payload,
             android: {
               priority: "high",
-              ttl: "45s",
+              ttl,
             },
           },
         }),
@@ -127,6 +129,7 @@ async function logPushAttempt(
   callId: string,
   calleeId: string,
   deviceId: string,
+  eventType: string,
   result: PushAttemptResult,
 ) {
   const errorCode = result.ok
@@ -139,6 +142,7 @@ async function logPushAttempt(
       call_id: callId,
       callee_id: calleeId,
       device_id: deviceId,
+      event_type: eventType,
       outcome: result.ok ? "accepted" : "failed",
       status_code: result.status,
       error_code: errorCode,
@@ -223,6 +227,11 @@ Deno.serve(async (req: Request) => {
     return json({ error: "call_id_required" }, 400);
   }
 
+  const eventType =
+    body.event === "missed_call"
+      ? "missed_call"
+      : "incoming_call";
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const publishableKey =
     Deno.env.get("SUPABASE_ANON_KEY") ??
@@ -269,11 +278,18 @@ Deno.serve(async (req: Request) => {
     return json({ error: "not_call_owner" }, 403);
   }
 
-  if (
-    call.state !== "ringing" ||
-    new Date(call.expires_at).getTime() <= Date.now()
+  if (eventType === "incoming_call") {
+    if (
+      call.state !== "ringing" ||
+      new Date(call.expires_at).getTime() <= Date.now()
+    ) {
+      return json({ error: "call_not_ringable" }, 409);
+    }
+  } else if (
+    call.state !== "missed" &&
+    call.state !== "cancelled"
   ) {
-    return json({ error: "call_not_ringable" }, 409);
+    return json({ error: "call_not_missed" }, 409);
   }
 
   const { data: callerProfile } = await admin
@@ -334,13 +350,17 @@ Deno.serve(async (req: Request) => {
   let attempts = 0;
 
   const payload = {
-    type: "incoming_call",
+    type: eventType,
     call_id: call.id,
     caller_id: call.caller_id,
     caller_name: callerName,
     media_type: call.media_type,
     expires_at: call.expires_at,
   };
+  const ttl =
+    eventType === "incoming_call"
+      ? "45s"
+      : "3600s";
 
   for (const row of tokens) {
     const result = await sendToFcmWithRetry(
@@ -348,6 +368,7 @@ Deno.serve(async (req: Request) => {
       accessToken,
       row.token,
       payload,
+      ttl,
     );
 
     attempts += result.attempts;
@@ -375,6 +396,7 @@ Deno.serve(async (req: Request) => {
         call.id,
         call.callee_id,
         row.device_id,
+        eventType,
         result,
       );
     } catch {
