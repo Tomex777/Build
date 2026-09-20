@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 private val Context.keyboardDataStore by preferencesDataStore(name = "keyboard_preferences")
+private const val EmojiSeparator = "\u001F"
 
 enum class OneHandedMode { OFF, LEFT, RIGHT }
 
@@ -25,10 +26,14 @@ data class KeyboardPreferenceState(
     val autocorrect: Boolean = true,
     val autocorrectAggression: Int = 2,
     val suggestions: Boolean = true,
+    val swipeTyping: Boolean = true,
+    val swipeTrail: Boolean = true,
     val haptics: Boolean = true,
     val secondaryCharacters: Boolean = true,
     val incognito: Boolean = false,
     val oneHandedMode: OneHandedMode = OneHandedMode.OFF,
+    val emojiRecents: List<String> = emptyList(),
+    val emojiFavorites: Set<String> = emptySet(),
     val serverUrl: String = "",
 )
 
@@ -42,10 +47,14 @@ class KeyboardPreferences @Inject constructor(@ApplicationContext private val co
         val autocorrect = booleanPreferencesKey("autocorrect")
         val autocorrectAggression = intPreferencesKey("autocorrect_aggression")
         val suggestions = booleanPreferencesKey("suggestions")
+        val swipeTyping = booleanPreferencesKey("swipe_typing")
+        val swipeTrail = booleanPreferencesKey("swipe_trail")
         val haptics = booleanPreferencesKey("haptics")
         val secondaryCharacters = booleanPreferencesKey("secondary_characters")
         val incognito = booleanPreferencesKey("incognito")
         val oneHandedMode = stringPreferencesKey("one_handed_mode")
+        val emojiRecents = stringPreferencesKey("emoji_recents")
+        val emojiFavorites = stringPreferencesKey("emoji_favorites")
         val serverUrl = stringPreferencesKey("server_url")
     }
 
@@ -58,12 +67,16 @@ class KeyboardPreferences @Inject constructor(@ApplicationContext private val co
             autocorrect = p[Keys.autocorrect] ?: true,
             autocorrectAggression = (p[Keys.autocorrectAggression] ?: 2).coerceIn(1, 3),
             suggestions = p[Keys.suggestions] ?: true,
+            swipeTyping = p[Keys.swipeTyping] ?: true,
+            swipeTrail = p[Keys.swipeTrail] ?: true,
             haptics = p[Keys.haptics] ?: true,
             secondaryCharacters = p[Keys.secondaryCharacters] ?: true,
             incognito = p[Keys.incognito] ?: false,
             oneHandedMode = runCatching {
                 OneHandedMode.valueOf(p[Keys.oneHandedMode] ?: OneHandedMode.OFF.name)
             }.getOrDefault(OneHandedMode.OFF),
+            emojiRecents = decodeEmojiList(p[Keys.emojiRecents]),
+            emojiFavorites = decodeEmojiList(p[Keys.emojiFavorites]).toSet(),
             serverUrl = p[Keys.serverUrl] ?: "",
         )
     }
@@ -96,6 +109,14 @@ class KeyboardPreferences @Inject constructor(@ApplicationContext private val co
         context.keyboardDataStore.edit { it[Keys.suggestions] = value }
     }
 
+    suspend fun setSwipeTyping(value: Boolean) {
+        context.keyboardDataStore.edit { it[Keys.swipeTyping] = value }
+    }
+
+    suspend fun setSwipeTrail(value: Boolean) {
+        context.keyboardDataStore.edit { it[Keys.swipeTrail] = value }
+    }
+
     suspend fun setHaptics(value: Boolean) {
         context.keyboardDataStore.edit { it[Keys.haptics] = value }
     }
@@ -112,7 +133,31 @@ class KeyboardPreferences @Inject constructor(@ApplicationContext private val co
         context.keyboardDataStore.edit { it[Keys.oneHandedMode] = value.name }
     }
 
+    suspend fun recordEmoji(output: String) {
+        if (output.isBlank()) return
+        context.keyboardDataStore.edit { p ->
+            val next = (listOf(output) + decodeEmojiList(p[Keys.emojiRecents]).filterNot { it == output })
+                .take(24)
+            p[Keys.emojiRecents] = encodeEmojiList(next)
+        }
+    }
+
+    suspend fun toggleEmojiFavorite(output: String) {
+        if (output.isBlank()) return
+        context.keyboardDataStore.edit { p ->
+            val current = decodeEmojiList(p[Keys.emojiFavorites]).toMutableList()
+            if (!current.remove(output)) current.add(0, output)
+            p[Keys.emojiFavorites] = encodeEmojiList(current.distinct().take(48))
+        }
+    }
+
     suspend fun setServerUrl(value: String) {
         context.keyboardDataStore.edit { it[Keys.serverUrl] = value.trim() }
     }
 }
+
+private fun decodeEmojiList(raw: String?): List<String> =
+    raw.orEmpty().split(EmojiSeparator).filter(String::isNotBlank)
+
+private fun encodeEmojiList(items: Collection<String>): String =
+    items.filter(String::isNotBlank).joinToString(EmojiSeparator)

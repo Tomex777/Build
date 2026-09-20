@@ -18,7 +18,7 @@ object SuggestionEngine {
         "are", "around", "back", "been", "before", "better", "but", "come", "day", "do", "even",
         "feel", "find", "first", "from", "get", "give", "go", "great", "had", "has", "here", "him",
         "her", "home", "if", "into", "know", "like", "look", "make", "me", "more", "most", "much",
-        "my", "need", "new", "now", "one", "only", "other", "our", "out", "over", "people", "really",
+        "my", "need", "new", "now", "one", "only", "other", "our", "out", "over", "people",
         "same", "say", "see", "send", "so", "some", "something", "still", "take", "tell", "than",
         "then", "thing", "think", "time", "too", "try", "up", "use", "very", "way", "well", "why",
         "work", "world", "write", "today", "tomorrow", "tonight", "morning", "night", "love", "sure",
@@ -61,9 +61,36 @@ object SuggestionEngine {
         return listOf("I’m", "the", "thank you").take(limit)
     }
 
+    fun decodeSwipe(path: String): String? {
+        val normalized = collapseRepeats(path.lowercase().filter(Char::isLetter))
+        if (normalized.length < 2) return null
+
+        return common.asSequence()
+            .filter { candidate ->
+                val compact = collapseRepeats(candidate.filter(Char::isLetter))
+                compact.isNotEmpty() &&
+                    compact.first() == normalized.first() &&
+                    compact.last() == normalized.last()
+            }
+            .map { candidate ->
+                val compact = collapseRepeats(candidate.filter(Char::isLetter))
+                val distance = editDistance(normalized, compact, 8)
+                val lengthPenalty = kotlin.math.abs(compact.length - normalized.length)
+                val frequencyBonus = (frequencies[candidate] ?: 0) / 40
+                Triple(candidate, distance * 3 + lengthPenalty - frequencyBonus, compact.length)
+            }
+            .filter { (_, score, length) -> score <= maxOf(6, length) }
+            .sortedWith(
+                compareBy<Triple<String, Int, Int>> { it.second }
+                    .thenByDescending { frequencies[it.first] ?: 0 },
+            )
+            .firstOrNull()
+            ?.first
+    }
+
     fun autocorrect(word: String, aggression: Int = 2): Autocorrection? {
         val raw = word.trim()
-        if (raw.length < 3 || raw.any { it.isDigit() } || raw.count { it.isUpperCase() } > 1) return null
+        if (raw.length < 3 || raw.any(Char::isDigit) || raw.count(Char::isUpperCase) > 1) return null
 
         val lower = raw.lowercase()
         if (lower in common) return null
@@ -71,7 +98,7 @@ object SuggestionEngine {
         val maxDistance = when (aggression.coerceIn(1, 3)) {
             1 -> 1
             2 -> if (lower.length >= 6) 2 else 1
-            else -> if (lower.length >= 4) 2 else 1
+            else -> if (lower.length >= 3) 2 else 1
         }
 
         val candidate = common.asSequence()
@@ -81,22 +108,30 @@ object SuggestionEngine {
                 Triple(candidate, distance, frequencies[candidate] ?: 0)
             }
             .filter { (_, distance, _) -> distance in 1..maxDistance }
-            .sortedWith(compareBy<Triple<String, Int, Int>> { it.second }.thenByDescending { it.third })
+            .sortedWith(
+                compareBy<Triple<String, Int, Int>> { it.second }
+                    .thenByDescending { it.third },
+            )
             .firstOrNull()
             ?.first
             ?: return null
 
-        val replacement = preserveCase(raw, candidate)
-        return Autocorrection(raw, replacement)
+        return Autocorrection(raw, preserveCase(raw, candidate))
     }
 
     fun currentWord(text: String): String =
-        text.takeLastWhile { it.isLetter() || it == ''' || it == '’' }
+        text.takeLastWhile { it.isLetter() || it.code == 39 || it == '’' }
 
     private fun previousWord(text: String): String {
         val trimmed = text.trimEnd()
         if (trimmed.isBlank()) return ""
-        return trimmed.takeLastWhile { it.isLetter() || it == ''' || it == '’' }
+        return trimmed.takeLastWhile { it.isLetter() || it.code == 39 || it == '’' }
+    }
+
+    private fun collapseRepeats(value: String): String = buildString {
+        value.forEach { ch ->
+            if (isEmpty() || last() != ch) append(ch)
+        }
     }
 
     private fun preserveCase(source: String, target: String): String = when {

@@ -42,4 +42,14 @@ class SuggestionEngineTest {
     fun shortWordsAreLeftAlone() {
         assertNull(SuggestionEngine.autocorrect("an", aggression = 3))
     }
+
+    @Test
+    fun swipeDecoderUnderstandsCompressedRepeatedLetters() {
+        assertEquals("hello", SuggestionEngine.decodeSwipe("helo"))
+    }
+
+    @Test
+    fun swipeDecoderRejectsMeaninglessPath() {
+        assertNull(SuggestionEngine.decodeSwipe("qzx"))
+    }
 }

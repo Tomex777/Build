@@ -2,9 +2,12 @@
 
 package com.night.keyboard.ime
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.SystemClock
 import android.text.InputType
 import android.view.ViewConfiguration
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -18,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
@@ -25,18 +29,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.night.keyboard.data.prefs.KeyboardPreferenceState
+import androidx.core.content.ContextCompat
 import com.night.keyboard.data.prefs.OneHandedMode
 import com.night.keyboard.model.*
 import kotlinx.coroutines.flow.Flow
+import java.io.File
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -50,6 +59,8 @@ fun ImeKeyboard(
     clipboardFlow: Flow<List<ClipboardItem>>,
     sensitiveFieldFlow: Flow<Boolean>,
     inputTypeFlow: Flow<Int>,
+    onEmojiUsed: (String) -> Unit,
+    onToggleEmojiFavorite: (String) -> Unit,
 ) {
     val theme by themeFlow.collectAsState(initial = ThemeSnapshot())
     val prefs by preferenceFlow.collectAsState(initial = KeyboardPreferenceState())
@@ -114,6 +125,10 @@ fun ImeKeyboard(
                         serverUrl = prefs.serverUrl,
                         privateMode = privateMode,
                         controller = controller,
+                        emojiRecents = prefs.emojiRecents,
+                        emojiFavorites = prefs.emojiFavorites,
+                        onEmojiUsed = onEmojiUsed,
+                        onToggleEmojiFavorite = onToggleEmojiFavorite,
                         onCommitted = { textChanged() },
                     )
                 }
@@ -152,11 +167,23 @@ fun ImeKeyboard(
                     theme = theme,
                     secondaryVisible = prefs.secondaryCharacters,
                     hapticsEnabled = prefs.haptics,
+                    swipeTypingEnabled = prefs.swipeTyping,
+                    swipeTrailEnabled = prefs.swipeTrail,
                     controller = controller,
                     onLayer = { layer = it; panel = ToolPanel.NONE; lastCorrection = null },
                     onShift = { shift = it },
                     onOpenEmoji = {
                         panel = if (panel == ToolPanel.EMOJI) ToolPanel.NONE else ToolPanel.EMOJI
+                    },
+                    onSwipeWord = { word ->
+                        val output = if (shift != ShiftState.OFF) {
+                            word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                        } else {
+                            word
+                        }
+                        controller.commit(output + " ")
+                        if (shift == ShiftState.ONCE) shift = ShiftState.OFF
+                        textChanged()
                     },
                     onSpace = {
                         val correction = if (prefs.autocorrect && !privateMode) {
@@ -256,6 +283,10 @@ private fun ToolPanelContent(
     serverUrl: String,
     privateMode: Boolean,
     controller: KeyboardController,
+    emojiRecents: List<String>,
+    emojiFavorites: Set<String>,
+    onEmojiUsed: (String) -> Unit,
+    onToggleEmojiFavorite: (String) -> Unit,
     onCommitted: () -> Unit,
 ) {
     Surface(
@@ -309,15 +340,19 @@ private fun ToolPanelContent(
                 }
             }
 
-            ToolPanel.EMOJI -> EmojiPanel(controller, onCommitted)
+            ToolPanel.EMOJI -> EmojiPanel(
+                controller = controller,
+                recents = emojiRecents,
+                favorites = emojiFavorites,
+                onEmojiUsed = onEmojiUsed,
+                onToggleFavorite = onToggleEmojiFavorite,
+                onCommitted = onCommitted,
+            )
 
-            ToolPanel.VOICE -> StatusPanel(
-                "Voice input",
-                if (serverUrl.isBlank()) {
-                    "Set your HTTPS Whisper server URL in the app before voice input is enabled."
-                } else {
-                    "Server configured. Microphone capture remains local until you explicitly start a voice request."
-                },
+            ToolPanel.VOICE -> VoicePanel(
+                serverUrl = serverUrl,
+                controller = controller,
+                onCommitted = onCommitted,
             )
 
             ToolPanel.EDITOR -> OnlineToolPanel(
@@ -508,23 +543,311 @@ private fun OnlineToolPanel(
 }
 
 @Composable
-private fun EmojiPanel(controller: KeyboardController, onCommitted: () -> Unit) {
-    Row(
-        Modifier.horizontalScroll(rememberScrollState()).padding(7.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        KeyboardEmojiSamples.forEach { entry ->
-            Surface(
-                onClick = { controller.commit(entry.output); onCommitted() },
-                color = Color.Transparent,
-                shape = RoundedCornerShape(9.dp),
-                modifier = Modifier.semantics { contentDescription = entry.description },
-            ) {
-                Box(Modifier.size(43.dp), contentAlignment = Alignment.Center) {
-                    KeyboardEmojiArtwork(entry.art, Modifier.size(35.dp))
+private fun VoicePanel(
+    serverUrl: String,
+    controller: KeyboardController,
+    onCommitted: () -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val recorder = remember { KeyboardVoiceRecorder(context.applicationContext) }
+    var recording by remember { mutableStateOf(false) }
+    var recordedFile by remember { mutableStateOf<File?>(null) }
+    var loading by remember { mutableStateOf(false) }
+    var transcript by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf("") }
+    val permissionGranted = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.RECORD_AUDIO,
+    ) == PackageManager.PERMISSION_GRANTED
+
+    DisposableEffect(Unit) {
+        onDispose {
+            recorder.cancel()
+            recordedFile?.delete()
+        }
+    }
+
+    Column(Modifier.padding(11.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Voice input", fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            Text(
+                when {
+                    !permissionGranted -> "Permission needed"
+                    serverUrl.isBlank() -> "Server not configured"
+                    recording -> "Recording"
+                    else -> "Ready"
+                },
+                color = if (permissionGranted && serverUrl.isNotBlank()) Color(0xFF78D69C) else Color(0xFFE4B661),
+                fontSize = 9.sp,
+            )
+        }
+
+        if (!permissionGranted) {
+            Text(
+                "Grant microphone permission from Keyboard Settings first.",
+                color = Color(0xFF8F99A4),
+                fontSize = 10.sp,
+                modifier = Modifier.padding(top = 5.dp),
+            )
+            return@Column
+        }
+        if (serverUrl.isBlank()) {
+            Text(
+                "Set your HTTPS server URL in Keyboard Settings before transcription is available.",
+                color = Color(0xFF8F99A4),
+                fontSize = 10.sp,
+                modifier = Modifier.padding(top = 5.dp),
+            )
+            return@Column
+        }
+
+        Row(
+            Modifier.padding(top = 7.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            if (!recording) {
+                Button(
+                    enabled = !loading,
+                    onClick = {
+                        transcript = ""
+                        error = ""
+                        recordedFile?.delete()
+                        recordedFile = null
+                        recorder.start()
+                            .onSuccess { recording = true }
+                            .onFailure { error = it.message ?: "Unable to start recording." }
+                    },
+                ) { Text("Record", fontSize = 10.sp) }
+            } else {
+                Button(
+                    onClick = {
+                        recorder.stop()
+                            .onSuccess {
+                                recordedFile = it
+                                recording = false
+                            }
+                            .onFailure {
+                                recording = false
+                                error = it.message ?: "Unable to stop recording."
+                            }
+                    },
+                ) { Text("Stop", fontSize = 10.sp) }
+            }
+
+            recordedFile?.let { file ->
+                OutlinedButton(
+                    enabled = !loading,
+                    onClick = {
+                        loading = true
+                        error = ""
+                        scope.launch {
+                            KeyboardVoiceClient(serverUrl).transcribe(file)
+                                .onSuccess {
+                                    transcript = it
+                                    recordedFile = null
+                                }
+                                .onFailure { error = it.message ?: "Transcription failed." }
+                            loading = false
+                        }
+                    },
+                ) {
+                    Text(if (loading) "Sending…" else "Transcribe", fontSize = 10.sp)
                 }
             }
         }
+
+        Text(
+            "Audio remains local until you tap Transcribe.",
+            color = Color(0xFF78828C),
+            fontSize = 8.sp,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+
+        if (error.isNotBlank()) {
+            Text(error, color = Color(0xFFFF9C9C), fontSize = 9.sp, modifier = Modifier.padding(top = 5.dp))
+        }
+
+        if (transcript.isNotBlank()) {
+            Text(
+                transcript,
+                color = Color(0xFFF2F3F5),
+                fontSize = 10.sp,
+                maxLines = 4,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            OutlinedButton(
+                onClick = {
+                    controller.commit(transcript)
+                    onCommitted()
+                    transcript = ""
+                },
+                modifier = Modifier.padding(top = 5.dp),
+            ) { Text("Insert", fontSize = 10.sp) }
+        }
+    }
+}
+
+@Composable
+private fun EmojiPanel(
+    controller: KeyboardController,
+    recents: List<String>,
+    favorites: Set<String>,
+    onEmojiUsed: (String) -> Unit,
+    onToggleFavorite: (String) -> Unit,
+    onCommitted: () -> Unit,
+) {
+    var category by remember { mutableStateOf<EmojiCategory?>(null) }
+    var recentOnly by remember { mutableStateOf(false) }
+    var favoriteOnly by remember { mutableStateOf(false) }
+    var searchMode by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+
+    val byOutput = remember { KeyboardEmojiSamples.associateBy { it.output } }
+    val visible = when {
+        recentOnly -> recents.mapNotNull(byOutput::get)
+        favoriteOnly -> favorites.mapNotNull(byOutput::get)
+        else -> KeyboardEmojiSamples.filter { entry ->
+            (category == null || entry.category == category) &&
+                (query.isBlank() || entry.description.contains(query, ignoreCase = true))
+        }
+    }
+
+    Column(Modifier.padding(vertical = 5.dp)) {
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            FilterChip(
+                selected = !recentOnly && !favoriteOnly && category == null && !searchMode,
+                onClick = {
+                    recentOnly = false
+                    favoriteOnly = false
+                    category = null
+                    searchMode = false
+                    query = ""
+                },
+                label = { Text("All", fontSize = 9.sp) },
+            )
+            FilterChip(
+                selected = recentOnly,
+                onClick = {
+                    recentOnly = true
+                    favoriteOnly = false
+                    category = null
+                    searchMode = false
+                },
+                label = { Text("Recent", fontSize = 9.sp) },
+            )
+            FilterChip(
+                selected = favoriteOnly,
+                onClick = {
+                    favoriteOnly = true
+                    recentOnly = false
+                    category = null
+                    searchMode = false
+                },
+                label = { Text("★", fontSize = 10.sp) },
+            )
+            EmojiCategory.entries.forEach { item ->
+                FilterChip(
+                    selected = !recentOnly && !favoriteOnly && category == item,
+                    onClick = {
+                        category = item
+                        recentOnly = false
+                        favoriteOnly = false
+                        searchMode = false
+                        query = ""
+                    },
+                    label = { Text(item.label, fontSize = 9.sp) },
+                )
+            }
+            FilterChip(
+                selected = searchMode,
+                onClick = {
+                    searchMode = !searchMode
+                    recentOnly = false
+                    favoriteOnly = false
+                    category = null
+                },
+                label = { Text("Search", fontSize = 9.sp) },
+            )
+        }
+
+        if (searchMode) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 7.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    if (query.isBlank()) "Type search:" else "Search: $query",
+                    color = Color(0xFFB9C2CB),
+                    fontSize = 9.sp,
+                )
+                "abcdefghijklmnopqrstuvwxyz".forEach { letter ->
+                    AssistChip(
+                        onClick = { query += letter },
+                        label = { Text(letter.toString(), fontSize = 9.sp) },
+                    )
+                }
+                AssistChip(
+                    onClick = { query = query.dropLast(1) },
+                    label = { Text("⌫", fontSize = 9.sp) },
+                )
+                AssistChip(
+                    onClick = { query = "" },
+                    label = { Text("Clear", fontSize = 9.sp) },
+                )
+            }
+        }
+
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 7.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            visible.forEach { entry ->
+                Box(
+                    Modifier
+                        .size(43.dp)
+                        .semantics { contentDescription = entry.description }
+                        .combinedClickable(
+                            onClick = {
+                                controller.commit(entry.output)
+                                onEmojiUsed(entry.output)
+                                onCommitted()
+                            },
+                            onLongClick = { onToggleFavorite(entry.output) },
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    KeyboardEmojiArtwork(entry.art, Modifier.size(35.dp))
+                    if (entry.output in favorites) {
+                        Text(
+                            "★",
+                            color = Color(0xFFFFD76A),
+                            fontSize = 8.sp,
+                            modifier = Modifier.align(Alignment.TopEnd),
+                        )
+                    }
+                }
+            }
+            if (visible.isEmpty()) {
+                Text(
+                    "No matching custom emoji",
+                    color = Color(0xFF8F99A4),
+                    fontSize = 10.sp,
+                    modifier = Modifier.padding(10.dp),
+                )
+            }
+        }
+
+        Text(
+            "Tap to insert · long-press to favorite",
+            color = Color(0xFF78828C),
+            fontSize = 8.sp,
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 2.dp),
+        )
     }
 }
 
@@ -596,111 +919,203 @@ private fun KeyboardRows(
     theme: ThemeSnapshot,
     secondaryVisible: Boolean,
     hapticsEnabled: Boolean,
+    swipeTypingEnabled: Boolean,
+    swipeTrailEnabled: Boolean,
     controller: KeyboardController,
     onLayer: (KeyboardLayer) -> Unit,
     onShift: (ShiftState) -> Unit,
     onOpenEmoji: () -> Unit,
+    onSwipeWord: (String) -> Unit,
     onSpace: () -> Unit,
     onTextChanged: () -> Unit,
 ) {
     var lastShiftTapAt by remember { mutableLongStateOf(0L) }
+    var keyboardSize by remember { mutableStateOf(IntSize.Zero) }
+    var swipeTrail by remember { mutableStateOf<List<Offset>>(emptyList()) }
 
-    rows.forEach { row ->
-        Row(
-            Modifier.fillMaxWidth().padding(bottom = theme.verticalGapDp.dp),
-            horizontalArrangement = Arrangement.spacedBy(theme.horizontalGapDp.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            row.forEach { key ->
-                val rawOutput = key.output
-                val secondary = key.secondary
-                val display = if (
-                    layer == KeyboardLayer.LETTERS &&
-                    rawOutput?.singleOrNull()?.isLetter() == true &&
-                    shift != ShiftState.OFF
-                ) {
-                    key.label.uppercase()
-                } else {
-                    key.label
-                }
-                val widthScale = theme.overrides[key.id]?.widthScale ?: 1f
-                val effectiveWeight = (key.weight * widthScale).coerceAtLeast(.2f)
+    fun keyAt(position: Offset): KeySpec? {
+        if (layer != KeyboardLayer.LETTERS || keyboardSize.width <= 0 || keyboardSize.height <= 0) return null
+        val rowHeight = keyboardSize.height.toFloat() / rows.size.coerceAtLeast(1)
+        val rowIndex = (position.y / rowHeight).toInt().coerceIn(0, rows.lastIndex)
+        if (rowIndex >= 3) return null
+        val row = rows[rowIndex]
+        val total = row.sumOf { key ->
+            ((key.weight * (theme.overrides[key.id]?.widthScale ?: 1f)).coerceAtLeast(.2f)).toDouble()
+        }.toFloat()
+        val x = (position.x / keyboardSize.width.toFloat()).coerceIn(0f, .9999f)
+        var cursor = 0f
+        row.forEach { key ->
+            val weight = (key.weight * (theme.overrides[key.id]?.widthScale ?: 1f)).coerceAtLeast(.2f)
+            val endX = cursor + weight / total
+            if (x >= cursor && x < endX) return key.takeIf { it.special == null && it.output?.singleOrNull()?.isLetter() == true }
+            cursor = endX
+        }
+        return null
+    }
 
-                when (key.special) {
-                    SpecialKey.SPACE -> SpacebarKey(
-                        key = key,
-                        theme = theme,
-                        modifier = Modifier.weight(effectiveWeight),
-                        hapticsEnabled = hapticsEnabled,
-                        onSpace = onSpace,
-                        onCursor = { controller.moveCursor(it) },
-                    )
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .onSizeChanged { keyboardSize = it }
+            .pointerInput(layer, swipeTypingEnabled, keyboardSize, theme.overrides) {
+                if (!swipeTypingEnabled || layer != KeyboardLayer.LETTERS) return@pointerInput
+                val activationDistance = 14.dp.toPx()
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val pointerId = down.id
+                    val start = down.position
+                    val path = mutableListOf<Char>()
+                    var active = false
+                    var lastPoint = start
 
-                    SpecialKey.BACKSPACE -> RepeatBackspaceKey(
-                        key = key,
-                        theme = theme,
-                        modifier = Modifier.weight(effectiveWeight),
-                        hapticsEnabled = hapticsEnabled,
-                        onBackspace = { controller.backspace(); onTextChanged() },
-                    )
+                    keyAt(start)?.output?.singleOrNull()?.let(path::add)
 
-                    else -> ImeKey(
-                        key = key,
-                        displayLabel = display,
-                        theme = theme,
-                        secondaryVisible = secondaryVisible,
-                        hapticsEnabled = hapticsEnabled,
-                        modifier = Modifier.weight(effectiveWeight),
-                        onClick = {
-                            when (key.special) {
-                                SpecialKey.SHIFT -> {
-                                    val now = SystemClock.uptimeMillis()
-                                    val doubleTapWindow = ViewConfiguration.getDoubleTapTimeout().toLong()
-                                    val isSecondTap = shift == ShiftState.ONCE &&
-                                        lastShiftTapAt > 0L &&
-                                        now - lastShiftTapAt <= doubleTapWindow
-                                    if (isSecondTap) {
-                                        lastShiftTapAt = 0L
-                                        onShift(ShiftState.LOCKED)
-                                    } else {
-                                        lastShiftTapAt = if (shift == ShiftState.OFF) now else 0L
-                                        onShift(if (shift == ShiftState.OFF) ShiftState.ONCE else ShiftState.OFF)
-                                    }
-                                }
-
-                                SpecialKey.ENTER -> {
-                                    controller.enter()
-                                    onTextChanged()
-                                }
-
-                                SpecialKey.EMOJI -> onOpenEmoji()
-                                SpecialKey.NUMBERS -> onLayer(KeyboardLayer.SYMBOLS)
-                                SpecialKey.LETTERS -> onLayer(KeyboardLayer.LETTERS)
-                                SpecialKey.MORE_SYMBOLS -> onLayer(KeyboardLayer.SYMBOLS_MORE)
-                                SpecialKey.LESS_SYMBOLS -> onLayer(KeyboardLayer.SYMBOLS)
-                                SpecialKey.BACKSPACE, SpecialKey.SPACE -> Unit
-                                else -> rawOutput?.let { raw ->
-                                    val output = if (
-                                        layer == KeyboardLayer.LETTERS &&
-                                        raw.length == 1 &&
-                                        raw[0].isLetter() &&
-                                        shift != ShiftState.OFF
-                                    ) {
-                                        raw.uppercase()
-                                    } else {
-                                        raw
-                                    }
-                                    controller.commit(output)
-                                    if (shift == ShiftState.ONCE) onShift(ShiftState.OFF)
-                                    onTextChanged()
-                                }
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+                        val point = change.position
+                        val dx = point.x - start.x
+                        val dy = point.y - start.y
+                        if (!active && kotlin.math.sqrt(dx * dx + dy * dy) >= activationDistance) {
+                            active = true
+                            swipeTrail = listOf(start)
+                        }
+                        if (active && change.pressed) {
+                            val segmentDx = point.x - lastPoint.x
+                            val segmentDy = point.y - lastPoint.y
+                            if (segmentDx * segmentDx + segmentDy * segmentDy >= 16f) {
+                                swipeTrail = (swipeTrail + point).takeLast(80)
+                                lastPoint = point
                             }
-                        },
-                        onLongClick = if (secondary != null && key.special == null) {
-                            { controller.commit(secondary); onTextChanged() }
+                            keyAt(point)?.output?.singleOrNull()?.let { letter ->
+                                if (path.lastOrNull() != letter) path.add(letter)
+                            }
+                            change.consume()
+                        }
+                        if (!change.pressed) {
+                            if (active) {
+                                val word = SuggestionEngine.decodeSwipe(path.joinToString(""))
+                                if (!word.isNullOrBlank()) onSwipeWord(word)
+                            }
+                            swipeTrail = emptyList()
+                            break
+                        }
+                    }
+                }
+            },
+    ) {
+        Column(Modifier.fillMaxWidth()) {
+            rows.forEach { row ->
+                Row(
+                    Modifier.fillMaxWidth().padding(bottom = theme.verticalGapDp.dp),
+                    horizontalArrangement = Arrangement.spacedBy(theme.horizontalGapDp.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    row.forEach { key ->
+                        val rawOutput = key.output
+                        val secondary = key.secondary
+                        val display = if (
+                            layer == KeyboardLayer.LETTERS &&
+                            rawOutput?.singleOrNull()?.isLetter() == true &&
+                            shift != ShiftState.OFF
+                        ) {
+                            key.label.uppercase()
                         } else {
-                            null
-                        },
+                            key.label
+                        }
+                        val widthScale = theme.overrides[key.id]?.widthScale ?: 1f
+                        val effectiveWeight = (key.weight * widthScale).coerceAtLeast(.2f)
+
+                        when (key.special) {
+                            SpecialKey.SPACE -> SpacebarKey(
+                                key = key,
+                                theme = theme,
+                                modifier = Modifier.weight(effectiveWeight),
+                                hapticsEnabled = hapticsEnabled,
+                                onSpace = onSpace,
+                                onCursor = { controller.moveCursor(it) },
+                            )
+
+                            SpecialKey.BACKSPACE -> RepeatBackspaceKey(
+                                key = key,
+                                theme = theme,
+                                modifier = Modifier.weight(effectiveWeight),
+                                hapticsEnabled = hapticsEnabled,
+                                onBackspace = { controller.backspace(); onTextChanged() },
+                            )
+
+                            else -> ImeKey(
+                                key = key,
+                                displayLabel = display,
+                                theme = theme,
+                                secondaryVisible = secondaryVisible,
+                                hapticsEnabled = hapticsEnabled,
+                                modifier = Modifier.weight(effectiveWeight),
+                                onClick = {
+                                    when (key.special) {
+                                        SpecialKey.SHIFT -> {
+                                            val now = SystemClock.uptimeMillis()
+                                            val doubleTapWindow = ViewConfiguration.getDoubleTapTimeout().toLong()
+                                            val isSecondTap = shift == ShiftState.ONCE &&
+                                                lastShiftTapAt > 0L &&
+                                                now - lastShiftTapAt <= doubleTapWindow
+                                            if (isSecondTap) {
+                                                lastShiftTapAt = 0L
+                                                onShift(ShiftState.LOCKED)
+                                            } else {
+                                                lastShiftTapAt = if (shift == ShiftState.OFF) now else 0L
+                                                onShift(if (shift == ShiftState.OFF) ShiftState.ONCE else ShiftState.OFF)
+                                            }
+                                        }
+
+                                        SpecialKey.ENTER -> {
+                                            controller.enter()
+                                            onTextChanged()
+                                        }
+
+                                        SpecialKey.EMOJI -> onOpenEmoji()
+                                        SpecialKey.NUMBERS -> onLayer(KeyboardLayer.SYMBOLS)
+                                        SpecialKey.LETTERS -> onLayer(KeyboardLayer.LETTERS)
+                                        SpecialKey.MORE_SYMBOLS -> onLayer(KeyboardLayer.SYMBOLS_MORE)
+                                        SpecialKey.LESS_SYMBOLS -> onLayer(KeyboardLayer.SYMBOLS)
+                                        SpecialKey.BACKSPACE, SpecialKey.SPACE -> Unit
+                                        else -> rawOutput?.let { raw ->
+                                            val output = if (
+                                                layer == KeyboardLayer.LETTERS &&
+                                                raw.length == 1 &&
+                                                raw[0].isLetter() &&
+                                                shift != ShiftState.OFF
+                                            ) {
+                                                raw.uppercase()
+                                            } else {
+                                                raw
+                                            }
+                                            controller.commit(output)
+                                            if (shift == ShiftState.ONCE) onShift(ShiftState.OFF)
+                                            onTextChanged()
+                                        }
+                                    }
+                                },
+                                onLongClick = if (secondary != null && key.special == null) {
+                                    { controller.commit(secondary); onTextChanged() }
+                                } else {
+                                    null
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (swipeTrailEnabled && swipeTrail.size > 1) {
+            Canvas(Modifier.matchParentSize()) {
+                swipeTrail.zipWithNext().forEach { (a, b) ->
+                    drawLine(
+                        color = Color(theme.accentArgb.toInt()).copy(alpha = .72f),
+                        start = a,
+                        end = b,
+                        strokeWidth = 5.dp.toPx(),
                     )
                 }
             }

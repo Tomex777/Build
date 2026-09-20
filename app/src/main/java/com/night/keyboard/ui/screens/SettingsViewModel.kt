@@ -26,6 +26,8 @@ class SettingsViewModel @Inject constructor(
     fun autocorrect(v: Boolean) = viewModelScope.launch { preferences.setAutocorrect(v) }
     fun autocorrectAggression(v: Int) = viewModelScope.launch { preferences.setAutocorrectAggression(v) }
     fun suggestions(v: Boolean) = viewModelScope.launch { preferences.setSuggestions(v) }
+    fun swipeTyping(v: Boolean) = viewModelScope.launch { preferences.setSwipeTyping(v) }
+    fun swipeTrail(v: Boolean) = viewModelScope.launch { preferences.setSwipeTrail(v) }
     fun haptics(v: Boolean) = viewModelScope.launch { preferences.setHaptics(v) }
     fun secondary(v: Boolean) = viewModelScope.launch { preferences.setSecondaryCharacters(v) }
     fun incognito(v: Boolean) = viewModelScope.launch { preferences.setIncognito(v) }

@@ -109,6 +109,12 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
                         clipboardFlow = clipboardRepository.items,
                         sensitiveFieldFlow = sensitiveFieldFlow,
                         inputTypeFlow = inputTypeFlow,
+                        onEmojiUsed = { output ->
+                            serviceScope.launch { preferences.recordEmoji(output) }
+                        },
+                        onToggleEmojiFavorite = { output ->
+                            serviceScope.launch { preferences.toggleEmojiFavorite(output) }
+                        },
                     )
                 }
             }

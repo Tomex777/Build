@@ -17,21 +17,33 @@ enum class EmojiArtKind {
     SMILE, GRIN, HEART_EYES, SUNGLASSES, SAD, CRY, ANGRY, HEART, SPARKLE, SUN, FLOWER, ROCKET,
 }
 
-data class EmojiArtEntry(val output: String, val art: EmojiArtKind, val description: String)
+enum class EmojiCategory(val label: String) {
+    SMILEYS("Smileys"),
+    SYMBOLS("Symbols"),
+    NATURE("Nature"),
+    TRAVEL("Travel"),
+}
+
+data class EmojiArtEntry(
+    val output: String,
+    val art: EmojiArtKind,
+    val description: String,
+    val category: EmojiCategory,
+)
 
 val KeyboardEmojiSamples = listOf(
-    EmojiArtEntry("🙂", EmojiArtKind.SMILE, "Slight smile"),
-    EmojiArtEntry("😄", EmojiArtKind.GRIN, "Grinning face"),
-    EmojiArtEntry("😍", EmojiArtKind.HEART_EYES, "Heart eyes"),
-    EmojiArtEntry("😎", EmojiArtKind.SUNGLASSES, "Sunglasses"),
-    EmojiArtEntry("😔", EmojiArtKind.SAD, "Sad face"),
-    EmojiArtEntry("😢", EmojiArtKind.CRY, "Crying face"),
-    EmojiArtEntry("😠", EmojiArtKind.ANGRY, "Angry face"),
-    EmojiArtEntry("❤️", EmojiArtKind.HEART, "Heart"),
-    EmojiArtEntry("✨", EmojiArtKind.SPARKLE, "Sparkles"),
-    EmojiArtEntry("☀️", EmojiArtKind.SUN, "Sun"),
-    EmojiArtEntry("🌸", EmojiArtKind.FLOWER, "Flower"),
-    EmojiArtEntry("🚀", EmojiArtKind.ROCKET, "Rocket"),
+    EmojiArtEntry("🙂", EmojiArtKind.SMILE, "Slight smile", EmojiCategory.SMILEYS),
+    EmojiArtEntry("😄", EmojiArtKind.GRIN, "Grinning face", EmojiCategory.SMILEYS),
+    EmojiArtEntry("😍", EmojiArtKind.HEART_EYES, "Heart eyes", EmojiCategory.SMILEYS),
+    EmojiArtEntry("😎", EmojiArtKind.SUNGLASSES, "Sunglasses", EmojiCategory.SMILEYS),
+    EmojiArtEntry("😔", EmojiArtKind.SAD, "Sad face", EmojiCategory.SMILEYS),
+    EmojiArtEntry("😢", EmojiArtKind.CRY, "Crying face", EmojiCategory.SMILEYS),
+    EmojiArtEntry("😠", EmojiArtKind.ANGRY, "Angry face", EmojiCategory.SMILEYS),
+    EmojiArtEntry("❤️", EmojiArtKind.HEART, "Heart love", EmojiCategory.SYMBOLS),
+    EmojiArtEntry("✨", EmojiArtKind.SPARKLE, "Sparkles shine", EmojiCategory.SYMBOLS),
+    EmojiArtEntry("☀️", EmojiArtKind.SUN, "Sun sunny", EmojiCategory.NATURE),
+    EmojiArtEntry("🌸", EmojiArtKind.FLOWER, "Flower blossom", EmojiCategory.NATURE),
+    EmojiArtEntry("🚀", EmojiArtKind.ROCKET, "Rocket space travel", EmojiCategory.TRAVEL),
 )
 
 @Composable

@@ -1,5 +1,9 @@
 package com.night.keyboard.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,15 +13,27 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.night.keyboard.data.prefs.OneHandedMode
 
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
     var serverUrl by remember(state.serverUrl) { mutableStateOf(state.serverUrl) }
+    var microphoneGranted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED,
+        )
+    }
+    val microphonePermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> microphoneGranted = granted }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -107,6 +123,20 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     state.suggestions,
                     viewModel::suggestions,
                 )
+                ToggleRow(
+                    "Swipe typing",
+                    "Glide across letters to enter a word without lifting your finger.",
+                    state.swipeTyping,
+                    viewModel::swipeTyping,
+                )
+                if (state.swipeTyping) {
+                    ToggleRow(
+                        "Swipe trail",
+                        "Draw a short live trail while gliding across the letter keys.",
+                        state.swipeTrail,
+                        viewModel::swipeTrail,
+                    )
+                }
             }
         }
 
@@ -118,6 +148,33 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     state.haptics,
                     viewModel::haptics,
                 )
+                Row(
+                    Modifier.fillMaxWidth().padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Microphone", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            if (microphoneGranted) {
+                                "Granted. Voice input still records and uploads only after explicit taps."
+                            } else {
+                                "Required only for the Voice toolbar tool."
+                            },
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    if (!microphoneGranted) {
+                        OutlinedButton(
+                            onClick = {
+                                microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
+                            },
+                        ) { Text("Allow") }
+                    } else {
+                        Text("Allowed", color = MaterialTheme.colorScheme.primary)
+                    }
+                }
             }
         }
 
