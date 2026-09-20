@@ -338,7 +338,7 @@ class HomiraIncomingCallNotifier(
                     "Missed voice call"
                 }
             )
-            .setCategory(NotificationCompat.CATEGORY_MISSED_CALL)
+            .setCategory(NotificationCompat.CATEGORY_CALL)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
             .setContentIntent(openPendingIntent)
