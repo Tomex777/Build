@@ -26,7 +26,7 @@ jobs:
           test -f "$ENDLESS_PROJECT/settings.gradle.kts"
           cp -R endless_m2_override/app/. "$ENDLESS_PROJECT/app/"
           grep -q 'screenOrientation="landscape"' "$ENDLESS_PROJECT/app/src/main/AndroidManifest.xml"
-          grep -q 'versionName = "0.3.2-m3"' "$ENDLESS_PROJECT/app/build.gradle.kts"
+          grep -q 'versionName = "0.3.3-m3"' "$ENDLESS_PROJECT/app/build.gradle.kts"
           echo "ENDLESS_PROJECT=$ENDLESS_PROJECT" >> "$GITHUB_ENV"
 
       - name: Fetch verified real planetary textures
@@ -92,7 +92,7 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Build Endless M3.2 debug APK
+      - name: Build Endless M3.3 debug APK
         working-directory: ${{ env.ENDLESS_PROJECT }}
         run: gradle :app:assembleDebug --stacktrace
 
@@ -105,9 +105,9 @@ jobs:
           unzip -l "$APK" | grep -q 'saturn_ring.png'
           unzip -l "$APK" | grep -q 'earth_clouds.jpg'
 
-      - name: Upload Endless M3.2 APK
+      - name: Upload Endless M3.3 APK
         uses: actions/upload-artifact@v4
         with:
-          name: endless-m3-2-control-selection-apk
+          name: endless-m3-3-polished-navigation-apk
           path: ${{ env.ENDLESS_PROJECT }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
