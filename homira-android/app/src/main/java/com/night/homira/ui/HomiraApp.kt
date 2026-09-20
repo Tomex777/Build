@@ -1064,26 +1064,21 @@ private fun CallControl(icon: ImageVector, label: String, active: Boolean, onCli
 }
 
 @Composable
-private fun rememberBitmap(uriString: String?) = remember(uriString) {
-    if (uriString.isNullOrBlank()) return@remember null
-    runCatching {
-        val context = HomiraBitmapContextHolder.context
-        if (context == null) null else {
-            context.contentResolver.openInputStream(android.net.Uri.parse(uriString))?.use { input ->
-                BitmapFactory.decodeStream(input)?.asImageBitmap()
-            }
+private fun rememberBitmap(uriString: String?): androidx.compose.ui.graphics.ImageBitmap? {
+    val context = LocalContext.current.applicationContext
+    return remember(uriString, context) {
+        if (uriString.isNullOrBlank()) {
+            null
+        } else {
+            runCatching {
+                context.contentResolver
+                    .openInputStream(android.net.Uri.parse(uriString))
+                    ?.use { input ->
+                        BitmapFactory.decodeStream(input)?.asImageBitmap()
+                    }
+            }.getOrNull()
         }
-    }.getOrNull()
-}
-
-private object HomiraBitmapContextHolder {
-    var context: android.content.Context? = null
-}
-
-@Composable
-private fun BitmapContextBinder() {
-    val context = LocalContext.current
-    HomiraBitmapContextHolder.context = context
+    }
 }
 
 private fun digitsOnly(value: String): String = value.filter { it.isDigit() }
