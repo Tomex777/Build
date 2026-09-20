@@ -56,6 +56,7 @@ check("backspace has stationary hold-repeat behavior", "RepeatBackspaceKey" in i
 check("haptic preference reaches key paths", "hapticsEnabled" in ime and "hapticsEnabled" in repeat_backspace)
 check("autocorrect and undo path exist", "SuggestionEngine.autocorrect" in ime and "undoAutocorrect" in ime)
 check("one-handed layout affects IME width", "OneHandedMode.LEFT" in ime and "fillMaxWidth(widthFraction)" in ime)
+check("numeric host fields start on symbol layer", "inputTypeFlow" in ime and "TYPE_CLASS_NUMBER" in ime and "KeyboardLayer.SYMBOLS" in ime)
 check("toolbar exposes focused AI trio", all(x in ime for x in ["Editor", "Tone", "Contextual Research"]))
 check("toolbar exposes clipboard and emoji", "ToolPanel.CLIPBOARD" in ime and "ToolPanel.EMOJI" in ime)
 check("IME uses Keyboard-owned vector family", "KeyboardIcons.Clipboard" in ime and "KeyboardIcons.Backspace" in repeat_backspace and "androidx.compose.material.icons" not in ime)
@@ -112,6 +113,11 @@ check("pin removes expiry", "if (pinned)" in repo and "null" in repo)
 all_kt="\n".join(p.read_text(encoding="utf-8") for p in root.rglob("*.kt"))
 removed_terms=["streak", "achievement", "vibe mode", "marketplace"]
 check("removed product systems stay removed", not any(term in all_kt.lower() for term in removed_terms), ", ".join(t for t in removed_terms if t in all_kt.lower()))
+
+harness=text("app/src/debug/java/com/night/keyboard/debug/ImeHarnessActivity.kt")
+qa_script=text("scripts/ime_emulator_qa.sh")
+check("debug host covers editor field matrix", all(x in harness for x in ["email", "url", "number", "password", "multiline", "search", "rtl", "selected"]))
+check("real IME QA exercises field matrix", "exercise_text_mode" in qa_script and "selected-before.xml" in qa_script)
 
 manifest=text("app/src/main/AndroidManifest.xml")
 check("InputMethodService permission declared", "android.permission.BIND_INPUT_METHOD" in manifest)

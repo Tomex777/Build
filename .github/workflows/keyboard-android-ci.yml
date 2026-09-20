@@ -127,7 +127,16 @@ jobs:
             letters-restored.png
             after-repeat-backspace.png
             home-after-setup.png
+            field-*.png
             ime-window.xml
+            email-*.xml
+            url-*.xml
+            number-*.xml
+            password-*.xml
+            multiline-*.xml
+            search-*.xml
+            rtl-*.xml
+            selected-*.xml
             after-q.xml
             after-trackpad.xml
             after-cursor.xml
@@ -142,6 +151,15 @@ jobs:
             input-method.txt
             input-method-emoji.txt
             input-method-normal.txt
+            input-method-email.txt
+            input-method-url.txt
+            input-method-number.txt
+            input-method-password.txt
+            input-method-multiline.txt
+            input-method-multiline-enter.txt
+            input-method-search.txt
+            input-method-rtl.txt
+            input-method-selected.txt
             logcat.txt
             logcat-final.txt
           if-no-files-found: warn

@@ -3,6 +3,7 @@
 package com.night.keyboard.ime
 
 import android.os.SystemClock
+import android.text.InputType
 import android.view.ViewConfiguration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -48,11 +49,13 @@ fun ImeKeyboard(
     preferenceFlow: Flow<KeyboardPreferenceState>,
     clipboardFlow: Flow<List<ClipboardItem>>,
     sensitiveFieldFlow: Flow<Boolean>,
+    inputTypeFlow: Flow<Int>,
 ) {
     val theme by themeFlow.collectAsState(initial = ThemeSnapshot())
     val prefs by preferenceFlow.collectAsState(initial = KeyboardPreferenceState())
     val clips by clipboardFlow.collectAsState(initial = emptyList())
     val sensitiveField by sensitiveFieldFlow.collectAsState(initial = false)
+    val inputType by inputTypeFlow.collectAsState(initial = 0)
     val privateMode = sensitiveField || prefs.incognito
 
     var layer by remember { mutableStateOf(KeyboardLayer.LETTERS) }
@@ -69,6 +72,19 @@ fun ImeKeyboard(
 
     LaunchedEffect(textVersion, privateMode) {
         suggestions = if (privateMode) emptyList() else SuggestionEngine.suggest(controller.textBeforeCursor())
+    }
+
+    LaunchedEffect(inputType) {
+        val inputClass = inputType and InputType.TYPE_MASK_CLASS
+        layer = when (inputClass) {
+            InputType.TYPE_CLASS_NUMBER,
+            InputType.TYPE_CLASS_PHONE,
+            InputType.TYPE_CLASS_DATETIME -> KeyboardLayer.SYMBOLS
+            else -> KeyboardLayer.LETTERS
+        }
+        panel = ToolPanel.NONE
+        shift = ShiftState.OFF
+        lastCorrection = null
     }
 
     val widthFraction = if (prefs.oneHandedMode == OneHandedMode.OFF) 1f else .82f

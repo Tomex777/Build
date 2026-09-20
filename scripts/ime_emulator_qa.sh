@@ -228,6 +228,90 @@ assert phrase in after
 PY
 adb exec-out screencap -p > after-repeat-backspace.png
 
+
+# Field-type matrix: repeatedly attach the same production IME to realistic host
+# EditorInfo configurations. Every mode must accept an actual key event without
+# crashing. Number mode also proves the IME switches itself to the symbol layer.
+text_length_from_xml() {
+  python3 - "$1" <<'PY'
+import re, sys, xml.etree.ElementTree as ET
+for node in ET.parse(sys.argv[1]).iter():
+    text = node.attrib.get('text', '')
+    m = re.fullmatch(r'Text length: (\d+)', text)
+    if m:
+        print(m.group(1))
+        raise SystemExit(0)
+raise SystemExit('Text length label not found')
+PY
+}
+
+exercise_text_mode() {
+  local mode="$1"
+  adb shell am start -W -n com.night.keyboard/.debug.ImeHarnessActivity --es mode "$mode" >/dev/null
+  sleep 2
+  adb shell dumpsys input_method > "input-method-$mode.txt"
+  grep -q "mInputStarted=true mInputViewStarted=true" "input-method-$mode.txt"
+  local mode_top
+  mode_top="$(ime_top_from_dump "input-method-$mode.txt")"
+  adb shell uiautomator dump "/sdcard/$mode-before.xml" >/dev/null
+  adb pull "/sdcard/$mode-before.xml" "$mode-before.xml" >/dev/null
+  assert_xml_text "$mode-before.xml" "Mode: $mode"
+  local before after
+  before="$(text_length_from_xml "$mode-before.xml")"
+  adb shell input tap "$Q_X" "$(( mode_top + Q_ROW_LOCAL_Y ))"
+  sleep 1
+  adb shell uiautomator dump "/sdcard/$mode-after.xml" >/dev/null
+  adb pull "/sdcard/$mode-after.xml" "$mode-after.xml" >/dev/null
+  after="$(text_length_from_xml "$mode-after.xml")"
+  if [ "$after" -ne $(( before + 1 )) ]; then
+    echo "$mode field did not accept one real IME key: $before -> $after"
+    exit 1
+  fi
+  adb exec-out screencap -p > "field-$mode.png"
+}
+
+for mode in email url number password search rtl; do
+  exercise_text_mode "$mode"
+done
+
+# Multiline must accept both a normal key and the IME Enter newline path.
+exercise_text_mode multiline
+adb shell dumpsys input_method > input-method-multiline-enter.txt
+MULTI_TOP="$(ime_top_from_dump input-method-multiline-enter.txt)"
+adb shell uiautomator dump /sdcard/multiline-before-enter.xml >/dev/null
+adb pull /sdcard/multiline-before-enter.xml multiline-before-enter.xml >/dev/null
+MULTI_BEFORE="$(text_length_from_xml multiline-before-enter.xml)"
+adb shell input tap 1020 "$(( MULTI_TOP + SPACE_LOCAL_Y ))"
+sleep 1
+adb shell uiautomator dump /sdcard/multiline-after-enter.xml >/dev/null
+adb pull /sdcard/multiline-after-enter.xml multiline-after-enter.xml >/dev/null
+MULTI_AFTER="$(text_length_from_xml multiline-after-enter.xml)"
+if [ "$MULTI_AFTER" -ne $(( MULTI_BEFORE + 1 )) ]; then
+  echo "multiline Enter did not insert a newline: $MULTI_BEFORE -> $MULTI_AFTER"
+  exit 1
+fi
+
+# Selected text: Backspace must delete the selection rather than one codepoint.
+adb shell am start -W -n com.night.keyboard/.debug.ImeHarnessActivity --es mode selected >/dev/null
+sleep 2
+adb shell dumpsys input_method > input-method-selected.txt
+SELECTED_TOP="$(ime_top_from_dump input-method-selected.txt)"
+adb shell uiautomator dump /sdcard/selected-before.xml >/dev/null
+adb pull /sdcard/selected-before.xml selected-before.xml >/dev/null
+assert_xml_text selected-before.xml "Selection: 0-6"
+SELECTED_BEFORE="$(text_length_from_xml selected-before.xml)"
+adb shell input tap "$BACKSPACE_X" "$(( SELECTED_TOP + BACKSPACE_LOCAL_Y ))"
+sleep 1
+adb shell uiautomator dump /sdcard/selected-after.xml >/dev/null
+adb pull /sdcard/selected-after.xml selected-after.xml >/dev/null
+SELECTED_AFTER="$(text_length_from_xml selected-after.xml)"
+if [ "$SELECTED_AFTER" -ne $(( SELECTED_BEFORE - 6 )) ]; then
+  echo "Backspace did not delete selected host text: $SELECTED_BEFORE -> $SELECTED_AFTER"
+  exit 1
+fi
+assert_xml_text selected-after.xml "Selection: 0-0"
+adb exec-out screencap -p > field-selected.png
+
 # Setup is genuinely complete now. Normal Home must not retain onboarding or a
 # permanent setup-success card after this IME is both enabled and selected.
 adb shell am start -W -n com.night.keyboard/.MainActivity

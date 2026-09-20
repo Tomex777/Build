@@ -75,20 +75,22 @@ fun EditorScreen(viewModel: EditorViewModel = hiltViewModel()) {
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
-        uri ?: return@rememberLauncherForActivityResult
-        runCatching {
-            context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use {
-                it.write(ThemeCodec.encode(theme))
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use {
+                    it.write(ThemeCodec.encode(theme))
+                }
             }
         }
     }
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
-        uri ?: return@rememberLauncherForActivityResult
-        runCatching {
-            context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-        }.getOrNull()?.let(viewModel::importTheme)
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+            }.getOrNull()?.let(viewModel::importTheme)
+        }
     }
 
     LaunchedEffect(theme.keyHeightDp, theme.horizontalGapDp, theme.verticalGapDp) {
@@ -132,7 +134,7 @@ fun EditorScreen(viewModel: EditorViewModel = hiltViewModel()) {
         row.forEach { key ->
             val weight = (key.weight * (theme.overrides[key.id]?.widthScale ?: 1f)).coerceAtLeast(.2f)
             val end = cursor + weight / totalWeight
-            if (normalizedX in cursor until end) {
+            if (normalizedX >= cursor && normalizedX < end) {
                 selected = selected + key.id
                 typed = ""
                 return

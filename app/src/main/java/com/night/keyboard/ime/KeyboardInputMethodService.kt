@@ -36,6 +36,7 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var clipboard: ClipboardManager
     private val sensitiveFieldFlow = MutableStateFlow(false)
+    private val inputTypeFlow = MutableStateFlow(0)
 
     @Volatile
     private var incognitoMode = false
@@ -107,6 +108,7 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
                         preferenceFlow = preferences.state,
                         clipboardFlow = clipboardRepository.items,
                         sensitiveFieldFlow = sensitiveFieldFlow,
+                        inputTypeFlow = inputTypeFlow,
                     )
                 }
             }
@@ -116,6 +118,7 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
         sensitiveFieldFlow.value = attribute?.let(::isSensitive) ?: false
+        inputTypeFlow.value = attribute?.inputType ?: 0
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
@@ -132,6 +135,7 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
 
     override fun onFinishInput() {
         sensitiveFieldFlow.value = false
+        inputTypeFlow.value = 0
         super.onFinishInput()
     }
 
