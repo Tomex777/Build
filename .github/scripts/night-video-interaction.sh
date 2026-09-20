@@ -122,33 +122,75 @@ desc_is_visible() {
 }
 
 assert_text() {
-  refresh_ui
-  python3 /tmp/night_video_uia.py text "$1" >/dev/null
+  local wanted="$1"
+  local attempt
+  for attempt in $(seq 1 10); do
+    refresh_ui
+    if python3 /tmp/night_video_uia.py text "$wanted" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  cp /tmp/window.xml "$ARTIFACTS/failure-window-text.xml" 2>/dev/null || true
+  echo "Night UI text did not appear: $wanted" >&2
+  return 1
 }
 
 assert_desc() {
-  refresh_ui
-  python3 /tmp/night_video_uia.py desc "$1" >/dev/null
+  local wanted="$1"
+  local attempt
+  for attempt in $(seq 1 10); do
+    refresh_ui
+    if python3 /tmp/night_video_uia.py desc "$wanted" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  cp /tmp/window.xml "$ARTIFACTS/failure-window-desc.xml" 2>/dev/null || true
+  echo "Night UI content description did not appear: $wanted" >&2
+  return 1
 }
 
 tap_text() {
-  refresh_ui
-  local coords x y
-  coords="$(python3 /tmp/night_video_uia.py text "$1")"
-  x="${coords% *}"
-  y="${coords#* }"
-  adb shell input tap "$x" "$y"
-  sleep 1
+  local wanted="$1"
+  local coords=""
+  local attempt x y
+  for attempt in $(seq 1 10); do
+    refresh_ui
+    coords="$(python3 /tmp/night_video_uia.py text "$wanted" 2>/dev/null || true)"
+    if [ -n "$coords" ]; then
+      x="${coords% *}"
+      y="${coords#* }"
+      adb shell input tap "$x" "$y"
+      sleep 1
+      return 0
+    fi
+    sleep 1
+  done
+  cp /tmp/window.xml "$ARTIFACTS/failure-window-tap-text.xml" 2>/dev/null || true
+  echo "Could not tap Night UI text: $wanted" >&2
+  return 1
 }
 
 tap_desc() {
-  refresh_ui
-  local coords x y
-  coords="$(python3 /tmp/night_video_uia.py desc "$1")"
-  x="${coords% *}"
-  y="${coords#* }"
-  adb shell input tap "$x" "$y"
-  sleep 1
+  local wanted="$1"
+  local coords=""
+  local attempt x y
+  for attempt in $(seq 1 10); do
+    refresh_ui
+    coords="$(python3 /tmp/night_video_uia.py desc "$wanted" 2>/dev/null || true)"
+    if [ -n "$coords" ]; then
+      x="${coords% *}"
+      y="${coords#* }"
+      adb shell input tap "$x" "$y"
+      sleep 1
+      return 0
+    fi
+    sleep 1
+  done
+  cp /tmp/window.xml "$ARTIFACTS/failure-window-tap-desc.xml" 2>/dev/null || true
+  echo "Could not tap Night UI control: $wanted" >&2
+  return 1
 }
 
 assert_alive() {
