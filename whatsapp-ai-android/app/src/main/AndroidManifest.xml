@@ -20,6 +20,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Whatsapp">
         <activity
+            android:name=".MihonReaderPreviewActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize"
+            android:theme="@style/Theme.Whatsapp" />
+        <activity
+            android:name=".NightMihonReaderActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|smallestScreenSize"
+            android:theme="@style/Theme.Whatsapp" />
+        <activity
             android:name=".MainTabsPreviewActivity"
             android:exported="true"
             android:theme="@style/Theme.Whatsapp" />

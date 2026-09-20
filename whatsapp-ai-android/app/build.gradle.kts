@@ -132,4 +132,12 @@ dependencies {
     implementation("com.burhanrashid52:photoeditor:3.1.1")
     implementation("com.vanniktech:android-image-cropper:4.7.0")
     implementation("androidx.media3:media3-transformer:1.11.1")
+
+    // Mihon reader transplant — upstream reader mechanics
+    implementation("androidx.recyclerview:recyclerview:1.4.0")
+    implementation("androidx.viewpager:viewpager:1.1.0")
+    implementation("com.github.tachiyomiorg:DirectionalViewPager:1.0.0")
+    implementation("com.github.mihonapp:subsampling-scale-image-view:94915e6f73") {
+        exclude(module = "image-decoder")
+    }
 }
