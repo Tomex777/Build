@@ -1883,11 +1883,6 @@ fun HomiraProductionApp(
                 engine.start()
                 engine.state.collect { state ->
                     webRtcState = state
-                    if (state == HomiraWebRtcState.Failed && activeSession?.id == session.id) {
-                        runCatching {
-                            liveRepository.setCallState(session.id, "failed")
-                        }
-                    }
                 }
             } catch (error: Throwable) {
                 webRtcState = HomiraWebRtcState.Failed
@@ -1905,6 +1900,38 @@ fun HomiraProductionApp(
                 runCatching { engine.close() }
                 if (voiceEngine === engine) {
                     voiceEngine = null
+                }
+            }
+        }
+
+        LaunchedEffect(
+            activeSession?.id,
+            webRtcState
+        ) {
+            val session = activeSession
+                ?: return@LaunchedEffect
+
+            if (
+                webRtcState != HomiraWebRtcState.Disconnected &&
+                webRtcState != HomiraWebRtcState.Failed
+            ) {
+                return@LaunchedEffect
+            }
+
+            delay(10_000)
+
+            if (
+                activeSession?.id == session.id &&
+                (
+                    webRtcState == HomiraWebRtcState.Disconnected ||
+                        webRtcState == HomiraWebRtcState.Failed
+                )
+            ) {
+                runCatching {
+                    liveRepository.setCallState(
+                        session.id,
+                        "failed"
+                    )
                 }
             }
         }
