@@ -124,11 +124,31 @@ assert_alive() {
   adb shell pidof "$PACKAGE" >/dev/null
 }
 
+capture_media_logcat() {
+  local label="$1"
+  local full="$ARTIFACTS/logcat-$label.txt"
+  local filtered="$ARTIFACTS/logcat-$label-media.txt"
+  adb logcat -d -v threadtime > "$full" || true
+  grep -Ei \
+    'NightVideo|libvlc|VLC|MediaCodec|CCodec|Codec2|ACodec|Surface|BufferQueue|Transformer|Media3|AndroidRuntime|FATAL EXCEPTION|ANR in|Fatal signal|SIGSEGV|SIGABRT|(^|[[:space:]])E/' \
+    "$full" > "$filtered" || true
+}
+
 assert_no_crash() {
-  adb logcat -d > "$ARTIFACTS/logcat-latest.txt" || true
-  if adb logcat -d -v brief | grep -A5 "FATAL EXCEPTION:" | grep -q "Process: $PACKAGE"; then
+  adb logcat -d -v threadtime > "$ARTIFACTS/logcat-latest.txt" || true
+  if grep -A5 "FATAL EXCEPTION:" "$ARTIFACTS/logcat-latest.txt" | grep -q "Process: $PACKAGE"; then
     echo "Night crashed during real video interaction test." >&2
     exit 1
+  fi
+  if grep -q "ANR in $PACKAGE" "$ARTIFACTS/logcat-latest.txt"; then
+    echo "Night hit an ANR during real video interaction test." >&2
+    exit 1
+  fi
+  if grep -E ">>> $PACKAGE <<<|Fatal signal (6|11)" "$ARTIFACTS/logcat-latest.txt" | grep -Eq "Fatal signal|>>> $PACKAGE <<<"; then
+    if grep -B6 -A10 ">>> $PACKAGE <<<" "$ARTIFACTS/logcat-latest.txt" | grep -Eq "Fatal signal|SIGSEGV|SIGABRT"; then
+      echo "Night hit a native crash during real video interaction test." >&2
+      exit 1
+    fi
   fi
   assert_alive
 }
@@ -182,12 +202,15 @@ show_controls
 assert_text "Night Video 1"
 assert_no_crash
 capture_dims "$ARTIFACTS/01-real-video-open.png" > "$ARTIFACTS/01-dimensions.txt"
+capture_media_logcat "01-open"
 
 first_time="$(read_current_time)"
 sleep 2
 second_time="$(read_current_time)"
 first_seconds="$(to_seconds "$first_time")"
 second_seconds="$(to_seconds "$second_time")"
+capture_media_logcat "02-playback"
+assert_no_crash
 if [ "$second_seconds" -le "$first_seconds" ]; then
   echo "Real MP4 playback time did not advance: $first_time -> $second_time" >&2
   exit 1
@@ -214,6 +237,7 @@ if [ "$resumed_seconds" -le "$paused_after_seconds" ]; then
   echo "Video did not resume after Play." >&2
   exit 1
 fi
+capture_media_logcat "03-pause-resume"
 assert_no_crash
 
 echo "STEP: playback speed"
@@ -251,6 +275,7 @@ if ! grep -q "Night test subtitle" /tmp/window.xml; then
   exit 1
 fi
 tap_text "Night test subtitle"
+capture_media_logcat "04-tracks"
 assert_no_crash
 
 echo "STEP: seek"
@@ -269,6 +294,7 @@ if [ "$seek_seconds" -lt 15 ]; then
   adb exec-out screencap -p > "$ARTIFACTS/failure-seek.png"
   exit 1
 fi
+capture_media_logcat "05-seek"
 assert_no_crash
 
 echo "STEP: portrait and landscape"
@@ -288,6 +314,8 @@ if [ "$portrait_h" -le "$portrait_w" ]; then
   echo "Night video did not return to portrait." >&2
   exit 1
 fi
+capture_media_logcat "06-rotation"
+assert_no_crash
 
 echo "STEP: picture in picture and return"
 show_controls
@@ -305,6 +333,7 @@ adb shell am start -W --activity-clear-top --activity-single-top \
 sleep 2
 show_controls
 assert_text "Night Video 1"
+capture_media_logcat "07-pip-return"
 assert_no_crash
 
 echo "STEP: next and previous video"
@@ -317,6 +346,7 @@ tap_desc "Previous media"
 sleep 2
 show_controls
 assert_text "Night Video 1"
+capture_media_logcat "08-next-previous"
 assert_no_crash
 
 echo "STEP: video editor trim and mute export"
@@ -328,6 +358,8 @@ assert_alive
 assert_text "Trim"
 assert_desc "Mute"
 assert_desc "Send media"
+capture_media_logcat "09-editor-open"
+assert_no_crash
 refresh_ui
 initial_trim="$(python3 /tmp/night_video_uia.py trim)"
 refresh_ui
@@ -398,6 +430,7 @@ if [ "$video_streams" -lt 1 ]; then
   echo "Exported Night video has no video stream." >&2
   exit 1
 fi
+capture_media_logcat "10-export"
 assert_no_crash
 
 echo "STEP: replay exported MP4"
@@ -415,7 +448,11 @@ if [ "$(to_seconds "$export_second")" -le "$(to_seconds "$export_first")" ]; the
   exit 1
 fi
 adb exec-out screencap -p > "$ARTIFACTS/10-exported-replay.png"
-adb logcat -d > "$ARTIFACTS/logcat.txt"
+capture_media_logcat "11-exported-replay"
+adb logcat -d -v threadtime > "$ARTIFACTS/logcat.txt"
+grep -Ei \
+  'NightVideo|libvlc|VLC|MediaCodec|CCodec|Codec2|ACodec|Surface|BufferQueue|Transformer|Media3|AndroidRuntime|FATAL EXCEPTION|ANR in|Fatal signal|SIGSEGV|SIGABRT|(^|[[:space:]])E/' \
+  "$ARTIFACTS/logcat.txt" > "$ARTIFACTS/logcat-media-summary.txt" || true
 assert_no_crash
 
 cat > "$ARTIFACTS/summary.txt" <<EOF
@@ -432,4 +469,6 @@ trimChanged=true
 mutedExport=true
 exportedDurationSeconds=$export_duration
 exportedReplay=true
+nightVideoFallbackMarkers=$(grep -h -c 'NightVideo' "$ARTIFACTS"/logcat-*-media.txt 2>/dev/null | awk '{s+=$1} END {print s+0}')
+mediaLogWarningFiles=$(find "$ARTIFACTS" -name 'logcat-*-media.txt' -size +0c | wc -l)
 EOF
