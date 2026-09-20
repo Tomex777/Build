@@ -312,15 +312,10 @@ internal fun NightAniyomiVlcPlayer(
                     runCatching { player.setVideoScale(aspect.scale) }
                 }
             },
-            modifier = Modifier.fillMaxSize(),
-        )
-
-        // VLCVideoLayout consumes touch input itself. Keep exactly one Compose
-        // tap target above VLC and below the control chrome. Control buttons render
-        // later and stay interactive; taps on empty video space toggle the chrome.
-        Box(
             modifier = Modifier
                 .fillMaxSize()
+                // Put the Compose click modifier on the AndroidView node itself.
+                // A sibling overlay cannot reliably receive taps above AndroidView.
                 .clickable { controlsVisible = !controlsVisible },
         )
 
