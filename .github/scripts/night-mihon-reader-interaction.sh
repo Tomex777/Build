@@ -154,6 +154,26 @@ dismiss_reader_settings() {
   return 1
 }
 
+hide_reader_chrome() {
+  local context_label="${1:-reader navigation}"
+  local attempt
+
+  # Mihon only routes volume keys to the viewer when its chrome is hidden.
+  # Do not assume one center tap has a particular starting state: inspect the
+  # actual top-bar title and keep toggling until the chrome is definitely gone.
+  for attempt in 1 2 3; do
+    if ! text_is_visible "Mihon Interaction Test"; then
+      return 0
+    fi
+    adb shell input tap 354 760
+    sleep 1
+  done
+
+  echo "Reader chrome remained visible before $context_label." >&2
+  adb exec-out screencap -p > mihon-interaction-artifacts/failure-reader-chrome-visible.png
+  return 1
+}
+
 assert_no_crash() {
   adb logcat -d > mihon-interaction-artifacts/logcat-latest.txt || true
 
@@ -305,10 +325,8 @@ grep -Eq '<boolean name="volumeKeys" value="true" ?/>' mihon-interaction-artifac
 # intercepts volume keys for page navigation while the reader menu is hidden.
 dismiss_reader_settings "volume navigation"
 
-# Reader chrome may be visible after the sheet closes. Toggle the center once
-# so hardware keys are tested in the same menu-hidden state Mihon uses.
-adb shell input tap 354 760
-sleep 1
+# Explicitly verify Mihon's menu-hidden state before injecting hardware keys.
+hide_reader_chrome "volume navigation"
 
 # Put the media stream in the middle of its range. If Night fails to consume
 # either hardware key, Android will visibly move this value and the test fails.
@@ -387,8 +405,7 @@ adb shell run-as "$PACKAGE" cat shared_prefs/night_mihon_reader.xml \
 grep -Eq '<boolean name="invertVolumeKeys" value="true" ?/>' mihon-interaction-artifacts/prefs-invert-volume-keys.xml
 
 dismiss_reader_settings "inverted-volume navigation"
-adb shell input tap 354 760
-sleep 1
+hide_reader_chrome "inverted-volume navigation"
 
 before_inverted_progress="$(read_saved_progress)"
 before_inverted_media="$(read_media_volume)"
