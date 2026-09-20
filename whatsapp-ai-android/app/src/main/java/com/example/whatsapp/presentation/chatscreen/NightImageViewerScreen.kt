@@ -428,14 +428,9 @@ internal fun NightVlcVideoSurface(
                     !userPaused &&
                     length > 0L &&
                     position < (length - 1500L).coerceAtLeast(0L) &&
-                    (
-                        (lastObservedPosition >= 500L && now - lastAdvanceAt >= 2500L) ||
-                            (lastObservedPosition < 500L && now - startedAt >= 9000L)
-                        )
+                    now - startedAt >= 3500L &&
+                    now - lastAdvanceAt >= 2500L
                 ) {
-                    // Give normal surface/decoder startup more time before declaring
-                    // a zero-position stall; use the fast fallback only after playback
-                    // has genuinely begun moving.
                     fallbackResumePosition = position
                     Log.w(
                         "NightVideo",
@@ -453,11 +448,7 @@ internal fun NightVlcVideoSurface(
     }
 
     Box(
-        modifier = modifier
-            .background(Color.Black)
-            .pointerInput(path) {
-                detectTapGestures(onTap = { onToggleControls() })
-            },
+        modifier = modifier.background(Color.Black),
         contentAlignment = Alignment.Center,
     ) {
         AndroidView(
@@ -468,7 +459,7 @@ internal fun NightVlcVideoSurface(
                         if (attachedPlayer !== player) {
                             runCatching { attachedPlayer?.detachViews() }
                             val attached = runCatching {
-                                player.attachViews(layout, null, false, true)
+                                player.attachViews(layout, null, false, false)
                             }.isSuccess
                             if (attached) {
                                 attachedPlayer = player
@@ -482,13 +473,11 @@ internal fun NightVlcVideoSurface(
             modifier = Modifier.fillMaxSize(),
         )
 
-        if (!showControls) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable { onToggleControls() },
-            )
-        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable { onToggleControls() },
+        )
 
         if (showControls) {
             IconButton(
