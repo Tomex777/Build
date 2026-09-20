@@ -319,7 +319,7 @@ internal fun NightAniyomiVlcPlayer(
                         if (attachedPlayer !== player) {
                             runCatching { attachedPlayer?.detachViews() }
                             val attached = runCatching {
-                                player.attachViews(layout, null, true, true)
+                                player.attachViews(layout, null, true, false)
                             }.isSuccess
                             if (attached) {
                                 attachedPlayer = player
