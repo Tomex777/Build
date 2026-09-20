@@ -264,6 +264,33 @@ class HomiraLiveRepository {
             .decodeList<LiveContact>()
             .firstOrNull()
 
+    suspend fun setContactFavorite(
+        contactUserId: String,
+        favorite: Boolean
+    ) {
+        val ownerId = requireNotNull(currentUserId()) { "Not signed in" }
+        client.from("contacts")
+            .update({
+                set("favorite", favorite)
+            }) {
+                filter {
+                    eq("owner_id", ownerId)
+                    eq("contact_user_id", contactUserId)
+                }
+            }
+    }
+
+    suspend fun deleteContact(contactUserId: String) {
+        val ownerId = requireNotNull(currentUserId()) { "Not signed in" }
+        client.from("contacts")
+            .delete {
+                filter {
+                    eq("owner_id", ownerId)
+                    eq("contact_user_id", contactUserId)
+                }
+            }
+    }
+
     suspend fun registerPushToken(
         deviceId: String,
         token: String,
