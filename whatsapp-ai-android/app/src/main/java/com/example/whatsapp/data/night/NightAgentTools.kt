@@ -2,6 +2,7 @@ package com.example.whatsapp.data.night
 
 import android.content.Context
 import android.graphics.BitmapFactory
+import com.example.whatsapp.extensions.tools.NightExtensionToolRegistry
 import java.io.File
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -45,7 +46,11 @@ class NightAgentToolExecutor private constructor(
             "set_appearance" -> setAppearance(args)
             "create_options" -> createOptions(chatId, args)
             "generate_image" -> generateImage(chatId, args)
-            else -> error("Unknown Night tool: " + invocation.name)
+            else -> NightExtensionToolRegistry.execute(
+                qualifiedName = invocation.name,
+                chatId = chatId,
+                arguments = args,
+            )?.toString() ?: error("Unknown Night tool: " + invocation.name)
         }
     }.getOrElse { error ->
         JSONObject()
@@ -408,6 +413,12 @@ object NightAgentToolSchemas {
                 .put("size", string("1024x1024, 1024x1536, or 1536x1024.")),
             required = listOf("prompt"),
         ))
+        .also { schemas ->
+            val extensionSchemas = NightExtensionToolRegistry.schemas()
+            for (index in 0 until extensionSchemas.length()) {
+                schemas.put(extensionSchemas.getJSONObject(index))
+            }
+        }
 
     private fun function(
         name: String,
