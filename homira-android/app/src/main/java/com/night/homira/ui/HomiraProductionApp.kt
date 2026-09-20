@@ -42,9 +42,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -6507,6 +6509,18 @@ private fun ActiveCallScreen(
     var menuOpen by remember { mutableStateOf(false) }
     var callInfoOpen by remember { mutableStateOf(false) }
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
+    var localFeedPrimary by rememberSaveable {
+        mutableStateOf(false)
+    }
+    var selfViewScale by rememberSaveable {
+        mutableFloatStateOf(1f)
+    }
+    var selfViewOffsetX by rememberSaveable {
+        mutableFloatStateOf(0f)
+    }
+    var selfViewOffsetY by rememberSaveable {
+        mutableFloatStateOf(0f)
+    }
 
     LaunchedEffect(startsWithVideo, onSpeakerChanged) {
         if (startsWithVideo) {
@@ -6534,55 +6548,219 @@ private fun ActiveCallScreen(
         }
     }
 
-    Box(
+    LaunchedEffect(
+        localVideo,
+        remoteVideoEnabled,
+        remoteScreenSharing
+    ) {
+        if (
+            !localVideo ||
+            !remoteVideoEnabled ||
+            remoteScreenSharing
+        ) {
+            localFeedPrimary = false
+        }
+    }
+
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(if (video) Color.Black else HomiraBackground)
             .clickable { if (video) controlsVisible = true }
     ) {
         if (video) {
-            if (remoteVideoEnabled && remoteVideoTrack != null && eglContext != null) {
-                WebRtcVideoSurface(
-                    track = remoteVideoTrack,
-                    eglContext = eglContext,
-                    mirror = false,
-                    fit = remoteScreenSharing,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    if (liveState == null) {
-                        Text("Camera preview", color = HomiraMuted, fontSize = 14.sp)
-                    } else {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            PersonAvatarP(person, 128)
-                            Spacer(Modifier.height(12.dp))
+            val density = LocalDensity.current
+            val availableWidthPx = with(density) {
+                maxWidth.toPx()
+            }
+            val availableHeightPx = with(density) {
+                maxHeight.toPx()
+            }
+
+            val canShowLocal =
+                localVideo &&
+                    localVideoTrack != null &&
+                    eglContext != null
+            val canShowRemote =
+                remoteVideoEnabled &&
+                    remoteVideoTrack != null &&
+                    eglContext != null
+            val canSwapFeeds =
+                canShowLocal &&
+                    canShowRemote &&
+                    !remoteScreenSharing
+            val localIsMain =
+                localFeedPrimary && canSwapFeeds
+
+            when {
+                localIsMain -> {
+                    WebRtcVideoSurface(
+                        track = requireNotNull(localVideoTrack),
+                        eglContext = requireNotNull(eglContext),
+                        mirror = true,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                canShowRemote -> {
+                    WebRtcVideoSurface(
+                        track = requireNotNull(remoteVideoTrack),
+                        eglContext = requireNotNull(eglContext),
+                        mirror = false,
+                        fit = remoteScreenSharing,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                else -> {
+                    Box(
+                        Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (liveState == null) {
                             Text(
-                                "Waiting for video…",
-                                color = Color.White.copy(alpha = .72f),
-                                fontSize = 13.sp
+                                "Camera preview",
+                                color = HomiraMuted,
+                                fontSize = 14.sp
                             )
+                        } else {
+                            Column(
+                                horizontalAlignment =
+                                    Alignment.CenterHorizontally
+                            ) {
+                                PersonAvatarP(person, 128)
+                                Spacer(Modifier.height(12.dp))
+                                Text(
+                                    "Waiting for video…",
+                                    color = Color.White.copy(
+                                        alpha = .72f
+                                    ),
+                                    fontSize = 13.sp
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            if (localVideo && localVideoTrack != null && eglContext != null) {
+            val tileTrack = when {
+                localIsMain && canShowRemote ->
+                    remoteVideoTrack
+                canShowLocal ->
+                    localVideoTrack
+                else ->
+                    null
+            }
+            val tileMirror = !localIsMain
+            val tileWidth =
+                (108f * selfViewScale).dp
+            val tileHeight =
+                (156f * selfViewScale).dp
+            val baseWidthPx = with(density) {
+                108.dp.toPx()
+            }
+            val baseHeightPx = with(density) {
+                156.dp.toPx()
+            }
+            val sidePaddingPx = with(density) {
+                32.dp.toPx()
+            }
+            val bottomReservedPx = with(density) {
+                180.dp.toPx()
+            }
+
+            if (
+                tileTrack != null &&
+                eglContext != null
+            ) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .statusBarsPadding()
-                        .padding(top = 12.dp, end = 16.dp)
-                        .width(108.dp)
-                        .height(156.dp),
+                        .padding(
+                            top = 12.dp,
+                            end = 16.dp
+                        )
+                        .offset {
+                            IntOffset(
+                                selfViewOffsetX.roundToInt(),
+                                selfViewOffsetY.roundToInt()
+                            )
+                        }
+                        .width(tileWidth)
+                        .height(tileHeight)
+                        .clickable(
+                            enabled = canSwapFeeds
+                        ) {
+                            localFeedPrimary =
+                                !localFeedPrimary
+                        }
+                        .pointerInput(
+                            canSwapFeeds,
+                            availableWidthPx,
+                            availableHeightPx
+                        ) {
+                            detectTransformGestures {
+                                    _,
+                                    pan,
+                                    zoom,
+                                    _ ->
+
+                                val nextScale =
+                                    (
+                                        selfViewScale *
+                                            zoom
+                                    ).coerceIn(
+                                        .65f,
+                                        1.25f
+                                    )
+                                selfViewScale = nextScale
+
+                                val currentWidthPx =
+                                    baseWidthPx *
+                                        nextScale
+                                val currentHeightPx =
+                                    baseHeightPx *
+                                        nextScale
+                                val maxHorizontalTravel =
+                                    (
+                                        availableWidthPx -
+                                            currentWidthPx -
+                                            sidePaddingPx
+                                    ).coerceAtLeast(0f)
+                                val maxVerticalTravel =
+                                    (
+                                        availableHeightPx -
+                                            currentHeightPx -
+                                            bottomReservedPx
+                                    ).coerceAtLeast(0f)
+
+                                selfViewOffsetX =
+                                    (
+                                        selfViewOffsetX +
+                                            pan.x
+                                    ).coerceIn(
+                                        -maxHorizontalTravel,
+                                        0f
+                                    )
+                                selfViewOffsetY =
+                                    (
+                                        selfViewOffsetY +
+                                            pan.y
+                                    ).coerceIn(
+                                        0f,
+                                        maxVerticalTravel
+                                    )
+                            }
+                        },
                     shape = RoundedCornerShape(20.dp),
                     color = HomiraSurfaceRaised,
                     shadowElevation = 8.dp
                 ) {
                     WebRtcVideoSurface(
-                        track = localVideoTrack,
+                        track = tileTrack,
                         eglContext = eglContext,
-                        mirror = true,
+                        mirror = tileMirror,
                         overlay = true,
                         modifier = Modifier.fillMaxSize()
                     )
