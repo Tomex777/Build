@@ -7,6 +7,8 @@ import android.view.WindowManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -1207,6 +1209,18 @@ private fun MihonReaderSettingsSheet(
     onDoubleTapZoomChanged: (Boolean) -> Unit,
     keepScreenOn: Boolean,
     onKeepScreenOnChanged: (Boolean) -> Unit,
+    fullscreen: Boolean,
+    onFullscreenChanged: (Boolean) -> Unit,
+    showPageNumber: Boolean,
+    onShowPageNumberChanged: (Boolean) -> Unit,
+    volumeKeys: Boolean,
+    onVolumeKeysChanged: (Boolean) -> Unit,
+    invertVolumeKeys: Boolean,
+    onInvertVolumeKeysChanged: (Boolean) -> Unit,
+    zoomOutDisabled: Boolean,
+    onZoomOutDisabledChanged: (Boolean) -> Unit,
+    background: MihonReaderBackground,
+    onBackgroundChanged: (MihonReaderBackground) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var sliderValue by remember(sidePadding) {
@@ -1220,10 +1234,12 @@ private fun MihonReaderSettingsSheet(
     ) {
         Column(
             modifier =
-                Modifier.padding(
-                    horizontal = 20.dp,
-                    vertical = 12.dp,
-                ),
+                Modifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        horizontal = 20.dp,
+                        vertical = 12.dp,
+                    ),
         ) {
             Text(
                 text = "Reader settings",
@@ -1269,6 +1285,63 @@ private fun MihonReaderSettingsSheet(
                 onCheckedChange =
                     onKeepScreenOnChanged,
             )
+
+            ReaderSettingSwitch(
+                label = "Fullscreen",
+                checked = fullscreen,
+                onCheckedChange = onFullscreenChanged,
+            )
+
+            ReaderSettingSwitch(
+                label = "Show page number",
+                checked = showPageNumber,
+                onCheckedChange = onShowPageNumberChanged,
+            )
+
+            ReaderSettingSwitch(
+                label = "Volume keys",
+                checked = volumeKeys,
+                onCheckedChange = onVolumeKeysChanged,
+            )
+
+            ReaderSettingSwitch(
+                label = "Invert volume keys",
+                checked = invertVolumeKeys,
+                onCheckedChange = onInvertVolumeKeysChanged,
+            )
+
+            ReaderSettingSwitch(
+                label = "Disable zoom out",
+                checked = zoomOutDisabled,
+                onCheckedChange = onZoomOutDisabledChanged,
+            )
+
+            Text(
+                text = "Background color",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(top = 14.dp, bottom = 4.dp),
+            )
+
+            MihonReaderBackground.entries.forEach { item ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onBackgroundChanged(item) }
+                        .padding(vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = item.label,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (item == background) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                        )
+                    }
+                }
+            }
 
             Spacer(
                 modifier =
