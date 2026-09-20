@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -112,6 +113,8 @@ class HomiraWebRtcVoiceEngine(
     private var offerSent = false
     private var signalingReady = false
     private var signalJob: Job? = null
+    private var iceRecoveryJob: Job? = null
+    private var lastIceRestartAtMs = 0L
 
     private val eglBase = EglBase.create()
     private var audioDeviceModule: JavaAudioDeviceModule? = null
@@ -536,6 +539,7 @@ class HomiraWebRtcVoiceEngine(
         signalingReady = false
 
         signalJob?.cancel()
+        iceRecoveryJob?.cancel()
         runCatching { signaling.close() }
 
         peerConnection?.close()
@@ -627,6 +631,67 @@ class HomiraWebRtcVoiceEngine(
         )
     }
 
+    private fun scheduleIceRecovery(
+        immediate: Boolean = false
+    ) {
+        iceRecoveryJob?.cancel()
+        iceRecoveryJob = scope.launch {
+            if (!immediate) {
+                delay(1_500)
+            }
+
+            if (
+                _state.value != HomiraWebRtcState.Disconnected &&
+                _state.value != HomiraWebRtcState.Failed
+            ) {
+                return@launch
+            }
+
+            if (caller) {
+                restartIceAndRenegotiate()
+            } else if (signalingReady) {
+                signaling.send(
+                    CallSignalEnvelope(
+                        type = "ice-restart-request",
+                        fromUserId = localUserId
+                    )
+                )
+            }
+        }
+    }
+
+    private suspend fun restartIceAndRenegotiate() {
+        if (!caller || !signalingReady) return
+
+        val now = System.currentTimeMillis()
+        if (now - lastIceRestartAtMs < 4_000L) return
+        lastIceRestartAtMs = now
+
+        val pc = peerConnection ?: return
+        runCatching {
+            pc.restartIce()
+            _state.value = HomiraWebRtcState.Connecting
+
+            val offer = pc.createOfferAwait()
+            pc.setLocalDescriptionAwait(offer)
+            signaling.send(
+                CallSignalEnvelope(
+                    type = "offer",
+                    fromUserId = localUserId,
+                    sdp = offer.description,
+                    sdpType = offer.type.canonicalForm()
+                )
+            )
+            sendLocalMediaState()
+        }.onFailure { error ->
+            Log.e(
+                "HomiraWebRTC",
+                "ICE restart failed",
+                error
+            )
+        }
+    }
+
     private suspend fun handleSignal(signal: CallSignalEnvelope) {
         val pc = peerConnection ?: return
 
@@ -648,6 +713,12 @@ class HomiraWebRtcVoiceEngine(
 
             "screen-share-state" -> {
                 signal.screenSharing?.let { _remoteScreenSharing.value = it }
+            }
+
+            "ice-restart-request" -> {
+                if (caller) {
+                    restartIceAndRenegotiate()
+                }
             }
 
             "offer" -> {
@@ -694,15 +765,34 @@ class HomiraWebRtcVoiceEngine(
     private val peerObserver = object : PeerConnection.Observer {
         override fun onSignalingChange(newState: PeerConnection.SignalingState) = Unit
 
-        override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState) {
+        override fun onIceConnectionChange(
+            newState: PeerConnection.IceConnectionState
+        ) {
             _state.value = when (newState) {
-                PeerConnection.IceConnectionState.NEW -> HomiraWebRtcState.Signaling
-                PeerConnection.IceConnectionState.CHECKING -> HomiraWebRtcState.Connecting
+                PeerConnection.IceConnectionState.NEW ->
+                    HomiraWebRtcState.Signaling
+
+                PeerConnection.IceConnectionState.CHECKING ->
+                    HomiraWebRtcState.Connecting
+
                 PeerConnection.IceConnectionState.CONNECTED,
-                PeerConnection.IceConnectionState.COMPLETED -> HomiraWebRtcState.Connected
-                PeerConnection.IceConnectionState.DISCONNECTED -> HomiraWebRtcState.Disconnected
-                PeerConnection.IceConnectionState.FAILED -> HomiraWebRtcState.Failed
-                PeerConnection.IceConnectionState.CLOSED -> HomiraWebRtcState.Closed
+                PeerConnection.IceConnectionState.COMPLETED -> {
+                    iceRecoveryJob?.cancel()
+                    HomiraWebRtcState.Connected
+                }
+
+                PeerConnection.IceConnectionState.DISCONNECTED -> {
+                    scheduleIceRecovery()
+                    HomiraWebRtcState.Disconnected
+                }
+
+                PeerConnection.IceConnectionState.FAILED -> {
+                    scheduleIceRecovery(immediate = true)
+                    HomiraWebRtcState.Failed
+                }
+
+                PeerConnection.IceConnectionState.CLOSED ->
+                    HomiraWebRtcState.Closed
             }
         }
 
