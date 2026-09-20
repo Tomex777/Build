@@ -75,6 +75,9 @@ interface NightDao {
     @Query("SELECT * FROM night_library_items ORDER BY createdAt DESC")
     fun observeLibrary(): Flow<List<NightLibraryItemEntity>>
 
+    @Query("SELECT * FROM night_library_items ORDER BY createdAt DESC")
+    suspend fun getLibraryItems(): List<NightLibraryItemEntity>
+
     @Query("SELECT * FROM night_library_items WHERE id = :id LIMIT 1")
     suspend fun getLibraryItem(id: String): NightLibraryItemEntity?
 
@@ -90,6 +93,9 @@ interface NightDao {
     @Query("SELECT * FROM night_provider_profiles WHERE id = :id LIMIT 1")
     suspend fun getProviderProfile(id: String): NightProviderProfileEntity?
 
+    @Query("SELECT * FROM night_provider_profiles WHERE serviceKind = :serviceKind AND isEnabled = 1 ORDER BY isDefault DESC, updatedAt DESC")
+    suspend fun getEnabledProviderProfiles(serviceKind: String): List<NightProviderProfileEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertProviderProfile(profile: NightProviderProfileEntity)
 
@@ -101,6 +107,9 @@ interface NightDao {
 
     @Query("SELECT * FROM night_provider_models WHERE profileId = :profileId AND isEnabled = 1 ORDER BY displayName")
     fun observeModels(profileId: String): Flow<List<NightProviderModelEntity>>
+
+    @Query("SELECT * FROM night_provider_models WHERE profileId = :profileId AND isEnabled = 1 ORDER BY isDefault DESC, updatedAt DESC")
+    suspend fun getEnabledProviderModels(profileId: String): List<NightProviderModelEntity>
 
     @Query("SELECT * FROM night_provider_models ORDER BY providerType, displayName")
     fun observeAllProviderModels(): Flow<List<NightProviderModelEntity>>
@@ -155,6 +164,9 @@ interface NightDao {
 
     @Query("SELECT * FROM night_scheduled_tasks WHERE id = :id LIMIT 1")
     suspend fun getScheduledTask(id: String): NightScheduledTaskEntity?
+
+    @Query("SELECT * FROM night_scheduled_tasks ORDER BY runAt ASC")
+    suspend fun getScheduledTasks(): List<NightScheduledTaskEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertScheduledTask(task: NightScheduledTaskEntity)
