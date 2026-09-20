@@ -1517,10 +1517,23 @@ private fun MihonPageActionsSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MihonReaderSettingsSheet(
+    isWebtoonMode: Boolean,
     sidePadding: Int,
     onSidePaddingChanged: (Int) -> Unit,
     doubleTapZoom: Boolean,
     onDoubleTapZoomChanged: (Boolean) -> Unit,
+    scaleType: MihonImageScaleType,
+    onScaleTypeChanged: (MihonImageScaleType) -> Unit,
+    zoomStart: MihonZoomStart,
+    onZoomStartChanged: (MihonZoomStart) -> Unit,
+    landscapeZoom: Boolean,
+    onLandscapeZoomChanged: (Boolean) -> Unit,
+    navigateToPan: Boolean,
+    onNavigateToPanChanged: (Boolean) -> Unit,
+    tapZone: MihonTapZone,
+    onTapZoneChanged: (MihonTapZone) -> Unit,
+    tapInvertMode: MihonTapInvertMode,
+    onTapInvertModeChanged: (MihonTapInvertMode) -> Unit,
     keepScreenOn: Boolean,
     onKeepScreenOnChanged: (Boolean) -> Unit,
     fullscreen: Boolean,
@@ -1562,35 +1575,89 @@ private fun MihonReaderSettingsSheet(
                         .titleLarge,
             )
 
-            Text(
-                text =
-                    "Webtoon side padding · " +
-                        sliderValue
-                            .toInt()
-                            .toString() +
-                        "%",
-                modifier =
-                    Modifier.padding(top = 18.dp),
+            if (isWebtoonMode) {
+                Text(
+                    text =
+                        "Long strip side padding · " +
+                            sliderValue
+                                .toInt()
+                                .toString() +
+                            "%",
+                    modifier =
+                        Modifier.padding(top = 18.dp),
+                )
+
+                Slider(
+                    value = sliderValue,
+                    onValueChange = {
+                        sliderValue = it
+                        onSidePaddingChanged(
+                            it.toInt(),
+                        )
+                    },
+                    valueRange = 0f..25f,
+                    steps = 24,
+                )
+
+                ReaderSettingSwitch(
+                    label =
+                        "Double tap zoom",
+                    checked = doubleTapZoom,
+                    onCheckedChange =
+                        onDoubleTapZoomChanged,
+                )
+            } else {
+                ReaderSettingChoice(
+                    label = "Scale type",
+                    selected = scaleType,
+                    entries =
+                        MihonImageScaleType.entries,
+                    itemLabel = { it.label },
+                    onSelected =
+                        onScaleTypeChanged,
+                )
+
+                ReaderSettingChoice(
+                    label = "Zoom start position",
+                    selected = zoomStart,
+                    entries =
+                        MihonZoomStart.entries,
+                    itemLabel = { it.label },
+                    onSelected =
+                        onZoomStartChanged,
+                )
+
+                ReaderSettingSwitch(
+                    label = "Zoom landscape images",
+                    checked = landscapeZoom,
+                    onCheckedChange =
+                        onLandscapeZoomChanged,
+                )
+
+                ReaderSettingSwitch(
+                    label = "Navigate wide image when tapping",
+                    checked = navigateToPan,
+                    onCheckedChange =
+                        onNavigateToPanChanged,
+                )
+            }
+
+            ReaderSettingChoice(
+                label = "Tap zones",
+                selected = tapZone,
+                entries = MihonTapZone.entries,
+                itemLabel = { it.label },
+                onSelected = onTapZoneChanged,
             )
 
-            Slider(
-                value = sliderValue,
-                onValueChange = {
-                    sliderValue = it
-                    onSidePaddingChanged(
-                        it.toInt(),
-                    )
-                },
-                valueRange = 0f..25f,
-                steps = 24,
-            )
-
-            ReaderSettingSwitch(
-                label =
-                    "Webtoon double tap zoom",
-                checked = doubleTapZoom,
-                onCheckedChange =
-                    onDoubleTapZoomChanged,
+            ReaderSettingChoice(
+                label = "Invert tapping",
+                selected = tapInvertMode,
+                entries =
+                    MihonTapInvertMode.entries,
+                itemLabel = { it.label },
+                onSelected =
+                    onTapInvertModeChanged,
             )
 
             ReaderSettingSwitch(
@@ -1624,11 +1691,14 @@ private fun MihonReaderSettingsSheet(
                 onCheckedChange = onInvertVolumeKeysChanged,
             )
 
-            ReaderSettingSwitch(
-                label = "Disable zoom out",
-                checked = zoomOutDisabled,
-                onCheckedChange = onZoomOutDisabledChanged,
-            )
+            if (isWebtoonMode) {
+                ReaderSettingSwitch(
+                    label = "Disable zoom out",
+                    checked = zoomOutDisabled,
+                    onCheckedChange =
+                        onZoomOutDisabledChanged,
+                )
+            }
 
             Text(
                 text = "Background color",
@@ -1661,6 +1731,50 @@ private fun MihonReaderSettingsSheet(
                 modifier =
                     Modifier.padding(bottom = 18.dp),
             )
+        }
+    }
+}
+
+@Composable
+private fun <T> ReaderSettingChoice(
+    label: String,
+    selected: T,
+    entries: List<T>,
+    itemLabel: (T) -> String,
+    onSelected: (T) -> Unit,
+) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.titleSmall,
+        modifier =
+            Modifier.padding(
+                top = 14.dp,
+                bottom = 4.dp,
+            ),
+    )
+
+    entries.forEach { item ->
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        onSelected(item)
+                    }
+                    .padding(vertical = 9.dp),
+            verticalAlignment =
+                Alignment.CenterVertically,
+        ) {
+            Text(
+                text = itemLabel(item),
+                modifier = Modifier.weight(1f),
+            )
+            if (item == selected) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = null,
+                )
+            }
         }
     }
 }
