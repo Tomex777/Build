@@ -415,6 +415,9 @@ internal class MihonReaderHostView(
         }
 
     private fun buildWebtoon() {
+        val initialPage = currentPage
+        var acceptPageChanges = false
+
         val recycler =
             MihonWebtoonRecyclerView(context).apply {
                 layoutParams =
@@ -562,6 +565,8 @@ internal class MihonReaderHostView(
                     dx: Int,
                     dy: Int,
                 ) {
+                    if (!acceptPageChanges) return
+
                     val first =
                         manager
                             .findFirstVisibleItemPosition()
@@ -600,16 +605,31 @@ internal class MihonReaderHostView(
         addView(frame)
         webtoon = recycler
         manager.scrollToPositionWithOffset(
-            currentPage,
+            initialPage,
             0,
         )
 
-        // Reveal on the next frame, after RecyclerView has had a chance to
-        // finish attaching its holders and Compose has completed the current
-        // AndroidView layout pass.
+        // Keep initial RecyclerView callbacks from overwriting restored reading
+        // progress with position 0 while the hidden webtoon is attaching.
+        // Reveal first, let the requested start position win the first layout,
+        // then begin publishing genuine user-driven page changes.
         recycler.postOnAnimation {
             if (webtoon === recycler && recycler.isAttachedToWindow) {
                 recycler.visibility = View.VISIBLE
+                recycler.postOnAnimation {
+                    if (webtoon === recycler && recycler.isAttachedToWindow) {
+                        acceptPageChanges = true
+                        val first =
+                            manager.findFirstVisibleItemPosition()
+                        if (
+                            first != RecyclerView.NO_POSITION &&
+                            first != currentPage
+                        ) {
+                            currentPage = first
+                            onPageChanged?.invoke(first)
+                        }
+                    }
+                }
             }
         }
     }
