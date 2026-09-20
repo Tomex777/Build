@@ -160,10 +160,6 @@ internal fun NightAniyomiVlcPlayer(
             "--no-video-title-show",
         )
         if (softwareDecode) {
-            options += "--no-mediacodec"
-            options += "--no-mediacodec-dr"
-            options += "--codec=avcodec"
-            options += "--avcodec-hw=none"
         }
         LibVLC(appContext, options)
     }
@@ -206,8 +202,6 @@ internal fun NightAniyomiVlcPlayer(
                 // Do not call setHWDecoderEnabled(false, false) here: in this
                 // LibVLC generation that can still leave Android MediaCodec in
                 // the decoder candidate list. Force the software decoder path.
-                addOption(":no-mediacodec")
-                addOption(":no-mediacodec-dr")
                 addOption(":codec=avcodec")
                 addOption(":avcodec-hw=none")
             } else {
