@@ -464,7 +464,14 @@ class NightAiGateway private constructor(
 
             onUpdate("")
 
-            messages.put(step.assistantMessage())
+            messages.put(
+                step.assistantMessage(
+                    includeReasoning = resolved.profile.providerType.equals(
+                        "deepseek",
+                        ignoreCase = true,
+                    ),
+                )
+            )
             step.toolCalls.forEach { call ->
                 val dedupeKey =
                     if (call.id.startsWith("night_tool_")) {
@@ -499,9 +506,10 @@ class NightAiGateway private constructor(
 
     private data class ChatStep(
         val content: String,
+        val reasoningContent: String,
         val toolCalls: List<NightToolInvocation>,
     ) {
-        fun assistantMessage(): JSONObject {
+        fun assistantMessage(includeReasoning: Boolean): JSONObject {
             val calls = JSONArray()
             toolCalls.forEach { call ->
                 calls.put(
@@ -520,6 +528,11 @@ class NightAiGateway private constructor(
             return JSONObject()
                 .put("role", "assistant")
                 .put("content", content.ifBlank { JSONObject.NULL })
+                .also { message ->
+                    if (includeReasoning && reasoningContent.isNotBlank()) {
+                        message.put("reasoning_content", reasoningContent)
+                    }
+                }
                 .put("tool_calls", calls)
         }
     }
@@ -572,6 +585,7 @@ class NightAiGateway private constructor(
             val source = response.body?.source()
                 ?: error("Provider returned no response body.")
             val text = StringBuilder()
+            val reasoning = StringBuilder()
             val toolMap = linkedMapOf<Int, MutableToolCall>()
             val rawFallback = StringBuilder()
             var sawSse = false
@@ -591,6 +605,13 @@ class NightAiGateway private constructor(
                 val choices = event.optJSONArray("choices") ?: continue
                 if (choices.length() == 0) continue
                 val delta = choices.optJSONObject(0)?.optJSONObject("delta") ?: continue
+
+                val reasoningDelta = delta.optString("reasoning_content", "")
+                    .takeUnless { it == "null" }
+                    .orEmpty()
+                if (reasoningDelta.isNotEmpty()) {
+                    reasoning.append(reasoningDelta)
+                }
 
                 val contentDelta = delta.optString("content", "")
                     .takeUnless { it == "null" }
@@ -640,7 +661,11 @@ class NightAiGateway private constructor(
                     }
                 }
 
-            return ChatStep(text.toString(), calls)
+            return ChatStep(
+                content = text.toString(),
+                reasoningContent = reasoning.toString(),
+                toolCalls = calls,
+            )
         }
     }
 
@@ -651,6 +676,9 @@ class NightAiGateway private constructor(
         val message = choices.optJSONObject(0)?.optJSONObject("message")
             ?: error("Provider returned no message.")
         val content = message.optString("content", "")
+            .takeUnless { it == "null" }
+            .orEmpty()
+        val reasoningContent = message.optString("reasoning_content", "")
             .takeUnless { it == "null" }
             .orEmpty()
 
@@ -669,7 +697,11 @@ class NightAiGateway private constructor(
                 )
             }
         }
-        return ChatStep(content, calls)
+        return ChatStep(
+            content = content,
+            reasoningContent = reasoningContent,
+            toolCalls = calls,
+        )
     }
 
     private fun analyzeImage(
