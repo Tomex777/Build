@@ -2395,12 +2395,76 @@ fun HomiraProductionApp(
 
                             MainTab.Contacts -> ContactsScreen(
                                 contacts = appContacts,
-                                myName = profileName,
-                                onSettings = { overlay = OverlayScreen.Settings },
-                                onAddContact = { overlay = OverlayScreen.AddContact },
+                                onAddContact = {
+                                    overlay = OverlayScreen.AddContact
+                                },
                                 onVoiceCall = { beginCall(it, false) },
                                 onVideoCall = { beginCall(it, true) },
-                                onOpenMe = { tab = MainTab.Me }
+                                onFavoriteChanged = { person, favorite ->
+                                    if (!liveMode) {
+                                        liveContacts = liveContacts.map {
+                                            if (it.id == person.id) {
+                                                it.copy(favorite = favorite)
+                                            } else {
+                                                it
+                                            }
+                                        }
+                                    } else {
+                                        liveScope.launch {
+                                            runCatching {
+                                                liveRepository.setContactFavorite(
+                                                    person.id,
+                                                    favorite
+                                                )
+                                            }.onSuccess {
+                                                liveContacts = liveContacts.map {
+                                                    if (it.id == person.id) {
+                                                        it.copy(
+                                                            favorite = favorite
+                                                        )
+                                                    } else {
+                                                        it
+                                                    }
+                                                }
+                                            }.onFailure {
+                                                Toast.makeText(
+                                                    context,
+                                                    it.message
+                                                        ?: "Could not update favorite.",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
+                                    }
+                                },
+                                onDeleteContact = { person ->
+                                    if (!liveMode) {
+                                        liveContacts =
+                                            liveContacts.filterNot {
+                                                it.id == person.id
+                                            }
+                                    } else {
+                                        liveScope.launch {
+                                            runCatching {
+                                                liveRepository.deleteContact(
+                                                    person.id
+                                                )
+                                            }.onSuccess {
+                                                liveContacts =
+                                                    liveContacts.filterNot {
+                                                        it.id == person.id
+                                                    }
+                                            }.onFailure {
+                                                Toast.makeText(
+                                                    context,
+                                                    it.message
+                                                        ?: "Could not delete contact.",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
+                                    }
+                                }
                             )
 
                             MainTab.Me -> MeScreen(
