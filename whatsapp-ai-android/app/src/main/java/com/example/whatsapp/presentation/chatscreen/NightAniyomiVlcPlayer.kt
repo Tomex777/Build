@@ -56,7 +56,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -117,17 +116,20 @@ internal fun NightAniyomiVlcPlayer(
         }
     }
 
-    val libVlc = remember(item.localPath) {
-        LibVLC(
-            appContext,
-            arrayListOf(
-                "--audio-time-stretch",
-                "--network-caching=1500",
-                "--no-video-title-show",
-            ),
+    val libVlc = remember(item.localPath, softwareDecode) {
+        val options = arrayListOf(
+            "--audio-time-stretch",
+            "--network-caching=1500",
+            "--no-video-title-show",
         )
+        if (softwareDecode) {
+            options += "--codec=avcodec"
+            options += "--avcodec-hw=none"
+        }
+        LibVLC(appContext, options)
     }
-    val player = remember(item.localPath) { MediaPlayer(libVlc) }
+    val player = remember(item.localPath, softwareDecode) { MediaPlayer(libVlc) }
+    val attachedPlayer = remember(item.localPath) { arrayOfNulls<MediaPlayer>(1) }
 
     var controlsVisible by remember(item.localPath) { mutableStateOf(true) }
     var controlsLocked by remember(item.localPath) { mutableStateOf(false) }
@@ -159,7 +161,12 @@ internal fun NightAniyomiVlcPlayer(
 
     DisposableEffect(player, libVlc, item.localPath) {
         val media = Media(libVlc, mediaUri).apply {
-            setHWDecoderEnabled(true, false)
+            if (softwareDecode) {
+                addOption(":codec=avcodec")
+                addOption(":avcodec-hw=none")
+            } else {
+                setHWDecoderEnabled(true, false)
+            }
             addOption(":network-caching=1500")
         }
         player.media = media
@@ -173,7 +180,7 @@ internal fun NightAniyomiVlcPlayer(
         }
     }
 
-    LaunchedEffect(active, player) {
+    LaunchedEffect(active, player, softwareDecode) {
         if (!active) {
             runCatching { player.pause() }
             playing = false
@@ -185,6 +192,9 @@ internal fun NightAniyomiVlcPlayer(
         }
 
         player.play()
+        if (softwareDecode && fallbackResumePosition > 0L) {
+            runCatching { player.setTime(fallbackResumePosition) }
+        }
         runCatching { player.setRate(playbackSpeed) }
         playing = true
         var startedAt = SystemClock.elapsedRealtime()
@@ -217,35 +227,10 @@ internal fun NightAniyomiVlcPlayer(
                 fallbackResumePosition = position
                 Log.w(
                     "NightVideo",
-                    "Hardware playback stalled at ${position}ms; retrying in-place with VLC software decoding.",
+                    "Hardware playback stalled at ${position}ms; recreating VLC with software decoding.",
                 )
-                val fallbackMedia = Media(libVlc, mediaUri).apply {
-                    // setHWDecoderEnabled(false, false) maps to :codec=all in this
-                    // LibVLC generation, which can still choose Android MediaCodec.
-                    // Select libavcodec explicitly and disable avcodec hwaccel so the
-                    // recovery path is genuinely software-decoded.
-                    addOption(":codec=avcodec")
-                    addOption(":avcodec-hw=none")
-                    addOption(":network-caching=1500")
-                }
-                val switched = runCatching {
-                    player.stop()
-                    player.media = fallbackMedia
-                    player.play()
-                    if (fallbackResumePosition > 0L) {
-                        player.setTime(fallbackResumePosition)
-                    }
-                    player.setRate(playbackSpeed)
-                }.isSuccess
-                fallbackMedia.release()
-                if (!switched) {
-                    Log.e("NightVideo", "Could not switch stalled playback to VLC software decoding.")
-                    return@LaunchedEffect
-                }
                 softwareDecode = true
-                startedAt = now
-                lastAdvanceAt = now
-                lastObservedPosition = fallbackResumePosition
+                return@LaunchedEffect
             }
 
             audioTracks = runCatching {
@@ -290,20 +275,19 @@ internal fun NightAniyomiVlcPlayer(
             },
         contentAlignment = Alignment.Center,
     ) {
-        key(player) {
-            AndroidView(
-                factory = { viewContext ->
-                    VLCVideoLayout(viewContext).also { layout ->
-                        player.attachViews(layout, null, true, false)
-                        player.setVideoScale(aspect.scale)
-                    }
-                },
-                update = {
-                    runCatching { player.setVideoScale(aspect.scale) }
-                },
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
+        AndroidView(
+            factory = { viewContext -> VLCVideoLayout(viewContext) },
+            update = { layout ->
+                val previous = attachedPlayer[0]
+                if (previous !== player) {
+                    runCatching { previous?.detachViews() }
+                    runCatching { player.attachViews(layout, null, true, false) }
+                    attachedPlayer[0] = player
+                }
+                runCatching { player.setVideoScale(aspect.scale) }
+            },
+            modifier = Modifier.fillMaxSize(),
+        )
 
         AnimatedVisibility(
             visible = controlsVisible,
