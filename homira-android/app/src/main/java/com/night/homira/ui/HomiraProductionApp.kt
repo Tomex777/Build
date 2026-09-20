@@ -1920,21 +1920,19 @@ fun HomiraProductionApp(
             val session = activeSession
                 ?: return@LaunchedEffect
 
-            if (
-                webRtcState != HomiraWebRtcState.Disconnected &&
-                webRtcState != HomiraWebRtcState.Failed
-            ) {
+            // The WebRTC engine owns transient disconnect recovery.
+            // Do not terminate the server call while Wi-Fi/mobile data is
+            // changing; only publish failure after the engine's bounded
+            // ICE-recovery window has actually expired.
+            if (webRtcState != HomiraWebRtcState.Failed) {
                 return@LaunchedEffect
             }
 
-            delay(10_000)
+            delay(350)
 
             if (
                 activeSession?.id == session.id &&
-                (
-                    webRtcState == HomiraWebRtcState.Disconnected ||
-                        webRtcState == HomiraWebRtcState.Failed
-                )
+                webRtcState == HomiraWebRtcState.Failed
             ) {
                 runCatching {
                     liveRepository.setCallState(
