@@ -4241,84 +4241,450 @@ private fun MeScreen(
     email: String,
     phone: String,
     avatarUri: String?,
-    callCardUri: String?,
+    lowDataCalls: Boolean,
+    callNotifications: Boolean,
+    ringtoneTitle: String,
+    voicemailEnabled: Boolean,
+    voicemailGreetingMode: String,
     onEdit: () -> Unit,
-    onSettings: () -> Unit
+    onLowDataChanged: (Boolean) -> Unit,
+    onNotificationsChanged: (Boolean) -> Unit,
+    onRingtone: () -> Unit,
+    onVoicemailEnabledChanged: (Boolean) -> Unit,
+    onVoicemail: () -> Unit,
+    onBlockedPeople: () -> Unit,
+    onSignOut: () -> Unit
 ) {
     val avatarBitmap = rememberBitmapP(avatarUri)
-    val cardBitmap = rememberBitmapP(callCardUri)
+    var avatarOpen by remember { mutableStateOf(false) }
+    var confirmSignOut by remember { mutableStateOf(false) }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().safeDrawingPadding(),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .safeDrawingPadding(),
+        contentPadding = PaddingValues(
+            horizontal = 20.dp,
+            vertical = 14.dp
+        ),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item { HeaderActions("Me", onSettings) }
         item {
-            Card(shape = RoundedCornerShape(30.dp), colors = CardDefaults.cardColors(containerColor = HomiraSurface)) {
-                Column {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(190.dp).background(HomiraSurfaceRaised),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (cardBitmap != null) {
-                            Image(cardBitmap, contentDescription = "Call card", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                        } else {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Rounded.CameraAlt, contentDescription = null, tint = HomiraMuted, modifier = Modifier.size(28.dp))
-                                Spacer(Modifier.height(6.dp))
-                                Text("Add a call card", color = HomiraMuted, fontSize = 13.sp)
+            Text(
+                "Me",
+                color = HomiraText,
+                fontSize = 31.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        item {
+            Card(
+                shape = RoundedCornerShape(30.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = HomiraSurface
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(22.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    if (avatarBitmap != null) {
+                        Image(
+                            avatarBitmap,
+                            contentDescription = "Profile photo",
+                            modifier = Modifier
+                                .size(112.dp)
+                                .clip(CircleShape)
+                                .clickable {
+                                    avatarOpen = true
+                                },
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Surface(
+                            modifier = Modifier
+                                .size(112.dp)
+                                .clickable(onClick = onEdit),
+                            shape = CircleShape,
+                            color = HomiraGreen.copy(alpha = .13f)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    name.take(1).uppercase(),
+                                    color = HomiraGreen,
+                                    fontSize = 42.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(18.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        name,
+                        color = HomiraText,
+                        fontSize = 25.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (username.isNotBlank()) {
+                        Text(
+                            "@$username",
+                            color = HomiraMuted,
+                            fontSize = 13.sp
+                        )
+                    }
+                    if (about.isNotBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            about,
+                            color = HomiraText.copy(alpha = .82f),
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    Button(
+                        onClick = onEdit,
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = HomiraText,
+                            contentColor = HomiraBackground
+                        )
                     ) {
-                        if (avatarBitmap != null) {
-                            Image(avatarBitmap, contentDescription = "Profile photo", modifier = Modifier.size(92.dp).clip(CircleShape), contentScale = ContentScale.Crop)
-                        } else {
-                            Surface(modifier = Modifier.size(92.dp), shape = CircleShape, color = HomiraGreen.copy(alpha = .13f)) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(name.take(1).uppercase(), color = HomiraGreen, fontSize = 35.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        Text(name, color = HomiraText, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-                        Text("@$username", color = HomiraMuted, fontSize = 13.sp)
-                        Spacer(Modifier.height(7.dp))
-                        Text(about, color = HomiraText.copy(alpha = .82f), fontSize = 14.sp, textAlign = TextAlign.Center)
-                        Spacer(Modifier.height(14.dp))
-                        Button(
-                            onClick = onEdit,
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = HomiraText, contentColor = HomiraBackground)
-                        ) {
-                            Icon(Icons.Rounded.Edit, contentDescription = null, modifier = Modifier.size(17.dp))
-                            Spacer(Modifier.width(7.dp))
-                            Text("Edit profile", fontWeight = FontWeight.SemiBold)
-                        }
+                        Icon(
+                            Icons.Rounded.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Spacer(Modifier.width(7.dp))
+                        Text(
+                            "Edit profile",
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }
         }
+
         item {
-            SectionTitleP("Your profile")
-            InfoRowP(
-                Icons.Rounded.Phone,
-                "Phone number",
-                phone.ifBlank { "Not set" }
+            SectionTitleP("Profile")
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = HomiraSurface
+                )
+            ) {
+                Column {
+                    MeRowP(
+                        Icons.Rounded.Edit,
+                        "Edit profile",
+                        "Name, about and profile photo",
+                        onEdit
+                    )
+                    MeRowP(
+                        Icons.Rounded.Phone,
+                        "Phone number",
+                        phone.ifBlank { "Not set" }
+                    )
+                    MeRowP(
+                        Icons.Rounded.Person,
+                        "Username",
+                        if (username.isBlank()) {
+                            "Not set"
+                        } else {
+                            "@$username"
+                        }
+                    )
+                    MeRowP(
+                        Icons.Rounded.Email,
+                        "Email",
+                        email.ifBlank { "Not set" }
+                    )
+                }
+            }
+        }
+
+        item {
+            SectionTitleP("Calls")
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = HomiraSurface
+                )
+            ) {
+                Column {
+                    MeToggleRowP(
+                        Icons.Rounded.DataSaverOn,
+                        "Use less data for calls",
+                        if (lowDataCalls) {
+                            "Lower video bitrate while prioritizing voice"
+                        } else {
+                            "Adaptive quality"
+                        },
+                        lowDataCalls,
+                        onLowDataChanged
+                    )
+                    MeToggleRowP(
+                        Icons.Rounded.Voicemail,
+                        "Voicemail",
+                        if (voicemailEnabled) {
+                            "Callers can leave a voice message"
+                        } else {
+                            "Voicemail is off"
+                        },
+                        voicemailEnabled,
+                        onVoicemailEnabledChanged
+                    )
+                    if (voicemailEnabled) {
+                        MeRowP(
+                            Icons.Rounded.Mic,
+                            "Voicemail greeting",
+                            if (voicemailGreetingMode == "voice") {
+                                "Custom voice greeting"
+                            } else {
+                                "Default Homira greeting"
+                            },
+                            onVoicemail
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            SectionTitleP("Privacy")
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = HomiraSurface
+                )
+            ) {
+                Column {
+                    MeRowP(
+                        Icons.Rounded.Block,
+                        "Blocked people",
+                        "Manage who can call you",
+                        onBlockedPeople
+                    )
+                }
+            }
+        }
+
+        item {
+            SectionTitleP("Notifications")
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = HomiraSurface
+                )
+            ) {
+                Column {
+                    MeToggleRowP(
+                        Icons.Rounded.Notifications,
+                        "Call notifications",
+                        "Incoming and missed calls",
+                        callNotifications,
+                        onNotificationsChanged
+                    )
+                    MeRowP(
+                        Icons.Rounded.VolumeUp,
+                        "Ringtone",
+                        ringtoneTitle,
+                        onRingtone
+                    )
+                }
+            }
+        }
+
+        item {
+            SectionTitleP("Account")
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = HomiraSurface
+                )
+            ) {
+                MeRowP(
+                    Icons.Rounded.Security,
+                    "Sign out",
+                    "Sign out of Homira on this device"
+                ) {
+                    confirmSignOut = true
+                }
+            }
+        }
+
+        item {
+            SectionTitleP("About")
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = HomiraSurface
+                )
+            ) {
+                MeRowP(
+                    Icons.Rounded.Info,
+                    "About Homira",
+                    "Private voice and video calling"
+                )
+            }
+        }
+
+        item { Spacer(Modifier.height(8.dp)) }
+    }
+
+    if (avatarOpen && avatarBitmap != null) {
+        AlertDialog(
+            onDismissRequest = { avatarOpen = false },
+            text = {
+                Image(
+                    avatarBitmap,
+                    contentDescription = "Profile photo",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(360.dp)
+                        .clip(RoundedCornerShape(24.dp)),
+                    contentScale = ContentScale.Fit
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { avatarOpen = false }) {
+                    Text("Close", color = HomiraGreen)
+                }
+            },
+            containerColor = HomiraBackground
+        )
+    }
+
+    if (confirmSignOut) {
+        AlertDialog(
+            onDismissRequest = { confirmSignOut = false },
+            title = {
+                Text(
+                    "Sign out?",
+                    color = HomiraText
+                )
+            },
+            text = {
+                Text(
+                    "Your local call history stays on this device for this Homira account.",
+                    color = HomiraMuted
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmSignOut = false
+                        onSignOut()
+                    }
+                ) {
+                    Text("Sign out", color = HomiraDanger)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        confirmSignOut = false
+                    }
+                ) {
+                    Text("Cancel", color = HomiraMuted)
+                }
+            },
+            containerColor = HomiraSurface
+        )
+    }
+}
+
+@Composable
+private fun MeRowP(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(onClick = onClick)
+                } else {
+                    Modifier
+                }
             )
-            InfoRowP(Icons.Rounded.Person, "Username", "@$username")
-            InfoRowP(Icons.Rounded.Email, "Email", email)
-            InfoRowP(Icons.Rounded.Info, "About", about)
+            .padding(
+                horizontal = 16.dp,
+                vertical = 13.dp
+            ),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = HomiraMuted,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(Modifier.width(13.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                title,
+                color = HomiraText,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                subtitle,
+                color = HomiraMuted,
+                fontSize = 12.sp
+            )
         }
-        item {
-            SectionTitleP("Profile media")
-            InfoRowP(Icons.Rounded.AddAPhoto, "Profile photo", if (avatarUri == null) "Add photo" else "Photo selected", onEdit)
-            InfoRowP(Icons.Rounded.CameraAlt, "Call card", if (callCardUri == null) "Add image" else "Image selected", onEdit)
+    }
+}
+
+@Composable
+private fun MeToggleRowP(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onChecked: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                horizontal = 16.dp,
+                vertical = 11.dp
+            ),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = HomiraMuted,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(Modifier.width(13.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                title,
+                color = HomiraText,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                subtitle,
+                color = HomiraMuted,
+                fontSize = 12.sp
+            )
         }
+        Switch(
+            checked = checked,
+            onCheckedChange = onChecked
+        )
     }
 }
 
