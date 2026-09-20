@@ -139,15 +139,24 @@ internal class MihonReaderPageView(
                             resources.displayMetrics.heightPixels
                         }
 
-                    layoutParams =
-                        RecyclerView.LayoutParams(
-                            usableWidth,
-                            imageHeight + gapPx,
-                        ).apply {
-                            leftMargin = margin
-                            rightMargin = margin
-                            bottomMargin = gapPx
-                        }
+                    val recyclerParams =
+                        (layoutParams as? RecyclerView.LayoutParams)
+                            ?: RecyclerView.LayoutParams(
+                                usableWidth,
+                                imageHeight + gapPx,
+                            )
+
+                    recyclerParams.width = usableWidth
+                    recyclerParams.height = imageHeight + gapPx
+                    recyclerParams.leftMargin = margin
+                    recyclerParams.rightMargin = margin
+                    recyclerParams.bottomMargin = gapPx
+
+                    if (layoutParams !== recyclerParams) {
+                        layoutParams = recyclerParams
+                    } else {
+                        requestLayout()
+                    }
                 }
 
                 imageView.apply {
