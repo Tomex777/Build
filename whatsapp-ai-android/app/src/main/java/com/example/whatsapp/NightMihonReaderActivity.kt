@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -37,6 +38,28 @@ import java.io.FileOutputStream
 
 class NightMihonReaderActivity :
     ComponentActivity() {
+
+    private var volumeKeyHandler: ((Boolean) -> Boolean)? = null
+
+    internal fun setVolumeKeyHandler(
+        handler: ((Boolean) -> Boolean)?,
+    ) {
+        volumeKeyHandler = handler
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            val down = when (event.keyCode) {
+                KeyEvent.KEYCODE_VOLUME_DOWN -> true
+                KeyEvent.KEYCODE_VOLUME_UP -> false
+                else -> null
+            }
+            if (down != null && volumeKeyHandler?.invoke(down) == true) {
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
 
     override fun onCreate(
         savedInstanceState: Bundle?,
