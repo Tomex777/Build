@@ -93,6 +93,10 @@ internal class MihonReaderPageView(
         cropBorders: Boolean,
         sidePaddingPercent: Int,
         gapPx: Int = 0,
+        scaleType: MihonImageScaleType = MihonImageScaleType.FIT_SCREEN,
+        zoomStart: MihonZoomStart = MihonZoomStart.AUTOMATIC,
+        readingMode: MihonReadingMode = MihonReadingMode.RIGHT_TO_LEFT,
+        landscapeZoom: Boolean = true,
     ) {
         loadJob?.cancel()
         imageView.recycle()
@@ -147,10 +151,29 @@ internal class MihonReaderPageView(
                 }
 
                 imageView.apply {
-                    setMinimumScaleType(
-                        SubsamplingScaleImageView
-                            .SCALE_TYPE_CENTER_INSIDE,
-                    )
+                    val effectiveScaleType =
+                        if (isWebtoon) {
+                            SubsamplingScaleImageView.SCALE_TYPE_FIT_WIDTH
+                        } else {
+                            scaleType.value
+                        }
+
+                    val effectiveZoomStart =
+                        when (zoomStart) {
+                            MihonZoomStart.AUTOMATIC ->
+                                when (readingMode) {
+                                    MihonReadingMode.LEFT_TO_RIGHT ->
+                                        MihonZoomStart.LEFT
+                                    MihonReadingMode.RIGHT_TO_LEFT ->
+                                        MihonZoomStart.RIGHT
+                                    else ->
+                                        MihonZoomStart.CENTER
+                                }
+
+                            else -> zoomStart
+                        }
+
+                    setMinimumScaleType(effectiveScaleType)
                     setMinimumDpi(1)
                     setCropBorders(cropBorders)
                     setOnImageEventListener(
@@ -160,6 +183,47 @@ internal class MihonReaderPageView(
                             override fun onReady() {
                                 maxScale = scale * 5f
                                 setDoubleTapZoomScale(scale * 2f)
+
+                                if (!isWebtoon) {
+                                    val startPoint =
+                                        when (effectiveZoomStart) {
+                                            MihonZoomStart.LEFT ->
+                                                PointF(0f, 0f)
+                                            MihonZoomStart.RIGHT ->
+                                                PointF(
+                                                    sWidth.toFloat(),
+                                                    0f,
+                                                )
+                                            MihonZoomStart.CENTER,
+                                            MihonZoomStart.AUTOMATIC,
+                                            -> center
+                                        }
+
+                                    setScaleAndCenter(
+                                        scale,
+                                        startPoint,
+                                    )
+
+                                    if (
+                                        landscapeZoom &&
+                                        scaleType ==
+                                        MihonImageScaleType.FIT_SCREEN &&
+                                        sWidth > sHeight &&
+                                        scale == minScale
+                                    ) {
+                                        val targetScale =
+                                            height.toFloat() /
+                                                sHeight
+                                                    .toFloat()
+                                                    .coerceAtLeast(1f)
+                                        animateScaleAndCenter(
+                                            targetScale,
+                                            startPoint,
+                                        )
+                                            ?.withDuration(500)
+                                            ?.start()
+                                    }
+                                }
                             }
                         },
                     )
@@ -224,13 +288,13 @@ private class MihonWebtoonSubsamplingImageView(
     override fun onTouchEvent(event: MotionEvent): Boolean = false
 }
 
-private data class ResolvedMihonPage(
+internal data class ResolvedMihonPage(
     val uri: Uri,
     val width: Int,
     val height: Int,
 )
 
-private object MihonPageResolver {
+internal object MihonPageResolver {
     private val client = OkHttpClient()
 
     fun resolve(
@@ -286,12 +350,10 @@ private object MihonPageResolver {
         val key =
             sha256(
                 page.source +
-                    "
-" +
+                    "\n" +
                     page.headers.entries
                         .sortedBy { it.key }
-                        .joinToString("
-") {
+                        .joinToString("\n") {
                             it.key + ":" + it.value
                         },
             )
