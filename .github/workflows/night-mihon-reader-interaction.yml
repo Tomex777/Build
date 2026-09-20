@@ -10,6 +10,10 @@ on:
       - ".github/scripts/night-mihon-reader-interaction.sh"
   workflow_dispatch:
 
+concurrency:
+  group: night-mihon-reader-interaction-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   mihon-reader-interaction:
     runs-on: ubuntu-latest
