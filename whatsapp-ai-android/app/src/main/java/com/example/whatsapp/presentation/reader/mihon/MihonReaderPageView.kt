@@ -286,12 +286,10 @@ internal object MihonPageResolver {
         val key =
             sha256(
                 page.source +
-                    "
-" +
+                    "\n" +
                     page.headers.entries
                         .sortedBy { it.key }
-                        .joinToString("
-") {
+                        .joinToString("\n") {
                             it.key + ":" + it.value
                         },
             )
