@@ -107,7 +107,17 @@ internal fun NightAniyomiVlcPlayer(
     var userPaused by remember(item.localPath) { mutableStateOf(false) }
     var fallbackResumePosition by remember(item.localPath) { mutableLongStateOf(0L) }
 
-    val libVlc = remember(item.localPath, softwareDecode) {
+    val mediaUri = remember(item.localPath) {
+        when {
+            item.localPath.startsWith("http://") ||
+                item.localPath.startsWith("https://") ||
+                item.localPath.startsWith("content://") ||
+                item.localPath.startsWith("file://") -> Uri.parse(item.localPath)
+            else -> Uri.fromFile(File(item.localPath))
+        }
+    }
+
+    val libVlc = remember(item.localPath) {
         LibVLC(
             appContext,
             arrayListOf(
@@ -117,7 +127,7 @@ internal fun NightAniyomiVlcPlayer(
             ),
         )
     }
-    val player = remember(item.localPath, softwareDecode) { MediaPlayer(libVlc) }
+    val player = remember(item.localPath) { MediaPlayer(libVlc) }
 
     var controlsVisible by remember(item.localPath) { mutableStateOf(true) }
     var controlsLocked by remember(item.localPath) { mutableStateOf(false) }
@@ -148,15 +158,8 @@ internal fun NightAniyomiVlcPlayer(
     val menuOpen = subtitleMenu || audioMenu || speedMenu || moreMenu
 
     DisposableEffect(player, libVlc, item.localPath) {
-        val uri = when {
-            item.localPath.startsWith("http://") ||
-                item.localPath.startsWith("https://") ||
-                item.localPath.startsWith("content://") ||
-                item.localPath.startsWith("file://") -> Uri.parse(item.localPath)
-            else -> Uri.fromFile(File(item.localPath))
-        }
-        val media = Media(libVlc, uri).apply {
-            setHWDecoderEnabled(!softwareDecode, false)
+        val media = Media(libVlc, mediaUri).apply {
+            setHWDecoderEnabled(true, false)
             addOption(":network-caching=1500")
         }
         player.media = media
@@ -170,7 +173,7 @@ internal fun NightAniyomiVlcPlayer(
         }
     }
 
-    LaunchedEffect(active, player, softwareDecode) {
+    LaunchedEffect(active, player) {
         if (!active) {
             runCatching { player.pause() }
             playing = false
@@ -182,12 +185,9 @@ internal fun NightAniyomiVlcPlayer(
         }
 
         player.play()
-        if (softwareDecode && fallbackResumePosition > 0L) {
-            runCatching { player.setTime(fallbackResumePosition) }
-        }
         runCatching { player.setRate(playbackSpeed) }
         playing = true
-        val startedAt = SystemClock.elapsedRealtime()
+        var startedAt = SystemClock.elapsedRealtime()
         var lastAdvanceAt = startedAt
         var lastObservedPosition = -1L
 
@@ -217,10 +217,30 @@ internal fun NightAniyomiVlcPlayer(
                 fallbackResumePosition = position
                 Log.w(
                     "NightVideo",
-                    "Hardware playback stalled at ${position}ms; retrying with VLC software decoding.",
+                    "Hardware playback stalled at ${position}ms; retrying in-place with VLC software decoding.",
                 )
+                val fallbackMedia = Media(libVlc, mediaUri).apply {
+                    setHWDecoderEnabled(false, false)
+                    addOption(":network-caching=1500")
+                }
+                val switched = runCatching {
+                    player.stop()
+                    player.media = fallbackMedia
+                    player.play()
+                    if (fallbackResumePosition > 0L) {
+                        player.setTime(fallbackResumePosition)
+                    }
+                    player.setRate(playbackSpeed)
+                }.isSuccess
+                fallbackMedia.release()
+                if (!switched) {
+                    Log.e("NightVideo", "Could not switch stalled playback to VLC software decoding.")
+                    return@LaunchedEffect
+                }
                 softwareDecode = true
-                return@LaunchedEffect
+                startedAt = now
+                lastAdvanceAt = now
+                lastObservedPosition = fallbackResumePosition
             }
 
             audioTracks = runCatching {
