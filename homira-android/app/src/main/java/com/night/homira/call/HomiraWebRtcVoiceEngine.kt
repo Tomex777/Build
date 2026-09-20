@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.net.ConnectivityManager
+import android.net.Network
 import android.media.projection.MediaProjection
 import android.os.Build
 import android.util.Log
@@ -77,6 +79,12 @@ class HomiraWebRtcVoiceEngine(
         SupervisorJob() + Dispatchers.Default + exceptionHandler
     )
     private val audioManager = appContext.getSystemService(AudioManager::class.java)
+    private val connectivityManager =
+        appContext.getSystemService(ConnectivityManager::class.java)
+    private var networkCallbackRegistered = false
+    private var lastObservedNetwork: Network? = null
+    private var networkChangeJob: Job? = null
+
     private val originalAudioMode = audioManager.mode
     @Suppress("DEPRECATION")
     private val originalSpeakerphoneOn = audioManager.isSpeakerphoneOn
@@ -116,6 +124,28 @@ class HomiraWebRtcVoiceEngine(
     private var iceRecoveryJob: Job? = null
     private var lastIceRestartAtMs = 0L
 
+    private val networkCallback =
+        object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                val previous = lastObservedNetwork
+                lastObservedNetwork = network
+
+                if (
+                    previous != null &&
+                    previous != network
+                ) {
+                    scheduleNetworkPathRecovery()
+                }
+            }
+
+            override fun onLost(network: Network) {
+                if (lastObservedNetwork == network) {
+                    lastObservedNetwork = null
+                    scheduleNetworkPathRecovery()
+                }
+            }
+        }
+
     private val eglBase = EglBase.create()
     private var audioDeviceModule: JavaAudioDeviceModule? = null
     private var factory: PeerConnectionFactory? = null
@@ -141,6 +171,7 @@ class HomiraWebRtcVoiceEngine(
         ensureWebRtcInitialized(appContext)
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
         _state.value = HomiraWebRtcState.Signaling
+        registerNetworkCallback()
 
         audioDeviceModule = JavaAudioDeviceModule.builder(appContext)
             .createAudioDeviceModule()
@@ -540,6 +571,9 @@ class HomiraWebRtcVoiceEngine(
 
         signalJob?.cancel()
         iceRecoveryJob?.cancel()
+        networkChangeJob?.cancel()
+        networkChangeJob = null
+        unregisterNetworkCallback()
         runCatching { signaling.close() }
 
         peerConnection?.close()
@@ -629,6 +663,72 @@ class HomiraWebRtcVoiceEngine(
                 sdpType = answer.type.canonicalForm()
             )
         )
+    }
+
+    private fun registerNetworkCallback() {
+        if (networkCallbackRegistered) return
+
+        lastObservedNetwork = connectivityManager.activeNetwork
+
+        runCatching {
+            connectivityManager.registerDefaultNetworkCallback(
+                networkCallback
+            )
+            networkCallbackRegistered = true
+        }.onFailure { error ->
+            Log.w(
+                "HomiraWebRTC",
+                "Could not observe network changes",
+                error
+            )
+        }
+    }
+
+    private fun unregisterNetworkCallback() {
+        if (!networkCallbackRegistered) return
+
+        runCatching {
+            connectivityManager.unregisterNetworkCallback(
+                networkCallback
+            )
+        }
+        networkCallbackRegistered = false
+        lastObservedNetwork = null
+    }
+
+    private fun scheduleNetworkPathRecovery() {
+        networkChangeJob?.cancel()
+        networkChangeJob = scope.launch {
+            // Give Android a moment to finish the Wi-Fi/mobile handoff
+            // before gathering a new ICE route.
+            delay(650)
+
+            if (
+                _state.value == HomiraWebRtcState.Closed ||
+                !signalingReady
+            ) {
+                return@launch
+            }
+
+            if (caller) {
+                restartIceAndRenegotiate()
+            } else {
+                runCatching {
+                    signaling.send(
+                        CallSignalEnvelope(
+                            type = "ice-restart-request",
+                            fromUserId = localUserId
+                        )
+                    )
+                }.onFailure { error ->
+                    Log.w(
+                        "HomiraWebRTC",
+                        "Could not request ICE restart after network change",
+                        error
+                    )
+                }
+            }
+        }
     }
 
     private fun scheduleIceRecovery(
