@@ -293,6 +293,68 @@ class HomiraIncomingCallNotifier(
         }.getOrDefault(false)
     }
 
+    fun showMissed(
+        callId: String,
+        mediaType: String,
+        callerName: String
+    ): Boolean {
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                appContext,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return false
+        }
+
+        val openIntent = Intent(
+            appContext,
+            MainActivity::class.java
+        ).apply {
+            flags =
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val openPendingIntent = PendingIntent.getActivity(
+            appContext,
+            notificationId("$callId:missed"),
+            openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or
+                PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(
+            appContext,
+            CHANNEL_MISSED_CALLS
+        )
+            .setSmallIcon(android.R.drawable.sym_call_missed)
+            .setContentTitle("Missed call from $callerName")
+            .setContentText(
+                if (mediaType == "video") {
+                    "Missed video call"
+                } else {
+                    "Missed voice call"
+                }
+            )
+            .setCategory(NotificationCompat.CATEGORY_MISSED_CALL)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setContentIntent(openPendingIntent)
+            .build()
+
+        return runCatching {
+            cancel(callId)
+            notificationManager.notify(
+                NOTIFICATION_TAG,
+                notificationId("$callId:missed"),
+                notification
+            )
+            true
+        }.getOrDefault(false)
+    }
+
     fun cancel(callId: String) {
         runCatching { cancelRingTimeout(callId) }
         runCatching {
@@ -417,6 +479,23 @@ class HomiraIncomingCallNotifier(
             }
             notificationManager.createNotificationChannel(ongoing)
         }
+
+        if (
+            notificationManager.getNotificationChannel(
+                CHANNEL_MISSED_CALLS
+            ) == null
+        ) {
+            val missed = NotificationChannel(
+                CHANNEL_MISSED_CALLS,
+                "Missed calls",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Missed Homira voice and video calls"
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                enableVibration(true)
+            }
+            notificationManager.createNotificationChannel(missed)
+        }
     }
 
     private fun notificationId(callId: String): Int =
@@ -442,6 +521,8 @@ class HomiraIncomingCallNotifier(
             "homira_incoming_calls_custom_v1"
         private const val CHANNEL_ONGOING_CALLS =
             "homira_ongoing_calls_v1"
+        private const val CHANNEL_MISSED_CALLS =
+            "homira_missed_calls_v1"
         private const val NOTIFICATION_TAG = "homira_call"
     }
 }
