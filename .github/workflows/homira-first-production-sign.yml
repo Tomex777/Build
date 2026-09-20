@@ -1,0 +1,128 @@
+name: Homira First Production Sign
+
+on:
+  push:
+    branches: [homira-call-ci]
+    paths:
+      - '.github/workflows/homira-first-production-sign.yml'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android SDK
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Build and lint production release
+        working-directory: homira-android
+        run: gradle :app:assembleRelease :app:bundleRelease :app:lintRelease --stacktrace
+
+      - name: Confirm release is non-debuggable
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=homira-android/app/build/outputs/apk/release/app-release-unsigned.apk
+          test -f "$APK"
+          aapt dump badging "$APK" | tee /tmp/homira-badging.txt
+          ! grep -q "application-debuggable" /tmp/homira-badging.txt
+
+      - name: Generate permanent Homira production key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/homira-signing homira-release
+          KEY_PASS="$(openssl rand -hex 24)"
+          echo "::add-mask::$KEY_PASS"
+          echo "HOMIRA_KEY_PASS=$KEY_PASS" >> "$GITHUB_ENV"
+
+          keytool -genkeypair -noprompt             -keystore /tmp/homira-signing/homira-production.jks             -storetype JKS             -storepass "$KEY_PASS"             -keypass "$KEY_PASS"             -alias homira             -keyalg RSA             -keysize 4096             -validity 10000             -dname "CN=Homira, O=Homira"
+
+          printf 'alias=homira\nstore_password=%s\nkey_password=%s\n'             "$KEY_PASS" "$KEY_PASS"             > /tmp/homira-signing/signing-info.txt
+
+      - name: Sign and verify production APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          BT="$ANDROID_HOME/build-tools/36.0.0"
+          UNSIGNED=homira-android/app/build/outputs/apk/release/app-release-unsigned.apk
+          ALIGNED=/tmp/Homira-1.0.0-aligned.apk
+          SIGNED=homira-release/Homira-1.0.0-Production.apk
+
+          "$BT/zipalign" -p -f 4 "$UNSIGNED" "$ALIGNED"
+          "$BT/apksigner" sign             --ks /tmp/homira-signing/homira-production.jks             --ks-key-alias homira             --ks-pass "pass:$HOMIRA_KEY_PASS"             --key-pass "pass:$HOMIRA_KEY_PASS"             --out "$SIGNED"             "$ALIGNED"
+
+          "$BT/apksigner" verify --verbose --print-certs "$SIGNED" | tee homira-release/apk-signature.txt
+          rm -f "$ALIGNED"
+
+      - name: Sign and verify production AAB
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=homira-release/Homira-1.0.0-Production.aab
+          cp homira-android/app/build/outputs/bundle/release/app-release.aab "$OUT"
+
+          jarsigner             -keystore /tmp/homira-signing/homira-production.jks             -storepass "$HOMIRA_KEY_PASS"             -keypass "$HOMIRA_KEY_PASS"             -sigalg SHA256withRSA             -digestalg SHA-256             "$OUT" homira
+
+          jarsigner -verify -certs "$OUT"
+
+      - name: Encrypt production signing-key backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -C /tmp/homira-signing -czf /tmp/homira-signing-backup.tar.gz             homira-production.jks signing-info.txt
+
+          BACKUP_PASS="$(openssl rand -hex 32)"
+          echo "::add-mask::$BACKUP_PASS"
+
+          openssl enc -aes-256-cbc -salt -pbkdf2 -iter 300000             -in /tmp/homira-signing-backup.tar.gz             -out homira-release/Homira-Production-Signing-Backup.enc             -pass "pass:$BACKUP_PASS"
+
+          echo "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQ0lqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FnOEFNSUlDQ2dLQ0FnRUFyc29DTWlqa0RqeDlvUDVTbzEyUwpjWGRJdUVSd1hDOFZsdGllbW5tcUF2MW9NY3hkdjRHeGZJUFhUaTBnbW5Vc0N0YjljUlVoc0JjU25ub2tvd0IvCm42eFhzaUphNU9peGlxOStBTjdyd0x3TXBhaDdRTi8vVDFJejRvZmVmSGRCVnhWWUV4MDZ4MzRCcGlwMCtsVTYKRThPTzc4UWlVdU0yWnhSVSt4bTBvV0l1OHliN3cyanhpZXl3bEx1MkFrODVxa1FrUUdEQVpkL2MzMW5iYy9tSwpleU5Yc0YyaERpR0V1dkdyUDdwWkNsdnRaUm9VUUJpcWU2bFE0b2RFSWFhRHdQZk1BSk1HQnBPempuOVlmdEhGCmFieSswQVF3K2FXUWhCMkZNNDlBRFpOckNiL3YvbWJyMWhhKzd6dGtmUmRZR2s5OHZJUzd2LzFZOUJtZ1Y4cm4KbG1CZjVwSDRqVEUycVRzbXR5QW95U3FYK0g3ZE5wcTFtdzFJWG9vbFV4d3lzaGFkWXU0blp6ZWRMQitlTlZyOApURkluUWNEZXdPSm9KR0ozMU1VK2JRRGlSTGd1QUpKS3R0QVA2NWsxbUpxUktlN2ZHV1Fja3Z2U0x4Z0k5MjlyCnRBV3llb0lEL0hjZTYrTFZGcjdYdTVxallTRTA2QXkyYTFQNEdTalVZWVRhVmY1NmE3WnliNXlwL0Zpb2huRjYKS1lCbkcxSURydGY3UjJhb2NnSHhqYVM4eis2UGRRQ3g1WnAwRE41c0FvSkIzb3ZkNFp6NmV5ak13cW5ZczZ0WQpNbDQyVGtSaDlMS2NjY3RYaFdqdGlLV3RzTm5yazNsRXBEMkRZTG1HZ1NpaXhlMXFoTktlRlFSaWh3c1Jsd2gvCmxGalRkU29pZ1gwRTFpWmFFY1I2Z0RjQ0F3RUFBUT09Ci0tLS0tRU5EIFBVQkxJQyBLRVktLS0tLQo="             | base64 -d > /tmp/homira-backup-public.pem
+
+          printf '%s' "$BACKUP_PASS" |             openssl pkeyutl -encrypt               -pubin               -inkey /tmp/homira-backup-public.pem               -pkeyopt rsa_padding_mode:oaep               -pkeyopt rsa_oaep_md:sha256               -out homira-release/Homira-Production-Signing-Backup.pass.enc
+
+          rm -rf /tmp/homira-signing /tmp/homira-signing-backup.tar.gz
+
+      - name: Hash production outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum homira-release/Homira-1.0.0-Production.apk             > homira-release/Homira-1.0.0-Production.apk.sha256
+          sha256sum homira-release/Homira-1.0.0-Production.aab             > homira-release/Homira-1.0.0-Production.aab.sha256
+
+      - name: Upload signed production app
+        uses: actions/upload-artifact@v4
+        with:
+          name: homira-production-signed-v1.0.0
+          path: |
+            homira-release/Homira-1.0.0-Production.apk
+            homira-release/Homira-1.0.0-Production.apk.sha256
+            homira-release/Homira-1.0.0-Production.aab
+            homira-release/Homira-1.0.0-Production.aab.sha256
+            homira-release/apk-signature.txt
+          if-no-files-found: error
+
+      - name: Upload encrypted signing backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: homira-production-signing-backup
+          path: |
+            homira-release/Homira-Production-Signing-Backup.enc
+            homira-release/Homira-Production-Signing-Backup.pass.enc
+          if-no-files-found: error
