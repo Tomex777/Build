@@ -614,7 +614,8 @@ fun HomiraProductionApp(
 
                 overlay == OverlayScreen.Voicemail ||
                     overlay == OverlayScreen.BlockedPeople -> {
-                    overlay = OverlayScreen.Settings
+                    overlay = OverlayScreen.None
+                    tab = MainTab.Me
                 }
 
                 overlay != OverlayScreen.None -> {
