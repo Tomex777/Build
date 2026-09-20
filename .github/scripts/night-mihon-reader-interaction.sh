@@ -247,17 +247,23 @@ grep -Eq '<boolean name="volumeKeys" value="true" ?/>' mihon-interaction-artifac
 
 # Dismiss the settings sheet, then hide the reader chrome. Mihon only
 # intercepts volume keys for page navigation while the reader menu is hidden.
-adb shell input tap 354 180
-sleep 1
-if text_is_visible "Reader settings"; then
+# A tall Material bottom sheet can consume one Back for its internal state,
+# so keep backing out until the sheet text is actually gone.
+for attempt in 1 2 3; do
+  if ! text_is_visible "Reader settings"; then
+    break
+  fi
   adb shell input keyevent KEYCODE_BACK
   sleep 1
-fi
+done
 if text_is_visible "Reader settings"; then
   echo "Reader settings sheet did not close before volume navigation." >&2
+  adb exec-out screencap -p > mihon-interaction-artifacts/failure-settings-dismiss.png
   exit 1
 fi
 
+# Reader chrome may be visible after the sheet closes. Toggle the center once
+# so hardware keys are tested in the same menu-hidden state Mihon uses.
 adb shell input tap 354 760
 sleep 1
 
