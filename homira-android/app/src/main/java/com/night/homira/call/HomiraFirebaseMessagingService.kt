@@ -84,16 +84,18 @@ class HomiraFirebaseMessagingService : FirebaseMessagingService() {
             remainingMs ?: HomiraIncomingCallNotifier.DEFAULT_RING_TIMEOUT_MS
         )
 
-        val settings = HomiraSettingsStore(this).load()
-        HomiraIncomingCallNotifier(this).show(
-            callId = callId,
-            mediaType = mediaType,
-            callerName = callerName,
-            callerId = callerId,
-            notificationsEnabled = settings.callNotifications,
-            ringtoneUri = settings.ringtoneUri,
-            timeoutMs = timeoutMs
-        )
+        runCatching {
+            val settings = HomiraSettingsStore(this).load()
+            HomiraIncomingCallNotifier(this).show(
+                callId = callId,
+                mediaType = mediaType,
+                callerName = callerName,
+                callerId = callerId,
+                notificationsEnabled = settings.callNotifications,
+                ringtoneUri = settings.ringtoneUri,
+                timeoutMs = timeoutMs
+            )
+        }
     }
 
     companion object {

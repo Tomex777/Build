@@ -18,7 +18,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api-level: [26, 36]
+        include:
+          - api-level: 26
+            target: default
+          - api-level: 36
+            target: ${{ matrix.target }}
 
     steps:
       - uses: actions/checkout@v5
@@ -42,11 +46,6 @@ jobs:
       - name: Build debug APK
         working-directory: homira-android
         run: gradle :app:assembleDebug --stacktrace
-
-      - name: Run Android lint
-        if: matrix.api-level == 36
-        working-directory: homira-android
-        run: gradle :app:lintDebug --stacktrace
 
       - name: Enable KVM
         run: |
@@ -106,6 +105,11 @@ jobs:
             ! grep -q "FATAL EXCEPTION" homira-android/app/build/ui-smoke/live-logcat.txt
             adb shell pidof com.night.homira | grep -q .
             adb exec-out screencap -p > homira-android/app/build/ui-smoke/live-main.png
+
+      - name: Run Android lint
+        if: matrix.api-level == 36
+        working-directory: homira-android
+        run: gradle :app:lintDebug --stacktrace
 
       - name: Upload smoke artifacts
         if: always()

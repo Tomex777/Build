@@ -72,31 +72,44 @@ class HomiraAudioPlayer {
     ) {
         stop()
 
-        player = MediaPlayer().apply {
-            setDataSource(file.absolutePath)
-            setOnCompletionListener {
+        val next = MediaPlayer()
+        player = next
+
+        runCatching {
+            next.setDataSource(file.absolutePath)
+            next.setOnCompletionListener {
                 stop()
-                onCompletion()
+                runCatching { onCompletion() }
             }
-            setOnErrorListener { _, _, _ ->
+            next.setOnErrorListener { _, _, _ ->
                 stop()
-                onCompletion()
+                runCatching { onCompletion() }
                 true
             }
-            prepare()
-            start()
+            next.prepare()
+            next.start()
+        }.onFailure {
+            if (player === next) player = null
+            runCatching { next.reset() }
+            runCatching { next.release() }
+            runCatching { onCompletion() }
         }
     }
 
     fun pause() {
-        player?.takeIf { it.isPlaying }?.pause()
+        runCatching {
+            player?.takeIf { it.isPlaying }?.pause()
+        }
     }
 
     fun resume() {
-        player?.takeIf { !it.isPlaying }?.start()
+        runCatching {
+            player?.takeIf { !it.isPlaying }?.start()
+        }
     }
 
-    fun isPlaying(): Boolean = player?.isPlaying == true
+    fun isPlaying(): Boolean =
+        runCatching { player?.isPlaying == true }.getOrDefault(false)
 
     fun stop() {
         val active = player ?: return

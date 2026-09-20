@@ -30,6 +30,7 @@ class HomiraCallActionReceiver : BroadcastReceiver() {
 
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
+                runCatching {
                 val repository = HomiraLiveRepository()
                 repository.initialize()
 
@@ -183,7 +184,10 @@ class HomiraCallActionReceiver : BroadcastReceiver() {
                 }
 
                 if (!keepOngoingNotification) {
-                    HomiraIncomingCallNotifier(appContext).cancel(callId)
+                    runCatching {
+                        HomiraIncomingCallNotifier(appContext).cancel(callId)
+                    }
+                }
                 }
             } finally {
                 pendingResult.finish()
