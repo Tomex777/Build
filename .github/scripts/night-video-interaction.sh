@@ -1,0 +1,435 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APK="whatsapp-ai-android/app/build/outputs/apk/debug/app-debug.apk"
+PACKAGE="com.example.whatsapp"
+FIXTURE="/tmp/night-real-video.mp4"
+APP_VIDEO="/data/user/0/$PACKAGE/cache/night-real-video.mp4"
+ARTIFACTS="night-video-interaction-artifacts"
+
+mkdir -p "$ARTIFACTS"
+adb install --no-streaming -r "$APK"
+adb shell wm size 709x1536
+adb shell wm density 240
+adb logcat -c
+
+adb push "$FIXTURE" /data/local/tmp/night-real-video.mp4 >/dev/null
+adb shell run-as "$PACKAGE" cp /data/local/tmp/night-real-video.mp4 cache/night-real-video.mp4
+adb shell run-as "$PACKAGE" test -s cache/night-real-video.mp4
+
+cat >/tmp/night_video_uia.py <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+mode = sys.argv[1]
+value = sys.argv[2] if len(sys.argv) > 2 else None
+root = ET.parse("/tmp/window.xml").getroot()
+
+def bounds(node):
+    nums = [int(x) for x in re.findall(r"\d+", node.attrib.get("bounds", ""))]
+    return nums if len(nums) == 4 else None
+
+if mode in ("text", "desc"):
+    attr = "text" if mode == "text" else "content-desc"
+    for node in root.iter("node"):
+        if node.attrib.get(attr) == value:
+            b = bounds(node)
+            if b:
+                print((b[0] + b[2]) // 2, (b[1] + b[3]) // 2)
+                raise SystemExit(0)
+    raise SystemExit(2)
+
+if mode == "times":
+    values = []
+    for node in root.iter("node"):
+        text = node.attrib.get("text", "")
+        if re.fullmatch(r"\d+:\d{2}", text):
+            if text not in values:
+                values.append(text)
+    for item in values:
+        print(item)
+    raise SystemExit(0 if values else 2)
+
+if mode == "trim":
+    for node in root.iter("node"):
+        text = node.attrib.get("text", "")
+        if re.fullmatch(r"\d+:\d{2} [–-] \d+:\d{2}", text):
+            print(text)
+            raise SystemExit(0)
+    raise SystemExit(2)
+
+if mode == "bottom_seekbar":
+    candidates = []
+    for node in root.iter("node"):
+        cls = node.attrib.get("class", "")
+        b = bounds(node)
+        if b and (cls == "android.widget.SeekBar" or node.attrib.get("range-info")):
+            candidates.append((b[1] + b[3], b))
+    if not candidates:
+        raise SystemExit(2)
+    _, b = max(candidates, key=lambda item: item[0])
+    print(*b)
+    raise SystemExit(0)
+
+raise SystemExit(2)
+PY
+
+refresh_ui() {
+  adb shell uiautomator dump /sdcard/window.xml >/dev/null
+  adb exec-out cat /sdcard/window.xml > /tmp/window.xml
+}
+
+text_is_visible() {
+  refresh_ui
+  python3 /tmp/night_video_uia.py text "$1" >/dev/null 2>&1
+}
+
+desc_is_visible() {
+  refresh_ui
+  python3 /tmp/night_video_uia.py desc "$1" >/dev/null 2>&1
+}
+
+assert_text() {
+  refresh_ui
+  python3 /tmp/night_video_uia.py text "$1" >/dev/null
+}
+
+assert_desc() {
+  refresh_ui
+  python3 /tmp/night_video_uia.py desc "$1" >/dev/null
+}
+
+tap_text() {
+  refresh_ui
+  local coords x y
+  coords="$(python3 /tmp/night_video_uia.py text "$1")"
+  x="${coords% *}"
+  y="${coords#* }"
+  adb shell input tap "$x" "$y"
+  sleep 1
+}
+
+tap_desc() {
+  refresh_ui
+  local coords x y
+  coords="$(python3 /tmp/night_video_uia.py desc "$1")"
+  x="${coords% *}"
+  y="${coords#* }"
+  adb shell input tap "$x" "$y"
+  sleep 1
+}
+
+assert_alive() {
+  adb shell pidof "$PACKAGE" >/dev/null
+}
+
+assert_no_crash() {
+  adb logcat -d > "$ARTIFACTS/logcat-latest.txt" || true
+  if adb logcat -d -v brief | grep -A5 "FATAL EXCEPTION:" | grep -q "Process: $PACKAGE"; then
+    echo "Night crashed during real video interaction test." >&2
+    exit 1
+  fi
+  assert_alive
+}
+
+show_controls() {
+  if desc_is_visible "Pause" || desc_is_visible "Play"; then
+    return 0
+  fi
+  adb shell input tap 354 760
+  sleep 1
+  if ! desc_is_visible "Pause" && ! desc_is_visible "Play"; then
+    echo "Night video controls did not become visible." >&2
+    adb exec-out screencap -p > "$ARTIFACTS/failure-controls-hidden.png"
+    exit 1
+  fi
+}
+
+to_seconds() {
+  local raw="$1"
+  local m="${raw%:*}"
+  local s="${raw#*:}"
+  echo $((10#$m * 60 + 10#$s))
+}
+
+read_current_time() {
+  show_controls
+  refresh_ui
+  python3 /tmp/night_video_uia.py times | head -n 1
+}
+
+capture_dims() {
+  local path="$1"
+  adb exec-out screencap -p > "$path"
+  python3 - "$path" <<'PY'
+import struct
+import sys
+with open(sys.argv[1], "rb") as f:
+    sig = f.read(24)
+width, height = struct.unpack(">II", sig[16:24])
+print(width, height)
+PY
+}
+
+echo "STEP: open and play real H.264/AAC MP4"
+adb shell am force-stop "$PACKAGE"
+adb shell am start -W -n "$PACKAGE/.MediaViewerPreviewActivity" \
+  --es night.preview.videoPath "$APP_VIDEO"
+sleep 4
+assert_alive
+show_controls
+assert_text "Night Video 1"
+assert_no_crash
+capture_dims "$ARTIFACTS/01-real-video-open.png" > "$ARTIFACTS/01-dimensions.txt"
+
+first_time="$(read_current_time)"
+sleep 2
+second_time="$(read_current_time)"
+first_seconds="$(to_seconds "$first_time")"
+second_seconds="$(to_seconds "$second_time")"
+if [ "$second_seconds" -le "$first_seconds" ]; then
+  echo "Real MP4 playback time did not advance: $first_time -> $second_time" >&2
+  exit 1
+fi
+
+echo "STEP: pause and resume"
+show_controls
+tap_desc "Pause"
+paused_time="$(read_current_time)"
+sleep 2
+paused_after="$(read_current_time)"
+paused_seconds="$(to_seconds "$paused_time")"
+paused_after_seconds="$(to_seconds "$paused_after")"
+if [ $((paused_after_seconds - paused_seconds)) -gt 1 ]; then
+  echo "Video kept advancing while paused: $paused_time -> $paused_after" >&2
+  exit 1
+fi
+assert_desc "Play"
+tap_desc "Play"
+sleep 2
+resumed_time="$(read_current_time)"
+resumed_seconds="$(to_seconds "$resumed_time")"
+if [ "$resumed_seconds" -le "$paused_after_seconds" ]; then
+  echo "Video did not resume after Play." >&2
+  exit 1
+fi
+assert_no_crash
+
+echo "STEP: playback speed"
+show_controls
+tap_text "1×"
+assert_text "2×"
+tap_text "2×"
+speed_start="$(read_current_time)"
+sleep 2
+speed_end="$(read_current_time)"
+speed_start_seconds="$(to_seconds "$speed_start")"
+speed_end_seconds="$(to_seconds "$speed_end")"
+if [ $((speed_end_seconds - speed_start_seconds)) -lt 2 ]; then
+  echo "2× playback selection did not advance playback as expected." >&2
+  exit 1
+fi
+
+echo "STEP: audio and subtitle tracks"
+show_controls
+tap_desc "Audio"
+refresh_ui
+cp /tmp/window.xml "$ARTIFACTS/02-audio-menu.xml"
+if ! grep -q "Night test audio" /tmp/window.xml && ! grep -q "Default audio" /tmp/window.xml; then
+  echo "Audio track menu did not expose the MP4 audio track." >&2
+  exit 1
+fi
+adb shell input keyevent KEYCODE_BACK
+sleep 1
+show_controls
+tap_desc "Subtitles"
+refresh_ui
+cp /tmp/window.xml "$ARTIFACTS/03-subtitle-menu.xml"
+if ! grep -q "Night test subtitle" /tmp/window.xml; then
+  echo "Subtitle track from the real MP4 was not exposed by VLC." >&2
+  exit 1
+fi
+tap_text "Night test subtitle"
+assert_no_crash
+
+echo "STEP: seek"
+show_controls
+refresh_ui
+seek_bounds="$(python3 /tmp/night_video_uia.py bottom_seekbar)"
+read -r sx1 sy1 sx2 sy2 <<<"$seek_bounds"
+seek_y=$(((sy1 + sy2) / 2))
+seek_x=$((sx1 + (sx2 - sx1) * 72 / 100))
+adb shell input tap "$seek_x" "$seek_y"
+sleep 1
+seek_time="$(read_current_time)"
+seek_seconds="$(to_seconds "$seek_time")"
+if [ "$seek_seconds" -lt 15 ]; then
+  echo "Seek did not move playback far enough into the real video: $seek_time" >&2
+  adb exec-out screencap -p > "$ARTIFACTS/failure-seek.png"
+  exit 1
+fi
+assert_no_crash
+
+echo "STEP: portrait and landscape"
+show_controls
+tap_desc "Rotate"
+sleep 2
+read -r landscape_w landscape_h <<<"$(capture_dims "$ARTIFACTS/04-landscape.png")"
+if [ "$landscape_w" -le "$landscape_h" ]; then
+  echo "Night video did not enter landscape after Rotate." >&2
+  exit 1
+fi
+show_controls
+tap_desc "Rotate"
+sleep 2
+read -r portrait_w portrait_h <<<"$(capture_dims "$ARTIFACTS/05-portrait.png")"
+if [ "$portrait_h" -le "$portrait_w" ]; then
+  echo "Night video did not return to portrait." >&2
+  exit 1
+fi
+
+echo "STEP: picture in picture and return"
+show_controls
+tap_desc "Picture in picture"
+sleep 2
+adb shell dumpsys activity activities > "$ARTIFACTS/06-pip-activity.txt"
+if ! grep -Eq "mLastReportedPictureInPictureMode=true|inPictureInPictureMode=true|pictureInPictureMode=true" "$ARTIFACTS/06-pip-activity.txt"; then
+  echo "Night did not report entering picture-in-picture mode." >&2
+  exit 1
+fi
+assert_no_crash
+adb shell am start -W --activity-clear-top --activity-single-top \
+  -n "$PACKAGE/.MediaViewerPreviewActivity" \
+  --es night.preview.videoPath "$APP_VIDEO" >/dev/null
+sleep 2
+show_controls
+assert_text "Night Video 1"
+assert_no_crash
+
+echo "STEP: next and previous video"
+show_controls
+tap_desc "Next media"
+sleep 2
+show_controls
+assert_text "Night Video 2"
+tap_desc "Previous media"
+sleep 2
+show_controls
+assert_text "Night Video 1"
+assert_no_crash
+
+echo "STEP: video editor trim and mute export"
+adb shell am force-stop "$PACKAGE"
+adb shell am start -W -n "$PACKAGE/.MediaEditorPreviewActivity" \
+  --es night.preview.videoPath "$APP_VIDEO"
+sleep 4
+assert_alive
+assert_text "Trim"
+assert_desc "Mute"
+assert_desc "Send media"
+refresh_ui
+initial_trim="$(python3 /tmp/night_video_uia.py trim)"
+refresh_ui
+trim_bounds="$(python3 /tmp/night_video_uia.py bottom_seekbar)"
+read -r tx1 ty1 tx2 ty2 <<<"$trim_bounds"
+trim_y=$(((ty1 + ty2) / 2))
+
+trim_changed=false
+for pct in 72 65 58; do
+  trim_x=$((tx1 + (tx2 - tx1) * pct / 100))
+  adb shell input tap "$trim_x" "$trim_y"
+  sleep 1
+  refresh_ui
+  changed_trim="$(python3 /tmp/night_video_uia.py trim)"
+  if [ "$changed_trim" != "$initial_trim" ]; then
+    trim_changed=true
+    break
+  fi
+done
+if [ "$trim_changed" != "true" ]; then
+  echo "Night video trim range did not change through the real editor." >&2
+  adb exec-out screencap -p > "$ARTIFACTS/failure-trim.png"
+  exit 1
+fi
+printf 'before=%s\nafter=%s\n' "$initial_trim" "$changed_trim" > "$ARTIFACTS/07-trim-range.txt"
+
+tap_desc "Mute"
+assert_desc "Unmute"
+adb exec-out screencap -p > "$ARTIFACTS/08-editor-ready.png"
+tap_desc "Send media"
+
+exported_path=""
+for _ in $(seq 1 90); do
+  prefs="$(adb shell run-as "$PACKAGE" cat shared_prefs/night_media_preview.xml 2>/dev/null || true)"
+  if printf '%s' "$prefs" | grep -q 'name="exportError"'; then
+    printf '%s\n' "$prefs" > "$ARTIFACTS/export-prefs-error.xml"
+    echo "Night Media3 video export reported an error." >&2
+    exit 1
+  fi
+  exported_path="$(printf '%s\n' "$prefs" | sed -n 's/.*<string name="exportPath">\([^<]*\)<\/string>.*/\1/p' | head -n 1)"
+  if [ -n "$exported_path" ]; then
+    printf '%s\n' "$prefs" > "$ARTIFACTS/export-prefs.xml"
+    break
+  fi
+  sleep 1
+done
+if [ -z "$exported_path" ]; then
+  echo "Night video editor did not finish exporting." >&2
+  exit 1
+fi
+adb shell run-as "$PACKAGE" test -s "$exported_path"
+adb exec-out run-as "$PACKAGE" cat "$exported_path" > "$ARTIFACTS/exported-video.mp4"
+ffprobe -v error -show_format -show_streams "$ARTIFACTS/exported-video.mp4" \
+  > "$ARTIFACTS/09-exported-ffprobe.txt"
+
+export_duration="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$ARTIFACTS/exported-video.mp4" | cut -d. -f1)"
+if [ "$export_duration" -ge 29 ] || [ "$export_duration" -lt 10 ]; then
+  echo "Trimmed export duration is unexpected: $export_duration seconds." >&2
+  exit 1
+fi
+audio_streams="$(ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0 "$ARTIFACTS/exported-video.mp4" | wc -l)"
+if [ "$audio_streams" -ne 0 ]; then
+  echo "Muted export still contains an audio stream." >&2
+  exit 1
+fi
+video_streams="$(ffprobe -v error -select_streams v -show_entries stream=index -of csv=p=0 "$ARTIFACTS/exported-video.mp4" | wc -l)"
+if [ "$video_streams" -lt 1 ]; then
+  echo "Exported Night video has no video stream." >&2
+  exit 1
+fi
+assert_no_crash
+
+echo "STEP: replay exported MP4"
+adb shell am force-stop "$PACKAGE"
+adb shell am start -W -n "$PACKAGE/.MediaViewerPreviewActivity" \
+  --es night.preview.videoPath "$exported_path"
+sleep 4
+assert_alive
+show_controls
+export_first="$(read_current_time)"
+sleep 2
+export_second="$(read_current_time)"
+if [ "$(to_seconds "$export_second")" -le "$(to_seconds "$export_first")" ]; then
+  echo "Exported Night MP4 did not play after reopening." >&2
+  exit 1
+fi
+adb exec-out screencap -p > "$ARTIFACTS/10-exported-replay.png"
+adb logcat -d > "$ARTIFACTS/logcat.txt"
+assert_no_crash
+
+cat > "$ARTIFACTS/summary.txt" <<EOF
+realMp4Playback=true
+pauseResume=true
+speed2x=true
+audioMenu=true
+subtitleMenu=true
+seek=true
+landscapeRoundTrip=true
+pictureInPicture=true
+nextPrevious=true
+trimChanged=true
+mutedExport=true
+exportedDurationSeconds=$export_duration
+exportedReplay=true
+EOF

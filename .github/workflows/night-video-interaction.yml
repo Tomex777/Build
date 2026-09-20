@@ -1,0 +1,142 @@
+name: Night Video Interaction
+
+on:
+  pull_request:
+    branches:
+      - whatsapp-ai-ui-ci
+    paths:
+      - "whatsapp-ai-android/**"
+      - ".github/workflows/night-video-interaction.yml"
+      - ".github/scripts/night-video-interaction.sh"
+  workflow_dispatch:
+
+concurrency:
+  group: night-video-interaction-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  video-interaction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Android 36 SDK
+        run: |
+          SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Generate real MP4 fixture
+        run: |
+          mkdir -p night-video-interaction-artifacts
+          cat >/tmp/night-video-subtitles.srt <<'SRT'
+          1
+          00:00:01,000 --> 00:00:05,000
+          Night subtitle one
+
+          2
+          00:00:10,000 --> 00:00:15,000
+          Night subtitle two
+
+          3
+          00:00:22,000 --> 00:00:29,000
+          Night subtitle three
+          SRT
+
+          ffmpeg -hide_banner -loglevel error -y \
+            -f lavfi -i "testsrc2=size=640x360:rate=30" \
+            -f lavfi -i "sine=frequency=660:sample_rate=44100" \
+            -i /tmp/night-video-subtitles.srt \
+            -t 30 \
+            -map 0:v:0 -map 1:a:0 -map 2:s:0 \
+            -c:v libx264 -preset ultrafast -profile:v baseline -level 3.0 \
+            -pix_fmt yuv420p -g 30 \
+            -c:a aac -b:a 96k \
+            -c:s mov_text \
+            -metadata:s:a:0 title="Night test audio" \
+            -metadata:s:s:0 title="Night test subtitle" \
+            -movflags +faststart \
+            /tmp/night-real-video.mp4
+
+          ffprobe -v error -show_format -show_streams /tmp/night-real-video.mp4 \
+            > night-video-interaction-artifacts/fixture-ffprobe.txt
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 /tmp/night-real-video.mp4)" = "h264"
+          test "$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 /tmp/night-real-video.mp4)" = "aac"
+          test -n "$(ffprobe -v error -select_streams s:0 -show_entries stream=codec_name -of csv=p=0 /tmp/night-real-video.mp4)"
+          test "$(ffprobe -v error -show_entries format=duration -of csv=p=0 /tmp/night-real-video.mp4 | cut -d. -f1)" -ge 29
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Add test Firebase config
+        run: |
+          cat > whatsapp-ai-android/app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "123456789012",
+              "project_id": "whatsapp-ai-preview",
+              "storage_bucket": "whatsapp-ai-preview.appspot.com"
+            },
+            "client": [{
+              "client_info": {
+                "mobilesdk_app_id": "1:123456789012:android:0123456789abcdef",
+                "android_client_info": {"package_name": "com.example.whatsapp"}
+              },
+              "oauth_client": [],
+              "api_key": [{"current_key": "AIzaSyDUMMY_PREVIEW_KEY_NOT_FOR_NETWORK_USE"}],
+              "services": {"appinvite_service": {"other_platform_oauth_client": []}}
+            }],
+            "configuration_version": "1"
+          }
+          JSON
+
+      - name: Build debug APK
+        run: |
+          cd whatsapp-ai-android
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Exercise real Night video playback and editing
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          cores: 2
+          ram-size: 2048M
+          emulator-boot-timeout: 420
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -accel on -wipe-data
+          script: bash .github/scripts/night-video-interaction.sh
+
+      - name: Upload video interaction evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-video-interaction-evidence
+          path: night-video-interaction-artifacts/
+          if-no-files-found: warn
