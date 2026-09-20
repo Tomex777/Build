@@ -395,6 +395,7 @@ private fun AddModelDialog(
     var deployment by remember { mutableStateOf("") }
     var vision by remember { mutableStateOf(false) }
     var tools by remember { mutableStateOf(false) }
+    var imageGeneration by remember { mutableStateOf(false) }
     var makeDefault by remember { mutableStateOf(true) }
 
     AlertDialog(
@@ -423,6 +424,15 @@ private fun AddModelDialog(
                         Checkbox(checked = tools, onCheckedChange = { tools = it })
                         Text("Tools", color = ProviderText)
                     }
+                    if (profile.providerType == "azure") {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = imageGeneration,
+                                onCheckedChange = { imageGeneration = it },
+                            )
+                            Text("Image generation", color = ProviderText)
+                        }
+                    }
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -437,6 +447,7 @@ private fun AddModelDialog(
                     val caps = buildSet {
                         if (vision) add("vision")
                         if (tools) add("tools")
+                        if (imageGeneration) add("image_generation")
                     }
                     onAdd(
                         modelId,
