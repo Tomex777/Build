@@ -57,39 +57,55 @@ class NightWebToolService private constructor(
         maxChars: Int = 16_000,
     ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            val safeUrl = validateUrl(url)
-            val request = Request.Builder()
-                .url(safeUrl)
-                .get()
-                .header(
-                    "User-Agent",
-                    "Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36",
-                )
-                .header("Accept", "text/html,text/plain,application/json;q=0.9,*/*;q=0.5")
-                .build()
+            var currentUrl = validateUrl(url)
 
-            http.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    error("Page request failed (" + response.code + ").")
+            repeat(MAX_REDIRECTS + 1) { redirectCount ->
+                val request = Request.Builder()
+                    .url(currentUrl)
+                    .get()
+                    .header(
+                        "User-Agent",
+                        "Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36",
+                    )
+                    .header("Accept", "text/html,text/plain,application/json;q=0.9,*/*;q=0.5")
+                    .build()
+
+                http.newCall(request).execute().use { response ->
+                    if (response.code in 300..399) {
+                        require(redirectCount < MAX_REDIRECTS) {
+                            "The page redirected too many times."
+                        }
+                        val location = response.header("Location")
+                            ?: error("The page returned a redirect without a destination.")
+                        val redirected = URI(currentUrl).resolve(location).toString()
+                        currentUrl = validateUrl(redirected)
+                        return@repeat
+                    }
+
+                    if (!response.isSuccessful) {
+                        error("Page request failed (" + response.code + ").")
+                    }
+                    val contentType = response.header("Content-Type").orEmpty().lowercase()
+                    val body = response.body ?: error("The page returned no content.")
+                    val source = body.source()
+                    val byteLimit = (maxChars.coerceAtLeast(4_000) * 8L).coerceAtMost(512_000L)
+                    source.request(byteLimit)
+                    val readable = minOf(source.buffer.size, byteLimit)
+                    val raw = source.readUtf8(readable)
+
+                    val text = when {
+                        "html" in contentType || raw.contains("<html", ignoreCase = true) -> htmlToText(raw)
+                        else -> raw
+                    }
+                        .replace(Regex("[ \\t]{2,}"), " ")
+                        .replace(Regex("\\n{3,}"), "\n\n")
+                        .trim()
+
+                    return@runCatching text.take(maxChars.coerceIn(2_000, 40_000))
                 }
-                val contentType = response.header("Content-Type").orEmpty().lowercase()
-                val body = response.body ?: error("The page returned no content.")
-                val source = body.source()
-                val byteLimit = (maxChars.coerceAtLeast(4_000) * 8L).coerceAtMost(512_000L)
-                source.request(byteLimit)
-                val readable = minOf(source.buffer.size, byteLimit)
-                val raw = source.readUtf8(readable)
-
-                val text = when {
-                    "html" in contentType || raw.contains("<html", ignoreCase = true) -> htmlToText(raw)
-                    else -> raw
-                }
-                    .replace(Regex("[ \\t]{2,}"), " ")
-                    .replace(Regex("\\n{3,}"), "\n\n")
-                    .trim()
-
-                text.take(maxChars.coerceIn(2_000, 40_000))
             }
+
+            error("The page redirected too many times.")
         }
     }
 
@@ -190,14 +206,16 @@ class NightWebToolService private constructor(
     }
 
     companion object {
+        private const val MAX_REDIRECTS = 5
+
         @Volatile private var instance: NightWebToolService? = null
 
         fun get(): NightWebToolService =
             instance ?: synchronized(this) {
                 instance ?: NightWebToolService(
                     OkHttpClient.Builder()
-                        .followRedirects(true)
-                        .followSslRedirects(true)
+                        .followRedirects(false)
+                        .followSslRedirects(false)
                         .build(),
                 ).also { instance = it }
             }
