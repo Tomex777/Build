@@ -494,10 +494,10 @@ fun NightMihonReaderScreen(
     ) {
         val readerActivity =
             activity as? NightMihonReaderActivity
-        readerActivity?.setVolumeKeyHandler { volumeDown ->
-            if (!volumeKeys || host == null) {
-                false
-            } else {
+        val activeHost = host
+
+        if (volumeKeys && activeHost != null) {
+            readerActivity?.setVolumeKeyHandler { volumeDown ->
                 val moveNext =
                     if (invertVolumeKeys) {
                         !volumeDown
@@ -505,13 +505,16 @@ fun NightMihonReaderScreen(
                         volumeDown
                     }
                 if (moveNext) {
-                    host?.moveNextByInput()
+                    activeHost.moveNextByInput()
                 } else {
-                    host?.movePreviousByInput()
+                    activeHost.movePreviousByInput()
                 }
                 true
             }
+        } else {
+            readerActivity?.setVolumeKeyHandler(null)
         }
+
         onDispose {
             readerActivity?.setVolumeKeyHandler(null)
         }
