@@ -234,7 +234,7 @@ class NightAgentToolExecutor private constructor(
 
         val payload = JSONObject().put("options", JSONArray(values))
         val message = NightMessageEntity(
-            id = UUID.randomUUID().toString(),
+            id = messageId,
             chatId = chatId,
             role = "assistant",
             type = "choice",
@@ -266,6 +266,7 @@ class NightAgentToolExecutor private constructor(
 
         val file = File(generated.localPath)
         val id = UUID.randomUUID().toString()
+        val messageId = UUID.randomUUID().toString()
         val library = NightLibraryItemEntity(
             id = id,
             name = file.name,
@@ -274,6 +275,7 @@ class NightAgentToolExecutor private constructor(
             localPath = generated.localPath,
             createdAt = System.currentTimeMillis(),
             sourceChatId = chatId,
+            sourceMessageId = messageId,
         )
         repository.addLibraryItem(library)
 
