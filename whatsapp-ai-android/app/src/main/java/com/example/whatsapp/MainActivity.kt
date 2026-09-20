@@ -956,6 +956,29 @@ private fun NightApp() {
             onDeleteModel = { model ->
                 scope.launch { providerManager.deleteModel(model) }
             },
+            onTestModel = { providerProfile, model ->
+                scope.launch {
+                    aiGateway.testModel(providerProfile, model)
+                        .onSuccess { response ->
+                            Toast.makeText(
+                                context,
+                                if (response.trim() == "NIGHT_OK") {
+                                    model.displayName + " is connected."
+                                } else {
+                                    model.displayName + " replied: " + response.take(120)
+                                },
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                        .onFailure { error ->
+                            Toast.makeText(
+                                context,
+                                model.displayName + " failed: " + (error.message ?: "Unknown provider error."),
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                }
+            },
         )
 
         "choose_ai" -> NightAiSelectorScreen(
