@@ -141,8 +141,13 @@ settings_sheet_visible() {
     "Long strip side padding · 0%" \
     "Double tap zoom" \
     "Tap zones" \
+    "Invert tapping" \
+    "Keep screen on" \
+    "Fullscreen" \
+    "Show page number" \
     "Volume keys" \
     "Invert volume keys" \
+    "Disable zoom out" \
     "Background color"; do
     if text_is_visible "$marker"; then
       return 0
@@ -155,10 +160,13 @@ dismiss_reader_settings() {
   local context_label="${1:-reader navigation}"
   local attempt
 
-  # The sheet can be scrolled so either its title or its lower switches are
-  # outside the UI hierarchy. Probe markers spread across the whole sheet,
-  # and only send Back while a sheet marker is actually present.
-  for attempt in 1 2 3; do
+  # This helper is called immediately after interacting with the real settings
+  # sheet, so close it deterministically once before probing. The sheet can
+  # scroll far enough that any single label disappears from UiAutomator.
+  adb shell input keyevent KEYCODE_BACK
+  sleep 1
+
+  for attempt in 1 2; do
     if ! settings_sheet_visible; then
       return 0
     fi
@@ -426,11 +434,26 @@ adb shell run-as "$PACKAGE" cat shared_prefs/night_mihon_reader.xml \
 grep -Eq '<boolean name="invertVolumeKeys" value="true" ?/>' mihon-interaction-artifacts/prefs-invert-volume-keys.xml
 
 dismiss_reader_settings "inverted-volume navigation"
+
+# Reopen the production reader after inversion is persisted. Long strip restores
+# the saved page with scrollToPositionWithOffset(page, 0), giving this assertion
+# a known page boundary instead of an arbitrary in-page offset.
+adb shell am force-stop "$PACKAGE"
+adb shell am start -W -n "$PACKAGE/.MihonReaderPreviewActivity" \
+  --ez mihon.preview.openProductionReader true
+sleep 3
+assert_alive
+assert_no_crash
 hide_reader_chrome "inverted-volume navigation"
 
 before_inverted_progress="$(read_saved_progress)"
 before_inverted_media="$(read_media_volume)"
 test -n "$before_inverted_progress"
+if [ "$before_inverted_progress" -le 0 ]; then
+  echo "Inverted-volume restart did not restore a page with backward room." >&2
+  exit 1
+fi
+adb exec-out screencap -p > mihon-interaction-artifacts/07-inverted-start.png
 
 # Inverted mapping: Volume Down moves backward.
 adb shell input keyevent KEYCODE_VOLUME_DOWN
