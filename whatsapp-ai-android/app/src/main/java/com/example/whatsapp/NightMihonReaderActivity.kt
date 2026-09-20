@@ -278,6 +278,18 @@ class MihonReaderPreviewActivity :
             bitmap.recycle()
         }
 
+        if (intent.getBooleanExtra(EXTRA_OPEN_PRODUCTION_READER, false)) {
+            startActivity(
+                NightMihonReaderActivity.archiveIntent(
+                    context = this,
+                    localPath = archive.absolutePath,
+                    displayName = "Mihon Interaction Test.cbz",
+                ),
+            )
+            finish()
+            return
+        }
+
         setContent {
             WhatsappTheme(darkTheme = true) {
                 ArchiveReaderEntry(
@@ -288,5 +300,10 @@ class MihonReaderPreviewActivity :
                 )
             }
         }
+    }
+
+    companion object {
+        const val EXTRA_OPEN_PRODUCTION_READER =
+            "mihon.preview.openProductionReader"
     }
 }
