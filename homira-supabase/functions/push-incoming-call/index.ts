@@ -50,6 +50,102 @@ function pemToPkcs8(pem: string): Uint8Array {
   return Uint8Array.from(binary, (char) => char.charCodeAt(0));
 }
 
+
+type PushAttemptResult = {
+  ok: boolean;
+  status: number;
+  errorText: string;
+  attempts: number;
+};
+
+async function sendToFcmWithRetry(
+  projectId: string,
+  accessToken: string,
+  fid: string,
+  payload: Record<string, string>,
+): Promise<PushAttemptResult> {
+  const delays = [0, 250, 750];
+
+  for (let index = 0; index < delays.length; index += 1) {
+    if (delays[index] > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delays[index]));
+    }
+
+    const response = await fetch(
+      `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: {
+            fid,
+            data: payload,
+            android: {
+              priority: "high",
+              ttl: "45s",
+            },
+          },
+        }),
+      },
+    );
+
+    if (response.ok) {
+      return {
+        ok: true,
+        status: response.status,
+        errorText: "",
+        attempts: index + 1,
+      };
+    }
+
+    const errorText = await response.text();
+    const transient = response.status === 429 || response.status >= 500;
+
+    if (!transient || index === delays.length - 1) {
+      return {
+        ok: false,
+        status: response.status,
+        errorText,
+        attempts: index + 1,
+      };
+    }
+  }
+
+  return {
+    ok: false,
+    status: 500,
+    errorText: "retry_exhausted",
+    attempts: delays.length,
+  };
+}
+
+async function logPushAttempt(
+  admin: ReturnType<typeof createClient>,
+  callId: string,
+  calleeId: string,
+  deviceId: string,
+  result: PushAttemptResult,
+) {
+  const errorCode = result.ok
+    ? null
+    : result.errorText.slice(0, 500);
+
+  await admin
+    .from("incoming_call_push_attempts")
+    .insert({
+      call_id: callId,
+      callee_id: calleeId,
+      device_id: deviceId,
+      outcome: result.ok ? "accepted" : "failed",
+      status_code: result.status,
+      error_code: errorCode,
+      attempt_count: result.attempts,
+    });
+}
+
 async function googleAccessToken(
   clientEmail: string,
   privateKeyPem: string,
@@ -235,53 +331,54 @@ Deno.serve(async (req: Request) => {
 
   let delivered = 0;
   let failed = 0;
+  let attempts = 0;
+
+  const payload = {
+    type: "incoming_call",
+    call_id: call.id,
+    caller_id: call.caller_id,
+    caller_name: callerName,
+    media_type: call.media_type,
+    expires_at: call.expires_at,
+  };
 
   for (const row of tokens) {
-    const response = await fetch(
-      `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: {
-            fid: row.token,
-            data: {
-              type: "incoming_call",
-              call_id: call.id,
-              caller_id: call.caller_id,
-              caller_name: callerName,
-              media_type: call.media_type,
-              expires_at: call.expires_at,
-            },
-            android: {
-              priority: "high",
-              ttl: "45s",
-            },
-          },
-        }),
-      },
+    const result = await sendToFcmWithRetry(
+      projectId,
+      accessToken,
+      row.token,
+      payload,
     );
 
-    if (response.ok) {
+    attempts += result.attempts;
+
+    if (result.ok) {
       delivered += 1;
-      continue;
+    } else {
+      failed += 1;
+
+      if (
+        result.errorText.includes("UNREGISTERED") ||
+        result.errorText.includes("NOT_FOUND") ||
+        result.errorText.includes("registration-token-not-registered")
+      ) {
+        await admin
+          .from("device_push_tokens")
+          .delete()
+          .eq("token", row.token);
+      }
     }
 
-    failed += 1;
-    const errorText = await response.text();
-
-    if (
-      errorText.includes("UNREGISTERED") ||
-      errorText.includes("NOT_FOUND") ||
-      errorText.includes("registration-token-not-registered")
-    ) {
-      await admin
-        .from("device_push_tokens")
-        .delete()
-        .eq("token", row.token);
+    try {
+      await logPushAttempt(
+        admin,
+        call.id,
+        call.callee_id,
+        row.device_id,
+        result,
+      );
+    } catch {
+      // Push delivery must not fail because telemetry logging failed.
     }
   }
 
@@ -289,5 +386,6 @@ Deno.serve(async (req: Request) => {
     configured: true,
     delivered,
     failed,
+    attempts,
   });
 });
