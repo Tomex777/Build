@@ -106,7 +106,7 @@ adb exec-out screencap -p > mihon-interaction-artifacts/01-seeded-cbz.png
 
 # Use the real production reader activity for the remaining tests.
 adb shell am force-stop "$PACKAGE"
-adb shell am start -W -n "$PACKAGE/.NightMihonReaderActivity" \
+adb shell run-as "$PACKAGE" am start -W -n "$PACKAGE/.NightMihonReaderActivity" \
   --es mihon.archivePath "$ARCHIVE" \
   --es mihon.title MihonInteractionTest.cbz
 sleep 3
@@ -129,7 +129,7 @@ assert_no_crash
 
 # Restart the production reader and verify the saved page is restored.
 adb shell am force-stop "$PACKAGE"
-adb shell am start -W -n "$PACKAGE/.NightMihonReaderActivity" \
+adb shell run-as "$PACKAGE" am start -W -n "$PACKAGE/.NightMihonReaderActivity" \
   --es mihon.archivePath "$ARCHIVE" \
   --es mihon.title MihonInteractionTest.cbz
 sleep 3
