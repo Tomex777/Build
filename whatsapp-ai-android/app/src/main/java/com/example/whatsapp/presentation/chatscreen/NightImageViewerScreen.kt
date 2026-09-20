@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.SystemClock
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -51,6 +52,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -346,7 +348,9 @@ internal fun NightVlcVideoSurface(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current.applicationContext
-    val libVlc = remember(path) {
+    var softwareDecode by remember(path) { mutableStateOf(false) }
+    var userPaused by remember(path) { mutableStateOf(false) }
+    val libVlc = remember(path, softwareDecode) {
         LibVLC(
             context,
             arrayListOf(
@@ -355,7 +359,7 @@ internal fun NightVlcVideoSurface(
             ),
         )
     }
-    val player = remember(path) { MediaPlayer(libVlc) }
+    val player = remember(path, softwareDecode) { MediaPlayer(libVlc) }
     var playing by remember(path) { mutableStateOf(false) }
     var length by remember(path) { mutableLongStateOf(0L) }
     var position by remember(path) { mutableLongStateOf(0L) }
@@ -367,7 +371,7 @@ internal fun NightVlcVideoSurface(
             else -> Uri.fromFile(File(path))
         }
         val media = Media(libVlc, uri).apply {
-            setHWDecoderEnabled(true, false)
+            setHWDecoderEnabled(!softwareDecode, false)
             addOption(":network-caching=1500")
         }
         player.media = media
@@ -381,14 +385,33 @@ internal fun NightVlcVideoSurface(
         }
     }
 
-    LaunchedEffect(active, player) {
+    LaunchedEffect(active, player, softwareDecode) {
         if (active) {
             player.play()
             playing = true
-            while (true) {
+            val startedAt = SystemClock.elapsedRealtime()
+            var lastAdvanceAt = startedAt
+            var lastObservedPosition = -1L
+            while (isActive) {
+                val now = SystemClock.elapsedRealtime()
                 length = player.length.coerceAtLeast(0L)
                 position = player.time.coerceAtLeast(0L)
                 playing = player.isPlaying
+                if (position > lastObservedPosition + 180L) {
+                    lastObservedPosition = position
+                    lastAdvanceAt = now
+                }
+                if (
+                    !softwareDecode &&
+                    !userPaused &&
+                    length > 0L &&
+                    position < (length - 1500L).coerceAtLeast(0L) &&
+                    now - startedAt >= 3500L &&
+                    now - lastAdvanceAt >= 2500L
+                ) {
+                    softwareDecode = true
+                    return@LaunchedEffect
+                }
                 delay(250)
             }
         } else {
@@ -405,22 +428,26 @@ internal fun NightVlcVideoSurface(
             },
         contentAlignment = Alignment.Center,
     ) {
-        AndroidView(
-            factory = { ctx ->
-                VLCVideoLayout(ctx).also { layout ->
-                    player.attachViews(layout, null, false, false)
-                }
-            },
-            modifier = Modifier.fillMaxSize(),
-        )
+        key(player) {
+            AndroidView(
+                factory = { ctx ->
+                    VLCVideoLayout(ctx).also { layout ->
+                        player.attachViews(layout, null, false, false)
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
 
         if (showControls) {
             IconButton(
                 onClick = {
                     if (player.isPlaying) {
+                        userPaused = true
                         player.pause()
                         playing = false
                     } else {
+                        userPaused = false
                         player.play()
                         playing = true
                     }
