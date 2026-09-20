@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.night.endless.engine.render.ApproachSnapshot
 import com.night.endless.engine.render.BodyLabelSnapshot
 import com.night.endless.engine.render.EndlessGLView
 import kotlinx.coroutines.delay
@@ -93,6 +94,7 @@ private fun EndlessApp() {
     var dateText by remember { mutableStateOf("—") }
     var timeText by remember { mutableStateOf("—") }
     var snapshots by remember { mutableStateOf<List<BodyLabelSnapshot>>(emptyList()) }
+    var approach by remember { mutableStateOf(ApproachSnapshot(null, Double.POSITIVE_INFINITY, "SPACE", false)) }
     var glView by remember { mutableStateOf<EndlessGLView?>(null) }
 
     LaunchedEffect(glView) {
@@ -104,6 +106,7 @@ private fun EndlessApp() {
                 dateText = dateFormat.format(now)
                 timeText = timeFormat.format(now)
                 snapshots = renderer.labelSnapshots()
+                approach = renderer.approachSnapshot()
                 speedLabel = renderer.speedLabel()
             }
             delay(33)
@@ -202,6 +205,18 @@ private fun EndlessApp() {
                         "Tap a planet or its label to fly there",
                         color = Color(0x667D89AA), fontSize = 8.sp
                     )
+                } else if (selected == "mars" && approach.altitudeKm.isFinite()) {
+                    val altitude = when {
+                        approach.altitudeKm >= 1000.0 -> String.format(Locale.US, "%.0f km", approach.altitudeKm)
+                        approach.altitudeKm >= 10.0 -> String.format(Locale.US, "%.1f km", approach.altitudeKm)
+                        else -> String.format(Locale.US, "%.2f km", approach.altitudeKm)
+                    }
+                    Text(
+                        "${approach.stage} · ALT ${altitude}",
+                        color = if (approach.stage == "ATMOSPHERE" || approach.stage == "SURFACE SKIM") Accent else Color(0x887D89AA),
+                        fontSize = 8.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
                 }
             }
 
@@ -236,6 +251,18 @@ private fun EndlessApp() {
                         orbitsOn = glView?.endlessRenderer?.toggleOrbits() ?: orbitsOn
                     }
                     ControlButton("◆  Labels", active = labelsOn) { labelsOn = !labelsOn }
+                    if (selected == "mars" && !overview) {
+                        DividerPill()
+                        if (approach.stage == "ORBIT" || approach.stage == "CLOSE APPROACH") {
+                            ControlButton("↓  Approach Mars", active = approach.stage == "CLOSE APPROACH") {
+                                glView?.endlessRenderer?.approachSelected()
+                            }
+                        } else {
+                            ControlButton("↑  Pull back") {
+                                glView?.endlessRenderer?.pullBackSelected()
+                            }
+                        }
+                    }
                 }
             }
         }
