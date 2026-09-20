@@ -54,6 +54,7 @@ import com.example.whatsapp.presentation.chatscreen.AudioPlaybackUiState
 import com.example.whatsapp.presentation.chatscreen.ChoiceResultMessage
 import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
 import com.example.whatsapp.presentation.chatscreen.ExtensionResultMessage
+import com.example.whatsapp.presentation.chatscreen.MangaResultMessage
 import com.example.whatsapp.presentation.chatscreen.NightChatAppearance
 import com.example.whatsapp.presentation.chatscreen.NightChoiceDialog
 import com.example.whatsapp.presentation.chatscreen.NightChatMediaItem
@@ -77,6 +78,7 @@ import com.example.whatsapp.presentation.profile.NightProvidersScreen
 import com.example.whatsapp.presentation.profile.NightScheduleDialog
 import com.example.whatsapp.presentation.profile.NightScheduledTasksScreen
 import com.example.whatsapp.presentation.profile.NightYouTab
+import com.example.whatsapp.presentation.reader.mihon.decodeMihonPages
 import com.example.whatsapp.presentation.shell.MainTab
 import com.example.whatsapp.presentation.shell.ModernChatsTab
 import com.example.whatsapp.presentation.shell.ModernSettingsScreen
@@ -1235,6 +1237,62 @@ private fun NightApp(initialChatId: String? = null) {
                             }
                         }
                     }
+                    actionId == "read" -> {
+                        scope.launch {
+                            val existing = repository.getMessage(messageId) ?: return@launch
+                            if (existing.type != "manga") return@launch
+
+                            val payload = runCatching { JSONObject(existing.payloadJson) }
+                                .getOrElse { JSONObject() }
+                            val title = payload.optString("title").ifBlank {
+                                existing.text.ifBlank { "Manga" }
+                            }
+                            val chapter = payload.optString("chapter")
+                            val archivePath = payload.optString("archivePath")
+                                .takeIf { it.isNotBlank() }
+
+                            if (archivePath != null && File(archivePath).exists()) {
+                                context.startActivity(
+                                    NightMihonReaderActivity.archiveIntent(
+                                        context = context,
+                                        localPath = archivePath,
+                                        displayName = title,
+                                    )
+                                )
+                                return@launch
+                            }
+
+                            val pagesRaw = when {
+                                payload.optJSONArray("pages") != null ->
+                                    payload.optJSONArray("pages")!!.toString()
+                                payload.optString("pages").isNotBlank() ->
+                                    payload.optString("pages")
+                                else -> ""
+                            }
+                            val pages = decodeMihonPages(pagesRaw)
+                            if (pages.isEmpty()) {
+                                Toast.makeText(
+                                    context,
+                                    "This manga card has no readable chapter pages yet.",
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                                return@launch
+                            }
+
+                            context.startActivity(
+                                NightMihonReaderActivity.intent(
+                                    context = context,
+                                    title = title,
+                                    chapter = chapter,
+                                    pages = pages,
+                                    readerKey = payload.optString("readerKey").ifBlank { title },
+                                    progressKey = payload.optString("progressKey")
+                                        .takeIf { it.isNotBlank() }
+                                        ?: ("manga:" + existing.id),
+                                )
+                            )
+                        }
+                    }
                     actionId == "choose_ai" || actionId.startsWith("ai_") -> screen = "choose_ai"
                     actionId == "open_library" -> {
                         selectedTabName = MainTab.Updates.name
@@ -1680,6 +1738,20 @@ private fun NightMessageEntity.toVisualMessage(
                 time = time,
             )
         }
+
+        "manga" -> MangaResultMessage(
+            id = id,
+            title = payload?.optString("title").orEmpty().ifBlank { text.ifBlank { "Manga" } },
+            chapter = payload?.optString("chapter").orEmpty().ifBlank { "Chapter" },
+            source = payload?.optString("source").orEmpty().ifBlank { "Night" },
+            description = payload?.optString("description").orEmpty(),
+            time = time,
+            coverPath = payload?.optString("coverPath")?.takeIf { it.isNotBlank() },
+            status = payload?.optString("status").orEmpty().ifBlank { "Ongoing" },
+            primaryActionLabel = payload?.optString("primaryActionLabel")
+                .orEmpty()
+                .ifBlank { "Read" },
+        )
 
         "extension" -> {
             val snapshot = ExtensionMessageCodec.decode(payloadJson)
