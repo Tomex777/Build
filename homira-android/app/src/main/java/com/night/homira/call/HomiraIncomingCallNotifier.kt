@@ -33,7 +33,7 @@ class HomiraIncomingCallNotifier(
         appContext.getSystemService(AlarmManager::class.java)
 
     init {
-        runCatching { ensureChannel() }
+        runCatching { ensureChannels() }
     }
 
     fun show(
@@ -135,9 +135,16 @@ class HomiraIncomingCallNotifier(
             .setImportant(true)
             .build()
 
+        val incomingChannel =
+            if (ringtoneUri.isNullOrBlank()) {
+                CHANNEL_INCOMING_CALLS_DEFAULT
+            } else {
+                CHANNEL_INCOMING_CALLS_CUSTOM
+            }
+
         val notification = NotificationCompat.Builder(
             appContext,
-            CHANNEL_INCOMING_CALLS
+            incomingChannel
         )
             .setSmallIcon(android.R.drawable.sym_action_call)
             .setContentTitle(callerName)
@@ -180,12 +187,16 @@ class HomiraIncomingCallNotifier(
                 notificationId(callId),
                 notification
             )
-            HomiraRingtonePlayback.play(
-                context = appContext,
-                uriString = ringtoneUri,
-                callId = callId,
-                timeoutMs = safeTimeoutMs
-            )
+            if (ringtoneUri.isNullOrBlank()) {
+                HomiraRingtonePlayback.stop()
+            } else {
+                HomiraRingtonePlayback.play(
+                    context = appContext,
+                    uriString = ringtoneUri,
+                    callId = callId,
+                    timeoutMs = safeTimeoutMs
+                )
+            }
             true
         }.getOrDefault(false)
     }
@@ -246,7 +257,7 @@ class HomiraIncomingCallNotifier(
 
         val notification = NotificationCompat.Builder(
             appContext,
-            CHANNEL_INCOMING_CALLS
+            CHANNEL_ONGOING_CALLS
         )
             .setSmallIcon(android.R.drawable.sym_action_call)
             .setContentTitle(peerName)
@@ -342,23 +353,70 @@ class HomiraIncomingCallNotifier(
         pendingIntent.cancel()
     }
 
-    private fun ensureChannel() {
-        if (notificationManager.getNotificationChannel(CHANNEL_INCOMING_CALLS) != null) {
-            return
+    private fun ensureChannels() {
+        val ringtoneAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+
+        if (
+            notificationManager.getNotificationChannel(
+                CHANNEL_INCOMING_CALLS_DEFAULT
+            ) == null
+        ) {
+            val defaultIncoming = NotificationChannel(
+                CHANNEL_INCOMING_CALLS_DEFAULT,
+                "Incoming calls",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Incoming Homira voice and video calls"
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                enableVibration(true)
+                setSound(
+                    RingtoneManager.getDefaultUri(
+                        RingtoneManager.TYPE_RINGTONE
+                    ),
+                    ringtoneAttributes
+                )
+            }
+            notificationManager.createNotificationChannel(defaultIncoming)
         }
 
-        val channel = NotificationChannel(
-            CHANNEL_INCOMING_CALLS,
-            "Incoming calls",
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = "Incoming Homira voice and video calls"
-            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-            enableVibration(true)
-            setSound(null, null)
+        if (
+            notificationManager.getNotificationChannel(
+                CHANNEL_INCOMING_CALLS_CUSTOM
+            ) == null
+        ) {
+            val customIncoming = NotificationChannel(
+                CHANNEL_INCOMING_CALLS_CUSTOM,
+                "Incoming calls · custom ringtone",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Incoming Homira calls using your selected ringtone"
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                enableVibration(true)
+                setSound(null, null)
+            }
+            notificationManager.createNotificationChannel(customIncoming)
         }
 
-        notificationManager.createNotificationChannel(channel)
+        if (
+            notificationManager.getNotificationChannel(
+                CHANNEL_ONGOING_CALLS
+            ) == null
+        ) {
+            val ongoing = NotificationChannel(
+                CHANNEL_ONGOING_CALLS,
+                "Ongoing calls",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Active Homira calls"
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                setSound(null, null)
+                enableVibration(false)
+            }
+            notificationManager.createNotificationChannel(ongoing)
+        }
     }
 
     private fun notificationId(callId: String): Int =
@@ -378,7 +436,12 @@ class HomiraIncomingCallNotifier(
         private const val MIN_RING_TIMEOUT_MS = 1_000L
         private const val MAX_RING_TIMEOUT_MS = 45_000L
 
-        private const val CHANNEL_INCOMING_CALLS = "homira_incoming_calls_v2"
+        private const val CHANNEL_INCOMING_CALLS_DEFAULT =
+            "homira_incoming_calls_v3"
+        private const val CHANNEL_INCOMING_CALLS_CUSTOM =
+            "homira_incoming_calls_custom_v1"
+        private const val CHANNEL_ONGOING_CALLS =
+            "homira_ongoing_calls_v1"
         private const val NOTIFICATION_TAG = "homira_call"
     }
 }
