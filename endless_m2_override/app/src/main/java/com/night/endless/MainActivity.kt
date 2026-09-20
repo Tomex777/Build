@@ -106,7 +106,7 @@ private fun EndlessApp() {
                 snapshots = renderer.labelSnapshots()
                 speedLabel = renderer.speedLabel()
             }
-            delay(80)
+            delay(33)
         }
     }
 
@@ -189,11 +189,21 @@ private fun EndlessApp() {
                 }
             }
 
-            Text(
-                if (selected == null) "OVERVIEW" else "FOCUSED · ${bodyInfo[selected]?.name?.uppercase() ?: selected!!.uppercase()}",
-                color = Color(0x99BEC6DC), fontSize = 8.sp, letterSpacing = 1.1.sp,
-                modifier = Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = 14.dp)
-            )
+            Column(
+                modifier = Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    if (selected == null) "OVERVIEW · SUN-CENTERED" else "FOCUSED · ${bodyInfo[selected]?.name?.uppercase() ?: selected!!.uppercase()}",
+                    color = Color(0x99BEC6DC), fontSize = 8.sp, letterSpacing = 1.1.sp
+                )
+                if (overview) {
+                    Text(
+                        "Tap a planet or its label to fly there",
+                        color = Color(0x667D89AA), fontSize = 8.sp
+                    )
+                }
+            }
 
             Surface(
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp)
