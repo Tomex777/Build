@@ -30,7 +30,11 @@ object HomiraPushBootstrap {
                 return@runCatching true
             }
 
-            FirebaseApp.initializeApp(appContext)?.let {
+            val automaticApp = runCatching {
+                FirebaseApp.initializeApp(appContext)
+            }.getOrNull()
+
+            if (automaticApp != null) {
                 return@runCatching true
             }
 
