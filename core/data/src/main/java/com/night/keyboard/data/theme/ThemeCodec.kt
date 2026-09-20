@@ -23,7 +23,9 @@ object ThemeCodec {
                 .putOpt("borderWidthDp", value.borderWidthDp).putOpt("cornerRadiusDp", value.cornerRadiusDp)
                 .putOpt("labelSizeSp", value.labelSizeSp).putOpt("widthScale", value.widthScale).putOpt("heightDp", value.heightDp)
                 .putOpt("bold", value.bold).putOpt("italic", value.italic)
-                .putOpt("fillAlpha", value.fillAlpha).putOpt("borderEnabled", value.borderEnabled).putOpt("invisibleFill", value.invisibleFill))
+                .putOpt("fillAlpha", value.fillAlpha).putOpt("borderEnabled", value.borderEnabled).putOpt("invisibleFill", value.invisibleFill)
+                .putOpt("shadowElevationDp", value.shadowElevationDp).putOpt("fontFamilyName", value.fontFamilyName)
+                .putOpt("decorationText", value.decorationText).putOpt("decorationArgb", value.decorationArgb))
         }
         return root.put("overrides", overrides).toString()
     }
@@ -40,6 +42,8 @@ object ThemeCodec {
                 labelSizeSp = o.optDoubleOrNull("labelSizeSp")?.toFloat(), widthScale = o.optDoubleOrNull("widthScale")?.toFloat(), heightDp = o.optDoubleOrNull("heightDp")?.toFloat(),
                 bold = o.optBooleanOrNull("bold"), italic = o.optBooleanOrNull("italic"),
                 fillAlpha = o.optDoubleOrNull("fillAlpha")?.toFloat(), borderEnabled = o.optBooleanOrNull("borderEnabled"), invisibleFill = o.optBooleanOrNull("invisibleFill"),
+                shadowElevationDp = o.optDoubleOrNull("shadowElevationDp")?.toFloat(), fontFamilyName = o.optStringOrNull("fontFamilyName"),
+                decorationText = o.optStringOrNull("decorationText"), decorationArgb = o.optLongOrNull("decorationArgb"),
             )
         }
         ThemeSnapshot(
@@ -56,3 +60,5 @@ object ThemeCodec {
 private fun JSONObject.optLongOrNull(key: String): Long? = if (has(key) && !isNull(key)) getLong(key) else null
 private fun JSONObject.optDoubleOrNull(key: String): Double? = if (has(key) && !isNull(key)) getDouble(key) else null
 private fun JSONObject.optBooleanOrNull(key: String): Boolean? = if (has(key) && !isNull(key)) getBoolean(key) else null
+
+private fun JSONObject.optStringOrNull(key: String): String? = if (has(key) && !isNull(key)) getString(key) else null

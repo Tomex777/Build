@@ -2,6 +2,7 @@ package com.night.keyboard.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.night.keyboard.data.theme.ThemeCodec
 import com.night.keyboard.data.theme.ThemeRepository
 import com.night.keyboard.model.KeyStyleOverride
 import com.night.keyboard.model.ThemeSnapshot
@@ -21,7 +22,9 @@ import kotlinx.coroutines.launch
 
 @OptIn(FlowPreview::class)
 @HiltViewModel
-class EditorViewModel @Inject constructor(private val themes: ThemeRepository) : ViewModel() {
+class EditorViewModel @Inject constructor(
+    private val themes: ThemeRepository,
+) : ViewModel() {
     private val persisted = themes.activeTheme.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -50,7 +53,10 @@ class EditorViewModel @Inject constructor(private val themes: ThemeRepository) :
         }
     }
 
-    fun updateSelected(selected: Set<String>, transform: (KeyStyleOverride) -> KeyStyleOverride) {
+    fun updateSelected(
+        selected: Set<String>,
+        transform: (KeyStyleOverride) -> KeyStyleOverride,
+    ) {
         if (selected.isEmpty()) return
         val current = theme.value
         val nextOverrides = current.overrides.toMutableMap()
@@ -62,6 +68,34 @@ class EditorViewModel @Inject constructor(private val themes: ThemeRepository) :
 
     fun updateBase(transform: (ThemeSnapshot) -> ThemeSnapshot) {
         setWorking(transform(theme.value))
+    }
+
+    fun resetSelected(selected: Set<String>) {
+        if (selected.isEmpty()) return
+        val current = theme.value
+        val next = current.overrides.toMutableMap()
+        selected.forEach(next::remove)
+        setWorking(current.copy(overrides = next))
+    }
+
+    fun duplicateTheme() {
+        viewModelScope.launch {
+            val source = theme.value
+            val copy = source.copy(
+                id = 0L,
+                name = source.name.removeSuffix(" copy") + " copy",
+            )
+            val id = themes.saveAsNewActive(copy)
+            edits.value = copy.copy(id = id)
+        }
+    }
+
+    fun importTheme(json: String) {
+        viewModelScope.launch {
+            val decoded = ThemeCodec.decode(json).copy(id = 0L)
+            val id = themes.saveAsNewActive(decoded)
+            edits.value = decoded.copy(id = id)
+        }
     }
 
     private fun setWorking(snapshot: ThemeSnapshot) {

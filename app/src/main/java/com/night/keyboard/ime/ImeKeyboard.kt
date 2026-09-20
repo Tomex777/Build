@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -26,6 +27,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -730,6 +732,13 @@ private fun ImeKey(
         modifier
             .height((style.heightDp ?: theme.keyHeightDp).coerceIn(34f, 80f).dp)
             .padding(horizontal = 1.dp)
+            .then(
+                if ((style.shadowElevationDp ?: 0f) > 0f) {
+                    Modifier.shadow((style.shadowElevationDp ?: 0f).dp, RoundedCornerShape(radius), clip = false)
+                } else {
+                    Modifier
+                },
+            )
             .background(fill, RoundedCornerShape(radius))
             .then(
                 if (borderWidth > 0.dp) {
@@ -783,6 +792,17 @@ private fun ImeKey(
                 fontSize = (style.labelSizeSp ?: theme.labelSizeSp).sp,
                 fontWeight = if (style.bold == true) FontWeight.Bold else FontWeight.Normal,
                 fontStyle = if (style.italic == true) FontStyle.Italic else FontStyle.Normal,
+                fontFamily = fontFamilyFor(style.fontFamilyName),
+            )
+        }
+        val decoration = style.decorationText.orEmpty()
+        if (decoration.isNotBlank()) {
+            Text(
+                decoration.take(4),
+                color = Color((style.decorationArgb ?: style.labelArgb ?: theme.keyLabelArgb).toInt()),
+                fontSize = 9.sp,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 4.dp, bottom = 2.dp),
+                maxLines = 1,
             )
         }
         if (key.special == SpecialKey.COMMA && secondary == "mic") {
@@ -819,6 +839,13 @@ private fun SpacebarKey(
         modifier
             .height((style.heightDp ?: theme.keyHeightDp).coerceIn(34f, 80f).dp)
             .padding(horizontal = 1.dp)
+            .then(
+                if ((style.shadowElevationDp ?: 0f) > 0f) {
+                    Modifier.shadow((style.shadowElevationDp ?: 0f).dp, RoundedCornerShape(radius), clip = false)
+                } else {
+                    Modifier
+                },
+            )
             .background(fill, RoundedCornerShape(radius))
             .semantics { contentDescription = "Spacebar" }
             .pointerInput(onSpace, onCursor, hapticsEnabled) {
@@ -885,11 +912,25 @@ private fun SpacebarKey(
             },
         contentAlignment = Alignment.Center,
     ) {
+        val spaceDecoration = style.decorationText.orEmpty()
         Text(
-            if (tracking) "cursor" else "",
-            color = Color(theme.secondaryLabelArgb.toInt()),
-            fontSize = 9.sp,
-            modifier = Modifier.alpha(if (tracking) 1f else 0f),
+            if (tracking) "cursor" else spaceDecoration,
+            color = if (tracking) {
+                Color(theme.secondaryLabelArgb.toInt())
+            } else {
+                Color((style.decorationArgb ?: style.labelArgb ?: theme.secondaryLabelArgb).toInt())
+            },
+            fontSize = if (tracking) 9.sp else 13.sp,
+            modifier = Modifier.alpha(if (tracking || spaceDecoration.isNotBlank()) 1f else 0f),
+            fontFamily = fontFamilyFor(style.fontFamilyName),
         )
     }
+}
+
+
+private fun fontFamilyFor(name: String?): FontFamily = when (name) {
+    "Serif" -> FontFamily.Serif
+    "Monospace" -> FontFamily.Monospace
+    "Cursive" -> FontFamily.Cursive
+    else -> FontFamily.SansSerif
 }

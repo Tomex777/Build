@@ -35,4 +35,19 @@ class ThemeRepository @Inject constructor(private val dao: ThemeDao) {
         )
         dao.replaceActive(entity)
     }
+
+    suspend fun saveAsNewActive(theme: ThemeSnapshot): Long = saveMutex.withLock {
+        val now = System.currentTimeMillis()
+        val normalized = theme.copy(id = 0L)
+        dao.insertAsNewActive(
+            ThemeEntity(
+                id = 0L,
+                name = normalized.name,
+                snapshotJson = ThemeCodec.encode(normalized),
+                createdAt = now,
+                updatedAt = now,
+                active = true,
+            ),
+        )
+    }
 }

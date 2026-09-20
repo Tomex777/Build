@@ -23,4 +23,10 @@ interface ThemeDao {
         clearActive()
         return insert(theme.copy(active = true))
     }
+
+    @Transaction
+    suspend fun insertAsNewActive(theme: ThemeEntity): Long {
+        clearActive()
+        return insert(theme.copy(id = 0L, active = true))
+    }
 }

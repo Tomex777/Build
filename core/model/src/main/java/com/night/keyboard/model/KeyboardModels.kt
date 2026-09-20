@@ -20,6 +20,10 @@ data class KeyStyleOverride(
     val fillAlpha: Float? = null,
     val borderEnabled: Boolean? = null,
     val invisibleFill: Boolean? = null,
+    val shadowElevationDp: Float? = null,
+    val fontFamilyName: String? = null,
+    val decorationText: String? = null,
+    val decorationArgb: Long? = null,
 )
 
 data class ThemeSnapshot(

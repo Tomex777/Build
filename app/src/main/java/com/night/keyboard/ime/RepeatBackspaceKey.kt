@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -22,6 +24,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.night.keyboard.model.KeySpec
 import com.night.keyboard.model.KeyStyleOverride
 import com.night.keyboard.model.ThemeSnapshot
@@ -66,6 +69,13 @@ fun RepeatBackspaceKey(
         modifier
             .height((style.heightDp ?: theme.keyHeightDp).coerceIn(34f, 80f).dp)
             .padding(horizontal = 1.dp)
+            .then(
+                if ((style.shadowElevationDp ?: 0f) > 0f) {
+                    Modifier.shadow((style.shadowElevationDp ?: 0f).dp, RoundedCornerShape(radius), clip = false)
+                } else {
+                    Modifier
+                },
+            )
             .background(fill, RoundedCornerShape(radius))
             .then(
                 if (borderWidth > 0.dp) {
@@ -113,5 +123,14 @@ fun RepeatBackspaceKey(
             tint = labelColor,
             modifier = Modifier.size(22.dp),
         )
+        style.decorationText?.takeIf { it.isNotBlank() }?.let { decoration ->
+            Text(
+                decoration.take(4),
+                color = Color((style.decorationArgb ?: style.labelArgb ?: theme.keyLabelArgb).toInt()),
+                fontSize = 9.sp,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 4.dp, bottom = 2.dp),
+                maxLines = 1,
+            )
+        }
     }
 }
