@@ -11,7 +11,7 @@
           </tr>
           <tr>
             <td align="center" style="padding:4px 34px 0;">
-              <div style="font-size:28px;line-height:36px;font-weight:800;color:#F4F7FA;">Hey! We’re so glad you’re joining us ✨</div>
+              <div style="font-size:28px;line-height:36px;font-weight:800;color:#F4F7FA;">{{ if or (eq (printf "%.1s" .Token) "0") (eq (printf "%.1s" .Token) "1") }}Hey! We’re so glad you’re joining us ✨{{ else if or (eq (printf "%.1s" .Token) "2") (eq (printf "%.1s" .Token) "3") }}Oh hiiii — welcome to Homira 💚{{ else if or (eq (printf "%.1s" .Token) "4") (eq (printf "%.1s" .Token) "5") }}You made it! Let’s get you set up 🌟{{ else if or (eq (printf "%.1s" .Token) "6") (eq (printf "%.1s" .Token) "7") }}Hey there — your Homira journey starts here 👋{{ else }}A new Homira human! We love to see it ✨{{ end }}</div>
               <div style="margin-top:12px;font-size:15px;line-height:23px;color:#95A2B2;">One tiny step and your Homira space is ready.</div>
             </td>
           </tr>
