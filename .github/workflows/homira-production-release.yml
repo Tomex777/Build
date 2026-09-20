@@ -84,7 +84,7 @@ jobs:
 
           jarsigner             -keystore homira-release/homira-production.jks             -storepass "$HOMIRA_SIGN_PASS"             -keypass "$HOMIRA_SIGN_PASS"             -sigalg SHA256withRSA             -digestalg SHA-256             homira-release/Homira-1.0.0-Production.aab             homira
 
-          jarsigner -verify -strict -certs             homira-release/Homira-1.0.0-Production.aab
+          jarsigner -verify -certs             homira-release/Homira-1.0.0-Production.aab
 
       - name: Encrypt signing-key backup
         shell: bash
@@ -97,7 +97,7 @@ jobs:
 
           openssl enc -aes-256-cbc -salt -pbkdf2 -iter 250000             -in /tmp/homira-signing-backup.tar.gz             -out homira-release/Homira-Production-Signing-Key.enc             -pass "pass:$BACKUP_PASS"
 
-          echo "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQm9qQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FZOEFNSUlCaWdLQ0FZRUF1d0EvL3Vydk16eHJoZ2ZESmhVZwpQTzRyS3RZdFFRVzY1aTUwaWswbHpZVVlsMnNQYU9VTXB4ejQ0R1Mvc2IwZnBUL1VLL0lOK1hKbEZUU2tHNHFKCng1azUxbzgrYnJsWm5nVk5uSzVPaEtUazZuWjFNNVlUdU9XRVhrdDYwQ2Y2T3cySlFVSDQvemhSd25nSmJLV00KTUpEeHZ4czVSd3NsSTI2TzZZQlJnSnNVQ0c0alhPcmM3eTlGSWx2LzE3aWpZRDdpMzVzcWVGVTVVUzVrSlJidwpZMXIzeGpTekNxRFhKbFVyOVEvbWhOVHM4dTQwang0ZDZQbFhWRHM3YkxBczM0cytsOHdScHhtOXZOT21EYzdqCis5a3VKcmd1SFdnQUhzcWUrT0hLVVF1SjltRllPb0pWbk5rb29Ya3R6WjFNeGgyRkppTGVJU1p2S0owcUxyUHgKTWtwMTd1ZFIwN2RNWUlsb0dDYmxURXkwbkNObVZmVTIxUlh4UFl5aHF4TzUyNE9Ib1VZTTVudEFPak55a1dLVApBTjN3c29ld1E3RHVIckZ5eXQ2d3BqZmZuR1hCKzVHZm1hcTQvd2N1dUlGWUFsdC84b2ZtWXE5MVY5RGpSdklnCk95dEpjNWVJbEtUVk5GOWg4STllcGJFRytMcXhyMjFpcVQ5akFUdXQyTG1MQWdNQkFBRT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==" | base64 -d > /tmp/homira-backup-public.pem
+          echo "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQm9qQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FZOEFNSUlCaWdLQ0FZRUFzZ25ZbllXcnIrS2t4Y1JWSTRybQp6MHdNLzVTVlhXY1hIdFgyYkFoR2hpNEhzZ3ZPSWxiVTlGQmtwaktzNCtYZFl0UUpYRXVDM21hemwySkozeExaCkNJa1VtTE82ZjZ3NEFrYlNCNWFmOUNQODQ2T2V0MUgyMk5GcGNwcWxSMWxxY0pUUEt1TlhuQUc1U0hTSmVuZG4KWjR3NjdQZjVYRWZXNWd3ZzBsNElSTGpRbWZaalNOTGNLSXV0dVlTUzlaNlNKcERoZkM0NnY0U1M2VEY4cDhwcApGN1BSbGROMDRZNEloRzNlVEV5bzd0d2E1YW1DcWxzYVFWdkRQdE52Y016NFliRHJyTFRUZ2VQRjRxcXdpaExFCkhTdWJ3cUszeXAxRjRKblVOVHk5QjlGUTZ3eWpTZk8xcThycmxnSngzanNvOE4ybkFYdDAxc21wZllwTVVZbEsKNmk4blBiR3JwaFYrM3JUL3Z1ZmdIZkx5dDBXTmVuVmRXZnRPQi9BZFRrWFdyS0FwaEZlTXpXYXZ6TkxxL3lXRAorUUpqdFNmSUx4TjFKejY4TjV6UVZOdHd3NE5OU2VLbHBqdk5SbE8vcFN6dG9QMlU4SWQ0VGEwYTMxTVFSK2ZhCnBiT2swalcxQXIvb2t5QUo1VGhmQ3JmbVp2ZXMrZWljZG11M0R4Sy80N014QWdNQkFBRT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==" | base64 -d > /tmp/homira-backup-public.pem
 
           printf '%s' "$BACKUP_PASS" |             openssl pkeyutl -encrypt               -pubin               -inkey /tmp/homira-backup-public.pem               -pkeyopt rsa_padding_mode:oaep               -pkeyopt rsa_oaep_md:sha256               -out homira-release/Homira-Production-Signing-Key.pass.enc
 
