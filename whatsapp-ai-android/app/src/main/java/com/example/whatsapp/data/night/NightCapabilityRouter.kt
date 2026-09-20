@@ -25,6 +25,20 @@ class NightCapabilityRouter(
         return NightResolvedModel(profile, model)
     }
 
+    suspend fun resolveChatCandidates(chatId: String): List<NightResolvedModel> {
+        val primary = resolveChatModel(chatId)
+        val candidates = mutableListOf<NightResolvedModel>()
+        if (primary != null) candidates += primary
+
+        repository.enabledProviderProfiles("chat").forEach { profile ->
+            repository.enabledProviderModels(profile.id).forEach { model ->
+                candidates += NightResolvedModel(profile, model)
+            }
+        }
+
+        return candidates.distinctBy { it.profile.id + ":" + it.model.id }
+    }
+
     suspend fun resolveCapability(
         chatId: String,
         capability: String,
