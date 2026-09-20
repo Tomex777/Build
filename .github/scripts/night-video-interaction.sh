@@ -280,9 +280,23 @@ to_seconds() {
 }
 
 read_current_time() {
-  show_controls
-  refresh_ui
-  python3 /tmp/night_video_uia.py times | head -n 1
+  local attempt value
+  for attempt in $(seq 1 12); do
+    show_controls
+    refresh_ui
+    value="$(python3 /tmp/night_video_uia.py times 2>/dev/null | head -n 1 || true)"
+    if [ -n "$value" ]; then
+      echo "$value"
+      return 0
+    fi
+    sleep 1
+  done
+
+  cp /tmp/window.xml "$ARTIFACTS/failure-current-time.xml" 2>/dev/null || true
+  adb exec-out screencap -p > "$ARTIFACTS/failure-current-time.png" || true
+  capture_media_logcat "current-time-missing"
+  echo "Night playback time was not exposed in the UI hierarchy." >&2
+  return 1
 }
 
 capture_dims() {
@@ -314,14 +328,22 @@ capture_dims "$ARTIFACTS/01-real-video-open.png" > "$ARTIFACTS/01-dimensions.txt
 capture_media_logcat "01-open"
 
 first_time="$(read_current_time)"
-sleep 2
-second_time="$(read_current_time)"
 first_seconds="$(to_seconds "$first_time")"
-second_seconds="$(to_seconds "$second_time")"
+second_time="$first_time"
+second_seconds="$first_seconds"
+for _ in $(seq 1 8); do
+  sleep 2
+  second_time="$(read_current_time)"
+  second_seconds="$(to_seconds "$second_time")"
+  if [ "$second_seconds" -gt "$first_seconds" ]; then
+    break
+  fi
+done
 capture_media_logcat "02-playback"
 assert_no_crash
 if [ "$second_seconds" -le "$first_seconds" ]; then
-  echo "Real MP4 playback time did not advance: $first_time -> $second_time" >&2
+  echo "Real MP4 playback time did not advance after recovery window: $first_time -> $second_time" >&2
+  adb exec-out screencap -p > "$ARTIFACTS/failure-playback-stalled.png" || true
   exit 1
 fi
 
