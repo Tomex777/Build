@@ -134,6 +134,26 @@ find_and_tap_text() {
   return 1
 }
 
+dismiss_reader_settings() {
+  local context_label="${1:-reader navigation}"
+  local attempt
+
+  # The Material sheet can be scrolled far enough that its title is no longer
+  # in the UI hierarchy. Use controls that stay near each other in the settings
+  # content as the open/closed sentinel instead of the off-screen title.
+  for attempt in 1 2 3; do
+    adb shell input keyevent KEYCODE_BACK
+    sleep 1
+    if ! text_is_visible "Volume keys" && ! text_is_visible "Invert volume keys"; then
+      return 0
+    fi
+  done
+
+  echo "Reader settings sheet did not close before $context_label." >&2
+  adb exec-out screencap -p > mihon-interaction-artifacts/failure-settings-dismiss.png
+  return 1
+}
+
 assert_no_crash() {
   adb logcat -d > mihon-interaction-artifacts/logcat-latest.txt || true
 
@@ -283,20 +303,7 @@ grep -Eq '<boolean name="volumeKeys" value="true" ?/>' mihon-interaction-artifac
 
 # Dismiss the settings sheet, then hide the reader chrome. Mihon only
 # intercepts volume keys for page navigation while the reader menu is hidden.
-# A tall Material bottom sheet can consume one Back for its internal state,
-# so keep backing out until the sheet text is actually gone.
-for attempt in 1 2 3; do
-  if ! text_is_visible "Reader settings"; then
-    break
-  fi
-  adb shell input keyevent KEYCODE_BACK
-  sleep 1
-done
-if text_is_visible "Reader settings"; then
-  echo "Reader settings sheet did not close before volume navigation." >&2
-  adb exec-out screencap -p > mihon-interaction-artifacts/failure-settings-dismiss.png
-  exit 1
-fi
+dismiss_reader_settings "volume navigation"
 
 # Reader chrome may be visible after the sheet closes. Toggle the center once
 # so hardware keys are tested in the same menu-hidden state Mihon uses.
@@ -379,17 +386,7 @@ adb shell run-as "$PACKAGE" cat shared_prefs/night_mihon_reader.xml \
   > mihon-interaction-artifacts/prefs-invert-volume-keys.xml
 grep -Eq '<boolean name="invertVolumeKeys" value="true" ?/>' mihon-interaction-artifacts/prefs-invert-volume-keys.xml
 
-for attempt in 1 2 3; do
-  if ! text_is_visible "Reader settings"; then
-    break
-  fi
-  adb shell input keyevent KEYCODE_BACK
-  sleep 1
-done
-if text_is_visible "Reader settings"; then
-  echo "Reader settings sheet did not close before inverted-volume navigation." >&2
-  exit 1
-fi
+dismiss_reader_settings "inverted-volume navigation"
 adb shell input tap 354 760
 sleep 1
 
@@ -403,6 +400,17 @@ sleep 2
 assert_no_crash
 after_inverted_down_progress="$(read_saved_progress)"
 after_inverted_down_media="$(read_media_volume)"
+
+cat > mihon-interaction-artifacts/volume-navigation-partial.txt <<EOF
+baselineMediaVolume=$baseline_media_volume
+normalStartPage=$before_volume_progress
+normalAfterDownPage=$after_volume_down_progress
+normalAfterUpPage=$after_volume_up_progress
+invertedStartPage=$before_inverted_progress
+invertedAfterDownPage=$after_inverted_down_progress
+invertedMediaBefore=$before_inverted_media
+invertedMediaAfterDown=$after_inverted_down_media
+EOF
 
 if [ "$after_inverted_down_progress" -ge "$before_inverted_progress" ]; then
   echo "Inverted Volume Down did not move backward in Long strip." >&2
