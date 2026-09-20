@@ -33,6 +33,13 @@ data class BodyLabelSnapshot(
     val visible: Boolean
 )
 
+data class ApproachSnapshot(
+    val bodyId: String?,
+    val altitudeKm: Double,
+    val stage: String,
+    val closeLod: Boolean
+)
+
 class EndlessRenderer(
     private val context: Context,
     private val onSelectionChanged: (String?) -> Unit
@@ -54,6 +61,8 @@ class EndlessRenderer(
     private var earthNightTexture = 0
     private var venusAtmosphereTexture = 0
     private var saturnRingTexture = 0
+    private var marsCloseTexture = 0
+    private var marsNormalTexture = 0
 
     private var starBuffer: FloatBuffer? = null
     private var starCount = 0
@@ -92,7 +101,9 @@ class EndlessRenderer(
     private var cameraPosition = Vec3d(0.0, 8.0, 38.0)
     private var previousCameraPosition = cameraPosition
     private var cameraTarget = Vec3d.ZERO
-    private val cameraRadius = 0.12
+
+    @Volatile
+    private var latestApproach = ApproachSnapshot(null, Double.POSITIVE_INFINITY, "SPACE", false)
 
     private var cloudRotation = 0.0
     private var venusCloudRotation = 0.0
@@ -171,7 +182,7 @@ class EndlessRenderer(
         GLES30.glEnable(GLES30.GL_BLEND)
         GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA)
 
-        sphere = SphereMesh()
+        sphere = SphereMesh(stacks = 96, slices = 144)
         planetProgram = createProgram(PLANET_VERTEX_SHADER, PLANET_FRAGMENT_SHADER)
         starProgram = createProgram(STAR_VERTEX_SHADER, STAR_FRAGMENT_SHADER)
         lineProgram = createProgram(LINE_VERTEX_SHADER, LINE_FRAGMENT_SHADER)
@@ -203,7 +214,9 @@ class EndlessRenderer(
         cloudRotation += dt * .012
         venusCloudRotation -= dt * .004
 
+        updateProjectionForApproach()
         updateCamera(dt)
+        updateApproachSnapshot()
         updateLabelSnapshots()
 
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
@@ -217,6 +230,9 @@ class EndlessRenderer(
             }
             if (body.id == "venus" && venusAtmosphereTexture != 0) {
                 drawOverlaySphere(body, venusAtmosphereTexture, 1.018f, venusCloudRotation.toFloat(), 2, .82f)
+            }
+            if (body.id == "mars") {
+                drawMarsAtmosphere(body)
             }
         }
 
@@ -243,7 +259,25 @@ class EndlessRenderer(
     @Synchronized
     fun zoomBy(scaleFactor: Float) {
         if (!scaleFactor.isFinite() || scaleFactor <= 0f) return
-        targetDistance = (targetDistance * scaleFactor).coerceIn(.35, 95.0)
+        val body = selectedId?.let { byId[it] }
+        val minimum = if (body != null) body.radius * 1.003 else .35
+        targetDistance = (targetDistance * scaleFactor).coerceIn(minimum, 95.0)
+    }
+
+    fun approachSnapshot(): ApproachSnapshot = latestApproach
+
+    @Synchronized
+    fun approachSelected() {
+        val body = selectedId?.let { byId[it] } ?: return
+        if (body.id != "mars") return
+        overview = false
+        targetDistance = body.radius * 1.018
+    }
+
+    @Synchronized
+    fun pullBackSelected() {
+        val body = selectedId?.let { byId[it] } ?: return
+        targetDistance = max(body.radius * 7.5, 2.0)
     }
 
     @Synchronized
@@ -428,12 +462,21 @@ class EndlessRenderer(
             sin(yaw) * cp * distance
         )
 
+        val focusedBody = selectedId?.let { byId[it] }
+        val closeToBody = focusedBody != null && distance < focusedBody.radius * 2.5
+        val cameraRadius = if (closeToBody) {
+            max(focusedBody!!.radius * 0.0008, 0.00025)
+        } else {
+            0.02
+        }
+        val skin = if (closeToBody) max(focusedBody!!.radius * 0.00035, 0.00012) else .004
+
         val motion = desired - previousCameraPosition
         val resolved = collision.resolveMotion(
             previousCameraPosition,
             motion,
             cameraRadius,
-            skin = .025
+            skin = skin
         )
 
         cameraPosition = resolved.position
@@ -441,7 +484,7 @@ class EndlessRenderer(
         selectedId?.let { id ->
             byId[id]?.let { body ->
                 val radial = cameraPosition - body.position
-                val minDistance = body.radius + cameraRadius + .04
+                val minDistance = body.radius + cameraRadius + skin
                 if (radial.length() < minDistance) {
                     val normal = if (radial.length() < 1e-8) {
                         Vec3d(0.0, 0.0, 1.0)
@@ -516,7 +559,9 @@ class EndlessRenderer(
 
             val nx = clip[0] / w
             val ny = clip[1] / w
-            val visible = nx in -1.15f..1.15f && ny in -1.15f..1.15f
+            val closeSurface = latestApproach.bodyId == selectedId &&
+                (latestApproach.stage == "ATMOSPHERE" || latestApproach.stage == "SURFACE SKIM")
+            val visible = !closeSurface && nx in -1.15f..1.15f && ny in -1.15f..1.15f
             val sx = (nx * .5f + .5f) * width
             val sy = (1f - (ny * .5f + .5f)) * height
 
@@ -532,7 +577,11 @@ class EndlessRenderer(
         GLES30.glUseProgram(planetProgram)
         bindPlanetCommon(body)
 
-        val baseTexture = textures[body.id] ?: 0
+        val useMarsClose = body.id == "mars" &&
+            latestApproach.bodyId == "mars" &&
+            latestApproach.closeLod &&
+            marsCloseTexture != 0
+        val baseTexture = if (useMarsClose) marsCloseTexture else (textures[body.id] ?: 0)
         bindTexture(0, baseTexture)
         GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uTexture"), 0)
         GLES30.glUniform1i(
@@ -546,6 +595,14 @@ class EndlessRenderer(
         GLES30.glUniform1i(
             GLES30.glGetUniformLocation(planetProgram, "uUseNight"),
             if (night != 0) 1 else 0
+        )
+
+        val normal = if (useMarsClose) marsNormalTexture else 0
+        bindTexture(2, normal)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uNormalTexture"), 2)
+        GLES30.glUniform1i(
+            GLES30.glGetUniformLocation(planetProgram, "uUseNormal"),
+            if (normal != 0) 1 else 0
         )
 
         GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uMode"), 0)
@@ -576,6 +633,9 @@ class EndlessRenderer(
         bindTexture(1, 0)
         GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uNightTexture"), 1)
         GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uUseNight"), 0)
+        bindTexture(2, 0)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uNormalTexture"), 2)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uUseNormal"), 0)
 
         GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uMode"), mode)
         GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uOpacity"), opacity)
@@ -860,6 +920,88 @@ class EndlessRenderer(
         GLES30.glDepthMask(true)
     }
 
+    private fun updateProjectionForApproach() {
+        val body = selectedId?.let { byId[it] }
+        val close = body != null && distance < body.radius * 1.35
+        val near = if (close) 0.001f else 0.03f
+        Matrix.perspectiveM(
+            projection, 0,
+            if (close) 58f else 48f,
+            width.toFloat() / height,
+            near,
+            300f
+        )
+    }
+
+    private fun updateApproachSnapshot() {
+        val body = selectedId?.let { byId[it] }
+        if (body == null) {
+            latestApproach = ApproachSnapshot(null, Double.POSITIVE_INFINITY, "SPACE", false)
+            return
+        }
+
+        val radialDistance = (cameraPosition - body.position).length()
+        val altitudeUnits = max(0.0, radialDistance - body.radius)
+        val altitudeKm = if (body.radiusKm > 0.0) {
+            altitudeUnits / body.radius * body.radiusKm
+        } else {
+            Double.POSITIVE_INFINITY
+        }
+
+        val stage = when {
+            body.id != "mars" -> "ORBIT"
+            altitudeKm > 1500.0 -> "ORBIT"
+            altitudeKm > 180.0 -> "CLOSE APPROACH"
+            altitudeKm > 25.0 -> "ATMOSPHERE"
+            else -> "SURFACE SKIM"
+        }
+
+        latestApproach = ApproachSnapshot(
+            bodyId = body.id,
+            altitudeKm = altitudeKm,
+            stage = stage,
+            closeLod = body.id == "mars" && altitudeKm < 2500.0
+        )
+    }
+
+    private fun drawMarsAtmosphere(body: CelestialBody) {
+        if (latestApproach.bodyId != "mars") return
+
+        val altitude = latestApproach.altitudeKm
+        val opacity = when {
+            altitude > 2500.0 -> 0.08f
+            altitude > 300.0 -> 0.13f
+            altitude > 80.0 -> 0.20f
+            else -> 0.27f
+        }
+
+        GLES30.glDisable(GLES30.GL_CULL_FACE)
+        GLES30.glDepthMask(false)
+
+        buildBodyModel(body, 1.022f, 0f)
+        GLES30.glUseProgram(planetProgram)
+        bindPlanetCommon(body)
+        GLES30.glUniform4f(
+            GLES30.glGetUniformLocation(planetProgram, "uColor"),
+            .92f, .38f, .18f, 1f
+        )
+        bindTexture(0, 0)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uTexture"), 0)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uUseTexture"), 0)
+        bindTexture(1, 0)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uNightTexture"), 1)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uUseNight"), 0)
+        bindTexture(2, 0)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uNormalTexture"), 2)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uUseNormal"), 0)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uMode"), 3)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uOpacity"), opacity)
+        drawSphereGeometry()
+
+        GLES30.glDepthMask(true)
+        GLES30.glEnable(GLES30.GL_CULL_FACE)
+    }
+
     private fun loadPlanetTextures() {
         val ids = listOf(
             "sun",
@@ -883,6 +1025,8 @@ class EndlessRenderer(
         earthNightTexture = loadTextureResource("earth_night")
         venusAtmosphereTexture = loadTextureResource("venus_atmosphere")
         saturnRingTexture = loadTextureResource("saturn_ring", repeatX = false)
+        marsCloseTexture = loadTextureResource("mars_close")
+        marsNormalTexture = loadTextureResource("mars_normal")
     }
 
     private fun loadTextureResource(name: String, repeatX: Boolean = true): Int {
@@ -1062,8 +1206,10 @@ uniform vec3 uCamera;
 uniform float uEmissive;
 uniform sampler2D uTexture;
 uniform sampler2D uNightTexture;
+uniform sampler2D uNormalTexture;
 uniform int uUseTexture;
 uniform int uUseNight;
+uniform int uUseNormal;
 uniform int uMode;
 uniform float uOpacity;
 
@@ -1081,14 +1227,32 @@ void main() {
         return;
     }
 
+    vec3 N = normalize(vNormal);
+    vec3 L = normalize(-vWorld);
+    vec3 V = normalize(uCamera - vWorld);
+
+    if (uMode == 3) {
+        float rim = pow(1.0 - max(dot(N, V), 0.0), 2.0);
+        float daylight = 0.32 + 0.68 * max(dot(N, L), 0.0);
+        float alpha = rim * uOpacity;
+        if (alpha < 0.003) discard;
+        fragColor = vec4(uColor.rgb * daylight, alpha);
+        return;
+    }
+
     if (uMode == 2) {
         fragColor = vec4(texel.rgb, uOpacity);
         return;
     }
 
-    vec3 N = normalize(vNormal);
-    vec3 L = normalize(-vWorld);
-    vec3 V = normalize(uCamera - vWorld);
+    if (uUseNormal == 1) {
+        vec3 mapped = texture(uNormalTexture, vUv).xyz * 2.0 - 1.0;
+        vec3 axis = abs(N.y) > 0.95 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
+        vec3 T = normalize(cross(axis, N));
+        vec3 B = normalize(cross(N, T));
+        N = normalize(T * mapped.x + B * mapped.y + N * mapped.z);
+    }
+
 
     float ndl = max(dot(N, L), 0.0);
     float rim = pow(1.0 - max(dot(N, V), 0.0), 3.0);
