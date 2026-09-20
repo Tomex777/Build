@@ -54,8 +54,12 @@ private fun normalizePhoneE164(input: String): String? {
     if (!trimmed.startsWith("+")) return null
     val digits = trimmed.drop(1)
     if (digits.length !in 8..15 || digits.any { !it.isDigit() }) return null
+    if (digits.takeLast(7).all { it == '0' }) return null
     return "+$digits"
 }
+
+private fun hasUsableProfilePhone(phone: String?): Boolean =
+    phone?.let(::normalizePhoneE164) != null
 
 private fun friendlyProfileSetupError(error: Throwable): String {
     val message = error.message.orEmpty().lowercase()
@@ -390,7 +394,7 @@ private fun LiveProfileHost(
 
         profile == null ||
             profile?.displayName.isNullOrBlank() ||
-            profile?.phoneE164.isNullOrBlank() -> {
+            !hasUsableProfilePhone(profile?.phoneE164) -> {
             ProfileSetupScreen(
                 repository = repository,
                 existingProfile = profile,
