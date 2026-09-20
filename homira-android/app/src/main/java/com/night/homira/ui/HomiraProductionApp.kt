@@ -1782,10 +1782,27 @@ fun HomiraProductionApp(
                     current?.id == session.id &&
                     current.state == "ringing"
                 ) {
-                    runCatching {
-                        liveRepository.setCallState(session.id, "missed")
-                    }.onSuccess { missed ->
+                    val missed = runCatching {
+                        liveRepository.setCallState(
+                            session.id,
+                            "missed"
+                        )
+                    }.getOrNull()
+
+                    if (missed != null) {
                         activeSession = missed
+
+                        runCatching {
+                            liveRepository.requestMissedCallPush(
+                                missed.id
+                            )
+                        }.onFailure {
+                            Log.e(
+                                "HomiraPush",
+                                "Missed-call push failed for ${missed.id}",
+                                it
+                            )
+                        }
                     }
                 }
             }
