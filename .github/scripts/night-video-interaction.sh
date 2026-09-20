@@ -238,15 +238,36 @@ assert_no_crash() {
   assert_alive
 }
 
+dismiss_fullscreen_education() {
+  # Fresh Android emulators may place a system-owned immersive-mode tutorial
+  # above Night. It intercepts the first tap even though video is already
+  # rendering underneath, so clear it before testing Night's controls.
+  adb shell settings put secure immersive_mode_confirmations confirmed >/dev/null 2>&1 || true
+
+  local coords="" x y
+  refresh_ui || return 0
+  coords="$(python3 /tmp/night_video_uia.py text "Got it" 2>/dev/null || true)"
+  if [ -n "$coords" ]; then
+    x="${coords% *}"
+    y="${coords#* }"
+    adb shell input tap "$x" "$y"
+    sleep 1
+  fi
+}
+
 show_controls() {
+  dismiss_fullscreen_education
   if desc_is_visible "Pause" || desc_is_visible "Play"; then
     return 0
   fi
   adb shell input tap 354 760
   sleep 1
+  dismiss_fullscreen_education
   if ! desc_is_visible "Pause" && ! desc_is_visible "Play"; then
     echo "Night video controls did not become visible." >&2
     adb exec-out screencap -p > "$ARTIFACTS/failure-controls-hidden.png"
+    cp /tmp/window.xml "$ARTIFACTS/failure-controls-hidden.xml" 2>/dev/null || true
+    capture_media_logcat "controls-hidden"
     exit 1
   fi
 }
@@ -279,9 +300,11 @@ PY
 
 echo "STEP: open and play real H.264/AAC MP4"
 adb shell am force-stop "$PACKAGE"
+adb shell settings put secure immersive_mode_confirmations confirmed >/dev/null 2>&1 || true
 adb shell am start -W -n "$PACKAGE/.MediaViewerPreviewActivity" \
   --es night.preview.videoPath "$APP_VIDEO"
 sleep 4
+dismiss_fullscreen_education
 adb exec-out screencap -p > "$ARTIFACTS/00-cold-launch.png" || true
 capture_media_logcat "00-cold-launch"
 assert_alive
