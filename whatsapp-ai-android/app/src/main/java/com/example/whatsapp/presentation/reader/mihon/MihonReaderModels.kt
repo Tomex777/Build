@@ -17,11 +17,11 @@ enum class MihonReadingMode(
     val label: String,
     @DrawableRes val iconRes: Int,
 ) {
-    LEFT_TO_RIGHT("Left to right", R.drawable.ic_reader_ltr_24dp),
-    RIGHT_TO_LEFT("Right to left", R.drawable.ic_reader_rtl_24dp),
-    VERTICAL("Vertical", R.drawable.ic_reader_vertical_24dp),
-    WEBTOON("Webtoon", R.drawable.ic_reader_webtoon_24dp),
-    CONTINUOUS_VERTICAL("Continuous vertical", R.drawable.ic_reader_continuous_vertical_24dp),
+    LEFT_TO_RIGHT("Paged (left to right)", R.drawable.ic_reader_ltr_24dp),
+    RIGHT_TO_LEFT("Paged (right to left)", R.drawable.ic_reader_rtl_24dp),
+    VERTICAL("Paged (vertical)", R.drawable.ic_reader_vertical_24dp),
+    WEBTOON("Long strip", R.drawable.ic_reader_webtoon_24dp),
+    CONTINUOUS_VERTICAL("Long strip with gaps", R.drawable.ic_reader_continuous_vertical_24dp),
 }
 
 enum class MihonReaderBackground(
