@@ -353,6 +353,28 @@ private fun View.installNightEditorTapHandler(onTap: () -> Unit) {
     }
 }
 
+private fun shouldNightEditorStartWithSoftwareVideoDecode(): Boolean {
+    val fingerprint = Build.FINGERPRINT.orEmpty()
+    val model = Build.MODEL.orEmpty()
+    val manufacturer = Build.MANUFACTURER.orEmpty()
+    val brand = Build.BRAND.orEmpty()
+    val device = Build.DEVICE.orEmpty()
+    val product = Build.PRODUCT.orEmpty()
+    val hardware = Build.HARDWARE.orEmpty()
+
+    return fingerprint.startsWith("generic", ignoreCase = true) ||
+        fingerprint.contains("emulator", ignoreCase = true) ||
+        model.contains("google_sdk", ignoreCase = true) ||
+        model.contains("Emulator", ignoreCase = true) ||
+        model.contains("Android SDK built for", ignoreCase = true) ||
+        manufacturer.contains("Genymotion", ignoreCase = true) ||
+        (brand.startsWith("generic", ignoreCase = true) &&
+            device.startsWith("generic", ignoreCase = true)) ||
+        product.contains("sdk_gphone", ignoreCase = true) ||
+        hardware.contains("goldfish", ignoreCase = true) ||
+        hardware.contains("ranchu", ignoreCase = true)
+}
+
 @Composable
 internal fun NightVlcVideoSurface(
     path: String,
@@ -362,7 +384,8 @@ internal fun NightVlcVideoSurface(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current.applicationContext
-    var softwareDecode by remember(path) { mutableStateOf(false) }
+    val startWithSoftwareDecode = remember { shouldNightEditorStartWithSoftwareVideoDecode() }
+    var softwareDecode by remember(path) { mutableStateOf(startWithSoftwareDecode) }
     var userPaused by remember(path) { mutableStateOf(false) }
     var fallbackResumePosition by remember(path) { mutableLongStateOf(0L) }
     val mediaUri = remember(path) {
@@ -379,6 +402,9 @@ internal fun NightVlcVideoSurface(
             "--network-caching=1500",
         )
         if (softwareDecode) {
+            options += "--no-mediacodec"
+            options += "--no-mediacodec-dr"
+            options += "--codec=avcodec"
             options += "--avcodec-hw=none"
         }
         LibVLC(context, options)
@@ -394,7 +420,9 @@ internal fun NightVlcVideoSurface(
     DisposableEffect(player, libVlc, path) {
         val media = Media(libVlc, mediaUri).apply {
             if (softwareDecode) {
-                setHWDecoderEnabled(false, false)
+                addOption(":no-mediacodec")
+                addOption(":no-mediacodec-dr")
+                addOption(":codec=avcodec")
                 addOption(":avcodec-hw=none")
             } else {
                 setHWDecoderEnabled(true, false)
