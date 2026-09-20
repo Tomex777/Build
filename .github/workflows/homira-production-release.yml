@@ -97,19 +97,7 @@ jobs:
 
           openssl enc -aes-256-cbc -salt -pbkdf2 -iter 250000             -in /tmp/homira-signing-backup.tar.gz             -out homira-release/Homira-Production-Signing-Key.enc             -pass "pass:$BACKUP_PASS"
 
-          cat > /tmp/homira-backup-public.pem <<'EOF'
------BEGIN PUBLIC KEY-----
-MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAuwA//urvMzxrhgfDJhUg
-PO4rKtYtQQW65i50ik0lzYUYl2sPaOUMpxz44GS/sb0fpT/UK/IN+XJlFTSkG4qJ
-x5k51o8+brlZngVNnK5OhKTk6nZ1M5YTuOWEXkt60Cf6Ow2JQUH4/zhRwngJbKWM
-MJDxvxs5RwslI26O6YBRgJsUCG4jXOrc7y9FIlv/17ijYD7i35sqeFU5US5kJRbw
-Y1r3xjSzCqDXJlUr9Q/mhNTs8u40jx4d6PlXVDs7bLAs34s+l8wRpxm9vNOmDc7j
-+9kuJrguHWgAHsqe+OHKUQuJ9mFYOoJVnNkooXktzZ1Mxh2FJiLeISZvKJ0qLrPx
-Mkp17udR07dMYIloGCblTEy0nCNmVfU21RXxPYyhqxO524OHoUYM5ntAOjNykWKT
-AN3wsoewQ7DuHrFyyt6wpjffnGXB+5Gfmaq4/wcuuIFYAlt/8ofmYq91V9DjRvIg
-OytJc5eIlKTVNF9h8I9epbEG+Lqxr21iqT9jATut2LmLAgMBAAE=
------END PUBLIC KEY-----
-EOF
+          echo "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQm9qQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FZOEFNSUlCaWdLQ0FZRUF1d0EvL3Vydk16eHJoZ2ZESmhVZwpQTzRyS3RZdFFRVzY1aTUwaWswbHpZVVlsMnNQYU9VTXB4ejQ0R1Mvc2IwZnBUL1VLL0lOK1hKbEZUU2tHNHFKCng1azUxbzgrYnJsWm5nVk5uSzVPaEtUazZuWjFNNVlUdU9XRVhrdDYwQ2Y2T3cySlFVSDQvemhSd25nSmJLV00KTUpEeHZ4czVSd3NsSTI2TzZZQlJnSnNVQ0c0alhPcmM3eTlGSWx2LzE3aWpZRDdpMzVzcWVGVTVVUzVrSlJidwpZMXIzeGpTekNxRFhKbFVyOVEvbWhOVHM4dTQwang0ZDZQbFhWRHM3YkxBczM0cytsOHdScHhtOXZOT21EYzdqCis5a3VKcmd1SFdnQUhzcWUrT0hLVVF1SjltRllPb0pWbk5rb29Ya3R6WjFNeGgyRkppTGVJU1p2S0owcUxyUHgKTWtwMTd1ZFIwN2RNWUlsb0dDYmxURXkwbkNObVZmVTIxUlh4UFl5aHF4TzUyNE9Ib1VZTTVudEFPak55a1dLVApBTjN3c29ld1E3RHVIckZ5eXQ2d3BqZmZuR1hCKzVHZm1hcTQvd2N1dUlGWUFsdC84b2ZtWXE5MVY5RGpSdklnCk95dEpjNWVJbEtUVk5GOWg4STllcGJFRytMcXhyMjFpcVQ5akFUdXQyTG1MQWdNQkFBRT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==" | base64 -d > /tmp/homira-backup-public.pem
 
           printf '%s' "$BACKUP_PASS" |             openssl pkeyutl -encrypt               -pubin               -inkey /tmp/homira-backup-public.pem               -pkeyopt rsa_padding_mode:oaep               -pkeyopt rsa_oaep_md:sha256               -out homira-release/Homira-Production-Signing-Key.pass.enc
 
