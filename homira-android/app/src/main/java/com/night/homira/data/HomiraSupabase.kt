@@ -406,7 +406,7 @@ class HomiraLiveRepository {
             .decodeSingle<LiveCallSession>()
 
     fun observeIncomingCallChanges(): Flow<LiveCallSession> = flow {
-        val userId = requireNotNull(currentUserId()) { "Not signed in" }
+        val userId = currentUserId() ?: return@flow
         val channel = client.channel("incoming-calls-$userId")
         val changes = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
             table = "call_sessions"
@@ -455,7 +455,7 @@ class HomiraLiveRepository {
     }
 
     fun observeReceivedVoicemailChanges(): Flow<LiveVoicemail> = flow {
-        val userId = requireNotNull(currentUserId()) { "Not signed in" }
+        val userId = currentUserId() ?: return@flow
         val channel = client.channel("received-voicemails-$userId")
         val changes = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
             table = "voicemails"
