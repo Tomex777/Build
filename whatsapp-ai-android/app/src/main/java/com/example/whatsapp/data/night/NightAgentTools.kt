@@ -43,6 +43,7 @@ class NightAgentToolExecutor private constructor(
             "fetch_web_page" -> fetchWebPage(args)
             "schedule_task" -> scheduleTask(chatId, args)
             "list_scheduled_tasks" -> listScheduledTasks(chatId)
+            "cancel_scheduled_task" -> cancelScheduledTask(chatId, args)
             "set_appearance" -> setAppearance(args)
             "create_options" -> createOptions(chatId, args)
             "generate_image" -> generateImage(chatId, args)
@@ -205,6 +206,25 @@ class NightAgentToolExecutor private constructor(
             .toString()
     }
 
+    private suspend fun cancelScheduledTask(
+        chatId: String,
+        args: JSONObject,
+    ): String {
+        val taskId = args.optString("task_id").trim()
+        require(taskId.isNotBlank()) { "task_id is required." }
+        val task = repository.getScheduledTask(taskId)
+            ?: error("Scheduled task was not found.")
+        require(task.chatId == chatId) {
+            "This scheduled task belongs to a different chat."
+        }
+        scheduler.cancel(task)
+        return JSONObject()
+            .put("ok", true)
+            .put("task_id", taskId)
+            .put("cancelled", true)
+            .toString()
+    }
+
     private suspend fun setAppearance(args: JSONObject): String {
         val instruction = args.optString("instruction").trim()
         require(instruction.isNotBlank()) { "instruction is required." }
@@ -338,6 +358,7 @@ object NightAgentToolSchemas {
     fun isSideEffect(name: String): Boolean =
         name in setOf(
             "schedule_task",
+            "cancel_scheduled_task",
             "set_appearance",
             "create_options",
             "generate_image",
@@ -399,6 +420,13 @@ object NightAgentToolSchemas {
             description = "List active scheduled Night tasks for the current chat.",
             properties = JSONObject(),
             required = emptyList(),
+        ))
+        .put(function(
+            name = "cancel_scheduled_task",
+            description = "Cancel one active scheduled Night task. Use list_scheduled_tasks first when the task id is not known.",
+            properties = JSONObject()
+                .put("task_id", string("Scheduled task id to cancel.")),
+            required = listOf("task_id"),
         ))
         .put(function(
             name = "set_appearance",
