@@ -14,6 +14,7 @@ import com.night.homira.BuildConfig
 import com.night.homira.call.HomiraWebRtcState
 import com.night.homira.call.HomiraAudioRecorder
 import com.night.homira.call.HomiraAudioPlayer
+import com.night.homira.call.HomiraCallUiState
 import com.night.homira.call.HomiraScreenShareService
 import com.night.homira.call.HomiraIncomingCallNotifier
 import com.night.homira.call.HomiraPushBootstrap
@@ -573,6 +574,27 @@ fun HomiraProductionApp(
         var pendingOutgoingCall by remember { mutableStateOf<Pair<HomiraPerson, Boolean>?>(null) }
         var pendingIncomingAccept by remember { mutableStateOf(false) }
         var pendingVideoEnable by remember { mutableStateOf(false) }
+
+        LaunchedEffect(
+            activePerson?.id,
+            activeVideo,
+            remoteVideoEnabled,
+            remoteScreenSharing
+        ) {
+            HomiraCallUiState.videoCallActive =
+                activePerson != null &&
+                    (
+                        activeVideo ||
+                            remoteVideoEnabled ||
+                            remoteScreenSharing
+                    )
+        }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                HomiraCallUiState.videoCallActive = false
+            }
+        }
 
         BackHandler(
             enabled =
