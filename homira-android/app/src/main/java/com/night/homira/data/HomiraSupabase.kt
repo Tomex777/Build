@@ -48,6 +48,16 @@ object HomiraSupabase {
 }
 
 @Serializable
+data class IncomingCallPushResult(
+    val configured: Boolean = true,
+    val delivered: Int = 0,
+    val failed: Int = 0,
+    val attempts: Int = 0,
+    val reason: String? = null,
+    val error: String? = null
+)
+
+@Serializable
 data class LiveDialTarget(
     val id: String,
     @SerialName("display_name") val displayName: String,
@@ -320,14 +330,17 @@ class HomiraLiveRepository {
         }
     }
 
-    suspend fun requestIncomingCallPush(callId: String) {
+    suspend fun requestIncomingCallPush(
+        callId: String
+    ): IncomingCallPushResult {
         require(callId.isNotBlank()) { "Call ID is required" }
-        client.functions.invoke(
+
+        return client.functions.invoke(
             function = "push-incoming-call",
             body = buildJsonObject {
                 put("call_id", callId)
             }
-        )
+        ).body<IncomingCallPushResult>()
     }
 
     suspend fun loadTurnConfiguration(): HomiraTurnConfiguration {
