@@ -4854,96 +4854,190 @@ private fun EditProfileScreen(
     callCardUri: String?,
     saving: Boolean,
     onBack: () -> Unit,
-    onSave: (String, String, String, String, String, String?, String?) -> Unit
+    onSave: (
+        String,
+        String,
+        String,
+        String,
+        String,
+        String?,
+        String?
+    ) -> Unit
 ) {
     var editedName by rememberSaveable { mutableStateOf(name) }
-    var editedUsername by rememberSaveable { mutableStateOf(username) }
-    var editedPhone by rememberSaveable { mutableStateOf(phone) }
     var editedAbout by rememberSaveable { mutableStateOf(about) }
-    var editedEmail by rememberSaveable { mutableStateOf(email) }
-    var editedAvatar by rememberSaveable { mutableStateOf(avatarUri) }
-    var editedCard by rememberSaveable { mutableStateOf(callCardUri) }
-
-    val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) editedAvatar = uri.toString()
+    var editedAvatar by rememberSaveable {
+        mutableStateOf(avatarUri)
     }
-    val cardPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) editedCard = uri.toString()
+
+    val avatarPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) editedAvatar = uri.toString()
     }
 
     val avatarBitmap = rememberBitmapP(editedAvatar)
-    val cardBitmap = rememberBitmapP(editedCard)
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(HomiraBackground).safeDrawingPadding(),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(HomiraBackground)
+            .safeDrawingPadding(),
+        contentPadding = PaddingValues(
+            horizontal = 20.dp,
+            vertical = 14.dp
+        ),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = HomiraText) }
-                Text("Edit profile", color = HomiraText, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.Rounded.ArrowBack,
+                        contentDescription = "Back",
+                        tint = HomiraText
+                    )
+                }
+                Text(
+                    "Edit profile",
+                    color = HomiraText,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
                 TextButton(
                     enabled = !saving,
                     onClick = {
                         onSave(
                             editedName,
-                            editedUsername,
-                            editedPhone,
+                            username,
+                            phone,
                             editedAbout,
-                            editedEmail,
+                            email,
                             editedAvatar,
-                            editedCard
+                            callCardUri
                         )
                     }
                 ) {
                     Text(
                         if (saving) "Saving…" else "Save",
-                        color = if (saving) HomiraMuted else HomiraGreen,
+                        color = if (saving) {
+                            HomiraMuted
+                        } else {
+                            HomiraGreen
+                        },
                         fontWeight = FontWeight.Bold
                     )
                 }
             }
         }
+
         item {
-            Card(shape = RoundedCornerShape(26.dp), colors = CardDefaults.cardColors(containerColor = HomiraSurface)) {
-                Column {
+            Card(
+                shape = RoundedCornerShape(26.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = HomiraSurface
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(22.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Box(
-                        modifier = Modifier.fillMaxWidth().height(180.dp).clickable { cardPicker.launch("image/*") }.background(HomiraSurfaceRaised),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (cardBitmap != null) {
-                            Image(cardBitmap, contentDescription = "Call card", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                        } else {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Rounded.AddAPhoto, contentDescription = null, tint = HomiraMuted)
-                                Spacer(Modifier.height(6.dp))
-                                Text("Choose call card image", color = HomiraMuted, fontSize = 13.sp)
-                            }
-                        }
-                    }
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(18.dp).clickable { avatarPicker.launch("image/*") },
+                        modifier = Modifier
+                            .clickable {
+                                avatarPicker.launch("image/*")
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         if (avatarBitmap != null) {
-                            Image(avatarBitmap, contentDescription = "Avatar", modifier = Modifier.size(88.dp).clip(CircleShape), contentScale = ContentScale.Crop)
+                            Image(
+                                avatarBitmap,
+                                contentDescription = "Profile photo",
+                                modifier = Modifier
+                                    .size(112.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
                         } else {
-                            Surface(modifier = Modifier.size(88.dp), shape = CircleShape, color = HomiraGreen.copy(alpha = .13f)) {
+                            Surface(
+                                modifier = Modifier.size(112.dp),
+                                shape = CircleShape,
+                                color = HomiraGreen.copy(alpha = .13f)
+                            ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Rounded.AddAPhoto, contentDescription = null, tint = HomiraGreen)
+                                    Icon(
+                                        Icons.Rounded.AddAPhoto,
+                                        contentDescription = null,
+                                        tint = HomiraGreen,
+                                        modifier = Modifier.size(28.dp)
+                                    )
                                 }
                             }
                         }
                     }
+
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "Tap photo to change it",
+                        color = HomiraMuted,
+                        fontSize = 12.sp
+                    )
                 }
             }
         }
-        item { ProfileFieldP("Name", editedName) { editedName = it } }
-        item { ProfileFieldP("Username", editedUsername) { editedUsername = it.replace(" ", "").lowercase() } }
-        item { ProfileFieldP("Phone number", editedPhone) { editedPhone = it } }
-        item { ProfileFieldP("About", editedAbout) { editedAbout = it } }
-        item { ProfileFieldP("Email", editedEmail) { editedEmail = it } }
+
+        item {
+            ProfileFieldP(
+                "Name",
+                editedName
+            ) {
+                editedName = it
+            }
+        }
+
+        item {
+            ProfileFieldP(
+                "About",
+                editedAbout
+            ) {
+                editedAbout = it
+            }
+        }
+
+        item {
+            SectionTitleP("Account identity")
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = HomiraSurface
+                )
+            ) {
+                Column {
+                    MeRowP(
+                        Icons.Rounded.Person,
+                        "Username",
+                        if (username.isBlank()) {
+                            "Not set"
+                        } else {
+                            "@$username"
+                        }
+                    )
+                    MeRowP(
+                        Icons.Rounded.Phone,
+                        "Phone number",
+                        phone.ifBlank { "Not set" }
+                    )
+                    MeRowP(
+                        Icons.Rounded.Email,
+                        "Email",
+                        email.ifBlank { "Not set" }
+                    )
+                }
+            }
+        }
     }
 }
 
