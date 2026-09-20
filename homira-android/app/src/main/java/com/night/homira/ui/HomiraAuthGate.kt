@@ -1,5 +1,6 @@
 package com.night.homira.ui
 
+import android.content.Context
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
@@ -28,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -47,6 +49,51 @@ private enum class LiveGateState {
     Loading,
     SignedOut,
     SignedIn
+}
+
+private const val PROFILE_CACHE_PREFS = "homira_profile_cache"
+
+private fun loadCachedProfile(context: Context): LiveProfile? {
+    val prefs = context.getSharedPreferences(PROFILE_CACHE_PREFS, Context.MODE_PRIVATE)
+    val id = prefs.getString("id", null)?.takeIf { it.isNotBlank() } ?: return null
+    val name = prefs.getString("display_name", null)?.takeIf { it.isNotBlank() } ?: return null
+    return LiveProfile(
+        id = id,
+        displayName = name,
+        username = prefs.getString("username", null),
+        phoneE164 = prefs.getString("phone_e164", null),
+        email = prefs.getString("email", null),
+        about = prefs.getString("about", "").orEmpty(),
+        avatarPath = prefs.getString("avatar_path", null),
+        callCardPath = prefs.getString("call_card_path", null),
+        voicemailEnabled = prefs.getBoolean("voicemail_enabled", true),
+        voicemailGreetingMode = prefs.getString("voicemail_greeting_mode", "default") ?: "default",
+        voicemailGreetingPath = prefs.getString("voicemail_greeting_path", null)
+    )
+}
+
+private fun saveCachedProfile(context: Context, profile: LiveProfile) {
+    context.getSharedPreferences(PROFILE_CACHE_PREFS, Context.MODE_PRIVATE)
+        .edit()
+        .putString("id", profile.id)
+        .putString("display_name", profile.displayName)
+        .putString("username", profile.username)
+        .putString("phone_e164", profile.phoneE164)
+        .putString("email", profile.email)
+        .putString("about", profile.about)
+        .putString("avatar_path", profile.avatarPath)
+        .putString("call_card_path", profile.callCardPath)
+        .putBoolean("voicemail_enabled", profile.voicemailEnabled)
+        .putString("voicemail_greeting_mode", profile.voicemailGreetingMode)
+        .putString("voicemail_greeting_path", profile.voicemailGreetingPath)
+        .apply()
+}
+
+private fun clearCachedProfile(context: Context) {
+    context.getSharedPreferences(PROFILE_CACHE_PREFS, Context.MODE_PRIVATE)
+        .edit()
+        .clear()
+        .apply()
 }
 
 private fun normalizePhoneE164(input: String): String? {
@@ -108,14 +155,22 @@ fun HomiraAuthGate(
     requestedCallId: String? = null,
     requestedAnswerCall: Boolean = false
 ) {
+    val context = LocalContext.current.applicationContext
     val repository = remember { HomiraLiveRepository() }
-    var gateState by remember { mutableStateOf(LiveGateState.Loading) }
+    var cachedProfile by remember { mutableStateOf(loadCachedProfile(context)) }
+    var gateState by remember {
+        mutableStateOf(
+            if (cachedProfile != null) LiveGateState.SignedIn else LiveGateState.Loading
+        )
+    }
 
     LaunchedEffect(Unit) {
         runCatching { repository.initialize() }
         gateState = if (repository.isSignedIn()) {
             LiveGateState.SignedIn
         } else {
+            cachedProfile = null
+            clearCachedProfile(context)
             LiveGateState.SignedOut
         }
     }
@@ -125,11 +180,8 @@ fun HomiraAuthGate(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(HomiraBackground),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = HomiraGreen)
-            }
+                    .background(HomiraBackground)
+            )
         }
 
         LiveGateState.SignedOut -> EmailOtpScreen(
@@ -139,9 +191,18 @@ fun HomiraAuthGate(
 
         LiveGateState.SignedIn -> LiveProfileHost(
             repository = repository,
+            initialProfile = cachedProfile,
             requestedCallId = requestedCallId,
             requestedAnswerCall = requestedAnswerCall,
-            onSignedOut = { gateState = LiveGateState.SignedOut }
+            onProfileLoaded = { profile ->
+                cachedProfile = profile
+                saveCachedProfile(context, profile)
+            },
+            onSignedOut = {
+                cachedProfile = null
+                clearCachedProfile(context)
+                gateState = LiveGateState.SignedOut
+            }
         )
     }
 }
@@ -366,16 +427,23 @@ private fun EmailOtpScreen(
 @Composable
 private fun LiveProfileHost(
     repository: HomiraLiveRepository,
+    initialProfile: LiveProfile?,
     requestedCallId: String?,
     requestedAnswerCall: Boolean,
+    onProfileLoaded: (LiveProfile) -> Unit,
     onSignedOut: () -> Unit
 ) {
-    var loading by remember { mutableStateOf(true) }
-    var profile by remember { mutableStateOf<LiveProfile?>(null) }
+    var loading by remember { mutableStateOf(initialProfile == null) }
+    var profile by remember { mutableStateOf<LiveProfile?>(initialProfile) }
     var contacts by remember { mutableStateOf<List<LiveContact>>(emptyList()) }
 
     LaunchedEffect(Unit) {
-        profile = repository.loadMyProfile()
+        runCatching { repository.initialize() }
+        val freshProfile = repository.loadMyProfile()
+        if (freshProfile != null) {
+            profile = freshProfile
+            onProfileLoaded(freshProfile)
+        }
         contacts = runCatching { repository.loadContacts() }.getOrDefault(emptyList())
         loading = false
     }
@@ -400,6 +468,7 @@ private fun LiveProfileHost(
                 existingProfile = profile,
                 onComplete = { saved ->
                     profile = saved
+                    onProfileLoaded(saved)
                 },
                 onSignOut = onSignedOut
             )
