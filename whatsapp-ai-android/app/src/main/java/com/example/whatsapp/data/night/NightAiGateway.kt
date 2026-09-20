@@ -16,6 +16,11 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 
+internal class NightNonRetryableAgentFailure(
+    message: String,
+    cause: Throwable,
+) : IllegalStateException(message, cause)
+
 class NightAiGateway private constructor(
     private val context: Context,
     private val repository: NightRepository,
@@ -852,11 +857,6 @@ class NightAiGateway private constructor(
             return content
         }
     }
-
-    private class NightNonRetryableAgentFailure(
-        message: String,
-        cause: Throwable,
-    ) : IllegalStateException(message, cause)
 
     private fun markFailure(
         profileId: String,
