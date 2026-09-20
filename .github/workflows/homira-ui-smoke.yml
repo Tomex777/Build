@@ -66,37 +66,27 @@ jobs:
             adb shell pidof com.night.homira | grep -q .
             adb exec-out screencap -p > homira-android/app/build/ui-smoke/keypad.png
 
-            size=$(adb shell wm size | tail -1 | awk '{print $3}')
-            width=${size%x*}
-            height=${size#*x}
-            y=$((height - 110))
-            x_keypad=$((width / 8))
-            x_recents=$((width * 3 / 8))
-            x_contacts=$((width * 5 / 8))
-            x_me=$((width * 7 / 8))
-
-            adb shell input tap "$x_recents" "$y"
+            adb shell input tap 405 1810
             sleep 0.35
             adb shell pidof com.night.homira | grep -q .
             adb exec-out screencap -p > homira-android/app/build/ui-smoke/recents.png
 
-            adb shell input tap "$x_contacts" "$y"
+            adb shell input tap 675 1810
             sleep 0.35
             adb shell pidof com.night.homira | grep -q .
             adb exec-out screencap -p > homira-android/app/build/ui-smoke/contacts.png
 
-            adb shell input tap "$x_me" "$y"
+            adb shell input tap 945 1810
             sleep 0.35
             adb shell pidof com.night.homira | grep -q .
             adb exec-out screencap -p > homira-android/app/build/ui-smoke/me.png
 
-            adb shell input tap "$x_keypad" "$y"
+            adb shell input tap 135 1810
             sleep 0.35
             adb shell pidof com.night.homira | grep -q .
             adb exec-out screencap -p > homira-android/app/build/ui-smoke/keypad-return.png
 
-            pid=$(adb shell pidof com.night.homira)
-            adb logcat --pid="$pid" -d > homira-android/app/build/ui-smoke/logcat.txt
+            adb logcat --pid="$(adb shell pidof com.night.homira)" -d > homira-android/app/build/ui-smoke/logcat.txt
             if grep -q "FATAL EXCEPTION" homira-android/app/build/ui-smoke/logcat.txt; then
               cat homira-android/app/build/ui-smoke/logcat.txt
               exit 1
