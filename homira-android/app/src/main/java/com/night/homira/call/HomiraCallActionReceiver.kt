@@ -179,6 +179,24 @@ class HomiraCallActionReceiver : BroadcastReceiver() {
                                     outcome = historyOutcome
                                 )
                             }
+
+                            if (
+                                action ==
+                                    HomiraIncomingCallNotifier
+                                        .ACTION_RING_TIMEOUT &&
+                                incoming &&
+                                finalSession.state == "missed"
+                            ) {
+                                runCatching {
+                                    HomiraIncomingCallNotifier(
+                                        appContext
+                                    ).showMissed(
+                                        callId = callId,
+                                        mediaType = mediaType,
+                                        callerName = peerName
+                                    )
+                                }
+                            }
                         }
                     }
                 }
