@@ -1195,12 +1195,32 @@ fun HomiraProductionApp(
                 }
 
                 runCatching { telecomBridge?.disconnect() }
-                runCatching {
+
+                val ended = runCatching {
                     liveRepository.setCallState(
                         session.id,
                         terminalState
                     )
+                }.getOrNull()
+
+                if (
+                    ended != null &&
+                    terminalState == "cancelled" &&
+                    session.callerId == localUserId
+                ) {
+                    runCatching {
+                        liveRepository.requestMissedCallPush(
+                            session.id
+                        )
+                    }.onFailure {
+                        Log.e(
+                            "HomiraPush",
+                            "Cancelled-call push failed for ${session.id}",
+                            it
+                        )
+                    }
                 }
+
                 incomingCallNotifier?.cancel(session.id)
             }
         }
