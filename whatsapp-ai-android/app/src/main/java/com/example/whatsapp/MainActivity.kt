@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.example.whatsapp.data.NightFileLibrary
+import com.example.whatsapp.data.night.NightAgentToolExecutor
 import com.example.whatsapp.data.night.NightAiGateway
 import com.example.whatsapp.data.night.NightAppearanceController
 import com.example.whatsapp.data.night.NightAppearanceEntity
@@ -45,6 +46,7 @@ import com.example.whatsapp.data.night.NightRepository
 import com.example.whatsapp.data.night.NightScheduleManager
 import com.example.whatsapp.data.night.NightSpeechService
 import com.example.whatsapp.data.night.NightStructuredReplyParser
+import com.example.whatsapp.data.night.NightToolInvocation
 import com.example.whatsapp.data.night.NightVoiceRecorder
 import com.example.whatsapp.extensions.messages.ExtensionMessageCodec
 import com.example.whatsapp.presentation.chat_box.ChatListModel
@@ -98,20 +100,22 @@ class MainActivity : ComponentActivity() {
         window.statusBarColor = Color.BLACK
         window.navigationBarColor = Color.BLACK
 
+        val initialChatId = intent?.getStringExtra("night_chat_id")
         setContent {
             WhatsappTheme(darkTheme = true) {
-                NightApp()
+                NightApp(initialChatId = initialChatId)
             }
         }
     }
 }
 
 @Composable
-private fun NightApp() {
+private fun NightApp(initialChatId: String? = null) {
     val context = LocalContext.current
     val repository = remember { NightRepository.get(context) }
     val providerManager = remember { NightProviderManager.get(context) }
     val aiGateway = remember { NightAiGateway.get(context) }
+    val agentTools = remember { NightAgentToolExecutor.get(context) }
     val appearanceController = remember { NightAppearanceController(repository) }
     val voiceRecorder = remember { NightVoiceRecorder(context.applicationContext) }
     val scheduleManager = remember { NightScheduleManager.get(context) }
@@ -120,11 +124,17 @@ private fun NightApp() {
     val linkPreviewService = remember { NightLinkPreviewService.get(context) }
     val scope = rememberCoroutineScope()
 
+    val notificationChatId = initialChatId?.takeIf { it.isNotBlank() }
     var selectedTabName by rememberSaveable { mutableStateOf(MainTab.Chats.name) }
     val selectedTab = MainTab.valueOf(selectedTabName)
-    var screen by rememberSaveable { mutableStateOf("tabs") }
-    var activeChatId by rememberSaveable { mutableStateOf("night-core") }
+    var screen by rememberSaveable(initialChatId) {
+        mutableStateOf(if (notificationChatId == null) "tabs" else "chat")
+    }
+    var activeChatId by rememberSaveable(initialChatId) {
+        mutableStateOf(notificationChatId ?: "night-core")
+    }
     var messageText by rememberSaveable { mutableStateOf("") }
+    var directImageMode by rememberSaveable { mutableStateOf(false) }
     var renameOpen by remember { mutableStateOf(false) }
     var renameValue by rememberSaveable { mutableStateOf("") }
     var isRecording by remember { mutableStateOf(false) }
@@ -1109,6 +1119,39 @@ private fun NightApp() {
                     )
                     replyingToId = null
 
+                    if (directImageMode) {
+                        directImageMode = false
+                        val prompt = text
+                            .removePrefix("Generate an image of ")
+                            .removePrefix("Generate an image of")
+                            .trim()
+                            .ifBlank { text.trim() }
+
+                        val toolResult = agentTools.execute(
+                            chatId = activeChatId,
+                            invocation = NightToolInvocation(
+                                id = "direct_image_" + java.util.UUID.randomUUID(),
+                                name = "generate_image",
+                                argumentsJson = JSONObject()
+                                    .put("prompt", prompt)
+                                    .put("size", "1024x1024")
+                                    .toString(),
+                            ),
+                        )
+                        val toolJson = runCatching { JSONObject(toolResult) }.getOrNull()
+                        if (toolJson?.optBoolean("ok", false) != true) {
+                            repository.appendText(
+                                chatId = activeChatId,
+                                role = "assistant",
+                                text = "I couldn't generate that image. " +
+                                    (toolJson?.optString("error")
+                                        ?.takeIf { it.isNotBlank() }
+                                        ?: "Check the image-generation route in AI & providers."),
+                            )
+                        }
+                        return@launch
+                    }
+
                     val activeHasTools = activeModel?.capabilities
                         ?.split(",")
                         ?.map { it.trim().lowercase() }
@@ -1207,6 +1250,7 @@ private fun NightApp() {
                     "Schedule" -> scheduleOpen = true
                     "Options" -> choiceOpen = true
                     "AI images" -> {
+                        directImageMode = true
                         messageText = "Generate an image of "
                     }
                 }
