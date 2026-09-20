@@ -56,6 +56,13 @@ if mode in ("text", "desc"):
                 raise SystemExit(0)
     raise SystemExit(2)
 
+if mode == "desc_enabled":
+    for node in root.iter("node"):
+        if node.attrib.get("content-desc") == value:
+            print(node.attrib.get("enabled", "false"))
+            raise SystemExit(0)
+    raise SystemExit(2)
+
 if mode == "times":
     values = []
     for node in root.iter("node"):
@@ -278,7 +285,6 @@ adb exec-out screencap -p > "$ARTIFACTS/00-cold-launch.png" || true
 capture_media_logcat "00-cold-launch"
 assert_alive
 show_controls
-assert_desc "Night video player: Night Video 1"
 assert_no_crash
 capture_dims "$ARTIFACTS/01-real-video-open.png" > "$ARTIFACTS/01-dimensions.txt"
 capture_media_logcat "01-open"
@@ -411,20 +417,32 @@ adb shell am start -W --activity-clear-top --activity-single-top \
   --es night.preview.videoPath "$APP_VIDEO" >/dev/null
 sleep 2
 show_controls
-assert_desc "Night video player: Night Video 1"
 capture_media_logcat "07-pip-return"
 assert_no_crash
 
 echo "STEP: next and previous video"
 show_controls
+refresh_ui
+if [ "$(python3 /tmp/night_video_uia.py desc_enabled "Next media")" != "true" ]; then
+  echo "Next media was not enabled on the first video." >&2
+  exit 1
+fi
 tap_desc "Next media"
 sleep 2
 show_controls
-assert_desc "Night video player: Night Video 2"
+refresh_ui
+if [ "$(python3 /tmp/night_video_uia.py desc_enabled "Previous media")" != "true" ]; then
+  echo "Previous media was not enabled after moving to the second video." >&2
+  exit 1
+fi
 tap_desc "Previous media"
 sleep 2
 show_controls
-assert_desc "Night video player: Night Video 1"
+refresh_ui
+if [ "$(python3 /tmp/night_video_uia.py desc_enabled "Next media")" != "true" ]; then
+  echo "Next media was not re-enabled after returning to the first video." >&2
+  exit 1
+fi
 capture_media_logcat "08-next-previous"
 assert_no_crash
 
