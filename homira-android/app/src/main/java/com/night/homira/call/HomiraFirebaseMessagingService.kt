@@ -44,11 +44,40 @@ class HomiraFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         val data = message.data
-        if (data["type"] != TYPE_INCOMING_CALL) return
+        val type = data["type"] ?: return
+
+        if (
+            type != TYPE_INCOMING_CALL &&
+            type != TYPE_MISSED_CALL
+        ) {
+            return
+        }
 
         val callId = data["call_id"]?.trim()
             ?.takeIf { it.isNotBlank() }
             ?: return
+
+        val callerName = data["caller_name"]
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: "Homira caller"
+
+        val mediaType = data["media_type"]
+            ?.takeIf {
+                it == "audio" || it == "video"
+            }
+            ?: "audio"
+
+        if (type == TYPE_MISSED_CALL) {
+            runCatching {
+                HomiraIncomingCallNotifier(this).showMissed(
+                    callId = callId,
+                    mediaType = mediaType,
+                    callerName = callerName
+                )
+            }
+            return
+        }
 
         val expiresAt = data["expires_at"]
             ?.let { value ->
@@ -57,41 +86,44 @@ class HomiraFirebaseMessagingService : FirebaseMessagingService() {
                 }.getOrNull()
             }
 
-        if (expiresAt != null && !expiresAt.isAfter(Instant.now())) {
+        if (
+            expiresAt != null &&
+            !expiresAt.isAfter(Instant.now())
+        ) {
             return
         }
-
-        val callerName = data["caller_name"]
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?: "Homira caller"
-
-        val mediaType = data["media_type"]
-            ?.takeIf { it == "audio" || it == "video" }
-            ?: "audio"
 
         val callerId = data["caller_id"]
             ?.trim()
             ?.takeIf { it.isNotBlank() }
 
         val remainingMs = expiresAt?.let { expiry ->
-            Duration.between(Instant.now(), expiry)
+            Duration.between(
+                Instant.now(),
+                expiry
+            )
                 .toMillis()
                 .coerceAtLeast(1_000L)
         }
+
         val timeoutMs = minOf(
             HomiraIncomingCallNotifier.DEFAULT_RING_TIMEOUT_MS,
-            remainingMs ?: HomiraIncomingCallNotifier.DEFAULT_RING_TIMEOUT_MS
+            remainingMs
+                ?: HomiraIncomingCallNotifier
+                    .DEFAULT_RING_TIMEOUT_MS
         )
 
         runCatching {
-            val settings = HomiraSettingsStore(this).load()
+            val settings =
+                HomiraSettingsStore(this).load()
+
             HomiraIncomingCallNotifier(this).show(
                 callId = callId,
                 mediaType = mediaType,
                 callerName = callerName,
                 callerId = callerId,
-                notificationsEnabled = settings.callNotifications,
+                notificationsEnabled =
+                    settings.callNotifications,
                 ringtoneUri = settings.ringtoneUri,
                 timeoutMs = timeoutMs
             )
@@ -100,5 +132,6 @@ class HomiraFirebaseMessagingService : FirebaseMessagingService() {
 
     companion object {
         private const val TYPE_INCOMING_CALL = "incoming_call"
+        private const val TYPE_MISSED_CALL = "missed_call"
     }
 }
