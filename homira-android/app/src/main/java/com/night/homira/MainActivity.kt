@@ -1,6 +1,9 @@
 package com.night.homira
 
 import android.content.Intent
+import android.app.PictureInPictureParams
+import android.os.Build
+import android.util.Rational
 import android.os.Bundle
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -15,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.night.homira.call.HomiraIncomingCallNotifier
+import com.night.homira.call.HomiraCallUiState
 import com.night.homira.ui.HomiraAuthGate
 import com.night.homira.ui.HomiraTheme
 
@@ -104,5 +108,23 @@ class MainActivity : ComponentActivity() {
             HomiraIncomingCallNotifier.EXTRA_ANSWER_CALL,
             false
         )
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            HomiraCallUiState.videoCallActive &&
+            !isInPictureInPictureMode
+        ) {
+            val params = PictureInPictureParams.Builder()
+                .setAspectRatio(Rational(9, 16))
+                .build()
+
+            runCatching {
+                enterPictureInPictureMode(params)
+            }
+        }
     }
 }
