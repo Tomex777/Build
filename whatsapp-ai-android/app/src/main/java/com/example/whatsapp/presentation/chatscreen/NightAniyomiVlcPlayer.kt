@@ -169,6 +169,7 @@ internal fun NightAniyomiVlcPlayer(
     var controlsVisible by remember(item.localPath) { mutableStateOf(true) }
     var controlsLocked by remember(item.localPath) { mutableStateOf(false) }
     var playing by remember(item.localPath) { mutableStateOf(false) }
+    var playbackStarted by remember(item.localPath) { mutableStateOf(false) }
     var length by remember(item.localPath) { mutableLongStateOf(0L) }
     var position by remember(item.localPath) { mutableLongStateOf(0L) }
     var dragging by remember(item.localPath) { mutableStateOf(false) }
@@ -253,6 +254,9 @@ internal fun NightAniyomiVlcPlayer(
                 lastObservedPosition = position
                 lastAdvanceAt = now
             }
+            if (position >= 500L) {
+                playbackStarted = true
+            }
 
             if (
                 !softwareDecode &&
@@ -304,8 +308,8 @@ internal fun NightAniyomiVlcPlayer(
         }
     }
 
-    LaunchedEffect(controlsVisible, playing, controlsLocked, menuOpen) {
-        if (controlsVisible && playing && !controlsLocked && !menuOpen) {
+    LaunchedEffect(controlsVisible, playing, controlsLocked, menuOpen, playbackStarted) {
+        if (controlsVisible && playing && playbackStarted && !controlsLocked && !menuOpen) {
             delay(3200L)
             controlsVisible = false
         }
