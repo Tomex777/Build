@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -62,6 +63,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -82,6 +84,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.example.whatsapp.NightMihonReaderActivity
+import kotlinx.coroutines.launch
 
 /*
  * Reader chrome is adapted from Mihon's ReaderAppBars, ReaderTopBar,
@@ -105,6 +108,7 @@ fun NightMihonReaderScreen(
     onNextChapter: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val activity = remember(context) { context.findReaderActivity() }
     val preferences = remember(context) {
         context.getSharedPreferences(
@@ -283,6 +287,9 @@ fun NightMihonReaderScreen(
     var overflowOpen by remember {
         mutableStateOf(false)
     }
+    var pageActionIndex by remember {
+        mutableStateOf<Int?>(null)
+    }
     val bookmarkKey =
         remember(mangaTitle, chapterTitle) {
             "bookmark:" +
@@ -426,6 +433,14 @@ fun NightMihonReaderScreen(
                     reader.onToggleMenu = {
                         controlsVisible =
                             !controlsVisible
+                    }
+                    reader.onLongTap = { pageIndex ->
+                        pageActionIndex =
+                            pageIndex.coerceIn(
+                                0,
+                                (pages.size - 1)
+                                    .coerceAtLeast(0),
+                            )
                     }
                 }
             },
@@ -810,6 +825,101 @@ fun NightMihonReaderScreen(
                 settingsSheet = false
             },
         )
+    }
+
+    pageActionIndex?.let { index ->
+        val page = pages.getOrNull(index)
+        if (page != null) {
+            MihonPageActionsSheet(
+                pageNumber = index + 1,
+                onDismiss = { pageActionIndex = null },
+                onSetCover = {
+                    NightMihonPageActions.setAsCover(
+                        context = context,
+                        readerKey = readerKey,
+                        page = page,
+                    )
+                    pageActionIndex = null
+                    Toast.makeText(
+                        context,
+                        "Cover updated.",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                },
+                onCopy = {
+                    pageActionIndex = null
+                    scope.launch {
+                        NightMihonPageActions
+                            .resolvePageUri(context, page)
+                            .onSuccess {
+                                NightMihonPageActions.copyPage(
+                                    context,
+                                    it,
+                                )
+                                Toast.makeText(
+                                    context,
+                                    "Page copied.",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                            .onFailure {
+                                Toast.makeText(
+                                    context,
+                                    it.message ?: "Could not copy this page.",
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                            }
+                    }
+                },
+                onShare = {
+                    pageActionIndex = null
+                    scope.launch {
+                        NightMihonPageActions
+                            .resolvePageUri(context, page)
+                            .onSuccess {
+                                NightMihonPageActions.sharePage(
+                                    context,
+                                    it,
+                                )
+                            }
+                            .onFailure {
+                                Toast.makeText(
+                                    context,
+                                    it.message ?: "Could not share this page.",
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                            }
+                    }
+                },
+                onSave = {
+                    pageActionIndex = null
+                    scope.launch {
+                        NightMihonPageActions
+                            .savePage(
+                                context = context,
+                                page = page,
+                                pageNumber = index + 1,
+                            )
+                            .onSuccess {
+                                Toast.makeText(
+                                    context,
+                                    "Page saved to Pictures/Night/Manga.",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                            .onFailure {
+                                Toast.makeText(
+                                    context,
+                                    it.message ?: "Could not save this page.",
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                            }
+                    }
+                },
+            )
+        } else {
+            pageActionIndex = null
+        }
     }
 }
 
@@ -1196,6 +1306,56 @@ private fun MihonOrientationSheet(
                     Text("Apply")
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MihonPageActionsSheet(
+    pageNumber: Int,
+    onDismiss: () -> Unit,
+    onSetCover: () -> Unit,
+    onCopy: () -> Unit,
+    onShare: () -> Unit,
+    onSave: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+    ) {
+        Column(
+            modifier = Modifier.padding(
+                horizontal = 20.dp,
+                vertical = 10.dp,
+            ),
+        ) {
+            Text(
+                text = "Page " + pageNumber,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
+            listOf(
+                "Set as cover" to onSetCover,
+                "Copy to clipboard" to onCopy,
+                "Share" to onShare,
+                "Save" to onSave,
+            ).forEach { (label, action) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = action)
+                        .padding(vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = label,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+            Spacer(
+                modifier = Modifier.padding(bottom = 18.dp),
+            )
         }
     }
 }
