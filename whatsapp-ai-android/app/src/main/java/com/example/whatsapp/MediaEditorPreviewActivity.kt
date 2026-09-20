@@ -1,5 +1,6 @@
 package com.example.whatsapp
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -12,6 +13,9 @@ import com.example.whatsapp.ui.theme.WhatsappTheme
 import java.io.File
 import java.io.FileOutputStream
 
+private const val NIGHT_PREVIEW_VIDEO_PATH = "night.preview.videoPath"
+private const val NIGHT_PREVIEW_EXPORT_PREFS = "night_media_preview"
+
 class MediaEditorPreviewActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -19,26 +23,72 @@ class MediaEditorPreviewActivity : ComponentActivity() {
         window.statusBarColor = Color.BLACK
         window.navigationBarColor = Color.BLACK
 
-        val preview = File(cacheDir, "night-editor-preview.jpg")
-        if (!preview.exists()) {
+        val requestedVideo =
+            intent.getStringExtra(NIGHT_PREVIEW_VIDEO_PATH)
+                ?.let(::File)
+                ?.takeIf { it.isFile && it.length() > 0L }
+
+        val fallback = File(cacheDir, "night-editor-preview.jpg")
+        if (requestedVideo == null && !fallback.exists()) {
             val bitmap = BitmapFactory.decodeResource(resources, R.drawable.bilal)
-            FileOutputStream(preview).use { output ->
+            FileOutputStream(fallback).use { output ->
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 94, output)
             }
             bitmap.recycle()
         }
 
+        val preview = requestedVideo ?: fallback
+        val mimeType = if (requestedVideo != null) "video/mp4" else "image/jpeg"
+        val fileName = if (requestedVideo != null) "Night test video.mp4" else "Night photo.jpg"
+        val prefs =
+            getSharedPreferences(
+                NIGHT_PREVIEW_EXPORT_PREFS,
+                Context.MODE_PRIVATE,
+            )
+        prefs.edit().clear().commit()
+
         setContent {
             WhatsappTheme(darkTheme = true) {
                 NightMediaComposerScreen(
                     localPath = preview.absolutePath,
-                    mimeType = "image/jpeg",
-                    fileName = "Night photo.jpg",
+                    mimeType = mimeType,
+                    fileName = fileName,
                     videoThumbnailPath = null,
-                    caption = "A Night media edit",
+                    caption = if (requestedVideo != null) "Night real video edit" else "A Night media edit",
                     onCaptionChange = {},
-                    onCancel = {},
-                    onPreparedSend = { _, _, _ -> },
+                    onCancel = { finish() },
+                    onPreparedSend = { path, exportedMime, exportedName ->
+                        runCatching {
+                            val source = File(path)
+                            check(source.isFile && source.length() > 0L)
+                            val stable =
+                                File(
+                                    filesDir,
+                                    if (exportedMime.startsWith("video/")) {
+                                        "night-media-preview-export.mp4"
+                                    } else {
+                                        "night-media-preview-export.jpg"
+                                    },
+                                )
+                            if (source.absolutePath != stable.absolutePath) {
+                                source.copyTo(stable, overwrite = true)
+                            }
+                            prefs.edit()
+                                .putString("exportPath", stable.absolutePath)
+                                .putString("exportMime", exportedMime)
+                                .putString("exportName", exportedName)
+                                .putLong("exportBytes", stable.length())
+                                .remove("exportError")
+                                .commit()
+                        }.onFailure { failure ->
+                            prefs.edit()
+                                .putString(
+                                    "exportError",
+                                    failure.message ?: failure.javaClass.simpleName,
+                                )
+                                .commit()
+                        }
+                    },
                 )
             }
         }
