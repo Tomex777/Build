@@ -3,7 +3,10 @@ package com.example.whatsapp.data.night
 import android.content.Context
 import android.util.Base64
 import java.io.File
+import java.net.InetAddress
+import java.net.URI
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -81,6 +84,9 @@ class NightImageGenerationService private constructor(
                 }
 
                 require(bytes.isNotEmpty()) { "Generated image was empty." }
+                require(bytes.size.toLong() <= MAX_IMAGE_BYTES) {
+                    "Generated image is too large to keep safely on-device."
+                }
 
                 val dir = File(context.filesDir, "night_generated").apply { mkdirs() }
                 val output = File(dir, "night_image_" + UUID.randomUUID() + ".png")
@@ -116,13 +122,54 @@ class NightImageGenerationService private constructor(
         }
 
     private fun download(url: String): ByteArray {
-        val request = Request.Builder().url(url).get().build()
+        val safeUrl = validatePublicImageUrl(url)
+        val request = Request.Builder().url(safeUrl).get().build()
         return http.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 error("Could not download generated image (" + response.code + ").")
             }
-            response.body?.bytes() ?: error("Generated image download was empty.")
+
+            val contentType = response.header("Content-Type").orEmpty().lowercase()
+            require(contentType.isBlank() || contentType.startsWith("image/")) {
+                "Image provider returned a non-image download."
+            }
+
+            val body = response.body ?: error("Generated image download was empty.")
+            val declaredLength = body.contentLength()
+            require(declaredLength < 0L || declaredLength <= MAX_IMAGE_BYTES) {
+                "Generated image download is too large."
+            }
+
+            val source = body.source()
+            source.request(MAX_IMAGE_BYTES + 1L)
+            require(source.buffer.size <= MAX_IMAGE_BYTES) {
+                "Generated image download is too large."
+            }
+            source.readByteArray(source.buffer.size)
         }
+    }
+
+    private fun validatePublicImageUrl(value: String): String {
+        val uri = URI(value.trim())
+        require(uri.scheme.equals("https", ignoreCase = true)) {
+            "Generated image downloads must use HTTPS."
+        }
+        val host = uri.host?.lowercase().orEmpty()
+        require(host.isNotBlank() && host != "localhost" && !host.endsWith(".local")) {
+            "Generated image URL has an invalid host."
+        }
+        val addresses = runCatching { InetAddress.getAllByName(host).toList() }
+            .getOrElse { error("Generated image host could not be resolved.") }
+        require(addresses.isNotEmpty() && addresses.none { address ->
+            address.isAnyLocalAddress ||
+                address.isLoopbackAddress ||
+                address.isLinkLocalAddress ||
+                address.isSiteLocalAddress ||
+                address.isMulticastAddress
+        }) {
+            "Generated image URL points to a private or local network."
+        }
+        return value.trim()
     }
 
     private fun extractError(raw: String): String =
@@ -133,6 +180,8 @@ class NightImageGenerationService private constructor(
         }.getOrElse { raw.take(300) }
 
     companion object {
+        private const val MAX_IMAGE_BYTES = 24L * 1024L * 1024L
+
         @Volatile private var instance: NightImageGenerationService? = null
 
         fun get(context: Context): NightImageGenerationService =
@@ -144,7 +193,12 @@ class NightImageGenerationService private constructor(
                     repository = repository,
                     router = NightCapabilityRouter(repository),
                     secrets = NightSecretStore.get(app),
-                    http = OkHttpClient.Builder().build(),
+                    http = OkHttpClient.Builder()
+                        .connectTimeout(20, TimeUnit.SECONDS)
+                        .writeTimeout(30, TimeUnit.SECONDS)
+                        .readTimeout(120, TimeUnit.SECONDS)
+                        .callTimeout(180, TimeUnit.SECONDS)
+                        .build(),
                 ).also { instance = it }
             }
     }
