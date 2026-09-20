@@ -137,7 +137,7 @@ dependencies {
     implementation("androidx.recyclerview:recyclerview:1.4.0")
     implementation("androidx.viewpager:viewpager:1.1.0")
     implementation("com.github.tachiyomiorg:DirectionalViewPager:1.0.0")
-    implementation("com.github.mihonapp:subsampling-scale-image-view:94915e6f73") {
-        exclude(module = "image-decoder")
-    }
+    // Last Mihon fork revision before its compileSdk 37 toolchain bump.
+    // Reader behavior/API is the same path Night uses; this keeps Night on compileSdk 36.
+    implementation("com.github.mihonapp:subsampling-scale-image-view:64b392f85fff37bf011dfcc0db10574cfed8937c")
 }
