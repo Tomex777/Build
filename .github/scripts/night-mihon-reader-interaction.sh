@@ -42,6 +42,17 @@ assert_text() {
   python3 /tmp/night_uia.py text "$1" >/dev/null
 }
 
+text_is_visible() {
+  refresh_ui
+  python3 /tmp/night_uia.py text "$1" >/dev/null 2>&1
+}
+
+read_saved_progress() {
+  adb shell run-as "$PACKAGE" cat shared_prefs/night_mihon_reader.xml |
+    sed -n 's/.*<int name="progress:[^"]*" value="\([0-9][0-9]*\)" \/>.*/\1/p' |
+    head -n 1
+}
+
 assert_desc() {
   refresh_ui
   python3 /tmp/night_uia.py desc "$1" >/dev/null
@@ -234,13 +245,37 @@ adb shell run-as "$PACKAGE" cat shared_prefs/night_mihon_reader.xml \
   > mihon-interaction-artifacts/prefs-volume-keys.xml
 grep -Eq '<boolean name="volumeKeys" value="true" ?/>' mihon-interaction-artifacts/prefs-volume-keys.xml
 
-adb shell input keyevent KEYCODE_BACK
+# Dismiss the settings sheet, then hide the reader chrome. Mihon only
+# intercepts volume keys for page navigation while the reader menu is hidden.
+adb shell input tap 354 180
 sleep 1
+if text_is_visible "Reader settings"; then
+  adb shell input keyevent KEYCODE_BACK
+  sleep 1
+fi
+if text_is_visible "Reader settings"; then
+  echo "Reader settings sheet did not close before volume navigation." >&2
+  exit 1
+fi
+
+adb shell input tap 354 760
+sleep 1
+
+before_volume_progress="$(read_saved_progress)"
+test -n "$before_volume_progress"
 adb logcat -c
 
 adb shell input keyevent KEYCODE_VOLUME_DOWN
 sleep 2
 assert_no_crash
+after_volume_down_progress="$(read_saved_progress)"
+test -n "$after_volume_down_progress"
+
+if [ "$after_volume_down_progress" = "$before_volume_progress" ]; then
+  echo "Volume Down was not consumed as Mihon reader navigation." >&2
+  adb exec-out screencap -p > mihon-interaction-artifacts/failure-volume-down.png
+  exit 1
+fi
 
 adb shell input keyevent KEYCODE_VOLUME_UP
 sleep 2
