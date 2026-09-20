@@ -370,6 +370,20 @@ class HomiraLiveRepository {
         ).body<IncomingCallPushResult>()
     }
 
+    suspend fun requestMissedCallPush(
+        callId: String
+    ): IncomingCallPushResult {
+        require(callId.isNotBlank()) { "Call ID is required" }
+
+        return client.functions.invoke(
+            function = "push-incoming-call",
+            body = buildJsonObject {
+                put("call_id", callId)
+                put("event", "missed_call")
+            }
+        ).body<IncomingCallPushResult>()
+    }
+
     suspend fun loadTurnConfiguration(): HomiraTurnConfiguration {
         requireNotNull(currentUserId()) { "Not signed in" }
         return client.functions
