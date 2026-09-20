@@ -331,21 +331,13 @@ private fun NightApp() {
                 )
             )
 
-            val result = aiGateway.reply(activeChatId, displayName)
-            val rawReply = result.getOrElse { error ->
-                when {
-                    error.message?.contains("No chat AI") == true ->
-                        "I transcribed the voice note, but no AI is selected for this chat yet."
-                    else ->
-                        "I transcribed the voice note, but I couldn't reach the selected AI. " +
-                            (error.message ?: "Check the provider settings.")
-                }
-            }
-            appendParsedAssistantReply(
+            streamNightAssistantReply(
                 repository = repository,
-                linkPreviewService = linkPreviewService,
+                aiGateway = aiGateway,
                 chatId = activeChatId,
-                rawReply = rawReply,
+                displayName = displayName,
+                noAiMessage = "I transcribed the voice note, but no AI is selected for this chat yet.",
+                failurePrefix = "I transcribed the voice note, but I couldn't reach an available AI. ",
             )
         }
     }
@@ -1076,30 +1068,31 @@ private fun NightApp() {
                     )
                     replyingToId = null
 
-                    val localAppearanceResult = appearanceController.handleNaturalRequest(text)
-                    if (localAppearanceResult != null) {
-                        repository.appendText(
-                            chatId = activeChatId,
-                            role = "assistant",
-                            text = localAppearanceResult,
-                        )
-                        return@launch
-                    }
+                    val activeHasTools = activeModel?.capabilities
+                        ?.split(",")
+                        ?.map { it.trim().lowercase() }
+                        ?.contains("tools")
+                        ?: false
 
-                    val result = aiGateway.reply(activeChatId, displayName)
-                    val rawReply = result.getOrElse { error ->
-                        when {
-                            error.message?.contains("No chat AI") == true ->
-                                "No AI is selected for this chat yet. Tap Choose AI to pick a configured model."
-                            else ->
-                                "I couldn't reach the selected AI. " + (error.message ?: "Check the provider settings.")
+                    if (!activeHasTools) {
+                        val localAppearanceResult = appearanceController.handleNaturalRequest(text)
+                        if (localAppearanceResult != null) {
+                            repository.appendText(
+                                chatId = activeChatId,
+                                role = "assistant",
+                                text = localAppearanceResult,
+                            )
+                            return@launch
                         }
                     }
-                    appendParsedAssistantReply(
+
+                    streamNightAssistantReply(
                         repository = repository,
-                        linkPreviewService = linkPreviewService,
+                        aiGateway = aiGateway,
                         chatId = activeChatId,
-                        rawReply = rawReply,
+                        displayName = displayName,
+                        noAiMessage = "No AI is selected for this chat yet. Tap Choose AI to pick a configured model.",
+                        failurePrefix = "I couldn't reach an available AI. ",
                     )
                 }
             },
@@ -1172,7 +1165,9 @@ private fun NightApp() {
                     "Choose AI" -> screen = "choose_ai"
                     "Schedule" -> scheduleOpen = true
                     "Options" -> choiceOpen = true
-                    "AI images" -> repositoryActionToast(context, "Choose an image-capable provider or extension first.")
+                    "AI images" -> {
+                        messageText = "Generate an image of "
+                    }
                 }
             },
             onReplyRequest = { messageId ->
@@ -1954,6 +1949,104 @@ private suspend fun appendTextWithLinkPreview(
             replyToMessageId = replyToMessageId,
         )
     )
+}
+
+private suspend fun streamNightAssistantReply(
+    repository: NightRepository,
+    aiGateway: NightAiGateway,
+    chatId: String,
+    displayName: String,
+    noAiMessage: String,
+    failurePrefix: String,
+) {
+    val messageId = java.util.UUID.randomUUID().toString()
+    val createdAt = System.currentTimeMillis()
+    val base = NightMessageEntity(
+        id = messageId,
+        chatId = chatId,
+        role = "assistant",
+        type = "text",
+        text = "…",
+        createdAt = createdAt,
+        deliveryState = "sending",
+    )
+    repository.appendMessage(base)
+
+    var lastPersisted = ""
+    var lastPersistAt = 0L
+
+    val result = aiGateway.replyStreaming(
+        chatId = chatId,
+        displayName = displayName,
+    ) { partial ->
+        val now = System.currentTimeMillis()
+        val shouldPersist =
+            partial.isBlank() ||
+                partial.length - lastPersisted.length >= 12 ||
+                now - lastPersistAt >= 90L
+
+        if (shouldPersist) {
+            repository.appendMessage(
+                base.copy(
+                    text = partial.ifBlank { "…" },
+                    deliveryState = "sending",
+                )
+            )
+            lastPersisted = partial
+            lastPersistAt = now
+        }
+    }
+
+    val rawReply = result.getOrElse { error ->
+        when {
+            error.message?.contains("No chat AI") == true -> noAiMessage
+            else -> failurePrefix + (error.message ?: "Check the provider settings.")
+        }
+    }
+
+    val parsed = NightStructuredReplyParser.parse(rawReply)
+
+    parsed.choiceSelection?.let { selection ->
+        val existing = repository.getMessage(selection.messageId)
+        if (existing != null && existing.chatId == chatId && existing.type == "choice") {
+            val payload = runCatching { JSONObject(existing.payloadJson) }
+                .getOrElse { JSONObject() }
+            val options = payload.optJSONArray("options")
+            if (options != null && selection.index in 0 until options.length()) {
+                payload
+                    .put("selectedIndex", selection.index)
+                    .put("selectedBy", "Night")
+                repository.appendMessage(existing.copy(payloadJson = payload.toString()))
+            }
+        }
+    }
+
+    if (parsed.text.isBlank()) {
+        repository.deleteMessage(messageId)
+    } else {
+        repository.appendMessage(
+            base.copy(
+                text = parsed.text,
+                deliveryState = "sent",
+            )
+        )
+    }
+
+    parsed.choice?.let { choice ->
+        repository.appendMessage(
+            NightMessageEntity(
+                id = java.util.UUID.randomUUID().toString(),
+                chatId = chatId,
+                role = "assistant",
+                type = "choice",
+                text = choice.title,
+                createdAt = System.currentTimeMillis(),
+                payloadJson = JSONObject()
+                    .put("options", JSONArray(choice.options))
+                    .toString(),
+            )
+        )
+    }
 }
 
 private suspend fun appendParsedAssistantReply(
