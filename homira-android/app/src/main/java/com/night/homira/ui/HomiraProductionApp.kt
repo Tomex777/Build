@@ -2069,13 +2069,19 @@ fun HomiraProductionApp(
                     voicemailGreetingMode = mode
                     voicemailGreetingPath = path
                 },
-                onBack = { overlay = OverlayScreen.Settings }
+                onBack = {
+                    overlay = OverlayScreen.None
+                    tab = MainTab.Me
+                }
             )
 
             overlay == OverlayScreen.BlockedPeople -> BlockedPeopleScreen(
                 contacts = appContacts,
                 blockedUserIds = blockedUserIds,
-                onBack = { overlay = OverlayScreen.Settings },
+                onBack = {
+                    overlay = OverlayScreen.None
+                    tab = MainTab.Me
+                },
                 onBlockChanged = { person, blocked ->
                     if (!liveMode) {
                         blockedUserIds = if (blocked) {
@@ -2488,9 +2494,158 @@ fun HomiraProductionApp(
                                 email = profileEmail,
                                 phone = profilePhone,
                                 avatarUri = avatarUri,
-                                callCardUri = callCardUri,
-                                onEdit = { overlay = OverlayScreen.EditProfile },
-                                onSettings = { overlay = OverlayScreen.Settings }
+                                lowDataCalls = localSettings.lowDataCalls,
+                                callNotifications =
+                                    localSettings.callNotifications,
+                                ringtoneTitle = ringtoneTitle,
+                                voicemailEnabled = voicemailEnabled,
+                                voicemailGreetingMode =
+                                    voicemailGreetingMode,
+                                onEdit = {
+                                    overlay = OverlayScreen.EditProfile
+                                },
+                                onLowDataChanged = { enabled ->
+                                    settingsStore.setLowDataCalls(enabled)
+                                    localSettings = settingsStore.load()
+                                },
+                                onNotificationsChanged = { enabled ->
+                                    settingsStore.setCallNotifications(
+                                        enabled
+                                    )
+                                    localSettings = settingsStore.load()
+
+                                    if (
+                                        Build.VERSION.SDK_INT >=
+                                            Build.VERSION_CODES.TIRAMISU &&
+                                        enabled &&
+                                        !notificationPermissionGranted
+                                    ) {
+                                        runCatching {
+                                            notificationPermissionLauncher
+                                                .launch(
+                                                    Manifest.permission
+                                                        .POST_NOTIFICATIONS
+                                                )
+                                        }
+                                    }
+                                },
+                                onRingtone = {
+                                    val existingUri =
+                                        localSettings.ringtoneUri
+                                            ?.let(Uri::parse)
+                                            ?: RingtoneManager
+                                                .getDefaultUri(
+                                                    RingtoneManager
+                                                        .TYPE_RINGTONE
+                                                )
+
+                                    val intent = Intent(
+                                        RingtoneManager
+                                            .ACTION_RINGTONE_PICKER
+                                    ).apply {
+                                        putExtra(
+                                            RingtoneManager
+                                                .EXTRA_RINGTONE_TYPE,
+                                            RingtoneManager.TYPE_RINGTONE
+                                        )
+                                        putExtra(
+                                            RingtoneManager
+                                                .EXTRA_RINGTONE_TITLE,
+                                            "Homira ringtone"
+                                        )
+                                        putExtra(
+                                            RingtoneManager
+                                                .EXTRA_RINGTONE_SHOW_DEFAULT,
+                                            true
+                                        )
+                                        putExtra(
+                                            RingtoneManager
+                                                .EXTRA_RINGTONE_SHOW_SILENT,
+                                            false
+                                        )
+                                        putExtra(
+                                            RingtoneManager
+                                                .EXTRA_RINGTONE_EXISTING_URI,
+                                            existingUri
+                                        )
+                                    }
+
+                                    runCatching {
+                                        ringtonePickerLauncher.launch(
+                                            intent
+                                        )
+                                    }.onFailure {
+                                        Toast.makeText(
+                                            context,
+                                            "Could not open the ringtone picker.",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                },
+                                onVoicemailEnabledChanged = { enabled ->
+                                    if (!liveMode) {
+                                        voicemailEnabled = enabled
+                                    } else {
+                                        val previous = voicemailEnabled
+                                        voicemailEnabled = enabled
+
+                                        liveScope.launch {
+                                            runCatching {
+                                                liveRepository
+                                                    .setVoicemailEnabled(
+                                                        enabled
+                                                    )
+                                            }.onSuccess { profile ->
+                                                voicemailEnabled =
+                                                    profile
+                                                        .voicemailEnabled
+                                            }.onFailure {
+                                                voicemailEnabled = previous
+                                                Toast.makeText(
+                                                    context,
+                                                    it.message
+                                                        ?: "Could not update voicemail.",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
+                                    }
+                                },
+                                onVoicemail = {
+                                    overlay = OverlayScreen.Voicemail
+                                },
+                                onBlockedPeople = {
+                                    overlay = OverlayScreen.BlockedPeople
+                                },
+                                onSignOut = {
+                                    liveScope.launch {
+                                        runCatching {
+                                            voiceEngine?.close()
+                                            runCatching {
+                                                HomiraPushBootstrap
+                                                    .removeRegisteredToken(
+                                                        context = context,
+                                                        repository =
+                                                            liveRepository
+                                                    )
+                                            }
+                                            liveRepository.signOut()
+                                        }.onSuccess {
+                                            activePerson = null
+                                            activeSession = null
+                                            incomingSession = null
+                                            incomingPerson = null
+                                            onSignedOut()
+                                        }.onFailure {
+                                            Toast.makeText(
+                                                context,
+                                                it.message
+                                                    ?: "Could not sign out.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                }
                             )
                             }
                         }
