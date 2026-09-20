@@ -479,7 +479,7 @@ internal fun NightVlcVideoSurface(
                         if (attachedPlayer !== player) {
                             runCatching { attachedPlayer?.detachViews() }
                             val attached = runCatching {
-                                player.attachViews(layout, null, false, true)
+                                player.attachViews(layout, null, false, false)
                             }.isSuccess
                             if (attached) {
                                 attachedPlayer = player
