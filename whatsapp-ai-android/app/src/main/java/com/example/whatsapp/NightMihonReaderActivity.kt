@@ -50,16 +50,22 @@ class NightMihonReaderActivity :
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN) {
-            val down = when (event.keyCode) {
-                KeyEvent.KEYCODE_VOLUME_DOWN -> true
-                KeyEvent.KEYCODE_VOLUME_UP -> false
-                else -> null
-            }
-            if (down != null && volumeKeyHandler?.invoke(down) == true) {
-                return true
-            }
+        val volumeDown = when (event.keyCode) {
+            KeyEvent.KEYCODE_VOLUME_DOWN -> true
+            KeyEvent.KEYCODE_VOLUME_UP -> false
+            else -> null
         }
+        val handler = volumeKeyHandler
+
+        if (volumeDown != null && handler != null) {
+            // Match Mihon: consume both halves of the volume-key event,
+            // but perform the reader navigation only when the key is released.
+            if (event.action == KeyEvent.ACTION_UP) {
+                handler(volumeDown)
+            }
+            return true
+        }
+
         return super.dispatchKeyEvent(event)
     }
 
