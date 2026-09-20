@@ -54,10 +54,33 @@ read_saved_progress() {
 }
 
 read_media_volume() {
-  local raw volume
-  raw="$(adb shell cmd media_session volume --stream 3 --get 2>/dev/null || true)"
-  printf '%s\n' "$raw" > mihon-interaction-artifacts/media-volume-latest.txt
+  local raw volume audio_dump current_line
+
+  # Android 11's media_session shell command can emit its [V] diagnostics on
+  # stderr, so capture both streams before parsing the reported music volume.
+  raw="$(adb shell cmd media_session volume --stream 3 --get 2>&1 || true)"
   volume="$(printf '%s\n' "$raw" | sed -n 's/.*volume is \([0-9][0-9]*\).*/\1/p' | tail -n 1)"
+
+  # Keep a second, framework-level path so the consumption assertion is not
+  # tied to shell-command output formatting.
+  if [ -z "$volume" ]; then
+    audio_dump="$(adb shell dumpsys audio 2>&1 || true)"
+    current_line="$(
+      printf '%s\n' "$audio_dump" |
+        awk '
+          /- STREAM_MUSIC:/ { in_music = 1; next }
+          in_music && /Current:/ { print; exit }
+        '
+    )"
+    volume="$(
+      printf '%s\n' "$current_line" |
+        sed -n 's/.*(speaker):[[:space:]]*\([0-9][0-9]*\).*/\1/p'
+    )"
+    raw="$raw
+$current_line"
+  fi
+
+  printf '%s\n' "$raw" > mihon-interaction-artifacts/media-volume-latest.txt
   if [ -z "$volume" ]; then
     echo "Could not read Android media volume for volume-key consumption test." >&2
     printf '%s\n' "$raw" >&2
@@ -282,7 +305,7 @@ sleep 1
 
 # Put the media stream in the middle of its range. If Night fails to consume
 # either hardware key, Android will visibly move this value and the test fails.
-adb shell cmd media_session volume --stream 3 --set 7 >/dev/null
+adb shell cmd media_session volume --stream 3 --set 7 >/dev/null 2>&1
 baseline_media_volume="$(read_media_volume)"
 if [ "$baseline_media_volume" != "7" ]; then
   echo "Could not establish media-volume baseline at 7 (got $baseline_media_volume)." >&2
