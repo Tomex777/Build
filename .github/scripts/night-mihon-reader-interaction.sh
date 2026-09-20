@@ -93,7 +93,7 @@ assert_no_crash() {
   # adb's own input/uiautomator helpers also log through AndroidRuntime.
   # Only treat a fatal block as Night's crash when AndroidRuntime identifies
   # Night itself as the process.
-  if adb logcat -d -v brief | grep -q "AndroidRuntime: Process: $PACKAGE"; then
+  if adb logcat -d -v brief | grep -A4 "FATAL EXCEPTION:" | grep -q "Process: $PACKAGE"; then
     echo "Night crashed during Mihon interaction test" >&2
     adb shell dumpsys activity activities > mihon-interaction-artifacts/activity-state.txt || true
     exit 1
@@ -230,12 +230,20 @@ assert_text "Invert tapping"
 # Enable volume navigation from the real activity and exercise both keys.
 echo "STEP: volume-key navigation"
 find_and_tap_text "Volume keys" 10
+adb shell run-as "$PACKAGE" cat shared_prefs/night_mihon_reader.xml \
+  > mihon-interaction-artifacts/prefs-volume-keys.xml
+grep -Eq '<boolean name="volumeKeys" value="true" ?/>' mihon-interaction-artifacts/prefs-volume-keys.xml
+
 adb shell input keyevent KEYCODE_BACK
 sleep 1
+adb logcat -c
+
 adb shell input keyevent KEYCODE_VOLUME_DOWN
-sleep 1
+sleep 2
+assert_no_crash
+
 adb shell input keyevent KEYCODE_VOLUME_UP
-sleep 1
+sleep 2
 assert_no_crash
 
 adb exec-out screencap -p > mihon-interaction-artifacts/07-after-volume-nav.png
