@@ -787,12 +787,7 @@ fun HomiraProductionApp(
                 storagePath = initialProfile.avatarPath,
                 cacheKey = "$ownerId-avatar"
             )
-            callCardUri = cacheProfileMediaP(
-                context = context,
-                repository = liveRepository,
-                storagePath = initialProfile.callCardPath,
-                cacheKey = "$ownerId-call-card"
-            )
+            callCardUri = null
         }
 
         var liveContacts by remember(initialContacts) { mutableStateOf(initialContacts) }
@@ -817,13 +812,7 @@ fun HomiraProductionApp(
                     storagePath = contact.avatarPath,
                     cacheKey = "${contact.id}-avatar"
                 )
-                val callCard = cacheProfileMediaP(
-                    context = context,
-                    repository = liveRepository,
-                    storagePath = contact.callCardPath,
-                    cacheKey = "${contact.id}-call-card"
-                )
-                media[contact.id] = avatar to callCard
+                media[contact.id] = avatar to null
             }
             contactMediaUris = media
         }
@@ -942,12 +931,7 @@ fun HomiraProductionApp(
                             profile?.avatarPath,
                             "${voicemail.senderId}-avatar"
                         ),
-                        callCardUri = cacheProfileMediaP(
-                            context,
-                            liveRepository,
-                            profile?.callCardPath,
-                            "${voicemail.senderId}-call-card"
-                        )
+                        callCardUri = null
                     )
                 }
 
@@ -1115,10 +1099,7 @@ fun HomiraProductionApp(
                     }
 
                     val refreshedPerson =
-                        if (
-                            person.avatarUri == null ||
-                            person.callCardUri == null
-                        ) {
+                        if (person.avatarUri == null) {
                             val profile = liveRepository.loadProfileById(person.id)
                             if (profile == null) {
                                 person
@@ -1144,12 +1125,7 @@ fun HomiraProductionApp(
                                         profile.avatarPath,
                                         "${person.id}-avatar"
                                     ),
-                                    callCardUri = cacheProfileMediaP(
-                                        context,
-                                        liveRepository,
-                                        profile.callCardPath,
-                                        "${person.id}-call-card"
-                                    )
+                                    callCardUri = null
                                 )
                             }
                         } else {
@@ -1529,12 +1505,7 @@ fun HomiraProductionApp(
                         profile?.avatarPath,
                         "$userId-avatar"
                     ),
-                    callCardUri = cacheProfileMediaP(
-                        context,
-                        liveRepository,
-                        profile?.callCardPath,
-                        "$userId-call-card"
-                    )
+                    callCardUri = null
                 )
             }
 
