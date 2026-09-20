@@ -12,6 +12,9 @@ plugins {
 android {
     namespace = "com.night.homira"
     compileSdk = 36
+    // Core Telecom 1.1.0-beta01 requires the Android 16 SDK minor 36.1
+    // for compilation. Runtime targeting remains Android 16 / API 36.
+    compileSdkMinor = 1
 
     defaultConfig {
         applicationId = "com.night.homira"
