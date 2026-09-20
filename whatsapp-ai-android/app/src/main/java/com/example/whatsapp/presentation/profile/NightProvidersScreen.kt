@@ -428,7 +428,7 @@ private fun AddModelDialog(
                         Text("Vision", color = ProviderText)
                         Spacer(Modifier.width(10.dp))
                         Checkbox(checked = tools, onCheckedChange = { tools = it })
-                        Text("Tools", color = ProviderText)
+                        Text("Agent tools", color = ProviderText)
                     }
                     if (profile.providerType == "azure") {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -439,6 +439,12 @@ private fun AddModelDialog(
                             Text("Image generation", color = ProviderText)
                         }
                     }
+                    Text(
+                        "Agent tools lets Night search the web, read files, schedule actions, change appearance, create options, and call extensions.",
+                        color = ProviderMuted,
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp,
+                    )
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
