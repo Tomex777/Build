@@ -353,7 +353,15 @@ internal fun NightVlcVideoSurface(
     var softwareDecode by remember(path) { mutableStateOf(false) }
     var userPaused by remember(path) { mutableStateOf(false) }
     var fallbackResumePosition by remember(path) { mutableLongStateOf(0L) }
-    val libVlc = remember(path, softwareDecode) {
+    val mediaUri = remember(path) {
+        when {
+            path.startsWith("http://") || path.startsWith("https://") ||
+                path.startsWith("content://") || path.startsWith("file://") -> Uri.parse(path)
+            else -> Uri.fromFile(File(path))
+        }
+    }
+
+    val libVlc = remember(path) {
         LibVLC(
             context,
             arrayListOf(
@@ -362,19 +370,14 @@ internal fun NightVlcVideoSurface(
             ),
         )
     }
-    val player = remember(path, softwareDecode) { MediaPlayer(libVlc) }
+    val player = remember(path) { MediaPlayer(libVlc) }
     var playing by remember(path) { mutableStateOf(false) }
     var length by remember(path) { mutableLongStateOf(0L) }
     var position by remember(path) { mutableLongStateOf(0L) }
 
     DisposableEffect(player, libVlc, path) {
-        val uri = when {
-            path.startsWith("http://") || path.startsWith("https://") ||
-                path.startsWith("content://") || path.startsWith("file://") -> Uri.parse(path)
-            else -> Uri.fromFile(File(path))
-        }
-        val media = Media(libVlc, uri).apply {
-            setHWDecoderEnabled(!softwareDecode, false)
+        val media = Media(libVlc, mediaUri).apply {
+            setHWDecoderEnabled(true, false)
             addOption(":network-caching=1500")
         }
         player.media = media
@@ -388,14 +391,11 @@ internal fun NightVlcVideoSurface(
         }
     }
 
-    LaunchedEffect(active, player, softwareDecode) {
+    LaunchedEffect(active, player) {
         if (active) {
             player.play()
-            if (softwareDecode && fallbackResumePosition > 0L) {
-                runCatching { player.setTime(fallbackResumePosition) }
-            }
             playing = true
-            val startedAt = SystemClock.elapsedRealtime()
+            var startedAt = SystemClock.elapsedRealtime()
             var lastAdvanceAt = startedAt
             var lastObservedPosition = -1L
             while (isActive) {
@@ -418,10 +418,29 @@ internal fun NightVlcVideoSurface(
                     fallbackResumePosition = position
                     Log.w(
                         "NightVideo",
-                        "Editor playback stalled at ${position}ms; retrying with VLC software decoding.",
+                        "Editor playback stalled at ${position}ms; retrying in-place with VLC software decoding.",
                     )
+                    val fallbackMedia = Media(libVlc, mediaUri).apply {
+                        setHWDecoderEnabled(false, false)
+                        addOption(":network-caching=1500")
+                    }
+                    val switched = runCatching {
+                        player.stop()
+                        player.media = fallbackMedia
+                        player.play()
+                        if (fallbackResumePosition > 0L) {
+                            player.setTime(fallbackResumePosition)
+                        }
+                    }.isSuccess
+                    fallbackMedia.release()
+                    if (!switched) {
+                        Log.e("NightVideo", "Could not switch editor playback to VLC software decoding.")
+                        return@LaunchedEffect
+                    }
                     softwareDecode = true
-                    return@LaunchedEffect
+                    startedAt = now
+                    lastAdvanceAt = now
+                    lastObservedPosition = fallbackResumePosition
                 }
                 delay(250)
             }
