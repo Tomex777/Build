@@ -1,9 +1,9 @@
 package com.example.whatsapp.data.night
 
 import android.text.Html
+import java.net.InetAddress
 import java.net.URI
 import java.net.URLDecoder
-import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -74,7 +74,11 @@ class NightWebToolService private constructor(
                 }
                 val contentType = response.header("Content-Type").orEmpty().lowercase()
                 val body = response.body ?: error("The page returned no content.")
-                val raw = body.source().readUtf8((maxChars.coerceAtLeast(4_000) * 8L).coerceAtMost(512_000L))
+                val source = body.source()
+                val byteLimit = (maxChars.coerceAtLeast(4_000) * 8L).coerceAtMost(512_000L)
+                source.request(byteLimit)
+                val readable = minOf(source.buffer.size, byteLimit)
+                val raw = source.readUtf8(readable)
 
                 val text = when {
                     "html" in contentType || raw.contains("<html", ignoreCase = true) -> htmlToText(raw)
@@ -140,7 +144,23 @@ class NightWebToolService private constructor(
         require(uri.scheme == "http" || uri.scheme == "https") {
             "Only HTTP and HTTPS pages can be fetched."
         }
-        require(!uri.host.isNullOrBlank()) { "The URL has no valid host." }
+        val host = uri.host?.lowercase().orEmpty()
+        require(host.isNotBlank()) { "The URL has no valid host." }
+        require(host != "localhost" && !host.endsWith(".local")) {
+            "Local network addresses cannot be fetched."
+        }
+
+        val addresses = runCatching { InetAddress.getAllByName(host).toList() }
+            .getOrElse { error("The page host could not be resolved.") }
+        require(addresses.isNotEmpty() && addresses.none { address ->
+            address.isAnyLocalAddress ||
+                address.isLoopbackAddress ||
+                address.isLinkLocalAddress ||
+                address.isSiteLocalAddress ||
+                address.isMulticastAddress
+        }) {
+            "Private or local network addresses cannot be fetched."
+        }
         return trimmed
     }
 
