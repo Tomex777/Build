@@ -486,17 +486,33 @@ fun NightMihonReaderScreen(
         }
     }
 
+    val readerMenuVisible =
+        controlsVisible ||
+            readingModeSheet ||
+            orientationSheet ||
+            settingsSheet ||
+            overflowOpen ||
+            pageActionIndex != null
+
     DisposableEffect(
         activity,
         host,
         volumeKeys,
         invertVolumeKeys,
+        readerMenuVisible,
     ) {
         val readerActivity =
             activity as? NightMihonReaderActivity
         val activeHost = host
 
-        if (volumeKeys && activeHost != null) {
+        // Match Mihon: volume keys navigate only while the reader chrome is
+        // hidden. If a reader menu/sheet is visible, Android keeps its normal
+        // volume behavior.
+        if (
+            volumeKeys &&
+            activeHost != null &&
+            !readerMenuVisible
+        ) {
             readerActivity?.setVolumeKeyHandler { volumeDown ->
                 val moveNext =
                     if (invertVolumeKeys) {
