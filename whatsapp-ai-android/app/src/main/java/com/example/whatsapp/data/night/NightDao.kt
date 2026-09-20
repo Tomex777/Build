@@ -51,6 +51,9 @@ interface NightDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertMessage(message: NightMessageEntity)
 
+    @Query("DELETE FROM night_messages WHERE id = :messageId")
+    suspend fun deleteMessage(messageId: String)
+
     @Query("DELETE FROM night_messages WHERE chatId = :chatId")
     suspend fun clearMessages(chatId: String)
 
