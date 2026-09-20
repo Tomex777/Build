@@ -6825,7 +6825,8 @@ private fun ActiveCallScreen(
                                     requireUnconsumed = false
                                 )
 
-                                do {
+                                var gestureActive = true
+                                while (gestureActive) {
                                     val event = awaitPointerEvent()
                                     val zoom =
                                         event.calculateZoom()
@@ -6893,11 +6894,12 @@ private fun ActiveCallScreen(
                                             }
                                         }
                                     }
-                                } while (
-                                    event.changes.any {
-                                        it.pressed
-                                    }
-                                )
+
+                                    gestureActive =
+                                        event.changes.any {
+                                            it.pressed
+                                        }
+                                }
 
                                 // WhatsApp-style elastic upper bound:
                                 // the tile may stretch while touched,
