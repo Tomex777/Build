@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Night video Android 16 validation trigger
+# Night video Android 16 validation trigger v2
 set -euo pipefail
 
 APK="whatsapp-ai-android/app/build/outputs/apk/debug/app-debug.apk"
