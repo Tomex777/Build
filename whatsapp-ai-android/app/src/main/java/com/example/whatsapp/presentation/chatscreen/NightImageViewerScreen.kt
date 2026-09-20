@@ -421,7 +421,12 @@ internal fun NightVlcVideoSurface(
                         "Editor playback stalled at ${position}ms; retrying in-place with VLC software decoding.",
                     )
                     val fallbackMedia = Media(libVlc, mediaUri).apply {
-                        setHWDecoderEnabled(false, false)
+                        // setHWDecoderEnabled(false, false) maps to :codec=all in this
+                        // LibVLC generation, which can still choose Android MediaCodec.
+                        // Force libavcodec and disable avcodec hwaccel for a true
+                        // software-decoder fallback inside the editor.
+                        addOption(":codec=avcodec")
+                        addOption(":avcodec-hw=none")
                         addOption(":network-caching=1500")
                     }
                     val switched = runCatching {
