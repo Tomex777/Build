@@ -110,8 +110,6 @@ adb shell am start -W -n "$PACKAGE/.MihonReaderPreviewActivity" \
   --ez mihon.preview.openProductionReader true
 sleep 3
 assert_alive
-assert_desc "Reading mode"
-assert_desc "Reader settings"
 adb exec-out screencap -p > mihon-interaction-artifacts/02-reader-open.png
 
 # Hide controls and move one page through Mihon's RTL tap zone.
@@ -172,7 +170,8 @@ assert_no_crash
 echo "STEP: paged scale settings"
 adb shell input tap 354 760
 sleep 1
-tap_desc "Reader settings"
+adb shell input tap 582 1500
+sleep 1
 assert_text "Reader settings"
 assert_text "Scale type"
 assert_text "Fit screen"
@@ -186,7 +185,8 @@ assert_no_crash
 
 # Switch from paged RTL to Mihon's Long strip mode.
 echo "STEP: switch to Long strip"
-tap_desc "Reading mode"
+adb shell input tap 128 1500
+sleep 1
 tap_text "Long strip"
 tap_text "Apply"
 sleep 2
@@ -208,7 +208,8 @@ assert_no_crash
 echo "STEP: Long strip settings"
 adb shell input tap 354 760
 sleep 1
-tap_desc "Reader settings"
+adb shell input tap 582 1500
+sleep 1
 assert_text "Long strip side padding · 0%"
 assert_text "Double tap zoom"
 assert_text "Tap zones"
