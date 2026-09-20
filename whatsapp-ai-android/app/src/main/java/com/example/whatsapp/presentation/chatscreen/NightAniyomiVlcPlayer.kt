@@ -227,13 +227,15 @@ internal fun NightAniyomiVlcPlayer(
                 !userPaused &&
                 length > 0L &&
                 position < (length - 1500L).coerceAtLeast(0L) &&
-                now - startedAt >= 3500L &&
-                now - lastAdvanceAt >= 2500L
+                (
+                    (lastObservedPosition >= 500L && now - lastAdvanceAt >= 2500L) ||
+                        (lastObservedPosition < 500L && now - startedAt >= 9000L)
+                    )
             ) {
-                // Some devices/emulators advertise a hardware H.264 decoder that accepts
-                // the stream, renders one frame, then wedges. Recreate VLC once with HW
-                // decoding disabled so libavcodec can continue instead of leaving Night
-                // permanently paused on the first frame.
+                // Treat startup latency differently from a decoder that truly stalled.
+                // Once playback has advanced, 2.5s without movement is suspicious.
+                // Before the first 500ms, allow a longer startup window so slow
+                // surface/codec initialization does not trigger a false fallback at 0ms.
                 fallbackResumePosition = position
                 Log.w(
                     "NightVideo",
@@ -299,7 +301,7 @@ internal fun NightAniyomiVlcPlayer(
                         if (attachedPlayer !== player) {
                             runCatching { attachedPlayer?.detachViews() }
                             val attached = runCatching {
-                                player.attachViews(layout, null, true, false)
+                                player.attachViews(layout, null, true, true)
                             }.isSuccess
                             if (attached) {
                                 attachedPlayer = player
