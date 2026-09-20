@@ -6533,6 +6533,95 @@ private fun IncomingCallScreen(
 }
 
 @Composable
+private fun WaitingIncomingCallBannerP(
+    person: HomiraPerson,
+    video: Boolean,
+    onAccept: () -> Unit,
+    onDecline: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        color = HomiraSurface,
+        shadowElevation = 12.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(
+                horizontal = 14.dp,
+                vertical = 12.dp
+            ),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            PersonAvatarP(person, 48)
+            Spacer(Modifier.width(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    person.name,
+                    color = HomiraText,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    if (video) {
+                        "Incoming video call"
+                    } else {
+                        "Incoming voice call"
+                    },
+                    color = HomiraMuted,
+                    fontSize = 12.sp
+                )
+            }
+
+            Surface(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clickable(onClick = onDecline),
+                shape = CircleShape,
+                color = HomiraDanger
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Rounded.CallEnd,
+                        contentDescription = "Decline incoming call",
+                        tint = Color.White,
+                        modifier = Modifier.size(23.dp)
+                    )
+                }
+            }
+
+            Spacer(Modifier.width(10.dp))
+
+            Surface(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clickable(onClick = onAccept),
+                shape = CircleShape,
+                color = HomiraGreen
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        if (video) {
+                            Icons.Rounded.Videocam
+                        } else {
+                            Icons.Rounded.Call
+                        },
+                        contentDescription = "Answer incoming call",
+                        tint = Color.Black,
+                        modifier = Modifier.size(23.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun ActiveCallScreen(
     person: HomiraPerson,
     startsWithVideo: Boolean,
