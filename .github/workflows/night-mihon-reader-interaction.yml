@@ -83,7 +83,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -accel on -wipe-data
           script: |
-            set -euo pipefail
+            set -eu
 
             APK="whatsapp-ai-android/app/build/outputs/apk/debug/app-debug.apk"
             PACKAGE="com.example.whatsapp"
@@ -133,24 +133,30 @@ jobs:
 
             tap_text() {
               refresh_ui
-              read -r X Y < <(python3 /tmp/night_uia.py text "$1")
+              COORDS="$(python3 /tmp/night_uia.py text "$1")"
+              X="${COORDS% *}"
+              Y="${COORDS#* }"
               adb shell input tap "$X" "$Y"
               sleep 1
             }
 
             tap_desc() {
               refresh_ui
-              read -r X Y < <(python3 /tmp/night_uia.py desc "$1")
+              COORDS="$(python3 /tmp/night_uia.py desc "$1")"
+              X="${COORDS% *}"
+              Y="${COORDS#* }"
               adb shell input tap "$X" "$Y"
               sleep 1
             }
 
             find_and_tap_text() {
-              local target="$1"
-              local tries="${2:-8}"
-              for _ in $(seq 1 "$tries"); do
+              TARGET="$1"
+              TRIES="${2:-8}"
+              for _ in $(seq 1 "$TRIES"); do
                 refresh_ui
-                if read -r X Y < <(python3 /tmp/night_uia.py text "$target"); then
+                if COORDS="$(python3 /tmp/night_uia.py text "$TARGET" 2>/dev/null)"; then
+                  X="${COORDS% *}"
+                  Y="${COORDS#* }"
                   adb shell input tap "$X" "$Y"
                   sleep 1
                   return 0
@@ -158,7 +164,7 @@ jobs:
                 adb shell input swipe 350 1200 350 450 260
                 sleep 1
               done
-              echo "Could not find UI text: $target" >&2
+              echo "Could not find UI text: $TARGET" >&2
               return 1
             }
 
