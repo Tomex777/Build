@@ -88,12 +88,20 @@ find_and_tap_text() {
 }
 
 assert_no_crash() {
-  if adb logcat -d -v brief | grep -A8 -E "FATAL EXCEPTION|AndroidRuntime" | grep -q "$PACKAGE"; then
+  adb logcat -d > mihon-interaction-artifacts/logcat-latest.txt || true
+
+  if adb logcat -d -v brief | grep -A12 -E "FATAL EXCEPTION|AndroidRuntime|Process: $PACKAGE" | grep -q "$PACKAGE"; then
     echo "Night crashed during Mihon interaction test" >&2
-    adb logcat -d > mihon-interaction-artifacts/logcat.txt
+    adb shell dumpsys activity activities > mihon-interaction-artifacts/activity-state.txt || true
     exit 1
   fi
-  assert_alive
+
+  if ! adb shell pidof "$PACKAGE" > mihon-interaction-artifacts/pid.txt; then
+    echo "Night process disappeared during Mihon interaction test" >&2
+    adb logcat -d > mihon-interaction-artifacts/logcat-process-gone.txt || true
+    adb shell dumpsys activity activities > mihon-interaction-artifacts/activity-state.txt || true
+    exit 1
+  fi
 }
 
 # Seed a real CBZ using the preview's in-app archive creator.
@@ -185,6 +193,7 @@ assert_no_crash
 
 # Switch from paged RTL to Mihon's Long strip mode.
 echo "STEP: switch to Long strip"
+adb logcat -c
 adb shell input tap 128 1500
 sleep 1
 tap_text "Long strip"
