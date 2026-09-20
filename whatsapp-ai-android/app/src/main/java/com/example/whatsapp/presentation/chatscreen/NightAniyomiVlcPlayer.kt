@@ -9,6 +9,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
+import android.view.View
+import android.view.ViewGroup
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -77,6 +79,16 @@ import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.util.VLCVideoLayout
+
+private fun View.installNightVideoTapHandler(onTap: () -> Unit) {
+    isClickable = true
+    setOnClickListener { onTap() }
+    if (this is ViewGroup) {
+        for (index in 0 until childCount) {
+            getChildAt(index).installNightVideoTapHandler(onTap)
+        }
+    }
+}
 
 private enum class NightVideoAspect(
     val label: String,
@@ -289,8 +301,17 @@ internal fun NightAniyomiVlcPlayer(
         contentAlignment = Alignment.Center,
     ) {
         AndroidView(
-            factory = { viewContext -> VLCVideoLayout(viewContext) },
+            factory = { viewContext ->
+                VLCVideoLayout(viewContext).also { layout ->
+                    layout.installNightVideoTapHandler {
+                        controlsVisible = !controlsVisible
+                    }
+                }
+            },
             update = { layout ->
+                layout.installNightVideoTapHandler {
+                    controlsVisible = !controlsVisible
+                }
                 if (attachedPlayer !== player) {
                     // Avoid starting VLC against a zero-sized or stale surface. The
                     // same VLCVideoLayout stays mounted while the player/engine swaps.
@@ -302,6 +323,9 @@ internal fun NightAniyomiVlcPlayer(
                             }.isSuccess
                             if (attached) {
                                 attachedPlayer = player
+                                layout.installNightVideoTapHandler {
+                                    controlsVisible = !controlsVisible
+                                }
                                 runCatching { player.setVideoScale(aspect.scale) }
                             } else {
                                 Log.e("NightVideo", "Could not attach VLC player to video surface.")
@@ -312,11 +336,7 @@ internal fun NightAniyomiVlcPlayer(
                     runCatching { player.setVideoScale(aspect.scale) }
                 }
             },
-            modifier = Modifier
-                .fillMaxSize()
-                // Put the Compose click modifier on the AndroidView node itself.
-                // A sibling overlay cannot reliably receive taps above AndroidView.
-                .clickable { controlsVisible = !controlsVisible },
+            modifier = Modifier.fillMaxSize(),
         )
 
         AnimatedVisibility(
