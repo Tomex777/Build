@@ -25,6 +25,12 @@ internal class MihonReaderHostView(
     private var sidePadding = 0
     private var webtoonDoubleTapZoom = true
     private var webtoonZoomOutDisabled = false
+    private var scaleType = MihonImageScaleType.FIT_SCREEN
+    private var zoomStart = MihonZoomStart.AUTOMATIC
+    private var landscapeZoom = true
+    private var navigateToPan = true
+    private var tapZone = MihonTapZone.RIGHT_AND_LEFT
+    private var tapInvertMode = MihonTapInvertMode.NONE
     private var currentPage = 0
 
     var onPageChanged: ((Int) -> Unit)? = null
@@ -42,6 +48,12 @@ internal class MihonReaderHostView(
         sidePadding: Int,
         webtoonDoubleTapZoom: Boolean,
         webtoonZoomOutDisabled: Boolean,
+        scaleType: MihonImageScaleType,
+        zoomStart: MihonZoomStart,
+        landscapeZoom: Boolean,
+        navigateToPan: Boolean,
+        tapZone: MihonTapZone,
+        tapInvertMode: MihonTapInvertMode,
     ) {
         val safePage =
             currentPage.coerceIn(
@@ -57,7 +69,13 @@ internal class MihonReaderHostView(
                 this.webtoonDoubleTapZoom !=
                 webtoonDoubleTapZoom ||
                 this.webtoonZoomOutDisabled !=
-                webtoonZoomOutDisabled
+                webtoonZoomOutDisabled ||
+                this.scaleType != scaleType ||
+                this.zoomStart != zoomStart ||
+                this.landscapeZoom != landscapeZoom ||
+                this.navigateToPan != navigateToPan ||
+                this.tapZone != tapZone ||
+                this.tapInvertMode != tapInvertMode
 
         this.pages = pages
         this.mode = mode
@@ -67,6 +85,12 @@ internal class MihonReaderHostView(
             webtoonDoubleTapZoom
         this.webtoonZoomOutDisabled =
             webtoonZoomOutDisabled
+        this.scaleType = scaleType
+        this.zoomStart = zoomStart
+        this.landscapeZoom = landscapeZoom
+        this.navigateToPan = navigateToPan
+        this.tapZone = tapZone
+        this.tapInvertMode = tapInvertMode
         this.currentPage = safePage
 
         if (structuralChange) {
@@ -164,6 +188,10 @@ internal class MihonReaderHostView(
                                 page = page,
                                 cropBorders = cropBorders,
                                 sidePaddingPercent = 0,
+                                scaleType = scaleType,
+                                zoomStart = zoomStart,
+                                readingMode = mode,
+                                landscapeZoom = landscapeZoom,
                             )
                         }
 
@@ -221,29 +249,43 @@ internal class MihonReaderHostView(
         event: MotionEvent,
         vertical: Boolean,
     ) {
-        val x =
-            event.x /
-                activePager.width.coerceAtLeast(1)
-        val y =
-            event.y /
-                activePager.height.coerceAtLeast(1)
+        val point =
+            normalizedTapPoint(
+                x = event.x /
+                    activePager.width.coerceAtLeast(1),
+                y = event.y /
+                    activePager.height.coerceAtLeast(1),
+            )
 
-        if (vertical) {
-            // Mihon's default LNavigation zones.
-            when {
-                y < 0.33f -> movePrevious()
-                y > 0.66f -> moveNext()
-                x < 0.33f -> movePrevious()
-                x > 0.66f -> moveNext()
-                else -> onToggleMenu?.invoke()
-            }
-        } else {
-            // Mihon's default RightAndLeftNavigation zones.
-            when {
-                x < 0.33f -> moveLeft()
-                x > 0.66f -> moveRight()
-                else -> onToggleMenu?.invoke()
-            }
+        when (
+            tapAction(
+                x = point.first,
+                y = point.second,
+                zone = tapZone,
+            )
+        ) {
+            TapAction.PREVIOUS ->
+                movePrevious()
+
+            TapAction.NEXT ->
+                moveNext()
+
+            TapAction.LEFT ->
+                if (vertical) {
+                    movePrevious()
+                } else {
+                    moveLeft()
+                }
+
+            TapAction.RIGHT ->
+                if (vertical) {
+                    moveNext()
+                } else {
+                    moveRight()
+                }
+
+            TapAction.MENU ->
+                onToggleMenu?.invoke()
         }
     }
 
@@ -267,6 +309,7 @@ internal class MihonReaderHostView(
         val holder = currentPagerHolder()
 
         if (
+            navigateToPan &&
             holder != null &&
             holder.canPanLeft()
         ) {
@@ -284,6 +327,7 @@ internal class MihonReaderHostView(
         val holder = currentPagerHolder()
 
         if (
+            navigateToPan &&
             holder != null &&
             holder.canPanRight()
         ) {
@@ -466,37 +510,40 @@ internal class MihonReaderHostView(
         }
 
         recycler.tapListener = { event ->
-            val x =
-                event.x /
-                    recycler.width.coerceAtLeast(1)
-            val y =
-                event.y /
-                    recycler.originalHeight
-                        .coerceAtLeast(1)
+            val point =
+                normalizedTapPoint(
+                    x = event.x /
+                        recycler.width.coerceAtLeast(1),
+                    y = event.y /
+                        recycler.originalHeight
+                            .coerceAtLeast(1),
+                )
 
-            // Mihon's default LNavigation zones.
-            when {
-                y < 0.33f ->
+            when (
+                tapAction(
+                    x = point.first,
+                    y = point.second,
+                    zone = tapZone,
+                )
+            ) {
+                TapAction.PREVIOUS,
+                TapAction.LEFT,
+                ->
                     recycler.smoothScrollBy(
                         0,
                         -scrollDistance,
                     )
-                y > 0.66f ->
+
+                TapAction.NEXT,
+                TapAction.RIGHT,
+                ->
                     recycler.smoothScrollBy(
                         0,
                         scrollDistance,
                     )
-                x < 0.33f ->
-                    recycler.smoothScrollBy(
-                        0,
-                        -scrollDistance,
-                    )
-                x > 0.66f ->
-                    recycler.smoothScrollBy(
-                        0,
-                        scrollDistance,
-                    )
-                else -> onToggleMenu?.invoke()
+
+                TapAction.MENU ->
+                    onToggleMenu?.invoke()
             }
         }
 
@@ -551,6 +598,66 @@ internal class MihonReaderHostView(
         )
     }
 
+    private fun normalizedTapPoint(
+        x: Float,
+        y: Float,
+    ): Pair<Float, Float> =
+        Pair(
+            if (tapInvertMode.horizontal) 1f - x else x,
+            if (tapInvertMode.vertical) 1f - y else y,
+        )
+
+    private fun tapAction(
+        x: Float,
+        y: Float,
+        zone: MihonTapZone,
+    ): TapAction =
+        when (zone) {
+            MihonTapZone.RIGHT_AND_LEFT ->
+                when {
+                    x < 0.33f -> TapAction.LEFT
+                    x > 0.66f -> TapAction.RIGHT
+                    else -> TapAction.MENU
+                }
+
+            MihonTapZone.L ->
+                when {
+                    y < 0.33f -> TapAction.PREVIOUS
+                    y > 0.66f -> TapAction.NEXT
+                    x < 0.33f -> TapAction.PREVIOUS
+                    x > 0.66f -> TapAction.NEXT
+                    else -> TapAction.MENU
+                }
+
+            MihonTapZone.KINDLISH ->
+                when {
+                    y < 0.33f -> TapAction.MENU
+                    x < 0.33f -> TapAction.PREVIOUS
+                    else -> TapAction.NEXT
+                }
+
+            MihonTapZone.EDGE ->
+                when {
+                    x < 0.33f || x > 0.66f ->
+                        TapAction.NEXT
+                    x in 0.33f..0.66f && y > 0.66f ->
+                        TapAction.PREVIOUS
+                    else ->
+                        TapAction.MENU
+                }
+
+            MihonTapZone.DISABLED ->
+                TapAction.MENU
+        }
+
+    private enum class TapAction {
+        PREVIOUS,
+        NEXT,
+        LEFT,
+        RIGHT,
+        MENU,
+    }
+
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         pager?.adapter = null
@@ -572,6 +679,10 @@ internal class MihonReaderHostView(
                 cropBorders = cropBorders,
                 sidePaddingPercent = sidePadding,
                 gapPx = gap,
+                scaleType = MihonImageScaleType.FIT_WIDTH,
+                zoomStart = MihonZoomStart.CENTER,
+                readingMode = MihonReadingMode.WEBTOON,
+                landscapeZoom = false,
             )
         }
 
