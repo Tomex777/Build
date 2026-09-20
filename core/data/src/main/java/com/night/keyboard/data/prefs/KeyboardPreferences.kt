@@ -15,15 +15,20 @@ import kotlinx.coroutines.flow.map
 
 private val Context.keyboardDataStore by preferencesDataStore(name = "keyboard_preferences")
 
+enum class OneHandedMode { OFF, LEFT, RIGHT }
+
 data class KeyboardPreferenceState(
     val defaultRetention: String = RetentionPreset.TWO_HOURS.name,
     val maxHistory: Int = 50,
     val keepPinnedAtTop: Boolean = true,
     val numberRow: Boolean = false,
     val autocorrect: Boolean = true,
+    val autocorrectAggression: Int = 2,
     val suggestions: Boolean = true,
     val haptics: Boolean = true,
     val secondaryCharacters: Boolean = true,
+    val incognito: Boolean = false,
+    val oneHandedMode: OneHandedMode = OneHandedMode.OFF,
     val serverUrl: String = "",
 )
 
@@ -35,9 +40,12 @@ class KeyboardPreferences @Inject constructor(@ApplicationContext private val co
         val keepPinnedAtTop = booleanPreferencesKey("keep_pinned_at_top")
         val numberRow = booleanPreferencesKey("number_row")
         val autocorrect = booleanPreferencesKey("autocorrect")
+        val autocorrectAggression = intPreferencesKey("autocorrect_aggression")
         val suggestions = booleanPreferencesKey("suggestions")
         val haptics = booleanPreferencesKey("haptics")
         val secondaryCharacters = booleanPreferencesKey("secondary_characters")
+        val incognito = booleanPreferencesKey("incognito")
+        val oneHandedMode = stringPreferencesKey("one_handed_mode")
         val serverUrl = stringPreferencesKey("server_url")
     }
 
@@ -48,9 +56,14 @@ class KeyboardPreferences @Inject constructor(@ApplicationContext private val co
             keepPinnedAtTop = p[Keys.keepPinnedAtTop] ?: true,
             numberRow = p[Keys.numberRow] ?: false,
             autocorrect = p[Keys.autocorrect] ?: true,
+            autocorrectAggression = (p[Keys.autocorrectAggression] ?: 2).coerceIn(1, 3),
             suggestions = p[Keys.suggestions] ?: true,
             haptics = p[Keys.haptics] ?: true,
             secondaryCharacters = p[Keys.secondaryCharacters] ?: true,
+            incognito = p[Keys.incognito] ?: false,
+            oneHandedMode = runCatching {
+                OneHandedMode.valueOf(p[Keys.oneHandedMode] ?: OneHandedMode.OFF.name)
+            }.getOrDefault(OneHandedMode.OFF),
             serverUrl = p[Keys.serverUrl] ?: "",
         )
     }
@@ -60,7 +73,7 @@ class KeyboardPreferences @Inject constructor(@ApplicationContext private val co
     }
 
     suspend fun setMaxHistory(value: Int) {
-        context.keyboardDataStore.edit { it[Keys.maxHistory] = value }
+        context.keyboardDataStore.edit { it[Keys.maxHistory] = value.coerceIn(10, 500) }
     }
 
     suspend fun setKeepPinnedAtTop(value: Boolean) {
@@ -75,6 +88,10 @@ class KeyboardPreferences @Inject constructor(@ApplicationContext private val co
         context.keyboardDataStore.edit { it[Keys.autocorrect] = value }
     }
 
+    suspend fun setAutocorrectAggression(value: Int) {
+        context.keyboardDataStore.edit { it[Keys.autocorrectAggression] = value.coerceIn(1, 3) }
+    }
+
     suspend fun setSuggestions(value: Boolean) {
         context.keyboardDataStore.edit { it[Keys.suggestions] = value }
     }
@@ -85,6 +102,14 @@ class KeyboardPreferences @Inject constructor(@ApplicationContext private val co
 
     suspend fun setSecondaryCharacters(value: Boolean) {
         context.keyboardDataStore.edit { it[Keys.secondaryCharacters] = value }
+    }
+
+    suspend fun setIncognito(value: Boolean) {
+        context.keyboardDataStore.edit { it[Keys.incognito] = value }
+    }
+
+    suspend fun setOneHandedMode(value: OneHandedMode) {
+        context.keyboardDataStore.edit { it[Keys.oneHandedMode] = value.name }
     }
 
     suspend fun setServerUrl(value: String) {

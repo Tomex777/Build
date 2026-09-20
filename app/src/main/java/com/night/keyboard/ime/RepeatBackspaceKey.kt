@@ -13,7 +13,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
@@ -28,18 +30,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-/**
- * Backspace owns its pointer stream so a stationary press can repeat deletes
- * without requiring fake movement. A normal tap deletes exactly once; after
- * the initial delay it repeats until the same pointer is released/cancelled.
- */
 @Composable
 fun RepeatBackspaceKey(
     key: KeySpec,
     theme: ThemeSnapshot,
     modifier: Modifier,
+    hapticsEnabled: Boolean,
     onBackspace: () -> Unit,
 ) {
+    val haptic = LocalHapticFeedback.current
     val style = theme.overrides[key.id] ?: KeyStyleOverride()
     val radius = (style.cornerRadiusDp ?: theme.cornerRadiusDp).dp
     val borderEnabled = style.borderEnabled ?: theme.borderEnabled
@@ -51,7 +50,17 @@ fun RepeatBackspaceKey(
     }
     val labelColor = Color((style.labelArgb ?: theme.keyLabelArgb).toInt())
     val borderColor = Color((style.borderArgb ?: theme.borderArgb).toInt())
-    val borderWidth = if (borderEnabled) (style.borderWidthDp ?: theme.borderWidthDp).dp else 0.dp
+    val borderWidth = if (borderEnabled) {
+        (style.borderWidthDp ?: theme.borderWidthDp).dp
+    } else {
+        0.dp
+    }
+
+    fun feedback() {
+        if (hapticsEnabled) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+    }
 
     Box(
         modifier
@@ -59,20 +68,25 @@ fun RepeatBackspaceKey(
             .padding(horizontal = 1.dp)
             .background(fill, RoundedCornerShape(radius))
             .then(
-                if (borderWidth > 0.dp) Modifier.border(borderWidth, borderColor, RoundedCornerShape(radius))
-                else Modifier,
+                if (borderWidth > 0.dp) {
+                    Modifier.border(borderWidth, borderColor, RoundedCornerShape(radius))
+                } else {
+                    Modifier
+                },
             )
             .semantics {
                 contentDescription = "Backspace"
                 role = Role.Button
                 onClick {
+                    feedback()
                     onBackspace()
                     true
                 }
             }
-            .pointerInput(Unit) {
+            .pointerInput(hapticsEnabled) {
                 detectTapGestures(
                     onPress = {
+                        feedback()
                         onBackspace()
                         coroutineScope {
                             val repeatJob = launch {

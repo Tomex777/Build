@@ -53,6 +53,9 @@ check(
     and "onDoubleClick" not in ime,
 )
 check("backspace has stationary hold-repeat behavior", "RepeatBackspaceKey" in ime and "delay(380)" in repeat_backspace and "delay(55)" in repeat_backspace)
+check("haptic preference reaches key paths", "hapticsEnabled" in ime and "hapticsEnabled" in repeat_backspace)
+check("autocorrect and undo path exist", "SuggestionEngine.autocorrect" in ime and "undoAutocorrect" in ime)
+check("one-handed layout affects IME width", "OneHandedMode.LEFT" in ime and "fillMaxWidth(widthFraction)" in ime)
 check("toolbar exposes focused AI trio", all(x in ime for x in ["Editor", "Tone", "Contextual Research"]))
 check("toolbar exposes clipboard and emoji", "ToolPanel.CLIPBOARD" in ime and "ToolPanel.EMOJI" in ime)
 check("IME uses Keyboard-owned vector family", "KeyboardIcons.Clipboard" in ime and "KeyboardIcons.Backspace" in repeat_backspace and "androidx.compose.material.icons" not in ime)
@@ -71,6 +74,15 @@ check("editor updates working state synchronously", "edits.value = snapshot" in 
 check("editor slider saves are coalesced", "debounce(120)" in editor_vm and "BufferOverflow.DROP_OLDEST" in editor_vm)
 check("active theme replacement is transactional", "@Transaction" in theme_dao and "replaceActive" in theme_dao and "dao.replaceActive(entity)" in theme_repo)
 check("theme saves are serialized", "Mutex()" in theme_repo and "withLock" in theme_repo)
+
+service=text("app/src/main/java/com/night/keyboard/ime/KeyboardInputMethodService.kt")
+online_client=text("app/src/main/java/com/night/keyboard/ime/KeyboardOnlineClient.kt")
+prefs=text("core/data/src/main/java/com/night/keyboard/data/prefs/KeyboardPreferences.kt")
+check("sensitive fields suppress IME private features", "sensitiveFieldFlow" in service and "privateMode" in ime)
+check("incognito suppresses clipboard capture", "incognitoMode" in service and "setIncognito" in prefs)
+check("payment and OTP metadata are treated as private", all(x in service for x in ["credit card", "cvv", "otp", "security code"]))
+check("online text requires explicit send action", "Nothing is sent until you tap Send." in ime and "KeyboardOnlineClient" in ime)
+check("online client requires HTTPS", 'protocol.equals("https"' in online_client)
 
 home=text("app/src/main/java/com/night/keyboard/ui/screens/HomeScreen.kt")
 check("setup is conditional on real system state", "if (!setup.complete)" in home)

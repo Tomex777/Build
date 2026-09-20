@@ -20,6 +20,8 @@ import com.night.keyboard.ui.theme.KeyboardTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.max
 
 @AndroidEntryPoint
@@ -27,20 +29,27 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
     @Inject lateinit var clipboardRepository: ClipboardRepository
     @Inject lateinit var preferences: KeyboardPreferences
     @Inject lateinit var themeRepository: ThemeRepository
+
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateController = SavedStateRegistryController.create(this)
     private val store = ViewModelStore()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var clipboard: ClipboardManager
-    private var sensitiveField = false
+    private val sensitiveFieldFlow = MutableStateFlow(false)
+
+    @Volatile
+    private var incognitoMode = false
+
     override val lifecycle: Lifecycle get() = lifecycleRegistry
     override val viewModelStore: ViewModelStore get() = store
     override val savedStateRegistry: SavedStateRegistry get() = savedStateController.savedStateRegistry
 
     private val clipListener = ClipboardManager.OnPrimaryClipChangedListener {
-        if (sensitiveField) return@OnPrimaryClipChangedListener
+        if (sensitiveFieldFlow.value || incognitoMode) return@OnPrimaryClipChangedListener
         val text = clipboard.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString().orEmpty()
-        if (text.isNotBlank()) serviceScope.launch(Dispatchers.IO) { clipboardRepository.capture(text) }
+        if (text.isNotBlank()) {
+            serviceScope.launch(Dispatchers.IO) { clipboardRepository.capture(text) }
+        }
     }
 
     override fun onCreate() {
@@ -50,13 +59,14 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         clipboard = getSystemService(ClipboardManager::class.java)
         clipboard.addPrimaryClipChangedListener(clipListener)
+        serviceScope.launch {
+            preferences.state.collectLatest { state ->
+                incognitoMode = state.incognito
+            }
+        }
     }
 
     override fun onCreateInputView(): View {
-        // A ComposeView hosted by InputMethodService is attached beneath the IME
-        // dialog's decor tree rather than an Activity. WindowRecomposer resolves
-        // lifecycle/saved-state owners from that tree, so installing owners only on
-        // the child ComposeView is too late and crashes on first attachment.
         window?.window?.decorView?.let { decorView ->
             decorView.setViewTreeLifecycleOwner(this)
             decorView.setViewTreeViewModelStoreOwner(this)
@@ -70,12 +80,6 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
             setViewTreeSavedStateRegistryOwner(this@KeyboardInputMethodService)
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
 
-            // InputMethodService can consume the navigation-bar inset before it
-            // reaches the input child while still drawing its NavigationBarFrame
-            // over the bottom of that child. Prefer real compat insets when they are
-            // available, but keep the platform navigation-bar dimension as a floor.
-            // That makes the key rows end above the IME-owned gesture/3-button frame
-            // instead of letting Spacebar share the home-gesture touch region.
             val navigationBarResource = resources.getIdentifier("navigation_bar_height", "dimen", "android")
             val navigationBarFloorPx = if (navigationBarResource != 0) {
                 resources.getDimensionPixelSize(navigationBarResource)
@@ -91,9 +95,6 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
                 insets
             }
             doOnAttach { attached ->
-                // Apply the fallback immediately because an IME child may receive
-                // already-consumed bar insets, then let a real inset replace it if
-                // the window dispatches one after attachment.
                 attached.updatePadding(bottom = navigationBarFloorPx)
                 ViewCompat.requestApplyInsets(attached)
             }
@@ -101,10 +102,11 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
             setContent {
                 KeyboardTheme {
                     ImeKeyboard(
-                        controller,
-                        themeRepository.activeTheme,
-                        preferences.state,
-                        clipboardRepository.items,
+                        controller = controller,
+                        themeFlow = themeRepository.activeTheme,
+                        preferenceFlow = preferences.state,
+                        clipboardFlow = clipboardRepository.items,
+                        sensitiveFieldFlow = sensitiveFieldFlow,
                     )
                 }
             }
@@ -113,7 +115,7 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
-        sensitiveField = attribute?.let(::isSensitive) ?: false
+        sensitiveFieldFlow.value = attribute?.let(::isSensitive) ?: false
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
@@ -128,6 +130,11 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
         super.onFinishInputView(finishingInput)
     }
 
+    override fun onFinishInput() {
+        sensitiveFieldFlow.value = false
+        super.onFinishInput()
+    }
+
     override fun onDestroy() {
         clipboard.removePrimaryClipChangedListener(clipListener)
         serviceScope.cancel()
@@ -139,10 +146,30 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
     private fun isSensitive(info: EditorInfo): Boolean {
         val variation = info.inputType and InputType.TYPE_MASK_VARIATION
         val klass = info.inputType and InputType.TYPE_MASK_CLASS
-        return when (klass) {
-            InputType.TYPE_CLASS_TEXT -> variation == InputType.TYPE_TEXT_VARIATION_PASSWORD || variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD || variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
+
+        val inputTypeSensitive = when (klass) {
+            InputType.TYPE_CLASS_TEXT ->
+                variation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
+                    variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
+                    variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
             InputType.TYPE_CLASS_NUMBER -> variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD
             else -> false
         }
+        if (inputTypeSensitive) return true
+
+        val metadata = buildString {
+            append(info.hintText?.toString().orEmpty())
+            append(' ')
+            append(info.privateImeOptions.orEmpty())
+            append(' ')
+            append(info.fieldName.orEmpty())
+        }.lowercase()
+
+        val sensitiveTokens = listOf(
+            "password", "passcode", "pin", "otp", "one time", "one-time",
+            "security code", "cvv", "cvc", "credit card", "card number",
+            "payment", "bank account", "account number",
+        )
+        return sensitiveTokens.any(metadata::contains)
     }
 }

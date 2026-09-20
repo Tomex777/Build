@@ -18,12 +18,35 @@ class KeyboardController(private val service: InputMethodService) {
     fun replaceCurrentWord(text: String) {
         val ic = connection ?: return
         val before = ic.getTextBeforeCursor(96, 0)?.toString().orEmpty()
-        val prefix = before.takeLastWhile { !it.isWhitespace() && it !in ".,!?;:\n" }
+        val prefix = SuggestionEngine.currentWord(before)
         if (prefix.isNotEmpty()) {
             ic.deleteSurroundingTextInCodePoints(prefix.codePointCount(0, prefix.length), 0)
         }
         ic.commitText(text, 1)
     }
+
+    fun replaceSelectionOrCurrentWord(text: String) {
+        val ic = connection ?: return
+        val selected = ic.getSelectedText(0)?.toString().orEmpty()
+        if (selected.isNotEmpty()) {
+            ic.commitText(text, 1)
+        } else {
+            replaceCurrentWord(text)
+        }
+    }
+
+    fun undoAutocorrect(correction: Autocorrection): Boolean {
+        val ic = connection ?: return false
+        val before = ic.getTextBeforeCursor(160, 0)?.toString().orEmpty()
+        val expected = correction.replacement + " "
+        if (!before.endsWith(expected)) return false
+        val count = expected.codePointCount(0, expected.length)
+        if (!ic.deleteSurroundingTextInCodePoints(count, 0)) return false
+        ic.commitText(correction.original + " ", 1)
+        return true
+    }
+
+    fun currentWord(): String = SuggestionEngine.currentWord(textBeforeCursor())
 
     fun backspace() {
         val ic = connection ?: return
@@ -51,13 +74,6 @@ class KeyboardController(private val service: InputMethodService) {
 
     /**
      * Move the real host-app caret without committing placeholder text.
-     *
-     * setSelection is preferred because it gives exact bounded movement when the
-     * editor exposes extracted text. ExtractedText selection offsets are relative
-     * to startOffset, so convert them back to absolute editor offsets before
-     * calling setSelection. Some editors expose incomplete extracted state or
-     * reject setSelection while composing, so directional key events are used as
-     * a compatibility fallback.
      */
     fun moveCursor(delta: Int): Boolean {
         if (delta == 0) return false
@@ -87,7 +103,7 @@ class KeyboardController(private val service: InputMethodService) {
         return moved
     }
 
-    fun textBeforeCursor(maxChars: Int = 120): String =
+    fun textBeforeCursor(maxChars: Int = 400): String =
         connection?.getTextBeforeCursor(maxChars, 0)?.toString().orEmpty()
 
     fun selectedText(): String =

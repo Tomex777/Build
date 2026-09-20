@@ -1,10 +1,130 @@
 package com.night.keyboard.ime
 
+import kotlin.math.min
+
+data class Autocorrection(
+    val original: String,
+    val replacement: String,
+)
+
 object SuggestionEngine {
-    private val common = listOf("the", "to", "and", "you", "that", "it", "is", "for", "of", "in", "this", "with", "thank", "thanks", "okay", "good", "going", "want", "will", "can", "just", "really", "because", "have", "what", "when", "where", "how", "yeah", "right", "please", "done")
+    private val common = listOf(
+        "the", "to", "and", "you", "that", "it", "is", "for", "of", "in", "this", "with",
+        "thank", "thanks", "okay", "good", "going", "want", "will", "can", "just", "really",
+        "because", "have", "what", "when", "where", "how", "yeah", "right", "please", "done",
+        "hello", "hey", "hi", "yes", "no", "not", "we", "they", "he", "she", "there", "their",
+        "they're", "your", "you're", "i'm", "i'll", "i've", "don't", "doesn't", "didn't", "can't",
+        "could", "would", "should", "about", "after", "again", "also", "always", "another", "any",
+        "are", "around", "back", "been", "before", "better", "but", "come", "day", "do", "even",
+        "feel", "find", "first", "from", "get", "give", "go", "great", "had", "has", "here", "him",
+        "her", "home", "if", "into", "know", "like", "look", "make", "me", "more", "most", "much",
+        "my", "need", "new", "now", "one", "only", "other", "our", "out", "over", "people", "really",
+        "same", "say", "see", "send", "so", "some", "something", "still", "take", "tell", "than",
+        "then", "thing", "think", "time", "too", "try", "up", "use", "very", "way", "well", "why",
+        "work", "world", "write", "today", "tomorrow", "tonight", "morning", "night", "love", "sure",
+        "sorry", "maybe", "probably", "actually", "already", "ready", "keep", "continue", "start",
+        "finish", "complete", "build", "change", "fix", "check", "works", "working", "message",
+        "keyboard", "phone", "app", "text", "word", "typing", "clipboard", "editor", "voice",
+    ).distinct()
+
+    private val frequencies: Map<String, Int> = common.withIndex().associate { (index, word) ->
+        word to (common.size - index)
+    }
+
+    private val nextWords: Map<String, List<String>> = mapOf(
+        "thank" to listOf("you", "you so much", "you again"),
+        "how" to listOf("are", "is", "do"),
+        "what" to listOf("do", "is", "are"),
+        "i" to listOf("think", "want", "need"),
+        "i'm" to listOf("going", "sure", "ready"),
+        "you" to listOf("can", "are", "know"),
+        "we" to listOf("can", "should", "need"),
+        "good" to listOf("morning", "night", "job"),
+        "see" to listOf("you", "this", "that"),
+    )
+
     fun suggest(textBeforeCursor: String, limit: Int = 3): List<String> {
-        val prefix = textBeforeCursor.lowercase().takeLastWhile { it.isLetter() || it == '\'' }
-        if (prefix.isBlank()) return listOf("I’m", "the", "thank you").take(limit)
-        return common.asSequence().filter { it.startsWith(prefix) && it != prefix }.distinct().take(limit).toList().ifEmpty { listOf(prefix) }
+        if (limit <= 0) return emptyList()
+        val prefix = currentWord(textBeforeCursor).lowercase()
+        if (prefix.isNotBlank()) {
+            return common.asSequence()
+                .filter { it.startsWith(prefix) && it != prefix }
+                .sortedByDescending { frequencies[it] ?: 0 }
+                .take(limit)
+                .toList()
+                .ifEmpty { listOf(prefix) }
+        }
+
+        val previous = previousWord(textBeforeCursor).lowercase()
+        val contextual = nextWords[previous].orEmpty()
+        if (contextual.isNotEmpty()) return contextual.take(limit)
+        return listOf("I’m", "the", "thank you").take(limit)
+    }
+
+    fun autocorrect(word: String, aggression: Int = 2): Autocorrection? {
+        val raw = word.trim()
+        if (raw.length < 3 || raw.any { it.isDigit() } || raw.count { it.isUpperCase() } > 1) return null
+
+        val lower = raw.lowercase()
+        if (lower in common) return null
+
+        val maxDistance = when (aggression.coerceIn(1, 3)) {
+            1 -> 1
+            2 -> if (lower.length >= 6) 2 else 1
+            else -> if (lower.length >= 4) 2 else 1
+        }
+
+        val candidate = common.asSequence()
+            .filter { kotlin.math.abs(it.length - lower.length) <= maxDistance }
+            .map { candidate ->
+                val distance = editDistance(lower, candidate, maxDistance)
+                Triple(candidate, distance, frequencies[candidate] ?: 0)
+            }
+            .filter { (_, distance, _) -> distance in 1..maxDistance }
+            .sortedWith(compareBy<Triple<String, Int, Int>> { it.second }.thenByDescending { it.third })
+            .firstOrNull()
+            ?.first
+            ?: return null
+
+        val replacement = preserveCase(raw, candidate)
+        return Autocorrection(raw, replacement)
+    }
+
+    fun currentWord(text: String): String =
+        text.takeLastWhile { it.isLetter() || it == ''' || it == '’' }
+
+    private fun previousWord(text: String): String {
+        val trimmed = text.trimEnd()
+        if (trimmed.isBlank()) return ""
+        return trimmed.takeLastWhile { it.isLetter() || it == ''' || it == '’' }
+    }
+
+    private fun preserveCase(source: String, target: String): String = when {
+        source.firstOrNull()?.isUpperCase() == true ->
+            target.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        else -> target
+    }
+
+    private fun editDistance(a: String, b: String, cutoff: Int): Int {
+        if (a == b) return 0
+        if (kotlin.math.abs(a.length - b.length) > cutoff) return cutoff + 1
+
+        var previous = IntArray(b.length + 1) { it }
+        for (i in 1..a.length) {
+            val current = IntArray(b.length + 1)
+            current[0] = i
+            var rowMin = current[0]
+            for (j in 1..b.length) {
+                val cost = if (a[i - 1] == b[j - 1]) 0 else 1
+                current[j] = min(
+                    min(current[j - 1] + 1, previous[j] + 1),
+                    previous[j - 1] + cost,
+                )
+                rowMin = min(rowMin, current[j])
+            }
+            if (rowMin > cutoff) return cutoff + 1
+            previous = current
+        }
+        return previous[b.length]
     }
 }
