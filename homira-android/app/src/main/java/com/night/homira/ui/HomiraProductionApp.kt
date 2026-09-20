@@ -6483,6 +6483,8 @@ private fun ActiveCallScreen(
     var menuOpen by remember { mutableStateOf(false) }
     var callInfoOpen by remember { mutableStateOf(false) }
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
+    val inPictureInPicture =
+        HomiraCallUiState.pictureInPictureActive
     var localFeedPrimary by rememberSaveable {
         mutableStateOf(false)
     }
@@ -6522,6 +6524,14 @@ private fun ActiveCallScreen(
         }
     }
 
+    LaunchedEffect(inPictureInPicture) {
+        if (inPictureInPicture) {
+            controlsVisible = false
+            menuOpen = false
+            callInfoOpen = false
+        }
+    }
+
     LaunchedEffect(
         localVideo,
         remoteVideoEnabled,
@@ -6540,7 +6550,11 @@ private fun ActiveCallScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(if (video) Color.Black else HomiraBackground)
-            .clickable { if (video) controlsVisible = true }
+            .clickable {
+                if (video && !inPictureInPicture) {
+                    controlsVisible = true
+                }
+            }
     ) {
         if (video) {
             val density = LocalDensity.current
@@ -6626,15 +6640,21 @@ private fun ActiveCallScreen(
                     null
             }
             val tileMirror = !localIsMain
+            val baseTileWidthDp =
+                if (inPictureInPicture) 54f else 108f
+            val baseTileHeightDp =
+                if (inPictureInPicture) 78f else 156f
+            val effectiveScale =
+                if (inPictureInPicture) 1f else selfViewScale
             val tileWidth =
-                (108f * selfViewScale).dp
+                (baseTileWidthDp * effectiveScale).dp
             val tileHeight =
-                (156f * selfViewScale).dp
+                (baseTileHeightDp * effectiveScale).dp
             val baseWidthPx = with(density) {
-                108.dp.toPx()
+                baseTileWidthDp.dp.toPx()
             }
             val baseHeightPx = with(density) {
-                156.dp.toPx()
+                baseTileHeightDp.dp.toPx()
             }
             val sidePaddingPx = with(density) {
                 32.dp.toPx()
@@ -6657,14 +6677,24 @@ private fun ActiveCallScreen(
                         )
                         .offset {
                             IntOffset(
-                                selfViewOffsetX.roundToInt(),
-                                selfViewOffsetY.roundToInt()
+                                if (inPictureInPicture) {
+                                    0
+                                } else {
+                                    selfViewOffsetX.roundToInt()
+                                },
+                                if (inPictureInPicture) {
+                                    0
+                                } else {
+                                    selfViewOffsetY.roundToInt()
+                                }
                             )
                         }
                         .width(tileWidth)
                         .height(tileHeight)
                         .clickable(
-                            enabled = canSwapFeeds
+                            enabled =
+                                canSwapFeeds &&
+                                    !inPictureInPicture
                         ) {
                             localFeedPrimary =
                                 !localFeedPrimary
@@ -6785,7 +6815,10 @@ private fun ActiveCallScreen(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            AnimatedVisibility(!video || controlsVisible) {
+            AnimatedVisibility(
+                !inPictureInPicture &&
+                    (!video || controlsVisible)
+            ) {
                 Row(
                     Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -6818,7 +6851,9 @@ private fun ActiveCallScreen(
                 Spacer(Modifier.weight(1f))
             }
 
-            AnimatedVisibility(muted) {
+            AnimatedVisibility(
+                muted && !inPictureInPicture
+            ) {
                 Surface(shape = RoundedCornerShape(99.dp), color = HomiraDanger.copy(alpha = .16f)) {
                     Row(Modifier.padding(horizontal = 13.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Rounded.MicOff, contentDescription = null, tint = HomiraDanger, modifier = Modifier.size(17.dp))
@@ -6828,7 +6863,9 @@ private fun ActiveCallScreen(
                 }
             }
 
-            AnimatedVisibility(remoteMuted) {
+            AnimatedVisibility(
+                remoteMuted && !inPictureInPicture
+            ) {
                 Surface(
                     shape = RoundedCornerShape(99.dp),
                     color = HomiraSurfaceRaised.copy(alpha = .92f)
@@ -6854,7 +6891,9 @@ private fun ActiveCallScreen(
                 }
             }
 
-            AnimatedVisibility(screenSharing) {
+            AnimatedVisibility(
+                screenSharing && !inPictureInPicture
+            ) {
                 Text(
                     "Sharing your screen",
                     color = HomiraGreen,
@@ -6863,7 +6902,9 @@ private fun ActiveCallScreen(
                 )
             }
 
-            AnimatedVisibility(remoteScreenSharing) {
+            AnimatedVisibility(
+                remoteScreenSharing && !inPictureInPicture
+            ) {
                 Text(
                     "${person.name} is sharing their screen",
                     color = Color.White.copy(alpha = .82f),
@@ -6872,7 +6913,10 @@ private fun ActiveCallScreen(
                 )
             }
 
-            AnimatedVisibility(!video || controlsVisible) {
+            AnimatedVisibility(
+                !inPictureInPicture &&
+                    (!video || controlsVisible)
+            ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
