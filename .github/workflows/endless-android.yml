@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Reconstruct Endless M3.1 source
+      - name: Reconstruct Endless M4 source
         shell: bash
         run: |
           rm -rf /tmp/endless-src /tmp/endless.zip
@@ -26,7 +26,7 @@ jobs:
           test -f "$ENDLESS_PROJECT/settings.gradle.kts"
           cp -R endless_m2_override/app/. "$ENDLESS_PROJECT/app/"
           grep -q 'screenOrientation="landscape"' "$ENDLESS_PROJECT/app/src/main/AndroidManifest.xml"
-          grep -q 'versionName = "0.3.3-m3"' "$ENDLESS_PROJECT/app/build.gradle.kts"
+          grep -q 'versionName = "0.4.0-m4"' "$ENDLESS_PROJECT/app/build.gradle.kts"
           echo "ENDLESS_PROJECT=$ENDLESS_PROJECT" >> "$GITHUB_ENV"
 
       - name: Fetch verified real planetary textures
@@ -66,6 +66,14 @@ jobs:
           fetch "2k_venus_atmosphere.jpg" "venus_atmosphere.jpg"
           fetch "2k_saturn_ring_alpha.png" "saturn_ring.png"
 
+          CLOSE_ROOT="https://raw.githubusercontent.com/zjoooooo/galaxy-explorer/main/images/solar-system"
+          curl -fL --retry 4 --retry-delay 2 "$CLOSE_ROOT/mars.jpg" -o "$OUT/mars_close.jpg"
+          curl -fL --retry 4 --retry-delay 2 "$CLOSE_ROOT/mars-normal.png" -o "$OUT/mars_normal.png"
+          test $(stat -c%s "$OUT/mars_close.jpg") -gt 500000
+          test $(stat -c%s "$OUT/mars_normal.png") -gt 500000
+          file -b "$OUT/mars_close.jpg" | grep -q 'JPEG image data'
+          file -b "$OUT/mars_normal.png" | grep -q 'PNG image data'
+
           echo "Verified texture total:"
           du -ch "$OUT"/* | tail -1
 
@@ -92,7 +100,7 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Build Endless M3.3 debug APK
+      - name: Build Endless M4 debug APK
         working-directory: ${{ env.ENDLESS_PROJECT }}
         run: gradle :app:assembleDebug --stacktrace
 
@@ -104,10 +112,12 @@ jobs:
           unzip -l "$APK" | grep -q 'planet_earth.jpg'
           unzip -l "$APK" | grep -q 'saturn_ring.png'
           unzip -l "$APK" | grep -q 'earth_clouds.jpg'
+          unzip -l "$APK" | grep -q 'mars_close.jpg'
+          unzip -l "$APK" | grep -q 'mars_normal.png'
 
-      - name: Upload Endless M3.3 APK
+      - name: Upload Endless M4 APK
         uses: actions/upload-artifact@v4
         with:
-          name: endless-m3-3-polished-navigation-apk
+          name: endless-m4-mars-approach-apk
           path: ${{ env.ENDLESS_PROJECT }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
