@@ -422,16 +422,20 @@ private val callEntries = listOf(
 
 @Composable
 fun HomiraProductionApp(
+    repository: HomiraLiveRepository? = null,
     initialProfile: LiveProfile? = null,
     initialContacts: List<LiveContact> = emptyList(),
     liveMode: Boolean = false,
+    backendReady: Boolean = true,
     requestedCallId: String? = null,
     requestedAnswerCall: Boolean = false,
     onSignedOut: () -> Unit = {}
 ) {
     HomiraTheme {
         val context = LocalContext.current
-        val liveRepository = remember { HomiraLiveRepository() }
+        val fallbackRepository = remember { HomiraLiveRepository() }
+        val liveRepository = repository ?: fallbackRepository
+        val liveBackendReady = liveMode && backendReady
         val liveScope = rememberCoroutineScope()
         val settingsStore = remember(context) { HomiraSettingsStore(context) }
         var localSettings by remember { mutableStateOf(settingsStore.load()) }
@@ -443,7 +447,7 @@ fun HomiraProductionApp(
         }
 
         LaunchedEffect(liveMode) {
-            if (!liveMode) return@LaunchedEffect
+            if (!liveBackendReady) return@LaunchedEffect
             HomiraPushBootstrap.requestRegistration(context)
             runCatching {
                 HomiraPushBootstrap.syncStoredToken(
@@ -516,7 +520,7 @@ fun HomiraProductionApp(
         }
         val historyOwnerKey =
             if (liveMode) {
-                liveRepository.currentUserId() ?: "signed-out"
+                liveRepository.currentUserId() ?: initialProfile?.id ?: "signed-out"
             } else {
                 "demo"
             }
@@ -713,7 +717,7 @@ fun HomiraProductionApp(
         var profileSaving by remember { mutableStateOf(false) }
 
         LaunchedEffect(liveMode, initialProfile?.id) {
-            if (!liveMode) return@LaunchedEffect
+            if (!liveBackendReady) return@LaunchedEffect
             val ownerId = initialProfile?.id ?: return@LaunchedEffect
 
             avatarUri = cacheProfileMediaP(
@@ -742,7 +746,7 @@ fun HomiraProductionApp(
         var voicemailPlaybackFile by remember { mutableStateOf<File?>(null) }
 
         LaunchedEffect(liveMode, liveContacts) {
-            if (!liveMode) return@LaunchedEffect
+            if (!liveBackendReady) return@LaunchedEffect
 
             val media = linkedMapOf<String, Pair<String?, String?>>()
             liveContacts.forEach { contact ->
@@ -828,13 +832,13 @@ fun HomiraProductionApp(
         }
 
         LaunchedEffect(liveMode) {
-            if (!liveMode) return@LaunchedEffect
+            if (!liveBackendReady) return@LaunchedEffect
             callHistoryStore.normalizeInterruptedRinging()
             localCallHistory = callHistoryStore.listRecent()
         }
 
         LaunchedEffect(liveMode) {
-            if (!liveMode) return@LaunchedEffect
+            if (!liveBackendReady) return@LaunchedEffect
             blockedUserIds = runCatching {
                 liveRepository.listBlockedUserIds()
             }.getOrDefault(emptySet())
@@ -846,7 +850,7 @@ fun HomiraProductionApp(
             requestedCallId,
             requestedAnswerCall
         ) {
-            if (!liveMode) return@LaunchedEffect
+            if (!liveBackendReady) return@LaunchedEffect
 
             val knownPeople = appContacts.associateBy { it.id }
 
@@ -1230,7 +1234,7 @@ fun HomiraProductionApp(
         }
 
         LaunchedEffect(liveMode) {
-            if (!liveMode) return@LaunchedEffect
+            if (!liveBackendReady) return@LaunchedEffect
 
             val bridge = telecomBridge ?: return@LaunchedEffect
             bridge.platformEvents.collect { event ->
@@ -1316,7 +1320,7 @@ fun HomiraProductionApp(
         }
 
         LaunchedEffect(liveMode, appContacts) {
-            if (!liveMode) return@LaunchedEffect
+            if (!liveBackendReady) return@LaunchedEffect
 
             suspend fun resolvePerson(userId: String): HomiraPerson {
                 appContacts.firstOrNull { it.id == userId }?.let { return it }
@@ -1444,7 +1448,7 @@ fun HomiraProductionApp(
             incomingSession?.id,
             incomingSession?.state
         ) {
-            if (!liveMode) return@LaunchedEffect
+            if (!liveBackendReady) return@LaunchedEffect
 
             val session = incomingSession ?: return@LaunchedEffect
             if (session.state != "ringing") return@LaunchedEffect
@@ -1473,7 +1477,7 @@ fun HomiraProductionApp(
         }
 
         LaunchedEffect(liveMode, activeSession?.id) {
-            if (!liveMode) return@LaunchedEffect
+            if (!liveBackendReady) return@LaunchedEffect
             val callId = activeSession?.id ?: return@LaunchedEffect
             val localUserId = liveRepository.currentUserId()
 
@@ -1561,7 +1565,7 @@ fun HomiraProductionApp(
             activeSession?.id,
             activeSession?.state
         ) {
-            if (!liveMode) return@LaunchedEffect
+            if (!liveBackendReady) return@LaunchedEffect
 
             val session = activeSession ?: return@LaunchedEffect
             if (session.state != "active") return@LaunchedEffect
@@ -1593,7 +1597,7 @@ fun HomiraProductionApp(
             activeSession?.id,
             activeSession?.state
         ) {
-            if (!liveMode) return@LaunchedEffect
+            if (!liveBackendReady) return@LaunchedEffect
 
             val session = activeSession ?: return@LaunchedEffect
             val localUserId = liveRepository.currentUserId() ?: return@LaunchedEffect
