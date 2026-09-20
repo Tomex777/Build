@@ -476,6 +476,14 @@ internal fun NightVlcVideoSurface(
             modifier = Modifier.fillMaxSize(),
         )
 
+        if (!showControls) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { onToggleControls() },
+            )
+        }
+
         if (showControls) {
             IconButton(
                 onClick = {
