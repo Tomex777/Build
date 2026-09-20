@@ -6312,27 +6312,11 @@ private fun IncomingCallScreen(
     onAccept: () -> Unit,
     onDecline: () -> Unit
 ) {
-    val callCardBitmap = rememberBitmapP(person.callCardUri)
-
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(HomiraBackground)
     ) {
-        if (callCardBitmap != null) {
-            Image(
-                bitmap = callCardBitmap,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = .58f))
-            )
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -6481,30 +6465,12 @@ private fun ActiveCallScreen(
         }
     }
 
-    val voiceCallCardBitmap = rememberBitmapP(
-        if (!video) person.callCardUri else null
-    )
-
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(if (video) Color.Black else HomiraBackground)
             .clickable { if (video) controlsVisible = true }
     ) {
-        if (!video && voiceCallCardBitmap != null) {
-            Image(
-                bitmap = voiceCallCardBitmap,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = .58f))
-            )
-        }
-
         if (video) {
             if (remoteVideoEnabled && remoteVideoTrack != null && eglContext != null) {
                 WebRtcVideoSurface(
