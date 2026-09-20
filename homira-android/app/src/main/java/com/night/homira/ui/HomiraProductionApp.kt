@@ -30,6 +30,7 @@ import com.night.homira.data.LiveProfile
 import com.night.homira.data.LiveContact
 import com.night.homira.data.LiveCallSession
 import com.night.homira.data.LiveVoicemail
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.widget.Toast
 import android.util.Log
@@ -164,6 +165,8 @@ import org.webrtc.EglBase
 import org.webrtc.RendererCommon
 import org.webrtc.SurfaceViewRenderer
 import org.webrtc.VideoTrack
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.MultiFormatWriter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
@@ -3902,6 +3905,7 @@ private fun ContactsScreen(
     var expandedPersonId by rememberSaveable { mutableStateOf<String?>(null) }
     var infoPerson by remember { mutableStateOf<HomiraPerson?>(null) }
     var deletePerson by remember { mutableStateOf<HomiraPerson?>(null) }
+    var qrPerson by remember { mutableStateOf<HomiraPerson?>(null) }
 
     val filtered = contacts.filter {
         it.name.contains(query, ignoreCase = true) ||
@@ -4237,6 +4241,15 @@ private fun ContactsScreen(
                     TextButton(
                         onClick = {
                             infoPerson = null
+                            qrPerson = person
+                        }
+                    ) {
+                        Text("Show QR code", color = HomiraGreen)
+                    }
+
+                    TextButton(
+                        onClick = {
+                            infoPerson = null
                             deletePerson = person
                         }
                     ) {
@@ -4250,6 +4263,21 @@ private fun ContactsScreen(
                 }
             },
             containerColor = HomiraSurface
+        )
+    }
+
+    qrPerson?.let { person ->
+        HomiraQrDialogP(
+            title = person.name,
+            subtitle = person.number.ifBlank {
+                "Homira contact"
+            },
+            payload = homiraContactQrPayloadP(
+                person.name,
+                person.number,
+                null
+            ),
+            onDismiss = { qrPerson = null }
         )
     }
 
@@ -4544,6 +4572,7 @@ private fun MeScreen(
     val avatarBitmap = rememberBitmapP(avatarUri)
     var avatarOpen by remember { mutableStateOf(false) }
     var confirmSignOut by remember { mutableStateOf(false) }
+    var ownQrOpen by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier
@@ -4689,6 +4718,13 @@ private fun MeScreen(
                         "Email",
                         email.ifBlank { "Not set" }
                     )
+                    MeRowP(
+                        Icons.Rounded.Info,
+                        "My QR code",
+                        "Share your Homira contact"
+                    ) {
+                        ownQrOpen = true
+                    }
                 }
             }
         }
@@ -4842,6 +4878,25 @@ private fun MeScreen(
                 }
             },
             containerColor = HomiraBackground
+        )
+    }
+
+    if (ownQrOpen) {
+        HomiraQrDialogP(
+            title = name,
+            subtitle = buildString {
+                if (username.isNotBlank()) append("@$username")
+                if (phone.isNotBlank()) {
+                    if (isNotEmpty()) append(" · ")
+                    append(phone)
+                }
+            }.ifBlank { "Homira profile" },
+            payload = homiraContactQrPayloadP(
+                name,
+                phone,
+                username
+            ),
+            onDismiss = { ownQrOpen = false }
         )
     }
 
@@ -7389,6 +7444,131 @@ private fun CallControlP(icon: ImageVector, label: String, active: Boolean, onCl
         Spacer(Modifier.height(7.dp))
         Text(label, color = HomiraMuted, fontSize = 11.sp)
     }
+}
+
+@Composable
+private fun HomiraQrDialogP(
+    title: String,
+    subtitle: String,
+    payload: String,
+    onDismiss: () -> Unit
+) {
+    val qr = remember(payload) {
+        runCatching {
+            val size = 720
+            val matrix = MultiFormatWriter().encode(
+                payload,
+                BarcodeFormat.QR_CODE,
+                size,
+                size
+            )
+            val pixels = IntArray(size * size)
+            for (y in 0 until size) {
+                for (x in 0 until size) {
+                    pixels[(y * size) + x] =
+                        if (matrix[x, y]) {
+                            android.graphics.Color.BLACK
+                        } else {
+                            android.graphics.Color.WHITE
+                        }
+                }
+            }
+
+            Bitmap.createBitmap(
+                size,
+                size,
+                Bitmap.Config.ARGB_8888
+            ).apply {
+                setPixels(
+                    pixels,
+                    0,
+                    size,
+                    0,
+                    0,
+                    size,
+                    size
+                )
+            }.asImageBitmap()
+        }.getOrNull()
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                title,
+                color = HomiraText,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color.White
+                ) {
+                    if (qr != null) {
+                        Image(
+                            bitmap = qr,
+                            contentDescription = "$title QR code",
+                            modifier = Modifier
+                                .size(260.dp)
+                                .padding(14.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    subtitle,
+                    color = HomiraMuted,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    "Scan to save or share this Homira contact.",
+                    color = HomiraMuted.copy(alpha = .75f),
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Done", color = HomiraGreen)
+            }
+        },
+        containerColor = HomiraSurface
+    )
+}
+
+private fun homiraContactQrPayloadP(
+    name: String,
+    phone: String,
+    username: String?
+): String = buildString {
+    append("BEGIN:VCARD\n")
+    append("VERSION:3.0\n")
+    append("FN:")
+    append(name.replace("\n", " "))
+    append("\n")
+    if (phone.isNotBlank()) {
+        append("TEL:")
+        append(phone)
+        append("\n")
+    }
+    if (!username.isNullOrBlank()) {
+        append("NOTE:Homira @")
+        append(username)
+        append("\n")
+    } else {
+        append("NOTE:Homira contact\n")
+    }
+    append("END:VCARD")
 }
 
 @Composable
