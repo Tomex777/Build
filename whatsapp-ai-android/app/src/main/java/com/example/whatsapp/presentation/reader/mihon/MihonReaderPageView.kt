@@ -41,6 +41,16 @@ internal class MihonReaderPageView(
 
     private var loadJob: Job? = null
 
+    private data class PendingWebtoonLayout(
+        val width: Int,
+        val height: Int,
+        val leftMargin: Int,
+        val rightMargin: Int,
+        val bottomMargin: Int,
+    )
+
+    private var pendingWebtoonLayout: PendingWebtoonLayout? = null
+
     private val imageView: SubsamplingScaleImageView =
         if (isWebtoon) {
             MihonWebtoonSubsamplingImageView(context)
@@ -139,15 +149,15 @@ internal class MihonReaderPageView(
                             resources.displayMetrics.heightPixels
                         }
 
-                    layoutParams =
-                        RecyclerView.LayoutParams(
-                            usableWidth,
-                            imageHeight + gapPx,
-                        ).apply {
-                            leftMargin = margin
-                            rightMargin = margin
-                            bottomMargin = gapPx
-                        }
+                    pendingWebtoonLayout =
+                        PendingWebtoonLayout(
+                            width = usableWidth,
+                            height = imageHeight + gapPx,
+                            leftMargin = margin,
+                            rightMargin = margin,
+                            bottomMargin = gapPx,
+                        )
+                    applyPendingWebtoonLayout()
                 }
 
                 imageView.apply {
@@ -233,6 +243,31 @@ internal class MihonReaderPageView(
                 }
             }
         }
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        applyPendingWebtoonLayout()
+    }
+
+    private fun applyPendingWebtoonLayout() {
+        if (!isWebtoon) return
+        val pending = pendingWebtoonLayout ?: return
+
+        // RecyclerView stores its ViewHolder reference inside its own
+        // LayoutParams instance. Replacing that instance after attachment
+        // corrupts RecyclerView bookkeeping and crashes on the next layout.
+        // Only mutate the LayoutParams that RecyclerView assigned.
+        val params =
+            layoutParams as? RecyclerView.LayoutParams
+                ?: return
+
+        params.width = pending.width
+        params.height = pending.height
+        params.leftMargin = pending.leftMargin
+        params.rightMargin = pending.rightMargin
+        params.bottomMargin = pending.bottomMargin
+        requestLayout()
     }
 
     fun canPanLeft(): Boolean =

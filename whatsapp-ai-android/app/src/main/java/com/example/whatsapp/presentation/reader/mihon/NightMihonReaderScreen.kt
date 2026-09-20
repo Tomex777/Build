@@ -3,6 +3,7 @@ package com.example.whatsapp.presentation.reader.mihon
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.view.KeyEvent
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -63,6 +64,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -486,34 +488,65 @@ fun NightMihonReaderScreen(
         }
     }
 
-    DisposableEffect(
-        activity,
-        host,
-        volumeKeys,
-        invertVolumeKeys,
-    ) {
+    val readerMenuVisible =
+        controlsVisible ||
+            readingModeSheet ||
+            orientationSheet ||
+            settingsSheet ||
+            overflowOpen ||
+            pageActionIndex != null
+
+    val latestHost =
+        rememberUpdatedState(host)
+    val latestVolumeKeys =
+        rememberUpdatedState(volumeKeys)
+    val latestInvertVolumeKeys =
+        rememberUpdatedState(invertVolumeKeys)
+    val latestReaderMenuVisible =
+        rememberUpdatedState(readerMenuVisible)
+
+    DisposableEffect(activity) {
         val readerActivity =
             activity as? NightMihonReaderActivity
-        readerActivity?.setVolumeKeyHandler { volumeDown ->
-            if (!volumeKeys || host == null) {
+
+        readerActivity?.setReaderKeyEventHandler { event ->
+            val volumeDown =
+                when (event.keyCode) {
+                    KeyEvent.KEYCODE_VOLUME_DOWN -> true
+                    KeyEvent.KEYCODE_VOLUME_UP -> false
+                    else -> return@setReaderKeyEventHandler false
+                }
+            val activeHost = latestHost.value
+
+            // Match Mihon: volume keys navigate only while enabled and while
+            // the reader chrome/sheets are hidden. Consume both down/up, but
+            // perform navigation on key-up.
+            if (
+                !latestVolumeKeys.value ||
+                latestReaderMenuVisible.value ||
+                activeHost == null
+            ) {
                 false
             } else {
-                val moveNext =
-                    if (invertVolumeKeys) {
-                        !volumeDown
+                if (event.action == KeyEvent.ACTION_UP) {
+                    val moveNext =
+                        if (latestInvertVolumeKeys.value) {
+                            !volumeDown
+                        } else {
+                            volumeDown
+                        }
+                    if (moveNext) {
+                        activeHost.moveNextByInput()
                     } else {
-                        volumeDown
+                        activeHost.movePreviousByInput()
                     }
-                if (moveNext) {
-                    host?.moveNextByInput()
-                } else {
-                    host?.movePreviousByInput()
                 }
                 true
             }
         }
+
         onDispose {
-            readerActivity?.setVolumeKeyHandler(null)
+            readerActivity?.setReaderKeyEventHandler(null)
         }
     }
 

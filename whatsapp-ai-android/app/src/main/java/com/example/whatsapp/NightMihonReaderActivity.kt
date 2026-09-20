@@ -41,26 +41,21 @@ import java.util.zip.ZipOutputStream
 class NightMihonReaderActivity :
     ComponentActivity() {
 
-    private var volumeKeyHandler: ((Boolean) -> Boolean)? = null
+    private var readerKeyEventHandler:
+        ((KeyEvent) -> Boolean)? = null
 
-    internal fun setVolumeKeyHandler(
-        handler: ((Boolean) -> Boolean)?,
+    internal fun setReaderKeyEventHandler(
+        handler: ((KeyEvent) -> Boolean)?,
     ) {
-        volumeKeyHandler = handler
+        readerKeyEventHandler = handler
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN) {
-            val down = when (event.keyCode) {
-                KeyEvent.KEYCODE_VOLUME_DOWN -> true
-                KeyEvent.KEYCODE_VOLUME_UP -> false
-                else -> null
-            }
-            if (down != null && volumeKeyHandler?.invoke(down) == true) {
-                return true
-            }
-        }
-        return super.dispatchKeyEvent(event)
+        // Match Mihon's ReaderActivity: keep one stable viewer handler and
+        // let the viewer decide whether this specific event is consumed.
+        val handled =
+            readerKeyEventHandler?.invoke(event) ?: false
+        return handled || super.dispatchKeyEvent(event)
     }
 
     override fun onCreate(
@@ -278,6 +273,18 @@ class MihonReaderPreviewActivity :
             bitmap.recycle()
         }
 
+        if (intent.getBooleanExtra(EXTRA_OPEN_PRODUCTION_READER, false)) {
+            startActivity(
+                NightMihonReaderActivity.archiveIntent(
+                    context = this,
+                    localPath = archive.absolutePath,
+                    displayName = "Mihon Interaction Test.cbz",
+                ),
+            )
+            finish()
+            return
+        }
+
         setContent {
             WhatsappTheme(darkTheme = true) {
                 ArchiveReaderEntry(
@@ -288,5 +295,10 @@ class MihonReaderPreviewActivity :
                 )
             }
         }
+    }
+
+    companion object {
+        const val EXTRA_OPEN_PRODUCTION_READER =
+            "mihon.preview.openProductionReader"
     }
 }
