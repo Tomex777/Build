@@ -285,9 +285,6 @@ internal fun NightAniyomiVlcPlayer(
             .semantics {
                 contentDescription =
                     "Night video player: " + item.sender.ifBlank { "Video" }
-            }
-            .clickable {
-                controlsVisible = !controlsVisible
             },
         contentAlignment = Alignment.Center,
     ) {
@@ -318,16 +315,14 @@ internal fun NightAniyomiVlcPlayer(
             modifier = Modifier.fillMaxSize(),
         )
 
-        // VLCVideoLayout consumes touch events before the parent Compose Box can
-        // observe them. Put a transparent Compose hit target above VLC only while
-        // controls are hidden so one tap reliably brings the chrome back.
-        if (!controlsVisible) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable { controlsVisible = true },
-            )
-        }
+        // VLCVideoLayout consumes touch input itself. Keep exactly one Compose
+        // tap target above VLC and below the control chrome. Control buttons render
+        // later and stay interactive; taps on empty video space toggle the chrome.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable { controlsVisible = !controlsVisible },
+        )
 
         AnimatedVisibility(
             visible = controlsVisible,
