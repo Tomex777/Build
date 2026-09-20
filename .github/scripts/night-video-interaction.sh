@@ -8,6 +8,22 @@ APP_VIDEO="/data/user/0/$PACKAGE/cache/night-real-video.mp4"
 ARTIFACTS="night-video-interaction-artifacts"
 
 mkdir -p "$ARTIFACTS"
+
+capture_exit_diagnostics() {
+  local code="$?"
+  adb logcat -d -v threadtime > "$ARTIFACTS/logcat-exit.txt" 2>/dev/null || true
+  adb shell ps -A > "$ARTIFACTS/processes-exit.txt" 2>/dev/null || true
+  adb shell dumpsys activity activities > "$ARTIFACTS/activities-exit.txt" 2>/dev/null || true
+  if [ "$code" -ne 0 ]; then
+    {
+      echo "exitCode=$code"
+      echo "nightPid=$(adb shell pidof "$PACKAGE" 2>/dev/null || true)"
+      echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    } > "$ARTIFACTS/exit-status.txt"
+  fi
+}
+trap capture_exit_diagnostics EXIT
+
 adb install --no-streaming -r "$APK"
 adb shell wm size 709x1536
 adb shell wm density 240
@@ -136,7 +152,11 @@ tap_desc() {
 }
 
 assert_alive() {
-  adb shell pidof "$PACKAGE" >/dev/null
+  if ! adb shell pidof "$PACKAGE" >/dev/null; then
+    adb logcat -d -v threadtime > "$ARTIFACTS/logcat-process-dead.txt" 2>/dev/null || true
+    echo "Night process is not alive." >&2
+    return 1
+  fi
 }
 
 capture_media_logcat() {
