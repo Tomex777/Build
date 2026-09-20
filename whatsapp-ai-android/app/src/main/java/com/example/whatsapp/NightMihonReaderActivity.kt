@@ -41,32 +41,21 @@ import java.util.zip.ZipOutputStream
 class NightMihonReaderActivity :
     ComponentActivity() {
 
-    private var volumeKeyHandler: ((Boolean) -> Boolean)? = null
+    private var readerKeyEventHandler:
+        ((KeyEvent) -> Boolean)? = null
 
-    internal fun setVolumeKeyHandler(
-        handler: ((Boolean) -> Boolean)?,
+    internal fun setReaderKeyEventHandler(
+        handler: ((KeyEvent) -> Boolean)?,
     ) {
-        volumeKeyHandler = handler
+        readerKeyEventHandler = handler
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        val volumeDown = when (event.keyCode) {
-            KeyEvent.KEYCODE_VOLUME_DOWN -> true
-            KeyEvent.KEYCODE_VOLUME_UP -> false
-            else -> null
-        }
-        val handler = volumeKeyHandler
-
-        if (volumeDown != null && handler != null) {
-            // Match Mihon: consume both halves of the volume-key event,
-            // but perform the reader navigation only when the key is released.
-            if (event.action == KeyEvent.ACTION_UP) {
-                handler(volumeDown)
-            }
-            return true
-        }
-
-        return super.dispatchKeyEvent(event)
+        // Match Mihon's ReaderActivity: keep one stable viewer handler and
+        // let the viewer decide whether this specific event is consumed.
+        val handled =
+            readerKeyEventHandler?.invoke(event) ?: false
+        return handled || super.dispatchKeyEvent(event)
     }
 
     override fun onCreate(
