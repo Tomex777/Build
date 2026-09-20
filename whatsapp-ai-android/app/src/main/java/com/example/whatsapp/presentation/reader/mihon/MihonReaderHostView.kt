@@ -125,6 +125,9 @@ internal class MihonReaderHostView(
     }
 
     private fun rebuild() {
+        pager?.adapter = null
+        webtoon?.stopScroll()
+        webtoon?.adapter = null
         removeAllViews()
         pager = null
         webtoon = null
@@ -419,9 +422,13 @@ internal class MihonReaderHostView(
                         LayoutParams.MATCH_PARENT,
                         LayoutParams.MATCH_PARENT,
                     )
+                // Match Mihon: do not let RecyclerView run a layout pass
+                // until its layout manager, adapter, start position and
+                // frame parent are all ready.
+                visibility = View.GONE
                 isFocusable = false
                 itemAnimator = null
-                setItemViewCacheSize(3)
+                setItemViewCacheSize(4)
                 doubleTapZoom =
                     webtoonDoubleTapZoom
                 zoomOutDisabled =
@@ -596,6 +603,15 @@ internal class MihonReaderHostView(
             currentPage,
             0,
         )
+
+        // Reveal on the next frame, after RecyclerView has had a chance to
+        // finish attaching its holders and Compose has completed the current
+        // AndroidView layout pass.
+        recycler.postOnAnimation {
+            if (webtoon === recycler && recycler.isAttachedToWindow) {
+                recycler.visibility = View.VISIBLE
+            }
+        }
     }
 
     private fun normalizedTapPoint(
