@@ -1055,10 +1055,29 @@ fun HomiraProductionApp(
                 runCatching {
                     liveRepository.startCall(calleeId = person.id, video = video)
                 }.onSuccess { session ->
-                    liveScope.launch {
-                        runCatching {
+                    val pushResult = runCatching {
+                        withTimeoutOrNull(6_000L) {
                             liveRepository.requestIncomingCallPush(session.id)
                         }
+                    }.onFailure {
+                        Log.e(
+                            "HomiraPush",
+                            "Incoming-call push request failed for ${session.id}",
+                            it
+                        )
+                    }.getOrNull()
+
+                    if (pushResult == null) {
+                        Log.w(
+                            "HomiraPush",
+                            "Incoming-call push timed out for ${session.id}"
+                        )
+                    } else if (pushResult.delivered <= 0) {
+                        Log.w(
+                            "HomiraPush",
+                            "Incoming-call push was not accepted: " +
+                                "reason=${pushResult.reason} error=${pushResult.error}"
+                        )
                     }
 
                     val refreshedPerson =
