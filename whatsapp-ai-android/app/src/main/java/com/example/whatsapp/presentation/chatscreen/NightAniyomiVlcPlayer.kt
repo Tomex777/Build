@@ -64,6 +64,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -123,7 +125,6 @@ internal fun NightAniyomiVlcPlayer(
             "--no-video-title-show",
         )
         if (softwareDecode) {
-            options += "--codec=avcodec"
             options += "--avcodec-hw=none"
         }
         LibVLC(appContext, options)
@@ -164,7 +165,10 @@ internal fun NightAniyomiVlcPlayer(
     DisposableEffect(player, libVlc, item.localPath) {
         val media = Media(libVlc, mediaUri).apply {
             if (softwareDecode) {
-                addOption(":codec=avcodec")
+                // Use LibVLC Android's supported hardware-off path. It marks the
+                // codec option as explicitly configured so MediaPlayer does not
+                // re-enable MediaCodec defaults for this Media.
+                setHWDecoderEnabled(false, false)
                 addOption(":avcodec-hw=none")
             } else {
                 setHWDecoderEnabled(true, false)
@@ -276,6 +280,10 @@ internal fun NightAniyomiVlcPlayer(
     Box(
         modifier = modifier
             .background(Color.Black)
+            .semantics {
+                contentDescription =
+                    "Night video player: " + item.sender.ifBlank { "Video" }
+            }
             .clickable {
                 controlsVisible = !controlsVisible
             },

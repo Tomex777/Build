@@ -278,7 +278,7 @@ adb exec-out screencap -p > "$ARTIFACTS/00-cold-launch.png" || true
 capture_media_logcat "00-cold-launch"
 assert_alive
 show_controls
-assert_text "Night Video 1"
+assert_desc "Night video player: Night Video 1"
 assert_no_crash
 capture_dims "$ARTIFACTS/01-real-video-open.png" > "$ARTIFACTS/01-dimensions.txt"
 capture_media_logcat "01-open"
@@ -411,7 +411,7 @@ adb shell am start -W --activity-clear-top --activity-single-top \
   --es night.preview.videoPath "$APP_VIDEO" >/dev/null
 sleep 2
 show_controls
-assert_text "Night Video 1"
+assert_desc "Night video player: Night Video 1"
 capture_media_logcat "07-pip-return"
 assert_no_crash
 
@@ -420,11 +420,11 @@ show_controls
 tap_desc "Next media"
 sleep 2
 show_controls
-assert_text "Night Video 2"
+assert_desc "Night video player: Night Video 2"
 tap_desc "Previous media"
 sleep 2
 show_controls
-assert_text "Night Video 1"
+assert_desc "Night video player: Night Video 1"
 capture_media_logcat "08-next-previous"
 assert_no_crash
 
