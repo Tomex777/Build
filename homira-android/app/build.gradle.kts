@@ -19,7 +19,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "0.1.0-call-ui"
+        versionName = "1.0.0"
 
         buildConfigField(
             "String",
@@ -67,6 +67,14 @@ android {
             "HOMIRA_FORCE_TURN_RELAY",
             forceTurnRelay.toString()
         )
+    }
+
+    buildTypes {
+        getByName("release") {
+            isDebuggable = false
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
     }
 
     buildFeatures {
