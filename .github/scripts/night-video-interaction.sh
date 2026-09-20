@@ -76,8 +76,23 @@ raise SystemExit(2)
 PY
 
 refresh_ui() {
-  adb shell uiautomator dump /sdcard/window.xml >/dev/null
-  adb exec-out cat /sdcard/window.xml > /tmp/window.xml
+  local attempt
+  rm -f /tmp/window.xml /tmp/uiautomator-last.txt
+  for attempt in $(seq 1 10); do
+    if adb shell uiautomator dump /sdcard/window.xml > /tmp/uiautomator-last.txt 2>&1; then
+      if adb exec-out cat /sdcard/window.xml > /tmp/window.xml 2>/dev/null &&
+         grep -q "<hierarchy" /tmp/window.xml; then
+        return 0
+      fi
+    fi
+    sleep 1
+  done
+
+  echo "Could not obtain Android UI hierarchy after 10 attempts." >&2
+  cat /tmp/uiautomator-last.txt >&2 || true
+  adb exec-out screencap -p > "$ARTIFACTS/failure-ui-hierarchy.png" || true
+  adb logcat -d -v threadtime > "$ARTIFACTS/logcat-ui-hierarchy-failure.txt" || true
+  return 1
 }
 
 text_is_visible() {
@@ -197,6 +212,8 @@ adb shell am force-stop "$PACKAGE"
 adb shell am start -W -n "$PACKAGE/.MediaViewerPreviewActivity" \
   --es night.preview.videoPath "$APP_VIDEO"
 sleep 4
+adb exec-out screencap -p > "$ARTIFACTS/00-cold-launch.png" || true
+capture_media_logcat "00-cold-launch"
 assert_alive
 show_controls
 assert_text "Night Video 1"
