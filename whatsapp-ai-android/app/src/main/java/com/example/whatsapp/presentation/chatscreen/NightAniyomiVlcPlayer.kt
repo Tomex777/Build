@@ -140,7 +140,7 @@ internal fun NightAniyomiVlcPlayer(
     val appContext = context.applicationContext
     val virtualVideoDevice = remember { isNightVirtualVideoDevice() }
     var softwareDecode by remember(item.localPath) { mutableStateOf(false) }
-    var hardwareRetryGeneration by remember(item.localPath) { mutableIntStateOf(0) }
+    var hardwareRetryGeneration by remember(item.localPath) { mutableStateOf(0) }
     var hardwareRetryCount by remember(item.localPath) { mutableIntStateOf(0) }
     var userPaused by remember(item.localPath) { mutableStateOf(false) }
     var fallbackResumePosition by remember(item.localPath) { mutableLongStateOf(0L) }
