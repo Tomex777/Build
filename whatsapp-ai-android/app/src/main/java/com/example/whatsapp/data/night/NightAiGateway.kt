@@ -5,6 +5,8 @@ import android.util.Base64
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -22,6 +24,7 @@ class NightAiGateway private constructor(
     private val tools: NightAgentToolExecutor,
 ) {
     private val providerCooldownUntil = ConcurrentHashMap<String, Long>()
+    private val chatLocks = ConcurrentHashMap<String, Mutex>()
 
     suspend fun reply(
         chatId: String,
@@ -33,35 +36,39 @@ class NightAiGateway private constructor(
         displayName: String,
         onUpdate: suspend (String) -> Unit,
     ): Result<String> = withContext(Dispatchers.IO) {
-        runCatching {
-            val candidates = router.resolveChatCandidates(chatId)
-            if (candidates.isEmpty()) error("No chat AI is configured yet.")
+        val lock = chatLocks.getOrPut(chatId) { Mutex() }
+        lock.withLock {
+            runCatching {
+                val candidates = router.resolveChatCandidates(chatId)
+                if (candidates.isEmpty()) error("No chat AI is configured yet.")
 
-            var lastFailure: Throwable? = null
-            for (candidate in candidates) {
-                val cooldown = providerCooldownUntil[candidate.profile.id] ?: 0L
-                if (cooldown > System.currentTimeMillis()) continue
+                var lastFailure: Throwable? = null
+                for (candidate in candidates) {
+                    val cooldown = providerCooldownUntil[candidate.profile.id] ?: 0L
+                    if (cooldown > System.currentTimeMillis()) continue
 
-                try {
-                    val payload = buildConversation(
-                        chatId = chatId,
-                        displayName = displayName,
-                        selected = candidate,
-                    )
-                    return@runCatching runAgent(
-                        chatId = chatId,
-                        resolved = candidate,
-                        messages = payload,
-                        onUpdate = onUpdate,
-                    )
-                } catch (failure: Throwable) {
-                    lastFailure = failure
-                    markFailure(candidate.profile.id, failure)
-                    onUpdate("")
+                    try {
+                        val payload = buildConversation(
+                            chatId = chatId,
+                            displayName = displayName,
+                            selected = candidate,
+                        )
+                        return@runCatching runAgent(
+                            chatId = chatId,
+                            resolved = candidate,
+                            messages = payload,
+                            onUpdate = onUpdate,
+                        )
+                    } catch (failure: Throwable) {
+                        if (failure is NightNonRetryableAgentFailure) throw failure
+                        lastFailure = failure
+                        markFailure(candidate.profile.id, failure)
+                        onUpdate("")
+                    }
                 }
-            }
 
-            throw (lastFailure ?: IllegalStateException("No enabled AI provider could answer."))
+                throw (lastFailure ?: IllegalStateException("No enabled AI provider could answer."))
+            }
         }
     }
 
@@ -136,6 +143,7 @@ class NightAiGateway private constructor(
         selected: NightResolvedModel,
     ): JSONArray {
         val messages = repository.getMessages(chatId)
+            .filter { it.deliveryState != "sending" }
         val otherChats = repository.getChats()
             .filter { it.id != chatId && it.latestSummary.isNotBlank() }
             .take(12)
@@ -411,16 +419,27 @@ class NightAiGateway private constructor(
     ): String {
         val useTools = supports(resolved.model, "tools")
         val definitions = if (useTools) NightAgentToolSchemas.all() else null
-        var visible = ""
+        val executedToolResults = mutableMapOf<String, String>()
+        var sideEffectSucceeded = false
 
         repeat(MAX_TOOL_ROUNDS) {
-            val step = performStreamingStep(
-                resolved = resolved,
-                messages = messages,
-                toolDefinitions = definitions,
-            ) { accumulated ->
-                visible = accumulated
-                onUpdate(accumulated)
+            val step = try {
+                performStreamingStep(
+                    resolved = resolved,
+                    messages = messages,
+                    toolDefinitions = definitions,
+                ) { accumulated ->
+                    onUpdate(accumulated)
+                }
+            } catch (failure: Throwable) {
+                if (sideEffectSucceeded) {
+                    throw NightNonRetryableAgentFailure(
+                        "A Night action completed, but the AI continuation failed. " +
+                            (failure.message ?: "The provider stopped responding."),
+                        failure,
+                    )
+                }
+                throw failure
             }
 
             if (step.toolCalls.isEmpty()) {
@@ -435,7 +454,18 @@ class NightAiGateway private constructor(
 
             messages.put(step.assistantMessage())
             step.toolCalls.forEach { call ->
-                val result = tools.execute(chatId, call)
+                val result = executedToolResults[call.id]
+                    ?: tools.execute(chatId, call).also {
+                        executedToolResults[call.id] = it
+                    }
+
+                if (
+                    NightAgentToolSchemas.isSideEffect(call.name) &&
+                    runCatching { JSONObject(result).optBoolean("ok", false) }.getOrDefault(false)
+                ) {
+                    sideEffectSucceeded = true
+                }
+
                 messages.put(
                     JSONObject()
                         .put("role", "tool")
@@ -728,6 +758,11 @@ class NightAiGateway private constructor(
             return content
         }
     }
+
+    private class NightNonRetryableAgentFailure(
+        message: String,
+        cause: Throwable,
+    ) : IllegalStateException(message, cause)
 
     private fun markFailure(
         profileId: String,
