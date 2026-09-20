@@ -1,6 +1,10 @@
 name: Night Video Interaction
 
 on:
+  push:
+    branches:
+      - night-video-interaction-ci
+      - night-video-android16-ci
   pull_request:
     branches:
       - whatsapp-ai-ui-ci
