@@ -2623,6 +2623,43 @@ fun HomiraProductionApp(
                                         }
                                     }
                                 },
+                                onRenameContact = { person, newName ->
+                                    if (!liveMode) {
+                                        liveContacts = liveContacts.map {
+                                            if (it.id == person.id) {
+                                                it.copy(localName = newName)
+                                            } else {
+                                                it
+                                            }
+                                        }
+                                    } else {
+                                        liveScope.launch {
+                                            runCatching {
+                                                liveRepository.setContactLocalName(
+                                                    person.id,
+                                                    newName
+                                                )
+                                            }.onSuccess {
+                                                liveContacts = liveContacts.map {
+                                                    if (it.id == person.id) {
+                                                        it.copy(
+                                                            localName = newName
+                                                        )
+                                                    } else {
+                                                        it
+                                                    }
+                                                }
+                                            }.onFailure {
+                                                Toast.makeText(
+                                                    context,
+                                                    it.message
+                                                        ?: "Could not rename contact.",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
+                                    }
+                                },
                                 onDeleteContact = { person ->
                                     if (!liveMode) {
                                         liveContacts =
@@ -3930,6 +3967,7 @@ private fun ContactsScreen(
     onVoiceCall: (HomiraPerson) -> Unit,
     onVideoCall: (HomiraPerson) -> Unit,
     onFavoriteChanged: (HomiraPerson, Boolean) -> Unit,
+    onRenameContact: (HomiraPerson, String) -> Unit,
     onDeleteContact: (HomiraPerson) -> Unit
 ) {
     val context = LocalContext.current
@@ -3938,6 +3976,8 @@ private fun ContactsScreen(
     var infoPerson by remember { mutableStateOf<HomiraPerson?>(null) }
     var deletePerson by remember { mutableStateOf<HomiraPerson?>(null) }
     var qrPerson by remember { mutableStateOf<HomiraPerson?>(null) }
+    var editPerson by remember { mutableStateOf<HomiraPerson?>(null) }
+    var editedContactName by rememberSaveable { mutableStateOf("") }
 
     val filtered = contacts.filter {
         it.name.contains(query, ignoreCase = true) ||
@@ -4273,6 +4313,16 @@ private fun ContactsScreen(
                     TextButton(
                         onClick = {
                             infoPerson = null
+                            editedContactName = person.name
+                            editPerson = person
+                        }
+                    ) {
+                        Text("Edit name", color = HomiraText)
+                    }
+
+                    TextButton(
+                        onClick = {
+                            infoPerson = null
                             qrPerson = person
                         }
                     ) {
@@ -4292,6 +4342,49 @@ private fun ContactsScreen(
             confirmButton = {
                 TextButton(onClick = { infoPerson = null }) {
                     Text("Done", color = HomiraGreen)
+                }
+            },
+            containerColor = HomiraSurface
+        )
+    }
+
+    editPerson?.let { person ->
+        AlertDialog(
+            onDismissRequest = { editPerson = null },
+            title = {
+                Text(
+                    "Edit contact",
+                    color = HomiraText,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                OutlinedTextField(
+                    value = editedContactName,
+                    onValueChange = {
+                        editedContactName = it.take(60)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Name") },
+                    shape = RoundedCornerShape(18.dp)
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = editedContactName.trim().isNotBlank(),
+                    onClick = {
+                        val newName = editedContactName.trim()
+                        editPerson = null
+                        onRenameContact(person, newName)
+                    }
+                ) {
+                    Text("Save", color = HomiraGreen)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { editPerson = null }) {
+                    Text("Cancel", color = HomiraMuted)
                 }
             },
             containerColor = HomiraSurface
