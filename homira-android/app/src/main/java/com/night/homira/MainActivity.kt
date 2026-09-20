@@ -1,6 +1,7 @@
 package com.night.homira
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.app.PictureInPictureParams
 import android.os.Build
 import android.util.Rational
@@ -138,5 +139,22 @@ class MainActivity : ComponentActivity() {
                 enterPictureInPictureMode(params)
             }
         }
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onPictureInPictureModeChanged(
+            isInPictureInPictureMode,
+            newConfig
+        )
+        HomiraCallUiState.pictureInPictureActive =
+            isInPictureInPictureMode
+    }
+
+    override fun onDestroy() {
+        HomiraCallUiState.pictureInPictureActive = false
+        super.onDestroy()
     }
 }
