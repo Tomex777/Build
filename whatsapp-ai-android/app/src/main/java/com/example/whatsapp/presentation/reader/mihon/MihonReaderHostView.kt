@@ -24,6 +24,7 @@ internal class MihonReaderHostView(
     private var cropBorders = false
     private var sidePadding = 0
     private var webtoonDoubleTapZoom = true
+    private var webtoonZoomOutDisabled = false
     private var currentPage = 0
 
     var onPageChanged: ((Int) -> Unit)? = null
@@ -39,6 +40,7 @@ internal class MihonReaderHostView(
         cropBorders: Boolean,
         sidePadding: Int,
         webtoonDoubleTapZoom: Boolean,
+        webtoonZoomOutDisabled: Boolean,
     ) {
         val safePage =
             currentPage.coerceIn(
@@ -52,7 +54,9 @@ internal class MihonReaderHostView(
                 this.cropBorders != cropBorders ||
                 this.sidePadding != sidePadding ||
                 this.webtoonDoubleTapZoom !=
-                webtoonDoubleTapZoom
+                webtoonDoubleTapZoom ||
+                this.webtoonZoomOutDisabled !=
+                webtoonZoomOutDisabled
 
         this.pages = pages
         this.mode = mode
@@ -60,6 +64,8 @@ internal class MihonReaderHostView(
         this.sidePadding = sidePadding
         this.webtoonDoubleTapZoom =
             webtoonDoubleTapZoom
+        this.webtoonZoomOutDisabled =
+            webtoonZoomOutDisabled
         this.currentPage = safePage
 
         if (structuralChange) {
@@ -288,6 +294,28 @@ internal class MihonReaderHostView(
         }
     }
 
+    fun moveNextByInput() {
+        webtoon?.let { recycler ->
+            recycler.smoothScrollBy(
+                0,
+                recycler.originalHeight.coerceAtLeast(height) * 3 / 4,
+            )
+            return
+        }
+        moveNext()
+    }
+
+    fun movePreviousByInput() {
+        webtoon?.let { recycler ->
+            recycler.smoothScrollBy(
+                0,
+                -(recycler.originalHeight.coerceAtLeast(height) * 3 / 4),
+            )
+            return
+        }
+        movePrevious()
+    }
+
     private fun moveNext() {
         if (
             mode ==
@@ -347,6 +375,8 @@ internal class MihonReaderHostView(
                 setItemViewCacheSize(3)
                 doubleTapZoom =
                     webtoonDoubleTapZoom
+                zoomOutDisabled =
+                    webtoonZoomOutDisabled
             }
 
         val scrollDistance =
@@ -478,6 +508,8 @@ internal class MihonReaderHostView(
                     )
                 doubleTapZoom =
                     webtoonDoubleTapZoom
+                zoomOutDisabled =
+                    webtoonZoomOutDisabled
                 addView(
                     recycler,
                     LayoutParams(
