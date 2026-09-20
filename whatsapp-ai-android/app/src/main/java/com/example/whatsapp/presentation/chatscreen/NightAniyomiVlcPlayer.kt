@@ -90,6 +90,28 @@ private fun View.installNightVideoTapHandler(onTap: () -> Unit) {
     }
 }
 
+private fun shouldNightStartWithSoftwareVideoDecode(): Boolean {
+    val fingerprint = Build.FINGERPRINT.orEmpty()
+    val model = Build.MODEL.orEmpty()
+    val manufacturer = Build.MANUFACTURER.orEmpty()
+    val brand = Build.BRAND.orEmpty()
+    val device = Build.DEVICE.orEmpty()
+    val product = Build.PRODUCT.orEmpty()
+    val hardware = Build.HARDWARE.orEmpty()
+
+    return fingerprint.startsWith("generic", ignoreCase = true) ||
+        fingerprint.contains("emulator", ignoreCase = true) ||
+        model.contains("google_sdk", ignoreCase = true) ||
+        model.contains("Emulator", ignoreCase = true) ||
+        model.contains("Android SDK built for", ignoreCase = true) ||
+        manufacturer.contains("Genymotion", ignoreCase = true) ||
+        (brand.startsWith("generic", ignoreCase = true) &&
+            device.startsWith("generic", ignoreCase = true)) ||
+        product.contains("sdk_gphone", ignoreCase = true) ||
+        hardware.contains("goldfish", ignoreCase = true) ||
+        hardware.contains("ranchu", ignoreCase = true)
+}
+
 private enum class NightVideoAspect(
     val label: String,
     val scale: MediaPlayer.ScaleType,
@@ -116,7 +138,8 @@ internal fun NightAniyomiVlcPlayer(
     val context = androidx.compose.ui.platform.LocalContext.current
     val activity = remember(context) { context.findNightActivity() }
     val appContext = context.applicationContext
-    var softwareDecode by remember(item.localPath) { mutableStateOf(false) }
+    val startWithSoftwareDecode = remember { shouldNightStartWithSoftwareVideoDecode() }
+    var softwareDecode by remember(item.localPath) { mutableStateOf(startWithSoftwareDecode) }
     var userPaused by remember(item.localPath) { mutableStateOf(false) }
     var fallbackResumePosition by remember(item.localPath) { mutableLongStateOf(0L) }
 
@@ -137,6 +160,9 @@ internal fun NightAniyomiVlcPlayer(
             "--no-video-title-show",
         )
         if (softwareDecode) {
+            options += "--no-mediacodec"
+            options += "--no-mediacodec-dr"
+            options += "--codec=avcodec"
             options += "--avcodec-hw=none"
         }
         LibVLC(appContext, options)
@@ -177,10 +203,12 @@ internal fun NightAniyomiVlcPlayer(
     DisposableEffect(player, libVlc, item.localPath) {
         val media = Media(libVlc, mediaUri).apply {
             if (softwareDecode) {
-                // Use LibVLC Android's supported hardware-off path. It marks the
-                // codec option as explicitly configured so MediaPlayer does not
-                // re-enable MediaCodec defaults for this Media.
-                setHWDecoderEnabled(false, false)
+                // Do not call setHWDecoderEnabled(false, false) here: in this
+                // LibVLC generation that can still leave Android MediaCodec in
+                // the decoder candidate list. Force the software decoder path.
+                addOption(":no-mediacodec")
+                addOption(":no-mediacodec-dr")
+                addOption(":codec=avcodec")
                 addOption(":avcodec-hw=none")
             } else {
                 setHWDecoderEnabled(true, false)
