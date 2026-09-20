@@ -567,16 +567,21 @@ internal class MihonReaderHostView(
                 ) {
                     if (!acceptPageChanges) return
 
-                    val first =
+                    // Match Mihon's WebtoonViewer active-page rule. The
+                    // first visible item can still be the previous page when
+                    // only a sliver remains on screen, which is especially
+                    // common after restoring a requested page. Mihon tracks
+                    // the last page whose end is visible instead.
+                    val active =
                         manager
-                            .findFirstVisibleItemPosition()
+                            .findLastEndVisibleItemPosition()
                     if (
-                        first !=
+                        active !=
                         RecyclerView.NO_POSITION &&
-                        first != currentPage
+                        active != currentPage
                     ) {
-                        currentPage = first
-                        onPageChanged?.invoke(first)
+                        currentPage = active
+                        onPageChanged?.invoke(active)
                     }
                 }
             },
@@ -619,14 +624,15 @@ internal class MihonReaderHostView(
                 recycler.postOnAnimation {
                     if (webtoon === recycler && recycler.isAttachedToWindow) {
                         acceptPageChanges = true
-                        val first =
-                            manager.findFirstVisibleItemPosition()
+                        val active =
+                            manager
+                                .findLastEndVisibleItemPosition()
                         if (
-                            first != RecyclerView.NO_POSITION &&
-                            first != currentPage
+                            active != RecyclerView.NO_POSITION &&
+                            active != currentPage
                         ) {
-                            currentPage = first
-                            onPageChanged?.invoke(first)
+                            currentPage = active
+                            onPageChanged?.invoke(active)
                         }
                     }
                 }
