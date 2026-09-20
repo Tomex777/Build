@@ -8,6 +8,7 @@ import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -104,6 +105,7 @@ internal fun NightAniyomiVlcPlayer(
     val appContext = context.applicationContext
     var softwareDecode by remember(item.localPath) { mutableStateOf(false) }
     var userPaused by remember(item.localPath) { mutableStateOf(false) }
+    var fallbackResumePosition by remember(item.localPath) { mutableLongStateOf(0L) }
 
     val libVlc = remember(item.localPath, softwareDecode) {
         LibVLC(
@@ -180,6 +182,10 @@ internal fun NightAniyomiVlcPlayer(
         }
 
         player.play()
+        if (softwareDecode && fallbackResumePosition > 0L) {
+            runCatching { player.setTime(fallbackResumePosition) }
+        }
+        runCatching { player.setRate(playbackSpeed) }
         playing = true
         val startedAt = SystemClock.elapsedRealtime()
         var lastAdvanceAt = startedAt
@@ -208,6 +214,11 @@ internal fun NightAniyomiVlcPlayer(
                 // the stream, renders one frame, then wedges. Recreate VLC once with HW
                 // decoding disabled so libavcodec can continue instead of leaving Night
                 // permanently paused on the first frame.
+                fallbackResumePosition = position
+                Log.w(
+                    "NightVideo",
+                    "Hardware playback stalled at ${position}ms; retrying with VLC software decoding.",
+                )
                 softwareDecode = true
                 return@LaunchedEffect
             }
