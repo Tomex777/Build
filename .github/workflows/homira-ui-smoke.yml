@@ -89,6 +89,15 @@ jobs:
             adb logcat --pid="$(adb shell pidof com.night.homira)" -d > homira-android/app/build/ui-smoke/logcat.txt
             ! grep -q "FATAL EXCEPTION" homira-android/app/build/ui-smoke/logcat.txt
 
+            adb logcat -c
+            adb shell am force-stop com.night.homira
+            adb shell am start -W -n com.night.homira/.HomiraLiveSmokeActivity
+            sleep 8
+            adb shell pidof com.night.homira | grep -q .
+            adb exec-out screencap -p > homira-android/app/build/ui-smoke/live-main.png
+            adb logcat --pid="$(adb shell pidof com.night.homira)" -d > homira-android/app/build/ui-smoke/live-logcat.txt
+            ! grep -q "FATAL EXCEPTION" homira-android/app/build/ui-smoke/live-logcat.txt
+
       - name: Upload smoke artifacts
         if: always()
         uses: actions/upload-artifact@v4
