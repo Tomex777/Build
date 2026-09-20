@@ -473,12 +473,10 @@ internal fun NightVlcVideoSurface(
                     }
                 }
             },
-            modifier = Modifier.fillMaxSize(),
-        )
-
-        Box(
             modifier = Modifier
                 .fillMaxSize()
+                // AndroidView owns the real touch target; attach the Compose
+                // click modifier here instead of relying on a sibling overlay.
                 .clickable { onToggleControls() },
         )
 
