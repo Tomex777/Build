@@ -2288,7 +2288,13 @@ fun HomiraProductionApp(
                             MainTab.Keypad -> KeypadScreen(
                                 contacts = appContacts,
                                 resolvingDial = resolvingDial,
-                                onSettings = { overlay = OverlayScreen.Settings },
+                                lastDialedNumber = appCallEntries
+                                    .firstOrNull {
+                                        it.direction == CallDirection.Outgoing
+                                    }
+                                    ?.person
+                                    ?.number
+                                    ?.takeIf { it.isNotBlank() },
                                 onSearchContacts = { tab = MainTab.Contacts },
                                 onDial = dial@{ value ->
                                     if (resolvingDial) return@dial
