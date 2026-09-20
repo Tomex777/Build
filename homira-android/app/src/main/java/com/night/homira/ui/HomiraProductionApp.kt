@@ -439,7 +439,7 @@ fun HomiraProductionApp(
             HomiraIncomingCallNotifier(context)
         }
         val telecomBridge = remember(context) {
-            HomiraTelecomBridge(context)
+            runCatching { HomiraTelecomBridge(context) }.getOrNull()
         }
 
         LaunchedEffect(liveMode) {
@@ -1107,7 +1107,7 @@ fun HomiraProductionApp(
                     else -> "ended"
                 }
 
-                runCatching { telecomBridge.disconnect() }
+                runCatching { telecomBridge?.disconnect() }
                 runCatching {
                     liveRepository.setCallState(
                         session.id,
@@ -1216,7 +1216,7 @@ fun HomiraProductionApp(
             }
 
             runCatching {
-                telecomBridge.registerCall(
+                telecomBridge?.registerCall(
                     callId = session.id,
                     peerName = person.name,
                     peerAddress = person.number.ifBlank {
@@ -1231,7 +1231,8 @@ fun HomiraProductionApp(
         LaunchedEffect(liveMode) {
             if (!liveMode) return@LaunchedEffect
 
-            telecomBridge.platformEvents.collect { event ->
+            val bridge = telecomBridge ?: return@LaunchedEffect
+            bridge.platformEvents.collect { event ->
                 val session = activeSession ?: incomingSession
 
                 when (event) {
@@ -1417,7 +1418,7 @@ fun HomiraProductionApp(
 
                     "missed", "declined", "cancelled", "failed", "ended" -> {
                         incomingCallNotifier.cancel(session.id)
-                        runCatching { telecomBridge.disconnect() }
+                        runCatching { telecomBridge?.disconnect() }
                         val outcome = when (session.state) {
                             "missed" -> HomiraCallHistoryStore.OUTCOME_MISSED
                             "declined" -> HomiraCallHistoryStore.OUTCOME_DECLINED
@@ -1458,7 +1459,7 @@ fun HomiraProductionApp(
                     liveRepository.setCallState(session.id, "missed")
                 }.onSuccess { missed ->
                     incomingCallNotifier.cancel(missed.id)
-                    runCatching { telecomBridge.disconnect() }
+                    runCatching { telecomBridge?.disconnect() }
                     callHistoryStore.markTerminal(
                         missed.id,
                         HomiraCallHistoryStore.OUTCOME_MISSED
@@ -1519,7 +1520,7 @@ fun HomiraProductionApp(
                         else -> HomiraCallHistoryStore.OUTCOME_FAILED
                     }
                     incomingCallNotifier.cancel(session.id)
-                    runCatching { telecomBridge.disconnect() }
+                    runCatching { telecomBridge?.disconnect() }
                     callHistoryStore.markTerminal(session.id, outcome)
                     localCallHistory = callHistoryStore.listRecent()
 
@@ -1568,21 +1569,21 @@ fun HomiraProductionApp(
                 liveRepository.currentUserId() ?: return@LaunchedEffect
 
             val telecomReady = withTimeoutOrNull(5_000L) {
-                telecomBridge.ready
-                    .filter { it }
-                    .first()
+                telecomBridge?.ready
+                    ?.filter { it }
+                    ?.first()
             } != null
 
             if (!telecomReady) return@LaunchedEffect
 
             if (session.calleeId == localUserId) {
                 runCatching {
-                    telecomBridge.answer(
+                    telecomBridge?.answer(
                         session.mediaType == "video"
                     )
                 }
             } else {
-                runCatching { telecomBridge.markActive() }
+                runCatching { telecomBridge?.markActive() }
             }
         }
 
