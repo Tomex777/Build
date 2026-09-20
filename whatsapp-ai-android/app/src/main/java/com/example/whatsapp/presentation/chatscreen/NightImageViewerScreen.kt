@@ -401,8 +401,6 @@ internal fun NightVlcVideoSurface(
             "--audio-time-stretch",
             "--network-caching=1500",
         )
-        if (softwareDecode) {
-        }
         LibVLC(context, options)
     }
     val player = remember(path, softwareDecode) { MediaPlayer(libVlc) }

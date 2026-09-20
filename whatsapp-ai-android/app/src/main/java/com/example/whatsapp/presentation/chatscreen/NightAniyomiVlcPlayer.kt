@@ -159,8 +159,6 @@ internal fun NightAniyomiVlcPlayer(
             "--network-caching=1500",
             "--no-video-title-show",
         )
-        if (softwareDecode) {
-        }
         LibVLC(appContext, options)
     }
     val player = remember(item.localPath, softwareDecode) { MediaPlayer(libVlc) }
