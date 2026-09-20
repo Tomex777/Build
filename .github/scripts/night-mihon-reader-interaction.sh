@@ -134,20 +134,41 @@ find_and_tap_text() {
   return 1
 }
 
+settings_sheet_visible() {
+  local marker
+  for marker in \
+    "Reader settings" \
+    "Long strip side padding · 0%" \
+    "Double tap zoom" \
+    "Tap zones" \
+    "Volume keys" \
+    "Invert volume keys" \
+    "Background color"; do
+    if text_is_visible "$marker"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 dismiss_reader_settings() {
   local context_label="${1:-reader navigation}"
   local attempt
 
-  # The Material sheet can be scrolled far enough that its title is no longer
-  # in the UI hierarchy. Use controls that stay near each other in the settings
-  # content as the open/closed sentinel instead of the off-screen title.
+  # The sheet can be scrolled so either its title or its lower switches are
+  # outside the UI hierarchy. Probe markers spread across the whole sheet,
+  # and only send Back while a sheet marker is actually present.
   for attempt in 1 2 3; do
-    adb shell input keyevent KEYCODE_BACK
-    sleep 1
-    if ! text_is_visible "Volume keys" && ! text_is_visible "Invert volume keys"; then
+    if ! settings_sheet_visible; then
       return 0
     fi
+    adb shell input keyevent KEYCODE_BACK
+    sleep 1
   done
+
+  if ! settings_sheet_visible; then
+    return 0
+  fi
 
   echo "Reader settings sheet did not close before $context_label." >&2
   adb exec-out screencap -p > mihon-interaction-artifacts/failure-settings-dismiss.png
