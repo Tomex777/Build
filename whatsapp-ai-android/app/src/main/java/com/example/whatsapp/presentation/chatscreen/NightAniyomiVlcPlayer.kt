@@ -129,7 +129,9 @@ internal fun NightAniyomiVlcPlayer(
         LibVLC(appContext, options)
     }
     val player = remember(item.localPath, softwareDecode) { MediaPlayer(libVlc) }
-    val attachedPlayer = remember(item.localPath) { arrayOfNulls<MediaPlayer>(1) }
+    var attachedPlayer by remember(item.localPath) {
+        mutableStateOf<MediaPlayer?>(null)
+    }
 
     var controlsVisible by remember(item.localPath) { mutableStateOf(true) }
     var controlsLocked by remember(item.localPath) { mutableStateOf(false) }
@@ -180,7 +182,7 @@ internal fun NightAniyomiVlcPlayer(
         }
     }
 
-    LaunchedEffect(active, player, softwareDecode) {
+    LaunchedEffect(active, player, softwareDecode, attachedPlayer) {
         if (!active) {
             runCatching { player.pause() }
             playing = false
@@ -188,6 +190,10 @@ internal fun NightAniyomiVlcPlayer(
                 landscape = false
                 activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             }
+            return@LaunchedEffect
+        }
+        if (attachedPlayer !== player) {
+            playing = false
             return@LaunchedEffect
         }
 
@@ -278,13 +284,26 @@ internal fun NightAniyomiVlcPlayer(
         AndroidView(
             factory = { viewContext -> VLCVideoLayout(viewContext) },
             update = { layout ->
-                val previous = attachedPlayer[0]
-                if (previous !== player) {
-                    runCatching { previous?.detachViews() }
-                    runCatching { player.attachViews(layout, null, true, false) }
-                    attachedPlayer[0] = player
+                if (attachedPlayer !== player) {
+                    // Avoid starting VLC against a zero-sized or stale surface. The
+                    // same VLCVideoLayout stays mounted while the player/engine swaps.
+                    layout.post {
+                        if (attachedPlayer !== player) {
+                            runCatching { attachedPlayer?.detachViews() }
+                            val attached = runCatching {
+                                player.attachViews(layout, null, true, false)
+                            }.isSuccess
+                            if (attached) {
+                                attachedPlayer = player
+                                runCatching { player.setVideoScale(aspect.scale) }
+                            } else {
+                                Log.e("NightVideo", "Could not attach VLC player to video surface.")
+                            }
+                        }
+                    }
+                } else {
+                    runCatching { player.setVideoScale(aspect.scale) }
                 }
-                runCatching { player.setVideoScale(aspect.scale) }
             },
             modifier = Modifier.fillMaxSize(),
         )

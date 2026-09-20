@@ -372,7 +372,9 @@ internal fun NightVlcVideoSurface(
         LibVLC(context, options)
     }
     val player = remember(path, softwareDecode) { MediaPlayer(libVlc) }
-    val attachedPlayer = remember(path) { arrayOfNulls<MediaPlayer>(1) }
+    var attachedPlayer by remember(path) {
+        mutableStateOf<MediaPlayer?>(null)
+    }
     var playing by remember(path) { mutableStateOf(false) }
     var length by remember(path) { mutableLongStateOf(0L) }
     var position by remember(path) { mutableLongStateOf(0L) }
@@ -398,8 +400,12 @@ internal fun NightVlcVideoSurface(
         }
     }
 
-    LaunchedEffect(active, player, softwareDecode) {
+    LaunchedEffect(active, player, softwareDecode, attachedPlayer) {
         if (active) {
+            if (attachedPlayer !== player) {
+                playing = false
+                return@LaunchedEffect
+            }
             player.play()
             if (softwareDecode && fallbackResumePosition > 0L) {
                 runCatching { player.setTime(fallbackResumePosition) }
@@ -452,11 +458,20 @@ internal fun NightVlcVideoSurface(
         AndroidView(
             factory = { ctx -> VLCVideoLayout(ctx) },
             update = { layout ->
-                val previous = attachedPlayer[0]
-                if (previous !== player) {
-                    runCatching { previous?.detachViews() }
-                    runCatching { player.attachViews(layout, null, false, false) }
-                    attachedPlayer[0] = player
+                if (attachedPlayer !== player) {
+                    layout.post {
+                        if (attachedPlayer !== player) {
+                            runCatching { attachedPlayer?.detachViews() }
+                            val attached = runCatching {
+                                player.attachViews(layout, null, false, false)
+                            }.isSuccess
+                            if (attached) {
+                                attachedPlayer = player
+                            } else {
+                                Log.e("NightVideo", "Could not attach editor VLC player to video surface.")
+                            }
+                        }
+                    }
                 }
             },
             modifier = Modifier.fillMaxSize(),
