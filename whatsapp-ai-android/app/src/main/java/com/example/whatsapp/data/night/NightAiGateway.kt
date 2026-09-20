@@ -560,6 +560,12 @@ class NightAiGateway private constructor(
         if (toolDefinitions != null && toolDefinitions.length() > 0) {
             body.put("tools", toolDefinitions)
             body.put("tool_choice", "auto")
+            if (resolved.profile.providerType.equals("deepseek", ignoreCase = true)) {
+                body.put(
+                    "thinking",
+                    JSONObject().put("type", "disabled"),
+                )
+            }
         }
 
         val requestBuilder = Request.Builder()
@@ -805,6 +811,14 @@ class NightAiGateway private constructor(
             .put("tools", JSONArray().put(diagnosticTool))
             .put("tool_choice", "auto")
             .put("stream", false)
+            .also {
+                if (resolved.profile.providerType.equals("deepseek", ignoreCase = true)) {
+                    it.put(
+                        "thinking",
+                        JSONObject().put("type", "disabled"),
+                    )
+                }
+            }
 
         val requestBuilder = Request.Builder()
             .url(chatEndpoint(resolved.profile))
