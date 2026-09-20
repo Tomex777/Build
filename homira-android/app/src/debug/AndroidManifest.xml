@@ -10,5 +10,8 @@
         <activity
             android:name=".HomiraCachedStartupSmokeActivity"
             android:exported="true" />
+        <activity
+            android:name=".HomiraWaitingCallSmokeActivity"
+            android:exported="true" />
     </application>
 </manifest>
