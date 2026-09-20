@@ -224,13 +224,13 @@ private class MihonWebtoonSubsamplingImageView(
     override fun onTouchEvent(event: MotionEvent): Boolean = false
 }
 
-private data class ResolvedMihonPage(
+internal data class ResolvedMihonPage(
     val uri: Uri,
     val width: Int,
     val height: Int,
 )
 
-private object MihonPageResolver {
+internal object MihonPageResolver {
     private val client = OkHttpClient()
 
     fun resolve(
