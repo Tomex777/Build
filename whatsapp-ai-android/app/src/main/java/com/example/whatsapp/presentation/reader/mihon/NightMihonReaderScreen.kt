@@ -478,17 +478,7 @@ fun NightMihonReaderScreen(
         }
 
         if (controlsVisible) {
-            val barColor =
-                MaterialTheme.colorScheme
-                    .surfaceColorAtElevation(3.dp)
-                    .copy(
-                        alpha =
-                            if (isSystemInDarkTheme()) {
-                                0.90f
-                            } else {
-                                0.95f
-                            },
-                    )
+            val barColor = Color(0xEB18191B)
 
             Column(
                 modifier = Modifier.fillMaxSize(),
@@ -508,6 +498,7 @@ fun NightMihonReaderScreen(
                             Icons.AutoMirrored.Filled
                                 .ArrowBack,
                             contentDescription = "Back",
+                            tint = Color.White,
                         )
                     }
 
@@ -520,6 +511,7 @@ fun NightMihonReaderScreen(
                             overflow =
                                 TextOverflow.Ellipsis,
                             fontSize = 17.sp,
+                            color = Color.White,
                         )
                         Text(
                             text = chapterTitle,
@@ -527,11 +519,7 @@ fun NightMihonReaderScreen(
                             overflow =
                                 TextOverflow.Ellipsis,
                             fontSize = 12.sp,
-                            color =
-                                MaterialTheme
-                                    .colorScheme
-                                    .onSurface
-                                    .copy(alpha = 0.65f),
+                            color = Color.White.copy(alpha = 0.68f),
                         )
                     }
 
@@ -561,6 +549,7 @@ fun NightMihonReaderScreen(
                                 } else {
                                     "Bookmark"
                                 },
+                            tint = Color.White,
                         )
                     }
 
@@ -573,6 +562,7 @@ fun NightMihonReaderScreen(
                             Icon(
                                 Icons.Default.MoreVert,
                                 contentDescription = "More",
+                                tint = Color.White,
                             )
                         }
 
@@ -644,6 +634,7 @@ fun NightMihonReaderScreen(
                                 ),
                             contentDescription =
                                 "Reading mode",
+                            tint = Color.White,
                         )
                     }
 
@@ -659,6 +650,7 @@ fun NightMihonReaderScreen(
                                 ),
                             contentDescription =
                                 "Orientation",
+                            tint = Color.White,
                         )
                     }
 
@@ -684,6 +676,7 @@ fun NightMihonReaderScreen(
                                 },
                             contentDescription =
                                 "Crop borders",
+                            tint = Color.White,
                         )
                     }
 
@@ -696,6 +689,7 @@ fun NightMihonReaderScreen(
                             Icons.Default.Settings,
                             contentDescription =
                                 "Reader settings",
+                            tint = Color.White,
                         )
                     }
                 }
@@ -932,17 +926,7 @@ private fun MihonChapterNavigator(
     onPreviousChapter: (() -> Unit)?,
     onNextChapter: (() -> Unit)?,
 ) {
-    val barColor =
-        MaterialTheme.colorScheme
-            .surfaceColorAtElevation(3.dp)
-            .copy(
-                alpha =
-                    if (isSystemInDarkTheme()) {
-                        0.90f
-                    } else {
-                        0.95f
-                    },
-            )
+    val barColor = Color(0xEB18191B)
 
     CompositionLocalProvider(
         LocalLayoutDirection provides
@@ -979,6 +963,7 @@ private fun MihonChapterNavigator(
                     Icons.Default.SkipPrevious,
                     contentDescription =
                         "Previous chapter",
+                    tint = Color.White,
                 )
             }
 
@@ -1010,6 +995,7 @@ private fun MihonChapterNavigator(
                         Text(
                             (currentPage + 1)
                                 .toString(),
+                            color = Color.White,
                         )
                         Text(
                             totalPages.toString(),
@@ -1046,7 +1032,10 @@ private fun MihonChapterNavigator(
                                 ),
                     )
 
-                    Text(totalPages.toString())
+                    Text(
+                        totalPages.toString(),
+                        color = Color.White,
+                    )
                 }
             }
 
@@ -1060,6 +1049,7 @@ private fun MihonChapterNavigator(
                 Icon(
                     Icons.Default.SkipNext,
                     contentDescription = "Next chapter",
+                    tint = Color.White,
                 )
             }
         }
