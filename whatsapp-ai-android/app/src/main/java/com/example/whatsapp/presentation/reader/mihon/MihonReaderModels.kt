@@ -24,6 +24,48 @@ enum class MihonReadingMode(
     CONTINUOUS_VERTICAL("Long strip with gaps", R.drawable.ic_reader_continuous_vertical_24dp),
 }
 
+enum class MihonImageScaleType(
+    val label: String,
+    val value: Int,
+) {
+    FIT_SCREEN("Fit screen", 1),
+    STRETCH("Stretch", 2),
+    FIT_WIDTH("Fit width", 3),
+    FIT_HEIGHT("Fit height", 4),
+    ORIGINAL_SIZE("Original size", 5),
+    SMART_FIT("Smart fit", 6),
+}
+
+enum class MihonZoomStart(
+    val label: String,
+) {
+    AUTOMATIC("Automatic"),
+    LEFT("Left"),
+    RIGHT("Right"),
+    CENTER("Center"),
+}
+
+enum class MihonTapZone(
+    val label: String,
+) {
+    L("L"),
+    KINDLISH("Kindle-like"),
+    EDGE("Edge"),
+    RIGHT_AND_LEFT("Right and left"),
+    DISABLED("Disabled"),
+}
+
+enum class MihonTapInvertMode(
+    val label: String,
+    val horizontal: Boolean = false,
+    val vertical: Boolean = false,
+) {
+    NONE("None"),
+    HORIZONTAL("Horizontal", horizontal = true),
+    VERTICAL("Vertical", vertical = true),
+    BOTH("Both", horizontal = true, vertical = true),
+}
+
 enum class MihonReaderBackground(
     val label: String,
     val argb: Long,
