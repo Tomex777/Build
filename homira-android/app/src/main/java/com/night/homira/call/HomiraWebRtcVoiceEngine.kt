@@ -122,6 +122,7 @@ class HomiraWebRtcVoiceEngine(
     private var signalingReady = false
     private var signalJob: Job? = null
     private var iceRecoveryJob: Job? = null
+    private var iceFailureDeadlineJob: Job? = null
     private var lastIceRestartAtMs = 0L
 
     private val networkCallback =
@@ -129,6 +130,12 @@ class HomiraWebRtcVoiceEngine(
             override fun onAvailable(network: Network) {
                 val previous = lastObservedNetwork
                 lastObservedNetwork = network
+
+                Log.i(
+                    "HomiraWebRTC",
+                    "Default network available; changed=" +
+                        (previous != null && previous != network)
+                )
 
                 if (
                     previous != null &&
@@ -140,6 +147,10 @@ class HomiraWebRtcVoiceEngine(
 
             override fun onLost(network: Network) {
                 if (lastObservedNetwork == network) {
+                    Log.i(
+                        "HomiraWebRTC",
+                        "Default network lost; starting path recovery"
+                    )
                     lastObservedNetwork = null
                     scheduleNetworkPathRecovery()
                 }
@@ -571,6 +582,7 @@ class HomiraWebRtcVoiceEngine(
 
         signalJob?.cancel()
         iceRecoveryJob?.cancel()
+        iceFailureDeadlineJob?.cancel()
         networkChangeJob?.cancel()
         networkChangeJob = null
         unregisterNetworkCallback()
@@ -710,23 +722,31 @@ class HomiraWebRtcVoiceEngine(
                 return@launch
             }
 
-            if (caller) {
-                restartIceAndRenegotiate()
-            } else {
-                runCatching {
-                    signaling.send(
-                        CallSignalEnvelope(
-                            type = "ice-restart-request",
-                            fromUserId = localUserId
-                        )
-                    )
-                }.onFailure { error ->
-                    Log.w(
-                        "HomiraWebRTC",
-                        "Could not request ICE restart after network change",
-                        error
-                    )
-                }
+            Log.i(
+                "HomiraWebRTC",
+                "Network handoff settled; requesting ICE recovery"
+            )
+            _state.value = HomiraWebRtcState.Disconnected
+            scheduleRecoveryFailureDeadline()
+            scheduleIceRecovery(immediate = true)
+        }
+    }
+
+    private fun scheduleRecoveryFailureDeadline() {
+        if (iceFailureDeadlineJob?.isActive == true) return
+
+        iceFailureDeadlineJob = scope.launch {
+            delay(15_000)
+
+            if (
+                _state.value == HomiraWebRtcState.Disconnected ||
+                _state.value == HomiraWebRtcState.Connecting
+            ) {
+                Log.e(
+                    "HomiraWebRTC",
+                    "ICE recovery deadline expired"
+                )
+                _state.value = HomiraWebRtcState.Failed
             }
         }
     }
@@ -740,22 +760,42 @@ class HomiraWebRtcVoiceEngine(
                 delay(1_500)
             }
 
-            if (
-                _state.value != HomiraWebRtcState.Disconnected &&
-                _state.value != HomiraWebRtcState.Failed
-            ) {
-                return@launch
-            }
+            repeat(3) { attempt ->
+                if (
+                    _state.value == HomiraWebRtcState.Connected ||
+                    _state.value == HomiraWebRtcState.Closed ||
+                    !signalingReady
+                ) {
+                    return@launch
+                }
 
-            if (caller) {
-                restartIceAndRenegotiate()
-            } else if (signalingReady) {
-                signaling.send(
-                    CallSignalEnvelope(
-                        type = "ice-restart-request",
-                        fromUserId = localUserId
-                    )
+                Log.i(
+                    "HomiraWebRTC",
+                    "ICE recovery attempt ${attempt + 1}/3"
                 )
+
+                if (caller) {
+                    restartIceAndRenegotiate()
+                } else {
+                    runCatching {
+                        signaling.send(
+                            CallSignalEnvelope(
+                                type = "ice-restart-request",
+                                fromUserId = localUserId
+                            )
+                        )
+                    }.onFailure { error ->
+                        Log.w(
+                            "HomiraWebRTC",
+                            "Could not request ICE restart",
+                            error
+                        )
+                    }
+                }
+
+                if (attempt < 2) {
+                    delay(4_250)
+                }
             }
         }
     }
@@ -868,6 +908,11 @@ class HomiraWebRtcVoiceEngine(
         override fun onIceConnectionChange(
             newState: PeerConnection.IceConnectionState
         ) {
+            Log.i(
+                "HomiraWebRTC",
+                "ICE connection state: $newState"
+            )
+
             _state.value = when (newState) {
                 PeerConnection.IceConnectionState.NEW ->
                     HomiraWebRtcState.Signaling
@@ -878,21 +923,32 @@ class HomiraWebRtcVoiceEngine(
                 PeerConnection.IceConnectionState.CONNECTED,
                 PeerConnection.IceConnectionState.COMPLETED -> {
                     iceRecoveryJob?.cancel()
+                    iceFailureDeadlineJob?.cancel()
+                    iceFailureDeadlineJob = null
                     HomiraWebRtcState.Connected
                 }
 
                 PeerConnection.IceConnectionState.DISCONNECTED -> {
+                    scheduleRecoveryFailureDeadline()
                     scheduleIceRecovery()
                     HomiraWebRtcState.Disconnected
                 }
 
                 PeerConnection.IceConnectionState.FAILED -> {
+                    // A failed ICE route is often temporary during a
+                    // Wi-Fi/mobile-data handoff. Keep the call alive while
+                    // restart ICE gets a bounded recovery window.
+                    scheduleRecoveryFailureDeadline()
                     scheduleIceRecovery(immediate = true)
-                    HomiraWebRtcState.Failed
+                    HomiraWebRtcState.Disconnected
                 }
 
-                PeerConnection.IceConnectionState.CLOSED ->
+                PeerConnection.IceConnectionState.CLOSED -> {
+                    iceRecoveryJob?.cancel()
+                    iceFailureDeadlineJob?.cancel()
+                    iceFailureDeadlineJob = null
                     HomiraWebRtcState.Closed
+                }
             }
         }
 
