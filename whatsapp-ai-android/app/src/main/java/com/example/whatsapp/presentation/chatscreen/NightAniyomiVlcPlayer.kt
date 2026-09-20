@@ -7,6 +7,7 @@ import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -54,6 +55,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -100,8 +102,10 @@ internal fun NightAniyomiVlcPlayer(
     val context = androidx.compose.ui.platform.LocalContext.current
     val activity = remember(context) { context.findNightActivity() }
     val appContext = context.applicationContext
+    var softwareDecode by remember(item.localPath) { mutableStateOf(false) }
+    var userPaused by remember(item.localPath) { mutableStateOf(false) }
 
-    val libVlc = remember(item.localPath) {
+    val libVlc = remember(item.localPath, softwareDecode) {
         LibVLC(
             appContext,
             arrayListOf(
@@ -111,7 +115,7 @@ internal fun NightAniyomiVlcPlayer(
             ),
         )
     }
-    val player = remember(item.localPath) { MediaPlayer(libVlc) }
+    val player = remember(item.localPath, softwareDecode) { MediaPlayer(libVlc) }
 
     var controlsVisible by remember(item.localPath) { mutableStateOf(true) }
     var controlsLocked by remember(item.localPath) { mutableStateOf(false) }
@@ -150,7 +154,7 @@ internal fun NightAniyomiVlcPlayer(
             else -> Uri.fromFile(File(item.localPath))
         }
         val media = Media(libVlc, uri).apply {
-            setHWDecoderEnabled(true, false)
+            setHWDecoderEnabled(!softwareDecode, false)
             addOption(":network-caching=1500")
         }
         player.media = media
@@ -164,7 +168,7 @@ internal fun NightAniyomiVlcPlayer(
         }
     }
 
-    LaunchedEffect(active, player) {
+    LaunchedEffect(active, player, softwareDecode) {
         if (!active) {
             runCatching { player.pause() }
             playing = false
@@ -177,11 +181,36 @@ internal fun NightAniyomiVlcPlayer(
 
         player.play()
         playing = true
+        val startedAt = SystemClock.elapsedRealtime()
+        var lastAdvanceAt = startedAt
+        var lastObservedPosition = -1L
 
         while (isActive && active) {
+            val now = SystemClock.elapsedRealtime()
             length = runCatching { player.length.coerceAtLeast(0L) }.getOrDefault(0L)
             position = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(0L)
             playing = runCatching { player.isPlaying }.getOrDefault(false)
+
+            if (position > lastObservedPosition + 180L) {
+                lastObservedPosition = position
+                lastAdvanceAt = now
+            }
+
+            if (
+                !softwareDecode &&
+                !userPaused &&
+                length > 0L &&
+                position < (length - 1500L).coerceAtLeast(0L) &&
+                now - startedAt >= 3500L &&
+                now - lastAdvanceAt >= 2500L
+            ) {
+                // Some devices/emulators advertise a hardware H.264 decoder that accepts
+                // the stream, renders one frame, then wedges. Recreate VLC once with HW
+                // decoding disabled so libavcodec can continue instead of leaving Night
+                // permanently paused on the first frame.
+                softwareDecode = true
+                return@LaunchedEffect
+            }
 
             audioTracks = runCatching {
                 player.audioTracks
@@ -225,18 +254,20 @@ internal fun NightAniyomiVlcPlayer(
             },
         contentAlignment = Alignment.Center,
     ) {
-        AndroidView(
-            factory = { viewContext ->
-                VLCVideoLayout(viewContext).also { layout ->
-                    player.attachViews(layout, null, true, false)
-                    player.setVideoScale(aspect.scale)
-                }
-            },
-            update = {
-                runCatching { player.setVideoScale(aspect.scale) }
-            },
-            modifier = Modifier.fillMaxSize(),
-        )
+        key(player) {
+            AndroidView(
+                factory = { viewContext ->
+                    VLCVideoLayout(viewContext).also { layout ->
+                        player.attachViews(layout, null, true, false)
+                        player.setVideoScale(aspect.scale)
+                    }
+                },
+                update = {
+                    runCatching { player.setVideoScale(aspect.scale) }
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
 
         AnimatedVisibility(
             visible = controlsVisible,
@@ -415,8 +446,10 @@ internal fun NightAniyomiVlcPlayer(
                         IconButton(
                             onClick = {
                                 if (player.isPlaying) {
+                                    userPaused = true
                                     player.pause()
                                 } else {
+                                    userPaused = false
                                     player.play()
                                 }
                                 playing = player.isPlaying
