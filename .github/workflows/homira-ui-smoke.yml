@@ -66,31 +66,28 @@ jobs:
             adb shell pidof com.night.homira | grep -q .
             adb exec-out screencap -p > homira-android/app/build/ui-smoke/keypad.png
 
-            adb shell input tap 405 1810
+            adb shell input tap 405 1700
             sleep 0.35
             adb shell pidof com.night.homira | grep -q .
             adb exec-out screencap -p > homira-android/app/build/ui-smoke/recents.png
 
-            adb shell input tap 675 1810
+            adb shell input tap 675 1700
             sleep 0.35
             adb shell pidof com.night.homira | grep -q .
             adb exec-out screencap -p > homira-android/app/build/ui-smoke/contacts.png
 
-            adb shell input tap 945 1810
+            adb shell input tap 945 1700
             sleep 0.35
             adb shell pidof com.night.homira | grep -q .
             adb exec-out screencap -p > homira-android/app/build/ui-smoke/me.png
 
-            adb shell input tap 135 1810
+            adb shell input tap 135 1700
             sleep 0.35
             adb shell pidof com.night.homira | grep -q .
             adb exec-out screencap -p > homira-android/app/build/ui-smoke/keypad-return.png
 
             adb logcat --pid="$(adb shell pidof com.night.homira)" -d > homira-android/app/build/ui-smoke/logcat.txt
-            if grep -q "FATAL EXCEPTION" homira-android/app/build/ui-smoke/logcat.txt; then
-              cat homira-android/app/build/ui-smoke/logcat.txt
-              exit 1
-            fi
+            ! grep -q "FATAL EXCEPTION" homira-android/app/build/ui-smoke/logcat.txt
 
       - name: Upload smoke artifacts
         if: always()
