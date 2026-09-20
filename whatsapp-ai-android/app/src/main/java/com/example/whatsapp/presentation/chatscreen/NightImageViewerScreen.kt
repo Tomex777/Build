@@ -402,10 +402,6 @@ internal fun NightVlcVideoSurface(
             "--network-caching=1500",
         )
         if (softwareDecode) {
-            options += "--no-mediacodec"
-            options += "--no-mediacodec-dr"
-            options += "--codec=avcodec"
-            options += "--avcodec-hw=none"
         }
         LibVLC(context, options)
     }
@@ -420,8 +416,6 @@ internal fun NightVlcVideoSurface(
     DisposableEffect(player, libVlc, path) {
         val media = Media(libVlc, mediaUri).apply {
             if (softwareDecode) {
-                addOption(":no-mediacodec")
-                addOption(":no-mediacodec-dr")
                 addOption(":codec=avcodec")
                 addOption(":avcodec-hw=none")
             } else {
