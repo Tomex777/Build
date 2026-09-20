@@ -443,6 +443,7 @@ fun HomiraProductionApp(
     backendReady: Boolean = true,
     requestedCallId: String? = null,
     requestedAnswerCall: Boolean = false,
+    demoWaitingCall: Boolean = false,
     onSignedOut: () -> Unit = {}
 ) {
     HomiraTheme {
@@ -573,6 +574,9 @@ fun HomiraProductionApp(
         var activeSession by remember { mutableStateOf<LiveCallSession?>(null) }
         var incomingSession by remember { mutableStateOf<LiveCallSession?>(null) }
         var incomingPerson by remember { mutableStateOf<HomiraPerson?>(null) }
+        var demoWaitingCallInjected by rememberSaveable {
+            mutableStateOf(false)
+        }
         var voicemailOffer by remember { mutableStateOf<VoicemailOffer?>(null) }
         var voiceEngine by remember { mutableStateOf<HomiraWebRtcVoiceEngine?>(null) }
         var webRtcState by remember { mutableStateOf(HomiraWebRtcState.New) }
@@ -1267,6 +1271,16 @@ fun HomiraProductionApp(
             val person = incomingPerson
 
             if (session != null && person != null) {
+                if (!liveMode) {
+                    activePerson = person
+                    activeSession = null
+                    activeVideo = session.mediaType == "video"
+                    minimized = false
+                    incomingSession = null
+                    incomingPerson = null
+                    pendingIncomingAccept = false
+                    return
+                }
                 val previousSession = activeSession
                     ?.takeIf { it.id != session.id }
 
@@ -1436,6 +1450,39 @@ fun HomiraProductionApp(
                     )
                 }
             }
+        }
+
+        LaunchedEffect(
+            demoWaitingCall,
+            activePerson?.id,
+            demoWaitingCallInjected
+        ) {
+            if (
+                liveMode ||
+                !demoWaitingCall ||
+                demoWaitingCallInjected ||
+                activePerson == null
+            ) {
+                return@LaunchedEffect
+            }
+
+            delay(450)
+            if (activePerson == null || demoWaitingCallInjected) {
+                return@LaunchedEffect
+            }
+
+            val now = Instant.now()
+            incomingSession = LiveCallSession(
+                id = "demo-waiting-call",
+                callerId = tobiP.id,
+                calleeId = "demo-local-user",
+                mediaType = "audio",
+                state = "ringing",
+                createdAt = now.toString(),
+                expiresAt = now.plusSeconds(45).toString()
+            )
+            incomingPerson = tobiP
+            demoWaitingCallInjected = true
         }
 
         val telecomSession = activeSession ?: incomingSession
