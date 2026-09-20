@@ -436,15 +436,31 @@ private fun LiveProfileHost(
     var loading by remember { mutableStateOf(initialProfile == null) }
     var profile by remember { mutableStateOf<LiveProfile?>(initialProfile) }
     var contacts by remember { mutableStateOf<List<LiveContact>>(emptyList()) }
+    var repositoryReady by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         runCatching { repository.initialize() }
-        val freshProfile = repository.loadMyProfile()
+
+        if (!repository.isSignedIn()) {
+            loading = false
+            onSignedOut()
+            return@LaunchedEffect
+        }
+
+        val freshProfile = runCatching {
+            repository.loadMyProfile()
+        }.getOrNull()
+
         if (freshProfile != null) {
             profile = freshProfile
             onProfileLoaded(freshProfile)
         }
-        contacts = runCatching { repository.loadContacts() }.getOrDefault(emptyList())
+
+        contacts = runCatching {
+            repository.loadContacts()
+        }.getOrDefault(emptyList())
+
+        repositoryReady = true
         loading = false
     }
 
@@ -475,9 +491,11 @@ private fun LiveProfileHost(
         }
 
         else -> HomiraProductionApp(
+            repository = repository,
             initialProfile = profile,
             initialContacts = contacts,
             liveMode = true,
+            backendReady = repositoryReady,
             requestedCallId = requestedCallId,
             requestedAnswerCall = requestedAnswerCall,
             onSignedOut = onSignedOut
