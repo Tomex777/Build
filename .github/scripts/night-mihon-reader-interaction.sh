@@ -90,7 +90,10 @@ find_and_tap_text() {
 assert_no_crash() {
   adb logcat -d > mihon-interaction-artifacts/logcat-latest.txt || true
 
-  if adb logcat -d -v brief | grep -A12 -E "FATAL EXCEPTION|AndroidRuntime|Process: $PACKAGE" | grep -q "$PACKAGE"; then
+  # adb's own input/uiautomator helpers also log through AndroidRuntime.
+  # Only treat a fatal block as Night's crash when AndroidRuntime identifies
+  # Night itself as the process.
+  if adb logcat -d -v brief | grep -q "AndroidRuntime: Process: $PACKAGE"; then
     echo "Night crashed during Mihon interaction test" >&2
     adb shell dumpsys activity activities > mihon-interaction-artifacts/activity-state.txt || true
     exit 1
