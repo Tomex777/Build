@@ -146,6 +146,7 @@ class NightRepository private constructor(
     suspend fun getChats(): List<NightChatEntity> = dao.getChats()
     suspend fun getMessages(chatId: String): List<NightMessageEntity> = dao.getMessages(chatId)
     suspend fun getMessage(messageId: String): NightMessageEntity? = dao.getMessage(messageId)
+    suspend fun deleteMessage(messageId: String) = dao.deleteMessage(messageId)
     suspend fun getRecentMessagesAcrossChats(limit: Int = 600): List<NightMessageEntity> =
         dao.getRecentMessagesAcrossChats(limit)
     suspend fun renameChat(chatId: String, title: String) = dao.renameChat(chatId, title, System.currentTimeMillis())
@@ -199,6 +200,12 @@ class NightRepository private constructor(
     suspend fun defaultProviderModel(profileId: String): NightProviderModelEntity? =
         dao.getDefaultProviderModel(profileId)
 
+    suspend fun enabledProviderProfiles(serviceKind: String): List<NightProviderProfileEntity> =
+        dao.getEnabledProviderProfiles(serviceKind)
+
+    suspend fun enabledProviderModels(profileId: String): List<NightProviderModelEntity> =
+        dao.getEnabledProviderModels(profileId)
+
     suspend fun upsertProviderProfile(profile: NightProviderProfileEntity) = dao.upsertProviderProfile(profile)
     suspend fun deleteProviderProfile(id: String) = dao.deleteProviderProfile(id)
     suspend fun upsertProviderModel(model: NightProviderModelEntity) = dao.upsertProviderModel(model)
@@ -208,8 +215,10 @@ class NightRepository private constructor(
 
     suspend fun addLibraryItem(item: NightLibraryItemEntity) = dao.upsertLibraryItem(item)
     suspend fun getLibraryItem(id: String): NightLibraryItemEntity? = dao.getLibraryItem(id)
+    suspend fun getLibraryItems(): List<NightLibraryItemEntity> = dao.getLibraryItems()
 
     suspend fun getScheduledTask(id: String): NightScheduledTaskEntity? = dao.getScheduledTask(id)
+    suspend fun getScheduledTasks(): List<NightScheduledTaskEntity> = dao.getScheduledTasks()
     suspend fun upsertScheduledTask(task: NightScheduledTaskEntity) = dao.upsertScheduledTask(task)
     suspend fun deleteScheduledTask(id: String) = dao.deleteScheduledTask(id)
 

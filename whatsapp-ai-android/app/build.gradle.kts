@@ -114,6 +114,9 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
+    // Night local document understanding (PDF text extraction)
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+
     // Night local persistence
     implementation("androidx.room:room-runtime:2.7.2")
     implementation("androidx.room:room-ktx:2.7.2")

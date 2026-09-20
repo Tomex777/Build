@@ -21,21 +21,43 @@ class NightScheduledTaskWorker(
             val profile = repository.ensureProfile()
             repository.ensureChat(task.chatId, "Night")
 
-            repository.appendText(
-                chatId = task.chatId,
-                role = "user",
-                text = task.prompt,
-            )
+            val runKey = task.id + "_" + task.runAt
+            val userMessageId = "scheduled_user_" + runKey
+            val assistantMessageId = "scheduled_assistant_" + runKey
+
+            if (repository.getMessage(userMessageId) == null) {
+                repository.appendMessage(
+                    NightMessageEntity(
+                        id = userMessageId,
+                        chatId = task.chatId,
+                        role = "user",
+                        type = "text",
+                        text = task.prompt,
+                        createdAt = task.runAt,
+                    )
+                )
+            }
 
             val reply = gateway.reply(task.chatId, profile.displayName)
                 .getOrElse { error ->
-                    throw IllegalStateException(error.message ?: "Scheduled AI request failed.")
+                    if (error is NightNonRetryableAgentFailure) throw error
+                    throw IllegalStateException(error.message ?: "Scheduled AI request failed.", error)
                 }
 
-            repository.appendText(
-                chatId = task.chatId,
-                role = "assistant",
-                text = reply,
+            repository.appendMessage(
+                NightMessageEntity(
+                    id = assistantMessageId,
+                    chatId = task.chatId,
+                    role = "assistant",
+                    type = "text",
+                    text = reply,
+                    createdAt = System.currentTimeMillis(),
+                )
+            )
+            NightNotificationHelper.notifyScheduledResult(
+                context = applicationContext,
+                task = task,
+                reply = reply,
             )
 
             val now = System.currentTimeMillis()
@@ -59,10 +81,8 @@ class NightScheduledTaskWorker(
             }
 
             Result.success()
-        }.getOrElse {
-            if (runAttemptCount < 2) {
-                Result.retry()
-            } else {
+        }.getOrElse { failure ->
+            if (failure is NightNonRetryableAgentFailure || runAttemptCount >= 2) {
                 repository.upsertScheduledTask(
                     task.copy(
                         state = "failed",
@@ -70,6 +90,8 @@ class NightScheduledTaskWorker(
                     )
                 )
                 Result.failure()
+            } else {
+                Result.retry()
             }
         }
     }

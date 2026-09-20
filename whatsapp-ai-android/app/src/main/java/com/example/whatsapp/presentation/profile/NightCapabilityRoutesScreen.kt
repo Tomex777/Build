@@ -47,6 +47,7 @@ private data class CapabilityItem(
 
 private val capabilityItems = listOf(
     CapabilityItem("vision", "Vision", "Fallback when the selected chat model cannot inspect images"),
+    CapabilityItem("image_generation", "Image generation", "Create images from chat through an image-capable model"),
     CapabilityItem("stt", "Speech to text", "Transcribe voice notes and recordings"),
     CapabilityItem("tts", "Text to speech", "Speak Night's responses"),
     CapabilityItem("translation", "Voice translation", "Translate spoken audio"),
@@ -169,11 +170,22 @@ private fun RoutePickerDialog(
 ) {
     val candidates: List<Pair<NightProviderProfileEntity, NightProviderModelEntity?>> =
         when (capability.id) {
-            "vision" -> profiles
-                .filter { it.serviceKind == "chat" && it.isEnabled }
+            "vision", "image_generation" -> profiles
+                .filter {
+                    it.serviceKind == "chat" &&
+                        it.isEnabled &&
+                        (capability.id != "image_generation" || it.providerType == "azure")
+                }
                 .flatMap { profile ->
                     models
-                        .filter { it.profileId == profile.id && it.isEnabled }
+                        .filter {
+                            it.profileId == profile.id &&
+                                it.isEnabled &&
+                                it.capabilities
+                                    .split(",")
+                                    .map { it.trim() }
+                                    .contains(capability.id)
+                        }
                         .map { profile to it }
                 }
 
@@ -195,6 +207,7 @@ private fun RoutePickerDialog(
                 Text(
                     when (capability.id) {
                         "vision" -> "Add a vision-capable chat model first."
+                        "image_generation" -> "Add an image-generation-capable Azure chat model first."
                         "live_voice" -> "Add an Azure Live Voice profile first."
                         else -> "Add an Azure Speech profile first."
                     },

@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -31,6 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.example.whatsapp.data.NightFileLibrary
+import com.example.whatsapp.data.night.NightAgentToolExecutor
 import com.example.whatsapp.data.night.NightAiGateway
 import com.example.whatsapp.data.night.NightAppearanceController
 import com.example.whatsapp.data.night.NightAppearanceEntity
@@ -44,6 +46,7 @@ import com.example.whatsapp.data.night.NightRepository
 import com.example.whatsapp.data.night.NightScheduleManager
 import com.example.whatsapp.data.night.NightSpeechService
 import com.example.whatsapp.data.night.NightStructuredReplyParser
+import com.example.whatsapp.data.night.NightToolInvocation
 import com.example.whatsapp.data.night.NightVoiceRecorder
 import com.example.whatsapp.extensions.messages.ExtensionMessageCodec
 import com.example.whatsapp.presentation.chat_box.ChatListModel
@@ -97,20 +100,22 @@ class MainActivity : ComponentActivity() {
         window.statusBarColor = Color.BLACK
         window.navigationBarColor = Color.BLACK
 
+        val initialChatId = intent?.getStringExtra("night_chat_id")
         setContent {
             WhatsappTheme(darkTheme = true) {
-                NightApp()
+                NightApp(initialChatId = initialChatId)
             }
         }
     }
 }
 
 @Composable
-private fun NightApp() {
+private fun NightApp(initialChatId: String? = null) {
     val context = LocalContext.current
     val repository = remember { NightRepository.get(context) }
     val providerManager = remember { NightProviderManager.get(context) }
     val aiGateway = remember { NightAiGateway.get(context) }
+    val agentTools = remember { NightAgentToolExecutor.get(context) }
     val appearanceController = remember { NightAppearanceController(repository) }
     val voiceRecorder = remember { NightVoiceRecorder(context.applicationContext) }
     val scheduleManager = remember { NightScheduleManager.get(context) }
@@ -119,11 +124,17 @@ private fun NightApp() {
     val linkPreviewService = remember { NightLinkPreviewService.get(context) }
     val scope = rememberCoroutineScope()
 
+    val notificationChatId = initialChatId?.takeIf { it.isNotBlank() }
     var selectedTabName by rememberSaveable { mutableStateOf(MainTab.Chats.name) }
     val selectedTab = MainTab.valueOf(selectedTabName)
-    var screen by rememberSaveable { mutableStateOf("tabs") }
-    var activeChatId by rememberSaveable { mutableStateOf("night-core") }
+    var screen by rememberSaveable(initialChatId) {
+        mutableStateOf(if (notificationChatId == null) "tabs" else "chat")
+    }
+    var activeChatId by rememberSaveable(initialChatId) {
+        mutableStateOf(notificationChatId ?: "night-core")
+    }
     var messageText by rememberSaveable { mutableStateOf("") }
+    var directImageMode by rememberSaveable { mutableStateOf(false) }
     var renameOpen by remember { mutableStateOf(false) }
     var renameValue by rememberSaveable { mutableStateOf("") }
     var isRecording by remember { mutableStateOf(false) }
@@ -152,6 +163,10 @@ private fun NightApp() {
 
     val messageFlow = remember(activeChatId) { repository.observeMessages(activeChatId) }
     val messageEntities by messageFlow.collectAsState(initial = emptyList())
+
+    LaunchedEffect(activeChatId) {
+        directImageMode = false
+    }
 
     val displayName = profile?.displayName ?: "Dawson"
     val appearance = (appearanceEntity ?: NightAppearanceEntity()).toChatAppearance()
@@ -331,21 +346,13 @@ private fun NightApp() {
                 )
             )
 
-            val result = aiGateway.reply(activeChatId, displayName)
-            val rawReply = result.getOrElse { error ->
-                when {
-                    error.message?.contains("No chat AI") == true ->
-                        "I transcribed the voice note, but no AI is selected for this chat yet."
-                    else ->
-                        "I transcribed the voice note, but I couldn't reach the selected AI. " +
-                            (error.message ?: "Check the provider settings.")
-                }
-            }
-            appendParsedAssistantReply(
+            streamNightAssistantReply(
                 repository = repository,
-                linkPreviewService = linkPreviewService,
+                aiGateway = aiGateway,
                 chatId = activeChatId,
-                rawReply = rawReply,
+                displayName = displayName,
+                noAiMessage = "I transcribed the voice note, but no AI is selected for this chat yet.",
+                failurePrefix = "I transcribed the voice note, but I couldn't reach an available AI. ",
             )
         }
     }
@@ -441,6 +448,23 @@ private fun NightApp() {
                 "Microphone permission is required for Live Voice.",
                 Toast.LENGTH_SHORT,
             ).show()
+        }
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { }
+
+    LaunchedEffect(scheduledTasks.size) {
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            scheduledTasks.any { it.state == "scheduled" } &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
@@ -964,6 +988,29 @@ private fun NightApp() {
             onDeleteModel = { model ->
                 scope.launch { providerManager.deleteModel(model) }
             },
+            onTestModel = { providerProfile, model ->
+                scope.launch {
+                    aiGateway.testModel(providerProfile, model)
+                        .onSuccess { response ->
+                            Toast.makeText(
+                                context,
+                                if (response.trim() == "NIGHT_OK") {
+                                    model.displayName + " is connected."
+                                } else {
+                                    model.displayName + " replied: " + response.take(120)
+                                },
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                        .onFailure { error ->
+                            Toast.makeText(
+                                context,
+                                model.displayName + " failed: " + (error.message ?: "Unknown provider error."),
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                }
+            },
         )
 
         "choose_ai" -> NightAiSelectorScreen(
@@ -1076,30 +1123,64 @@ private fun NightApp() {
                     )
                     replyingToId = null
 
-                    val localAppearanceResult = appearanceController.handleNaturalRequest(text)
-                    if (localAppearanceResult != null) {
-                        repository.appendText(
+                    if (directImageMode) {
+                        directImageMode = false
+                        val prompt = text
+                            .removePrefix("Generate an image of ")
+                            .removePrefix("Generate an image of")
+                            .trim()
+                            .ifBlank { text.trim() }
+
+                        val toolResult = agentTools.execute(
                             chatId = activeChatId,
-                            role = "assistant",
-                            text = localAppearanceResult,
+                            invocation = NightToolInvocation(
+                                id = "direct_image_" + java.util.UUID.randomUUID(),
+                                name = "generate_image",
+                                argumentsJson = JSONObject()
+                                    .put("prompt", prompt)
+                                    .put("size", "1024x1024")
+                                    .toString(),
+                            ),
                         )
+                        val toolJson = runCatching { JSONObject(toolResult) }.getOrNull()
+                        if (toolJson?.optBoolean("ok", false) != true) {
+                            repository.appendText(
+                                chatId = activeChatId,
+                                role = "assistant",
+                                text = "I couldn't generate that image. " +
+                                    (toolJson?.optString("error")
+                                        ?.takeIf { it.isNotBlank() }
+                                        ?: "Check the image-generation route in AI & providers."),
+                            )
+                        }
                         return@launch
                     }
 
-                    val result = aiGateway.reply(activeChatId, displayName)
-                    val rawReply = result.getOrElse { error ->
-                        when {
-                            error.message?.contains("No chat AI") == true ->
-                                "No AI is selected for this chat yet. Tap Choose AI to pick a configured model."
-                            else ->
-                                "I couldn't reach the selected AI. " + (error.message ?: "Check the provider settings.")
+                    val activeHasTools = activeModel?.capabilities
+                        ?.split(",")
+                        ?.map { it.trim().lowercase() }
+                        ?.contains("tools")
+                        ?: false
+
+                    if (!activeHasTools) {
+                        val localAppearanceResult = appearanceController.handleNaturalRequest(text)
+                        if (localAppearanceResult != null) {
+                            repository.appendText(
+                                chatId = activeChatId,
+                                role = "assistant",
+                                text = localAppearanceResult,
+                            )
+                            return@launch
                         }
                     }
-                    appendParsedAssistantReply(
+
+                    streamNightAssistantReply(
                         repository = repository,
-                        linkPreviewService = linkPreviewService,
+                        aiGateway = aiGateway,
                         chatId = activeChatId,
-                        rawReply = rawReply,
+                        displayName = displayName,
+                        noAiMessage = "No AI is selected for this chat yet. Tap Choose AI to pick a configured model.",
+                        failurePrefix = "I couldn't reach an available AI. ",
                     )
                 }
             },
@@ -1164,6 +1245,7 @@ private fun NightApp() {
             },
             onAttachmentClick = {},
             onAttachmentAction = { action ->
+                directImageMode = false
                 when (action) {
                     "Gallery" -> attachmentPicker.launch(arrayOf("image/*", "video/*"))
                     "Document" -> attachmentPicker.launch(arrayOf("*/*"))
@@ -1172,7 +1254,10 @@ private fun NightApp() {
                     "Choose AI" -> screen = "choose_ai"
                     "Schedule" -> scheduleOpen = true
                     "Options" -> choiceOpen = true
-                    "AI images" -> repositoryActionToast(context, "Choose an image-capable provider or extension first.")
+                    "AI images" -> {
+                        directImageMode = true
+                        messageText = "Generate an image of "
+                    }
                 }
             },
             onReplyRequest = { messageId ->
@@ -1954,6 +2039,104 @@ private suspend fun appendTextWithLinkPreview(
             replyToMessageId = replyToMessageId,
         )
     )
+}
+
+private suspend fun streamNightAssistantReply(
+    repository: NightRepository,
+    aiGateway: NightAiGateway,
+    chatId: String,
+    displayName: String,
+    noAiMessage: String,
+    failurePrefix: String,
+) {
+    val messageId = java.util.UUID.randomUUID().toString()
+    val createdAt = System.currentTimeMillis()
+    val base = NightMessageEntity(
+        id = messageId,
+        chatId = chatId,
+        role = "assistant",
+        type = "text",
+        text = "…",
+        createdAt = createdAt,
+        deliveryState = "sending",
+    )
+    repository.appendMessage(base)
+
+    var lastPersisted = ""
+    var lastPersistAt = 0L
+
+    val result = aiGateway.replyStreaming(
+        chatId = chatId,
+        displayName = displayName,
+    ) { partial ->
+        val now = System.currentTimeMillis()
+        val shouldPersist =
+            partial.isBlank() ||
+                partial.length - lastPersisted.length >= 12 ||
+                now - lastPersistAt >= 90L
+
+        if (shouldPersist) {
+            repository.appendMessage(
+                base.copy(
+                    text = partial.ifBlank { "…" },
+                    deliveryState = "sending",
+                )
+            )
+            lastPersisted = partial
+            lastPersistAt = now
+        }
+    }
+
+    val rawReply = result.getOrElse { error ->
+        when {
+            error.message?.contains("No chat AI") == true -> noAiMessage
+            else -> failurePrefix + (error.message ?: "Check the provider settings.")
+        }
+    }
+
+    val parsed = NightStructuredReplyParser.parse(rawReply)
+
+    parsed.choiceSelection?.let { selection ->
+        val existing = repository.getMessage(selection.messageId)
+        if (existing != null && existing.chatId == chatId && existing.type == "choice") {
+            val payload = runCatching { JSONObject(existing.payloadJson) }
+                .getOrElse { JSONObject() }
+            val options = payload.optJSONArray("options")
+            if (options != null && selection.index in 0 until options.length()) {
+                payload
+                    .put("selectedIndex", selection.index)
+                    .put("selectedBy", "Night")
+                repository.appendMessage(existing.copy(payloadJson = payload.toString()))
+            }
+        }
+    }
+
+    if (parsed.text.isBlank()) {
+        repository.deleteMessage(messageId)
+    } else {
+        repository.appendMessage(
+            base.copy(
+                text = parsed.text,
+                deliveryState = "sent",
+            )
+        )
+    }
+
+    parsed.choice?.let { choice ->
+        repository.appendMessage(
+            NightMessageEntity(
+                id = java.util.UUID.randomUUID().toString(),
+                chatId = chatId,
+                role = "assistant",
+                type = "choice",
+                text = choice.title,
+                createdAt = System.currentTimeMillis(),
+                payloadJson = JSONObject()
+                    .put("options", JSONArray(choice.options))
+                    .toString(),
+            )
+        )
+    }
 }
 
 private suspend fun appendParsedAssistantReply(

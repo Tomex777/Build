@@ -76,6 +76,7 @@ fun NightProvidersScreen(
     ) -> Unit,
     onDeleteProfile: (NightProviderProfileEntity) -> Unit,
     onDeleteModel: (NightProviderModelEntity) -> Unit,
+    onTestModel: (NightProviderProfileEntity, NightProviderModelEntity) -> Unit,
 ) {
     var showAddProfile by remember { mutableStateOf(false) }
     var addModelFor by remember { mutableStateOf<NightProviderProfileEntity?>(null) }
@@ -121,7 +122,7 @@ fun NightProvidersScreen(
         ) {
             item {
                 Text(
-                    "Keys stay encrypted on this device. Add multiple profiles under the same provider whenever you want.",
+                    "Keys stay encrypted on this device. Night automatically fails over across enabled chat profiles/models; multiple Groq profiles act as key rotation when a key is rate-limited or unavailable.",
                     color = ProviderMuted,
                     fontSize = 12.sp,
                     lineHeight = 17.sp,
@@ -155,6 +156,7 @@ fun NightProvidersScreen(
                             onAddModel = { addModelFor = profile },
                             onDeleteProfile = { onDeleteProfile(profile) },
                             onDeleteModel = onDeleteModel,
+                            onTestModel = { model -> onTestModel(profile, model) },
                         )
                     }
                 }
@@ -191,6 +193,7 @@ private fun ProviderProfileRow(
     onAddModel: () -> Unit,
     onDeleteProfile: () -> Unit,
     onDeleteModel: (NightProviderModelEntity) -> Unit,
+    onTestModel: (NightProviderModelEntity) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -252,6 +255,9 @@ private fun ProviderProfileRow(
                         color = ProviderMuted,
                         fontSize = 10.sp,
                     )
+                }
+                TextButton(onClick = { onTestModel(model) }) {
+                    Text("Test", color = ProviderAccent, fontSize = 11.sp)
                 }
                 IconButton(onClick = { onDeleteModel(model) }) {
                     Icon(
@@ -395,6 +401,7 @@ private fun AddModelDialog(
     var deployment by remember { mutableStateOf("") }
     var vision by remember { mutableStateOf(false) }
     var tools by remember { mutableStateOf(false) }
+    var imageGeneration by remember { mutableStateOf(false) }
     var makeDefault by remember { mutableStateOf(true) }
 
     AlertDialog(
@@ -421,8 +428,23 @@ private fun AddModelDialog(
                         Text("Vision", color = ProviderText)
                         Spacer(Modifier.width(10.dp))
                         Checkbox(checked = tools, onCheckedChange = { tools = it })
-                        Text("Tools", color = ProviderText)
+                        Text("Agent tools", color = ProviderText)
                     }
+                    if (profile.providerType == "azure") {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = imageGeneration,
+                                onCheckedChange = { imageGeneration = it },
+                            )
+                            Text("Image generation", color = ProviderText)
+                        }
+                    }
+                    Text(
+                        "Agent tools lets Night search the web, read files, schedule actions, change appearance, create options, and call extensions.",
+                        color = ProviderMuted,
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp,
+                    )
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -437,6 +459,7 @@ private fun AddModelDialog(
                     val caps = buildSet {
                         if (vision) add("vision")
                         if (tools) add("tools")
+                        if (imageGeneration) add("image_generation")
                     }
                     onAdd(
                         modelId,
