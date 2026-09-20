@@ -78,6 +78,7 @@ import com.example.whatsapp.presentation.profile.NightProvidersScreen
 import com.example.whatsapp.presentation.profile.NightScheduleDialog
 import com.example.whatsapp.presentation.profile.NightScheduledTasksScreen
 import com.example.whatsapp.presentation.profile.NightYouTab
+import com.example.whatsapp.presentation.reader.mihon.NightMihonArchiveLoader
 import com.example.whatsapp.presentation.reader.mihon.decodeMihonPages
 import com.example.whatsapp.presentation.shell.MainTab
 import com.example.whatsapp.presentation.shell.ModernChatsTab
@@ -1344,13 +1345,27 @@ private fun NightApp(initialChatId: String? = null) {
                 }
             },
             onFileClick = { path, mimeType ->
-                if (
+                val fileName = File(path).name
+                when {
+                    NightMihonArchiveLoader.isSupportedArchive(
+                        fileName = fileName,
+                        mimeType = mimeType,
+                    ) -> {
+                        context.startActivity(
+                            NightMihonReaderActivity.archiveIntent(
+                                context = context,
+                                localPath = path,
+                                displayName = fileName,
+                            )
+                        )
+                    }
+
                     mimeType.equals("application/pdf", ignoreCase = true) ||
-                    path.endsWith(".pdf", ignoreCase = true)
-                ) {
-                    pdfSheetPath = path
-                } else {
-                    runCatching {
+                        path.endsWith(".pdf", ignoreCase = true) -> {
+                        pdfSheetPath = path
+                    }
+
+                    else -> runCatching {
                         val file = File(path)
                         val uri = FileProvider.getUriForFile(
                             context,
