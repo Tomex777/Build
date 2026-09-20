@@ -217,6 +217,29 @@ jobs:
 
             adb logcat -c || true
             adb shell am force-stop com.night.homira
+            adb shell am start -W -n com.night.homira/.HomiraWaitingCallSmokeActivity
+            sleep 1
+            tap_ui "Contacts"
+            tap_ui "Ada"
+            tap_ui "Voice"
+            assert_ui "Answer incoming call"
+            assert_ui "Decline incoming call"
+            assert_ui "Incoming voice call"
+            adb exec-out screencap -p > homira-android/app/build/ui-smoke/waiting-call.png
+
+            tap_ui "Answer incoming call"
+            assert_ui "Tobi"
+            assert_ui "Mute"
+            assert_ui "Speaker"
+            adb exec-out screencap -p > homira-android/app/build/ui-smoke/waiting-call-answered.png
+            tap_ui "End call"
+            sleep 0.5
+
+            adb logcat --pid="$(adb shell pidof com.night.homira)" -d > homira-android/app/build/ui-smoke/waiting-call-logcat.txt
+            assert_clean_app_log homira-android/app/build/ui-smoke/waiting-call-logcat.txt
+
+            adb logcat -c || true
+            adb shell am force-stop com.night.homira
             adb shell am start -W -n com.night.homira/.HomiraLiveSmokeActivity
             sleep 8
             adb logcat -d > homira-android/app/build/ui-smoke/live-logcat.txt
