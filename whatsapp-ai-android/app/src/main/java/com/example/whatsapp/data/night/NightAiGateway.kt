@@ -78,20 +78,25 @@ class NightAiGateway private constructor(
     ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             require(profile.id == model.profileId) { "Model does not belong to this provider profile." }
-            performSimpleChat(
-                NightResolvedModel(profile, model),
-                JSONArray()
-                    .put(
-                        JSONObject()
-                            .put("role", "system")
-                            .put("content", "You are a connectivity diagnostic. Follow the user instruction exactly.")
-                    )
-                    .put(
-                        JSONObject()
-                            .put("role", "user")
-                            .put("content", "Reply with exactly: NIGHT_OK")
-                    ),
-            ).take(200)
+            val resolved = NightResolvedModel(profile, model)
+            if (supports(model, "tools")) {
+                performToolDiagnostic(resolved)
+            } else {
+                performSimpleChat(
+                    resolved,
+                    JSONArray()
+                        .put(
+                            JSONObject()
+                                .put("role", "system")
+                                .put("content", "You are a connectivity diagnostic. Follow the user instruction exactly.")
+                        )
+                        .put(
+                            JSONObject()
+                                .put("role", "user")
+                                .put("content", "Reply with exactly: NIGHT_OK")
+                        ),
+                ).take(200)
+            }
         }
     }
 
@@ -712,6 +717,87 @@ class NightAiGateway private constructor(
                 "image_url",
                 JSONObject().put("url", dataUrl)
             )
+    }
+
+    private fun performToolDiagnostic(
+        resolved: NightResolvedModel,
+    ): String {
+        val key = secrets.get(resolved.profile.secretAlias)
+            ?: error("The saved API key for " + resolved.profile.displayName + " is missing.")
+
+        val diagnosticTool = JSONObject()
+            .put("type", "function")
+            .put(
+                "function",
+                JSONObject()
+                    .put("name", "night_diagnostic")
+                    .put("description", "Harmless connectivity diagnostic. Call this tool now.")
+                    .put(
+                        "parameters",
+                        JSONObject()
+                            .put("type", "object")
+                            .put("properties", JSONObject())
+                            .put("required", JSONArray())
+                            .put("additionalProperties", false)
+                    )
+            )
+
+        val body = JSONObject()
+            .put("model", resolved.model.deploymentName ?: resolved.model.modelId)
+            .put(
+                "messages",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("role", "system")
+                            .put("content", "This is a function-calling diagnostic. You must call night_diagnostic.")
+                    )
+                    .put(
+                        JSONObject()
+                            .put("role", "user")
+                            .put("content", "Call the diagnostic tool now. Do not answer normally.")
+                    )
+            )
+            .put("tools", JSONArray().put(diagnosticTool))
+            .put("tool_choice", "auto")
+            .put("stream", false)
+
+        val requestBuilder = Request.Builder()
+            .url(chatEndpoint(resolved.profile))
+            .post(
+                body.toString()
+                    .toRequestBody("application/json; charset=utf-8".toMediaType())
+            )
+            .header("Content-Type", "application/json")
+
+        when (resolved.profile.providerType.lowercase()) {
+            "azure" -> requestBuilder.header("api-key", key)
+            else -> requestBuilder.header("Authorization", "Bearer " + key)
+        }
+
+        http.newCall(requestBuilder.build()).execute().use { response ->
+            val raw = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                error("Tool diagnostic failed (" + response.code + "): " + extractError(raw))
+            }
+
+            val message = JSONObject(raw)
+                .optJSONArray("choices")
+                ?.optJSONObject(0)
+                ?.optJSONObject("message")
+                ?: error("Provider returned no diagnostic message.")
+            val calls = message.optJSONArray("tool_calls")
+                ?: error("The model connected, but it did not produce tool calls.")
+            val matched = (0 until calls.length()).any { index ->
+                calls.optJSONObject(index)
+                    ?.optJSONObject("function")
+                    ?.optString("name") == "night_diagnostic"
+            }
+            if (!matched) {
+                error("The model connected, but its tool-call response was incompatible.")
+            }
+            return "NIGHT_OK"
+        }
     }
 
     private fun performSimpleChat(
