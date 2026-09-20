@@ -129,6 +129,15 @@ private data class DevicePushTokenRow(
 )
 
 @Serializable
+private data class IncomingCallPushReceiptRow(
+    @SerialName("call_id") val callId: String,
+    @SerialName("user_id") val userId: String,
+    @SerialName("device_id") val deviceId: String,
+    @SerialName("notification_shown") val notificationShown: Boolean,
+    @SerialName("received_at") val receivedAt: String = Instant.now().toString()
+)
+
+@Serializable
 data class LiveVoicemail(
     val id: String,
     @SerialName("sender_id") val senderId: String,
@@ -342,6 +351,27 @@ class HomiraLiveRepository {
                 eq("user_id", userId)
                 eq("device_id", deviceId)
             }
+        }
+    }
+
+    suspend fun acknowledgeIncomingCallPush(
+        callId: String,
+        deviceId: String,
+        notificationShown: Boolean
+    ) {
+        val userId = requireNotNull(currentUserId()) { "Not signed in" }
+        require(callId.isNotBlank()) { "Call ID is required" }
+        require(deviceId.isNotBlank()) { "Device ID is required" }
+
+        client.postgrest["incoming_call_push_receipts"].upsert(
+            IncomingCallPushReceiptRow(
+                callId = callId,
+                userId = userId,
+                deviceId = deviceId,
+                notificationShown = notificationShown
+            )
+        ) {
+            onConflict = "call_id,user_id,device_id"
         }
     }
 
