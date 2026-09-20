@@ -31,9 +31,11 @@ class NightAgentToolExecutor private constructor(
         chatId: String,
         invocation: NightToolInvocation,
     ): String = runCatching {
-        val args = runCatching {
-            JSONObject(invocation.argumentsJson.ifBlank { "{}" })
-        }.getOrElse { JSONObject() }
+        val rawArguments = invocation.argumentsJson.ifBlank { "{}" }
+        val args = runCatching { JSONObject(rawArguments) }
+            .getOrElse {
+                error("The AI produced invalid JSON arguments for " + invocation.name + ".")
+            }
 
         when (invocation.name) {
             "get_current_time" -> currentTime()
