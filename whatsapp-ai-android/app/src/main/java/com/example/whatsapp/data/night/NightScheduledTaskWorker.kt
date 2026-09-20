@@ -40,7 +40,8 @@ class NightScheduledTaskWorker(
 
             val reply = gateway.reply(task.chatId, profile.displayName)
                 .getOrElse { error ->
-                    throw IllegalStateException(error.message ?: "Scheduled AI request failed.")
+                    if (error is NightNonRetryableAgentFailure) throw error
+                    throw IllegalStateException(error.message ?: "Scheduled AI request failed.", error)
                 }
 
             repository.appendMessage(
@@ -80,10 +81,8 @@ class NightScheduledTaskWorker(
             }
 
             Result.success()
-        }.getOrElse {
-            if (runAttemptCount < 2) {
-                Result.retry()
-            } else {
+        }.getOrElse { failure ->
+            if (failure is NightNonRetryableAgentFailure || runAttemptCount >= 2) {
                 repository.upsertScheduledTask(
                     task.copy(
                         state = "failed",
@@ -91,6 +90,8 @@ class NightScheduledTaskWorker(
                     )
                 )
                 Result.failure()
+            } else {
+                Result.retry()
             }
         }
     }
