@@ -120,11 +120,11 @@ class NightFileContextService private constructor(
             val xml = zip.getInputStream(entry).use { input ->
                 val output = java.io.ByteArrayOutputStream()
                 val buffer = ByteArray(16 * 1024)
-                var total = 0
+                var total = 0L
                 while (true) {
                     val read = input.read(buffer)
                     if (read < 0) break
-                    total += read
+                    total += read.toLong()
                     require(total <= MAX_DOCX_XML_BYTES) {
                         "This Word document expands to too much text to read safely."
                     }
@@ -208,7 +208,7 @@ class NightFileContextService private constructor(
 
     companion object {
         private const val MAX_DOCUMENT_BYTES = 32L * 1024L * 1024L
-        private const val MAX_DOCX_XML_BYTES = 8 * 1024 * 1024
+        private const val MAX_DOCX_XML_BYTES = 8L * 1024L * 1024L
         private const val MAX_PDF_PAGES = 160
 
         @Volatile private var instance: NightFileContextService? = null
