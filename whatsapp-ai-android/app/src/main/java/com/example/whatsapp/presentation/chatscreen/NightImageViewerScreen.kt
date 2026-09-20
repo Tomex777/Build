@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.os.SystemClock
+import android.util.Log
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -351,6 +352,7 @@ internal fun NightVlcVideoSurface(
     val context = LocalContext.current.applicationContext
     var softwareDecode by remember(path) { mutableStateOf(false) }
     var userPaused by remember(path) { mutableStateOf(false) }
+    var fallbackResumePosition by remember(path) { mutableLongStateOf(0L) }
     val libVlc = remember(path, softwareDecode) {
         LibVLC(
             context,
@@ -389,6 +391,9 @@ internal fun NightVlcVideoSurface(
     LaunchedEffect(active, player, softwareDecode) {
         if (active) {
             player.play()
+            if (softwareDecode && fallbackResumePosition > 0L) {
+                runCatching { player.setTime(fallbackResumePosition) }
+            }
             playing = true
             val startedAt = SystemClock.elapsedRealtime()
             var lastAdvanceAt = startedAt
@@ -410,6 +415,11 @@ internal fun NightVlcVideoSurface(
                     now - startedAt >= 3500L &&
                     now - lastAdvanceAt >= 2500L
                 ) {
+                    fallbackResumePosition = position
+                    Log.w(
+                        "NightVideo",
+                        "Editor playback stalled at ${position}ms; retrying with VLC software decoding.",
+                    )
                     softwareDecode = true
                     return@LaunchedEffect
                 }
