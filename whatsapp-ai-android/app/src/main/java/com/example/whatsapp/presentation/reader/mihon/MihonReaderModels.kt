@@ -24,6 +24,16 @@ enum class MihonReadingMode(
     CONTINUOUS_VERTICAL("Continuous vertical", R.drawable.ic_reader_continuous_vertical_24dp),
 }
 
+enum class MihonReaderBackground(
+    val label: String,
+    val argb: Long,
+) {
+    BLACK("Black", 0xFF000000),
+    GRAY("Gray", 0xFF303030),
+    WHITE("White", 0xFFFFFFFF),
+    AUTOMATIC("Automatic", 0xFF000000),
+}
+
 enum class MihonReaderOrientation(
     val label: String,
     val activityInfo: Int,
