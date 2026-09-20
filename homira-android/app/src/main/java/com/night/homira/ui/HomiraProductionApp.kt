@@ -4020,382 +4020,301 @@ private fun ContactsScreen(
         .sorted()
     val favorites = contacts.filter { it.favorite }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .safeDrawingPadding(),
-        contentPadding = PaddingValues(
-            horizontal = 20.dp,
-            vertical = 14.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    BackHandler(
+        enabled = infoPerson != null
     ) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "Contacts",
-                    color = HomiraText,
-                    fontSize = 31.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = onAddContact) {
-                    Icon(
-                        Icons.Rounded.Add,
-                        contentDescription = "Add contact",
-                        tint = HomiraText
-                    )
-                }
-            }
-        }
+        infoPerson = null
+    }
 
-        item {
-            OutlinedTextField(
-                value = query,
-                onValueChange = {
-                    query = it
-                    expandedPersonId = null
-                },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                leadingIcon = {
-                    Icon(
-                        Icons.Rounded.Search,
-                        contentDescription = null
-                    )
-                },
-                placeholder = { Text("Search contacts") },
-                shape = RoundedCornerShape(28.dp)
-            )
-        }
-
-        if (query.isBlank() && favorites.isNotEmpty()) {
+    if (infoPerson == null) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding(),
+            contentPadding = PaddingValues(
+                horizontal = 20.dp,
+                vertical = 14.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             item {
-                Text(
-                    "Favorites",
-                    color = HomiraMuted,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(Modifier.height(9.dp))
-                Row(
-                    modifier = Modifier.horizontalScroll(
-                        rememberScrollState()
-                    ),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    favorites.forEach { person ->
-                        FavoriteContact(
-                            person = person,
-                            onCall = { onVoiceCall(person) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Contacts",
+                        color = HomiraText,
+                        fontSize = 31.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = onAddContact) {
+                        Icon(
+                            Icons.Rounded.Add,
+                            contentDescription = "Add contact",
+                            tint = HomiraText
                         )
                     }
                 }
             }
-        }
-
-        if (contacts.isEmpty() && query.isBlank()) {
+    
             item {
-                Card(
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = HomiraSurface
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(22.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = {
+                        query = it
+                        expandedPersonId = null
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    leadingIcon = {
                         Icon(
-                            Icons.Rounded.PersonAdd,
-                            contentDescription = null,
-                            tint = HomiraMuted
+                            Icons.Rounded.Search,
+                            contentDescription = null
                         )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "No contacts yet",
-                            color = HomiraText,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "Add someone by their Homira username or phone number.",
-                            color = HomiraMuted,
-                            fontSize = 12.sp,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        TextButton(onClick = onAddContact) {
-                            Text("Add contact", color = HomiraGreen)
+                    },
+                    placeholder = { Text("Search contacts") },
+                    shape = RoundedCornerShape(28.dp)
+                )
+            }
+    
+            if (query.isBlank() && favorites.isNotEmpty()) {
+                item {
+                    Text(
+                        "Favorites",
+                        color = HomiraMuted,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(9.dp))
+                    Row(
+                        modifier = Modifier.horizontalScroll(
+                            rememberScrollState()
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        favorites.forEach { person ->
+                            FavoriteContact(
+                                person = person,
+                                onCall = { onVoiceCall(person) }
+                            )
                         }
                     }
                 }
             }
-        }
-
-        if (contacts.isNotEmpty()) {
-            item {
-                Text(
-                    "Swipe right for voice · left for video",
-                    color = HomiraMuted.copy(alpha = .72f),
-                    fontSize = 11.sp
-                )
-            }
-        }
-
-        initials.forEach { initial ->
-            val section = filtered.filter {
-                it.name.firstOrNull()?.uppercaseChar() == initial
-            }
-
-            item(key = "contact-$initial") {
-                Column {
-                    Text(
-                        initial.toString(),
-                        color = HomiraMuted,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(
-                            start = 4.dp,
-                            bottom = 7.dp
-                        )
-                    )
+    
+            if (contacts.isEmpty() && query.isBlank()) {
+                item {
                     Card(
-                        shape = RoundedCornerShape(26.dp),
+                        shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = HomiraSurface
                         )
                     ) {
-                        Column {
-                            section.forEachIndexed { index, person ->
-                                SwipeCallRow(
-                                    person = person,
-                                    onVoice = {
-                                        onVoiceCall(person)
-                                        expandedPersonId = null
-                                    },
-                                    onVideo = {
-                                        onVideoCall(person)
-                                        expandedPersonId = null
-                                    }
-                                ) {
-                                    Column(
-                                        modifier = Modifier.background(
-                                            HomiraSurface
-                                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(22.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                Icons.Rounded.PersonAdd,
+                                contentDescription = null,
+                                tint = HomiraMuted
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "No contacts yet",
+                                color = HomiraText,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "Add someone by their Homira username or phone number.",
+                                color = HomiraMuted,
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            TextButton(onClick = onAddContact) {
+                                Text("Add contact", color = HomiraGreen)
+                            }
+                        }
+                    }
+                }
+            }
+    
+            if (contacts.isNotEmpty()) {
+                item {
+                    Text(
+                        "Swipe right for voice · left for video",
+                        color = HomiraMuted.copy(alpha = .72f),
+                        fontSize = 11.sp
+                    )
+                }
+            }
+    
+            initials.forEach { initial ->
+                val section = filtered.filter {
+                    it.name.firstOrNull()?.uppercaseChar() == initial
+                }
+    
+                item(key = "contact-$initial") {
+                    Column {
+                        Text(
+                            initial.toString(),
+                            color = HomiraMuted,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(
+                                start = 4.dp,
+                                bottom = 7.dp
+                            )
+                        )
+                        Card(
+                            shape = RoundedCornerShape(26.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = HomiraSurface
+                            )
+                        ) {
+                            Column {
+                                section.forEachIndexed { index, person ->
+                                    SwipeCallRow(
+                                        person = person,
+                                        onVoice = {
+                                            onVoiceCall(person)
+                                            expandedPersonId = null
+                                        },
+                                        onVideo = {
+                                            onVideoCall(person)
+                                            expandedPersonId = null
+                                        }
                                     ) {
-                                        ContactRow(
-                                            person = person,
-                                            expanded =
-                                                expandedPersonId == person.id,
-                                            onClick = {
-                                                expandedPersonId =
-                                                    if (
-                                                        expandedPersonId ==
-                                                        person.id
-                                                    ) {
-                                                        null
-                                                    } else {
-                                                        person.id
-                                                    }
-                                            }
-                                        )
-
-                                        AnimatedVisibility(
-                                            expandedPersonId == person.id
+                                        Column(
+                                            modifier = Modifier.background(
+                                                HomiraSurface
+                                            )
                                         ) {
-                                            ContactActionStripP(
+                                            ContactRow(
                                                 person = person,
-                                                onVoice = {
-                                                    expandedPersonId = null
-                                                    onVoiceCall(person)
-                                                },
-                                                onInfo = {
-                                                    infoPerson = person
-                                                },
-                                                onVideo = {
-                                                    expandedPersonId = null
-                                                    onVideoCall(person)
+                                                expanded =
+                                                    expandedPersonId == person.id,
+                                                onClick = {
+                                                    expandedPersonId =
+                                                        if (
+                                                            expandedPersonId ==
+                                                            person.id
+                                                        ) {
+                                                            null
+                                                        } else {
+                                                            person.id
+                                                        }
                                                 }
                                             )
+    
+                                            AnimatedVisibility(
+                                                expandedPersonId == person.id
+                                            ) {
+                                                ContactActionStripP(
+                                                    person = person,
+                                                    onVoice = {
+                                                        expandedPersonId = null
+                                                        onVoiceCall(person)
+                                                    },
+                                                    onInfo = {
+                                                        infoPerson = person
+                                                    },
+                                                    onVideo = {
+                                                        expandedPersonId = null
+                                                        onVideoCall(person)
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
-                                }
-
-                                if (index != section.lastIndex) {
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(
-                                            start = 68.dp,
-                                            end = 16.dp
-                                        ),
-                                        color = HomiraLine.copy(alpha = .65f)
-                                    )
+    
+                                    if (index != section.lastIndex) {
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(
+                                                start = 68.dp,
+                                                end = 16.dp
+                                            ),
+                                            color = HomiraLine.copy(alpha = .65f)
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+    
+            item { Spacer(Modifier.height(10.dp)) }
         }
-
-        item { Spacer(Modifier.height(10.dp)) }
-    }
-
-    infoPerson?.let { person ->
-        AlertDialog(
-            onDismissRequest = { infoPerson = null },
-            title = {
-                Text(
-                    person.name,
-                    color = HomiraText,
-                    fontWeight = FontWeight.Bold
+    } else {
+        val person = requireNotNull(infoPerson)
+        ContactDetailsScreenP(
+            person = person,
+            onBack = {
+                infoPerson = null
+            },
+            onPhoto = {
+                if (person.avatarUri != null) {
+                    contactPhotoPerson = person
+                }
+            },
+            onFavorite = {
+                infoPerson = null
+                onFavoriteChanged(
+                    person,
+                    !person.favorite
                 )
             },
-            text = {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Box(
-                        modifier = Modifier.then(
-                            if (person.avatarUri != null) {
-                                Modifier.clickable {
-                                    contactPhotoPerson = person
-                                }
-                            } else {
-                                Modifier
-                            }
-                        )
-                    ) {
-                        PersonAvatarP(person, 82)
+            onVoice = {
+                infoPerson = null
+                onVoiceCall(person)
+            },
+            onVideo = {
+                infoPerson = null
+                onVideoCall(person)
+            },
+            onShare = {
+                val shareText = buildString {
+                    append(person.name)
+                    if (person.number.isNotBlank()) {
+                        append("\n")
+                        append(person.number)
                     }
-                    if (person.avatarUri != null) {
-                        Spacer(Modifier.height(5.dp))
-                        Text(
-                            "Tap photo to view",
-                            color = HomiraMuted.copy(alpha = .72f),
-                            fontSize = 10.sp
-                        )
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        person.number.ifBlank { "Homira contact" },
-                        color = HomiraMuted,
-                        fontSize = 13.sp
+                }
+
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(
+                        Intent.EXTRA_TEXT,
+                        shareText
                     )
-                    Spacer(Modifier.height(18.dp))
+                }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        ContactActionButtonP(
-                            icon = Icons.Rounded.Favorite,
-                            label = if (person.favorite) {
-                                "Unfavorite"
-                            } else {
-                                "Favorite"
-                            },
-                            accent = if (person.favorite) {
-                                HomiraPink
-                            } else {
-                                HomiraMuted
-                            }
-                        ) {
-                            infoPerson = null
-                            onFavoriteChanged(
-                                person,
-                                !person.favorite
-                            )
-                        }
-
-                        ContactActionButtonP(
-                            icon = Icons.Rounded.Call,
-                            label = "Call",
-                            accent = HomiraGreen
-                        ) {
-                            infoPerson = null
-                            onVoiceCall(person)
-                        }
-
-                        ContactActionButtonP(
-                            icon = Icons.Rounded.Videocam,
-                            label = "Video",
-                            accent = HomiraBlue
-                        ) {
-                            infoPerson = null
-                            onVideoCall(person)
-                        }
-                    }
-
-                    Spacer(Modifier.height(10.dp))
-
-                    TextButton(
-                        onClick = {
-                            val shareText = buildString {
-                                append(person.name)
-                                if (person.number.isNotBlank()) {
-                                    append("\n")
-                                    append(person.number)
-                                }
-                            }
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(
-                                    Intent.EXTRA_TEXT,
-                                    shareText
-                                )
-                            }
-                            runCatching {
-                                context.startActivity(
-                                    Intent.createChooser(
-                                        intent,
-                                        "Share contact"
-                                    )
-                                )
-                            }
-                        }
-                    ) {
-                        Text("Share contact", color = HomiraBlue)
-                    }
-
-                    TextButton(
-                        onClick = {
-                            infoPerson = null
-                            editedContactName = person.name
-                            editPerson = person
-                        }
-                    ) {
-                        Text("Edit name", color = HomiraText)
-                    }
-
-                    TextButton(
-                        onClick = {
-                            infoPerson = null
-                            qrPerson = person
-                        }
-                    ) {
-                        Text("Show QR code", color = HomiraGreen)
-                    }
-
-                    TextButton(
-                        onClick = {
-                            infoPerson = null
-                            deletePerson = person
-                        }
-                    ) {
-                        Text("Delete contact", color = HomiraDanger)
-                    }
+                runCatching {
+                    context.startActivity(
+                        Intent.createChooser(
+                            intent,
+                            "Share contact"
+                        )
+                    )
                 }
             },
-            confirmButton = {
-                TextButton(onClick = { infoPerson = null }) {
-                    Text("Done", color = HomiraGreen)
-                }
+            onEdit = {
+                infoPerson = null
+                editedContactName = person.name
+                editPerson = person
             },
-            containerColor = HomiraSurface
+            onQr = {
+                infoPerson = null
+                qrPerson = person
+            },
+            onDelete = {
+                infoPerson = null
+                deletePerson = person
+            }
         )
     }
 
@@ -4523,6 +4442,163 @@ private fun ContactsScreen(
             },
             containerColor = HomiraSurface
         )
+    }
+}
+
+@Composable
+private fun ContactDetailsScreenP(
+    person: HomiraPerson,
+    onBack: () -> Unit,
+    onPhoto: () -> Unit,
+    onFavorite: () -> Unit,
+    onVoice: () -> Unit,
+    onVideo: () -> Unit,
+    onShare: () -> Unit,
+    onEdit: () -> Unit,
+    onQr: () -> Unit,
+    onDelete: () -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(HomiraBackground)
+            .safeDrawingPadding(),
+        contentPadding = PaddingValues(
+            horizontal = 20.dp,
+            vertical = 14.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.Rounded.ArrowBack,
+                        contentDescription = "Back",
+                        tint = HomiraText
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+            }
+        }
+
+        item {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier.then(
+                        if (person.avatarUri != null) {
+                            Modifier.clickable(onClick = onPhoto)
+                        } else {
+                            Modifier
+                        }
+                    )
+                ) {
+                    PersonAvatarP(person, 132)
+                }
+
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    person.name,
+                    color = HomiraText,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+
+                if (person.number.isNotBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        person.number,
+                        color = HomiraMuted,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                ContactActionButtonP(
+                    icon = Icons.Rounded.Call,
+                    label = "Call",
+                    accent = HomiraGreen,
+                    onClick = onVoice
+                )
+                ContactActionButtonP(
+                    icon = Icons.Rounded.Videocam,
+                    label = "Video",
+                    accent = HomiraBlue,
+                    onClick = onVideo
+                )
+                ContactActionButtonP(
+                    icon = Icons.Rounded.Favorite,
+                    label = if (person.favorite) {
+                        "Unfavorite"
+                    } else {
+                        "Favorite"
+                    },
+                    accent = if (person.favorite) {
+                        HomiraPink
+                    } else {
+                        HomiraMuted
+                    },
+                    onClick = onFavorite
+                )
+            }
+        }
+
+        item {
+            SectionTitleP("Contact")
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = HomiraSurface
+                )
+            ) {
+                Column {
+                    MeRowP(
+                        Icons.Rounded.Edit,
+                        "Edit name",
+                        "Change the name you see in Homira",
+                        onEdit
+                    )
+                    MeRowP(
+                        Icons.Rounded.Info,
+                        "Share contact",
+                        "Send this Homira contact",
+                        onShare
+                    )
+                    MeRowP(
+                        Icons.Rounded.Info,
+                        "QR code",
+                        "Show a scannable contact card",
+                        onQr
+                    )
+                }
+            }
+        }
+
+        item {
+            TextButton(
+                onClick = onDelete,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    "Delete contact",
+                    color = HomiraDanger,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
     }
 }
 
