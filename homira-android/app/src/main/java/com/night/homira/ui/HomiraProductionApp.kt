@@ -3,6 +3,7 @@ package com.night.homira.ui
 import android.Manifest
 import android.app.Activity
 import android.content.Context
+import android.content.ClipboardManager
 import android.content.pm.PackageManager
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
@@ -179,7 +180,7 @@ import kotlin.math.roundToInt
 private enum class MainTab { Keypad, Recents, Contacts, Me }
 private enum class OverlayScreen { None, Settings, EditProfile, Voicemail, AddContact, BlockedPeople }
 private enum class CallDirection { Incoming, Outgoing, Missed, Declined, Cancelled, Failed }
-private enum class RecentFilter { All, Missed, Voicemail }
+private enum class RecentFilter { All, Missed, Rejected, Outgoing, Incoming, Voicemail }
 
 private const val HOMIRA_RING_WINDOW_MS = 30_000L
 
@@ -2497,23 +2498,69 @@ private fun HeaderActions(
 private fun KeypadScreen(
     contacts: List<HomiraPerson>,
     resolvingDial: Boolean,
-    onSettings: () -> Unit,
+    lastDialedNumber: String?,
     onSearchContacts: () -> Unit,
     onDial: (String) -> Unit
 ) {
+    val context = LocalContext.current
+    val clipboard = remember(context) {
+        context.getSystemService(ClipboardManager::class.java)
+    }
     var number by rememberSaveable { mutableStateOf("") }
+    var clipboardNumber by remember { mutableStateOf<String?>(null) }
+
+    fun readClipboardNumber(): String? {
+        val clip = clipboard.primaryClip ?: return null
+        if (clip.itemCount <= 0) return null
+        val raw = clip.getItemAt(0)
+            .coerceToText(context)
+            ?.toString()
+            ?.trim()
+            .orEmpty()
+        if (raw.isBlank()) return null
+
+        val compact = raw
+            .replace(" ", "")
+            .replace("-", "")
+            .replace("(", "")
+            .replace(")", "")
+        val hasLeadingPlus = compact.startsWith("+")
+        val digits = compact.filter(Char::isDigit)
+        if (digits.length !in 7..15) return null
+        if (compact.any { !it.isDigit() && it != '+' }) return null
+
+        return if (hasLeadingPlus) "+$digits" else digits
+    }
+
+    DisposableEffect(clipboard) {
+        val listener = ClipboardManager.OnPrimaryClipChangedListener {
+            clipboardNumber = readClipboardNumber()
+        }
+        clipboardNumber = readClipboardNumber()
+        clipboard.addPrimaryClipChangedListener(listener)
+        onDispose {
+            clipboard.removePrimaryClipChangedListener(listener)
+        }
+    }
+
     val match = contacts.firstOrNull {
         val digits = digitsOnlyP(number)
         digits.length >= 7 && digitsOnlyP(it.number).endsWith(digits.takeLast(10))
     }
+    val canUseCallButton =
+        !resolvingDial &&
+            (number.isNotBlank() || !lastDialedNumber.isNullOrBlank())
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .safeDrawingPadding()
-            .padding(horizontal = 24.dp, vertical = 10.dp)
+            .padding(horizontal = 20.dp, vertical = 8.dp)
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
             IconButton(onClick = onSearchContacts) {
                 Icon(
                     Icons.Rounded.Search,
@@ -2521,37 +2568,30 @@ private fun KeypadScreen(
                     tint = HomiraText
                 )
             }
-            var menu by remember { mutableStateOf(false) }
-            Box {
-                IconButton(onClick = { menu = true }) {
-                    Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = HomiraText)
-                }
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(
-                        text = { Text("Settings") },
-                        leadingIcon = { Icon(Icons.Rounded.Settings, contentDescription = null) },
-                        onClick = {
-                            menu = false
-                            onSettings()
-                        }
-                    )
-                }
-            }
         }
 
-        Spacer(Modifier.weight(.7f))
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Spacer(Modifier.weight(.55f))
+
+        Column(
+            Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             if (number.isNotBlank()) {
                 Text(
                     formatDialNumberP(number),
                     color = HomiraText,
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Medium,
+                    fontSize = 38.sp,
+                    fontWeight = FontWeight.Normal,
                     maxLines = 1
                 )
                 Spacer(Modifier.height(7.dp))
                 if (match != null) {
-                    Text("${match.name} · Homira", color = match.accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "${match.name} · Homira",
+                        color = match.accent,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 } else if (digitsOnlyP(number).length >= 7) {
                     Text(
                         when {
@@ -2564,40 +2604,76 @@ private fun KeypadScreen(
                     )
                 }
             } else {
-                Spacer(Modifier.height(44.dp))
+                Spacer(Modifier.height(51.dp))
+                val pasteNumber = clipboardNumber
+                if (pasteNumber != null) {
+                    Surface(
+                        modifier = Modifier.clickable {
+                            number = pasteNumber
+                        },
+                        shape = RoundedCornerShape(24.dp),
+                        color = HomiraSurfaceRaised
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(
+                                horizontal = 18.dp,
+                                vertical = 11.dp
+                            ),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Rounded.Add,
+                                contentDescription = null,
+                                tint = HomiraMuted,
+                                modifier = Modifier.size(17.dp)
+                            )
+                            Spacer(Modifier.width(7.dp))
+                            Text(
+                                "Paste number from clipboard",
+                                color = HomiraMuted,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
             }
         }
 
-        Spacer(Modifier.height(26.dp))
+        Spacer(Modifier.height(18.dp))
+
         PlainDialPad(
-            onDigit = { if (number.length < 20) number += it },
+            onDigit = {
+                if (number.length < 20) number += it
+            },
             onLongZero = {
-                if (number.isEmpty()) {
-                    number = "+"
-                }
+                if (number.isEmpty()) number = "+"
             }
         )
-        Spacer(Modifier.height(20.dp))
+
+        Spacer(Modifier.height(12.dp))
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Spacer(Modifier.size(56.dp))
-            Spacer(Modifier.width(34.dp))
+            Spacer(Modifier.size(62.dp))
+            Spacer(Modifier.width(38.dp))
             Surface(
                 modifier = Modifier
-                    .size(70.dp)
-                    .clickable(
-                        enabled = number.isNotBlank() && !resolvingDial
-                    ) {
-                        onDial(number)
+                    .size(76.dp)
+                    .clickable(enabled = canUseCallButton) {
+                        if (number.isBlank()) {
+                            number = lastDialedNumber.orEmpty()
+                        } else {
+                            onDial(number)
+                        }
                     },
                 shape = CircleShape,
-                color = if (number.isBlank() || resolvingDial) {
-                    HomiraSurfaceRaised
-                } else {
+                color = if (canUseCallButton) {
                     HomiraGreen
+                } else {
+                    HomiraSurfaceRaised
                 }
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -2605,36 +2681,48 @@ private fun KeypadScreen(
                         CircularProgressIndicator(
                             color = HomiraGreen,
                             strokeWidth = 2.dp,
-                            modifier = Modifier.size(26.dp)
+                            modifier = Modifier.size(27.dp)
                         )
                     } else {
                         Icon(
                             Icons.Rounded.Call,
-                            contentDescription = "Call",
-                            tint = if (number.isBlank()) {
-                                HomiraMuted
+                            contentDescription = if (number.isBlank()) {
+                                "Recall last number"
                             } else {
-                                Color.Black
+                                "Call"
                             },
-                            modifier = Modifier.size(30.dp)
+                            tint = if (canUseCallButton) {
+                                Color.Black
+                            } else {
+                                HomiraMuted
+                            },
+                            modifier = Modifier.size(34.dp)
                         )
                     }
                 }
             }
-            Spacer(Modifier.width(34.dp))
+            Spacer(Modifier.width(38.dp))
             IconButton(
-                onClick = { if (number.isNotEmpty()) number = number.dropLast(1) },
+                onClick = {
+                    if (number.isNotEmpty()) number = number.dropLast(1)
+                },
                 enabled = number.isNotEmpty(),
-                modifier = Modifier.size(56.dp)
+                modifier = Modifier.size(62.dp)
             ) {
                 Icon(
                     Icons.Rounded.Backspace,
                     contentDescription = "Delete",
-                    tint = if (number.isBlank()) Color.Transparent else HomiraText
+                    tint = if (number.isBlank()) {
+                        Color.Transparent
+                    } else {
+                        HomiraText
+                    },
+                    modifier = Modifier.size(28.dp)
                 )
             }
         }
-        Spacer(Modifier.weight(.3f))
+
+        Spacer(Modifier.weight(.18f))
     }
 }
 
@@ -2650,27 +2738,41 @@ private fun PlainDialPad(
         listOf("7" to "PQRS", "8" to "TUV", "9" to "WXYZ"),
         listOf("*" to "", "0" to "+", "#" to "")
     )
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         rows.forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
                 row.forEach { key ->
                     Box(
                         modifier = Modifier
-                            .size(width = 80.dp, height = 74.dp)
+                            .size(width = 88.dp, height = 88.dp)
                             .combinedClickable(
                                 onClick = { onDigit(key.first) },
                                 onLongClick = {
-                                    if (key.first == "0") {
-                                        onLongZero()
-                                    }
+                                    if (key.first == "0") onLongZero()
                                 }
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(key.first, color = HomiraText, fontSize = 31.sp, fontWeight = FontWeight.Normal)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                key.first,
+                                color = HomiraText,
+                                fontSize = 38.sp,
+                                fontWeight = FontWeight.Normal
+                            )
                             if (key.second.isNotBlank()) {
-                                Text(key.second, color = HomiraMuted, fontSize = 10.sp, letterSpacing = 1.sp)
+                                Text(
+                                    key.second,
+                                    color = HomiraMuted,
+                                    fontSize = 11.sp,
+                                    letterSpacing = 1.sp
+                                )
                             }
                         }
                     }
