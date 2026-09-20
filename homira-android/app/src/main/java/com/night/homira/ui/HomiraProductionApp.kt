@@ -793,7 +793,24 @@ fun HomiraProductionApp(
             callCardUri = null
         }
 
-        var liveContacts by remember(initialContacts) { mutableStateOf(initialContacts) }
+        var liveContacts by remember(initialContacts, liveMode) {
+            mutableStateOf(
+                if (liveMode) {
+                    initialContacts
+                } else {
+                    homiraContacts.map { person ->
+                        LiveContact(
+                            id = person.id,
+                            displayName = person.name,
+                            username = person.name.lowercase(),
+                            phoneE164 = person.number,
+                            favorite = person.favorite,
+                            localName = person.name
+                        )
+                    }
+                }
+            )
+        }
         var contactMediaUris by remember {
             mutableStateOf<Map<String, Pair<String?, String?>>>(emptyMap())
         }
