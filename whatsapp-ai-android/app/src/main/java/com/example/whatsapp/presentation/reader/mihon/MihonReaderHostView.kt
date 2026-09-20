@@ -29,6 +29,7 @@ internal class MihonReaderHostView(
 
     var onPageChanged: ((Int) -> Unit)? = null
     var onToggleMenu: (() -> Unit)? = null
+    var onLongTap: ((Int) -> Unit)? = null
 
     private var pager: MihonPager? = null
     private var webtoon: MihonWebtoonRecyclerView? = null
@@ -201,6 +202,10 @@ internal class MihonReaderHostView(
                 event,
                 vertical,
             )
+        }
+        newPager.longTapListener = {
+            onLongTap?.invoke(currentPage)
+            onLongTap != null
         }
 
         addView(newPager)
@@ -440,6 +445,25 @@ internal class MihonReaderHostView(
                     holder.recycle()
                 }
             }
+
+        recycler.longTapListener = { event ->
+            val child =
+                recycler.findChildViewUnder(
+                    event.x,
+                    event.y,
+                )
+            val position =
+                child
+                    ?.let {
+                        recycler.getChildAdapterPosition(it)
+                    }
+                    ?.takeIf {
+                        it != RecyclerView.NO_POSITION
+                    }
+                    ?: currentPage
+            onLongTap?.invoke(position)
+            onLongTap != null
+        }
 
         recycler.tapListener = { event ->
             val x =
