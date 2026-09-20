@@ -108,7 +108,7 @@ adb exec-out screencap -p > mihon-interaction-artifacts/01-seeded-cbz.png
 adb shell am force-stop "$PACKAGE"
 adb shell am start -W -n "$PACKAGE/.NightMihonReaderActivity" \
   --es mihon.archivePath "$ARCHIVE" \
-  --es mihon.title "Mihon Interaction Test.cbz"
+  --es mihon.title MihonInteractionTest.cbz
 sleep 3
 assert_alive
 assert_desc "Reading mode"
@@ -131,7 +131,7 @@ assert_no_crash
 adb shell am force-stop "$PACKAGE"
 adb shell am start -W -n "$PACKAGE/.NightMihonReaderActivity" \
   --es mihon.archivePath "$ARCHIVE" \
-  --es mihon.title "Mihon Interaction Test.cbz"
+  --es mihon.title MihonInteractionTest.cbz
 sleep 3
 adb shell input tap 354 760
 sleep 1
