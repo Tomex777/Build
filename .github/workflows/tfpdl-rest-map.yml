@@ -1,0 +1,73 @@
+name: TFPDL REST route inventory
+
+on:
+  push:
+    paths:
+      - ".github/workflows/tfpdl-rest-map.yml"
+  workflow_dispatch:
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect REST routes and feed exposure
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, re, urllib.request, html
+          from urllib.parse import urlparse
+
+          UA={"User-Agent":"Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36"}
+
+          def fetch(url):
+              req=urllib.request.Request(url,headers=UA)
+              with urllib.request.urlopen(req,timeout=25) as r:
+                  return r.read(), r.headers.get("Content-Type","")
+
+          for host in ["https://tfpdl.com","https://www.tfpdl.com"]:
+              print("\n=== REST INDEX",host,"===")
+              try:
+                  raw,_=fetch(host+"/wp-json/")
+                  root=json.loads(raw)
+                  print("namespaces:", root.get("namespaces",[]))
+                  routes=sorted(root.get("routes",{}).keys())
+                  interesting=[x for x in routes if re.search(r'download|tfp|redirect|link|media|search|post|feed|embed',x,re.I)]
+                  print("interesting route count:",len(interesting))
+                  for x in interesting[:250]:
+                      print(x)
+              except Exception as e:
+                  print("ERR",repr(e))
+
+          print("\n=== FEED WRAPPER CHECK ===")
+          for url in [
+              "https://tfp.re/feed/",
+              "https://tfpdl.com/feed/",
+              "https://www.tfpdl.com/feed/",
+          ]:
+              try:
+                  raw,ct=fetch(url)
+                  text=raw.decode("utf-8","ignore")
+                  print(url,"bytes",len(raw),"tfpdl-wrapper-count",text.count("/tfpdl?"),"download-word-count",len(re.findall("download",text,re.I)))
+                  for m in re.findall(r'https?://[^<"\s]+',html.unescape(text)):
+                      if "/tfpdl?" in m:
+                          print(" wrapper",m[:240])
+              except Exception as e:
+                  print(url,"ERR",repr(e))
+
+          print("\n=== CURRENT POST API REPRESENTATIONS ===")
+          pid=373753
+          for base in ["https://tfpdl.com","https://www.tfpdl.com","https://tfp.re"]:
+              for suffix in [
+                  f"/wp-json/wp/v2/posts/{pid}",
+                  f"/?rest_route=/wp/v2/posts/{pid}",
+                  f"/wp-json/oembed/1.0/embed?url=https%3A%2F%2Ftfp.re%2Flanterns-s01-2160p-web-dl-ddp5-1-dv-hdr-x265-tfpdl%2F",
+              ]:
+                  u=base+suffix
+                  try:
+                      raw,ct=fetch(u)
+                      t=raw.decode("utf-8","ignore")
+                      print(base,suffix.split("?")[0],"OK",len(raw),ct,"wrapper_count",t.count("/tfpdl?"))
+                  except Exception as e:
+                      print(base,suffix.split("?")[0],"ERR",repr(e))
+          PY
