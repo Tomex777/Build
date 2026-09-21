@@ -211,6 +211,7 @@ fun RichResultBubble(
         is DownloadResultMessage -> DownloadResultBubble(item)
         is ToolResultMessage -> ToolResultBubble(item, onAction)
         is ExtensionResultMessage -> ExtensionResultBubble(item, onAction)
+        is BlockResultMessage -> NightBlockResultBubble(item, onAction)
     }
 }
 
