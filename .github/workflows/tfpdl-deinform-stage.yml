@@ -14,33 +14,37 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+
       - name: Install Playwright
         run: |
           npm init -y >/dev/null 2>&1
           npm install playwright@1.55.0 >/dev/null 2>&1
           npx playwright install --with-deps chromium >/dev/null 2>&1
-      - name: Trace Deinform countdown and verification boundary
+
+      - name: Trace Deinform countdown and next stage
         shell: bash
         run: |
           cat > deinform-trace.cjs <<'JS'
           const { chromium } = require('playwright');
 
           const target = 'https://deinform.com/?id=U3VPVXdWcytJY216citiUHhNMVlUR0I5Ull6RXlqcVpEVUFZVytFNERJUUIyVDYxU21JZnN4UmY3V2wvcHM3LzhnWTRpMjVyQklTdk0rRVc2bHY4dVJKQVJmQ3UyQlg4WkR3ZEVMSjZLRjA9';
-          const say=(type,data={})=>console.log(JSON.stringify({t:new Date().toISOString(),type,...data}));
+          const say = (type,data={}) => console.log(JSON.stringify({t:new Date().toISOString(),type,...data}));
 
           (async()=>{
-            const browser=await chromium.launch({headless:true});
-            const context=await browser.newContext({
+            const browser = await chromium.launch({headless:true});
+            const context = await browser.newContext({
               userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
               viewport:{width:412,height:915},
               locale:'en-US'
             });
-            const page=await context.newPage();
+            const page = await context.newPage();
             page.setDefaultTimeout(12000);
 
             page.on('request', req=>{
               const u=req.url();
-              if(/deinform\.com|safetxt\.net/i.test(u)) say('request',{method:req.method(),rt:req.resourceType(),url:u,postData:req.postData()||null});
+              if(/deinform\.com|safetxt\.net/i.test(u)) {
+                say('request',{method:req.method(),rt:req.resourceType(),url:u,postData:req.postData()||null});
+              }
             });
             page.on('response', async res=>{
               const u=res.url();
@@ -49,109 +53,109 @@ jobs:
                 say('response',{status:res.status(),rt:res.request().resourceType(),url:u,location:h.location||null,contentType:h['content-type']||null});
               }
             });
-            page.on('framenavigated',f=>{if(f===page.mainFrame()) say('nav',{url:f.url()});});
+            page.on('framenavigated', f=>{ if(f===page.mainFrame()) say('nav',{url:f.url()}); });
 
             async function snapshot(label){
               const text=await page.locator('body').innerText().catch(()=>'');
               const forms=await page.locator('form').evaluateAll(fs=>fs.map(f=>({
                 action:f.action,
                 method:(f.method||'get').toLowerCase(),
-                text:(f.innerText||'').trim().slice(0,1000),
+                text:(f.innerText||'').trim().slice(0,700),
                 inputs:[...f.querySelectorAll('input,button,textarea,select')].map(x=>({
-                  tag:x.tagName,
-                  type:x.getAttribute('type'),
-                  name:x.getAttribute('name'),
-                  value:x.getAttribute('value'),
-                  text:(x.textContent||'').trim(),
-                  placeholder:x.getAttribute('placeholder'),
-                  id:x.id||null
+                  tag:x.tagName,type:x.getAttribute('type'),name:x.getAttribute('name'),
+                  value:x.getAttribute('value'),text:(x.textContent||'').trim(),
+                  placeholder:x.getAttribute('placeholder'),id:x.id||null
                 }))
               }))).catch(()=>[]);
-              const controls=await page.locator('button,input[type="submit"],input[type="button"],[role="button"],[onclick]').evaluateAll(es=>es.map(e=>({
-                tag:e.tagName,text:(e.textContent||e.getAttribute('value')||'').trim(),type:e.getAttribute('type'),
-                name:e.getAttribute('name'),id:e.id||null,onclick:e.getAttribute('onclick')
-              }))).catch(()=>[]);
               const links=await page.locator('a').evaluateAll(as=>as.map(a=>({
-                text:(a.textContent||'').trim(),href:a.href,id:a.id||null,cls:a.className||null,
-                target:a.getAttribute('target'),onclick:a.getAttribute('onclick')
+                text:(a.textContent||'').trim(),
+                href:a.href,
+                visible:!!(a.offsetWidth||a.offsetHeight||a.getClientRects().length),
+                id:a.id||null,
+                cls:typeof a.className==='string'?a.className:null,
+                target:a.getAttribute('target'),
+                onclick:a.getAttribute('onclick')
               })).filter(x=>x.href)).catch(()=>[]);
+              const controls=await page.locator('button,input[type="submit"],input[type="button"],[role="button"],[onclick]').evaluateAll(es=>es.map(e=>({
+                tag:e.tagName,text:(e.textContent||e.getAttribute('value')||'').trim(),
+                visible:!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length),
+                type:e.getAttribute('type'),name:e.getAttribute('name'),
+                id:e.id||null,onclick:e.getAttribute('onclick')
+              }))).catch(()=>[]);
               const visibleInputs=await page.locator('input:visible').evaluateAll(xs=>xs.map(x=>({
                 type:x.getAttribute('type'),name:x.getAttribute('name'),value:x.getAttribute('value'),
                 placeholder:x.getAttribute('placeholder'),id:x.id||null,outer:x.outerHTML.slice(0,500)
               }))).catch(()=>[]);
-              say('snapshot',{label,url:page.url(),title:await page.title().catch(()=>''),text:text.slice(0,3500),forms,controls,links:links.slice(0,200),visibleInputs});
-              return {text,forms,controls,links,visibleInputs};
+              const html=await page.content().catch(()=>'');
+              const hints=[...new Set((html.match(/https?:[^"'<> ]+/g)||[]).filter(u=>/safetxt|redirect|download/i.test(u)).slice(0,80))];
+              say('snapshot',{label,url:page.url(),title:await page.title().catch(()=>''),text:text.slice(0,3500),forms,controls,links:links.slice(0,250),visibleInputs,hints});
+              return {text,forms,controls,links,visibleInputs,hints};
+            }
+
+            function challenge(s){
+              const inputs=s.visibleInputs.filter(x=>['text','number','tel'].includes((x.type||'text').toLowerCase()));
+              const textHit=/(captcha|verification code|enter (the )?(number|code)|type (the )?(number|code)|security code)/i.test(s.text);
+              return {hit:inputs.length>0||textHit,inputs,textHit};
             }
 
             await page.goto(target,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>say('goto_error',{message:e.message}));
             await page.waitForTimeout(3000);
-            let s=await snapshot('after-entry');
+            let s=await snapshot('entry');
 
             await page.waitForTimeout(7000);
-            s=await snapshot('after-countdown');
-
-            const visibleChallenge=s.visibleInputs.filter(x=>['text','number','tel'].includes((x.type||'text').toLowerCase()));
-            if(visibleChallenge.length){
-              say('verification_boundary',{reason:'visible-input',inputs:visibleChallenge});
+            s=await snapshot('countdown-finished');
+            let ch=challenge(s);
+            if(ch.hit){
+              say('verification_boundary',{stage:'countdown',url:page.url(),...ch,forms:s.forms});
               await browser.close(); return;
             }
 
-            if(/(^|\n)0 Seconds(\n|$)/i.test(s.text) && s.forms.length){
+            if(/0 Seconds/i.test(s.text) && s.forms.length){
               say('submit_countdown_form',{action:s.forms[0].action,method:s.forms[0].method,inputs:s.forms[0].inputs});
-              const form=page.locator('form').first();
-              await form.evaluate(f=>{ if(typeof f.requestSubmit==='function') f.requestSubmit(); else f.submit(); }).catch(e=>say('form_submit_error',{message:e.message}));
-              await page.waitForTimeout(7000);
-              s=await snapshot('after-countdown-submit');
+              await page.locator('form').first().evaluate(f=>f.requestSubmit ? f.requestSubmit() : f.submit()).catch(e=>say('form_submit_error',{message:e.message}));
+              await page.waitForTimeout(6000);
             }
 
-            const challengeNow=s.visibleInputs.filter(x=>['text','number','tel'].includes((x.type||'text').toLowerCase()));
-            if(challengeNow.length || /(captcha|verification code|enter (the )?(number|code)|type (the )?(number|code)|security code)/i.test(s.text)){
-              say('verification_boundary',{reason:'post-countdown',inputs:challengeNow,forms:s.forms});
+            await page.evaluate(()=>window.scrollTo(0,document.body.scrollHeight)).catch(()=>{});
+            await page.waitForTimeout(2500);
+            s=await snapshot('article');
+            ch=challenge(s);
+            if(ch.hit){
+              say('verification_boundary',{stage:'article',url:page.url(),...ch,forms:s.forms});
               await browser.close(); return;
             }
 
-            const interestingLinks=(s.links||[]).filter(x=>/safetxt|continue|get\s*link|download|proceed|next|verify|generate/i.test((x.text||'')+' '+(x.href||'')));
-            say('article_candidates',{url:page.url(),links:interestingLinks,controls:s.controls});
+            const candidates=(s.links||[]).filter(x=>{
+              if(!x.visible) return false;
+              const v=((x.text||'')+' '+(x.href||'')).toLowerCase();
+              return /safetxt|continue|get.?link|download|proceed|verify|generate/.test(v);
+            });
+            const external=(s.links||[]).filter(x=>{
+              if(!x.visible) return false;
+              try{
+                const h=new URL(x.href).hostname;
+                return h && h!=='deinform.com' && !h.endsWith('.deinform.com');
+              }catch{return false}
+            });
+            say('article_candidates',{url:page.url(),candidates,external:external.slice(0,100),hints:s.hints});
 
-            let followed=false;
-            for(const link of interestingLinks){
-              const loc=page.locator('a').filter({hasText:new RegExp((link.text||'').replace(/[.*+?^$\{\}()|[\]\\]/g,'\\            const challengeNow=s.visibleInputs.filter(x=>['text','number','tel'].includes((x.type||'text').toLowerCase()));
-            if(challengeNow.length || /(captcha|verification code|enter (the )?(number|code)|type (the )?(number|code)|security code)/i.test(s.text)){
-              say('verification_boundary',{reason:'post-countdown',inputs:challengeNow,forms:s.forms});
-            } else {
-              say('no_verification_input_yet',{url:page.url(),forms:s.forms,controls:s.controls});
-            }
-
-            await browser.close();'),'i')}).first();
-              if(link.text && await loc.isVisible().catch(()=>false)){
-                say('article_follow',{text:link.text,href:link.href});
-                await loc.click({timeout:10000}).catch(e=>say('article_click_error',{message:e.message}));
-                followed=true; break;
-              }
-            }
-            if(!followed){
-              const direct=page.locator('a[href*="safetxt"], a[href*="download"], a[href*="redirect"]').first();
-              if(await direct.count().catch(()=>0) && await direct.isVisible().catch(()=>false)){
-                say('article_follow',{text:await direct.innerText().catch(()=>''),href:await direct.getAttribute('href')});
-                await direct.click({timeout:10000}).catch(e=>say('article_click_error',{message:e.message}));
-                followed=true;
-              }
-            }
-
-            if(followed){
-              await page.waitForTimeout(7000);
-              s=await snapshot('after-article-follow');
-              const nextChallenge=s.visibleInputs.filter(x=>['text','number','tel'].includes((x.type||'text').toLowerCase()));
-              if(nextChallenge.length || /(captcha|verification code|enter (the )?(number|code)|type (the )?(number|code)|security code)/i.test(s.text)){
-                say('verification_boundary',{reason:'after-article-follow',url:page.url(),inputs:nextChallenge,forms:s.forms});
+            const candidate=candidates.find(x=>!/(privacy|terms|contact)/i.test(x.text||'')) || null;
+            if(candidate){
+              say('article_follow',{text:candidate.text,href:candidate.href});
+              await page.goto(candidate.href,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>say('follow_error',{message:e.message}));
+              await page.waitForTimeout(6000);
+              s=await snapshot('after-follow');
+              ch=challenge(s);
+              if(ch.hit){
+                say('verification_boundary',{stage:'after-follow',url:page.url(),...ch,forms:s.forms});
               } else {
-                say('no_verification_input_yet',{url:page.url(),forms:s.forms,controls:s.controls,interestingLinks:(s.links||[]).filter(x=>/safetxt|continue|get\s*link|download|proceed|next|verify|generate/i.test((x.text||'')+' '+(x.href||'')))});
+                say('next_stage',{url:page.url(),forms:s.forms,candidates:(s.links||[]).filter(x=>x.visible && /safetxt|continue|get.?link|download|proceed|verify|generate/i.test(((x.text||'')+' '+(x.href||''))))});
               }
             } else {
-              say('no_verification_input_yet',{url:page.url(),forms:s.forms,controls:s.controls,interestingLinks});
+              say('no_candidate',{url:page.url(),external:external.slice(0,100),hints:s.hints});
             }
 
             await browser.close();
-          })().catch(e=>{console.error(e);process.exitCode=1});
+          })().catch(e=>{ console.error(e); process.exitCode=1; });
           JS
           node deinform-trace.cjs
