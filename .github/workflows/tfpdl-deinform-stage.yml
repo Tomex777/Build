@@ -86,10 +86,14 @@ jobs:
                 type:x.getAttribute('type'),name:x.getAttribute('name'),value:x.getAttribute('value'),
                 placeholder:x.getAttribute('placeholder'),id:x.id||null,outer:x.outerHTML.slice(0,500)
               }))).catch(()=>[]);
+              const verificationImages=await page.locator('img[id*="soralink-human-verif"]').evaluateAll(xs=>xs.map(x=>({
+                id:x.id,src:x.src,visible:!!(x.offsetWidth||x.offsetHeight||x.getClientRects().length),
+                style:x.getAttribute('style'),width:x.naturalWidth,height:x.naturalHeight
+              }))).catch(()=>[]);
               const html=await page.content().catch(()=>'');
               const hints=[...new Set((html.match(/https?:[^"'<> ]+/g)||[]).filter(u=>/safetxt|redirect|download/i.test(u)).slice(0,80))];
-              say('snapshot',{label,url:page.url(),title:await page.title().catch(()=>''),text:text.slice(0,3500),forms,controls,links:links.slice(0,250),visibleInputs,hints});
-              return {text,forms,controls,links,visibleInputs,hints};
+              say('snapshot',{label,url:page.url(),title:await page.title().catch(()=>''),text:text.slice(0,3500),forms,controls,links:links.slice(0,250),visibleInputs,verificationImages,hints});
+              return {text,forms,controls,links,visibleInputs,verificationImages,hints};
             }
 
             async function sourceHints(label){
@@ -126,10 +130,27 @@ jobs:
               await browser.close(); return;
             }
 
-            if(/0 Seconds/i.test(s.text) && s.forms.length){
-              say('submit_countdown_form',{action:s.forms[0].action,method:s.forms[0].method,inputs:s.forms[0].inputs});
-              await page.locator('form').first().evaluate(f=>f.requestSubmit ? f.requestSubmit() : f.submit()).catch(e=>say('form_submit_error',{message:e.message}));
-              await page.waitForTimeout(6000);
+            if(/0 Seconds/i.test(s.text)){
+              const trigger=page.locator('#soralink-human-verif-main');
+              const triggerVisible=await trigger.isVisible().catch(()=>false);
+              if(triggerVisible){
+                say('verification_trigger',{id:'soralink-human-verif-main',src:await trigger.getAttribute('src')});
+                await trigger.click({timeout:12000}).catch(e=>say('verification_trigger_error',{message:e.message}));
+                await page.waitForTimeout(3500);
+                s=await snapshot('after-verification-trigger');
+                await sourceHints('after-verification-trigger');
+                ch=challenge(s);
+                if(ch.hit){
+                  say('verification_boundary',{stage:'after-trigger',url:page.url(),...ch,forms:s.forms,verificationImages:s.verificationImages});
+                  await browser.close(); return;
+                }
+                say('after_trigger_state',{url:page.url(),forms:s.forms,controls:s.controls,visibleInputs:s.visibleInputs,verificationImages:s.verificationImages});
+                await browser.close(); return;
+              }
+
+              if(s.forms.length){
+                say('countdown_form_without_trigger',{action:s.forms[0].action,method:s.forms[0].method,inputs:s.forms[0].inputs});
+              }
             }
 
             await page.evaluate(()=>window.scrollTo(0,document.body.scrollHeight)).catch(()=>{});
