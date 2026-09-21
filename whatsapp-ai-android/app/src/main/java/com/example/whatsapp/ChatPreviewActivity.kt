@@ -15,6 +15,10 @@ import com.example.whatsapp.extensions.messages.ExtensionActionStyle
 import com.example.whatsapp.extensions.messages.ExtensionCardAction
 import com.example.whatsapp.extensions.messages.ExtensionCardMetadata
 import com.example.whatsapp.extensions.messages.ExtensionCardTemplate
+import com.example.whatsapp.extensions.messages.ExtensionConfiguration
+import com.example.whatsapp.extensions.messages.ExtensionConfigurationField
+import com.example.whatsapp.extensions.messages.ExtensionConfigurationFieldType
+import com.example.whatsapp.extensions.messages.ExtensionConfigurationOption
 import com.example.whatsapp.extensions.messages.ExtensionMessageSnapshot
 import com.example.whatsapp.presentation.chatscreen.AudioPlaybackUiState
 import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
@@ -64,6 +68,7 @@ class ChatPreviewActivity : ComponentActivity() {
                         "rich2" -> richPreviewMessagesPageTwo()
                         "approved-rich" -> approvedRichPreviewMessages()
                         "extension" -> extensionSchemaPreviewMessages()
+                        "extension-config" -> extensionConfigurationPreviewMessages()
                         "blocks" -> nightBlockPreviewMessages()
                         "utility" -> utilityPreviewMessages()
                         else -> whatsappPreviewMessages()
@@ -297,6 +302,92 @@ private fun richApprovedPreviewMessages(image: String): List<WhatsAppVisualMessa
     ),
 )
 
+
+
+private fun extensionConfigurationPreviewMessages(): List<WhatsAppVisualMessage> = listOf(
+    ExtensionResultMessage(
+        id = "extension-config-anime",
+        snapshot = ExtensionMessageSnapshot(
+            extensionId = "anime",
+            messageType = "anime.download_configuration",
+            template = ExtensionCardTemplate.Configuration,
+            extensionName = "Anime Extension",
+            title = "Download settings",
+            subtitle = "Saved defaults for this extension. A task can still override them.",
+            iconText = "A",
+            badge = "Configuration",
+            configuration = ExtensionConfiguration(
+                id = "download",
+                submitActionId = "save_download_settings",
+                submitLabel = "Save settings",
+                advancedLabel = "Advanced",
+                fields = listOf(
+                    ExtensionConfigurationField(
+                        id = "subtitles",
+                        label = "Subtitles",
+                        type = ExtensionConfigurationFieldType.Toggle,
+                        description = "Prefer subtitled releases.",
+                        value = "true",
+                    ),
+                    ExtensionConfigurationField(
+                        id = "resolution",
+                        label = "Resolution",
+                        type = ExtensionConfigurationFieldType.SingleChoice,
+                        value = "720p",
+                        options = listOf(
+                            ExtensionConfigurationOption("1080p", "1080p"),
+                            ExtensionConfigurationOption("720p", "720p"),
+                            ExtensionConfigurationOption("360p", "360p"),
+                        ),
+                    ),
+                    ExtensionConfigurationField(
+                        id = "sources",
+                        label = "Allowed sources",
+                        type = ExtensionConfigurationFieldType.MultiChoice,
+                        values = listOf("primary"),
+                        options = listOf(
+                            ExtensionConfigurationOption("primary", "Primary"),
+                            ExtensionConfigurationOption("fallback", "Fallback"),
+                            ExtensionConfigurationOption("archive", "Archive"),
+                        ),
+                    ),
+                    ExtensionConfigurationField(
+                        id = "parallel",
+                        label = "Parallel downloads",
+                        type = ExtensionConfigurationFieldType.Number,
+                        value = "2",
+                        placeholder = "2",
+                    ),
+                    ExtensionConfigurationField(
+                        id = "quality_bias",
+                        label = "Quality bias",
+                        type = ExtensionConfigurationFieldType.Range,
+                        value = "70",
+                        min = 0.0,
+                        max = 100.0,
+                        step = 5.0,
+                        advanced = true,
+                    ),
+                    ExtensionConfigurationField(
+                        id = "filename",
+                        label = "Filename template",
+                        type = ExtensionConfigurationFieldType.Text,
+                        value = "{title} - {episode}",
+                        advanced = true,
+                    ),
+                    ExtensionConfigurationField(
+                        id = "test_source",
+                        label = "Test source",
+                        type = ExtensionConfigurationFieldType.Action,
+                        actionLabel = "Run source test",
+                        advanced = true,
+                    ),
+                ),
+            ),
+        ),
+        time = "16:20",
+    )
+)
 
 private fun extensionSchemaPreviewMessages(): List<WhatsAppVisualMessage> {
     val notionPage = ExtensionMessageSnapshot(
