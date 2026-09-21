@@ -84,46 +84,7 @@ jobs:
             sleep 1
             adb shell pidof com.night.homira | grep -q .
 
-            cat > /tmp/homira-ui-node.py <<'PY'
-            import re
-            import sys
-            import xml.etree.ElementTree as ET
-
-            mode, target = sys.argv[1], sys.argv[2]
-            root = ET.parse("/tmp/homira-window.xml").getroot()
-            matches = []
-            for node in root.iter("node"):
-                text = node.attrib.get("text", "")
-                desc = node.attrib.get("content-desc", "")
-                if text == target or desc == target:
-                    bounds = node.attrib.get("bounds", "")
-                    found = re.fullmatch(
-                        r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",
-                        bounds,
-                    )
-                    if found:
-                        left, top, right, bottom = map(
-                            int,
-                            found.groups(),
-                        )
-                        matches.append(
-                            ((left + right) // 2, (top + bottom) // 2)
-                        )
-
-            if mode == "assert":
-                if not matches:
-                    raise SystemExit(
-                        f"UI node not found: {target!r}"
-                    )
-                raise SystemExit(0)
-
-            if not matches:
-                raise SystemExit(
-                    f"UI node not found: {target!r}"
-                )
-
-            print(*matches[0])
-            PY
+            cp .github/scripts/homira_ui_node.py /tmp/homira-ui-node.py
 
             dump_ui() {
               adb shell uiautomator dump /sdcard/homira-window.xml >/dev/null
