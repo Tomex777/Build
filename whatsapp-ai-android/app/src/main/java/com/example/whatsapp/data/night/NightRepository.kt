@@ -222,6 +222,7 @@ class NightRepository private constructor(
     suspend fun deleteProviderModel(id: String) = dao.deleteProviderModel(id)
     suspend fun capabilityRoute(capability: String): NightCapabilityRouteEntity? = dao.getCapabilityRoute(capability)
     suspend fun setCapabilityRoute(route: NightCapabilityRouteEntity) = dao.upsertCapabilityRoute(route)
+    suspend fun clearCapabilityRoute(capability: String) = dao.deleteCapabilityRoute(capability)
 
     suspend fun addLibraryItem(item: NightLibraryItemEntity) = dao.upsertLibraryItem(item)
     suspend fun getLibraryItem(id: String): NightLibraryItemEntity? = dao.getLibraryItem(id)
