@@ -58,6 +58,31 @@ internal object NightLiveVoiceProtocol {
         )
     }
 
+    private val openAiVoices = setOf(
+        "alloy",
+        "ash",
+        "ballad",
+        "coral",
+        "echo",
+        "sage",
+        "shimmer",
+        "verse",
+        "marin",
+        "cedar",
+    )
+
+    private fun voiceConfiguration(voiceName: String): JSONObject {
+        val normalized = voiceName.trim().ifBlank { "alloy" }
+        val type = if (normalized.lowercase() in openAiVoices) {
+            "openai"
+        } else {
+            "azure-standard"
+        }
+        return JSONObject()
+            .put("type", type)
+            .put("name", normalized)
+    }
+
     fun sessionUpdate(
         displayName: String,
         voiceName: String,
@@ -79,12 +104,7 @@ internal object NightLiveVoiceProtocol {
         val session = if (voiceLiveApi) {
             JSONObject()
                 .put("modalities", JSONArray().put("text").put("audio"))
-                .put(
-                    "voice",
-                    JSONObject()
-                        .put("type", "openai")
-                        .put("name", voiceName)
-                )
+                .put("voice", voiceConfiguration(voiceName))
                 .put("instructions", instructions)
                 .put("input_audio_format", "pcm16")
                 .put("output_audio_format", "pcm16")
