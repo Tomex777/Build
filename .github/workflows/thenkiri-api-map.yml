@@ -12,184 +12,139 @@ permissions:
 jobs:
   map:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
 
-      - name: Install Playwright
-        run: |
-          npm init -y >/dev/null 2>&1
-          npm install playwright@1.55.0 >/dev/null 2>&1
-          npx playwright install --with-deps chromium >/dev/null 2>&1
-
-      - name: Map API and download routes
+      - name: Map TheNkiri HTTP API and download links
         shell: bash
         run: |
           mkdir -p diagnostics
-          cat > /tmp/thenkiri.cjs <<'JS'
-          const { chromium, request } = require('playwright');
-          const fs=require('fs');
-          const out={startedAt:new Date().toISOString(),api:[],samples:[],events:[]};
-          const save=()=>fs.writeFileSync('diagnostics/thenkiri-api-map.json',JSON.stringify(out,null,2));
-          const push=(type,data={})=>{out.events.push({t:new Date().toISOString(),type,...data});save();};
-          const UA='Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
+          python3 - <<'PY'
+          import urllib.request, urllib.error, json, re, html, ssl
+          from urllib.parse import quote, urljoin
 
-          function strip(s=''){return s.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim()}
-          function anchors(html=''){
-            return [...html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)]
-              .map(m=>({href:m[1].replaceAll('&amp;','&'),text:strip(m[2])}));
-          }
-          function host(u){try{return new URL(u).hostname}catch{return null}}
+          UA='Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
+          out={'api':[],'samples':[]}
 
-          (async()=>{
-            let browser,api;
-            try{
-              api=await request.newContext({userAgent:UA});
-              const checks=[
-                ['root','https://thenkiri.com/wp-json/'],
-                ['posts','https://thenkiri.com/wp-json/wp/v2/posts?per_page=3&_fields=id,date,slug,link,title,content,excerpt,categories,tags'],
-                ['search-movie','https://thenkiri.com/wp-json/wp/v2/posts?search=Almost%20Popular&per_page=5&_fields=id,date,slug,link,title,content'],
-                ['search-series','https://thenkiri.com/wp-json/wp/v2/posts?search=The%20Blame%20S01&per_page=5&_fields=id,date,slug,link,title,content'],
-                ['fallback','https://thenkiri.com/?rest_route=/wp/v2/posts&search=Almost%20Popular&per_page=3']
-              ];
-              for(const [name,url] of checks){
-                try{
-                  const r=await api.get(url,{timeout:25000,failOnStatusCode:false});
-                  const text=await r.text();
-                  out.api.push({name,url,status:r.status(),contentType:r.headers()['content-type']||null,bodyPreview:text.slice(0,5000)});
-                }catch(e){out.api.push({name,url,error:e.message})}
-              }
-              save();
+          def fetch(url,method='GET',data=None,headers=None):
+              h={'User-Agent':UA,'Accept':'*/*'}
+              if headers: h.update(headers)
+              req=urllib.request.Request(url,method=method,headers=h,data=data)
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r:
+                      b=r.read(2000000)
+                      return {'status':r.status,'url':r.geturl(),'headers':dict(r.headers),'body':b.decode('utf-8','ignore')}
+              except urllib.error.HTTPError as e:
+                  try:b=e.read(2000000)
+                  except:b=b''
+                  return {'status':e.code,'url':url,'headers':dict(e.headers),'body':b.decode('utf-8','ignore'),'error':'HTTPError'}
+              except Exception as e:
+                  return {'url':url,'error':repr(e),'status':None,'headers':{},'body':''}
 
-              let moviePosts=[],seriesPosts=[];
-              for(const item of out.api){
-                if(item.name==='search-movie'&&item.status===200){try{moviePosts=JSON.parse(item.bodyPreview)}catch{}}
-                if(item.name==='search-series'&&item.status===200){try{seriesPosts=JSON.parse(item.bodyPreview)}catch{}}
-              }
+          def strip(s):
+              return re.sub(r'\s+',' ',html.unescape(re.sub(r'<[^>]+>',' ',s or ''))).strip()
 
-              browser=await chromium.launch({headless:true});
-              const context=await browser.newContext({
-                userAgent:UA,viewport:{width:412,height:915},locale:'en-US'
-              });
-              context.on('response',async r=>{
-                const u=r.url();
-                if(/thenkiri\.com|nkiri\.ink|download|file|stream|drive|server/i.test(u)){
-                  const h=await r.allHeaders().catch(()=>({}));
-                  push('response',{status:r.status(),rt:r.request().resourceType(),url:u,location:h.location||null,contentType:h['content-type']||null});
-                }
-              });
+          def anchors(src,base):
+              arr=[]
+              for m in re.finditer(r'<a\b([^>]*)>([\s\S]*?)</a>',src or '',re.I):
+                  attrs,inner=m.group(1),m.group(2)
+                  hm=re.search(r'\bhref\s*=\s*["\']([^"\']+)',attrs,re.I)
+                  if not hm: continue
+                  href=urljoin(base,html.unescape(hm.group(1)))
+                  arr.append({'text':strip(inner),'href':href})
+              return arr
 
-              async function inspect(label,post){
-                if(!post)return;
-                const rec={label,id:post.id||null,title:post.title?.rendered||'',link:post.link||null,downloadAnchors:[],route:[]};
-                const html=post.content?.rendered||'';
-                rec.downloadAnchors=anchors(html).filter(a=>/download|episode|movie|server|stream|create/i.test((a.text||'')+' '+a.href)).slice(0,50);
-                out.samples.push(rec); save();
+          checks=[
+              ('root','https://thenkiri.com/wp-json/'),
+              ('posts','https://thenkiri.com/wp-json/wp/v2/posts?per_page=3&_fields=id,date,slug,link,title,content,excerpt,categories,tags'),
+              ('search-movie','https://thenkiri.com/wp-json/wp/v2/posts?search='+quote('Almost Popular')+'&per_page=5&_fields=id,date,slug,link,title,content'),
+              ('search-series','https://thenkiri.com/wp-json/wp/v2/posts?search='+quote('The Blame S01')+'&per_page=5&_fields=id,date,slug,link,title,content'),
+              ('fallback','https://thenkiri.com/?rest_route=/wp/v2/posts&search='+quote('Almost Popular')+'&per_page=3')
+          ]
 
-                const page=await context.newPage();
-                page.setDefaultTimeout(12000);
-                await page.goto(post.link,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>rec.route.push({type:'post_error',message:e.message}));
-                await page.waitForTimeout(1800);
+          raw={}
+          for name,url in checks:
+              r=fetch(url)
+              raw[name]=r
+              out['api'].append({
+                  'name':name,'url':url,'status':r.get('status'),'finalUrl':r.get('url'),
+                  'contentType':r.get('headers',{}).get('Content-Type'),
+                  'location':r.get('headers',{}).get('Location'),
+                  'error':r.get('error'),
+                  'bodyPreview':r.get('body','')[:5000]
+              })
 
-                let candidates=await page.locator('a').evaluateAll(as=>as.map(a=>({text:(a.textContent||'').trim(),href:a.href})).filter(x=>x.href)).catch(()=>[]);
-                candidates=candidates.filter(a=>/download movie|download episode|download|episode/i.test(a.text||'') || /nkiri\.ink|download/i.test(a.href||''));
-                rec.pageAnchors=candidates.slice(0,80);
+          def posts_from(name):
+              r=raw[name]
+              try:
+                  j=json.loads(r.get('body',''))
+                  return j if isinstance(j,list) else []
+              except:return []
 
-                const chosen=candidates.find(a=>/download (movie|episode)/i.test(a.text||'')) || candidates[0];
-                if(chosen?.href){
-                  rec.chosen=chosen;
-                  page.on('request',r=>{
-                    if(['document','xhr','fetch','script'].includes(r.resourceType())) rec.route.push({type:'request',method:r.method(),rt:r.resourceType(),url:r.url(),postData:r.postData()||null});
-                  });
-                  page.on('response',async r=>{
-                    if(['document','xhr','fetch','script'].includes(r.request().resourceType())){
-                      const h=await r.allHeaders().catch(()=>({}));
-                      rec.route.push({type:'response',status:r.status(),rt:r.request().resourceType(),url:r.url(),location:h.location||null,contentType:h['content-type']||null});
-                    }
-                  });
-                  page.on('framenavigated',f=>{if(f===page.mainFrame())rec.route.push({type:'nav',url:f.url()})});
+          movie=posts_from('search-movie')
+          series=posts_from('search-series')
 
-                  await page.goto(chosen.href,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>rec.route.push({type:'download_goto_error',message:e.message}));
-                  await page.waitForTimeout(5000);
-                  rec.afterDownload={
-                    url:page.url(),host:host(page.url()),title:await page.title().catch(()=>''),
-                    text:(await page.locator('body').innerText().catch(()=>'' )).slice(0,5000),
-                    forms:await page.locator('form').evaluateAll(fs=>fs.map(f=>({
-                      action:f.action,method:(f.method||'get').toLowerCase(),
-                      inputs:[...f.querySelectorAll('input,button')].map(x=>({
-                        tag:x.tagName,type:x.getAttribute('type'),name:x.getAttribute('name'),
-                        value:x.getAttribute('value'),id:x.id||null,text:(x.textContent||'').trim(),
-                        placeholder:x.getAttribute('placeholder')
-                      }))
-                    }))).catch(()=>[]),
-                    controls:await page.locator('a,button,input[type=submit]').evaluateAll(es=>es.map(e=>({
-                      text:(e.textContent||e.getAttribute('value')||'').trim(),
-                      href:e.href||null,id:e.id||null,type:e.getAttribute('type')
-                    })).filter(x=>x.text||x.href)).catch(()=>[])
-                  };
-                  save();
+          # Fallback to finding post URLs from public pages if REST search is blocked.
+          if not movie:
+              h=fetch('https://thenkiri.com/')
+              aa=anchors(h.get('body',''),'https://thenkiri.com/')
+              x=next((a for a in aa if 'Almost Popular' in a['text']),None)
+              if x: movie=[{'link':x['href'],'title':{'rendered':x['text']},'content':{'rendered':''}}]
+          if not series:
+              h=fetch('https://thenkiri.com/category/tv-series/')
+              aa=anchors(h.get('body',''),'https://thenkiri.com/category/tv-series/')
+              x=next((a for a in aa if 'The Blame' in a['text']),None)
+              if x: series=[{'link':x['href'],'title':{'rendered':x['text']},'content':{'rendered':''}}]
 
-                  // Click only ordinary "Create download link"/download/continue controls; stop if human verification appears.
-                  const txt=rec.afterDownload.text||'';
-                  const human=/(captcha|verify you are human|enter.{0,20}(number|code)|verification code|security code)/i.test(txt) ||
-                    rec.afterDownload.forms.some(f=>f.inputs.some(x=>['text','number','tel'].includes((x.type||'').toLowerCase())));
-                  rec.humanBoundary=human;
-                  if(!human){
-                    const control=page.getByRole('button',{name:/create download link|download|continue|get link|proceed/i}).or(
-                      page.getByRole('link',{name:/create download link|download|continue|get link|proceed/i})
-                    );
-                    const n=await control.count().catch(()=>0);
-                    for(let i=0;i<Math.min(n,8);i++){
-                      const el=control.nth(i);
-                      if(await el.isVisible().catch(()=>false)){
-                        const text=(await el.innerText().catch(()=>'')).trim();
-                        const href=await el.getAttribute('href').catch(()=>null);
-                        rec.route.push({type:'ordinary_click',text,href});
-                        await el.click({timeout:8000}).catch(e=>rec.route.push({type:'click_error',message:e.message}));
-                        await page.waitForTimeout(5000);
-                        rec.afterClick={
-                          url:page.url(),host:host(page.url()),title:await page.title().catch(()=>''),
-                          text:(await page.locator('body').innerText().catch(()=>'' )).slice(0,4000)
-                        };
-                        break;
+          for label,posts in [('movie',movie),('series',series)]:
+              if not posts: 
+                  out['samples'].append({'label':label,'error':'No post found'})
+                  continue
+              p=posts[0]
+              link=p.get('link')
+              rec={'label':label,'id':p.get('id'),'title':(p.get('title') or {}).get('rendered'),'link':link}
+              content=((p.get('content') or {}).get('rendered') or '')
+              rec['apiAnchors']=[a for a in anchors(content,link or 'https://thenkiri.com/') if re.search(r'download|episode|movie|stream|server|create',a['text']+' '+a['href'],re.I)][:100]
+              if link:
+                  page=fetch(link)
+                  rec['pageStatus']=page.get('status')
+                  rec['pageFinalUrl']=page.get('url')
+                  rec['pageTitle']=strip((re.search(r'<title[^>]*>([\s\S]*?)</title>',page.get('body',''),re.I) or [None,''])[1])
+                  aa=anchors(page.get('body',''),page.get('url') or link)
+                  rec['pageAnchors']=[a for a in aa if re.search(r'download movie|download episode|download|episode|create download link|stream|server',a['text']+' '+a['href'],re.I)][:150]
+                  chosen=next((a for a in rec['pageAnchors'] if re.search(r'download (movie|episode)',a['text'],re.I)),None)
+                  if not chosen and rec['pageAnchors']: chosen=rec['pageAnchors'][0]
+                  rec['chosen']=chosen
+                  if chosen:
+                      dr=fetch(chosen['href'],headers={'Referer':link})
+                      body=dr.get('body','')
+                      rec['downloadResponse']={
+                          'status':dr.get('status'),'finalUrl':dr.get('url'),
+                          'contentType':dr.get('headers',{}).get('Content-Type'),
+                          'location':dr.get('headers',{}).get('Location'),
+                          'title':strip((re.search(r'<title[^>]*>([\s\S]*?)</title>',body,re.I) or [None,''])[1]),
+                          'textPreview':strip(body)[:5000],
+                          'anchors':[a for a in anchors(body,dr.get('url') or chosen['href']) if re.search(r'create download link|download|continue|stream|file|server|get link',a['text']+' '+a['href'],re.I)][:100],
+                          'forms':[]
                       }
-                    }
-                  }
-                  save();
-                }
-                await page.close().catch(()=>{});
-              }
+                      for fm in re.finditer(r'<form\b[\s\S]*?</form>',body,re.I):
+                          f=fm.group(0)
+                          action=(re.search(r'\baction\s*=\s*["\']([^"\']*)',f,re.I) or [None,''])[1]
+                          method=(re.search(r'\bmethod\s*=\s*["\']([^"\']*)',f,re.I) or [None,'get'])[1]
+                          fields=[]
+                          for im in re.finditer(r'<input\b[^>]*>',f,re.I):
+                              tag=im.group(0)
+                              def at(n):
+                                  m=re.search(r'\b'+re.escape(n)+r'\s*=\s*["\']([^"\']*)',tag,re.I)
+                                  return html.unescape(m.group(1)) if m else None
+                              fields.append({'type':at('type'),'name':at('name'),'value':at('value'),'id':at('id'),'placeholder':at('placeholder')})
+                          rec['downloadResponse']['forms'].append({'action':urljoin(dr.get('url') or chosen['href'],html.unescape(action)) if action else None,'method':method.lower(),'fields':fields})
+              out['samples'].append(rec)
 
-              let movie=moviePosts[0], series=seriesPosts[0];
-              if(!movie || !series){
-                const home=await context.newPage();
-                await home.goto('https://thenkiri.com/',{waitUntil:'domcontentloaded',timeout:45000});
-                const all=await home.locator('a').evaluateAll(as=>as.map(a=>({text:(a.textContent||'').trim(),href:a.href})).filter(x=>x.href));
-                if(!movie){
-                  const x=all.find(a=>/Almost Popular/i.test(a.text)); if(x) movie={link:x.href,title:{rendered:x.text},content:{rendered:''}};
-                }
-                if(!series){
-                  const x=all.find(a=>/The Blame/i.test(a.text)); if(x) series={link:x.href,title:{rendered:x.text},content:{rendered:''}};
-                }
-                await home.close();
-              }
-
-              await inspect('movie',movie);
-              await inspect('series',series);
-              out.finishedAt=new Date().toISOString();
-            }catch(e){
-              out.error={message:e.message,stack:e.stack};
-            }finally{
-              try{if(browser)await browser.close()}catch{}
-              try{if(api)await api.dispose()}catch{}
-              save();
-            }
-          })();
-          JS
-          node /tmp/thenkiri.cjs
+          with open('diagnostics/thenkiri-api-map.json','w') as f: json.dump(out,f,indent=2)
+          print(json.dumps(out,indent=2)[:60000])
+          PY
 
       - name: Commit result
         if: always()
@@ -198,5 +153,5 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add diagnostics/thenkiri-api-map.json
-          git commit -m "record TheNkiri API map" || true
+          git commit -m "record TheNkiri HTTP API map" || true
           git push || true
