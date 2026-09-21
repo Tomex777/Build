@@ -45,6 +45,21 @@ elif mode == "attr":
         raise SystemExit(2)
     attr = sys.argv[3]
     print(node.attrib.get(attr, ""))
+elif mode == "active":
+    node = find_desc(value)
+    if node is None:
+        raise SystemExit(2)
+    parents = {child: parent for parent in root.iter() for child in parent}
+    current = node
+    while current is not None:
+        if (
+            current.attrib.get("selected") == "true" or
+            current.attrib.get("checked") == "true"
+        ):
+            print("true")
+            raise SystemExit(0)
+        current = parents.get(current)
+    print("false")
 else:
     raise SystemExit(2)
 PY
@@ -76,9 +91,9 @@ scroll_until_desc() {
 
 assert_selected() {
   refresh_ui
-  value="$(python3 /tmp/night_ext_config_uia.py attr "$1" selected)"
+  value="$(python3 /tmp/night_ext_config_uia.py active "$1")"
   if [ "$value" != "true" ]; then
-    echo "Expected selected=true for $1, got '$value'." >&2
+    echo "Expected active selection for $1, got '$value'." >&2
     exit 1
   fi
 }
