@@ -49,11 +49,23 @@ class NightAgentToolExecutor private constructor(
             "set_appearance" -> setAppearance(args)
             "create_options" -> createOptions(chatId, args)
             "generate_image" -> generateImage(chatId, args)
-            else -> NightExtensionToolRegistry.execute(
-                qualifiedName = invocation.name,
-                chatId = chatId,
-                arguments = args,
-            )?.toString() ?: error("Unknown Night tool: " + invocation.name)
+            else -> {
+                val ownerExtensionId =
+                    NightExtensionToolRegistry.extensionIdFor(invocation.name)
+                        ?: error("Unknown Night tool: " + invocation.name)
+                val extensionResult = NightExtensionToolRegistry.execute(
+                    qualifiedName = invocation.name,
+                    chatId = chatId,
+                    arguments = args,
+                ) ?: error("Unknown Night tool: " + invocation.name)
+
+                NightExtensionMessageEmitter.persistFromToolResult(
+                    repository = repository,
+                    chatId = chatId,
+                    ownerExtensionId = ownerExtensionId,
+                    result = extensionResult,
+                ).toString()
+            }
         }
     }.getOrElse { error ->
         JSONObject()
