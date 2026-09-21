@@ -150,6 +150,8 @@ private fun NightApp(initialChatId: String? = null) {
     var scheduleOpen by remember { mutableStateOf(false) }
     var liveVoiceState by remember { mutableStateOf(NightLiveVoiceClient.State.ENDED) }
     var liveVoiceError by remember { mutableStateOf<String?>(null) }
+    var liveVoiceMuted by rememberSaveable { mutableStateOf(false) }
+    var liveVoiceSpeaker by rememberSaveable { mutableStateOf(false) }
     var replyingToId by rememberSaveable { mutableStateOf<String?>(null) }
     var choiceOpen by remember { mutableStateOf(false) }
     var mediaViewerPath by rememberSaveable { mutableStateOf<String?>(null) }
@@ -381,6 +383,10 @@ private fun NightApp(initialChatId: String? = null) {
     fun startLiveVoiceCall() {
         val callChatId = activeChatId
         liveVoiceError = null
+        liveVoiceMuted = false
+        liveVoiceSpeaker = false
+        liveVoiceClient.setMicrophoneMuted(false)
+        liveVoiceClient.setSpeakerEnabled(false)
         liveVoiceState = NightLiveVoiceClient.State.CONNECTING
         screen = "live_voice"
 
@@ -1034,8 +1040,29 @@ private fun NightApp(initialChatId: String? = null) {
             chatTitle = activeChat?.title ?: "Night",
             state = liveVoiceState,
             error = liveVoiceError,
+            microphoneMuted = liveVoiceMuted,
+            speakerEnabled = liveVoiceSpeaker,
+            onToggleMute = {
+                val next = !liveVoiceMuted
+                liveVoiceClient.setMicrophoneMuted(next)
+                liveVoiceMuted = next
+            },
+            onToggleSpeaker = {
+                val next = !liveVoiceSpeaker
+                if (liveVoiceClient.setSpeakerEnabled(next)) {
+                    liveVoiceSpeaker = next
+                } else {
+                    Toast.makeText(
+                        context,
+                        "Speaker output is not available on this device.",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            },
             onEndCall = {
                 liveVoiceClient.stop()
+                liveVoiceMuted = false
+                liveVoiceSpeaker = false
                 screen = "chat"
             },
         )

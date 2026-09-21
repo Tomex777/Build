@@ -2,10 +2,13 @@ package com.example.whatsapp.data.night
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
+import android.os.Build
 import android.util.Base64
 import java.util.concurrent.atomic.AtomicBoolean
 import okhttp3.OkHttpClient
@@ -41,6 +44,9 @@ class NightLiveVoiceClient private constructor(
     private var audioTrack: AudioTrack? = null
     private var captureThread: Thread? = null
     private val running = AtomicBoolean(false)
+    private val microphoneMuted = AtomicBoolean(false)
+    @Volatile private var speakerEnabled = false
+    private var previousAudioMode: Int? = null
     private var listener: Listener? = null
 
     suspend fun connect(
@@ -124,6 +130,27 @@ class NightLiveVoiceClient private constructor(
         )
     }
 
+    fun setMicrophoneMuted(muted: Boolean) {
+        microphoneMuted.set(muted)
+        if (muted) {
+            webSocket?.send(
+                JSONObject()
+                    .put("type", "input_audio_buffer.clear")
+                    .toString()
+            )
+        }
+    }
+
+    fun isMicrophoneMuted(): Boolean = microphoneMuted.get()
+
+    fun setSpeakerEnabled(enabled: Boolean): Boolean {
+        speakerEnabled = enabled
+        if (!running.get() && audioTrack == null) return true
+        return applyAudioRoute(enabled)
+    }
+
+    fun isSpeakerEnabled(): Boolean = speakerEnabled
+
     fun stop() {
         running.set(false)
         stopAudio()
@@ -131,6 +158,8 @@ class NightLiveVoiceClient private constructor(
         webSocket = null
         listener?.onState(State.ENDED)
         listener = null
+        microphoneMuted.set(false)
+        speakerEnabled = false
     }
 
     private suspend fun resolveLiveModel(chatId: String): NightResolvedModel? {
@@ -225,6 +254,7 @@ class NightLiveVoiceClient private constructor(
 
         audioRecord = recorder
         audioTrack = player
+        prepareAudioRouting()
         running.set(true)
 
         player.play()
@@ -235,7 +265,7 @@ class NightLiveVoiceClient private constructor(
             val buffer = ByteArray(inputBuffer)
             while (running.get()) {
                 val count = recorder.read(buffer, 0, buffer.size)
-                if (count > 0) {
+                if (count > 0 && !microphoneMuted.get()) {
                     val audio = Base64.encodeToString(
                         buffer.copyOf(count),
                         Base64.NO_WRAP,
@@ -305,6 +335,59 @@ class NightLiveVoiceClient private constructor(
         }
     }
 
+    private fun prepareAudioRouting() {
+        val audioManager = context.getSystemService(AudioManager::class.java)
+        if (previousAudioMode == null) {
+            previousAudioMode = audioManager.mode
+        }
+        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        applyAudioRoute(speakerEnabled)
+    }
+
+    private fun applyAudioRoute(enabled: Boolean): Boolean {
+        val audioManager = context.getSystemService(AudioManager::class.java)
+        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val desiredType = if (enabled) {
+                AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+            } else {
+                AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
+            }
+            val desired = audioManager.availableCommunicationDevices
+                .firstOrNull { it.type == desiredType }
+
+            when {
+                desired != null -> audioManager.setCommunicationDevice(desired)
+                !enabled -> {
+                    audioManager.clearCommunicationDevice()
+                    true
+                }
+                else -> false
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            run {
+                audioManager.isSpeakerphoneOn = enabled
+            }
+            true
+        }
+    }
+
+    private fun restoreAudioRouting() {
+        val audioManager = context.getSystemService(AudioManager::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            audioManager.clearCommunicationDevice()
+        } else {
+            @Suppress("DEPRECATION")
+            run {
+                audioManager.isSpeakerphoneOn = false
+            }
+        }
+        previousAudioMode?.let { audioManager.mode = it }
+        previousAudioMode = null
+    }
+
     private fun stopAudio() {
         running.set(false)
 
@@ -321,6 +404,8 @@ class NightLiveVoiceClient private constructor(
         runCatching { player?.stop() }
         runCatching { player?.flush() }
         runCatching { player?.release() }
+
+        restoreAudioRouting()
     }
 
 
