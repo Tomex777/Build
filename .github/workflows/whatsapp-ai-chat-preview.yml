@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - whatsapp-ai-ui-ci
+      - night-message-types-ci
     paths:
       - "whatsapp-ai-android/**"
       - ".github/workflows/whatsapp-ai-chat-preview.yml"
