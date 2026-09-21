@@ -743,6 +743,77 @@ private fun NightApp(initialChatId: String? = null) {
         }
     }
 
+    fun cancelPdfDraft() {
+        val draft = pdfDraft ?: return
+        NightFileLibrary.remove(context, draft.libraryId)
+        pdfDraft = null
+        pdfCaption = ""
+        screen = "chat"
+    }
+
+    fun sendPdfDraft(
+        preparedPath: String,
+        preparedName: String,
+    ) {
+        val draft = pdfDraft ?: return
+        val chatId = activeChatId
+        val caption = pdfCaption.trim()
+        val messageId = java.util.UUID.randomUUID().toString()
+
+        scope.launch {
+            val preparedFile = File(preparedPath)
+            if (!preparedFile.isFile || preparedFile.length() <= 0L) {
+                Toast.makeText(context, "The edited PDF is not available.", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            val finalFile = if (preparedFile.absolutePath == draft.localPath) {
+                preparedFile
+            } else {
+                preparedFile.copyTo(File(draft.localPath), overwrite = true)
+            }
+            val finalName = preparedName.ifBlank { draft.name }
+
+            val payload = JSONObject()
+                .put("localPath", finalFile.absolutePath)
+                .put("mimeType", "application/pdf")
+                .put("sizeBytes", finalFile.length())
+                .put("displayName", finalName)
+                .put("caption", caption)
+
+            repository.addLibraryItem(
+                NightLibraryItemEntity(
+                    id = draft.libraryId,
+                    name = finalName,
+                    mimeType = "application/pdf",
+                    sizeBytes = finalFile.length(),
+                    localPath = finalFile.absolutePath,
+                    createdAt = draft.createdAt,
+                    sourceChatId = chatId,
+                    sourceMessageId = messageId,
+                )
+            )
+
+            repository.appendMessage(
+                NightMessageEntity(
+                    id = messageId,
+                    chatId = chatId,
+                    role = "user",
+                    type = "file",
+                    text = finalName,
+                    createdAt = System.currentTimeMillis(),
+                    libraryFileId = draft.libraryId,
+                    payloadJson = payload.toString(),
+                    replyToMessageId = draft.replyToMessageId,
+                )
+            )
+
+            pdfDraft = null
+            pdfCaption = ""
+            screen = "chat"
+        }
+    }
+
     fun playAudio(path: String) {
         runCatching {
             val current = activePlayer
