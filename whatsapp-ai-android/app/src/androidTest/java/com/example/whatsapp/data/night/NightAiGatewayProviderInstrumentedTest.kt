@@ -546,4 +546,64 @@ class NightAiGatewayProviderInstrumentedTest {
         )
     }
 
+
+    @Test
+    fun deepSeekToolDiagnosticUsesBearerAndDisablesThinking() = runBlocking {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "application/json")
+                .setBody(
+                    """{"choices":[{"message":{"role":"assistant","content":null,"tool_calls":[{"id":"diag","type":"function","function":{"name":"night_diagnostic","arguments":"{}"}}]}}]}"""
+                )
+        )
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val gateway = NightAiGateway.createForTesting(
+            context = context,
+            http = OkHttpClient.Builder().build(),
+        )
+        val now = System.currentTimeMillis()
+        val profile = NightProviderProfileEntity(
+            id = "deepseek-tools-" + UUID.randomUUID(),
+            providerType = "deepseek",
+            serviceKind = "chat",
+            displayName = "DeepSeek tools",
+            secretAlias = secretAlias,
+            endpoint = server.url("/").toString().trimEnd('/'),
+            isEnabled = true,
+            isDefault = false,
+            createdAt = now,
+            updatedAt = now,
+        )
+        val model = NightProviderModelEntity(
+            id = "deepseek-tools-model-" + UUID.randomUUID(),
+            profileId = profile.id,
+            providerType = "deepseek",
+            modelId = "deepseek-chat",
+            displayName = "DeepSeek Chat",
+            capabilities = "text,tools",
+            isEnabled = true,
+            isDefault = true,
+            createdAt = now,
+            updatedAt = now,
+        )
+
+        val result = gateway.testModel(profile, model)
+
+        assertTrue(result.isSuccess)
+        assertEquals("NIGHT_OK", result.getOrThrow())
+
+        val request = server.takeRequest()
+        assertEquals("Bearer groq-key-a", request.getHeader("Authorization"))
+        assertEquals("/chat/completions", request.path)
+
+        val body = JSONObject(request.body.readUtf8())
+        assertTrue(body.optJSONArray("tools")?.length() ?: 0 > 0)
+        assertEquals(
+            "disabled",
+            body.getJSONObject("thinking").optString("type"),
+        )
+    }
+
 }
