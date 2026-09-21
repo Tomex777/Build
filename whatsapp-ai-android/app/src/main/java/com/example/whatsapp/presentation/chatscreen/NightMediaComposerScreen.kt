@@ -1,6 +1,7 @@
 package com.example.whatsapp.presentation.chatscreen
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color as AndroidColor
 import android.media.MediaMetadataRetriever
 import android.net.Uri
@@ -196,7 +197,7 @@ fun NightMediaComposerScreen(
         exportError = null
         scope.launch {
             val dir = File(context.cacheDir, "night_crop_stage").apply { mkdirs() }
-            val flattened = File(dir, "flatten_" + System.currentTimeMillis() + ".jpg")
+            val flattened = File(dir, "flatten_" + System.currentTimeMillis() + ".png")
             when (val result = editor.saveAsFile(flattened.absolutePath)) {
                 is SaveFileResult.Success -> {
                     val previous = workingPath
@@ -267,13 +268,42 @@ fun NightMediaComposerScreen(
         exportError = null
         scope.launch {
             val dir = File(context.filesDir, "night_media_edits").apply { mkdirs() }
-            val output = File(dir, "night_image_" + System.currentTimeMillis() + ".jpg")
-            when (val result = editor.saveAsFile(output.absolutePath)) {
+            val stamp = System.currentTimeMillis()
+            // PhotoEditor writes PNG bytes regardless of the file extension. Stage
+            // that output honestly, then encode the final Night attachment as a
+            // real JPEG so filename, MIME type and file signature always agree.
+            val staged = File(context.cacheDir, "night_image_stage_" + stamp + ".png")
+            val output = File(dir, "night_image_" + stamp + ".jpg")
+            when (val result = editor.saveAsFile(staged.absolutePath)) {
                 is SaveFileResult.Success -> {
-                    exporting = false
-                    onPreparedSend(output.absolutePath, "image/jpeg", output.name)
+                    val jpegSaved = withContext(Dispatchers.IO) {
+                        runCatching {
+                            val bitmap = BitmapFactory.decodeFile(staged.absolutePath)
+                                ?: error("Could not decode the flattened image.")
+                            try {
+                                FileOutputStream(output).use { stream ->
+                                    check(bitmap.compress(Bitmap.CompressFormat.JPEG, 96, stream))
+                                }
+                            } finally {
+                                bitmap.recycle()
+                                runCatching { staged.delete() }
+                            }
+                            output.isFile && output.length() > 0L
+                        }.getOrDefault(false)
+                    }
+
+                    if (jpegSaved) {
+                        exporting = false
+                        onPreparedSend(output.absolutePath, "image/jpeg", output.name)
+                    } else {
+                        runCatching { output.delete() }
+                        runCatching { staged.delete() }
+                        exporting = false
+                        exportError = "Could not encode the edited image."
+                    }
                 }
                 is SaveFileResult.Failure -> {
+                    runCatching { staged.delete() }
                     exporting = false
                     exportError = result.exception.message ?: "Could not save the edited image."
                 }
