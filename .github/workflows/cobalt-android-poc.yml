@@ -29,6 +29,13 @@ jobs:
           distribution: temurin
           java-version: "25"
 
+      - name: Apply Android compatibility shim
+        shell: bash
+        run: |
+          python3 cobalt-android-poc/patch-cobalt-android.py
+          git -C cobalt-upstream diff --stat
+          git -C cobalt-upstream diff -- modules/telemetry-core/src/main/java/com/github/auties00/cobalt/telemetry/log/Log.java | head -n 160
+
       - name: Build pinned Cobalt into local Maven
         shell: bash
         run: |
