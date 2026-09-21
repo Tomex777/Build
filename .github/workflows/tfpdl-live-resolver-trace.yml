@@ -108,17 +108,29 @@ jobs:
                 inputs:[...f.querySelectorAll('input,button')].map(x=>({tag:x.tagName,type:x.getAttribute('type'),name:x.getAttribute('name'),value:x.getAttribute('value'),text:(x.textContent||'').trim(),placeholder:x.getAttribute('placeholder')}))
               }))).catch(()=>[]);
               const links=await page.locator('a').evaluateAll(as=>as.map(a=>({text:(a.textContent||'').trim(),href:a.href})).filter(x=>x.href)).catch(()=>[]);
-              push('snapshot',{label,url:page.url(),title:await page.title().catch(()=>''),text:text.slice(0,1500),forms,links:links.slice(0,80)});
-              return {text,forms,links};
+              const controls=await page.locator('button, input[type="submit"], input[type="button"], [role="button"], [onclick]').evaluateAll(es=>es.map(e=>({
+                tag:e.tagName,
+                text:(e.textContent||e.getAttribute('value')||'').trim(),
+                type:e.getAttribute('type'),
+                name:e.getAttribute('name'),
+                id:e.id||null,
+                cls:e.className||null,
+                onclick:e.getAttribute('onclick')
+              }))).catch(()=>[]);
+              push('snapshot',{label,url:page.url(),title:await page.title().catch(()=>''),text:text.slice(0,1500),forms,links:links.slice(0,80),controls:controls.slice(0,80)});
+              return {text,forms,links,controls};
             }
 
             let s=await snap('initial');
             for (let i=0;i<5;i++){
               await page.waitForTimeout(i===0?20000:10000);
               s=await snap('wait-'+i);
-              const challenge=/(captcha|verification|enter.*number|type.*number|security code|human|turnstile)/i.test(s.text) ||
-                s.forms.some(f=>f.inputs.some(x=>['text','number','tel'].includes((x.type||'text').toLowerCase())));
-              if(challenge){ push('human_boundary',{url:page.url()}); break; }
+              const visibleChallengeInputs = await page.locator('input[type="text"]:visible, input[type="number"]:visible, input[type="tel"]:visible').count().catch(()=>0);
+              const challengeText = /(captcha|verification code|enter (the )?(number|code)|type (the )?(number|code)|security code|turnstile)/i.test(s.text);
+              if(visibleChallengeInputs>0 || challengeText){
+                push('human_boundary',{url:page.url(),visibleChallengeInputs,challengeText});
+                break;
+              }
 
               const clickable = page.getByRole('button',{name:/continue|get link|proceed|download|next/i}).or(
                 page.getByRole('link',{name:/continue|get link|proceed|download|next/i})
@@ -138,7 +150,15 @@ jobs:
                   break;
                 }
               }
-              if(!clicked) push('no_click',{url:page.url()});
+              if(!clicked && /(^|\\n)0 Seconds(\\n|$)/i.test(s.text) && s.forms.length){
+                const form=page.locator('form').first();
+                push('countdown_form_submit',{action:s.forms[0].action,method:s.forms[0].method});
+                await form.evaluate(f=>f.submit()).catch(e=>push('form_submit_error',{message:e.message}));
+                await page.waitForTimeout(6000);
+                await snap('after-countdown-form-'+i);
+                clicked=true;
+              }
+              if(!clicked) push('no_click',{url:page.url(),controls:s.controls});
             }
 
             const summary = {
