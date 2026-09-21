@@ -47,6 +47,7 @@ import com.example.whatsapp.data.night.NightRepository
 import com.example.whatsapp.data.night.NightScheduleManager
 import com.example.whatsapp.data.night.NightSpeechService
 import com.example.whatsapp.data.night.NightStructuredReplyParser
+import com.example.whatsapp.data.night.NightSummaryCoordinator
 import com.example.whatsapp.data.night.NightToolInvocation
 import com.example.whatsapp.data.night.NightVoiceRecorder
 import com.example.whatsapp.extensions.messages.ExtensionCardTemplate
@@ -135,6 +136,7 @@ private fun NightApp(initialChatId: String? = null) {
     val speechService = remember { NightSpeechService.get(context) }
     val liveVoiceClient = remember { NightLiveVoiceClient.get(context) }
     val linkPreviewService = remember { NightLinkPreviewService.get(context) }
+    val summaryCoordinator = remember { NightSummaryCoordinator.get(context) }
     val scope = rememberCoroutineScope()
 
     val notificationChatId = initialChatId?.takeIf { it.isNotBlank() }
@@ -243,27 +245,9 @@ private fun NightApp(initialChatId: String? = null) {
     }
 
     suspend fun checkpoint(chatId: String) {
-        val pending = repository.unsummarizedMessages(chatId)
-        if (pending.isEmpty()) return
-
-        val summary = aiGateway.summarize(chatId, displayName)
-            .getOrElse {
-                pending
-                    .filter { it.text.isNotBlank() }
-                    .takeLast(12)
-                    .joinToString(" • ") { message ->
-                        (if (message.role == "assistant") "Night" else displayName) +
-                            ": " + message.text.take(180)
-                    }
-                    .take(2400)
-            }
-
-        if (summary.isBlank()) return
-        repository.commitSummary(
+        summaryCoordinator.checkpoint(
             chatId = chatId,
-            summary = summary,
-            fromMessageAt = pending.first().createdAt,
-            toMessageAt = pending.last().createdAt,
+            displayName = displayName,
         )
     }
 
@@ -280,23 +264,11 @@ private fun NightApp(initialChatId: String? = null) {
         }
     }
 
-    val lastMessageAt = messageEntities.lastOrNull()?.createdAt ?: 0L
-
-    LaunchedEffect(screen, activeChatId, lastMessageAt) {
-        if (screen != "chat" || lastMessageAt == 0L) return@LaunchedEffect
-        val snapshot = lastMessageAt
-        delay(2 * 60 * 1000L)
-        val latest = repository.getMessages(activeChatId).lastOrNull()?.createdAt ?: 0L
-        if (screen == "chat" && latest == snapshot) {
-            checkpoint(activeChatId)
-        }
-    }
-
     LaunchedEffect(screen, activeChatId) {
         if (screen != "chat") return@LaunchedEffect
         while (true) {
             delay(5 * 60 * 1000L)
-            if (repository.unsummarizedMessages(activeChatId).isNotEmpty()) {
+            if (screen == "chat" && repository.unsummarizedMessages(activeChatId).isNotEmpty()) {
                 checkpoint(activeChatId)
             }
         }
