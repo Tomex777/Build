@@ -3354,7 +3354,7 @@ private fun PlainDialPad(
                 row.forEach { key ->
                     Box(
                         modifier = Modifier
-                            .size(width = 88.dp, height = 88.dp)
+                            .size(width = 88.dp, height = 72.dp)
                             .combinedClickable(
                                 onClick = { onDigit(key.first) },
                                 onLongClick = {
