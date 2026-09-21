@@ -35,6 +35,9 @@ jobs:
             const context = await browser.newContext({
               userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
               viewport:{width:412,height:915},
+              isMobile:true,
+              hasTouch:true,
+              deviceScaleFactor:1,
               locale:'en-US'
             });
             const page = await context.newPage();
@@ -135,7 +138,13 @@ jobs:
               const triggerVisible=await trigger.isVisible().catch(()=>false);
               if(triggerVisible){
                 say('verification_trigger',{id:'soralink-human-verif-main',src:await trigger.getAttribute('src')});
-                await trigger.click({timeout:12000}).catch(e=>say('verification_trigger_error',{message:e.message}));
+                await page.touchscreen.tap(206, 350).catch(()=>{});
+                const box=await trigger.boundingBox().catch(()=>null);
+                if(box){
+                  await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2).catch(e=>say('verification_trigger_error',{message:e.message}));
+                } else {
+                  await trigger.tap({timeout:12000}).catch(e=>say('verification_trigger_error',{message:e.message}));
+                }
                 await page.waitForTimeout(3500);
                 s=await snapshot('after-verification-trigger');
                 await sourceHints('after-verification-trigger');
