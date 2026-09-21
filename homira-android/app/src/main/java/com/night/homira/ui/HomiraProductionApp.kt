@@ -4469,11 +4469,13 @@ private fun ContactsScreen(
                 }
             },
             onFavorite = {
-                infoPerson = null
-                onDetailVisibilityChanged(false)
+                val nextFavorite = !person.favorite
+                infoPerson = person.copy(
+                    favorite = nextFavorite
+                )
                 onFavoriteChanged(
                     person,
-                    !person.favorite
+                    nextFavorite
                 )
             },
             onVoice = {
@@ -4513,19 +4515,13 @@ private fun ContactsScreen(
                 }
             },
             onEdit = {
-                infoPerson = null
-                onDetailVisibilityChanged(false)
                 editedContactName = person.name
                 editPerson = person
             },
             onQr = {
-                infoPerson = null
-                onDetailVisibilityChanged(false)
                 qrPerson = person
             },
             onDelete = {
-                infoPerson = null
-                onDetailVisibilityChanged(false)
                 deletePerson = person
             }
         )
@@ -4592,6 +4588,14 @@ private fun ContactsScreen(
                     onClick = {
                         val newName = editedContactName.trim()
                         editPerson = null
+                        infoPerson = person.copy(
+                            name = newName,
+                            marker = newName
+                                .firstOrNull()
+                                ?.uppercaseChar()
+                                ?.toString()
+                                ?: person.marker
+                        )
                         onRenameContact(person, newName)
                     }
                 ) {
@@ -4642,6 +4646,8 @@ private fun ContactsScreen(
                     onClick = {
                         deletePerson = null
                         expandedPersonId = null
+                        infoPerson = null
+                        onDetailVisibilityChanged(false)
                         onDeleteContact(person)
                     }
                 ) {
