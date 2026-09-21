@@ -3,7 +3,6 @@ package com.example.whatsapp.presentation.chatscreen
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -12,20 +11,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
@@ -36,13 +34,16 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -86,6 +87,7 @@ private val PdfPanel = Color(0xFF20272A)
 private val PdfMuted = Color(0xFF9EA7AB)
 private val PdfAccent = Color(0xFFE94B72)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NightPdfViewerScreen(
     localPath: String,
@@ -212,17 +214,31 @@ fun NightPdfViewerScreen(
         }
     }
 
-    BackHandler(onBack = onBack)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    Box(
+    ModalBottomSheet(
+        onDismissRequest = onBack,
+        sheetState = sheetState,
         modifier = Modifier
-            .fillMaxSize()
-            .background(PdfCanvas),
+            .fillMaxHeight(0.97f)
+            .semantics { contentDescription = "PDF bottom sheet" },
+        containerColor = PdfChrome,
+        contentColor = Color.White,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = 8.dp, bottom = 6.dp)
+                    .size(width = 44.dp, height = 4.dp)
+                    .background(
+                        color = Color(0xFF6D7478),
+                        shape = RoundedCornerShape(99.dp),
+                    ),
+            )
+        },
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
+                .fillMaxHeight()
                 .navigationBarsPadding(),
         ) {
             Row(
@@ -233,7 +249,7 @@ fun NightPdfViewerScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, "Back", tint = Color.White)
+                    Icon(Icons.Default.Close, "Close PDF", tint = Color.White)
                 }
 
                 Column(
