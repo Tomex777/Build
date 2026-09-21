@@ -1128,6 +1128,45 @@ private fun NightApp(initialChatId: String? = null) {
                         }
                 }
             },
+            providerKeys = { providerProfile ->
+                providerManager.keySummaries(providerProfile)
+            },
+            onAddProviderKey = { providerProfile, key, label ->
+                scope.launch {
+                    runCatching {
+                        providerManager.addProviderKey(
+                            profile = providerProfile,
+                            apiKey = key,
+                            label = label,
+                        )
+                    }.onSuccess {
+                        Toast.makeText(
+                            context,
+                            "Groq key added.",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not add Groq key.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onDeleteProviderKey = { providerProfile, keyId ->
+                scope.launch {
+                    runCatching {
+                        providerManager.deleteProviderKey(providerProfile, keyId)
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not remove Groq key.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
         )
 
         "choose_ai" -> NightAiSelectorScreen(
@@ -2197,277 +2236,3 @@ private fun extractVideoMeta(
             .extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
             ?.toIntOrNull()
             ?: 0
-
-        val ratio = if (height > 0f) {
-            if (rotation == 90 || rotation == 270) {
-                height / width.coerceAtLeast(1f)
-            } else {
-                width / height
-            }
-        } else {
-            16f / 9f
-        }
-
-        val thumbPath = retriever.getFrameAtTime(
-            0L,
-            MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
-        )?.let { bitmap ->
-            val dir = File(context.filesDir, "night_video_thumbs").apply { mkdirs() }
-            val file = File(dir, "thumb_" + System.currentTimeMillis() + ".jpg")
-            FileOutputStream(file).use { output ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 88, output)
-            }
-            bitmap.recycle()
-            file.absolutePath
-        }
-
-        VideoMeta(
-            thumbnailPath = thumbPath,
-            duration = formatDuration(durationMs),
-            aspectRatio = ratio.coerceIn(0.70f, 1.85f),
-        )
-    } catch (_: Throwable) {
-        VideoMeta(
-            thumbnailPath = null,
-            duration = "0:00",
-            aspectRatio = 16f / 9f,
-        )
-    } finally {
-        runCatching { retriever.release() }
-    }
-}
-
-private fun formatBytes(bytes: Long): String = when {
-    bytes >= 1024L * 1024L -> String.format(Locale.getDefault(), "%.1f MB", bytes / (1024f * 1024f))
-    bytes >= 1024L -> String.format(Locale.getDefault(), "%.0f KB", bytes / 1024f)
-    else -> bytes.toString() + " B"
-}
-
-private fun repositoryActionToast(context: android.content.Context, message: String) {
-    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-}
-
-private suspend fun appendTextWithLinkPreview(
-    repository: NightRepository,
-    linkPreviewService: NightLinkPreviewService,
-    chatId: String,
-    role: String,
-    text: String,
-    replyToMessageId: String? = null,
-) {
-    val preview = linkPreviewService.resolveFromText(text)
-
-    if (preview == null) {
-        repository.appendText(
-            chatId = chatId,
-            role = role,
-            text = text,
-            replyToMessageId = replyToMessageId,
-        )
-        return
-    }
-
-    val body = text
-        .replace(preview.url, "")
-        .replace(Regex("\\s+"), " ")
-        .trim()
-
-    repository.appendMessage(
-        NightMessageEntity(
-            id = java.util.UUID.randomUUID().toString(),
-            chatId = chatId,
-            role = role,
-            type = "link",
-            text = body,
-            createdAt = System.currentTimeMillis(),
-            payloadJson = JSONObject()
-                .put("url", preview.url)
-                .put("title", preview.title)
-                .put("description", preview.description)
-                .put("site", preview.site)
-                .put("imageUrl", preview.imageUrl ?: "")
-                .toString(),
-            replyToMessageId = replyToMessageId,
-        )
-    )
-}
-
-private suspend fun streamNightAssistantReply(
-    repository: NightRepository,
-    aiGateway: NightAiGateway,
-    chatId: String,
-    displayName: String,
-    noAiMessage: String,
-    failurePrefix: String,
-) {
-    val messageId = java.util.UUID.randomUUID().toString()
-    val createdAt = System.currentTimeMillis()
-    val base = NightMessageEntity(
-        id = messageId,
-        chatId = chatId,
-        role = "assistant",
-        type = "text",
-        text = "…",
-        createdAt = createdAt,
-        deliveryState = "sending",
-    )
-    repository.appendMessage(base)
-
-    var lastPersisted = ""
-    var lastPersistAt = 0L
-
-    val result = aiGateway.replyStreaming(
-        chatId = chatId,
-        displayName = displayName,
-    ) { partial ->
-        val now = System.currentTimeMillis()
-        val shouldPersist =
-            partial.isBlank() ||
-                partial.length - lastPersisted.length >= 12 ||
-                now - lastPersistAt >= 90L
-
-        if (shouldPersist) {
-            repository.appendMessage(
-                base.copy(
-                    text = partial.ifBlank { "…" },
-                    deliveryState = "sending",
-                )
-            )
-            lastPersisted = partial
-            lastPersistAt = now
-        }
-    }
-
-    val rawReply = result.getOrElse { error ->
-        when {
-            error.message?.contains("No chat AI") == true -> noAiMessage
-            else -> failurePrefix + (error.message ?: "Check the provider settings.")
-        }
-    }
-
-    val parsed = NightStructuredReplyParser.parse(rawReply)
-
-    parsed.choiceSelection?.let { selection ->
-        val existing = repository.getMessage(selection.messageId)
-        if (existing != null && existing.chatId == chatId && existing.type == "choice") {
-            val payload = runCatching { JSONObject(existing.payloadJson) }
-                .getOrElse { JSONObject() }
-            val options = payload.optJSONArray("options")
-            if (options != null && selection.index in 0 until options.length()) {
-                payload
-                    .put("selectedIndex", selection.index)
-                    .put("selectedBy", "Night")
-                repository.appendMessage(existing.copy(payloadJson = payload.toString()))
-            }
-        }
-    }
-
-    if (parsed.text.isBlank()) {
-        repository.deleteMessage(messageId)
-    } else {
-        repository.appendMessage(
-            base.copy(
-                text = parsed.text,
-                deliveryState = "sent",
-            )
-        )
-    }
-
-    parsed.choice?.let { choice ->
-        repository.appendMessage(
-            NightMessageEntity(
-                id = java.util.UUID.randomUUID().toString(),
-                chatId = chatId,
-                role = "assistant",
-                type = "choice",
-                text = choice.title,
-                createdAt = System.currentTimeMillis(),
-                payloadJson = JSONObject()
-                    .put("options", JSONArray(choice.options))
-                    .toString(),
-            )
-        )
-    }
-}
-
-private suspend fun appendParsedAssistantReply(
-    repository: NightRepository,
-    linkPreviewService: NightLinkPreviewService,
-    chatId: String,
-    rawReply: String,
-) {
-    val parsed = NightStructuredReplyParser.parse(rawReply)
-
-    parsed.choiceSelection?.let { selection ->
-        val existing = repository.getMessage(selection.messageId)
-        if (existing != null && existing.chatId == chatId && existing.type == "choice") {
-            val payload = runCatching { JSONObject(existing.payloadJson) }
-                .getOrElse { JSONObject() }
-
-            val options = payload.optJSONArray("options")
-            if (options != null && selection.index in 0 until options.length()) {
-                payload
-                    .put("selectedIndex", selection.index)
-                    .put("selectedBy", "Night")
-                repository.appendMessage(
-                    existing.copy(payloadJson = payload.toString())
-                )
-            }
-        }
-    }
-
-    if (parsed.text.isNotBlank()) {
-        appendTextWithLinkPreview(
-            repository = repository,
-            linkPreviewService = linkPreviewService,
-            chatId = chatId,
-            role = "assistant",
-            text = parsed.text,
-        )
-    }
-
-    parsed.choice?.let { choice ->
-        repository.appendMessage(
-            NightMessageEntity(
-                id = java.util.UUID.randomUUID().toString(),
-                chatId = chatId,
-                role = "assistant",
-                type = "choice",
-                text = choice.title,
-                createdAt = System.currentTimeMillis(),
-                payloadJson = JSONObject()
-                    .put("options", JSONArray(choice.options))
-                    .toString(),
-            )
-        )
-    }
-}
-
-private suspend fun exportChat(
-    context: android.content.Context,
-    title: String,
-    messages: List<NightMessageEntity>,
-) = withContext(Dispatchers.IO) {
-    val safeTitle = title.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "Night" }
-    val file = File(context.cacheDir, safeTitle + "_chat.txt")
-    file.writeText(
-        messages.joinToString("\n") {
-            val speaker = if (it.role == "assistant") "Night" else "You"
-            "[" + nightTime(it.createdAt) + "] " + speaker + ": " + it.text
-        }
-    )
-
-    withContext(Dispatchers.Main) {
-        val uri = androidx.core.content.FileProvider.getUriForFile(
-            context,
-            context.packageName + ".files",
-            file,
-        )
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        context.startActivity(Intent.createChooser(intent, "Export chat"))
-    }
-}
