@@ -1,0 +1,132 @@
+name: TFPDL focused Deinform trace
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/tfpdl-deinform-focused.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+      - name: Trace Deinform verification
+        run: |
+          cat > trace.cjs <<'JS'
+          const { chromium } = require('playwright');
+          const fs=require('fs');
+          const target='https://deinform.com/?id=U3VPVXdWcytJY216citiUHhNMVlUR0I5Ull6RXlqcVpEVUFZVytFNERJUUIyVDYxU21JZnN4UmY3V2wvcHM3LzhnWTRpMjVyQklTdk0rRVc2bHY4dVJKQVJmQ3UyQlg4WkR3ZEVMSjZLRjA9';
+          const out={target,events:[],snapshots:[]};
+          const push=(type,data={})=>{const x={t:new Date().toISOString(),type,...data};out.events.push(x);console.log(JSON.stringify(x));};
+
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const context=await browser.newContext({
+              userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
+              viewport:{width:412,height:915},
+              isMobile:true,hasTouch:true,deviceScaleFactor:1,locale:'en-US'
+            });
+            const page=await context.newPage();
+            page.setDefaultTimeout(12000);
+            page.on('request',r=>{
+              const u=r.url();
+              if(/deinform\.com|safetxt\.net/i.test(u)) push('request',{method:r.method(),rt:r.resourceType(),url:u,postData:r.postData()||null});
+            });
+            page.on('response',async r=>{
+              const u=r.url();
+              if(/deinform\.com|safetxt\.net/i.test(u)){
+                const h=await r.allHeaders().catch(()=>({}));
+                push('response',{status:r.status(),rt:r.request().resourceType(),url:u,location:h.location||null,contentType:h['content-type']||null});
+              }
+            });
+            page.on('framenavigated',f=>{if(f===page.mainFrame())push('nav',{url:f.url()});});
+
+            async function snap(label){
+              const data=await page.evaluate(()=>{
+                const forms=[...document.forms].map(f=>({
+                  action:f.action,method:(f.method||'get').toLowerCase(),id:f.id||null,
+                  html:f.outerHTML.slice(0,12000),
+                  fields:[...f.querySelectorAll('input,button,textarea,select')].map(x=>({
+                    tag:x.tagName,type:x.getAttribute('type'),name:x.getAttribute('name'),
+                    value:x.getAttribute('value'),id:x.id||null,placeholder:x.getAttribute('placeholder'),
+                    visible:!!(x.offsetWidth||x.offsetHeight||x.getClientRects().length),
+                    text:(x.textContent||'').trim()
+                  }))
+                }));
+                const ids=['soralink-human-verif-main','generater','showlink','pleasewaits'];
+                const elements=ids.map(id=>{
+                  const e=document.getElementById(id);
+                  if(!e)return {id,present:false};
+                  const r=e.getBoundingClientRect();
+                  return {id,present:true,tag:e.tagName,text:(e.textContent||'').trim(),src:e.src||null,href:e.href||null,
+                    style:e.getAttribute('style'),disabled:!!e.disabled,visible:!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length),
+                    box:{x:r.x,y:r.y,w:r.width,h:r.height},outer:e.outerHTML.slice(0,6000)};
+                });
+                const inline=[...document.scripts].filter(s=>!s.src).map(s=>s.textContent||'').filter(x=>/soralink|generater|showlink|sltoken|lemmein|human-verif|ajax|post_location/i.test(x)).map(x=>x.slice(0,20000));
+                const scripts=[...document.scripts].map(s=>s.src).filter(Boolean);
+                return {url:location.href,title:document.title,text:document.body.innerText.slice(0,6000),forms,elements,inline,scripts};
+              }).catch(e=>({error:e.message}));
+              out.snapshots.push({label,...data});
+              console.log('SNAP',label,JSON.stringify(data).slice(0,15000));
+              return data;
+            }
+
+            await page.goto(target,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>push('goto_error',{message:e.message}));
+            await page.waitForTimeout(4000);
+            let s=await snap('entry');
+            await page.waitForTimeout(9000);
+            s=await snap('countdown-done');
+
+            const trigger=page.locator('#soralink-human-verif-main');
+            if(await trigger.count() && await trigger.isVisible().catch(()=>false)){
+              const box=await trigger.boundingBox().catch(()=>null);
+              push('trigger_found',{box,src:await trigger.getAttribute('src')});
+              if(box) await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2).catch(e=>push('tap_error',{message:e.message}));
+              else await trigger.tap().catch(e=>push('tap_error',{message:e.message}));
+              await page.waitForTimeout(5000);
+              s=await snap('after-human-verif-trigger');
+              await page.waitForTimeout(8000);
+              s=await snap('after-trigger+8s');
+            } else {
+              push('trigger_not_visible',{url:page.url()});
+            }
+
+            const gen=page.locator('#generater');
+            if(await gen.count()){
+              push('generater_state',{visible:await gen.isVisible().catch(()=>false),disabled:await gen.isDisabled().catch(()=>null)});
+            }
+            const show=page.locator('#showlink');
+            if(await show.count()){
+              push('showlink_state',{visible:await show.isVisible().catch(()=>false),disabled:await show.isDisabled().catch(()=>null)});
+            }
+
+            fs.writeFileSync('tfpdl-deinform-focused.json',JSON.stringify(out,null,2));
+            await browser.close();
+          })().catch(e=>{out.error={message:e.message,stack:e.stack};fs.writeFileSync('tfpdl-deinform-focused.json',JSON.stringify(out,null,2));console.error(e);process.exitCode=1;});
+          JS
+          node trace.cjs
+      - name: Commit result
+        if: always()
+        run: |
+          mkdir -p diagnostics
+          cp tfpdl-deinform-focused.json diagnostics/tfpdl-deinform-focused.json 2>/dev/null || echo '{"error":"no result"}' > diagnostics/tfpdl-deinform-focused.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add diagnostics/tfpdl-deinform-focused.json
+          git commit -m "record focused Deinform verification trace" || true
+          git push origin HEAD:main || true
