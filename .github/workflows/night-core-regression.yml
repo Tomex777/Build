@@ -86,10 +86,18 @@ jobs:
           path: whatsapp-ai-android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-  android-16-core:
+  android-16-ui:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - message-blocks
+          - image-editor
+          - pdf-editor
+          - mihon-reader
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -129,22 +137,38 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Download APK for UI suites
+      - name: Download integrated APK
         uses: actions/download-artifact@v4
         with:
           name: night-integrated-apk
           path: night-integrated-apk
 
-      - name: Stage APK for existing Night harnesses
+      - name: Stage APK for selected suite
         run: |
-          mkdir -p night-image-editor-apk night-message-blocks-apk night-pdf-editor-apk
           mkdir -p whatsapp-ai-android/app/build/outputs/apk/debug
-          cp night-integrated-apk/app-debug.apk night-image-editor-apk/app-debug.apk
-          cp night-integrated-apk/app-debug.apk night-message-blocks-apk/app-debug.apk
-          cp night-integrated-apk/app-debug.apk night-pdf-editor-apk/app-debug.apk
           cp night-integrated-apk/app-debug.apk whatsapp-ai-android/app/build/outputs/apk/debug/app-debug.apk
+          case "${{ matrix.suite }}" in
+            message-blocks)
+              mkdir -p night-message-blocks-apk
+              cp night-integrated-apk/app-debug.apk night-message-blocks-apk/app-debug.apk
+              ;;
+            image-editor)
+              mkdir -p night-image-editor-apk
+              cp night-integrated-apk/app-debug.apk night-image-editor-apk/app-debug.apk
+              ;;
+            pdf-editor)
+              mkdir -p night-pdf-editor-apk
+              cp night-integrated-apk/app-debug.apk night-pdf-editor-apk/app-debug.apk
+              ;;
+            mihon-reader)
+              ;;
+            *)
+              echo "Unknown UI suite: ${{ matrix.suite }}" >&2
+              exit 2
+              ;;
+          esac
 
-      - name: Exercise integrated Night UI and readers
+      - name: Exercise selected Night UI suite
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
@@ -157,16 +181,19 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -accel on -wipe-data
           script: |
-            bash .github/scripts/night-message-blocks-interaction.sh
-            bash .github/scripts/night-image-editor-interaction.sh
-            bash .github/scripts/night-pdf-editor-interaction.sh
-            bash .github/scripts/night-mihon-reader-interaction.sh
+            case "${{ matrix.suite }}" in
+              message-blocks) bash .github/scripts/night-message-blocks-interaction.sh ;;
+              image-editor) bash .github/scripts/night-image-editor-interaction.sh ;;
+              pdf-editor) bash .github/scripts/night-pdf-editor-interaction.sh ;;
+              mihon-reader) bash .github/scripts/night-mihon-reader-interaction.sh ;;
+              *) exit 2 ;;
+            esac
 
-      - name: Upload integrated UI evidence
+      - name: Upload selected UI evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: night-integrated-ui-evidence
+          name: night-integrated-${{ matrix.suite }}-evidence
           path: |
             night-message-blocks-artifacts/
             night-image-editor-artifacts/
