@@ -1,1 +1,2 @@
 trigger live TFPDL quick resolver probe
+trigger browser trace
