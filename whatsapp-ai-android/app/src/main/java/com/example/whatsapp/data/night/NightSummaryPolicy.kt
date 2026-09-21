@@ -13,6 +13,7 @@ object NightSummaryText {
         val recent = transcript
             .lineSequence()
             .filter { it.isNotBlank() }
+            .toList()
             .takeLast(14)
             .joinToString(" • ") { it.take(240) }
             .take(2600)
