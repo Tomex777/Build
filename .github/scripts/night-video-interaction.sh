@@ -659,9 +659,13 @@ read -r tx1 ty1 tx2 ty2 <<<"$trim_bounds"
 trim_y=$(((ty1 + ty2) / 2))
 
 trim_changed=false
+# Material3 RangeSlider changes its handles by dragging; a plain rail tap is
+# intentionally not a reliable thumb move. Drag the right/end handle inward
+# just like a user would when trimming the end of a clip.
+trim_start_x=$((tx1 + (tx2 - tx1) * 98 / 100))
 for pct in 72 65 58; do
   trim_x=$((tx1 + (tx2 - tx1) * pct / 100))
-  adb shell input tap "$trim_x" "$trim_y"
+  adb shell input swipe "$trim_start_x" "$trim_y" "$trim_x" "$trim_y" 650
   sleep 1
   refresh_ui
   changed_trim="$(python3 /tmp/night_video_uia.py trim)"
@@ -671,8 +675,9 @@ for pct in 72 65 58; do
   fi
 done
 if [ "$trim_changed" != "true" ]; then
-  echo "Night video trim range did not change through the real editor." >&2
+  echo "Night video trim range did not change after dragging the end handle." >&2
   adb exec-out screencap -p > "$ARTIFACTS/failure-trim.png"
+  cp /tmp/window.xml "$ARTIFACTS/failure-trim.xml" 2>/dev/null || true
   exit 1
 fi
 printf 'before=%s\nafter=%s\n' "$initial_trim" "$changed_trim" > "$ARTIFACTS/07-trim-range.txt"
