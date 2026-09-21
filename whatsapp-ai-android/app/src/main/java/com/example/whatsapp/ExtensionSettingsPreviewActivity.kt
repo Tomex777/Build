@@ -79,6 +79,17 @@ class ExtensionSettingsPreviewActivity : ComponentActivity() {
                         }
                     }
 
+                    if (lastAction.isNotBlank()) {
+                        Text(
+                            text = "Action handled: $lastAction",
+                            color = ComposeColor.White,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(ComposeColor(0xFF20272A))
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                        )
+                    }
+
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -92,13 +103,6 @@ class ExtensionSettingsPreviewActivity : ComponentActivity() {
                                 lastAction = "$extensionId:$actionId"
                             },
                         )
-                        if (lastAction.isNotBlank()) {
-                            Text(
-                                text = "Action handled: $lastAction",
-                                color = ComposeColor(0xFF9EA7AB),
-                                modifier = Modifier.padding(14.dp),
-                            )
-                        }
                     }
                 }
             }
