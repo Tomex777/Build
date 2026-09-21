@@ -476,42 +476,73 @@ internal fun NightVlcVideoSurface(
             runCatching { player.setTime(fallbackResumePosition) }
         }
         playing = true
-        var startedAt = SystemClock.elapsedRealtime()
-        var lastAdvanceAt = startedAt
-        var lastObservedPosition = -1L
 
         while (isActive && active) {
-            val now = SystemClock.elapsedRealtime()
             length = runCatching { player.length.coerceAtLeast(0L) }.getOrDefault(0L)
             position = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(0L)
             playing = runCatching { player.isPlaying }.getOrDefault(false)
+            delay(250L)
+        }
+    }
 
-            if (userPaused) {
-                // Do not carry intentional pause time into the decoder watchdog.
-                // Resume should always receive a fresh playback window.
-                lastObservedPosition = position
-                lastAdvanceAt = now
-                startedAt = now
-            } else if (position > lastObservedPosition + 180L) {
-                lastObservedPosition = position
+    LaunchedEffect(
+        active,
+        player,
+        softwareDecode,
+        hardwareRetryGeneration,
+        userPaused,
+    ) {
+        if (!active || softwareDecode || userPaused) return@LaunchedEffect
+
+        val startedAt = SystemClock.elapsedRealtime()
+        var lastAdvanceAt = startedAt
+        var lastObservedPosition = position
+        var lastHeartbeatAt = startedAt
+
+        while (isActive && active && !softwareDecode && !userPaused) {
+            delay(500L)
+
+            val now = SystemClock.elapsedRealtime()
+            val currentPosition = position
+            val currentLength = length
+            val currentPlaying = playing
+
+            if (currentPosition > lastObservedPosition + 180L) {
+                lastObservedPosition = currentPosition
                 lastAdvanceAt = now
             }
+
+            if (virtualVideoDevice && now - lastHeartbeatAt >= 2000L) {
+                Log.d(
+                    "NightVideo",
+                    "Editor watchdog generation=$hardwareRetryGeneration " +
+                        "position=${currentPosition}ms length=${currentLength}ms " +
+                        "playing=$currentPlaying retry=$hardwareRetryCount.",
+                )
+                lastHeartbeatAt = now
+            }
+
+            val beforeFirstFrame =
+                lastObservedPosition < 500L && now - startedAt >= 9000L
+            val stoppedAfterStarting =
+                lastObservedPosition >= 500L &&
+                    !currentPlaying &&
+                    now - lastAdvanceAt >= 1500L
+            val stoppedAdvancing =
+                lastObservedPosition >= 500L &&
+                    now - lastAdvanceAt >= 3000L
+
             if (
-                !softwareDecode &&
-                !userPaused &&
-                length > 0L &&
-                position < (length - 1500L).coerceAtLeast(0L) &&
-                (
-                    (lastObservedPosition >= 500L && now - lastAdvanceAt >= 2500L) ||
-                        (lastObservedPosition < 500L && now - startedAt >= 9000L)
-                    )
+                currentLength > 0L &&
+                currentPosition < (currentLength - 1500L).coerceAtLeast(0L) &&
+                (beforeFirstFrame || stoppedAfterStarting || stoppedAdvancing)
             ) {
-                fallbackResumePosition = position
+                fallbackResumePosition = currentPosition
                 if (virtualVideoDevice && hardwareRetryCount < 2) {
                     hardwareRetryCount += 1
                     Log.w(
                         "NightVideo",
-                        "Virtual-device editor playback stalled at ${position}ms; " +
+                        "Virtual-device editor playback stalled at ${currentPosition}ms; " +
                             "recreating VLC hardware player (retry $hardwareRetryCount).",
                     )
                     hardwareRetryGeneration += 1
@@ -520,13 +551,12 @@ internal fun NightVlcVideoSurface(
 
                 Log.w(
                     "NightVideo",
-                    "Editor hardware playback stalled at ${position}ms; " +
+                    "Editor hardware playback stalled at ${currentPosition}ms; " +
                         "recreating VLC with software decoding.",
                 )
                 softwareDecode = true
                 return@LaunchedEffect
             }
-            delay(250L)
         }
     }
 
