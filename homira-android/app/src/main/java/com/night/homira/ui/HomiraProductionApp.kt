@@ -4964,6 +4964,80 @@ private fun ContactBottomActionP(
 }
 
 @Composable
+private fun ContactActionStripP(
+    person: HomiraPerson,
+    onVoice: () -> Unit,
+    onInfo: () -> Unit,
+    onVideo: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                start = 74.dp,
+                end = 18.dp,
+                bottom = 12.dp
+            ),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        ContactActionButtonP(
+            icon = Icons.Rounded.Call,
+            label = "Voice",
+            accent = HomiraGreen,
+            onClick = onVoice
+        )
+        ContactActionButtonP(
+            icon = Icons.Rounded.Info,
+            label = "Info",
+            accent = HomiraMuted,
+            onClick = onInfo
+        )
+        ContactActionButtonP(
+            icon = Icons.Rounded.Videocam,
+            label = "Video",
+            accent = HomiraBlue,
+            onClick = onVideo
+        )
+    }
+}
+
+@Composable
+private fun ContactActionButtonP(
+    icon: ImageVector,
+    label: String,
+    accent: Color,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Surface(
+            modifier = Modifier
+                .size(44.dp)
+                .clickable(onClick = onClick),
+            shape = CircleShape,
+            color = accent.copy(alpha = .13f)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    icon,
+                    contentDescription = label,
+                    tint = accent,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+        Spacer(Modifier.height(5.dp))
+        Text(
+            label,
+            color = HomiraMuted,
+            fontSize = 10.sp
+        )
+    }
+}
+
+@Composable
 private fun FavoriteContact(person: HomiraPerson, onCall: () -> Unit) {
     Surface(
         modifier = Modifier.size(width = 88.dp, height = 105.dp).clickable(onClick = onCall),
