@@ -1,5 +1,6 @@
 package com.example.whatsapp
 
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -13,6 +14,8 @@ import com.example.whatsapp.ui.theme.WhatsappTheme
 import java.io.File
 import java.io.FileOutputStream
 
+private const val NIGHT_PREVIEW_VIDEO_PATH = "night.preview.videoPath"
+
 class MediaViewerPreviewActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -20,42 +23,77 @@ class MediaViewerPreviewActivity : ComponentActivity() {
         window.statusBarColor = Color.BLACK
         window.navigationBarColor = Color.BLACK
 
-        // A local still is intentionally routed through VLC for CI so the video-player
-        // control chrome is rendered without relying on network media.
-        val playerPreview = File(cacheDir, "night-player-preview.jpg")
-        if (!playerPreview.exists()) {
+        val requestedVideo =
+            intent.getStringExtra(NIGHT_PREVIEW_VIDEO_PATH)
+                ?.let(::File)
+                ?.takeIf { it.isFile && it.length() > 0L }
+
+        val fallback = File(cacheDir, "night-player-preview.jpg")
+        if (requestedVideo == null && !fallback.exists()) {
             val bitmap = BitmapFactory.decodeResource(resources, R.drawable.bilal)
-            FileOutputStream(playerPreview).use { output ->
+            FileOutputStream(fallback).use { output ->
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 94, output)
             }
             bitmap.recycle()
         }
 
+        val items =
+            if (requestedVideo != null) {
+                listOf(
+                    NightChatMediaItem(
+                        id = "preview-real-video-1",
+                        localPath = requestedVideo.absolutePath,
+                        mimeType = "video/mp4",
+                        caption = "Night real video playback fixture",
+                        sender = "Night Video 1",
+                    ),
+                    NightChatMediaItem(
+                        id = "preview-real-video-2",
+                        localPath = requestedVideo.absolutePath,
+                        mimeType = "video/mp4",
+                        caption = "Night real video playback fixture",
+                        sender = "Night Video 2",
+                    ),
+                )
+            } else {
+                listOf(
+                    NightChatMediaItem(
+                        id = "preview-video-1",
+                        localPath = fallback.absolutePath,
+                        mimeType = "video/mp4",
+                        caption = "Night full-screen video player",
+                        time = "20:31",
+                        sender = "Night",
+                        duration = "0:10",
+                    ),
+                    NightChatMediaItem(
+                        id = "preview-image-1",
+                        localPath = fallback.absolutePath,
+                        mimeType = "image/jpeg",
+                        caption = "Swipe left and right through chat media.",
+                        time = "20:32",
+                        sender = "You",
+                    ),
+                )
+            }
+
         setContent {
             WhatsappTheme(darkTheme = true) {
                 NightMediaViewerScreen(
-                    items = listOf(
-                        NightChatMediaItem(
-                            id = "preview-video-1",
-                            localPath = playerPreview.absolutePath,
-                            mimeType = "video/mp4",
-                            caption = "Night full-screen video player",
-                            time = "20:31",
-                            sender = "Night",
-                            duration = "0:10",
-                        ),
-                        NightChatMediaItem(
-                            id = "preview-image-1",
-                            localPath = playerPreview.absolutePath,
-                            mimeType = "image/jpeg",
-                            caption = "Swipe left and right through chat media.",
-                            time = "20:32",
-                            sender = "You",
-                        ),
-                    ),
+                    items = items,
                     initialIndex = 0,
-                    onBack = {},
-                    onEdit = {},
+                    onBack = { finish() },
+                    onEdit = { item ->
+                        startActivity(
+                            Intent(
+                                this@MediaViewerPreviewActivity,
+                                MediaEditorPreviewActivity::class.java,
+                            ).putExtra(
+                                NIGHT_PREVIEW_VIDEO_PATH,
+                                item.localPath,
+                            ),
+                        )
+                    },
                 )
             }
         }

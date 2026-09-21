@@ -7,6 +7,10 @@ import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
+import android.util.Log
+import android.view.View
+import android.view.ViewGroup
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -62,6 +66,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -72,7 +78,170 @@ import kotlinx.coroutines.isActive
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
+import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.util.VLCVideoLayout
+
+private fun View.installNightVideoTapHandler(onTap: () -> Unit) {
+    isClickable = true
+    setOnClickListener { onTap() }
+    if (this is ViewGroup) {
+        for (index in 0 until childCount) {
+            getChildAt(index).installNightVideoTapHandler(onTap)
+        }
+    }
+}
+
+private fun isNightVirtualVideoDevice(): Boolean {
+    val fingerprint = Build.FINGERPRINT.orEmpty()
+    val model = Build.MODEL.orEmpty()
+    val manufacturer = Build.MANUFACTURER.orEmpty()
+    val brand = Build.BRAND.orEmpty()
+    val device = Build.DEVICE.orEmpty()
+    val product = Build.PRODUCT.orEmpty()
+    val hardware = Build.HARDWARE.orEmpty()
+
+    return fingerprint.startsWith("generic", ignoreCase = true) ||
+        fingerprint.contains("emulator", ignoreCase = true) ||
+        model.contains("google_sdk", ignoreCase = true) ||
+        model.contains("Emulator", ignoreCase = true) ||
+        model.contains("Android SDK built for", ignoreCase = true) ||
+        manufacturer.contains("Genymotion", ignoreCase = true) ||
+        (brand.startsWith("generic", ignoreCase = true) &&
+            device.startsWith("generic", ignoreCase = true)) ||
+        product.contains("sdk_gphone", ignoreCase = true) ||
+        hardware.contains("goldfish", ignoreCase = true) ||
+        hardware.contains("ranchu", ignoreCase = true)
+}
+
+private data class NightVlcTrackMetadata(
+    val id: Int,
+    val description: String,
+    val codec: String,
+    val language: String,
+    val channels: Int = 0,
+    val rate: Int = 0,
+)
+
+private fun String.isNightGenericTrackLabel(): Boolean {
+    val normalized = trim().lowercase()
+    return normalized.isBlank() ||
+        normalized == "default" ||
+        normalized == "default audio" ||
+        normalized == "audio" ||
+        normalized == "audio track" ||
+        normalized == "subtitle" ||
+        normalized == "subtitle track" ||
+        normalized.startsWith("track ")
+}
+
+private fun nightVlcCodecLabel(codec: String): String {
+    return when (codec.trim().lowercase()) {
+        "mp4a", "aac" -> "AAC"
+        "tx3g", "text" -> "MOV text"
+        else -> codec.trim().uppercase()
+    }
+}
+
+private fun nightVlcSampleRateLabel(rate: Int): String {
+    if (rate <= 0) return ""
+    val whole = rate / 1000
+    val tenths = (rate % 1000) / 100
+    return if (tenths == 0) "$whole kHz" else "$whole.$tenths kHz"
+}
+
+private fun MediaPlayer.nightParsedTrackMetadata(type: Int): List<NightVlcTrackMetadata> {
+    val currentMedia = runCatching { this.media }.getOrNull() ?: return emptyList()
+    return try {
+        val tracks = mutableListOf<NightVlcTrackMetadata>()
+        for (index in 0 until currentMedia.trackCount) {
+            val track = runCatching { currentMedia.getTrack(index) }.getOrNull() ?: continue
+            if (track.type != type) continue
+            val audio = track as? IMedia.AudioTrack
+            tracks += NightVlcTrackMetadata(
+                id = track.id,
+                description = track.description.orEmpty().trim(),
+                codec = track.codec.orEmpty().trim(),
+                language = track.language.orEmpty().trim(),
+                channels = audio?.channels ?: 0,
+                rate = audio?.rate ?: 0,
+            )
+        }
+        tracks
+    } finally {
+        runCatching { currentMedia.release() }
+    }
+}
+
+private fun nightAudioTrackLabel(
+    legacyName: String,
+    metadata: NightVlcTrackMetadata?,
+): String {
+    val parts = mutableListOf<String>()
+    val richDescription = metadata?.description.orEmpty()
+    when {
+        !richDescription.isNightGenericTrackLabel() -> parts += richDescription
+        !legacyName.isNightGenericTrackLabel() -> parts += legacyName.trim()
+    }
+
+    metadata?.codec
+        ?.takeIf { it.isNotBlank() }
+        ?.let(::nightVlcCodecLabel)
+        ?.takeIf { it.isNotBlank() }
+        ?.let(parts::add)
+
+    when (metadata?.channels ?: 0) {
+        1 -> parts += "Mono"
+        2 -> parts += "Stereo"
+        in 3..Int.MAX_VALUE -> parts += "${metadata?.channels} channels"
+    }
+
+    metadata?.rate
+        ?.takeIf { it > 0 }
+        ?.let(::nightVlcSampleRateLabel)
+        ?.takeIf { it.isNotBlank() }
+        ?.let(parts::add)
+
+    metadata?.language
+        ?.takeIf {
+            it.isNotBlank() &&
+                !it.equals("und", ignoreCase = true) &&
+                !it.equals("unknown", ignoreCase = true)
+        }
+        ?.uppercase()
+        ?.let(parts::add)
+
+    return parts.distinct().joinToString(" · ").ifBlank { "Audio track" }
+}
+
+private fun nightSubtitleTrackLabel(
+    legacyName: String,
+    metadata: NightVlcTrackMetadata?,
+): String {
+    val parts = mutableListOf<String>()
+    val richDescription = metadata?.description.orEmpty()
+    when {
+        !richDescription.isNightGenericTrackLabel() -> parts += richDescription
+        !legacyName.isNightGenericTrackLabel() -> parts += legacyName.trim()
+        else -> parts += "Embedded subtitle"
+    }
+
+    metadata?.codec
+        ?.takeIf { it.isNotBlank() }
+        ?.let(::nightVlcCodecLabel)
+        ?.takeIf { it.isNotBlank() }
+        ?.let(parts::add)
+
+    metadata?.language
+        ?.takeIf {
+            it.isNotBlank() &&
+                !it.equals("und", ignoreCase = true) &&
+                !it.equals("unknown", ignoreCase = true)
+        }
+        ?.uppercase()
+        ?.let(parts::add)
+
+    return parts.distinct().joinToString(" · ")
+}
 
 private enum class NightVideoAspect(
     val label: String,
@@ -100,22 +269,40 @@ internal fun NightAniyomiVlcPlayer(
     val context = androidx.compose.ui.platform.LocalContext.current
     val activity = remember(context) { context.findNightActivity() }
     val appContext = context.applicationContext
+    val virtualVideoDevice = remember { isNightVirtualVideoDevice() }
+    var softwareDecode by remember(item.localPath) { mutableStateOf(false) }
+    var hardwareRetryGeneration by remember(item.localPath) { mutableStateOf(0) }
+    var hardwareRetryCount by remember(item.localPath) { mutableStateOf(0) }
+    var userPaused by remember(item.localPath) { mutableStateOf(false) }
+    var fallbackResumePosition by remember(item.localPath) { mutableLongStateOf(0L) }
 
-    val libVlc = remember(item.localPath) {
-        LibVLC(
-            appContext,
-            arrayListOf(
-                "--audio-time-stretch",
-                "--network-caching=1500",
-                "--no-video-title-show",
-            ),
-        )
+    val mediaUri = remember(item.localPath) {
+        when {
+            item.localPath.startsWith("http://") ||
+                item.localPath.startsWith("https://") ||
+                item.localPath.startsWith("content://") ||
+                item.localPath.startsWith("file://") -> Uri.parse(item.localPath)
+            else -> Uri.fromFile(File(item.localPath))
+        }
     }
-    val player = remember(item.localPath) { MediaPlayer(libVlc) }
+
+    val libVlc = remember(item.localPath, softwareDecode, hardwareRetryGeneration) {
+        val options = arrayListOf(
+            "--audio-time-stretch",
+            "--network-caching=1500",
+            "--no-video-title-show",
+        )
+        LibVLC(appContext, options)
+    }
+    val player = remember(item.localPath, softwareDecode, hardwareRetryGeneration) { MediaPlayer(libVlc) }
+    var attachedPlayer by remember(item.localPath) {
+        mutableStateOf<MediaPlayer?>(null)
+    }
 
     var controlsVisible by remember(item.localPath) { mutableStateOf(true) }
     var controlsLocked by remember(item.localPath) { mutableStateOf(false) }
     var playing by remember(item.localPath) { mutableStateOf(false) }
+    var playbackStarted by remember(item.localPath) { mutableStateOf(false) }
     var length by remember(item.localPath) { mutableLongStateOf(0L) }
     var position by remember(item.localPath) { mutableLongStateOf(0L) }
     var dragging by remember(item.localPath) { mutableStateOf(false) }
@@ -142,15 +329,16 @@ internal fun NightAniyomiVlcPlayer(
     val menuOpen = subtitleMenu || audioMenu || speedMenu || moreMenu
 
     DisposableEffect(player, libVlc, item.localPath) {
-        val uri = when {
-            item.localPath.startsWith("http://") ||
-                item.localPath.startsWith("https://") ||
-                item.localPath.startsWith("content://") ||
-                item.localPath.startsWith("file://") -> Uri.parse(item.localPath)
-            else -> Uri.fromFile(File(item.localPath))
-        }
-        val media = Media(libVlc, uri).apply {
-            setHWDecoderEnabled(true, false)
+        val media = Media(libVlc, mediaUri).apply {
+            if (softwareDecode) {
+                // Do not call setHWDecoderEnabled(false, false) here: in this
+                // LibVLC generation that can still leave Android MediaCodec in
+                // the decoder candidate list. Force the software decoder path.
+                addOption(":codec=avcodec")
+                addOption(":avcodec-hw=none")
+            } else {
+                setHWDecoderEnabled(true, false)
+            }
             addOption(":network-caching=1500")
         }
         player.media = media
@@ -164,7 +352,7 @@ internal fun NightAniyomiVlcPlayer(
         }
     }
 
-    LaunchedEffect(active, player) {
+    LaunchedEffect(active, player, softwareDecode, hardwareRetryGeneration) {
         if (!active) {
             runCatching { player.pause() }
             playing = false
@@ -175,27 +363,55 @@ internal fun NightAniyomiVlcPlayer(
             return@LaunchedEffect
         }
 
+        // A recreated VLC engine can be composed before AndroidView has attached
+        // its new surface. Returning here leaves the new generation unmonitored
+        // if no further snapshot change restarts this effect. Wait for the real
+        // attachment instead, then start playback exactly once for this player.
+        var attachmentChecks = 0
+        while (
+            isActive &&
+            active &&
+            attachedPlayer !== player &&
+            attachmentChecks < 120
+        ) {
+            attachmentChecks += 1
+            delay(50L)
+        }
+        if (!active || !isActive) return@LaunchedEffect
+        if (attachedPlayer !== player) {
+            playing = false
+            Log.e(
+                "NightVideo",
+                "Timed out waiting for VLC surface attachment " +
+                    "(generation=$hardwareRetryGeneration, software=$softwareDecode).",
+            )
+            return@LaunchedEffect
+        }
+
+        Log.i(
+            "NightVideo",
+            "Starting VLC playback " +
+                "(generation=$hardwareRetryGeneration, software=$softwareDecode, " +
+                "resume=${fallbackResumePosition}ms).",
+        )
         player.play()
+        if (fallbackResumePosition > 0L) {
+            runCatching { player.setTime(fallbackResumePosition) }
+        }
+        runCatching { player.setRate(playbackSpeed) }
         playing = true
 
+        // Keep state sampling deliberately small. Recovery is handled by a
+        // separate watchdog below so a stale playback sampler cannot silently
+        // disable decoder recovery.
         while (isActive && active) {
             length = runCatching { player.length.coerceAtLeast(0L) }.getOrDefault(0L)
             position = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(0L)
             playing = runCatching { player.isPlaying }.getOrDefault(false)
 
-            audioTracks = runCatching {
-                player.audioTracks
-                    ?.filter { it.id >= 0 }
-                    ?.map { it.id to it.name.orEmpty().ifBlank { "Audio" } }
-                    .orEmpty()
-            }.getOrDefault(emptyList())
-
-            subtitleTracks = runCatching {
-                player.spuTracks
-                    ?.filter { it.id >= 0 }
-                    ?.map { it.id to it.name.orEmpty().ifBlank { "Subtitle" } }
-                    .orEmpty()
-            }.getOrDefault(emptyList())
+            if (position >= 500L) {
+                playbackStarted = true
+            }
 
             if (length > 0L && position >= (length - 450L).coerceAtLeast(0L)) {
                 if (!completionHandled) {
@@ -210,8 +426,157 @@ internal fun NightAniyomiVlcPlayer(
         }
     }
 
-    LaunchedEffect(controlsVisible, playing, controlsLocked, menuOpen) {
-        if (controlsVisible && playing && !controlsLocked && !menuOpen) {
+    LaunchedEffect(
+        active,
+        player,
+        softwareDecode,
+        hardwareRetryGeneration,
+        userPaused,
+    ) {
+        if (!active || softwareDecode || userPaused) return@LaunchedEffect
+
+        val startedAt = SystemClock.elapsedRealtime()
+        var lastAdvanceAt = startedAt
+        var lastObservedPosition = position
+        var lastHeartbeatAt = startedAt
+
+        while (isActive && active && !softwareDecode && !userPaused) {
+            delay(500L)
+
+            val now = SystemClock.elapsedRealtime()
+            val currentPosition = position
+            val currentLength = length
+            val currentPlaying = playing
+
+            if (currentPosition > lastObservedPosition + 180L) {
+                lastObservedPosition = currentPosition
+                lastAdvanceAt = now
+            }
+
+            if (virtualVideoDevice && now - lastHeartbeatAt >= 2000L) {
+                Log.d(
+                    "NightVideo",
+                    "Watchdog generation=$hardwareRetryGeneration " +
+                        "position=${currentPosition}ms length=${currentLength}ms " +
+                        "playing=$currentPlaying retry=$hardwareRetryCount.",
+                )
+                lastHeartbeatAt = now
+            }
+
+            val beforeFirstFrame =
+                lastObservedPosition < 500L && now - startedAt >= 9000L
+            val stoppedAfterStarting =
+                lastObservedPosition >= 500L &&
+                    !currentPlaying &&
+                    now - lastAdvanceAt >= 1500L
+            val stoppedAdvancing =
+                lastObservedPosition >= 500L &&
+                    now - lastAdvanceAt >= 3000L
+
+            if (
+                currentLength > 0L &&
+                currentPosition < (currentLength - 1500L).coerceAtLeast(0L) &&
+                (beforeFirstFrame || stoppedAfterStarting || stoppedAdvancing)
+            ) {
+                fallbackResumePosition = currentPosition
+                if (virtualVideoDevice && hardwareRetryCount < 2) {
+                    hardwareRetryCount += 1
+                    Log.w(
+                        "NightVideo",
+                        "Virtual-device hardware playback stalled at ${currentPosition}ms; " +
+                            "recreating VLC hardware player (retry $hardwareRetryCount).",
+                    )
+                    hardwareRetryGeneration += 1
+                    return@LaunchedEffect
+                }
+
+                Log.w(
+                    "NightVideo",
+                    "Hardware playback stalled at ${currentPosition}ms; " +
+                        "recreating VLC with software decoding.",
+                )
+                softwareDecode = true
+                return@LaunchedEffect
+            }
+        }
+    }
+
+    LaunchedEffect(audioMenu, subtitleMenu, player) {
+        if (audioMenu) {
+            audioTracks = runCatching {
+                val metadata = player.nightParsedTrackMetadata(IMedia.Track.Type.Audio)
+                val selectable = player.audioTracks
+                    ?.filter { it.id >= 0 }
+                    .orEmpty()
+
+                Log.i(
+                    "NightVideo",
+                    "Audio track sources selectable=" +
+                        selectable.joinToString { track -> "${track.id}:${track.name}" } +
+                        " parsed=" +
+                        metadata.joinToString { track ->
+                            "${track.id}:${track.description}:${track.codec}:" +
+                                "${track.channels}ch@${track.rate}"
+                        },
+                )
+
+                if (selectable.isNotEmpty()) {
+                    selectable.mapIndexed { index, track ->
+                        val rich = metadata.firstOrNull { it.id == track.id }
+                            ?: metadata.getOrNull(index)
+                        track.id to nightAudioTrackLabel(track.name.orEmpty(), rich)
+                    }
+                } else {
+                    metadata.map { track ->
+                        track.id to nightAudioTrackLabel("", track)
+                    }
+                }
+            }.getOrDefault(emptyList())
+            Log.i(
+                "NightVideo",
+                "Audio menu tracks=" +
+                    audioTracks.joinToString { (id, name) -> "$id:$name" },
+            )
+        }
+        if (subtitleMenu) {
+            subtitleTracks = runCatching {
+                val metadata = player.nightParsedTrackMetadata(IMedia.Track.Type.Text)
+                val selectable = player.spuTracks
+                    ?.filter { it.id >= 0 }
+                    .orEmpty()
+
+                Log.i(
+                    "NightVideo",
+                    "Subtitle track sources selectable=" +
+                        selectable.joinToString { track -> "${track.id}:${track.name}" } +
+                        " parsed=" +
+                        metadata.joinToString { track ->
+                            "${track.id}:${track.description}:${track.codec}"
+                        },
+                )
+
+                if (selectable.isNotEmpty()) {
+                    selectable.mapIndexed { index, track ->
+                        val rich = metadata.firstOrNull { it.id == track.id }
+                            ?: metadata.getOrNull(index)
+                        track.id to nightSubtitleTrackLabel(track.name.orEmpty(), rich)
+                    }
+                } else {
+                    metadata.map { track ->
+                        track.id to nightSubtitleTrackLabel("", track)
+                    }
+                }
+            }.getOrDefault(emptyList())
+            Log.i(
+                "NightVideo",
+                "Subtitle menu tracks=" +
+                    subtitleTracks.joinToString { (id, name) -> "$id:$name" },
+            )
+        }
+    }
+
+    LaunchedEffect(controlsVisible, playing, controlsLocked, menuOpen, playbackStarted) {
+        if (!virtualVideoDevice && controlsVisible && playing && playbackStarted && !controlsLocked && !menuOpen) {
             delay(3200L)
             controlsVisible = false
         }
@@ -220,20 +585,52 @@ internal fun NightAniyomiVlcPlayer(
     Box(
         modifier = modifier
             .background(Color.Black)
-            .clickable {
-                controlsVisible = !controlsVisible
+            .semantics {
+                contentDescription =
+                    "Night video player: " + item.sender.ifBlank { "Video" }
             },
         contentAlignment = Alignment.Center,
     ) {
         AndroidView(
             factory = { viewContext ->
                 VLCVideoLayout(viewContext).also { layout ->
-                    player.attachViews(layout, null, true, false)
-                    player.setVideoScale(aspect.scale)
+                    layout.installNightVideoTapHandler {
+                        controlsVisible = !controlsVisible
+                    }
                 }
             },
-            update = {
-                runCatching { player.setVideoScale(aspect.scale) }
+            update = { layout ->
+                layout.installNightVideoTapHandler {
+                    controlsVisible = !controlsVisible
+                }
+                if (attachedPlayer !== player) {
+                    // Avoid starting VLC against a zero-sized or stale surface. The
+                    // same VLCVideoLayout stays mounted while the player/engine swaps.
+                    layout.post {
+                        if (attachedPlayer !== player) {
+                            runCatching { attachedPlayer?.detachViews() }
+                            val attached = runCatching {
+                                player.attachViews(layout, null, true, false)
+                            }.isSuccess
+                            if (attached) {
+                                attachedPlayer = player
+                                Log.i(
+                                    "NightVideo",
+                                    "Attached VLC surface " +
+                                        "(generation=$hardwareRetryGeneration, software=$softwareDecode).",
+                                )
+                                layout.installNightVideoTapHandler {
+                                    controlsVisible = !controlsVisible
+                                }
+                                runCatching { player.setVideoScale(aspect.scale) }
+                            } else {
+                                Log.e("NightVideo", "Could not attach VLC player to video surface.")
+                            }
+                        }
+                    }
+                } else {
+                    runCatching { player.setVideoScale(aspect.scale) }
+                }
             },
             modifier = Modifier.fillMaxSize(),
         )
@@ -415,8 +812,10 @@ internal fun NightAniyomiVlcPlayer(
                         IconButton(
                             onClick = {
                                 if (player.isPlaying) {
+                                    userPaused = true
                                     player.pause()
                                 } else {
+                                    userPaused = false
                                     player.play()
                                 }
                                 playing = player.isPlaying

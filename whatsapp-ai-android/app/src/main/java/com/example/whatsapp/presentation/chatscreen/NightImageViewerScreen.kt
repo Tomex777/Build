@@ -10,9 +10,14 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.SystemClock
+import android.util.Log
+import android.view.View
+import android.view.ViewGroup
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
@@ -77,6 +82,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import coil.compose.AsyncImage
 import java.io.File
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
@@ -337,6 +343,38 @@ private fun NightZoomableImage(
     }
 }
 
+private fun View.installNightEditorTapHandler(onTap: () -> Unit) {
+    isClickable = true
+    setOnClickListener { onTap() }
+    if (this is ViewGroup) {
+        for (index in 0 until childCount) {
+            getChildAt(index).installNightEditorTapHandler(onTap)
+        }
+    }
+}
+
+private fun isNightEditorVirtualVideoDevice(): Boolean {
+    val fingerprint = Build.FINGERPRINT.orEmpty()
+    val model = Build.MODEL.orEmpty()
+    val manufacturer = Build.MANUFACTURER.orEmpty()
+    val brand = Build.BRAND.orEmpty()
+    val device = Build.DEVICE.orEmpty()
+    val product = Build.PRODUCT.orEmpty()
+    val hardware = Build.HARDWARE.orEmpty()
+
+    return fingerprint.startsWith("generic", ignoreCase = true) ||
+        fingerprint.contains("emulator", ignoreCase = true) ||
+        model.contains("google_sdk", ignoreCase = true) ||
+        model.contains("Emulator", ignoreCase = true) ||
+        model.contains("Android SDK built for", ignoreCase = true) ||
+        manufacturer.contains("Genymotion", ignoreCase = true) ||
+        (brand.startsWith("generic", ignoreCase = true) &&
+            device.startsWith("generic", ignoreCase = true)) ||
+        product.contains("sdk_gphone", ignoreCase = true) ||
+        hardware.contains("goldfish", ignoreCase = true) ||
+        hardware.contains("ranchu", ignoreCase = true)
+}
+
 @Composable
 internal fun NightVlcVideoSurface(
     path: String,
@@ -346,28 +384,46 @@ internal fun NightVlcVideoSurface(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current.applicationContext
-    val libVlc = remember(path) {
-        LibVLC(
-            context,
-            arrayListOf(
-                "--audio-time-stretch",
-                "--network-caching=1500",
-            ),
-        )
+    val virtualVideoDevice = remember { isNightEditorVirtualVideoDevice() }
+    // Match the full-screen player: hardware first everywhere. In particular,
+    // do not force avcodec from frame zero on Goldfish/ranchu, because that
+    // path has already produced a permanent black 0:00 preview in CI.
+    var softwareDecode by remember(path) { mutableStateOf(false) }
+    var hardwareRetryGeneration by remember(path) { mutableStateOf(0) }
+    var hardwareRetryCount by remember(path) { mutableStateOf(0) }
+    var userPaused by remember(path) { mutableStateOf(false) }
+    var fallbackResumePosition by remember(path) { mutableLongStateOf(0L) }
+    val mediaUri = remember(path) {
+        when {
+            path.startsWith("http://") || path.startsWith("https://") ||
+                path.startsWith("content://") || path.startsWith("file://") -> Uri.parse(path)
+            else -> Uri.fromFile(File(path))
+        }
     }
-    val player = remember(path) { MediaPlayer(libVlc) }
+
+    val libVlc = remember(path, softwareDecode, hardwareRetryGeneration) {
+        val options = arrayListOf(
+            "--audio-time-stretch",
+            "--network-caching=1500",
+        )
+        LibVLC(context, options)
+    }
+    val player = remember(path, softwareDecode, hardwareRetryGeneration) { MediaPlayer(libVlc) }
+    var attachedPlayer by remember(path) {
+        mutableStateOf<MediaPlayer?>(null)
+    }
     var playing by remember(path) { mutableStateOf(false) }
     var length by remember(path) { mutableLongStateOf(0L) }
     var position by remember(path) { mutableLongStateOf(0L) }
 
     DisposableEffect(player, libVlc, path) {
-        val uri = when {
-            path.startsWith("http://") || path.startsWith("https://") ||
-                path.startsWith("content://") || path.startsWith("file://") -> Uri.parse(path)
-            else -> Uri.fromFile(File(path))
-        }
-        val media = Media(libVlc, uri).apply {
-            setHWDecoderEnabled(true, false)
+        val media = Media(libVlc, mediaUri).apply {
+            if (softwareDecode) {
+                addOption(":codec=avcodec")
+                addOption(":avcodec-hw=none")
+            } else {
+                setHWDecoderEnabled(true, false)
+            }
             addOption(":network-caching=1500")
         }
         player.media = media
@@ -381,34 +437,161 @@ internal fun NightVlcVideoSurface(
         }
     }
 
-    LaunchedEffect(active, player) {
-        if (active) {
-            player.play()
-            playing = true
-            while (true) {
-                length = player.length.coerceAtLeast(0L)
-                position = player.time.coerceAtLeast(0L)
-                playing = player.isPlaying
-                delay(250)
-            }
-        } else {
+    LaunchedEffect(active, player, softwareDecode, hardwareRetryGeneration) {
+        if (!active) {
             runCatching { player.pause() }
             playing = false
+            return@LaunchedEffect
+        }
+
+        var attachmentChecks = 0
+        while (
+            isActive &&
+            active &&
+            attachedPlayer !== player &&
+            attachmentChecks < 120
+        ) {
+            attachmentChecks += 1
+            delay(50L)
+        }
+        if (!active || !isActive) return@LaunchedEffect
+        if (attachedPlayer !== player) {
+            playing = false
+            Log.e(
+                "NightVideo",
+                "Timed out waiting for editor VLC surface attachment " +
+                    "(generation=$hardwareRetryGeneration, software=$softwareDecode).",
+            )
+            return@LaunchedEffect
+        }
+
+        Log.i(
+            "NightVideo",
+            "Starting editor VLC playback " +
+                "(generation=$hardwareRetryGeneration, software=$softwareDecode, " +
+                "resume=${fallbackResumePosition}ms).",
+        )
+        player.play()
+        if (fallbackResumePosition > 0L) {
+            runCatching { player.setTime(fallbackResumePosition) }
+        }
+        playing = true
+
+        while (isActive && active) {
+            length = runCatching { player.length.coerceAtLeast(0L) }.getOrDefault(0L)
+            position = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(0L)
+            playing = runCatching { player.isPlaying }.getOrDefault(false)
+            delay(250L)
+        }
+    }
+
+    LaunchedEffect(
+        active,
+        player,
+        softwareDecode,
+        hardwareRetryGeneration,
+        userPaused,
+    ) {
+        if (!active || softwareDecode || userPaused) return@LaunchedEffect
+
+        val startedAt = SystemClock.elapsedRealtime()
+        var lastAdvanceAt = startedAt
+        var lastObservedPosition = position
+        var lastHeartbeatAt = startedAt
+
+        while (isActive && active && !softwareDecode && !userPaused) {
+            delay(500L)
+
+            val now = SystemClock.elapsedRealtime()
+            val currentPosition = position
+            val currentLength = length
+            val currentPlaying = playing
+
+            if (currentPosition > lastObservedPosition + 180L) {
+                lastObservedPosition = currentPosition
+                lastAdvanceAt = now
+            }
+
+            if (virtualVideoDevice && now - lastHeartbeatAt >= 2000L) {
+                Log.d(
+                    "NightVideo",
+                    "Editor watchdog generation=$hardwareRetryGeneration " +
+                        "position=${currentPosition}ms length=${currentLength}ms " +
+                        "playing=$currentPlaying retry=$hardwareRetryCount.",
+                )
+                lastHeartbeatAt = now
+            }
+
+            val beforeFirstFrame =
+                lastObservedPosition < 500L && now - startedAt >= 9000L
+            val stoppedAfterStarting =
+                lastObservedPosition >= 500L &&
+                    !currentPlaying &&
+                    now - lastAdvanceAt >= 1500L
+            val stoppedAdvancing =
+                lastObservedPosition >= 500L &&
+                    now - lastAdvanceAt >= 3000L
+
+            if (
+                currentLength > 0L &&
+                currentPosition < (currentLength - 1500L).coerceAtLeast(0L) &&
+                (beforeFirstFrame || stoppedAfterStarting || stoppedAdvancing)
+            ) {
+                fallbackResumePosition = currentPosition
+                if (virtualVideoDevice && hardwareRetryCount < 2) {
+                    hardwareRetryCount += 1
+                    Log.w(
+                        "NightVideo",
+                        "Virtual-device editor playback stalled at ${currentPosition}ms; " +
+                            "recreating VLC hardware player (retry $hardwareRetryCount).",
+                    )
+                    hardwareRetryGeneration += 1
+                    return@LaunchedEffect
+                }
+
+                Log.w(
+                    "NightVideo",
+                    "Editor hardware playback stalled at ${currentPosition}ms; " +
+                        "recreating VLC with software decoding.",
+                )
+                softwareDecode = true
+                return@LaunchedEffect
+            }
         }
     }
 
     Box(
-        modifier = modifier
-            .background(Color.Black)
-            .pointerInput(path) {
-                detectTapGestures(onTap = { onToggleControls() })
-            },
+        modifier = modifier.background(Color.Black),
         contentAlignment = Alignment.Center,
     ) {
         AndroidView(
             factory = { ctx ->
                 VLCVideoLayout(ctx).also { layout ->
-                    player.attachViews(layout, null, false, false)
+                    layout.installNightEditorTapHandler(onToggleControls)
+                }
+            },
+            update = { layout ->
+                layout.installNightEditorTapHandler(onToggleControls)
+                if (attachedPlayer !== player) {
+                    layout.post {
+                        if (attachedPlayer !== player) {
+                            runCatching { attachedPlayer?.detachViews() }
+                            val attached = runCatching {
+                                player.attachViews(layout, null, false, false)
+                            }.isSuccess
+                            if (attached) {
+                                attachedPlayer = player
+                                Log.i(
+                                    "NightVideo",
+                                    "Attached editor VLC surface " +
+                                        "(generation=$hardwareRetryGeneration, software=$softwareDecode).",
+                                )
+                                layout.installNightEditorTapHandler(onToggleControls)
+                            } else {
+                                Log.e("NightVideo", "Could not attach editor VLC player to video surface.")
+                            }
+                        }
+                    }
                 }
             },
             modifier = Modifier.fillMaxSize(),
@@ -418,9 +601,11 @@ internal fun NightVlcVideoSurface(
             IconButton(
                 onClick = {
                     if (player.isPlaying) {
+                        userPaused = true
                         player.pause()
                         playing = false
                     } else {
+                        userPaused = false
                         player.play()
                         playing = true
                     }
