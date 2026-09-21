@@ -35,6 +35,7 @@ class NightLibraryStore private constructor(
         text: String,
         markdown: Boolean = true,
         sourceChatId: String? = null,
+        sourceMessageId: String? = null,
     ): Result<NightLibraryItemEntity> = withContext(Dispatchers.IO) {
         runCatching {
             require(text.isNotBlank()) { "text is required." }
@@ -57,6 +58,7 @@ class NightLibraryStore private constructor(
                 localPath = target.absolutePath,
                 createdAt = System.currentTimeMillis(),
                 sourceChatId = sourceChatId,
+                sourceMessageId = sourceMessageId,
             ).also { repository.addLibraryItem(it) }
         }
     }

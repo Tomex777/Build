@@ -137,16 +137,36 @@ class NightAgentToolExecutor private constructor(
             "format must be markdown or text."
         }
 
+        val messageId = UUID.randomUUID().toString()
         val item = libraryStore.saveText(
             name = name,
             text = text,
             markdown = format == "markdown",
             sourceChatId = chatId,
+            sourceMessageId = messageId,
         ).getOrThrow()
+
+        val message = NightMessageEntity(
+            id = messageId,
+            chatId = chatId,
+            role = "assistant",
+            type = "file",
+            text = item.name,
+            createdAt = System.currentTimeMillis(),
+            libraryFileId = item.id,
+            payloadJson = JSONObject()
+                .put("localPath", item.localPath)
+                .put("mimeType", item.mimeType)
+                .put("sizeBytes", item.sizeBytes)
+                .put("displayName", item.name)
+                .toString(),
+        )
+        repository.appendMessage(message)
 
         return JSONObject()
             .put("ok", true)
-            .put("id", item.id)
+            .put("message_id", message.id)
+            .put("library_id", item.id)
             .put("name", item.name)
             .put("mime_type", item.mimeType)
             .put("size_bytes", item.sizeBytes)

@@ -10,9 +10,49 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.json.JSONObject
 
 @RunWith(AndroidJUnit4::class)
 class NightLibraryIntegrationInstrumentedTest {
+
+    @Test
+    fun saveLibraryTextToolCreatesChatFileMessage() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val repository = NightRepository.get(context)
+        val chat = repository.createChat("Library tool bridge")
+        val marker = "tool-library-" + UUID.randomUUID()
+
+        val result = JSONObject(
+            NightAgentToolExecutor.get(context).execute(
+                chatId = chat.id,
+                invocation = NightToolInvocation(
+                    id = "save-library-test",
+                    name = "save_library_text",
+                    argumentsJson = JSONObject()
+                        .put("name", "Tool note " + marker)
+                        .put("text", "Saved by Night tool: " + marker)
+                        .put("format", "markdown")
+                        .toString(),
+                ),
+            )
+        )
+
+        assertTrue(result.getBoolean("ok"))
+        val messageId = result.getString("message_id")
+        val libraryId = result.getString("library_id")
+
+        val message = repository.getMessages(chat.id)
+            .first { it.id == messageId }
+        assertEquals("assistant", message.role)
+        assertEquals("file", message.type)
+        assertEquals(libraryId, message.libraryFileId)
+
+        val extracted = NightFileContextService.get(context)
+            .read(id = libraryId)
+            .getOrThrow()
+        assertTrue(extracted.text.contains(marker))
+    }
+
     @Test
     fun canonicalLibraryIsSharedByUiStorageAndAiFileTools() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
