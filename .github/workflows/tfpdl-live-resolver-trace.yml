@@ -1,0 +1,159 @@
+name: TFPDL live resolver trace
+
+on:
+  push:
+    paths:
+      - '.github/workflows/tfpdl-live-resolver-trace.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+
+      - name: Trace one fresh TFPDL episode
+        shell: bash
+        run: |
+          cat > trace.cjs <<'JS'
+          const { chromium } = require('playwright');
+          const fs = require('fs');
+
+          const log = [];
+          const push = (type, data={}) => {
+            const x = {t:new Date().toISOString(), type, ...data};
+            log.push(x);
+            console.log(JSON.stringify(x));
+          };
+
+          (async()=>{
+            const browser = await chromium.launch({headless:true});
+            const context = await browser.newContext({
+              userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
+              viewport:{width:412,height:915},
+              locale:'en-US'
+            });
+
+            const api = await context.request.get('https://tfpdl.com/wp-json/wp/v2/posts?search=Farming%20Life%20in%20Another%20World&per_page=5&_fields=id,link,title,content', {timeout:30000});
+            push('api', {status:api.status(), url:api.url()});
+            const posts = await api.json();
+            let picked = null;
+            let wrapper = null;
+            for (const p of posts) {
+              const html = p?.content?.rendered || '';
+              const m = html.match(/href=["']([^"']+\/tfpdl\?[^"']+)["']/i);
+              if (m) { picked=p; wrapper=m[1].replaceAll('&amp;','&'); break; }
+            }
+            if (!wrapper) throw new Error('No /tfpdl? wrapper found in current search results');
+            push('picked', {id:picked.id,title:picked.title?.rendered,post:picked.link,wrapper});
+
+            const page = await context.newPage();
+            page.setDefaultTimeout(12000);
+
+            page.on('request', req => {
+              const rt=req.resourceType();
+              if (['document','xhr','fetch','script'].includes(rt)) push('request',{method:req.method(),rt,url:req.url(),postData:req.postData()||null});
+            });
+            page.on('response', async res => {
+              const rt=res.request().resourceType();
+              if (['document','xhr','fetch','script'].includes(rt)) {
+                const h=await res.allHeaders().catch(()=>({}));
+                push('response',{status:res.status(),rt,url:res.url(),location:h.location||null,contentType:h['content-type']||null});
+              }
+            });
+            page.on('framenavigated', f => { if(f===page.mainFrame()) push('nav',{url:f.url()}); });
+            page.on('console', m=>push('console',{level:m.type(),text:m.text().slice(0,1000)}));
+            page.on('pageerror', e=>push('pageerror',{message:e.message}));
+
+            await page.goto(picked.link,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>push('post_goto_error',{message:e.message}));
+            await page.waitForTimeout(1500);
+
+            await page.goto(wrapper,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>push('wrapper_goto_error',{message:e.message}));
+
+            async function snap(label){
+              const text=await page.locator('body').innerText().catch(()=>'');
+              const forms=await page.locator('form').evaluateAll(fs=>fs.map(f=>({
+                action:f.action,method:(f.method||'get').toLowerCase(),
+                inputs:[...f.querySelectorAll('input,button')].map(x=>({tag:x.tagName,type:x.getAttribute('type'),name:x.getAttribute('name'),value:x.getAttribute('value'),text:(x.textContent||'').trim(),placeholder:x.getAttribute('placeholder')}))
+              }))).catch(()=>[]);
+              const links=await page.locator('a').evaluateAll(as=>as.map(a=>({text:(a.textContent||'').trim(),href:a.href})).filter(x=>x.href)).catch(()=>[]);
+              push('snapshot',{label,url:page.url(),title:await page.title().catch(()=>''),text:text.slice(0,1500),forms,links:links.slice(0,80)});
+              return {text,forms,links};
+            }
+
+            let s=await snap('initial');
+            for (let i=0;i<5;i++){
+              await page.waitForTimeout(i===0?20000:10000);
+              s=await snap('wait-'+i);
+              const challenge=/(captcha|verification|enter.*number|type.*number|security code|human|turnstile)/i.test(s.text) ||
+                s.forms.some(f=>f.inputs.some(x=>['text','number','tel'].includes((x.type||'text').toLowerCase())));
+              if(challenge){ push('human_boundary',{url:page.url()}); break; }
+
+              const clickable = page.getByRole('button',{name:/continue|get link|proceed|download|next/i}).or(
+                page.getByRole('link',{name:/continue|get link|proceed|download|next/i})
+              );
+              const n=await clickable.count().catch(()=>0);
+              let clicked=false;
+              for(let j=0;j<Math.min(n,8);j++){
+                const el=clickable.nth(j);
+                if(await el.isVisible().catch(()=>false)){
+                  const txt=(await el.innerText().catch(()=>'')).trim();
+                  const href=await el.getAttribute('href').catch(()=>null);
+                  push('click_candidate',{txt,href});
+                  await el.click({timeout:10000}).catch(e=>push('click_error',{message:e.message}));
+                  clicked=true;
+                  await page.waitForTimeout(5000);
+                  await snap('after-click-'+i);
+                  break;
+                }
+              }
+              if(!clicked) push('no_click',{url:page.url()});
+            }
+
+            const summary = {
+              pickedPost:{id:picked.id,title:picked.title?.rendered,link:picked.link},
+              wrapper,
+              finalUrl:page.url(),
+              domains:[...new Set(log.flatMap(x=>{try{return x.url?[new URL(x.url).hostname]:[]}catch{return[]}}))],
+              requests:log.filter(x=>x.type==='request' && ['xhr','fetch'].includes(x.rt)).map(x=>({method:x.method,url:x.url,postData:x.postData})),
+              redirects:log.filter(x=>x.type==='response' && x.location).map(x=>({status:x.status,url:x.url,location:x.location})),
+              humanBoundary:log.some(x=>x.type==='human_boundary')
+            };
+            fs.mkdirSync('diagnostics',{recursive:true});
+            fs.writeFileSync('diagnostics/live-tfpdl-trace.json',JSON.stringify(log,null,2));
+            fs.writeFileSync('diagnostics/live-tfpdl-summary.json',JSON.stringify(summary,null,2));
+            console.log('SUMMARY '+JSON.stringify(summary));
+            await browser.close();
+          })().catch(e=>{
+            fs.mkdirSync('diagnostics',{recursive:true});
+            fs.writeFileSync('diagnostics/live-tfpdl-error.txt',String(e.stack||e));
+            console.error(e);
+            process.exitCode=1;
+          });
+          JS
+          node trace.cjs
+
+      - name: Commit trace
+        if: always()
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/live-tfpdl-* 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git commit -m "record live TFPDL resolver trace"
+            git push
+          fi
