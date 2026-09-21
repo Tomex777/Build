@@ -4,7 +4,7 @@
     {
       "name": "guest-account",
       "status": 200,
-      "body": "{\"status\":\"ok\",\"data\":{\"id\":\"3dea3690-724e-45e0-93aa-38aeb75011f6\",\"rootFolder\":\"545acb3d-7ca6-42a8-bf30-24e0e7847b75\",\"tier\":\"guest\",\"token\":\"7bBTplodfFR0eIot58cSdMM3WyJrVstP\"}}"
+      "body": "{\"status\":\"ok\",\"data\":{\"id\":\"28c239da-0f58-4bd1-b904-767bf2222463\",\"rootFolder\":\"196d7b0d-627c-4dd8-a49a-08efa1ab94fb\",\"tier\":\"guest\",\"token\":\"VBfhZXBWCtjl4UjDOJaWxvEHRugG5C6K\"}}"
     },
     {
       "name": "config",
@@ -13,15 +13,17 @@
     },
     {
       "name": "contents-dynamic-current",
+      "attempt": 1,
       "status": 401,
-      "url": "https://api.gofile.io/contents/VRiTEpLC?wt=aa0e05e30862c4087fb2a24e674fdf32be6c957a8250a0c16853d68ef5c036d8&cache=true&sortField=createTime&sortDirection=1",
+      "url": "https://api.gofile.io/contents/VRiTEpLC?wt=d4e6d970f2270cb42839e4c46a7c9139b3cd2a6a0da0e6becda9a2d2a842d7e7&contentFilter=&page=1&pageSize=1000&sortField=name&sortDirection=1",
       "body": "{\"status\":\"error-notPremium\",\"data\":{}}"
     },
     {
       "name": "contents-dynamic-previous",
-      "status": 429,
-      "url": "https://api.gofile.io/contents/VRiTEpLC?wt=b4a35d3da78e530796dd637d5fac1b1fbf44d7a31927926e046e81b52fbce9ce&cache=true&sortField=createTime&sortDirection=1",
-      "body": "{\"status\":\"error-rateLimit\",\"data\":{}}"
+      "attempt": 1,
+      "status": 401,
+      "url": "https://api.gofile.io/contents/VRiTEpLC?wt=f465a9e94156d4f0fbd5ec078d6bd0fd5e810322d6e5e6e9169ba66ff3d2f4db&contentFilter=&page=1&pageSize=1000&sortField=name&sortDirection=1",
+      "body": "{\"status\":\"error-notPremium\",\"data\":{}}"
     }
   ],
   "guestTokenPresent": true,
