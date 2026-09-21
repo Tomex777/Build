@@ -499,6 +499,13 @@ class HomiraLiveRepository {
             .firstOrNull()
     }
 
+    suspend fun listRecentCallSessions(): List<LiveCallSession> {
+        if (currentUserId() == null) return emptyList()
+        return client.postgrest
+            .rpc("recent_homira_call_sessions")
+            .decodeList<LiveCallSession>()
+    }
+
     suspend fun loadProfileById(userId: String): LiveProfile? =
         runCatching {
             client.from("profiles")
