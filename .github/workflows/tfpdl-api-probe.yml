@@ -1,0 +1,60 @@
+name: TFPDL API probe
+
+on:
+  push:
+    paths:
+      - ".github/workflows/tfpdl-api-probe.yml"
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe TFPDL API endpoints
+        shell: bash
+        run: |
+          set +e
+          urls=(
+            "https://tfpdl.com/wp-json/"
+            "https://tfpdl.com/wp-json/wp/v2/posts?per_page=2"
+            "https://tfpdl.com/wp-json/wp/v2/search?search=naruto&per_page=2"
+            "https://tfpdl.com/?rest_route=/wp/v2/posts&per_page=2"
+          )
+
+          for url in "${urls[@]}"; do
+            echo
+            echo "============================================================"
+            echo "URL: $url"
+            headers="$(mktemp)"
+            body="$(mktemp)"
+            code=$(curl -L --max-time 30 --connect-timeout 10               -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"               -D "$headers" -o "$body" -sS -w "%{http_code}" "$url")
+            rc=$?
+            echo "curl_exit=$rc"
+            echo "http_status=$code"
+            echo "content_type=$(grep -i '^content-type:' "$headers" | tail -1 | tr -d '\r' || true)"
+            echo "server=$(grep -i '^server:' "$headers" | tail -1 | tr -d '\r' || true)"
+            echo "body_bytes=$(wc -c < "$body" | tr -d ' ')"
+            python3 - "$body" <<'PY'
+import json, sys
+p=sys.argv[1]
+data=open(p,'rb').read()
+try:
+    text=data.decode('utf-8','replace')
+except Exception:
+    text=''
+try:
+    obj=json.loads(text)
+    print("json_valid=true")
+    if isinstance(obj, dict):
+        print("json_keys=" + ",".join(list(obj.keys())[:20]))
+    elif isinstance(obj, list):
+        print("json_list_length=" + str(len(obj)))
+        if obj and isinstance(obj[0], dict):
+            print("first_item_keys=" + ",".join(list(obj[0].keys())[:20]))
+except Exception as e:
+    print("json_valid=false")
+    print("sample=" + " ".join(text[:700].split()))
+PY
+            rm -f "$headers" "$body"
+          done
