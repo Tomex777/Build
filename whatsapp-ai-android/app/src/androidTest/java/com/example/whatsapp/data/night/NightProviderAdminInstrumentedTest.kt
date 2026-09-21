@@ -388,4 +388,55 @@ class NightProviderAdminInstrumentedTest {
         manager.deleteProfile(profile)
     }
 
+
+    @Test
+    fun pinnedLiveVoiceRouteUsesSelectedAzureModel() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val repository = NightRepository.get(context)
+        val manager = NightProviderManager.get(context)
+        val suffix = UUID.randomUUID().toString()
+        val profile = manager.addProfile(
+            providerType = "azure",
+            serviceKind = "chat",
+            displayName = "Live Voice route " + suffix,
+            apiKey = "live-voice-key-" + suffix,
+            endpoint = "https://live-voice-" + suffix + ".openai.azure.com",
+            region = null,
+            makeDefault = false,
+        )
+        manager.addModel(
+            profile = profile,
+            modelId = "live-default-" + suffix,
+            displayName = "Live default",
+            deploymentName = "live-default-deployment-" + suffix,
+            capabilities = setOf("live_voice"),
+            makeDefault = true,
+        )
+        val pinned = manager.addModel(
+            profile = profile,
+            modelId = "live-pinned-" + suffix,
+            displayName = "Live pinned",
+            deploymentName = "live-pinned-deployment-" + suffix,
+            capabilities = setOf("live_voice"),
+            makeDefault = false,
+        )
+        val chat = repository.createChat("Pinned Live Voice route test")
+        repository.setCapabilityRoute(
+            NightCapabilityRouteEntity(
+                id = "live_voice",
+                capability = "live_voice",
+                providerProfileId = profile.id,
+                modelId = pinned.id,
+                useSelectedChatModelFirst = false,
+                updatedAt = System.currentTimeMillis(),
+            )
+        )
+
+        val resolved = NightCapabilityRouter(repository).resolveCapability(chat.id, "live_voice")
+
+        assertEquals(profile.id, resolved?.profile?.id)
+        assertEquals(pinned.id, resolved?.model?.id)
+        manager.deleteProfile(profile)
+    }
+
 }
