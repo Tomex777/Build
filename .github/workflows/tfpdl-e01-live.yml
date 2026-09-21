@@ -1,0 +1,238 @@
+name: TFPDL E01 live trace
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tfpdl-e01-live.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Trace one real E01
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          cat > /tmp/tfpdl-e01.mjs <<'JS'
+          import { chromium, request as pwrequest } from 'playwright';
+          import fs from 'node:fs';
+
+          const result = {
+            startedAt: new Date().toISOString(),
+            searchEndpoint: null,
+            postId: null,
+            postLink: null,
+            title: null,
+            e01Wrapper: null,
+            network: [],
+            pageStates: [],
+            finalUrl: null,
+            notes: []
+          };
+
+          const api = await pwrequest.newContext({
+            userAgent: 'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
+          });
+
+          const q = encodeURIComponent('Farming Life In Another World');
+          const searchUrl = `https://tfpdl.com/wp-json/wp/v2/posts?search=${q}&per_page=10&_fields=id,link,title,content,date,slug`;
+          result.searchEndpoint = searchUrl;
+          const searchRes = await api.get(searchUrl, { timeout: 30000, failOnStatusCode: false });
+          const text = await searchRes.text();
+          if (searchRes.status() !== 200) {
+            result.notes.push('REST search failed: ' + searchRes.status());
+            fs.writeFileSync('diagnostics/tfpdl-e01-live-result.json', JSON.stringify(result, null, 2));
+            process.exit(0);
+          }
+
+          let posts;
+          try { posts = JSON.parse(text); } catch {
+            result.notes.push('REST search did not return JSON');
+            fs.writeFileSync('diagnostics/tfpdl-e01-live-result.json', JSON.stringify(result, null, 2));
+            process.exit(0);
+          }
+
+          const post = posts.find(p => /Farming Life In Another World S02/i.test(p?.title?.rendered || '')) || posts[0];
+          if (!post) {
+            result.notes.push('No post found');
+            fs.writeFileSync('diagnostics/tfpdl-e01-live-result.json', JSON.stringify(result, null, 2));
+            process.exit(0);
+          }
+
+          result.postId = post.id;
+          result.postLink = post.link;
+          result.title = post?.title?.rendered || null;
+
+          const html = post?.content?.rendered || '';
+          const anchorRe = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+          const anchors = [];
+          for (const m of html.matchAll(anchorRe)) {
+            anchors.push({
+              href: m[1].replaceAll('&amp;', '&'),
+              text: m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+            });
+          }
+
+          let e01 = anchors.find(a => /E0?1\b/i.test(a.text) && /\/tfpdl\?/i.test(a.href));
+          if (!e01) e01 = anchors.find(a => /\/tfpdl\?/i.test(a.href));
+          result.e01Wrapper = e01?.href || null;
+
+          if (!result.e01Wrapper) {
+            result.notes.push('Could not find E01 wrapper in content.rendered');
+            result.anchors = anchors.slice(0, 40);
+            fs.writeFileSync('diagnostics/tfpdl-e01-live-result.json', JSON.stringify(result, null, 2));
+            process.exit(0);
+          }
+
+          const browser = await chromium.launch({ headless: true });
+          const context = await browser.newContext({
+            userAgent: 'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
+            viewport: { width: 412, height: 915 },
+            locale: 'en-US'
+          });
+          const page = await context.newPage();
+          page.setDefaultTimeout(10000);
+
+          function keepUrl(url) {
+            try {
+              const h = new URL(url).hostname;
+              return /tfpdl|tfp\.re|deinform|safetxt/i.test(h);
+            } catch { return false; }
+          }
+
+          page.on('request', req => {
+            if (['document','xhr','fetch','script'].includes(req.resourceType()) && keepUrl(req.url())) {
+              result.network.push({
+                t: 'request',
+                at: Date.now(),
+                method: req.method(),
+                resourceType: req.resourceType(),
+                url: req.url(),
+                postData: req.postData() || null
+              });
+            }
+          });
+          page.on('response', async res => {
+            const req = res.request();
+            if (['document','xhr','fetch','script'].includes(req.resourceType()) && keepUrl(res.url())) {
+              const h = await res.allHeaders().catch(() => ({}));
+              result.network.push({
+                t: 'response',
+                at: Date.now(),
+                status: res.status(),
+                resourceType: req.resourceType(),
+                url: res.url(),
+                location: h.location || null,
+                contentType: h['content-type'] || null
+              });
+            }
+          });
+          page.on('framenavigated', frame => {
+            if (frame === page.mainFrame()) {
+              result.network.push({ t: 'navigation', at: Date.now(), url: frame.url() });
+            }
+          });
+
+          async function snapshot(label) {
+            const bodyText = await page.locator('body').innerText().catch(() => '');
+            const forms = await page.locator('form').evaluateAll(forms => forms.map(f => ({
+              action: f.action,
+              method: (f.method || 'get').toLowerCase(),
+              inputs: Array.from(f.querySelectorAll('input,button')).map(el => ({
+                tag: el.tagName,
+                type: el.getAttribute('type'),
+                name: el.getAttribute('name'),
+                value: el.getAttribute('value'),
+                placeholder: el.getAttribute('placeholder'),
+                text: (el.textContent || '').trim()
+              }))
+            }))).catch(() => []);
+            const buttons = await page.locator('a,button,input[type=submit]').evaluateAll(els => els.map(el => ({
+              text: ((el.textContent || el.getAttribute('value') || '') + '').trim(),
+              href: el.href || null,
+              type: el.getAttribute('type')
+            })).filter(x => x.text || x.href)).catch(() => []);
+            const scripts = await page.locator('script[src]').evaluateAll(els => els.map(s => s.src)).catch(() => []);
+            result.pageStates.push({
+              label,
+              url: page.url(),
+              title: await page.title().catch(() => ''),
+              textPreview: bodyText.slice(0, 2500),
+              forms,
+              buttons: buttons.slice(0, 60),
+              scripts: scripts.filter(Boolean).slice(0, 80)
+            });
+            return { bodyText, forms, buttons };
+          }
+
+          await page.goto(result.e01Wrapper, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(e => result.notes.push('wrapper goto: ' + e.message));
+          await page.waitForTimeout(4000);
+          await snapshot('after-wrapper');
+
+          for (let i = 1; i <= 4; i++) {
+            await page.waitForTimeout(i === 1 ? 12000 : 8000);
+            const state = await snapshot('wait-' + i);
+            const challenge = /(captcha|verification|verify|enter.{0,20}(number|code)|type.{0,20}(number|code)|security code)/i.test(state.bodyText);
+            const textInput = state.forms.some(f => f.inputs.some(x => ['text','number','tel'].includes((x.type || '').toLowerCase())));
+            if (challenge || textInput) {
+              result.notes.push('Human verification boundary detected');
+              break;
+            }
+
+            const candidates = page.locator('a,button,input[type=submit]');
+            const count = await candidates.count().catch(() => 0);
+            let clicked = false;
+            for (let j = 0; j < Math.min(count, 80); j++) {
+              const el = candidates.nth(j);
+              if (!(await el.isVisible().catch(() => false))) continue;
+              const txt = ((await el.innerText().catch(() => '')) || (await el.getAttribute('value').catch(() => '')) || '').trim();
+              if (/^(continue|proceed|get link|download|click here|next)$/i.test(txt)) {
+                const href = await el.getAttribute('href').catch(() => null);
+                result.notes.push('Clicked ordinary continue control: ' + txt + (href ? ' -> ' + href : ''));
+                await el.click({ timeout: 8000 }).catch(e => result.notes.push('click failed: ' + e.message));
+                clicked = true;
+                await page.waitForTimeout(5000);
+                await snapshot('after-click-' + i);
+                break;
+              }
+            }
+            if (!clicked) result.notes.push('No safe ordinary continue control found at wait-' + i);
+          }
+
+          result.finalUrl = page.url();
+          result.finishedAt = new Date().toISOString();
+          fs.writeFileSync('diagnostics/tfpdl-e01-live-result.json', JSON.stringify(result, null, 2));
+          await browser.close();
+          await api.dispose();
+          JS
+          node /tmp/tfpdl-e01.mjs
+
+      - name: Commit trace result
+        if: always()
+        shell: bash
+        run: |
+          test -f diagnostics/tfpdl-e01-live-result.json || echo '{"error":"probe did not produce result"}' > diagnostics/tfpdl-e01-live-result.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/tfpdl-e01-live-result.json
+          if ! git diff --cached --quiet; then
+            git commit -m "record TFPDL E01 live trace"
+            git push
+          fi
