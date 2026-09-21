@@ -1,0 +1,202 @@
+name: TFPDL matrix validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tfpdl-matrix-validation.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - key: movie
+            search: "Heartstopper Forever 2026 720p"
+          - key: series_bundle
+            search: "Farming Life In Another World S02 DUAL 720p"
+          - key: episode
+            search: "The Chi S07E11 480p"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+
+      - name: Validate resolver shape
+        env:
+          SAMPLE_KEY: ${{ matrix.key }}
+          SEARCH_TERM: ${{ matrix.search }}
+        shell: bash
+        run: |
+          mkdir -p diagnostics/tfpdl-matrix
+          cat > /tmp/validate.cjs <<'JS'
+          const { chromium, request } = require('playwright');
+          const fs=require('fs');
+          const key=process.env.SAMPLE_KEY;
+          const term=process.env.SEARCH_TERM;
+          const out={key,term,startedAt:new Date().toISOString(),events:[],stages:{},mirrors:[]};
+          const save=()=>fs.writeFileSync('diagnostics/tfpdl-matrix/'+key+'.json',JSON.stringify(out,null,2));
+          const push=(type,data={})=>{out.events.push({t:new Date().toISOString(),type,...data});save();};
+
+          function anchors(html){
+            const a=[];
+            for(const m of html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)){
+              a.push({href:m[1].replaceAll('&amp;','&'),text:m[2].replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim()});
+            }
+            return a;
+          }
+
+          function host(u){try{return new URL(u).hostname}catch{return null}}
+
+          (async()=>{
+            let browser,api;
+            try{
+              api=await request.newContext({userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'});
+              const search='https://tfpdl.com/wp-json/wp/v2/posts?search='+encodeURIComponent(term)+'&per_page=8&_fields=id,link,title,content,date,slug';
+              const sr=await api.get(search,{timeout:30000,failOnStatusCode:false});
+              out.stages.search={url:search,status:sr.status()};
+              const posts=sr.ok()?await sr.json():[];
+              const p=posts[0];
+              if(!p) throw new Error('No post found');
+              out.post={id:p.id,link:p.link,title:p.title?.rendered||'',date:p.date,slug:p.slug};
+              const aa=anchors(p.content?.rendered||'');
+              const wraps=aa.filter(x=>/\/tfpdl\?/i.test(x.href));
+              out.downloadAnchors=wraps.slice(0,40);
+              out.linkPassword=/Link Password\s*:?\s*tfpdl/i.test((p.content?.rendered||'').replace(/<[^>]+>/g,' '))?'tfpdl':null;
+              if(!wraps.length) throw new Error('No /tfpdl? wrapper in post content');
+              const wrapper=wraps[0].href;
+              out.wrapper=wrapper;
+              out.stages.wrapper={host:host(wrapper),queryKeys:[...new URL(wrapper).searchParams.keys()]};
+
+              browser=await chromium.launch({headless:true});
+              const context=await browser.newContext({
+                userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
+                viewport:{width:412,height:915},locale:'en-US'
+              });
+              const page=await context.newPage();
+              page.setDefaultTimeout(12000);
+
+              context.on('response',async r=>{
+                const u=r.url();
+                if(/tfpdl\.com|tfp\.re|deinform\.com|safetxt\.net/i.test(u)){
+                  const h=await r.allHeaders().catch(()=>({}));
+                  push('response',{status:r.status(),rt:r.request().resourceType(),url:u,location:h.location||null,contentType:h['content-type']||null});
+                  if(/^https:\/\/safetxt\.net\//i.test(u)&&r.request().resourceType()==='document'&&!out.safetxtHtml){
+                    try{out.safetxtHtml=(await r.text()).slice(0,220000);save();}catch{}
+                  }
+                }
+              });
+              context.on('page',p2=>{
+                if(p2===page)return;
+                p2.on('framenavigated',f=>{if(f===p2.mainFrame())push('popup_nav',{url:f.url()});});
+              });
+
+              await page.goto(p.link,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>push('post_goto_error',{message:e.message}));
+              await page.waitForTimeout(1200);
+              await page.goto(wrapper,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>push('wrapper_goto_error',{message:e.message}));
+              await page.waitForTimeout(12000);
+
+              out.stages.afterWrapper={url:page.url(),host:host(page.url()),title:await page.title().catch(()=>''),text:(await page.locator('body').innerText().catch(()=>'' )).slice(0,1800)};
+              save();
+
+              if(/deinform\.com/i.test(page.url())){
+                out.stages.deinform={reached:true,url:page.url()};
+              } else {
+                const de=(out.events||[]).find(e=>e.url&&/deinform\.com/i.test(e.url));
+                out.stages.deinform={reached:!!de,url:de?.url||null};
+              }
+
+              // If we landed on Deinform, follow only ordinary visible controls; no CAPTCHA solving.
+              if(/deinform\.com/i.test(page.url())){
+                for(const selector of ['#soralink-human-verif-main','#generater','#showlink']){
+                  for(let i=0;i<20;i++){
+                    const el=page.locator(selector);
+                    if(await el.count().catch(()=>0) && await el.isVisible().catch(()=>false)){
+                      await el.click({timeout:8000}).catch(()=>{});
+                      push('clicked',{selector,url:page.url()});
+                      await page.waitForTimeout(selector==='#generater'?12000:4500);
+                      break;
+                    }
+                    await page.waitForTimeout(1000);
+                  }
+                }
+                await page.waitForTimeout(5000);
+              }
+
+              // Inspect any SafeTxt page that appeared and test only TFPDL's published password.
+              const pages=context.pages();
+              const sp=pages.find(x=>/^https:\/\/safetxt\.net\//i.test(x.url()));
+              if(sp){
+                out.stages.safetxt={reached:true,url:sp.url()};
+                await sp.waitForLoadState('domcontentloaded',{timeout:20000}).catch(()=>{});
+                await sp.waitForTimeout(800);
+                const unlock=await sp.evaluate(async()=>{
+                  const token=document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')||'';
+                  const scripts=[...document.scripts].map(s=>s.textContent||'').join('\n');
+                  const slug=(scripts.match(/slug:\s*['"]([^'"]+)['"]/)||[])[1]||'';
+                  if(!token||!slug)return {attempted:false,token:!!token,slug};
+                  const body=new URLSearchParams({slug,password:'tfpdl',_token:token});
+                  const r=await fetch('https://safetxt.net/get-paste',{
+                    method:'POST',
+                    credentials:'include',
+                    headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8','X-Requested-With':'XMLHttpRequest'},
+                    body:body.toString()
+                  });
+                  const raw=await r.text();
+                  let j=null,decoded=null;
+                  try{
+                    j=JSON.parse(raw);
+                    if(j?.status==='success'&&j?.content){
+                      const b=atob(j.content);
+                      try{decoded=decodeURIComponent(b.replace(/\+/g,'%20'));}catch{decoded=b;}
+                    }
+                  }catch{}
+                  return {attempted:true,httpStatus:r.status,status:j?.status||null,message:j?.message||null,slug,decoded};
+                }).catch(e=>({attempted:false,error:e.message}));
+                out.safetxtUnlock=unlock;
+                if(unlock?.decoded){
+                  out.mirrors=anchors(unlock.decoded).map(x=>({host:host(x.href),url:x.href,text:x.text}));
+                }
+              } else out.stages.safetxt={reached:false};
+
+              // Record numeric challenge indicators if present anywhere in current page.
+              const txt=(await page.locator('body').innerText().catch(()=>'' ));
+              const visInputs=await page.locator('input[type="number"]:visible,input[type="text"]:visible,input[type="tel"]:visible').evaluateAll(xs=>xs.map(x=>({type:x.type,id:x.id||null,name:x.name||null,placeholder:x.placeholder||null}))).catch(()=>[]);
+              out.numericChallenge={
+                textMatch:/(enter|type).{0,30}(number|code)|verification code|security code/i.test(txt),
+                visibleInputs:visInputs
+              };
+
+              out.finishedAt=new Date().toISOString();
+            }catch(e){
+              out.error={message:e.message,stack:e.stack};
+            }finally{
+              try{if(browser)await browser.close();}catch{}
+              try{if(api)await api.dispose();}catch{}
+              save();
+            }
+          })();
+          JS
+          node /tmp/validate.cjs
+
+      - name: Commit matrix result
+        if: always()
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/tfpdl-matrix/${{ matrix.key }}.json
+          git commit -m "record TFPDL matrix sample ${{ matrix.key }}" || true
+          git pull --rebase origin main || true
+          git push origin HEAD:main || true
