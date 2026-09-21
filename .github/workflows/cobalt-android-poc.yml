@@ -1,0 +1,99 @@
+name: Cobalt Android POC
+
+on:
+  push:
+    branches:
+      - cobalt-android-poc
+    paths:
+      - "cobalt-android-poc/**"
+      - ".github/workflows/cobalt-android-poc.yml"
+  workflow_dispatch:
+
+jobs:
+  package-upstream-cobalt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout POC
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 35 SDK
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Try packaging untouched Cobalt
+        id: cobalt_build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle -p cobalt-android-poc :app:assembleDebug --stacktrace 2>&1 | tee cobalt-android-poc/android-build.log
+
+      - name: Record result
+        shell: bash
+        run: |
+          {
+            echo "## Cobalt Android packaging baseline"
+            echo
+            echo "Build outcome: **${{ steps.cobalt_build.outcome }}**"
+            echo
+            if [[ "${{ steps.cobalt_build.outcome }}" == "success" ]]; then
+              echo "The unmodified Maven Cobalt artifact passed D8 packaging. Next test: runtime linked-client loading/pairing."
+            else
+              echo "The untouched artifact did not package. The uploaded log gives the exact first Android incompatibility to patch."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobalt-android-baseline
+          if-no-files-found: ignore
+          path: |
+            cobalt-android-poc/android-build.log
+            cobalt-android-poc/app/build/outputs/apk/debug/*.apk
+
+  compatibility-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout POC
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned Cobalt
+        uses: actions/checkout@v4
+        with:
+          repository: Auties00/Cobalt
+          ref: cb9fbf172507626948fbc3611d0a6fb00bb3a0f1
+          path: cobalt-upstream
+
+      - name: Scan Android blockers
+        shell: bash
+        run: |
+          chmod +x cobalt-android-poc/compat-scan.sh
+          cobalt-android-poc/compat-scan.sh cobalt-upstream cobalt-android-poc/compat-report.txt
+          {
+            echo "## Current Cobalt Android compatibility scan"
+            echo
+            echo '```text'
+            cat cobalt-android-poc/compat-report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload compatibility report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobalt-android-compat-report
+          path: cobalt-android-poc/compat-report.txt
