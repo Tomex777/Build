@@ -579,6 +579,9 @@ fun HomiraProductionApp(
         }
         var tab by rememberSaveable { mutableStateOf(MainTab.Keypad) }
         val tabStateHolder = rememberSaveableStateHolder()
+        var contactDetailsOpen by rememberSaveable {
+            mutableStateOf(false)
+        }
         var overlay by rememberSaveable { mutableStateOf(OverlayScreen.None) }
         var activePerson by remember { mutableStateOf<HomiraPerson?>(null) }
         var activeVideo by rememberSaveable { mutableStateOf(false) }
@@ -2604,7 +2607,17 @@ fun HomiraProductionApp(
                 modifier = Modifier.fillMaxSize(),
                 containerColor = HomiraBackground,
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
-                bottomBar = { FloatingBottomBar(tab = tab, onSelect = { tab = it }) }
+                bottomBar = {
+                    if (!contactDetailsOpen) {
+                        FloatingBottomBar(
+                            tab = tab,
+                            onSelect = { selected ->
+                                contactDetailsOpen = false
+                                tab = selected
+                            }
+                        )
+                    }
+                }
             ) { padding ->
                 Column(Modifier.fillMaxSize().padding(padding)) {
                     AnimatedVisibility(activePerson != null && minimized) {
@@ -2747,6 +2760,9 @@ fun HomiraProductionApp(
 
                             MainTab.Contacts -> ContactsScreen(
                                 contacts = appContacts,
+                                onDetailVisibilityChanged = {
+                                    contactDetailsOpen = it
+                                },
                                 onAddContact = {
                                     overlay = OverlayScreen.AddContact
                                 },
@@ -4129,6 +4145,7 @@ private fun AddContactScreen(
 @Composable
 private fun ContactsScreen(
     contacts: List<HomiraPerson>,
+    onDetailVisibilityChanged: (Boolean) -> Unit,
     onAddContact: () -> Unit,
     onVoiceCall: (HomiraPerson) -> Unit,
     onVideoCall: (HomiraPerson) -> Unit,
@@ -4160,6 +4177,7 @@ private fun ContactsScreen(
         enabled = infoPerson != null
     ) {
         infoPerson = null
+        onDetailVisibilityChanged(false)
     }
 
     if (infoPerson == null) {
@@ -4357,6 +4375,9 @@ private fun ContactsScreen(
                                                     },
                                                     onInfo = {
                                                         infoPerson = person
+                                                        onDetailVisibilityChanged(
+                                                            true
+                                                        )
                                                     },
                                                     onVideo = {
                                                         expandedPersonId = null
@@ -4391,6 +4412,7 @@ private fun ContactsScreen(
             person = person,
             onBack = {
                 infoPerson = null
+                onDetailVisibilityChanged(false)
             },
             onPhoto = {
                 if (person.avatarUri != null) {
@@ -4399,6 +4421,7 @@ private fun ContactsScreen(
             },
             onFavorite = {
                 infoPerson = null
+                onDetailVisibilityChanged(false)
                 onFavoriteChanged(
                     person,
                     !person.favorite
@@ -4406,10 +4429,12 @@ private fun ContactsScreen(
             },
             onVoice = {
                 infoPerson = null
+                onDetailVisibilityChanged(false)
                 onVoiceCall(person)
             },
             onVideo = {
                 infoPerson = null
+                onDetailVisibilityChanged(false)
                 onVideoCall(person)
             },
             onShare = {
@@ -4440,15 +4465,18 @@ private fun ContactsScreen(
             },
             onEdit = {
                 infoPerson = null
+                onDetailVisibilityChanged(false)
                 editedContactName = person.name
                 editPerson = person
             },
             onQr = {
                 infoPerson = null
+                onDetailVisibilityChanged(false)
                 qrPerson = person
             },
             onDelete = {
                 infoPerson = null
+                onDetailVisibilityChanged(false)
                 deletePerson = person
             }
         )
