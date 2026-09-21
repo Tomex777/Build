@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/tfpdl-deinform-focused.yml"
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
@@ -121,7 +123,7 @@ jobs:
           JS
           node trace.cjs
       - name: Commit result
-        if: always()
+        if: always() && github.event_name == 'push'
         run: |
           mkdir -p diagnostics
           cp tfpdl-deinform-focused.json diagnostics/tfpdl-deinform-focused.json 2>/dev/null || echo '{"error":"no result"}' > diagnostics/tfpdl-deinform-focused.json
