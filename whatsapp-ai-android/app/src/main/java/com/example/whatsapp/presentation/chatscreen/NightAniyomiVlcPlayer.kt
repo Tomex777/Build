@@ -505,14 +505,32 @@ internal fun NightAniyomiVlcPlayer(
         if (audioMenu) {
             audioTracks = runCatching {
                 val metadata = player.nightParsedTrackMetadata(IMedia.Track.Type.Audio)
-                player.audioTracks
+                val selectable = player.audioTracks
                     ?.filter { it.id >= 0 }
-                    ?.mapIndexed { index, track ->
+                    .orEmpty()
+
+                Log.i(
+                    "NightVideo",
+                    "Audio track sources selectable=" +
+                        selectable.joinToString { track -> "${track.id}:${track.name}" } +
+                        " parsed=" +
+                        metadata.joinToString { track ->
+                            "${track.id}:${track.description}:${track.codec}:" +
+                                "${track.channels}ch@${track.rate}"
+                        },
+                )
+
+                if (selectable.isNotEmpty()) {
+                    selectable.mapIndexed { index, track ->
                         val rich = metadata.firstOrNull { it.id == track.id }
                             ?: metadata.getOrNull(index)
                         track.id to nightAudioTrackLabel(track.name.orEmpty(), rich)
                     }
-                    .orEmpty()
+                } else {
+                    metadata.map { track ->
+                        track.id to nightAudioTrackLabel("", track)
+                    }
+                }
             }.getOrDefault(emptyList())
             Log.i(
                 "NightVideo",
@@ -523,14 +541,31 @@ internal fun NightAniyomiVlcPlayer(
         if (subtitleMenu) {
             subtitleTracks = runCatching {
                 val metadata = player.nightParsedTrackMetadata(IMedia.Track.Type.Text)
-                player.spuTracks
+                val selectable = player.spuTracks
                     ?.filter { it.id >= 0 }
-                    ?.mapIndexed { index, track ->
+                    .orEmpty()
+
+                Log.i(
+                    "NightVideo",
+                    "Subtitle track sources selectable=" +
+                        selectable.joinToString { track -> "${track.id}:${track.name}" } +
+                        " parsed=" +
+                        metadata.joinToString { track ->
+                            "${track.id}:${track.description}:${track.codec}"
+                        },
+                )
+
+                if (selectable.isNotEmpty()) {
+                    selectable.mapIndexed { index, track ->
                         val rich = metadata.firstOrNull { it.id == track.id }
                             ?: metadata.getOrNull(index)
                         track.id to nightSubtitleTrackLabel(track.name.orEmpty(), rich)
                     }
-                    .orEmpty()
+                } else {
+                    metadata.map { track ->
+                        track.id to nightSubtitleTrackLabel("", track)
+                    }
+                }
             }.getOrDefault(emptyList())
             Log.i(
                 "NightVideo",
