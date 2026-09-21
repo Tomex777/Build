@@ -48,17 +48,15 @@ jobs:
               out['websiteToken']=wt or None
 
               candidates=[]
-              if tok and wt:
-                  candidates.append(('legacy-wt',wt))
               if tok:
-                  # Newer open-source clients derive an X-Website-Token; test common SHA-256 shapes non-destructively.
-                  for label,s in [
-                    ('sha-ua-token',UA+tok),
-                    ('sha-token-ua',tok+UA),
-                    ('sha-ua',UA),
-                    ('sha-token',tok)
-                  ]:
-                    candidates.append((label,hashlib.sha256(s.encode()).hexdigest()))
+                  import time
+                  slot=int(time.time())//14400
+                  salt='9844d94d963d30'
+                  exact=hashlib.sha256(f"{UA}::en-US::{tok}::{slot}::{salt}".encode()).hexdigest()
+                  candidates.append(('dynamic-current',exact))
+                  # One previous 4-hour slot handles a clock-boundary mismatch.
+                  prev=hashlib.sha256(f"{UA}::en-US::{tok}::{slot-1}::{salt}".encode()).hexdigest()
+                  candidates.append(('dynamic-previous',prev))
               seen=set()
               for label,w in candidates:
                   if w in seen: continue
