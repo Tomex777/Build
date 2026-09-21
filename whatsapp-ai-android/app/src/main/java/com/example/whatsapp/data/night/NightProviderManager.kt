@@ -156,12 +156,18 @@ class NightProviderManager private constructor(
     }
 
     suspend fun deleteProfile(profile: NightProviderProfileEntity) {
+        dao.deleteProviderGraph(
+            profileId = profile.id,
+            updatedAt = System.currentTimeMillis(),
+        )
         secrets.remove(profile.secretAlias)
-        repository.deleteProviderProfile(profile.id)
     }
 
     suspend fun deleteModel(model: NightProviderModelEntity) {
-        repository.deleteProviderModel(model.id)
+        dao.deleteProviderModelGraph(
+            modelId = model.id,
+            updatedAt = System.currentTimeMillis(),
+        )
     }
 
     companion object {

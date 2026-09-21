@@ -136,6 +136,23 @@ interface NightDao {
     @Query("DELETE FROM night_provider_profiles WHERE id = :id")
     suspend fun deleteProviderProfile(id: String)
 
+    @Query("DELETE FROM night_provider_models WHERE profileId = :profileId")
+    suspend fun deleteProviderModelsForProfile(profileId: String)
+
+    @Query("DELETE FROM night_capability_routes WHERE providerProfileId = :profileId")
+    suspend fun deleteCapabilityRoutesForProfile(profileId: String)
+
+    @Query("UPDATE night_chats SET selectedProvider = NULL, selectedProviderProfileId = NULL, selectedModel = NULL, updatedAt = :updatedAt WHERE selectedProviderProfileId = :profileId")
+    suspend fun clearChatProviderSelection(profileId: String, updatedAt: Long)
+
+    @Transaction
+    suspend fun deleteProviderGraph(profileId: String, updatedAt: Long) {
+        clearChatProviderSelection(profileId, updatedAt)
+        deleteCapabilityRoutesForProfile(profileId)
+        deleteProviderModelsForProfile(profileId)
+        deleteProviderProfile(profileId)
+    }
+
     @Query("SELECT * FROM night_provider_models WHERE profileId = :profileId AND isEnabled = 1 ORDER BY displayName")
     fun observeModels(profileId: String): Flow<List<NightProviderModelEntity>>
 
@@ -162,6 +179,19 @@ interface NightDao {
 
     @Query("DELETE FROM night_provider_models WHERE id = :id")
     suspend fun deleteProviderModel(id: String)
+
+    @Query("UPDATE night_chats SET selectedModel = NULL, updatedAt = :updatedAt WHERE selectedModel = :modelId")
+    suspend fun clearChatModelSelection(modelId: String, updatedAt: Long)
+
+    @Query("UPDATE night_capability_routes SET modelId = NULL, updatedAt = :updatedAt WHERE modelId = :modelId")
+    suspend fun clearCapabilityRouteModel(modelId: String, updatedAt: Long)
+
+    @Transaction
+    suspend fun deleteProviderModelGraph(modelId: String, updatedAt: Long) {
+        clearChatModelSelection(modelId, updatedAt)
+        clearCapabilityRouteModel(modelId, updatedAt)
+        deleteProviderModel(modelId)
+    }
 
     @Query("SELECT * FROM night_capability_routes WHERE capability = :capability AND isEnabled = 1 LIMIT 1")
     suspend fun getCapabilityRoute(capability: String): NightCapabilityRouteEntity?

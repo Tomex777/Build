@@ -178,7 +178,7 @@ jobs:
           emulator-boot-timeout: 420
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -accel on -wipe-data
-          script: cd whatsapp-ai-android && chmod +x gradlew && ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.whatsapp.data.night.NightAiGatewayProviderInstrumentedTest,com.example.whatsapp.data.night.NightLibraryIntegrationInstrumentedTest --stacktrace
+          script: cd whatsapp-ai-android && chmod +x gradlew && ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.whatsapp.data.night.NightAiGatewayProviderInstrumentedTest,com.example.whatsapp.data.night.NightLibraryIntegrationInstrumentedTest,com.example.whatsapp.data.night.NightProviderAdminInstrumentedTest --stacktrace
 
       - name: Upload provider test reports
         if: always()
