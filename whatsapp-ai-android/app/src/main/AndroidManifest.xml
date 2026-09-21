@@ -21,6 +21,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Whatsapp">
         <activity
+            android:name=".presentation.browser.NightBrowserActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|smallestScreenSize"
+            android:theme="@style/Theme.Whatsapp" />
+        <activity
             android:name=".NightLiveVoicePreviewActivity"
             android:exported="true"
             android:screenOrientation="portrait"
