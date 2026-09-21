@@ -33,7 +33,11 @@ class NightProviderManager private constructor(
 
         val id = UUID.randomUUID().toString()
         val alias = "provider_" + id
-        secrets.put(alias, apiKey)
+        if (providerType.equals("groq", ignoreCase = true) && serviceKind == "chat") {
+            secrets.initializeProviderKeyPool(alias, apiKey)
+        } else {
+            secrets.put(alias, apiKey)
+        }
 
         if (makeDefault) {
             dao.clearDefaultProviderProfiles(serviceKind)
@@ -104,6 +108,51 @@ class NightProviderManager private constructor(
         )
         repository.upsertProviderModel(model)
         return model
+    }
+
+    fun keySummaries(profile: NightProviderProfileEntity): List<NightProviderKeySummary> =
+        secrets.getProviderKeySummaries(profile.secretAlias)
+
+    suspend fun addProviderKey(
+        profile: NightProviderProfileEntity,
+        apiKey: String,
+        label: String? = null,
+    ): NightProviderKeySummary {
+        require(profile.providerType.equals("groq", ignoreCase = true)) {
+            "Key pools are currently supported for Groq chat profiles."
+        }
+        require(profile.serviceKind == "chat") {
+            "Groq key rotation is only available for chat profiles."
+        }
+
+        val credential = secrets.addProviderCredential(
+            alias = profile.secretAlias,
+            secret = apiKey,
+            label = label,
+        )
+        repository.upsertProviderProfile(
+            profile.copy(updatedAt = System.currentTimeMillis())
+        )
+        return NightProviderKeySummary(
+            id = credential.id,
+            label = credential.label,
+            suffix = credential.secret.takeLast(4),
+        )
+    }
+
+    suspend fun deleteProviderKey(
+        profile: NightProviderProfileEntity,
+        credentialId: String,
+    ) {
+        require(profile.providerType.equals("groq", ignoreCase = true)) {
+            "Key pools are currently supported for Groq chat profiles."
+        }
+        check(secrets.removeProviderCredential(profile.secretAlias, credentialId)) {
+            "A provider must keep at least one API key."
+        }
+        repository.upsertProviderProfile(
+            profile.copy(updatedAt = System.currentTimeMillis())
+        )
     }
 
     suspend fun deleteProfile(profile: NightProviderProfileEntity) {
