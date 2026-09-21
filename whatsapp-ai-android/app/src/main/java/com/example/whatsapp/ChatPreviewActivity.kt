@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.example.whatsapp.data.browser.NightBrowserSpec
 import com.example.whatsapp.presentation.chatscreen.AnimeResultMessage
 import com.example.whatsapp.presentation.chatscreen.ButtonResultMessage
 import com.example.whatsapp.extensions.messages.ExtensionActionStyle
@@ -69,6 +70,7 @@ class ChatPreviewActivity : ComponentActivity() {
                         "approved-rich" -> approvedRichPreviewMessages()
                         "extension" -> extensionSchemaPreviewMessages()
                         "extension-config" -> extensionConfigurationPreviewMessages()
+                        "browser" -> browserPreviewMessages()
                         "blocks" -> nightBlockPreviewMessages()
                         "utility" -> utilityPreviewMessages()
                         else -> whatsappPreviewMessages()
@@ -303,6 +305,33 @@ private fun richApprovedPreviewMessages(image: String): List<WhatsAppVisualMessa
 )
 
 
+
+private fun browserPreviewMessages(): List<WhatsAppVisualMessage> = listOf(
+    ExtensionResultMessage(
+        id = "extension-browser-test",
+        snapshot = ExtensionMessageSnapshot(
+            extensionId = "browser_test",
+            messageType = "browser_test.verification",
+            template = ExtensionCardTemplate.Browser,
+            extensionName = "Browser Test Extension",
+            title = "Sign in to continue",
+            subtitle = "Complete the website step without leaving Night.",
+            iconText = "B",
+            badge = "Browser",
+            browser = NightBrowserSpec(
+                sessionId = "test.browser",
+                initialUrl = "http://10.0.2.2:8765/start",
+                allowedHosts = listOf("10.0.2.2"),
+                title = "Verification",
+                verifyActionId = "verify_session",
+                verifyLabel = "Verify",
+                javaScriptEnabled = true,
+                thirdPartyCookies = true,
+            ),
+        ),
+        time = "16:30",
+    )
+)
 
 private fun extensionConfigurationPreviewMessages(): List<WhatsAppVisualMessage> = listOf(
     ExtensionResultMessage(
