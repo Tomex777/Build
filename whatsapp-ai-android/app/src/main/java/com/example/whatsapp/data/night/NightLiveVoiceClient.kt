@@ -53,10 +53,10 @@ class NightLiveVoiceClient private constructor(
         listener.onState(State.CONNECTING)
 
         val chat = repository.getChat(chatId)
-        val profile = resolveLiveProfile()
-            ?: error("No Azure Live Voice profile is configured.")
-        val model = repository.defaultProviderModel(profile.id)
-            ?: error("Add a realtime model/deployment to the Live Voice profile.")
+        val resolved = resolveLiveModel(chatId)
+            ?: error("No Azure model with Live Voice is configured.")
+        val profile = resolved.profile
+        val model = resolved.model
         val key = secrets.get(profile.secretAlias)
             ?: error("The saved Azure Live Voice key is missing.")
 
@@ -133,19 +133,26 @@ class NightLiveVoiceClient private constructor(
         listener = null
     }
 
-    private suspend fun resolveLiveProfile(): NightProviderProfileEntity? {
-        val route = repository.capabilityRoute("live_voice")
-        val routed = route?.providerProfileId
-            ?.let { repository.getProviderProfile(it) }
+    private suspend fun resolveLiveModel(chatId: String): NightResolvedModel? {
+        val routed = NightCapabilityRouter(repository)
+            .resolveCapability(chatId, "live_voice")
+            ?.takeIf { it.profile.providerType.equals("azure", ignoreCase = true) }
+
+        if (routed != null) return routed
+
+        // Compatibility path for existing dedicated Live Voice profiles that
+        // predate capability tags on their model entries.
+        val profile = repository.defaultProviderProfile("live_voice")
             ?.takeIf {
-                it.providerType == "azure" &&
-                    it.serviceKind == "live_voice" &&
+                it.providerType.equals("azure", ignoreCase = true) &&
                     it.isEnabled
             }
+            ?: return null
+        val model = repository.defaultProviderModel(profile.id)
+            ?.takeIf { it.isEnabled }
+            ?: return null
 
-        return routed
-            ?: repository.defaultProviderProfile("live_voice")
-                ?.takeIf { it.providerType == "azure" && it.isEnabled }
+        return NightResolvedModel(profile, model)
     }
 
     private fun configureSession(
