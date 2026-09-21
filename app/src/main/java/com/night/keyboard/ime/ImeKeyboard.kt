@@ -17,7 +17,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RectangleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -125,7 +125,8 @@ fun ImeKeyboard(
         Modifier
             .fillMaxWidth()
             .padding(
-                horizontal = if (prefs.floatingKeyboard) 8.dp else 0.dp,
+                start = if (prefs.floatingKeyboard) 8.dp else 0.dp,
+                end = if (prefs.floatingKeyboard) 8.dp else 0.dp,
                 bottom = if (prefs.floatingKeyboard) prefs.floatingLiftDp.coerceIn(0, 96).dp else 0.dp,
             ),
         contentAlignment = alignment,
