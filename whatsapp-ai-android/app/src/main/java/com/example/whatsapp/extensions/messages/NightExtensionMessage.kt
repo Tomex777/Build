@@ -97,6 +97,7 @@ data class ExtensionConfigurationField(
     val step: Double? = null,
     val advanced: Boolean = false,
     val actionLabel: String = "",
+    val taskOverride: Boolean = false,
 )
 
 data class ExtensionConfiguration(
@@ -225,6 +226,7 @@ object ExtensionMessageCodec {
                                             .put("placeholder", field.placeholder)
                                             .put("advanced", field.advanced)
                                             .put("actionLabel", field.actionLabel)
+                                            .put("taskOverride", field.taskOverride)
                                             .apply {
                                                 field.min?.let { put("min", it) }
                                                 field.max?.let { put("max", it) }
@@ -390,6 +392,7 @@ object ExtensionMessageCodec {
                             step = item.takeIf { it.has("step") }?.optDouble("step"),
                             advanced = item.optBoolean("advanced", false),
                             actionLabel = item.optString("actionLabel").trim(),
+                            taskOverride = item.optBoolean("taskOverride", false),
                         )
                     }
                 }
