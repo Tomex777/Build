@@ -1,5 +1,6 @@
 package com.example.whatsapp.presentation.chatscreen
 
+import com.example.whatsapp.data.browser.NightBrowserSpecCodec
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -13,6 +14,7 @@ object NightRichMessageCodec {
     const val TYPE_IMAGE_SEARCH = "image_search"
     const val TYPE_DOWNLOAD = "download"
     const val TYPE_TOOL = "tool"
+    const val TYPE_BROWSER = "browser"
 
     fun decode(
         type: String,
@@ -119,6 +121,17 @@ object NightRichMessageCodec {
                 actions = decodeActions(payload.optJSONArray("actions")),
             )
 
+            TYPE_BROWSER -> NightBrowserSpecCodec.decode(
+                payload.optJSONObject("browser")
+            )?.let { spec ->
+                BrowserResultMessage(
+                    id = id,
+                    spec = spec,
+                    time = time,
+                    sourceLabel = payload.optString("sourceLabel"),
+                )
+            }
+
             else -> null
         }
     }
@@ -134,6 +147,7 @@ object NightRichMessageCodec {
             is ImageSearchResultMessage -> TYPE_IMAGE_SEARCH
             is DownloadResultMessage -> TYPE_DOWNLOAD
             is ToolResultMessage -> TYPE_TOOL
+            is BrowserResultMessage -> TYPE_BROWSER
             is MangaResultMessage,
             is ChoiceResultMessage,
             is ExtensionResultMessage -> null
@@ -197,6 +211,10 @@ object NightRichMessageCodec {
                 .put("iconText", message.iconText)
                 .put("actions", encodeActions(message.actions))
 
+            is BrowserResultMessage -> JSONObject()
+                .put("browser", NightBrowserSpecCodec.encode(message.spec))
+                .put("sourceLabel", message.sourceLabel)
+
             is MangaResultMessage,
             is ChoiceResultMessage,
             is ExtensionResultMessage -> JSONObject()
@@ -215,6 +233,7 @@ object NightRichMessageCodec {
             is ImageSearchResultMessage -> message.source + " images"
             is DownloadResultMessage -> message.title
             is ToolResultMessage -> message.title
+            is BrowserResultMessage -> message.spec.title
             is ExtensionResultMessage -> message.snapshot.title
         }.ifBlank { "Rich message" }
 
