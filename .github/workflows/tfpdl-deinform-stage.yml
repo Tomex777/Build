@@ -1,0 +1,113 @@
+name: TFPDL Deinform stage trace
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+      - name: Trace Deinform countdown and verification boundary
+        shell: bash
+        run: |
+          cat > deinform-trace.cjs <<'JS'
+          const { chromium } = require('playwright');
+
+          const target = 'https://deinform.com/?id=U3VPVXdWcytJY216citiUHhNMVlUR0I5Ull6RXlqcVpEVUFZVytFNERJUUIyVDYxU21JZnN4UmY3V2wvcHM3LzhnWTRpMjVyQklTdk0rRVc2bHY4dVJKQVJmQ3UyQlg4WkR3ZEVMSjZLRjA9';
+          const say=(type,data={})=>console.log(JSON.stringify({t:new Date().toISOString(),type,...data}));
+
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const context=await browser.newContext({
+              userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
+              viewport:{width:412,height:915},
+              locale:'en-US'
+            });
+            const page=await context.newPage();
+            page.setDefaultTimeout(12000);
+
+            page.on('request', req=>{
+              const u=req.url();
+              if(/deinform\.com|safetxt\.net/i.test(u)) say('request',{method:req.method(),rt:req.resourceType(),url:u,postData:req.postData()||null});
+            });
+            page.on('response', async res=>{
+              const u=res.url();
+              if(/deinform\.com|safetxt\.net/i.test(u)){
+                const h=await res.allHeaders().catch(()=>({}));
+                say('response',{status:res.status(),rt:res.request().resourceType(),url:u,location:h.location||null,contentType:h['content-type']||null});
+              }
+            });
+            page.on('framenavigated',f=>{if(f===page.mainFrame()) say('nav',{url:f.url()});});
+
+            async function snapshot(label){
+              const text=await page.locator('body').innerText().catch(()=>'');
+              const forms=await page.locator('form').evaluateAll(fs=>fs.map(f=>({
+                action:f.action,
+                method:(f.method||'get').toLowerCase(),
+                text:(f.innerText||'').trim().slice(0,1000),
+                inputs:[...f.querySelectorAll('input,button,textarea,select')].map(x=>({
+                  tag:x.tagName,
+                  type:x.getAttribute('type'),
+                  name:x.getAttribute('name'),
+                  value:x.getAttribute('value'),
+                  text:(x.textContent||'').trim(),
+                  placeholder:x.getAttribute('placeholder'),
+                  id:x.id||null
+                }))
+              }))).catch(()=>[]);
+              const controls=await page.locator('button,input[type="submit"],input[type="button"],[role="button"],[onclick]').evaluateAll(es=>es.map(e=>({
+                tag:e.tagName,text:(e.textContent||e.getAttribute('value')||'').trim(),type:e.getAttribute('type'),
+                name:e.getAttribute('name'),id:e.id||null,onclick:e.getAttribute('onclick')
+              }))).catch(()=>[]);
+              const visibleInputs=await page.locator('input:visible').evaluateAll(xs=>xs.map(x=>({
+                type:x.getAttribute('type'),name:x.getAttribute('name'),value:x.getAttribute('value'),
+                placeholder:x.getAttribute('placeholder'),id:x.id||null,outer:x.outerHTML.slice(0,500)
+              }))).catch(()=>[]);
+              say('snapshot',{label,url:page.url(),title:await page.title().catch(()=>''),text:text.slice(0,2200),forms,controls,visibleInputs});
+              return {text,forms,controls,visibleInputs};
+            }
+
+            await page.goto(target,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>say('goto_error',{message:e.message}));
+            await page.waitForTimeout(3000);
+            let s=await snapshot('after-entry');
+
+            await page.waitForTimeout(7000);
+            s=await snapshot('after-countdown');
+
+            const visibleChallenge=s.visibleInputs.filter(x=>['text','number','tel'].includes((x.type||'text').toLowerCase()));
+            if(visibleChallenge.length){
+              say('verification_boundary',{reason:'visible-input',inputs:visibleChallenge});
+              await browser.close(); return;
+            }
+
+            if(/(^|\n)0 Seconds(\n|$)/i.test(s.text) && s.forms.length){
+              say('submit_countdown_form',{action:s.forms[0].action,method:s.forms[0].method,inputs:s.forms[0].inputs});
+              const form=page.locator('form').first();
+              await form.evaluate(f=>{ if(typeof f.requestSubmit==='function') f.requestSubmit(); else f.submit(); }).catch(e=>say('form_submit_error',{message:e.message}));
+              await page.waitForTimeout(7000);
+              s=await snapshot('after-countdown-submit');
+            }
+
+            const challengeNow=s.visibleInputs.filter(x=>['text','number','tel'].includes((x.type||'text').toLowerCase()));
+            if(challengeNow.length || /(captcha|verification code|enter (the )?(number|code)|type (the )?(number|code)|security code)/i.test(s.text)){
+              say('verification_boundary',{reason:'post-countdown',inputs:challengeNow,forms:s.forms});
+            } else {
+              say('no_verification_input_yet',{url:page.url(),forms:s.forms,controls:s.controls});
+            }
+
+            await browser.close();
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          JS
+          node deinform-trace.cjs
