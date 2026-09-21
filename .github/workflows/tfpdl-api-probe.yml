@@ -1,4 +1,4 @@
-name: TFPDL browser route trace
+name: TFPDL route-shape probe
 
 on:
   push:
@@ -9,58 +9,52 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 6
     steps:
-      - name: Install Playwright
-        run: |
-          npm init -y >/dev/null 2>&1
-          npm install playwright@1.55.0 >/dev/null 2>&1
-          npx playwright install chromium >/dev/null 2>&1
-
-      - name: Trace wrapper in browser
+      - name: Compare route shapes across content
         shell: bash
         run: |
-          cat > trace.js <<'JS'
-          const { chromium } = require('playwright');
+          python3 - <<'PY'
+          import json, html, urllib.request
+          from html.parser import HTMLParser
+          from urllib.parse import urlparse, parse_qs, quote
 
-          (async () => {
-            const browser = await chromium.launch({ headless: true });
-            const context = await browser.newContext({
-              userAgent: 'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
-              viewport: { width: 412, height: 915 }
-            });
-            const page = await context.newPage();
+          UA={"User-Agent":"Mozilla/5.0"}
 
-            page.on('response', async (res) => {
-              const u = res.url();
-              const ct = (await res.allHeaders())['content-type'] || '';
-              if (/tfp\.re|tfpdl\.com|cloudflare/i.test(u)) {
-                console.log('RESPONSE', res.status(), ct, u);
-              }
-            });
+          def getj(url):
+              req=urllib.request.Request(url, headers=UA)
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  return json.load(r)
 
-            const post = 'https://tfp.re/lanterns-s01-2160p-web-dl-ddp5-1-dv-hdr-x265-tfpdl/';
-            const wrapper = 'https://tfp.re/tfpdl?d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ==';
+          class P(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.links=[]
+              def handle_starttag(self, tag, attrs):
+                  if tag.lower()=="a":
+                      href=dict(attrs).get("href")
+                      if href: self.links.append(href)
 
-            const r1 = await page.goto(post, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => null);
-            console.log('POST_STATUS', r1 ? r1.status() : 'ERR');
-            console.log('POST_URL', page.url());
-            console.log('POST_TITLE', await page.title().catch(()=>''));
-            await page.waitForTimeout(3000);
-
-            const r2 = await page.goto(wrapper, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => null);
-            console.log('WRAPPER_STATUS', r2 ? r2.status() : 'ERR');
-            console.log('WRAPPER_URL_INITIAL', page.url());
-            console.log('WRAPPER_TITLE_INITIAL', await page.title().catch(()=>''));
-            await page.waitForTimeout(15000);
-
-            console.log('FINAL_URL', page.url());
-            console.log('FINAL_TITLE', await page.title().catch(()=>''));
-            const body = await page.locator('body').innerText().catch(()=> '');
-            console.log('BODY_SAMPLE', body.slice(0,800).replace(/\s+/g,' '));
-            console.log('COOKIES', (await context.cookies()).map(c => c.name+'@'+c.domain).join(','));
-
-            await browser.close();
-          })();
-          JS
-          node trace.js
+          for q in ["Naruto","Lanterns","One Piece"]:
+              print("\n===", q, "===")
+              sr=getj("https://tfpdl.com/wp-json/wp/v2/search?search="+quote(q)+"&per_page=1")
+              if not sr:
+                  print("NO_RESULT"); continue
+              rid=sr[0]["id"]
+              post=getj(f"https://tfpdl.com/wp-json/wp/v2/posts/{rid}")
+              p=P(); p.feed(post.get("content",{}).get("rendered",""))
+              wrappers=[]
+              external=[]
+              for h in p.links:
+                  u=urlparse(html.unescape(h))
+                  if u.path.rstrip("/").endswith("/tfpdl"):
+                      wrappers.append(h)
+                  elif u.scheme in ("http","https") and u.netloc not in ("tfp.re","tfpdl.com","www.tfpdl.com"):
+                      external.append(h)
+              print("id=",rid)
+              print("title=",html.unescape(post.get("title",{}).get("rendered","")))
+              print("wrapper_count=",len(wrappers))
+              for h in wrappers[:5]:
+                  u=urlparse(h); keys=list(parse_qs(u.query).keys())
+                  print("wrapper host=",u.netloc,"path=",u.path,"query_keys=",keys)
+              print("external_anchor_hosts=",sorted(set(urlparse(x).netloc for x in external)))
+          PY
