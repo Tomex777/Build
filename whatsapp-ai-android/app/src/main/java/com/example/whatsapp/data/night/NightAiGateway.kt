@@ -407,7 +407,7 @@ class NightAiGateway private constructor(
             append("Indexes are zero-based and must refer to an existing option. ")
 
             if (currentChatMemory.isNotBlank()) {
-                append("\\n\\n")
+                append("\n\n")
                 append(currentChatMemory)
             }
 

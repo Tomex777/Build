@@ -10,7 +10,7 @@ object NightSummaryText {
         if (memory.isBlank()) return ""
 
         return buildString {
-            append("Persistent summary of this chat (older context; newer messages override it):\\n")
+            append("Persistent summary of this chat (older context; newer messages override it):\n")
             append(memory)
         }
     }

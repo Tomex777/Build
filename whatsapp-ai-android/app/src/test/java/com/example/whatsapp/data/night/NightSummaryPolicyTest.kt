@@ -20,6 +20,7 @@ class NightSummaryPolicyTest {
         assertTrue(context.contains("Persistent summary of this chat"))
         assertTrue(context.contains("User prefers dark mode."))
         assertTrue(context.contains("newer messages override it"))
+        assertTrue(context.contains("\n"))
     }
 
     @Test
