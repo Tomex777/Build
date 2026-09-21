@@ -14,13 +14,15 @@ class PredictionRepository @Inject constructor(
     }
 
     suspend fun learn(raw: String, now: Long = System.currentTimeMillis()) {
-        val word = raw.trim()
+        val source = raw.trim()
+        if (source.any(Char::isDigit)) return
+
+        val word = source
             .lowercase()
             .trim { !it.isLetter() && it.code != 39 && it != '’' }
 
         if (word.length !in 2..40) return
         if (!word.any(Char::isLetter)) return
-        if (word.any(Char::isDigit)) return
         dao.learn(word, now)
     }
 
