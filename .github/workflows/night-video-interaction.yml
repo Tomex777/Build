@@ -78,7 +78,9 @@ jobs:
             -c:a aac -b:a 96k \
             -c:s mov_text \
             -metadata:s:a:0 title="Night test audio" \
+            -metadata:s:a:0 handler_name="Night test audio" \
             -metadata:s:s:0 title="Night test subtitle" \
+            -metadata:s:s:0 handler_name="Night test subtitle" \
             -movflags +faststart \
             /tmp/night-real-video.mp4
 
@@ -86,7 +88,9 @@ jobs:
             > night-video-interaction-artifacts/fixture-ffprobe.txt
           test "$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 /tmp/night-real-video.mp4)" = "h264"
           test "$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 /tmp/night-real-video.mp4)" = "aac"
+          test "$(ffprobe -v error -select_streams a:0 -show_entries stream_tags=handler_name -of default=nw=1:nk=1 /tmp/night-real-video.mp4)" = "Night test audio"
           test -n "$(ffprobe -v error -select_streams s:0 -show_entries stream=codec_name -of csv=p=0 /tmp/night-real-video.mp4)"
+          test "$(ffprobe -v error -select_streams s:0 -show_entries stream_tags=handler_name -of default=nw=1:nk=1 /tmp/night-real-video.mp4)" = "Night test subtitle"
           test "$(ffprobe -v error -show_entries format=duration -of csv=p=0 /tmp/night-real-video.mp4 | cut -d. -f1)" -ge 29
 
       - name: Enable KVM
