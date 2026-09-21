@@ -410,7 +410,11 @@ private fun AddProviderDialog(
                         ProviderField(language, { language = it }, "Speech language")
                         ProviderField(voiceName, { voiceName = it }, "TTS voice name (optional)")
                     } else if (service == "live_voice") {
-                        ProviderField(voiceName, { voiceName = it }, "Realtime voice name (optional)")
+                        ProviderField(
+                            voiceName,
+                            { voiceName = it },
+                            "Realtime voice name (alloy or Azure neural voice)",
+                        )
                     }
                 }
 
@@ -527,6 +531,7 @@ private fun AddModelDialog(
     var vision by remember { mutableStateOf(false) }
     var tools by remember { mutableStateOf(false) }
     var imageGeneration by remember { mutableStateOf(false) }
+    var liveVoice by remember { mutableStateOf(profile.serviceKind == "live_voice") }
     var makeDefault by remember { mutableStateOf(true) }
 
     AlertDialog(
@@ -563,6 +568,13 @@ private fun AddModelDialog(
                             )
                             Text("Image generation", color = ProviderText)
                         }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = liveVoice,
+                                onCheckedChange = { liveVoice = it },
+                            )
+                            Text("Live voice", color = ProviderText)
+                        }
                     }
                     Text(
                         "Agent tools lets Night search the web, read files, schedule actions, change appearance, create options, and call extensions.",
@@ -585,6 +597,7 @@ private fun AddModelDialog(
                         if (vision) add("vision")
                         if (tools) add("tools")
                         if (imageGeneration) add("image_generation")
+                        if (profile.serviceKind == "live_voice" || liveVoice) add("live_voice")
                     }
                     onAdd(
                         modelId,
