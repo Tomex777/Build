@@ -31,10 +31,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,13 +45,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.whatsapp.NightMihonReaderActivity
-import com.example.whatsapp.data.NightFileLibrary
-import com.example.whatsapp.data.NightLibraryFile
+import com.example.whatsapp.data.night.NightLibraryItemEntity
+import com.example.whatsapp.data.night.NightLibraryManager
+import com.example.whatsapp.data.night.NightRepository
 import com.example.whatsapp.presentation.reader.mihon.NightMihonArchiveLoader
 import com.example.whatsapp.presentation.shell.MainTab
 import com.example.whatsapp.presentation.shell.ModernAppScaffold
 import java.text.DateFormat
 import java.util.Date
+import kotlinx.coroutines.launch
 
 private val Bg = Color(0xFF0B0F11)
 private val SurfaceDark = Color(0xFF171C1F)
@@ -64,16 +67,24 @@ fun NightFilesTab(
     onSettingsClick: () -> Unit,
 ) {
     val context = LocalContext.current
-    var refreshKey by remember { mutableIntStateOf(0) }
+    val repository = remember { NightRepository.get(context) }
+    val libraryManager = remember { NightLibraryManager.get(context) }
+    val scope = rememberCoroutineScope()
+    val files by repository.observeLibrary().collectAsState(initial = emptyList())
+
+    LaunchedEffect(Unit) {
+        libraryManager.syncFromDisk()
+    }
 
     val picker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments(),
     ) { uris ->
-        uris.forEach { NightFileLibrary.importUri(context, it) }
-        refreshKey++
+        if (uris.isNotEmpty()) {
+            scope.launch {
+                libraryManager.importUris(uris)
+            }
+        }
     }
-
-    val files = remember(refreshKey) { NightFileLibrary.list(context) }
 
     ModernAppScaffold(
         selectedTab = MainTab.Updates,
@@ -216,7 +227,7 @@ private fun EmptyLibrary(onAdd: () -> Unit) {
 
 @Composable
 private fun LibraryFileRow(
-    file: NightLibraryFile,
+    file: NightLibraryItemEntity,
     readableManga: Boolean,
     onClick: () -> Unit,
 ) {
