@@ -1,4 +1,4 @@
-name: TFPDL API probe
+name: TFPDL download-route probe
 
 on:
   push:
@@ -9,20 +9,67 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
-      - name: Probe TFPDL API endpoints
+      - name: Inspect post links and redirect wrappers
         shell: bash
         run: |
-          set +e
-          for url in             "https://tfpdl.com/wp-json/"             "https://tfpdl.com/wp-json/wp/v2/posts?per_page=2"             "https://tfpdl.com/wp-json/wp/v2/search?search=naruto&per_page=2"             "https://tfpdl.com/?rest_route=/wp/v2/posts&per_page=2"
-          do
-            echo "============================================================"
-            echo "URL: $url"
-            curl -L --max-time 30 --connect-timeout 10 -A "Mozilla/5.0" -sS -D /tmp/h -o /tmp/b -w "HTTP_STATUS=%{http_code}\n" "$url"
-            echo "--- headers ---"
-            grep -Ei '^(content-type|server|location|cf-ray|x-|via):' /tmp/h || true
-            echo "--- body first 1000 bytes ---"
-            head -c 1000 /tmp/b || true
-            echo
-          done
+          set -u
+          python3 - <<'PY'
+import json, re, html, urllib.request
+from html.parser import HTMLParser
+from urllib.parse import urljoin
+
+POST_API = "https://tfpdl.com/wp-json/wp/v2/posts/373753"
+req = urllib.request.Request(POST_API, headers={"User-Agent":"Mozilla/5.0"})
+with urllib.request.urlopen(req, timeout=30) as r:
+    post = json.load(r)
+
+print("POST_ID", post.get("id"))
+print("POST_LINK", post.get("link"))
+print("TITLE", html.unescape(post.get("title",{}).get("rendered","")))
+
+class P(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.links=[]
+        self.cur=None
+        self.txt=[]
+    def handle_starttag(self, tag, attrs):
+        if tag.lower()=="a":
+            d=dict(attrs)
+            self.cur=d.get("href")
+            self.txt=[]
+    def handle_data(self, data):
+        if self.cur is not None:
+            self.txt.append(data)
+    def handle_endtag(self, tag):
+        if tag.lower()=="a" and self.cur is not None:
+            self.links.append((self.cur, " ".join("".join(self.txt).split())))
+            self.cur=None
+            self.txt=[]
+
+p=P()
+p.feed(post.get("content",{}).get("rendered",""))
+seen=set()
+links=[]
+for href,text in p.links:
+    full=urljoin(post.get("link","https://tfpdl.com/"), html.unescape(href))
+    key=(full,text)
+    if key not in seen:
+        seen.add(key); links.append(key)
+
+print("\n=== ALL ANCHORS ===")
+for i,(href,text) in enumerate(links,1):
+    print(f"{i:02d}. [{text}] {href}")
+
+cands=[]
+for href,text in links:
+    s=(href+" "+text).lower()
+    if any(k in s for k in ["download","episode","tfpdl","tfp.re","dl","720","1080","2160","x265","webrip","web-dl"]):
+        cands.append((href,text))
+
+print("\n=== CANDIDATE DOWNLOAD ROUTES ===")
+for i,(href,text) in enumerate(cands,1):
+    print(f"{i:02d}. [{text}] {href}")
+PY
