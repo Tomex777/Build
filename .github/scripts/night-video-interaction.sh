@@ -503,6 +503,29 @@ assert_desc "Mute"
 assert_desc "Send media"
 capture_media_logcat "09-editor-open"
 assert_no_crash
+adb exec-out screencap -p > "$ARTIFACTS/07-editor-real-video-open.png" || true
+
+editor_first_time="$(read_current_time)"
+editor_first_seconds="$(to_seconds "$editor_first_time")"
+editor_second_time="$editor_first_time"
+editor_second_seconds="$editor_first_seconds"
+for _ in $(seq 1 8); do
+  sleep 2
+  editor_second_time="$(read_current_time)"
+  editor_second_seconds="$(to_seconds "$editor_second_time")"
+  if [ "$editor_second_seconds" -gt "$editor_first_seconds" ]; then
+    break
+  fi
+done
+capture_media_logcat "09-editor-playback"
+assert_no_crash
+if [ "$editor_second_seconds" -le "$editor_first_seconds" ]; then
+  echo "Real MP4 editor preview did not advance after recovery window: $editor_first_time -> $editor_second_time" >&2
+  adb exec-out screencap -p > "$ARTIFACTS/failure-editor-playback-stalled.png" || true
+  cp /tmp/window.xml "$ARTIFACTS/failure-editor-playback-stalled.xml" 2>/dev/null || true
+  exit 1
+fi
+
 refresh_ui
 initial_trim="$(python3 /tmp/night_video_uia.py trim)"
 refresh_ui
@@ -608,6 +631,7 @@ seek=true
 landscapeRoundTrip=true
 pictureInPicture=true
 nextPrevious=true
+editorPreviewPlayback=true
 trimChanged=true
 mutedExport=true
 exportedDurationSeconds=$export_duration
