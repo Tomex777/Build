@@ -224,10 +224,10 @@ fun NightExtensionConfigurationBubble(
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clickable { advancedVisible = !advancedVisible }
                             .semantics {
                                 contentDescription = "Show advanced extension settings"
-                            }
-                            .clickable { advancedVisible = !advancedVisible },
+                            },
                     ) {
                         Text(
                             text = if (advancedVisible) {
@@ -263,10 +263,10 @@ fun NightExtensionConfigurationBubble(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 11.dp)
+                    .clickable { send(configuration.submitActionId) }
                     .semantics {
                         contentDescription = "Save extension configuration"
-                    }
-                    .clickable { send(configuration.submitActionId) },
+                    },
             ) {
                 Text(
                     text = configuration.submitLabel,
@@ -382,11 +382,6 @@ private fun ExtensionConfigurationFieldContent(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .semantics {
-                                    contentDescription =
-                                        "Config " + field.id + " option " + option.id
-                                    this.selected = selected
-                                }
                                 .clickable {
                                     onMultiChange(
                                         if (selected) {
@@ -395,6 +390,11 @@ private fun ExtensionConfigurationFieldContent(
                                             multiValue + option.id
                                         }
                                     )
+                                }
+                                .semantics {
+                                    contentDescription =
+                                        "Config " + field.id + " option " + option.id
+                                    this.selected = selected
                                 },
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
