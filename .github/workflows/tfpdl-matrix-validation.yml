@@ -76,24 +76,54 @@ jobs:
           }
 
           async function getJson(url){
-            const r=await fetch(url,{headers:{'User-Agent':UA,'Accept':'application/json'}});
-            const text=await r.text();
-            if(!r.ok) throw new Error('HTTP '+r.status+' '+text.slice(0,200));
-            return JSON.parse(text);
+            let last;
+            for(let attempt=1;attempt<=4;attempt++){
+              try{
+                const r=await fetch(url,{
+                  headers:{
+                    'User-Agent':UA,
+                    'Accept':'application/json',
+                    'Connection':'close'
+                  }
+                });
+                const text=await r.text();
+                if(!r.ok) throw new Error('HTTP '+r.status+' '+text.slice(0,200));
+                return JSON.parse(text);
+              }catch(e){
+                last=e;
+                await sleep(attempt*1200);
+              }
+            }
+            throw last;
+          }
+
+          async function hydratePost(meta){
+            const p=await getJson('https://tfpdl.com/wp-json/wp/v2/posts/'+meta.id+'?_fields=id,link,title,content,date,slug');
+            const title=stripTags(p?.title?.rendered||meta.title||'');
+            const html=p?.content?.rendered||'';
+            const wraps=anchors(html).filter(x=>/\/tfpdl\?/i.test(x.href));
+            return {id:p.id,link:p.link,title,date:p.date,slug:p.slug,wrappers:wraps};
           }
 
           async function pickCases(){
-            const posts=await getJson('https://tfpdl.com/wp-json/wp/v2/posts?per_page=50&_fields=id,link,title,content,date,slug');
-            const enriched=posts.map(p=>{
-              const title=stripTags(p?.title?.rendered||'');
-              const html=p?.content?.rendered||'';
-              const wraps=anchors(html).filter(x=>/\/tfpdl\?/i.test(x.href));
-              return {id:p.id,link:p.link,title,date:p.date,slug:p.slug,wrappers:wraps};
-            }).filter(x=>x.wrappers.length);
+            const metas=[];
+            for(let page=1;page<=3;page++){
+              const batch=await getJson('https://tfpdl.com/wp-json/wp/v2/posts?per_page=20&page='+page+'&_fields=id,link,title,date,slug');
+              metas.push(...batch.map(p=>({
+                id:p.id,
+                link:p.link,
+                title:stripTags(p?.title?.rendered||''),
+                date:p.date,
+                slug:p.slug
+              })));
+              const seriesCount=metas.filter(x=>isSeriesTitle(x.title)).length;
+              const movieCount=metas.filter(x=>isMovieLike(x.title)).length;
+              if(seriesCount>=4 && movieCount>=2) break;
+            }
 
-            const series=[];
+            const seriesMetas=[];
             const seenSeries=new Set();
-            for(const p of enriched){
+            for(const p of metas){
               if(!isSeriesTitle(p.title)) continue;
               const key=p.title
                 .replace(/\bS\d{1,2}(?:E\d{1,3})?\b.*$/i,'')
@@ -101,15 +131,28 @@ jobs:
                 .trim().toLowerCase();
               if(seenSeries.has(key)) continue;
               seenSeries.add(key);
-              series.push(p);
+              seriesMetas.push(p);
+            }
+
+            const movieMetas=metas.filter(p=>isMovieLike(p.title));
+            const fallbackMovieMetas=metas.filter(p=>!isSeriesTitle(p.title));
+
+            const series=[];
+            for(const meta of seriesMetas){
+              const p=await hydratePost(meta);
+              if(p.wrappers.length) series.push(p);
               if(series.length===2) break;
             }
 
-            let movie=enriched.find(p=>isMovieLike(p.title));
-            if(!movie) movie=enriched.find(p=>!isSeriesTitle(p.title));
+            let movie=null;
+            for(const meta of [...movieMetas,...fallbackMovieMetas]){
+              if(series.some(s=>s.id===meta.id)) continue;
+              const p=await hydratePost(meta);
+              if(p.wrappers.length){ movie=p; break; }
+            }
 
             if(series.length<2 || !movie){
-              throw new Error('Could not select 2 series + 1 movie from current posts');
+              throw new Error('Could not select 2 series + 1 movie with live wrappers');
             }
 
             return [
