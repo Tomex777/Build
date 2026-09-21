@@ -16,6 +16,7 @@ capture_exit_diagnostics() {
   adb shell ps -A > "$ARTIFACTS/processes-exit.txt" 2>/dev/null || true
   adb shell dumpsys activity activities > "$ARTIFACTS/activities-exit.txt" 2>/dev/null || true
   if [ "$code" -ne 0 ]; then
+    adb exec-out screencap -p > "$ARTIFACTS/failure-exit.png" 2>/dev/null || true
     {
       echo "exitCode=$code"
       echo "nightPid=$(adb shell pidof "$PACKAGE" 2>/dev/null || true)"
