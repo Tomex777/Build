@@ -6967,6 +6967,7 @@ private fun ActiveCallScreen(
     val selfViewScale = remember {
         Animatable(1f)
     }
+    val selfViewAnimationScope = rememberCoroutineScope()
     var selfViewOffsetX by rememberSaveable {
         mutableFloatStateOf(0f)
     }
@@ -7202,6 +7203,11 @@ private fun ActiveCallScreen(
                                 )
 
                                 var gestureActive = true
+                                var gestureScale =
+                                    selfViewScale.value
+                                var scaleSnapJob:
+                                    kotlinx.coroutines.Job? = null
+
                                 while (gestureActive) {
                                     val event = awaitPointerEvent()
                                     val zoom =
@@ -7211,14 +7217,22 @@ private fun ActiveCallScreen(
 
                                     val nextScale =
                                         (
-                                            selfViewScale.value *
+                                            gestureScale *
                                                 zoom
                                         ).coerceIn(
                                             .65f,
                                             1.50f
                                         )
+                                    gestureScale = nextScale
+
                                     if (!inPictureInPicture) {
-                                        selfViewScale.snapTo(nextScale)
+                                        scaleSnapJob?.cancel()
+                                        scaleSnapJob =
+                                            selfViewAnimationScope.launch {
+                                                selfViewScale.snapTo(
+                                                    nextScale
+                                                )
+                                            }
                                     }
 
                                     val currentWidthPx =
@@ -7282,14 +7296,27 @@ private fun ActiveCallScreen(
                                 // WhatsApp-style elastic upper bound:
                                 // the tile may stretch while touched,
                                 // then returns to its normal maximum.
+                                scaleSnapJob?.cancel()
+
                                 if (
                                     !inPictureInPicture &&
-                                    selfViewScale.value > 1f
+                                    gestureScale > 1f
                                 ) {
-                                    selfViewScale.animateTo(
-                                        targetValue = 1f,
-                                        animationSpec = spring()
-                                    )
+                                    selfViewAnimationScope.launch {
+                                        selfViewScale.snapTo(
+                                            gestureScale
+                                        )
+                                        selfViewScale.animateTo(
+                                            targetValue = 1f,
+                                            animationSpec = spring()
+                                        )
+                                    }
+                                } else if (!inPictureInPicture) {
+                                    selfViewAnimationScope.launch {
+                                        selfViewScale.snapTo(
+                                            gestureScale
+                                        )
+                                    }
                                 }
                             }
                         },
