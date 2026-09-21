@@ -55,8 +55,20 @@ refresh_ui() {
 }
 
 assert_text() {
-  refresh_ui
-  python3 /tmp/night_memory_uia.py text "$1" >/dev/null
+  local wanted="$1"
+  local attempt
+  for attempt in $(seq 1 10); do
+    refresh_ui
+    if python3 /tmp/night_memory_uia.py text "$wanted" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.5
+  done
+
+  echo "Missing Memory UI text after retries: $wanted" >&2
+  cp /tmp/window.xml "$OUT/missing-text.xml" 2>/dev/null || true
+  adb exec-out screencap -p > "$OUT/missing-text.png" 2>/dev/null || true
+  return 1
 }
 
 tap_text() {
