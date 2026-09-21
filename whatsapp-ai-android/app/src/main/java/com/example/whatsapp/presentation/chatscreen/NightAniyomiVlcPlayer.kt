@@ -179,7 +179,7 @@ private fun nightAudioTrackLabel(
     val parts = mutableListOf<String>()
     val richDescription = metadata?.description.orEmpty()
     when {
-        richDescription.isNotNightGenericTrackLabel() -> parts += richDescription
+        !richDescription.isNightGenericTrackLabel() -> parts += richDescription
         !legacyName.isNightGenericTrackLabel() -> parts += legacyName.trim()
     }
 
@@ -220,7 +220,7 @@ private fun nightSubtitleTrackLabel(
     val parts = mutableListOf<String>()
     val richDescription = metadata?.description.orEmpty()
     when {
-        richDescription.isNotNightGenericTrackLabel() -> parts += richDescription
+        !richDescription.isNightGenericTrackLabel() -> parts += richDescription
         !legacyName.isNightGenericTrackLabel() -> parts += legacyName.trim()
         else -> parts += "Embedded subtitle"
     }
