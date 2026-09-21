@@ -27,6 +27,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -90,6 +91,7 @@ private val PdfAccent = Color(0xFFE94B72)
 fun NightPdfViewerScreen(
     localPath: String,
     onBack: () -> Unit,
+    onEdit: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -268,6 +270,11 @@ fun NightPdfViewerScreen(
                     )
                 }
 
+                onEdit?.let { edit ->
+                    IconButton(onClick = edit) {
+                        Icon(Icons.Default.Edit, "Edit PDF", tint = Color.White)
+                    }
+                }
                 IconButton(onClick = { searchOpen = !searchOpen }) {
                     Icon(Icons.Default.Search, "Search document", tint = Color.White)
                 }
