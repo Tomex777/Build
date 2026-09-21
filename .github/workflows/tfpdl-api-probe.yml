@@ -1,4 +1,4 @@
-name: TFPDL wrapper-host probe
+name: TFPDL browser route trace
 
 on:
   push:
@@ -9,18 +9,58 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
-      - name: Compare wrapper hosts
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install chromium >/dev/null 2>&1
+
+      - name: Trace wrapper in browser
         shell: bash
         run: |
-          set +e
-          Q='d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ=='
-          for BASE in 'https://tfp.re' 'https://tfpdl.com' 'https://www.tfpdl.com'; do
-            URL="$BASE/tfpdl?$Q"
-            echo "=== $BASE ==="
-            curl --http1.1 -sS --max-time 25 --connect-timeout 10               -A 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36'               -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'               -H 'Accept-Language: en-US,en;q=0.9'               -e "$BASE/lanterns-s01-2160p-web-dl-ddp5-1-dv-hdr-x265-tfpdl/"               -D /tmp/h -o /tmp/b -w 'status=%{http_code} type=%{content_type} size=%{size_download}\n' "$URL"
-            grep -Ei '^(HTTP/|location:|cf-mitigated:|content-type:|server:|set-cookie:)' /tmp/h || true
-            head -c 120 /tmp/b | tr '\n' ' '
-            echo
-          done
+          cat > /tmp/trace.js <<'JS'
+          const { chromium } = require('playwright');
+
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            const context = await browser.newContext({
+              userAgent: 'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
+              viewport: { width: 412, height: 915 }
+            });
+            const page = await context.newPage();
+
+            page.on('response', async (res) => {
+              const u = res.url();
+              const ct = (await res.allHeaders())['content-type'] || '';
+              if (/tfp\.re|tfpdl\.com/i.test(u) || /location/i.test(ct)) {
+                console.log('RESPONSE', res.status(), ct, u);
+              }
+            });
+
+            const post = 'https://tfp.re/lanterns-s01-2160p-web-dl-ddp5-1-dv-hdr-x265-tfpdl/';
+            const wrapper = 'https://tfp.re/tfpdl?d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ==';
+
+            let r1 = await page.goto(post, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(e => null);
+            console.log('POST_STATUS', r1 ? r1.status() : 'ERR');
+            console.log('POST_URL', page.url());
+            console.log('POST_TITLE', await page.title().catch(()=>'')); 
+            await page.waitForTimeout(2500);
+
+            let r2 = await page.goto(wrapper, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(e => null);
+            console.log('WRAPPER_STATUS', r2 ? r2.status() : 'ERR');
+            console.log('WRAPPER_URL_INITIAL', page.url());
+            console.log('WRAPPER_TITLE_INITIAL', await page.title().catch(()=>'')); 
+            await page.waitForTimeout(15000);
+
+            console.log('FINAL_URL', page.url());
+            console.log('FINAL_TITLE', await page.title().catch(()=>'')); 
+            const body = await page.locator('body').innerText().catch(()=> '');
+            console.log('BODY_SAMPLE', body.slice(0,800).replace(/\s+/g,' '));
+            console.log('COOKIES', (await context.cookies()).map(c => c.name+'@'+c.domain).join(','));
+
+            await browser.close();
+          })();
+          JS
+          node /tmp/trace.js
