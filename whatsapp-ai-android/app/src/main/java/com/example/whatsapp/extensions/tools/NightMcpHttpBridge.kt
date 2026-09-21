@@ -192,7 +192,13 @@ class NightMcpHttpBridge(
             }.getOrNull()
 
         if (response == null) {
-            return result.statusCode in 400..499
+            if (result.statusCode in 400..499) {
+                return false
+            }
+            error(
+                "MCP discovery returned an unreadable response (" +
+                    result.statusCode + ")."
+            )
         }
 
         val error = response.optJSONObject("error")
