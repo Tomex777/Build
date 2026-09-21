@@ -1,6 +1,8 @@
 name: TFPDL live resolver trace
 
 on:
+  pull_request:
+    branches: [main]
   push:
     paths:
       - '.github/workflows/tfpdl-live-resolver-trace.yml'
