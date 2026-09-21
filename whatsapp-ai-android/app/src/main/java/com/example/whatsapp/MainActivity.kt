@@ -1476,6 +1476,10 @@ private fun NightApp(initialChatId: String? = null) {
 
                     mimeType.equals("application/pdf", ignoreCase = true) ||
                         path.endsWith(".pdf", ignoreCase = true) -> {
+                        val messageFile = visualMessages
+                            .filterIsInstance<WhatsAppVisualMessage.FileMessage>()
+                            .firstOrNull { it.localPath == path }
+                        pdfViewerName = messageFile?.name ?: File(path).name
                         pdfSheetPath = path
                     }
 
@@ -1629,7 +1633,44 @@ private fun NightApp(initialChatId: String? = null) {
     pdfSheetPath?.let { pdfPath ->
         NightPdfViewerScreen(
             localPath = pdfPath,
-            onBack = { pdfSheetPath = null },
+            displayName = pdfViewerName,
+            onBack = {
+                pdfSheetPath = null
+                pdfViewerName = null
+            },
+            onEdit = {
+                val source = File(pdfPath)
+                if (!source.isFile) {
+                    Toast.makeText(context, "This PDF is not available locally.", Toast.LENGTH_SHORT).show()
+                } else {
+                    val sourceMessage = visualMessages
+                        .filterIsInstance<WhatsAppVisualMessage.FileMessage>()
+                        .firstOrNull { it.localPath == pdfPath }
+                    scope.launch {
+                        val saved = withContext(Dispatchers.IO) {
+                            NightFileLibrary.registerLocalFile(
+                                context = context,
+                                source = source,
+                                name = "Edited " + (pdfViewerName ?: sourceMessage?.name ?: source.name),
+                                mimeType = "application/pdf",
+                            )
+                        }
+                        if (saved != null) {
+                            pdfDraft = NightPdfDraft(
+                                libraryId = saved.id,
+                                name = saved.name,
+                                localPath = saved.localPath,
+                                createdAt = saved.createdAt,
+                                replyToMessageId = null,
+                            )
+                            pdfCaption = sourceMessage?.caption.orEmpty()
+                            pdfSheetPath = null
+                            pdfViewerName = null
+                            screen = "pdf_compose"
+                        }
+                    }
+                }
+            },
         )
     }
 
