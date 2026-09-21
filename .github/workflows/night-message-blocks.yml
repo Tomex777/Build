@@ -7,6 +7,7 @@ on:
     paths:
       - "whatsapp-ai-android/**"
       - ".github/workflows/night-message-blocks.yml"
+      - ".github/scripts/night-message-blocks-interaction.sh"
   workflow_dispatch:
 
 concurrency:
