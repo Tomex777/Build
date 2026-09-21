@@ -41,19 +41,24 @@ jobs:
               viewport:{width:412,height:915},isMobile:true,hasTouch:true,deviceScaleFactor:1,locale:'en-US'
             });
             let seq=0;
+            const popupTasks=[];
             const watch=(p,label)=>{
               p.on('request',r=>{const u=r.url(); if(/deinform\.com|safetxt\.net|tfp\.re/i.test(u)) push('request',{page:label,method:r.method(),rt:r.resourceType(),url:u,postData:r.postData()||null});});
               p.on('response',async r=>{const u=r.url(); if(/deinform\.com|safetxt\.net|tfp\.re/i.test(u)){const h=await r.allHeaders().catch(()=>({})); push('response',{page:label,status:r.status(),rt:r.request().resourceType(),url:u,location:h.location||null,contentType:h['content-type']||null});}});
               p.on('framenavigated',f=>{if(f===p.mainFrame())push('nav',{page:label,url:f.url()});});
             };
             const page=await context.newPage(); watch(page,'main');
-            context.on('page',p=>{if(p===page)return; seq++; watch(p,'popup-'+seq); push('new_page',{page:'popup-'+seq,url:p.url()});});
+            context.on('page',p=>{if(p===page)return; seq++; const label='popup-'+seq; watch(p,label); push('new_page',{page:label,url:p.url()}); popupTasks.push((async()=>{await p.waitForLoadState('domcontentloaded',{timeout:20000}).catch(()=>{}); await p.waitForTimeout(2500); await snap(p,label+'-entry'); await p.waitForTimeout(5000); await snap(p,label+'-after5s');})());});
             page.setDefaultTimeout(15000);
 
             async function snap(p,label){
               const d=await p.evaluate(()=>({
                 url:location.href,title:document.title,text:(document.body?.innerText||'').slice(0,4000),
-                forms:[...document.forms].map(f=>({action:f.action,method:(f.method||'get').toLowerCase(),id:f.id||null,fields:[...f.querySelectorAll('input,button,textarea,select')].map(x=>({tag:x.tagName,type:x.getAttribute('type'),name:x.getAttribute('name'),value:x.getAttribute('value'),id:x.id||null,visible:!!(x.offsetWidth||x.offsetHeight||x.getClientRects().length),text:(x.textContent||'').trim(),placeholder:x.getAttribute('placeholder')}))})),
+                forms:[...document.forms].map(f=>({action:f.action,method:(f.method||'get').toLowerCase(),id:f.id||null,outer:f.outerHTML.slice(0,12000),fields:[...f.querySelectorAll('input,button,textarea,select')].map(x=>({tag:x.tagName,type:x.getAttribute('type'),name:x.getAttribute('name'),value:x.getAttribute('value'),id:x.id||null,visible:!!(x.offsetWidth||x.offsetHeight||x.getClientRects().length),text:(x.textContent||'').trim(),placeholder:x.getAttribute('placeholder'),outer:x.outerHTML.slice(0,1200)}))})),
+                visibleInputs:[...document.querySelectorAll('input')].filter(x=>!!(x.offsetWidth||x.offsetHeight||x.getClientRects().length)).map(x=>({type:x.getAttribute('type'),name:x.getAttribute('name'),value:x.getAttribute('value'),id:x.id||null,placeholder:x.getAttribute('placeholder'),outer:x.outerHTML.slice(0,1200)})),
+                links:[...document.querySelectorAll('a')].map(a=>({text:(a.textContent||'').trim(),href:a.href,visible:!!(a.offsetWidth||a.offsetHeight||a.getClientRects().length)})).filter(x=>x.href).slice(0,200),
+                scripts:[...document.scripts].map(s=>s.src).filter(Boolean),
+                inline:[...document.scripts].filter(s=>!s.src).map(s=>s.textContent||'').filter(x=>/captcha|verify|verification|number|code|token|submit|download|ajax|password|safetxt/i.test(x)).map(x=>x.slice(0,18000)),
                 elements:['soralink-human-verif-main','generater','showlink','pleasewaits'].map(id=>{const e=document.getElementById(id);if(!e)return{id,present:false};return{id,present:true,visible:!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length),disabled:!!e.disabled,href:e.href||null,src:e.src||null,style:e.getAttribute('style'),text:(e.textContent||'').trim(),outer:e.outerHTML.slice(0,3000)}})
               })).catch(e=>({error:e.message}));
               out.snapshots.push({label,...d}); push('snapshot',{label,url:d.url,elements:d.elements,forms:d.forms,text:(d.text||'').slice(0,700)});
@@ -88,6 +93,7 @@ jobs:
 
             await clickVisible('#showlink','showlink');
             await page.waitForTimeout(8000);
+            await Promise.allSettled(popupTasks);
 
             const pages=context.pages();
             for(let i=0;i<pages.length;i++) await snap(pages[i],'final-page-'+i);
