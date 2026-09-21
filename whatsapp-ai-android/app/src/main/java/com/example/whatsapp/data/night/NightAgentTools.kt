@@ -22,6 +22,7 @@ class NightAgentToolExecutor private constructor(
     private val context: Context,
     private val repository: NightRepository,
     private val files: NightFileContextService,
+    private val libraryStore: NightLibraryStore,
     private val web: NightWebToolService,
     private val scheduler: NightScheduleManager,
     private val appearance: NightAppearanceController,
@@ -41,6 +42,7 @@ class NightAgentToolExecutor private constructor(
             "get_current_time" -> currentTime()
             "list_library" -> listLibrary(args)
             "read_library_file" -> readLibraryFile(args)
+            "save_library_text" -> saveLibraryText(chatId, args)
             "web_search" -> searchWeb(args)
             "fetch_web_page" -> fetchWebPage(args)
             "schedule_task" -> scheduleTask(chatId, args)
@@ -121,6 +123,33 @@ class NightAgentToolExecutor private constructor(
             .put("mime_type", result.item.mimeType)
             .put("truncated", result.truncated)
             .put("text", result.text)
+            .toString()
+    }
+
+    private suspend fun saveLibraryText(
+        chatId: String,
+        args: JSONObject,
+    ): String {
+        val name = args.optString("name").trim()
+        val text = args.optString("text")
+        val format = args.optString("format", "markdown").trim().lowercase()
+        require(format == "markdown" || format == "text") {
+            "format must be markdown or text."
+        }
+
+        val item = libraryStore.saveText(
+            name = name,
+            text = text,
+            markdown = format == "markdown",
+            sourceChatId = chatId,
+        ).getOrThrow()
+
+        return JSONObject()
+            .put("ok", true)
+            .put("id", item.id)
+            .put("name", item.name)
+            .put("mime_type", item.mimeType)
+            .put("size_bytes", item.sizeBytes)
             .toString()
     }
 
@@ -359,6 +388,7 @@ class NightAgentToolExecutor private constructor(
                     context = app,
                     repository = repository,
                     files = NightFileContextService.get(app),
+                    libraryStore = NightLibraryStore.get(app),
                     web = NightWebToolService.get(),
                     scheduler = NightScheduleManager.get(app),
                     appearance = NightAppearanceController(repository),
@@ -371,6 +401,7 @@ class NightAgentToolExecutor private constructor(
 object NightAgentToolSchemas {
     fun isSideEffect(name: String): Boolean =
         name in setOf(
+            "save_library_text",
             "schedule_task",
             "cancel_scheduled_task",
             "set_appearance",
@@ -402,6 +433,15 @@ object NightAgentToolSchemas {
                 .put("query", string("What information to focus on inside the document."))
                 .put("max_chars", integer("Maximum extracted text characters.")),
             required = emptyList(),
+        ))
+        .put(function(
+            name = "save_library_text",
+            description = "Save plain text or Markdown as a real file in Night Library so it remains available to the user and future chats.",
+            properties = JSONObject()
+                .put("name", string("Filename or short title. Night adds .md or .txt when needed."))
+                .put("text", string("Complete text to save."))
+                .put("format", string("markdown or text. Defaults to markdown.")),
+            required = listOf("name", "text"),
         ))
         .put(function(
             name = "web_search",

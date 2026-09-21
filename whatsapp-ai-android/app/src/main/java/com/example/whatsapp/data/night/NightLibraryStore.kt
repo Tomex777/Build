@@ -30,6 +30,37 @@ class NightLibraryStore private constructor(
             }
         }
 
+    suspend fun saveText(
+        name: String,
+        text: String,
+        markdown: Boolean = true,
+        sourceChatId: String? = null,
+    ): Result<NightLibraryItemEntity> = withContext(Dispatchers.IO) {
+        runCatching {
+            require(text.isNotBlank()) { "text is required." }
+            require(text.length <= MAX_TEXT_CHARS) {
+                "Library text files are limited to " + MAX_TEXT_CHARS + " characters."
+            }
+
+            val id = java.util.UUID.randomUUID().toString()
+            val fileName = normalizedTextName(name, markdown)
+            val safeName = fileName.replace(Regex("[^A-Za-z0-9._-]"), "_")
+            val root = File(appContext.filesDir, "night_library").apply { mkdirs() }
+            val target = File(root, id + "_" + safeName)
+            target.writeText(text, Charsets.UTF_8)
+
+            NightLibraryItemEntity(
+                id = id,
+                name = fileName,
+                mimeType = if (markdown) "text/markdown" else "text/plain",
+                sizeBytes = target.length(),
+                localPath = target.absolutePath,
+                createdAt = System.currentTimeMillis(),
+                sourceChatId = sourceChatId,
+            ).also { repository.addLibraryItem(it) }
+        }
+    }
+
     suspend fun migrateLegacy(): Int = withContext(Dispatchers.IO) {
         val existingIds = repository.getLibraryItems()
             .asSequence()
@@ -51,6 +82,7 @@ class NightLibraryStore private constructor(
     }
 
     companion object {
+        private const val MAX_TEXT_CHARS = 200_000
         @Volatile private var instance: NightLibraryStore? = null
 
         fun get(context: Context): NightLibraryStore =
@@ -60,6 +92,18 @@ class NightLibraryStore private constructor(
                     repository = NightRepository.get(context.applicationContext),
                 ).also { instance = it }
             }
+
+        internal fun normalizedTextName(name: String, markdown: Boolean): String {
+            val fallback = if (markdown) "Night note.md" else "Night note.txt"
+            val trimmed = name.trim().ifBlank { fallback }.take(120)
+            val lower = trimmed.lowercase()
+            return when {
+                markdown && (lower.endsWith(".md") || lower.endsWith(".markdown")) -> trimmed
+                !markdown && lower.endsWith(".txt") -> trimmed
+                markdown -> trimmed + ".md"
+                else -> trimmed + ".txt"
+            }
+        }
 
         internal fun entityFromLegacy(file: NightLibraryFile): NightLibraryItemEntity =
             NightLibraryItemEntity(

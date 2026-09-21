@@ -6,6 +6,14 @@ import org.junit.Test
 
 class NightLibraryStoreTest {
     @Test
+    fun textFileNamesGetExpectedExtension() {
+        assertEquals("Project notes.md", NightLibraryStore.normalizedTextName("Project notes", true))
+        assertEquals("Project notes.md", NightLibraryStore.normalizedTextName("Project notes.md", true))
+        assertEquals("Project notes.txt", NightLibraryStore.normalizedTextName("Project notes", false))
+    }
+
+
+    @Test
     fun legacyLibraryEntryMapsToCanonicalRoomEntity() {
         val legacy = NightLibraryFile(
             id = "library-1",

@@ -379,7 +379,7 @@ class NightAiGateway private constructor(
 
             if (hasTools) {
                 append("You have Night tools. Use them instead of pretending: ")
-                append("use Library tools to inspect files, web_search/fetch_web_page for current public information, ")
+                append("use Library tools to inspect files, save_library_text when the user asks to save plain text or Markdown, web_search/fetch_web_page for current public information, ")
                 append("schedule_task for reminders or future AI work, set_appearance for UI changes, ")
                 append("create_options for interactive choices, and generate_image when the user asks for an image. ")
                 append("For absolute scheduling, call get_current_time first. ")
