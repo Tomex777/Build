@@ -48,7 +48,11 @@ import com.example.whatsapp.data.night.NightSpeechService
 import com.example.whatsapp.data.night.NightStructuredReplyParser
 import com.example.whatsapp.data.night.NightToolInvocation
 import com.example.whatsapp.data.night.NightVoiceRecorder
+import com.example.whatsapp.extensions.messages.ExtensionConfigurationActionCodec
 import com.example.whatsapp.extensions.messages.ExtensionMessageCodec
+import com.example.whatsapp.extensions.messages.NightExtensionConfigurationStore
+import com.example.whatsapp.extensions.messages.NightExtensionMessageActionRegistry
+import com.example.whatsapp.extensions.messages.withConfigurationValues
 import com.example.whatsapp.presentation.chat_box.ChatListModel
 import com.example.whatsapp.presentation.chatscreen.AudioPlaybackUiState
 import com.example.whatsapp.presentation.chatscreen.ChoiceResultMessage
@@ -1402,7 +1406,64 @@ private fun NightApp(initialChatId: String? = null) {
                 }
             },
             onMessageButtonClick = { messageId, actionId ->
+                val configurationSubmission =
+                    ExtensionConfigurationActionCodec.decode(actionId)
+
                 when {
+                    configurationSubmission != null -> {
+                        scope.launch {
+                            val existing =
+                                repository.getMessage(messageId) ?: return@launch
+                            if (existing.type != "extension") return@launch
+
+                            val snapshot =
+                                ExtensionMessageCodec.decode(existing.payloadJson)
+                                    ?: return@launch
+                            val values = runCatching {
+                                JSONObject(configurationSubmission.valuesJson)
+                            }.getOrElse { JSONObject() }
+
+                            NightExtensionConfigurationStore.save(
+                                context = context,
+                                extensionId = snapshot.extensionId,
+                                configurationId =
+                                    configurationSubmission.configurationId,
+                                values = values,
+                            )
+
+                            val updatedSnapshot =
+                                snapshot.withConfigurationValues(values)
+                            repository.appendMessage(
+                                existing.copy(
+                                    payloadJson =
+                                        ExtensionMessageCodec.encode(updatedSnapshot)
+                                )
+                            )
+
+                            NightExtensionMessageActionRegistry.execute(
+                                extensionId = snapshot.extensionId,
+                                chatId = activeChatId,
+                                messageId = messageId,
+                                messageType = snapshot.messageType,
+                                actionId = configurationSubmission.actionId,
+                                payload = JSONObject()
+                                    .put(
+                                        "configurationId",
+                                        configurationSubmission.configurationId,
+                                    )
+                                    .put("values", values)
+                                    .put(
+                                        "extensionPayload",
+                                        runCatching {
+                                            JSONObject(
+                                                updatedSnapshot.extensionPayloadJson
+                                            )
+                                        }.getOrElse { JSONObject() },
+                                    ),
+                            )
+                        }
+                    }
+
                     actionId.startsWith("option_") -> {
                         val index = actionId.removePrefix("option_").toIntOrNull()
                         if (index != null) {
@@ -1480,6 +1541,28 @@ private fun NightApp(initialChatId: String? = null) {
                         screen = "tabs"
                     }
                     actionId.contains("summary") -> screen = "chat_memory"
+
+                    else -> {
+                        scope.launch {
+                            val existing =
+                                repository.getMessage(messageId) ?: return@launch
+                            if (existing.type != "extension") return@launch
+                            val snapshot =
+                                ExtensionMessageCodec.decode(existing.payloadJson)
+                                    ?: return@launch
+
+                            NightExtensionMessageActionRegistry.execute(
+                                extensionId = snapshot.extensionId,
+                                chatId = activeChatId,
+                                messageId = messageId,
+                                messageType = snapshot.messageType,
+                                actionId = actionId,
+                                payload = runCatching {
+                                    JSONObject(snapshot.extensionPayloadJson)
+                                }.getOrElse { JSONObject() },
+                            )
+                        }
+                    }
                 }
             },
             onAttachmentClick = {},
