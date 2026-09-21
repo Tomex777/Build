@@ -77,6 +77,10 @@ fun NightProvidersScreen(
     ) -> Unit,
     onDeleteProfile: (NightProviderProfileEntity) -> Unit,
     onDeleteModel: (NightProviderModelEntity) -> Unit,
+    onSetProfileEnabled: (NightProviderProfileEntity, Boolean) -> Unit,
+    onMakeProfileDefault: (NightProviderProfileEntity) -> Unit,
+    onSetModelEnabled: (NightProviderModelEntity, Boolean) -> Unit,
+    onMakeModelDefault: (NightProviderModelEntity) -> Unit,
     onTestModel: (NightProviderProfileEntity, NightProviderModelEntity) -> Unit,
     providerKeys: (NightProviderProfileEntity) -> List<NightProviderKeySummary>,
     onAddProviderKey: (NightProviderProfileEntity, String, String?) -> Unit,
@@ -127,7 +131,7 @@ fun NightProvidersScreen(
         ) {
             item {
                 Text(
-                    "Keys stay encrypted on this device. Night automatically fails over across enabled chat profiles/models; multiple Groq profiles act as key rotation when a key is rate-limited or unavailable.",
+                    "Keys stay encrypted on this device. Night automatically fails over across enabled chat profiles/models. A Groq chat profile can hold multiple keys and rotates through that key pool when one is rate-limited or unavailable.",
                     color = ProviderMuted,
                     fontSize = 12.sp,
                     lineHeight = 17.sp,
@@ -161,6 +165,10 @@ fun NightProvidersScreen(
                             onAddModel = { addModelFor = profile },
                             onDeleteProfile = { onDeleteProfile(profile) },
                             onDeleteModel = onDeleteModel,
+                            onSetProfileEnabled = { enabled -> onSetProfileEnabled(profile, enabled) },
+                            onMakeProfileDefault = { onMakeProfileDefault(profile) },
+                            onSetModelEnabled = onSetModelEnabled,
+                            onMakeModelDefault = onMakeModelDefault,
                             onTestModel = { model -> onTestModel(profile, model) },
                             keys = providerKeys(profile),
                             onAddKey = { addKeyFor = profile },
@@ -212,6 +220,10 @@ private fun ProviderProfileRow(
     onAddModel: () -> Unit,
     onDeleteProfile: () -> Unit,
     onDeleteModel: (NightProviderModelEntity) -> Unit,
+    onSetProfileEnabled: (Boolean) -> Unit,
+    onMakeProfileDefault: () -> Unit,
+    onSetModelEnabled: (NightProviderModelEntity, Boolean) -> Unit,
+    onMakeModelDefault: (NightProviderModelEntity) -> Unit,
     onTestModel: (NightProviderModelEntity) -> Unit,
     keys: List<NightProviderKeySummary>,
     onAddKey: () -> Unit,
@@ -227,7 +239,7 @@ private fun ProviderProfileRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     profile.displayName,
-                    color = ProviderText,
+                    color = if (profile.isEnabled) ProviderText else ProviderMuted,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                 )
@@ -235,6 +247,7 @@ private fun ProviderProfileRow(
                     buildString {
                         append(profile.serviceKind.replace("_", " "))
                         if (profile.isDefault) append(" • default")
+                        if (!profile.isEnabled) append(" • disabled")
                         profile.endpoint?.let {
                             append(" • ")
                             append(it.removePrefix("https://").take(34))
@@ -244,11 +257,29 @@ private fun ProviderProfileRow(
                     fontSize = 11.sp,
                 )
             }
-            TextButton(onClick = onAddModel) {
-                Text("Add model", color = ProviderAccent)
-            }
             IconButton(onClick = onDeleteProfile) {
                 Icon(Icons.Default.Delete, "Delete profile", tint = Color(0xFFFF6B78))
+            }
+        }
+
+        Row(
+            modifier = Modifier.padding(start = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = { onSetProfileEnabled(!profile.isEnabled) }) {
+                Text(
+                    if (profile.isEnabled) "Disable" else "Enable",
+                    color = ProviderAccent,
+                    fontSize = 11.sp,
+                )
+            }
+            if (!profile.isDefault) {
+                TextButton(onClick = onMakeProfileDefault) {
+                    Text("Make default", color = ProviderAccent, fontSize = 11.sp)
+                }
+            }
+            TextButton(onClick = onAddModel) {
+                Text("Add model", color = ProviderAccent, fontSize = 11.sp)
             }
         }
 
@@ -316,6 +347,7 @@ private fun ProviderProfileRow(
                         buildString {
                             append(model.deploymentName ?: model.modelId)
                             if (model.isDefault) append(" • default")
+                            if (!model.isEnabled) append(" • disabled")
                             if (model.capabilities.isNotBlank()) {
                                 append(" • ")
                                 append(model.capabilities)
@@ -325,8 +357,27 @@ private fun ProviderProfileRow(
                         fontSize = 10.sp,
                     )
                 }
-                TextButton(onClick = { onTestModel(model) }) {
-                    Text("Test", color = ProviderAccent, fontSize = 11.sp)
+                TextButton(
+                    onClick = { onTestModel(model) },
+                    enabled = model.isEnabled,
+                ) {
+                    Text(
+                        "Test",
+                        color = if (model.isEnabled) ProviderAccent else ProviderMuted,
+                        fontSize = 10.sp,
+                    )
+                }
+                TextButton(onClick = { onSetModelEnabled(model, !model.isEnabled) }) {
+                    Text(
+                        if (model.isEnabled) "Disable" else "Enable",
+                        color = ProviderAccent,
+                        fontSize = 10.sp,
+                    )
+                }
+                if (!model.isDefault) {
+                    TextButton(onClick = { onMakeModelDefault(model) }) {
+                        Text("Default", color = ProviderAccent, fontSize = 10.sp)
+                    }
                 }
                 IconButton(onClick = { onDeleteModel(model) }) {
                     Icon(

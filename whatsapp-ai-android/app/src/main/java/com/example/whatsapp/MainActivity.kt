@@ -1125,6 +1125,18 @@ private fun NightApp(initialChatId: String? = null) {
             onDeleteModel = { model ->
                 scope.launch { providerManager.deleteModel(model) }
             },
+            onSetProfileEnabled = { providerProfile, enabled ->
+                scope.launch { providerManager.setProfileEnabled(providerProfile, enabled) }
+            },
+            onMakeProfileDefault = { providerProfile ->
+                scope.launch { providerManager.makeProfileDefault(providerProfile) }
+            },
+            onSetModelEnabled = { model, enabled ->
+                scope.launch { providerManager.setModelEnabled(model, enabled) }
+            },
+            onMakeModelDefault = { model ->
+                scope.launch { providerManager.makeModelDefault(model) }
+            },
             onTestModel = { providerProfile, model ->
                 scope.launch {
                     aiGateway.testModel(providerProfile, model)

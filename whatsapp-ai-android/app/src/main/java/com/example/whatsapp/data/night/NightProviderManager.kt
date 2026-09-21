@@ -110,6 +110,52 @@ class NightProviderManager private constructor(
         return model
     }
 
+    suspend fun setProfileEnabled(
+        profile: NightProviderProfileEntity,
+        enabled: Boolean,
+    ) {
+        repository.upsertProviderProfile(
+            profile.copy(
+                isEnabled = enabled,
+                updatedAt = System.currentTimeMillis(),
+            )
+        )
+    }
+
+    suspend fun makeProfileDefault(profile: NightProviderProfileEntity) {
+        dao.clearDefaultProviderProfiles(profile.serviceKind)
+        repository.upsertProviderProfile(
+            profile.copy(
+                isEnabled = true,
+                isDefault = true,
+                updatedAt = System.currentTimeMillis(),
+            )
+        )
+    }
+
+    suspend fun setModelEnabled(
+        model: NightProviderModelEntity,
+        enabled: Boolean,
+    ) {
+        repository.upsertProviderModel(
+            model.copy(
+                isEnabled = enabled,
+                updatedAt = System.currentTimeMillis(),
+            )
+        )
+    }
+
+    suspend fun makeModelDefault(model: NightProviderModelEntity) {
+        dao.clearDefaultProviderModels(model.profileId)
+        repository.upsertProviderModel(
+            model.copy(
+                isEnabled = true,
+                isDefault = true,
+                updatedAt = System.currentTimeMillis(),
+            )
+        )
+    }
+
     fun keySummaries(profile: NightProviderProfileEntity): List<NightProviderKeySummary> =
         secrets.getProviderKeySummaries(profile.secretAlias)
 

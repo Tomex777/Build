@@ -12,6 +12,71 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class NightProviderAdminInstrumentedTest {
+
+    @Test
+    fun adminCanToggleAndChangeDefaults() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val repository = NightRepository.get(context)
+        val manager = NightProviderManager.get(context)
+        val suffix = UUID.randomUUID().toString()
+
+        val first = manager.addProfile(
+            providerType = "groq",
+            serviceKind = "chat",
+            displayName = "First " + suffix,
+            apiKey = "gsk_first_" + suffix,
+            endpoint = null,
+            region = null,
+            makeDefault = true,
+        )
+        val second = manager.addProfile(
+            providerType = "groq",
+            serviceKind = "chat",
+            displayName = "Second " + suffix,
+            apiKey = "gsk_second_" + suffix,
+            endpoint = null,
+            region = null,
+            makeDefault = false,
+        )
+        val firstModel = manager.addModel(
+            profile = first,
+            modelId = "first-model-" + suffix,
+            displayName = "First model",
+            deploymentName = null,
+            capabilities = emptySet(),
+            makeDefault = true,
+        )
+        val secondModel = manager.addModel(
+            profile = first,
+            modelId = "second-model-" + suffix,
+            displayName = "Second model",
+            deploymentName = null,
+            capabilities = emptySet(),
+            makeDefault = false,
+        )
+
+        manager.setProfileEnabled(first, false)
+        assertEquals(false, requireNotNull(repository.getProviderProfile(first.id)).isEnabled)
+
+        manager.makeProfileDefault(second)
+        val updatedSecond = requireNotNull(repository.getProviderProfile(second.id))
+        assertEquals(true, updatedSecond.isEnabled)
+        assertEquals(true, updatedSecond.isDefault)
+        assertEquals(false, requireNotNull(repository.getProviderProfile(first.id)).isDefault)
+
+        manager.setModelEnabled(firstModel, false)
+        assertEquals(false, requireNotNull(repository.getProviderModel(firstModel.id)).isEnabled)
+
+        manager.makeModelDefault(secondModel)
+        val updatedSecondModel = requireNotNull(repository.getProviderModel(secondModel.id))
+        assertEquals(true, updatedSecondModel.isEnabled)
+        assertEquals(true, updatedSecondModel.isDefault)
+        assertEquals(false, requireNotNull(repository.getProviderModel(firstModel.id)).isDefault)
+
+        manager.deleteProfile(first)
+        manager.deleteProfile(second)
+    }
+
     @Test
     fun deletingProfileClearsChatsModelsAndCapabilityRoutes() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
