@@ -139,6 +139,11 @@ wait_server_cookie_count() {
     sleep 1
   done
   echo "Expected at least $minimum /next requests with shared cookie." >&2
+  cp "$SERVER_LOG" "$OUT/failure-server-log.txt" 2>/dev/null || true
+  adb exec-out screencap -p > "$OUT/failure-browser.png" 2>/dev/null || true
+  adb shell uiautomator dump /sdcard/night-browser-failure.xml >/dev/null 2>&1 || true
+  adb exec-out cat /sdcard/night-browser-failure.xml > "$OUT/failure-browser.xml" 2>/dev/null || true
+  adb logcat -d -v threadtime > "$OUT/failure-logcat.txt" 2>/dev/null || true
   cat "$SERVER_LOG" >&2 || true
   return 1
 }
@@ -157,6 +162,7 @@ assert_no_night_crash() {
 
 adb install --no-streaming -r "$APK"
 adb shell pm clear "$PACKAGE" >/dev/null 2>&1 || true
+adb reverse tcp:8765 tcp:8765
 adb shell wm size 709x1536
 adb shell wm density 240
 adb logcat -c
