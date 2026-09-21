@@ -1,30 +1,28 @@
 # Night Progress
 
 - Active branch: `night-groq-key-pool-ci`
-- Last fully verified app commit: `0cf74d4914e34747c001b274e0be9de49bf49d05`
+- Last fully verified app commit: `345efc711529c34eeaa41ba472a779b226ee2dfc`
 - Verified CI:
   - Night Integrated Regression `35633953916`: PASS
   - Android 16 build: PASS
   - Android 16 provider HTTP failover: PASS
   - Android 16 video: PASS
   - Android 16 message blocks: PASS
+  - Android 16 PDF editor: PASS
   - Android 16 Live Voice UI: PASS
   - Android 16 Extension Configuration: PASS
   - Android 16 image editor: PASS
-  - Android 16 PDF editor: PASS
   - Android 16 Mihon reader: PASS
-- Message-system phase completed:
-  - Extension-owned namespaced message-type declarations are implemented.
-  - Extension tool results can emit validated Night-rendered extension messages.
-  - Extension Configuration is implemented as a first-class `configuration_card`.
-  - Config controls: toggle, single choice, multi-choice, number, range, text, action, advanced section, save.
-  - Config precedence: task override -> saved extension value -> extension default.
-  - Config values persist per extension/config ID and dispatch back through the extension action registry.
-  - Config edits replace the existing message without bumping chat time/summary state.
-  - Generic structured blocks persist/reload through a versioned block codec.
-  - Existing rich cards now have persisted restoration paths instead of preview-only behavior.
+- Message system status:
+  - Extension-owned namespaced message types are implemented.
+  - Night validates declared extension message types/templates instead of guessing.
+  - Extension tool results can persist/render extension-declared messages.
+  - Structured block messages persist/reload through a versioned codec.
+  - Legacy rich result cards now persist/reload too.
   - Reusable Level/XP progression block is implemented.
-- Existing structured block families now covered: text, code, copy, table, progress, level, tool, error/retry, sources, confirmation, permission, question/options, diff, connection/auth, extension snapshots.
-- Existing rich result families persisted: buttons, file result, anime, rich link/article, generated image, creation progress, image search, download, tool result.
-- Night calling rule remains locked: user ↔ AI Live Voice only. No Calls tab / P2P / FCM calling.
-- Next phase: Browser message type -> full browser/session sharing -> verification flow.
+  - Extension Configuration is implemented and Android 16 verified.
+  - Extension Configuration supports toggle, single choice, multi-choice, number, range, text, action, Advanced fields, saved values, task overrides, and typed action dispatch back to the extension.
+  - Configuration edits replace the existing message without bumping chat activity timestamps.
+- Night calling rule remains user ↔ AI Live Voice only. No Calls bottom tab or person-to-person calling.
+- Current task state: message-types + Extension Configuration phase is green.
+- Exact next step: build the Browser message type, then full-browser/session sharing, then verification flow.
