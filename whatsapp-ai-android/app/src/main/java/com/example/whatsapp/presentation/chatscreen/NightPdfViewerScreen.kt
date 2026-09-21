@@ -214,23 +214,33 @@ fun NightPdfViewerScreen(
         }
     }
 
-    BackHandler {
-        if (searchOpen) {
-            searchOpen = false
-            searchError = null
-        } else {
-            onBack()
-        }
-    }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    Column(
+    ModalBottomSheet(
+        onDismissRequest = onBack,
+        sheetState = sheetState,
         modifier = Modifier
-            .fillMaxSize()
-            .background(PdfChrome)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .semantics { contentDescription = "PDF full screen viewer" },
+            .fillMaxHeight(0.97f)
+            .semantics { contentDescription = "PDF bottom sheet" },
+        containerColor = PdfChrome,
+        contentColor = Color.White,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = 8.dp, bottom = 6.dp)
+                    .size(width = 44.dp, height = 4.dp)
+                    .background(
+                        color = Color(0xFF6D7478),
+                        shape = RoundedCornerShape(99.dp),
+                    ),
+            )
+        },
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxHeight()
+                .navigationBarsPadding(),
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -516,6 +526,7 @@ fun NightPdfViewerScreen(
                 }
             }
         }
+    }
 
     if (infoOpen) {
         AlertDialog(
