@@ -176,7 +176,11 @@ class NightRepository private constructor(
     suspend fun unsummarizedMessages(chatId: String): List<NightMessageEntity> {
         val chat = dao.getChat(chatId) ?: return emptyList()
         return dao.getMessagesAfter(chatId, chat.lastSummarizedMessageAt ?: 0L)
+            .filter { it.deliveryState != "sending" }
     }
+
+    suspend fun summaryCheckpoints(chatId: String): List<NightSummaryCheckpointEntity> =
+        dao.checkpoints(chatId)
 
     suspend fun commitSummary(
         chatId: String,
@@ -185,17 +189,18 @@ class NightRepository private constructor(
         toMessageAt: Long,
     ) {
         val now = System.currentTimeMillis()
-        dao.insertCheckpoint(
-            NightSummaryCheckpointEntity(
+        dao.commitSummaryCheckpoint(
+            checkpoint = NightSummaryCheckpointEntity(
                 id = UUID.randomUUID().toString(),
                 chatId = chatId,
                 summary = summary,
                 fromMessageAt = fromMessageAt,
                 toMessageAt = toMessageAt,
                 createdAt = now,
-            )
+            ),
+            summary = summary,
+            updatedAt = now,
         )
-        dao.commitSummary(chatId, summary, now, toMessageAt)
     }
 
     suspend fun getProviderProfile(id: String): NightProviderProfileEntity? = dao.getProviderProfile(id)
