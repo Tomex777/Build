@@ -1819,7 +1819,7 @@ private fun NightMessageEntity.toVisualMessage(
 
         "file" -> WhatsAppVisualMessage.FileMessage(
             id = id,
-            name = text,
+            name = payload?.optString("displayName")?.takeIf { it.isNotBlank() } ?: text,
             detail = buildString {
                 val mime = payload?.optString("mimeType").orEmpty()
                 if (mime.isNotBlank()) append(mime)
@@ -1834,6 +1834,7 @@ private fun NightMessageEntity.toVisualMessage(
             read = mine,
             localPath = payload?.optString("localPath")?.takeIf { it.isNotBlank() },
             mimeType = payload?.optString("mimeType")?.takeIf { it.isNotBlank() },
+            caption = payload?.optString("caption").orEmpty(),
             reply = reply,
         )
 
@@ -2063,6 +2064,14 @@ private fun nightTime(timestamp: Long = System.currentTimeMillis()): String =
 
 private fun formatChatListTime(timestamp: Long): String =
     if (timestamp <= 0L) "" else nightTime(timestamp)
+
+private data class NightPdfDraft(
+    val libraryId: String,
+    val name: String,
+    val localPath: String,
+    val createdAt: Long,
+    val replyToMessageId: String?,
+)
 
 private data class NightMediaDraft(
     val libraryId: String,
