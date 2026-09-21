@@ -66,8 +66,8 @@ class NightCapabilityRouter(
                             it.isEnabled &&
                             it.supportsCapability(capability)
                     }
-                    ?: repository.defaultProviderModel(profile.id)
-                        ?.takeIf { it.isEnabled && it.supportsCapability(capability) }
+                    ?: repository.enabledProviderModels(profile.id)
+                        .firstOrNull { it.supportsCapability(capability) }
 
                 if (model != null) {
                     return NightResolvedModel(profile, model)
