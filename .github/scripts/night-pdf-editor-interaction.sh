@@ -69,7 +69,30 @@ tap_text() {
 
 assert_desc() {
   refresh_ui
-  python3 /tmp/night_pdf_editor_uia.py desc "$1" >/dev/null
+  if ! python3 /tmp/night_pdf_editor_uia.py desc "$1" >/dev/null; then
+    echo "Missing PDF editor content-desc: $1" >&2
+    cp /tmp/window.xml "$OUT/failure-window.xml" || true
+    adb exec-out screencap -p > "$OUT/failure-screen.png" || true
+    adb logcat -d -v threadtime > "$OUT/failure-logcat.txt" || true
+    exit 1
+  fi
+}
+
+wait_desc() {
+  local desc="$1"
+  local attempts="${2:-20}"
+  for _ in $(seq 1 "$attempts"); do
+    refresh_ui
+    if python3 /tmp/night_pdf_editor_uia.py desc "$desc" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Timed out waiting for PDF editor content-desc: $desc" >&2
+  cp /tmp/window.xml "$OUT/failure-window.xml" || true
+  adb exec-out screencap -p > "$OUT/failure-screen.png" || true
+  adb logcat -d -v threadtime > "$OUT/failure-logcat.txt" || true
+  exit 1
 }
 
 assert_text_contains() {
@@ -125,7 +148,12 @@ adb shell am force-stop "$PACKAGE"
 adb shell am start -W -n "$ACTIVITY"
 sleep 5
 assert_alive
-assert_desc "PDF edit composer"
+echo "STEP: wait for PDF editor"
+wait_desc "PDF edit composer" 20
+wait_desc "Editable PDF page" 20
+adb exec-out screencap -p > "$OUT/00-editor-ready.png"
+refresh_ui
+cp /tmp/window.xml "$OUT/00-editor-ready.xml"
 assert_desc "PDF tool View"
 assert_desc "PDF tool Draw"
 assert_desc "PDF tool Highlight"
