@@ -15,28 +15,14 @@ jobs:
         shell: bash
         run: |
           set +e
-          urls=(
-            "https://tfpdl.com/wp-json/"
-            "https://tfpdl.com/wp-json/wp/v2/posts?per_page=2"
-            "https://tfpdl.com/wp-json/wp/v2/search?search=naruto&per_page=2"
-            "https://tfpdl.com/?rest_route=/wp/v2/posts&per_page=2"
-          )
-          for url in "${urls[@]}"; do
+          for url in             "https://tfpdl.com/wp-json/"             "https://tfpdl.com/wp-json/wp/v2/posts?per_page=2"             "https://tfpdl.com/wp-json/wp/v2/search?search=naruto&per_page=2"             "https://tfpdl.com/?rest_route=/wp/v2/posts&per_page=2"
+          do
             echo "============================================================"
             echo "URL: $url"
-            headers="$(mktemp)"
-            body="$(mktemp)"
-            code=$(curl -L --max-time 30 --connect-timeout 10 -A "Mozilla/5.0" -D "$headers" -o "$body" -sS -w "%{http_code}" "$url")
-            rc=$?
-            echo "curl_exit=$rc"
-            echo "http_status=$code"
-            grep -i '^content-type:' "$headers" | tail -1 | tr -d '\r' || true
-            grep -i '^server:' "$headers" | tail -1 | tr -d '\r' || true
-            echo "body_bytes=$(wc -c < "$body" | tr -d ' ')"
-            python3 -c 'import json,sys; p=sys.argv[1]; t=open(p,"rb").read().decode("utf-8","replace"); 
-try:
- o=json.loads(t); print("json_valid=true"); print("json_type="+type(o).__name__); print("summary="+(str(list(o.keys())[:15]) if isinstance(o,dict) else "list_length="+str(len(o)) if isinstance(o,list) else type(o).__name__))
-except Exception:
- print("json_valid=false"); print("sample="+" ".join(t[:700].split()))' "$body"
-            rm -f "$headers" "$body"
+            curl -L --max-time 30 --connect-timeout 10 -A "Mozilla/5.0" -sS -D /tmp/h -o /tmp/b -w "HTTP_STATUS=%{http_code}\n" "$url"
+            echo "--- headers ---"
+            grep -Ei '^(content-type|server|location|cf-ray|x-|via):' /tmp/h || true
+            echo "--- body first 1000 bytes ---"
+            head -c 1000 /tmp/b || true
+            echo
           done
