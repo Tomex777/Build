@@ -397,10 +397,9 @@ jobs:
               save();
 
               browser=await chromium.launch({headless:true});
-              for(let i=0;i<selected.length;i++){
-                await validateCase(browser,selected[i],i+1);
-              }
+              await Promise.all(selected.map((item,i)=>validateCase(browser,item,i+1)));
 
+              out.cases.sort((a,b)=>a.index-b.index);
               out.summary={
                 total:out.cases.length,
                 success:out.cases.filter(x=>x.status==='success').length,
