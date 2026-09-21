@@ -92,6 +92,20 @@ jobs:
               return {text,forms,controls,links,visibleInputs,hints};
             }
 
+            async function sourceHints(label){
+              const data=await page.evaluate(()=>{
+                const inline=[...document.scripts].filter(s=>!s.src).map(s=>s.textContent||'').filter(Boolean);
+                const scripts=[...document.scripts].map(s=>s.src).filter(Boolean);
+                const keywords=/sltoken|lemmein|post_location|seconds|countdown|setinterval|settimeout|submit|requestsubmit|location|safetxt|captcha|verify/i;
+                const interestingInline=inline.filter(x=>keywords.test(x)).map(x=>x.slice(0,12000));
+                const formOuter=[...document.forms].map(f=>f.outerHTML.slice(0,12000));
+                const timerNodes=[...document.querySelectorAll('*')].filter(e=>/seconds/i.test((e.textContent||'').trim()) && (e.children.length<8)).slice(0,20).map(e=>e.outerHTML.slice(0,3000));
+                return {interestingInline,scripts,formOuter,timerNodes};
+              }).catch(()=>({interestingInline:[],scripts:[],formOuter:[],timerNodes:[]}));
+              say('source_hints',{label,url:page.url(),...data});
+              return data;
+            }
+
             function challenge(s){
               const inputs=s.visibleInputs.filter(x=>['text','number','tel'].includes((x.type||'text').toLowerCase()));
               const textHit=/(captcha|verification code|enter (the )?(number|code)|type (the )?(number|code)|security code)/i.test(s.text);
@@ -101,9 +115,11 @@ jobs:
             await page.goto(target,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>say('goto_error',{message:e.message}));
             await page.waitForTimeout(3000);
             let s=await snapshot('entry');
+            await sourceHints('entry');
 
             await page.waitForTimeout(7000);
             s=await snapshot('countdown-finished');
+            await sourceHints('countdown-finished');
             let ch=challenge(s);
             if(ch.hit){
               say('verification_boundary',{stage:'countdown',url:page.url(),...ch,forms:s.forms});
