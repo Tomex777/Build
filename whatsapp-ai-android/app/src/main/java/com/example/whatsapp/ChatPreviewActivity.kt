@@ -27,6 +27,7 @@ import com.example.whatsapp.presentation.chatscreen.ReplyPreview
 import com.example.whatsapp.presentation.chatscreen.WhatsAppVisualMessage
 import com.example.whatsapp.presentation.chatscreen.approvedRichPreviewMessages
 import com.example.whatsapp.presentation.chatscreen.mediaPreviewMessages
+import com.example.whatsapp.presentation.chatscreen.nightBlockPreviewMessages
 import com.example.whatsapp.presentation.chatscreen.richPreviewMessagesPageOne
 import com.example.whatsapp.presentation.chatscreen.richPreviewMessagesPageTwo
 import com.example.whatsapp.presentation.chatscreen.utilityPreviewMessages
@@ -63,6 +64,7 @@ class ChatPreviewActivity : ComponentActivity() {
                         "rich2" -> richPreviewMessagesPageTwo()
                         "approved-rich" -> approvedRichPreviewMessages()
                         "extension" -> extensionSchemaPreviewMessages()
+                        "blocks" -> nightBlockPreviewMessages()
                         "utility" -> utilityPreviewMessages()
                         else -> whatsappPreviewMessages()
                     },
