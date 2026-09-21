@@ -44,10 +44,10 @@ import java.util.ResourceBundle;
 import java.util.function.Supplier;
 
 /**
- * Android-compatible replacement for java.lang.System.Logger.
+ * Android-compatible replacement for the JDK system logger.
  *
  * Cobalt uses only a small logging facade; Android does not expose
- * System.Logger.Level, so this adapter preserves Cobalt's source-level
+ * The Android runtime lacks the JDK logger level type, so this adapter preserves Cobalt's source-level
  * Logger/Level shape while delegating to java.util.logging.
  */
 public final class Logger {
