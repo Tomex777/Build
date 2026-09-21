@@ -38,6 +38,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animate
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -7063,7 +7064,7 @@ private fun ActiveCallScreen(
                                                 zoom
                                         ).coerceIn(
                                             .65f,
-                                            1.25f
+                                            1.50f
                                         )
                                     selfViewScale = nextScale
 
@@ -7129,7 +7130,12 @@ private fun ActiveCallScreen(
                                 // the tile may stretch while touched,
                                 // then returns to its normal maximum.
                                 if (selfViewScale > 1f) {
-                                    selfViewScale = 1f
+                                    animate(
+                                        initialValue = selfViewScale,
+                                        targetValue = 1f
+                                    ) { value, _ ->
+                                        selfViewScale = value
+                                    }
                                 }
                             }
                         },
