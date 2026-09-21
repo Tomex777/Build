@@ -110,6 +110,90 @@ class NightProviderManager private constructor(
         return model
     }
 
+    suspend fun updateProfile(
+        profile: NightProviderProfileEntity,
+        displayName: String,
+        endpoint: String?,
+        region: String?,
+        language: String,
+        voiceName: String?,
+        replacementApiKey: String? = null,
+    ) {
+        val normalizedEndpoint = endpoint?.trim()?.ifBlank { null }
+        val normalizedRegion = region?.trim()?.ifBlank { null }
+        if (profile.providerType == "azure") {
+            when (profile.serviceKind) {
+                "chat", "live_voice" ->
+                    require(!normalizedEndpoint.isNullOrBlank()) {
+                        "Azure endpoint is required for this service."
+                    }
+                "speech" ->
+                    require(!normalizedEndpoint.isNullOrBlank() || !normalizedRegion.isNullOrBlank()) {
+                        "Azure Speech needs a resource endpoint or region."
+                    }
+            }
+        }
+
+        replacementApiKey
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?.let { newKey ->
+                require(
+                    !(profile.providerType.equals("groq", ignoreCase = true) &&
+                        profile.serviceKind == "chat")
+                ) {
+                    "Use the Groq key-pool controls to add or remove Groq keys."
+                }
+                secrets.put(profile.secretAlias, newKey)
+            }
+
+        repository.upsertProviderProfile(
+            profile.copy(
+                displayName = displayName.trim().ifBlank { profile.displayName },
+                endpoint = normalizedEndpoint,
+                region = normalizedRegion,
+                language = language.trim().ifBlank { "en-US" },
+                voiceName = voiceName?.trim()?.ifBlank { null },
+                updatedAt = System.currentTimeMillis(),
+            )
+        )
+    }
+
+    suspend fun updateModel(
+        model: NightProviderModelEntity,
+        modelId: String,
+        displayName: String,
+        deploymentName: String?,
+        capabilities: Set<String>,
+    ) {
+        val deployment = deploymentName?.trim()?.ifBlank { null }
+        val normalizedModelId = modelId.trim().ifBlank {
+            deployment ?: model.modelId
+        }
+        require(normalizedModelId.isNotBlank()) {
+            "Model or deployment name is required."
+        }
+        val profile = repository.getProviderProfile(model.profileId)
+            ?: error("Provider profile was not found.")
+        val normalizedCapabilities = buildSet {
+            add("text")
+            capabilities.forEach { add(it.lowercase()) }
+            if (profile.serviceKind == "live_voice") add("live_voice")
+        }.joinToString(",")
+
+        repository.upsertProviderModel(
+            model.copy(
+                modelId = normalizedModelId,
+                displayName = displayName.trim().ifBlank {
+                    deployment ?: normalizedModelId
+                },
+                deploymentName = deployment,
+                capabilities = normalizedCapabilities,
+                updatedAt = System.currentTimeMillis(),
+            )
+        )
+    }
+
     suspend fun setProfileEnabled(
         profile: NightProviderProfileEntity,
         enabled: Boolean,
