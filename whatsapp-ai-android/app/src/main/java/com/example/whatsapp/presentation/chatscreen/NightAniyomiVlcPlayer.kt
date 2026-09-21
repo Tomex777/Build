@@ -221,7 +221,7 @@ internal fun NightAniyomiVlcPlayer(
         }
     }
 
-    LaunchedEffect(active, player, softwareDecode, attachedPlayer) {
+    LaunchedEffect(active, player, softwareDecode, hardwareRetryGeneration) {
         if (!active) {
             runCatching { player.pause() }
             playing = false
@@ -231,11 +231,38 @@ internal fun NightAniyomiVlcPlayer(
             }
             return@LaunchedEffect
         }
+
+        // A recreated VLC engine can be composed before AndroidView has attached
+        // its new surface. Returning here leaves the new generation unmonitored
+        // if no further snapshot change restarts this effect. Wait for the real
+        // attachment instead, then start playback exactly once for this player.
+        var attachmentChecks = 0
+        while (
+            isActive &&
+            active &&
+            attachedPlayer !== player &&
+            attachmentChecks < 120
+        ) {
+            attachmentChecks += 1
+            delay(50L)
+        }
+        if (!active || !isActive) return@LaunchedEffect
         if (attachedPlayer !== player) {
             playing = false
+            Log.e(
+                "NightVideo",
+                "Timed out waiting for VLC surface attachment " +
+                    "(generation=$hardwareRetryGeneration, software=$softwareDecode).",
+            )
             return@LaunchedEffect
         }
 
+        Log.i(
+            "NightVideo",
+            "Starting VLC playback " +
+                "(generation=$hardwareRetryGeneration, software=$softwareDecode, " +
+                "resume=${fallbackResumePosition}ms).",
+        )
         player.play()
         if (fallbackResumePosition > 0L) {
             runCatching { player.setTime(fallbackResumePosition) }
@@ -358,6 +385,11 @@ internal fun NightAniyomiVlcPlayer(
                             }.isSuccess
                             if (attached) {
                                 attachedPlayer = player
+                                Log.i(
+                                    "NightVideo",
+                                    "Attached VLC surface " +
+                                        "(generation=$hardwareRetryGeneration, software=$softwareDecode).",
+                                )
                                 layout.installNightVideoTapHandler {
                                     controlsVisible = !controlsVisible
                                 }
