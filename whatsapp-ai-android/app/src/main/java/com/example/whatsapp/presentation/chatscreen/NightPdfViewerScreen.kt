@@ -439,6 +439,15 @@ fun NightPdfViewerScreen(
                             onReady = { ready ->
                                 viewer = ready
                                 ready.setZoomEnabled(true)
+                                // Pdf-Viewer renders its own transient page-number badge.
+                                // Night owns the document chrome, so keep only Night's
+                                // persistent bottom indicator instead of showing two.
+                                ready.findViewById<android.widget.TextView>(
+                                    com.rajat.pdfviewer.R.id.pageNumber,
+                                )?.apply {
+                                    alpha = 0f
+                                    importantForAccessibility = android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                                }
                             },
                         )
                     }
