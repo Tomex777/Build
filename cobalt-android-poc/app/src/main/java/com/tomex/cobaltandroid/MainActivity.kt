@@ -34,6 +34,7 @@ class MainActivity : Activity() {
             val root = generateSequence(error) { it.cause }.last()
             val detail = "${root::class.java.name}: ${root.message ?: "no message"}"
             lines += "FAIL  $stage — $detail"
+            Log.e(tag, "Probe failed at $stage", error)
             return lines.joinToString("\n")
         }
 
