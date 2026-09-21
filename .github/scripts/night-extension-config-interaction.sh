@@ -146,7 +146,16 @@ ready=false
 for attempt in 1 2 3; do
   refresh_ui || true
   if grep -qi "isn't responding" /tmp/window.xml 2>/dev/null; then
-    adb shell input keyevent 4 || true
+    # Android's emulator launcher (Quickstep) can occasionally raise a system
+    # ANR dialog over a healthy Night preview. Dismiss the system dialog
+    # explicitly instead of relying on Back, which can leave it covering Night.
+    if coords="$(python3 /tmp/night_ext_config_uia.py text "Close app" 2>/dev/null)"; then
+      read -r x y <<<"$coords"
+      adb shell input tap "$x" "$y" || true
+      sleep 1
+    else
+      adb shell input keyevent 4 || true
+    fi
     adb shell am force-stop "$PACKAGE"
     adb shell am start -W -n "$ACTIVITY" --es mode extension-config >/dev/null
     sleep 3
