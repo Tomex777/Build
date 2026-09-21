@@ -60,8 +60,20 @@ else:
 PY
 
 refresh_ui() {
-  adb shell uiautomator dump /sdcard/night-pdf-editor.xml >/dev/null
-  adb exec-out cat /sdcard/night-pdf-editor.xml > /tmp/window.xml
+  local attempt
+  for attempt in $(seq 1 5); do
+    adb shell rm -f /sdcard/night-pdf-editor.xml >/dev/null 2>&1 || true
+    adb shell uiautomator dump --compressed /sdcard/night-pdf-editor.xml >/dev/null 2>&1 || true
+    if adb exec-out cat /sdcard/night-pdf-editor.xml > /tmp/window.xml 2>/dev/null && \
+       grep -q '<hierarchy' /tmp/window.xml; then
+      return 0
+    fi
+    sleep 1
+  done
+
+  echo "Could not capture a stable UIAutomator hierarchy." >&2
+  adb shell dumpsys window windows > "$OUT/failure-window-dumpsys.txt" 2>/dev/null || true
+  return 1
 }
 
 tap_desc() {
