@@ -16,7 +16,30 @@ jobs:
       - name: Checkout POC
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Checkout pinned Cobalt
+        uses: actions/checkout@v4
+        with:
+          repository: Auties00/Cobalt
+          ref: cb9fbf172507626948fbc3611d0a6fb00bb3a0f1
+          path: cobalt-upstream
+
+      - name: Set up JDK 25 for Cobalt
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Build pinned Cobalt into local Maven
+        shell: bash
+        run: |
+          set -o pipefail
+          chmod +x cobalt-upstream/mvnw
+          (
+            cd cobalt-upstream
+            ./mvnw -DskipTests -pl modules/lib -am install
+          ) 2>&1 | tee cobalt-android-poc/cobalt-build.log
+
+      - name: Set up JDK 17 for Android
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -27,28 +50,19 @@ jobs:
         with:
           gradle-version: "8.13"
 
-      - name: Try packaging untouched Cobalt
-        id: cobalt_build
-        continue-on-error: true
+      - name: Package Cobalt into Android 16 APK
         shell: bash
         run: |
           set -o pipefail
           gradle -p cobalt-android-poc :app:assembleDebug --stacktrace 2>&1 | tee cobalt-android-poc/android-build.log
 
-      - name: Record result
+      - name: Verify APK exists
         shell: bash
         run: |
-          {
-            echo "## Cobalt Android packaging baseline"
-            echo
-            echo "Build outcome: **${{ steps.cobalt_build.outcome }}**"
-            echo
-            if [[ "${{ steps.cobalt_build.outcome }}" == "success" ]]; then
-              echo "The unmodified Maven Cobalt artifact passed D8 packaging. Next test: runtime linked-client loading/pairing."
-            else
-              echo "The untouched artifact did not package. The uploaded log gives the exact first Android incompatibility to patch."
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+          APK="$(find cobalt-android-poc/app/build/outputs/apk -type f -name '*.apk' | head -n 1)"
+          test -n "$APK"
+          echo "Built: $APK"
+          ls -lh "$APK"
 
       - name: Upload build evidence
         if: always()
@@ -57,8 +71,9 @@ jobs:
           name: cobalt-android-baseline
           if-no-files-found: ignore
           path: |
+            cobalt-android-poc/cobalt-build.log
             cobalt-android-poc/android-build.log
-            cobalt-android-poc/app/build/outputs/apk/debug/*.apk
+            cobalt-android-poc/app/build/outputs/apk/**/*.apk
 
   compatibility-audit:
     runs-on: ubuntu-latest
