@@ -92,10 +92,12 @@ fun NightPdfViewerScreen(
     localPath: String,
     onBack: () -> Unit,
     onEdit: (() -> Unit)? = null,
+    displayName: String? = null,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val file = remember(localPath) { File(localPath) }
+    val shownName = displayName?.takeIf { it.isNotBlank() } ?: shownName
 
     var viewer by remember(localPath) { mutableStateOf<PdfRendererView?>(null) }
     var viewerGeneration by remember(localPath) { mutableIntStateOf(0) }
@@ -281,7 +283,7 @@ fun NightPdfViewerScreen(
                 IconButton(onClick = ::sharePdf) {
                     Icon(Icons.Default.Share, "Share PDF", tint = Color.White)
                 }
-                IconButton(onClick = { saveLauncher.launch(file.name.ifBlank { "document.pdf" }) }) {
+                IconButton(onClick = { saveLauncher.launch(shownName.ifBlank { "document.pdf" }) }) {
                     Icon(Icons.Default.Download, "Save PDF", tint = Color.White)
                 }
                 IconButton(onClick = ::openExternally) {
