@@ -486,7 +486,13 @@ internal fun NightVlcVideoSurface(
             position = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(0L)
             playing = runCatching { player.isPlaying }.getOrDefault(false)
 
-            if (position > lastObservedPosition + 180L) {
+            if (userPaused) {
+                // Do not carry intentional pause time into the decoder watchdog.
+                // Resume should always receive a fresh playback window.
+                lastObservedPosition = position
+                lastAdvanceAt = now
+                startedAt = now
+            } else if (position > lastObservedPosition + 180L) {
                 lastObservedPosition = position
                 lastAdvanceAt = now
             }
