@@ -71,12 +71,16 @@ jobs:
                 tag:e.tagName,text:(e.textContent||e.getAttribute('value')||'').trim(),type:e.getAttribute('type'),
                 name:e.getAttribute('name'),id:e.id||null,onclick:e.getAttribute('onclick')
               }))).catch(()=>[]);
+              const links=await page.locator('a').evaluateAll(as=>as.map(a=>({
+                text:(a.textContent||'').trim(),href:a.href,id:a.id||null,cls:a.className||null,
+                target:a.getAttribute('target'),onclick:a.getAttribute('onclick')
+              })).filter(x=>x.href)).catch(()=>[]);
               const visibleInputs=await page.locator('input:visible').evaluateAll(xs=>xs.map(x=>({
                 type:x.getAttribute('type'),name:x.getAttribute('name'),value:x.getAttribute('value'),
                 placeholder:x.getAttribute('placeholder'),id:x.id||null,outer:x.outerHTML.slice(0,500)
               }))).catch(()=>[]);
-              say('snapshot',{label,url:page.url(),title:await page.title().catch(()=>''),text:text.slice(0,2200),forms,controls,visibleInputs});
-              return {text,forms,controls,visibleInputs};
+              say('snapshot',{label,url:page.url(),title:await page.title().catch(()=>''),text:text.slice(0,3500),forms,controls,links:links.slice(0,200),visibleInputs});
+              return {text,forms,controls,links,visibleInputs};
             }
 
             await page.goto(target,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>say('goto_error',{message:e.message}));
@@ -103,8 +107,48 @@ jobs:
             const challengeNow=s.visibleInputs.filter(x=>['text','number','tel'].includes((x.type||'text').toLowerCase()));
             if(challengeNow.length || /(captcha|verification code|enter (the )?(number|code)|type (the )?(number|code)|security code)/i.test(s.text)){
               say('verification_boundary',{reason:'post-countdown',inputs:challengeNow,forms:s.forms});
+              await browser.close(); return;
+            }
+
+            const interestingLinks=(s.links||[]).filter(x=>/safetxt|continue|get\s*link|download|proceed|next|verify|generate/i.test((x.text||'')+' '+(x.href||'')));
+            say('article_candidates',{url:page.url(),links:interestingLinks,controls:s.controls});
+
+            let followed=false;
+            for(const link of interestingLinks){
+              const loc=page.locator('a').filter({hasText:new RegExp((link.text||'').replace(/[.*+?^$\{\}()|[\]\\]/g,'\\            const challengeNow=s.visibleInputs.filter(x=>['text','number','tel'].includes((x.type||'text').toLowerCase()));
+            if(challengeNow.length || /(captcha|verification code|enter (the )?(number|code)|type (the )?(number|code)|security code)/i.test(s.text)){
+              say('verification_boundary',{reason:'post-countdown',inputs:challengeNow,forms:s.forms});
             } else {
               say('no_verification_input_yet',{url:page.url(),forms:s.forms,controls:s.controls});
+            }
+
+            await browser.close();'),'i')}).first();
+              if(link.text && await loc.isVisible().catch(()=>false)){
+                say('article_follow',{text:link.text,href:link.href});
+                await loc.click({timeout:10000}).catch(e=>say('article_click_error',{message:e.message}));
+                followed=true; break;
+              }
+            }
+            if(!followed){
+              const direct=page.locator('a[href*="safetxt"], a[href*="download"], a[href*="redirect"]').first();
+              if(await direct.count().catch(()=>0) && await direct.isVisible().catch(()=>false)){
+                say('article_follow',{text:await direct.innerText().catch(()=>''),href:await direct.getAttribute('href')});
+                await direct.click({timeout:10000}).catch(e=>say('article_click_error',{message:e.message}));
+                followed=true;
+              }
+            }
+
+            if(followed){
+              await page.waitForTimeout(7000);
+              s=await snapshot('after-article-follow');
+              const nextChallenge=s.visibleInputs.filter(x=>['text','number','tel'].includes((x.type||'text').toLowerCase()));
+              if(nextChallenge.length || /(captcha|verification code|enter (the )?(number|code)|type (the )?(number|code)|security code)/i.test(s.text)){
+                say('verification_boundary',{reason:'after-article-follow',url:page.url(),inputs:nextChallenge,forms:s.forms});
+              } else {
+                say('no_verification_input_yet',{url:page.url(),forms:s.forms,controls:s.controls,interestingLinks:(s.links||[]).filter(x=>/safetxt|continue|get\s*link|download|proceed|next|verify|generate/i.test((x.text||'')+' '+(x.href||'')))});
+              }
+            } else {
+              say('no_verification_input_yet',{url:page.url(),forms:s.forms,controls:s.controls,interestingLinks});
             }
 
             await browser.close();
