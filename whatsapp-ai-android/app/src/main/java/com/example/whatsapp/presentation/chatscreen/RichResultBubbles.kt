@@ -1428,6 +1428,17 @@ private fun ExtensionResultBubble(
         return
     }
 
+    if (
+        snapshot.template == ExtensionCardTemplate.Configuration &&
+        snapshot.configuration != null
+    ) {
+        NightExtensionConfigurationBubble(
+            item = item,
+            onAction = onAction,
+        )
+        return
+    }
+
     BubbleFrame(time = item.time) {
         Row(
             modifier = Modifier.fillMaxWidth(),
