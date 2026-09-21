@@ -226,6 +226,7 @@ class NightRepository private constructor(
     suspend fun addLibraryItem(item: NightLibraryItemEntity) = dao.upsertLibraryItem(item)
     suspend fun getLibraryItem(id: String): NightLibraryItemEntity? = dao.getLibraryItem(id)
     suspend fun getLibraryItems(): List<NightLibraryItemEntity> = dao.getLibraryItems()
+    suspend fun deleteLibraryItem(id: String) = dao.deleteLibraryItem(id)
 
     suspend fun getScheduledTask(id: String): NightScheduledTaskEntity? = dao.getScheduledTask(id)
     suspend fun getScheduledTasks(): List<NightScheduledTaskEntity> = dao.getScheduledTasks()
