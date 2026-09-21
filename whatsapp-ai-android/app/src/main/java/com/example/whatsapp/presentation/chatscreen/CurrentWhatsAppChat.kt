@@ -162,12 +162,12 @@ sealed interface WhatsAppVisualMessage {
         override val id: String,
         val name: String,
         val detail: String,
-        val caption: String = "",
         val time: String,
         val mine: Boolean,
         val read: Boolean = false,
         val localPath: String? = null,
         val mimeType: String? = null,
+        val caption: String = "",
         val reply: ReplyPreview? = null,
     ) : WhatsAppVisualMessage
 
