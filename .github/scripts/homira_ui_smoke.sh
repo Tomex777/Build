@@ -23,13 +23,46 @@ adb shell pidof com.night.homira | grep -q .
 cp .github/scripts/homira_ui_node.py /tmp/homira-ui-node.py
 
 dump_ui() {
-  adb shell uiautomator dump /sdcard/homira-window.xml >/dev/null
-  adb pull /sdcard/homira-window.xml /tmp/homira-window.xml >/dev/null
+  rm -f /tmp/homira-window.xml
+  adb shell rm -f /sdcard/homira-window.xml >/dev/null 2>&1 || true
+
+  for attempt in 1 2 3 4 5 6; do
+    if adb shell uiautomator dump --compressed /sdcard/homira-window.xml >/dev/null 2>&1 &&
+       adb shell test -s /sdcard/homira-window.xml &&
+       adb pull /sdcard/homira-window.xml /tmp/homira-window.xml >/dev/null 2>&1 &&
+       test -s /tmp/homira-window.xml; then
+      return 0
+    fi
+
+    echo "UI dump attempt $attempt failed; waiting for accessibility tree..."
+    sleep 0.45
+  done
+
+  echo "Could not capture Homira accessibility tree"
+  adb shell dumpsys window windows | tail -120 || true
+  return 1
 }
 
 assert_ui() {
   dump_ui
   python3 /tmp/homira-ui-node.py assert "$1"
+}
+
+assert_ui_after_scroll() {
+  label="$1"
+  for attempt in 1 2 3 4; do
+    if dump_ui &&
+       python3 /tmp/homira-ui-node.py assert "$label" >/dev/null 2>&1; then
+      echo "Found UI node: '$label'"
+      return 0
+    fi
+
+    adb shell input swipe 540 1500 540 520 350
+    sleep 0.45
+  done
+
+  dump_ui
+  python3 /tmp/homira-ui-node.py assert "$label"
 }
 
 tap_ui() {
@@ -81,9 +114,7 @@ tap_ui "Info"
 assert_ui "Favorite"
 assert_ui "Share contact"
 adb exec-out screencap -p > homira-android/app/build/ui-smoke/contact-info-top.png
-adb shell input swipe 540 1500 540 650 350
-sleep 0.5
-assert_ui "Delete contact"
+assert_ui_after_scroll "Delete contact"
 adb exec-out screencap -p > homira-android/app/build/ui-smoke/contact-info.png
 adb shell input keyevent 4
 sleep 0.5
