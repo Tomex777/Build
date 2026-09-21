@@ -82,6 +82,27 @@ import kotlinx.coroutines.withContext
 private val EditorAccent = Color(0xFFE94B72)
 private val EditorBar = Color(0xFF111719)
 
+private data class EditorColorOption(
+    val name: String,
+    val composeColor: Color,
+    val androidColor: Int,
+)
+
+private val EditorColorOptions = listOf(
+    EditorColorOption("White", Color.White, AndroidColor.WHITE),
+    EditorColorOption("Red", Color(0xFFFF4D67), AndroidColor.rgb(255, 77, 103)),
+    EditorColorOption("Yellow", Color(0xFFFFD43B), AndroidColor.rgb(255, 212, 59)),
+    EditorColorOption("Green", Color(0xFF35D07F), AndroidColor.rgb(53, 208, 127)),
+    EditorColorOption("Blue", Color(0xFF4EA5FF), AndroidColor.rgb(78, 165, 255)),
+    EditorColorOption("Black", Color.Black, AndroidColor.BLACK),
+)
+
+private val EditorBrushSizes = listOf(
+    "Thin" to 6f,
+    "Medium" to 12f,
+    "Thick" to 22f,
+)
+
 @Composable
 fun NightMediaComposerScreen(
     localPath: String,
@@ -107,6 +128,12 @@ fun NightMediaComposerScreen(
     var textDialogOpen by remember(localPath) { mutableStateOf(false) }
     var textDraft by remember(localPath) { mutableStateOf("") }
     var emojiOpen by remember(localPath) { mutableStateOf(false) }
+    var discardDialogOpen by remember(localPath) { mutableStateOf(false) }
+    var imageEdited by remember(localPath) { mutableStateOf(false) }
+    val initialCaption = remember(localPath) { caption }
+    var brushColor by remember(localPath) { mutableStateOf(EditorColorOptions.first()) }
+    var brushSize by remember(localPath) { mutableStateOf(EditorBrushSizes[1].second) }
+    var textColor by remember(localPath) { mutableStateOf(EditorColorOptions.first()) }
 
     var exporting by remember(localPath) { mutableStateOf(false) }
     var exportError by remember(localPath) { mutableStateOf<String?>(null) }
@@ -121,14 +148,30 @@ fun NightMediaComposerScreen(
     }
     var muted by remember(localPath) { mutableStateOf(false) }
 
-    BackHandler(enabled = cropMode || emojiOpen) {
+    fun closeDrawingMode() {
+        drawing = false
+        photoEditor?.setBrushDrawingMode(false)
+    }
+
+    fun requestBack() {
+        if (exporting) return
         when {
+            textDialogOpen -> textDialogOpen = false
             emojiOpen -> emojiOpen = false
             cropMode -> {
                 cropMode = false
                 cropView = null
             }
+            drawing -> closeDrawingMode()
+            !isVideo && (imageEdited || caption != initialCaption) -> discardDialogOpen = true
+            else -> onCancel()
         }
+    }
+
+    // Keep the proven video back path unchanged. Image editing intercepts back so
+    // accidental exits cannot silently discard markup/crop/text work.
+    BackHandler(enabled = !isVideo || cropMode || emojiOpen) {
+        requestBack()
     }
 
     DisposableEffect(localPath) {
@@ -200,6 +243,8 @@ fun NightMediaComposerScreen(
                 val previous = workingPath
                 workingPath = output.absolutePath
                 cropMode = false
+                cropView = null
+                imageEdited = true
                 exporting = false
                 if (previous != localPath) {
                     runCatching { File(previous).delete() }
@@ -325,10 +370,10 @@ fun NightMediaComposerScreen(
             ) {
                 IconButton(
                     onClick = {
-                        if (cropMode) {
-                            cropMode = false
-                        } else {
+                        if (isVideo) {
                             onCancel()
+                        } else {
+                            requestBack()
                         }
                     }
                 ) {
@@ -342,66 +387,103 @@ fun NightMediaComposerScreen(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (isVideo) {
-                        IconButton(onClick = { muted = !muted }) {
-                            Icon(
-                                imageVector = if (muted) Icons.Default.MicOff else Icons.Default.VolumeUp,
-                                contentDescription = if (muted) "Unmute" else "Mute",
-                                tint = if (muted) EditorAccent else Color.White,
-                            )
-                        }
-                    } else if (cropMode) {
-                        IconButton(onClick = { cropView?.rotateImage(90) }) {
-                            Icon(Icons.Default.RotateRight, "Rotate crop", tint = Color.White)
-                        }
-                    } else {
-                        IconButton(onClick = ::enterCropMode) {
-                            Icon(Icons.Default.Crop, "Crop", tint = Color.White)
-                        }
-                        IconButton(
-                            onClick = {
-                                imageRotation = (imageRotation + 90f) % 360f
-                                photoEditorView?.source?.rotation = imageRotation
-                            },
-                        ) {
-                            Icon(Icons.Default.RotateRight, "Rotate", tint = Color.White)
-                        }
-                        IconButton(onClick = { emojiOpen = !emojiOpen }) {
-                            Icon(
-                                Icons.Default.SentimentSatisfiedAlt,
-                                "Emoji",
-                                tint = if (emojiOpen) EditorAccent else Color.White,
-                            )
-                        }
-                        IconButton(onClick = { textDialogOpen = true }) {
-                            Icon(Icons.Default.TextFields, "Text", tint = Color.White)
-                        }
-                        IconButton(
-                            onClick = {
-                                drawing = !drawing
-                                photoEditor?.setBrushDrawingMode(drawing)
-                                if (drawing) {
-                                    photoEditor?.brushColor = AndroidColor.WHITE
-                                    photoEditor?.brushSize = 12f
-                                }
+                    when {
+                        isVideo -> {
+                            IconButton(onClick = { muted = !muted }) {
+                                Icon(
+                                    imageVector = if (muted) Icons.Default.MicOff else Icons.Default.VolumeUp,
+                                    contentDescription = if (muted) "Unmute" else "Mute",
+                                    tint = if (muted) EditorAccent else Color.White,
+                                )
                             }
-                        ) {
-                            Icon(
-                                Icons.Default.Brush,
-                                "Draw",
-                                tint = if (drawing) EditorAccent else Color.White,
-                            )
+                            // Video is frozen: retain its existing top Done/export action.
+                            IconButton(onClick = ::finish) {
+                                Icon(Icons.Default.Check, "Done", tint = Color.White)
+                            }
                         }
-                        IconButton(onClick = { photoEditor?.undo() }) {
-                            Icon(Icons.Default.Undo, "Undo", tint = Color.White)
-                        }
-                        IconButton(onClick = { photoEditor?.redo() }) {
-                            Icon(Icons.Default.Redo, "Redo", tint = Color.White)
-                        }
-                    }
 
-                    IconButton(onClick = ::finish) {
-                        Icon(Icons.Default.Check, if (cropMode) "Apply crop" else "Done", tint = Color.White)
+                        cropMode -> {
+                            IconButton(onClick = { cropView?.rotateImage(90) }) {
+                                Icon(Icons.Default.RotateRight, "Rotate crop", tint = Color.White)
+                            }
+                            IconButton(onClick = ::applyCrop) {
+                                Icon(Icons.Default.Check, "Apply crop", tint = Color.White)
+                            }
+                        }
+
+                        drawing -> {
+                            IconButton(
+                                onClick = {
+                                    photoEditor?.undo()
+                                    imageEdited = true
+                                },
+                            ) {
+                                Icon(Icons.Default.Undo, "Undo", tint = Color.White)
+                            }
+                            IconButton(
+                                onClick = {
+                                    photoEditor?.redo()
+                                    imageEdited = true
+                                },
+                            ) {
+                                Icon(Icons.Default.Redo, "Redo", tint = Color.White)
+                            }
+                            IconButton(onClick = ::closeDrawingMode) {
+                                Icon(Icons.Default.Check, "Done drawing", tint = Color.White)
+                            }
+                        }
+
+                        else -> {
+                            IconButton(onClick = ::enterCropMode) {
+                                Icon(Icons.Default.Crop, "Crop", tint = Color.White)
+                            }
+                            IconButton(
+                                onClick = {
+                                    imageRotation = (imageRotation + 90f) % 360f
+                                    photoEditorView?.source?.rotation = imageRotation
+                                    imageEdited = true
+                                },
+                            ) {
+                                Icon(Icons.Default.RotateRight, "Rotate", tint = Color.White)
+                            }
+                            IconButton(onClick = { emojiOpen = !emojiOpen }) {
+                                Icon(
+                                    Icons.Default.SentimentSatisfiedAlt,
+                                    "Emoji",
+                                    tint = if (emojiOpen) EditorAccent else Color.White,
+                                )
+                            }
+                            IconButton(onClick = { textDialogOpen = true }) {
+                                Icon(Icons.Default.TextFields, "Text", tint = Color.White)
+                            }
+                            IconButton(
+                                onClick = {
+                                    drawing = true
+                                    imageEdited = true
+                                    photoEditor?.setBrushDrawingMode(true)
+                                    photoEditor?.brushColor = brushColor.androidColor
+                                    photoEditor?.brushSize = brushSize
+                                }
+                            ) {
+                                Icon(Icons.Default.Brush, "Draw", tint = Color.White)
+                            }
+                            IconButton(
+                                onClick = {
+                                    photoEditor?.undo()
+                                    imageEdited = true
+                                },
+                            ) {
+                                Icon(Icons.Default.Undo, "Undo", tint = Color.White)
+                            }
+                            IconButton(
+                                onClick = {
+                                    photoEditor?.redo()
+                                    imageEdited = true
+                                },
+                            ) {
+                                Icon(Icons.Default.Redo, "Redo", tint = Color.White)
+                            }
+                        }
                     }
                 }
             }
@@ -472,6 +554,75 @@ fun NightMediaComposerScreen(
                                 color = EditorAccent,
                                 modifier = Modifier.size(34.dp),
                             )
+                        }
+                    }
+                }
+            }
+
+            if (!isVideo && drawing && !cropMode) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(EditorBar)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Text("Draw", color = Color.White, fontSize = 13.sp)
+                        EditorColorOptions.forEach { option ->
+                            Surface(
+                                color = option.composeColor,
+                                shape = CircleShape,
+                                modifier = Modifier
+                                    .size(if (brushColor == option) 30.dp else 26.dp)
+                                    .semantics { contentDescription = "Brush " + option.name },
+                                onClick = {
+                                    brushColor = option
+                                    photoEditor?.brushColor = option.androidColor
+                                },
+                            ) {
+                                if (brushColor == option) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = if (option.name in setOf("White", "Yellow")) Color.Black else Color.White,
+                                            modifier = Modifier.size(15.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        EditorBrushSizes.forEach { (label, size) ->
+                            Surface(
+                                color = if (brushSize == size) EditorAccent else Color(0xFF30383B),
+                                shape = RoundedCornerShape(18.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .semantics { contentDescription = "Brush size " + label },
+                                onClick = {
+                                    brushSize = size
+                                    photoEditor?.brushSize = size
+                                },
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.padding(vertical = 7.dp),
+                                )
+                            }
                         }
                     }
                 }
@@ -580,6 +731,7 @@ fun NightMediaComposerScreen(
                 EmojiPicker(
                     onEmojiSelected = { emoji ->
                         photoEditor?.addEmoji(emoji)
+                        imageEdited = true
                         emojiOpen = false
                     },
                     onDismiss = { emojiOpen = false },
@@ -588,17 +740,69 @@ fun NightMediaComposerScreen(
         }
     }
 
+    if (discardDialogOpen && !isVideo) {
+        AlertDialog(
+            onDismissRequest = { discardDialogOpen = false },
+            title = { Text("Discard changes?") },
+            text = { Text("Your image edits and caption changes won’t be saved.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        discardDialogOpen = false
+                        onCancel()
+                    },
+                ) {
+                    Text("Discard")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { discardDialogOpen = false }) {
+                    Text("Keep editing")
+                }
+            },
+        )
+    }
+
     if (textDialogOpen && !isVideo && !cropMode) {
         AlertDialog(
             onDismissRequest = { textDialogOpen = false },
             title = { Text("Add text") },
             text = {
-                OutlinedTextField(
-                    value = textDraft,
-                    onValueChange = { textDraft = it.take(180) },
-                    maxLines = 4,
-                    placeholder = { Text("Text") },
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = textDraft,
+                        onValueChange = { textDraft = it.take(180) },
+                        maxLines = 4,
+                        placeholder = { Text("Text") },
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        EditorColorOptions.forEach { option ->
+                            Surface(
+                                color = option.composeColor,
+                                shape = CircleShape,
+                                modifier = Modifier
+                                    .size(if (textColor == option) 32.dp else 28.dp)
+                                    .semantics { contentDescription = "Text color " + option.name },
+                                onClick = { textColor = option },
+                            ) {
+                                if (textColor == option) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = if (option.name in setOf("White", "Yellow")) Color.Black else Color.White,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             },
             confirmButton = {
                 TextButton(
@@ -607,8 +811,9 @@ fun NightMediaComposerScreen(
                         if (value.isNotEmpty()) {
                             photoEditor?.addText(
                                 text = value,
-                                colorCodeTextView = AndroidColor.WHITE,
+                                colorCodeTextView = textColor.androidColor,
                             )
+                            imageEdited = true
                         }
                         textDraft = ""
                         textDialogOpen = false
