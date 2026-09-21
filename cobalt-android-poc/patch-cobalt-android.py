@@ -36,6 +36,17 @@ if old not in text:
     raise SystemExit("Expected System.getLogger call was not found in Log.java")
 log_path.write_text(text.replace(old, new), encoding="utf-8")
 
+# Do not instantiate the desktop Warden passkey backend during linked-client
+# class initialization. QR/pairing-code linking itself does not require a
+# passkey; defer Warden creation until an actual integrity/passkey challenge.
+passkey_path = modules / "lib/src/main/java/com/github/auties00/cobalt/client/linked/LinkedWhatsAppClientPasskeyAuthenticator.java"
+passkey_text = passkey_path.read_text(encoding="utf-8")
+old_passkey = "return SystemPasskeyAuthenticator.create(onQrCode);"
+new_passkey = "return request -> SystemPasskeyAuthenticator.create(onQrCode).assertCredential(request);"
+if old_passkey not in passkey_text:
+    raise SystemExit("Expected eager SystemPasskeyAuthenticator creation was not found")
+passkey_path.write_text(passkey_text.replace(old_passkey, new_passkey), encoding="utf-8")
+
 logger_path = modules / "telemetry-core/src/main/java/com/github/auties00/cobalt/telemetry/log/Logger.java"
 logger_path.write_text(r'''package com.github.auties00.cobalt.telemetry.log;
 
