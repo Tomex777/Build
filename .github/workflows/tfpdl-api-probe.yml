@@ -1,4 +1,4 @@
-name: TFPDL wrapper trace
+name: TFPDL wrapper-host probe
 
 on:
   push:
@@ -11,17 +11,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Trace one wrapper without downloading media
+      - name: Compare wrapper hosts
         shell: bash
         run: |
           set +e
-          URL='https://tfp.re/tfpdl?d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ=='
-          REF='https://tfp.re/lanterns-s01-2160p-web-dl-ddp5-1-dv-hdr-x265-tfpdl/'
-          curl --http1.1 -sS --max-time 30 --connect-timeout 10             -A 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36'             -e "$REF"             -D /tmp/h -o /tmp/b -w 'HTTP_STATUS=%{http_code}\nFINAL_URL=%{url_effective}\n' "$URL"
-          echo '--- HEADERS ---'
-          cat /tmp/h
-          echo '--- BODY SIZE ---'
-          wc -c /tmp/b
-          echo '--- BODY SAMPLE ---'
-          head -c 1600 /tmp/b
-          echo
+          Q='d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ=='
+          for BASE in 'https://tfp.re' 'https://tfpdl.com' 'https://www.tfpdl.com'; do
+            URL="$BASE/tfpdl?$Q"
+            echo "=== $BASE ==="
+            curl --http1.1 -sS --max-time 25 --connect-timeout 10               -A 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36'               -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'               -H 'Accept-Language: en-US,en;q=0.9'               -e "$BASE/lanterns-s01-2160p-web-dl-ddp5-1-dv-hdr-x265-tfpdl/"               -D /tmp/h -o /tmp/b -w 'status=%{http_code} type=%{content_type} size=%{size_download}\n' "$URL"
+            grep -Ei '^(HTTP/|location:|cf-mitigated:|content-type:|server:|set-cookie:)' /tmp/h || true
+            head -c 120 /tmp/b | tr '\n' ' '
+            echo
+          done
