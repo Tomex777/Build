@@ -61,6 +61,7 @@ import com.example.whatsapp.presentation.chatscreen.ExtensionResultMessage
 import com.example.whatsapp.presentation.chatscreen.MangaResultMessage
 import com.example.whatsapp.presentation.chatscreen.NightBlockMessage
 import com.example.whatsapp.presentation.chatscreen.NightMessageBlockCodec
+import com.example.whatsapp.presentation.chatscreen.NightRichMessageCodec
 import com.example.whatsapp.presentation.chatscreen.NightChatAppearance
 import com.example.whatsapp.presentation.chatscreen.NightChoiceDialog
 import com.example.whatsapp.presentation.chatscreen.NightChatMediaItem
@@ -2119,7 +2120,14 @@ private fun NightMessageEntity.toVisualMessage(
             }
         }
 
-        else -> WhatsAppVisualMessage.TextMessage(
+        else -> NightRichMessageCodec.decode(
+            type = type,
+            id = id,
+            text = text,
+            payloadJson = payloadJson,
+            time = time,
+            mine = mine,
+        ) ?: WhatsAppVisualMessage.TextMessage(
             id = id,
             text = text,
             time = time,
@@ -2235,12 +2243,34 @@ private fun NightMessageEntity.toReplyPreview(): ReplyPreview {
             }
         }
 
-        else -> ReplyPreview(
-            messageId = id,
-            author = author,
-            text = text,
-            kind = ReplyKind.Text,
-        )
+        else -> {
+            val rich = NightRichMessageCodec.decode(
+                type = type,
+                id = id,
+                text = text,
+                payloadJson = payloadJson,
+                time = nightTime(createdAt),
+                mine = role == "user",
+            )
+            if (rich != null) {
+                ReplyPreview(
+                    messageId = id,
+                    author = author,
+                    text = NightRichMessageCodec.previewText(rich),
+                    kind = ReplyKind.Rich,
+                    meta = type.replace('_', ' ').replaceFirstChar {
+                        if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+                    },
+                )
+            } else {
+                ReplyPreview(
+                    messageId = id,
+                    author = author,
+                    text = text,
+                    kind = ReplyKind.Text,
+                )
+            }
+        }
     }
 }
 
