@@ -21,6 +21,11 @@ internal class NightNonRetryableAgentFailure(
     cause: Throwable,
 ) : IllegalStateException(message, cause)
 
+private class NightProviderHttpFailure(
+    val statusCode: Int,
+    message: String,
+) : IllegalStateException(message)
+
 class NightAiGateway private constructor(
     private val context: Context,
     private val repository: NightRepository,
@@ -31,6 +36,7 @@ class NightAiGateway private constructor(
 ) {
     private val providerCooldownUntil = ConcurrentHashMap<String, Long>()
     private val chatLocks = ConcurrentHashMap<String, Mutex>()
+    private val keyRotation = NightProviderKeyRotation()
 
     suspend fun reply(
         chatId: String,
@@ -549,9 +555,6 @@ class NightAiGateway private constructor(
         toolDefinitions: JSONArray?,
         onContent: suspend (String) -> Unit,
     ): ChatStep {
-        val key = secrets.get(resolved.profile.secretAlias)
-            ?: error("The saved API key for " + resolved.profile.displayName + " is missing.")
-
         val body = JSONObject()
             .put("model", resolved.model.deploymentName ?: resolved.model.modelId)
             .put("messages", messages)
@@ -568,111 +571,134 @@ class NightAiGateway private constructor(
             }
         }
 
-        val requestBuilder = Request.Builder()
-            .url(chatEndpoint(resolved.profile))
-            .post(
-                body.toString()
-                    .toRequestBody("application/json; charset=utf-8".toMediaType())
-            )
-            .header("Content-Type", "application/json")
-            .header("Accept", "text/event-stream")
+        val credentials = orderedProviderCredentials(resolved.profile)
+        var lastKeyFailure: Throwable? = null
 
-        when (resolved.profile.providerType.lowercase()) {
-            "azure" -> requestBuilder.header("api-key", key)
-            else -> requestBuilder.header("Authorization", "Bearer " + key)
-        }
+        for (credential in credentials) {
+            val requestBuilder = Request.Builder()
+                .url(chatEndpoint(resolved.profile))
+                .post(
+                    body.toString()
+                        .toRequestBody("application/json; charset=utf-8".toMediaType())
+                )
+                .header("Content-Type", "application/json")
+                .header("Accept", "text/event-stream")
 
-        http.newCall(requestBuilder.build()).execute().use { response ->
-            if (!response.isSuccessful) {
-                val raw = response.body?.string().orEmpty()
-                error("AI request failed (" + response.code + "): " + extractError(raw))
+            when (resolved.profile.providerType.lowercase()) {
+                "azure" -> requestBuilder.header("api-key", credential.secret)
+                else -> requestBuilder.header("Authorization", "Bearer " + credential.secret)
             }
 
-            val source = response.body?.source()
-                ?: error("Provider returned no response body.")
-            val text = StringBuilder()
-            val reasoning = StringBuilder()
-            val toolMap = linkedMapOf<Int, MutableToolCall>()
-            val rawFallback = StringBuilder()
-            var sawSse = false
-
-            while (!source.exhausted()) {
-                val line = source.readUtf8Line() ?: break
-                if (line.isBlank()) continue
-                rawFallback.append(line)
-
-                if (!line.startsWith("data:")) continue
-                sawSse = true
-                val data = line.removePrefix("data:").trim()
-                if (data == "[DONE]") break
-                if (data.isBlank()) continue
-
-                val event = runCatching { JSONObject(data) }.getOrNull() ?: continue
-                val choices = event.optJSONArray("choices") ?: continue
-                if (choices.length() == 0) continue
-                val delta = choices.optJSONObject(0)?.optJSONObject("delta") ?: continue
-
-                val reasoningDelta = delta.optString("reasoning_content", "")
-                    .takeUnless { it == "null" }
-                    .orEmpty()
-                if (reasoningDelta.isNotEmpty()) {
-                    reasoning.append(reasoningDelta)
-                }
-
-                val contentDelta = delta.optString("content", "")
-                    .takeUnless { it == "null" }
-                    .orEmpty()
-                if (contentDelta.isNotEmpty()) {
-                    text.append(contentDelta)
-                    onContent(text.toString())
-                }
-
-                val calls = delta.optJSONArray("tool_calls")
-                if (calls != null) {
-                    for (index in 0 until calls.length()) {
-                        val piece = calls.optJSONObject(index) ?: continue
-                        val callIndex = piece.optInt("index", index)
-                        val current = toolMap.getOrPut(callIndex) { MutableToolCall() }
-                        piece.optString("id").takeIf { it.isNotBlank() }?.let {
-                            current.id = it
-                        }
-                        val function = piece.optJSONObject("function")
-                        function?.optString("name")
-                            ?.takeIf { it.isNotBlank() }
-                            ?.let { current.name += it }
-                        function?.optString("arguments")
-                            ?.takeIf { it.isNotEmpty() }
-                            ?.let { current.arguments.append(it) }
-                    }
-                }
-            }
-
-            if (!sawSse) {
-                return parseNonStreamingResponse(rawFallback.toString())
-            }
-
-            val calls = toolMap
-                .toSortedMap()
-                .values
-                .mapIndexedNotNull { index, call ->
-                    val name = call.name.trim()
-                    if (name.isBlank()) {
-                        null
-                    } else {
-                        NightToolInvocation(
-                            id = call.id.ifBlank { "night_tool_" + index },
-                            name = name,
-                            argumentsJson = call.arguments.toString().ifBlank { "{}" },
+            http.newCall(requestBuilder.build()).execute().use { response ->
+                if (!response.isSuccessful) {
+                    val raw = response.body?.string().orEmpty()
+                    val failure = NightProviderHttpFailure(
+                        statusCode = response.code,
+                        message = "AI request failed (" + response.code + "): " + extractError(raw),
+                    )
+                    if (shouldRotateProviderKey(resolved.profile, response.code)) {
+                        keyRotation.markCoolingDown(
+                            profileId = resolved.profile.id,
+                            credentialId = credential.id,
+                            durationMs = providerKeyCooldownMillis(response.code),
                         )
+                        lastKeyFailure = failure
+                        return@use
+                    }
+                    throw failure
+                }
+
+                keyRotation.clearCooldown(resolved.profile.id, credential.id)
+
+                val source = response.body?.source()
+                    ?: error("Provider returned no response body.")
+                val text = StringBuilder()
+                val reasoning = StringBuilder()
+                val toolMap = linkedMapOf<Int, MutableToolCall>()
+                val rawFallback = StringBuilder()
+                var sawSse = false
+
+                while (!source.exhausted()) {
+                    val line = source.readUtf8Line() ?: break
+                    if (line.isBlank()) continue
+                    rawFallback.append(line)
+
+                    if (!line.startsWith("data:")) continue
+                    sawSse = true
+                    val data = line.removePrefix("data:").trim()
+                    if (data == "[DONE]") break
+                    if (data.isBlank()) continue
+
+                    val event = runCatching { JSONObject(data) }.getOrNull() ?: continue
+                    val choices = event.optJSONArray("choices") ?: continue
+                    if (choices.length() == 0) continue
+                    val delta = choices.optJSONObject(0)?.optJSONObject("delta") ?: continue
+
+                    val reasoningDelta = delta.optString("reasoning_content", "")
+                        .takeUnless { it == "null" }
+                        .orEmpty()
+                    if (reasoningDelta.isNotEmpty()) {
+                        reasoning.append(reasoningDelta)
+                    }
+
+                    val contentDelta = delta.optString("content", "")
+                        .takeUnless { it == "null" }
+                        .orEmpty()
+                    if (contentDelta.isNotEmpty()) {
+                        text.append(contentDelta)
+                        onContent(text.toString())
+                    }
+
+                    val calls = delta.optJSONArray("tool_calls")
+                    if (calls != null) {
+                        for (index in 0 until calls.length()) {
+                            val piece = calls.optJSONObject(index) ?: continue
+                            val callIndex = piece.optInt("index", index)
+                            val current = toolMap.getOrPut(callIndex) { MutableToolCall() }
+                            piece.optString("id").takeIf { it.isNotBlank() }?.let {
+                                current.id = it
+                            }
+                            val function = piece.optJSONObject("function")
+                            function?.optString("name")
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let { current.name += it }
+                            function?.optString("arguments")
+                                ?.takeIf { it.isNotEmpty() }
+                                ?.let { current.arguments.append(it) }
+                        }
                     }
                 }
 
-            return ChatStep(
-                content = text.toString(),
-                reasoningContent = reasoning.toString(),
-                toolCalls = calls,
-            )
+                if (!sawSse) {
+                    return parseNonStreamingResponse(rawFallback.toString())
+                }
+
+                val calls = toolMap
+                    .toSortedMap()
+                    .values
+                    .mapIndexedNotNull { index, call ->
+                        val name = call.name.trim()
+                        if (name.isBlank()) {
+                            null
+                        } else {
+                            NightToolInvocation(
+                                id = call.id.ifBlank { "night_tool_" + index },
+                                name = name,
+                                argumentsJson = call.arguments.toString().ifBlank { "{}" },
+                            )
+                        }
+                    }
+
+                return ChatStep(
+                    content = text.toString(),
+                    reasoningContent = reasoning.toString(),
+                    toolCalls = calls,
+                )
+            }
         }
+
+        throw (lastKeyFailure
+            ?: IllegalStateException("All saved API keys for " + resolved.profile.displayName + " are cooling down."))
     }
 
     private fun parseNonStreamingResponse(raw: String): ChatStep {
@@ -772,9 +798,6 @@ class NightAiGateway private constructor(
     private fun performToolDiagnostic(
         resolved: NightResolvedModel,
     ): String {
-        val key = secrets.get(resolved.profile.secretAlias)
-            ?: error("The saved API key for " + resolved.profile.displayName + " is missing.")
-
         val diagnosticTool = JSONObject()
             .put("type", "function")
             .put(
@@ -820,89 +843,138 @@ class NightAiGateway private constructor(
                 }
             }
 
-        val requestBuilder = Request.Builder()
-            .url(chatEndpoint(resolved.profile))
-            .post(
-                body.toString()
-                    .toRequestBody("application/json; charset=utf-8".toMediaType())
-            )
-            .header("Content-Type", "application/json")
-
-        when (resolved.profile.providerType.lowercase()) {
-            "azure" -> requestBuilder.header("api-key", key)
-            else -> requestBuilder.header("Authorization", "Bearer " + key)
+        val raw = performJsonRequest(
+            resolved = resolved,
+            body = body,
+            failurePrefix = "Tool diagnostic failed",
+        )
+        val message = JSONObject(raw)
+            .optJSONArray("choices")
+            ?.optJSONObject(0)
+            ?.optJSONObject("message")
+            ?: error("Provider returned no diagnostic message.")
+        val calls = message.optJSONArray("tool_calls")
+            ?: error("The model connected, but it did not produce tool calls.")
+        val matched = (0 until calls.length()).any { index ->
+            calls.optJSONObject(index)
+                ?.optJSONObject("function")
+                ?.optString("name") == "night_diagnostic"
         }
-
-        http.newCall(requestBuilder.build()).execute().use { response ->
-            val raw = response.body?.string().orEmpty()
-            if (!response.isSuccessful) {
-                error("Tool diagnostic failed (" + response.code + "): " + extractError(raw))
-            }
-
-            val message = JSONObject(raw)
-                .optJSONArray("choices")
-                ?.optJSONObject(0)
-                ?.optJSONObject("message")
-                ?: error("Provider returned no diagnostic message.")
-            val calls = message.optJSONArray("tool_calls")
-                ?: error("The model connected, but it did not produce tool calls.")
-            val matched = (0 until calls.length()).any { index ->
-                calls.optJSONObject(index)
-                    ?.optJSONObject("function")
-                    ?.optString("name") == "night_diagnostic"
-            }
-            if (!matched) {
-                error("The model connected, but its tool-call response was incompatible.")
-            }
-            return "NIGHT_OK"
+        if (!matched) {
+            error("The model connected, but its tool-call response was incompatible.")
         }
+        return "NIGHT_OK"
     }
 
     private fun performSimpleChat(
         resolved: NightResolvedModel,
         messages: JSONArray,
     ): String {
-        val key = secrets.get(resolved.profile.secretAlias)
-            ?: error("The saved API key for " + resolved.profile.displayName + " is missing.")
-
         val body = JSONObject()
             .put("model", resolved.model.deploymentName ?: resolved.model.modelId)
             .put("messages", messages)
             .put("stream", false)
 
-        val requestBuilder = Request.Builder()
-            .url(chatEndpoint(resolved.profile))
-            .post(
-                body.toString()
-                    .toRequestBody("application/json; charset=utf-8".toMediaType())
-            )
-            .header("Content-Type", "application/json")
+        val raw = performJsonRequest(
+            resolved = resolved,
+            body = body,
+            failurePrefix = "AI request failed",
+        )
+        val choices = JSONObject(raw).optJSONArray("choices")
+            ?: error("Provider returned no choices.")
+        if (choices.length() == 0) error("Provider returned an empty response.")
 
-        when (resolved.profile.providerType.lowercase()) {
-            "azure" -> requestBuilder.header("api-key", key)
-            else -> requestBuilder.header("Authorization", "Bearer " + key)
-        }
+        val content = choices
+            .getJSONObject(0)
+            .getJSONObject("message")
+            .optString("content")
+            .trim()
 
-        http.newCall(requestBuilder.build()).execute().use { response ->
-            val raw = response.body?.string().orEmpty()
-            if (!response.isSuccessful) {
-                error("AI request failed (" + response.code + "): " + extractError(raw))
+        if (content.isBlank()) error("Provider returned an empty message.")
+        return content
+    }
+
+    private fun performJsonRequest(
+        resolved: NightResolvedModel,
+        body: JSONObject,
+        failurePrefix: String,
+    ): String {
+        val credentials = orderedProviderCredentials(resolved.profile)
+        var lastKeyFailure: Throwable? = null
+
+        for (credential in credentials) {
+            val requestBuilder = Request.Builder()
+                .url(chatEndpoint(resolved.profile))
+                .post(
+                    body.toString()
+                        .toRequestBody("application/json; charset=utf-8".toMediaType())
+                )
+                .header("Content-Type", "application/json")
+
+            when (resolved.profile.providerType.lowercase()) {
+                "azure" -> requestBuilder.header("api-key", credential.secret)
+                else -> requestBuilder.header("Authorization", "Bearer " + credential.secret)
             }
 
-            val choices = JSONObject(raw).optJSONArray("choices")
-                ?: error("Provider returned no choices.")
-            if (choices.length() == 0) error("Provider returned an empty response.")
+            http.newCall(requestBuilder.build()).execute().use { response ->
+                val raw = response.body?.string().orEmpty()
+                if (response.isSuccessful) {
+                    keyRotation.clearCooldown(resolved.profile.id, credential.id)
+                    return raw
+                }
 
-            val content = choices
-                .getJSONObject(0)
-                .getJSONObject("message")
-                .optString("content")
-                .trim()
-
-            if (content.isBlank()) error("Provider returned an empty message.")
-            return content
+                val failure = NightProviderHttpFailure(
+                    statusCode = response.code,
+                    message = failurePrefix + " (" + response.code + "): " + extractError(raw),
+                )
+                if (shouldRotateProviderKey(resolved.profile, response.code)) {
+                    keyRotation.markCoolingDown(
+                        profileId = resolved.profile.id,
+                        credentialId = credential.id,
+                        durationMs = providerKeyCooldownMillis(response.code),
+                    )
+                    lastKeyFailure = failure
+                } else {
+                    throw failure
+                }
+            }
         }
+
+        throw (lastKeyFailure
+            ?: IllegalStateException("All saved API keys for " + resolved.profile.displayName + " are cooling down."))
     }
+
+    private fun orderedProviderCredentials(
+        profile: NightProviderProfileEntity,
+    ): List<NightProviderCredential> {
+        val stored = secrets.getProviderCredentials(profile.secretAlias)
+        if (stored.isEmpty()) {
+            error("The saved API key for " + profile.displayName + " is missing.")
+        }
+
+        val credentials =
+            if (profile.providerType.equals("groq", ignoreCase = true)) stored
+            else stored.take(1)
+
+        return keyRotation.orderedCredentials(
+            profileId = profile.id,
+            credentials = credentials,
+        )
+    }
+
+    private fun shouldRotateProviderKey(
+        profile: NightProviderProfileEntity,
+        statusCode: Int,
+    ): Boolean =
+        profile.providerType.equals("groq", ignoreCase = true) &&
+            statusCode in setOf(401, 403, 429)
+
+    private fun providerKeyCooldownMillis(statusCode: Int): Long =
+        when (statusCode) {
+            401, 403 -> 5 * 60_000L
+            429 -> 2 * 60_000L
+            else -> 30_000L
+        }
 
     private fun markFailure(
         profileId: String,
