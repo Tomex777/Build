@@ -140,7 +140,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -accel on -wipe-data
           script: |
-            set -euo pipefail
+            set -eu
             APK="night-message-blocks-apk/app-debug.apk"
             OUT="night-message-blocks-artifacts"
             PACKAGE="com.example.whatsapp"
