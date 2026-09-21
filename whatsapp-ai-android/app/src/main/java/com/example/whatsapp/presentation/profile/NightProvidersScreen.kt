@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -81,6 +82,22 @@ fun NightProvidersScreen(
     onMakeProfileDefault: (NightProviderProfileEntity) -> Unit,
     onSetModelEnabled: (NightProviderModelEntity, Boolean) -> Unit,
     onMakeModelDefault: (NightProviderModelEntity) -> Unit,
+    onEditProfile: (
+        NightProviderProfileEntity,
+        String,
+        String?,
+        String?,
+        String,
+        String?,
+        String?,
+    ) -> Unit,
+    onEditModel: (
+        NightProviderModelEntity,
+        String,
+        String,
+        String?,
+        Set<String>,
+    ) -> Unit,
     onTestModel: (NightProviderProfileEntity, NightProviderModelEntity) -> Unit,
     providerKeys: (NightProviderProfileEntity) -> List<NightProviderKeySummary>,
     onAddProviderKey: (NightProviderProfileEntity, String, String?) -> Unit,
@@ -89,6 +106,10 @@ fun NightProvidersScreen(
     var showAddProfile by remember { mutableStateOf(false) }
     var addModelFor by remember { mutableStateOf<NightProviderProfileEntity?>(null) }
     var addKeyFor by remember { mutableStateOf<NightProviderProfileEntity?>(null) }
+    var editProfile by remember { mutableStateOf<NightProviderProfileEntity?>(null) }
+    var editModelFor by remember {
+        mutableStateOf<Pair<NightProviderProfileEntity, NightProviderModelEntity>?>(null)
+    }
 
     Column(
         modifier = Modifier
@@ -169,6 +190,8 @@ fun NightProvidersScreen(
                             onMakeProfileDefault = { onMakeProfileDefault(profile) },
                             onSetModelEnabled = onSetModelEnabled,
                             onMakeModelDefault = onMakeModelDefault,
+                            onEditProfile = { editProfile = profile },
+                            onEditModel = { model -> editModelFor = profile to model },
                             onTestModel = { model -> onTestModel(profile, model) },
                             keys = providerKeys(profile),
                             onAddKey = { addKeyFor = profile },
@@ -211,6 +234,37 @@ fun NightProvidersScreen(
             },
         )
     }
+
+    editProfile?.let { profile ->
+        EditProviderDialog(
+            profile = profile,
+            onDismiss = { editProfile = null },
+            onSave = { name, endpoint, region, language, voiceName, replacementKey ->
+                onEditProfile(
+                    profile,
+                    name,
+                    endpoint,
+                    region,
+                    language,
+                    voiceName,
+                    replacementKey,
+                )
+                editProfile = null
+            },
+        )
+    }
+
+    editModelFor?.let { (profile, model) ->
+        EditModelDialog(
+            profile = profile,
+            model = model,
+            onDismiss = { editModelFor = null },
+            onSave = { modelId, name, deployment, caps ->
+                onEditModel(model, modelId, name, deployment, caps)
+                editModelFor = null
+            },
+        )
+    }
 }
 
 @Composable
@@ -224,6 +278,8 @@ private fun ProviderProfileRow(
     onMakeProfileDefault: () -> Unit,
     onSetModelEnabled: (NightProviderModelEntity, Boolean) -> Unit,
     onMakeModelDefault: (NightProviderModelEntity) -> Unit,
+    onEditProfile: () -> Unit,
+    onEditModel: (NightProviderModelEntity) -> Unit,
     onTestModel: (NightProviderModelEntity) -> Unit,
     keys: List<NightProviderKeySummary>,
     onAddKey: () -> Unit,
@@ -256,6 +312,9 @@ private fun ProviderProfileRow(
                     color = ProviderMuted,
                     fontSize = 11.sp,
                 )
+            }
+            IconButton(onClick = onEditProfile) {
+                Icon(Icons.Default.Edit, "Edit profile", tint = ProviderMuted)
             }
             IconButton(onClick = onDeleteProfile) {
                 Icon(Icons.Default.Delete, "Delete profile", tint = Color(0xFFFF6B78))
@@ -379,6 +438,13 @@ private fun ProviderProfileRow(
                         Text("Default", color = ProviderAccent, fontSize = 10.sp)
                     }
                 }
+                IconButton(onClick = { onEditModel(model) }) {
+                    Icon(
+                        Icons.Default.Edit,
+                        "Edit model",
+                        tint = ProviderMuted,
+                    )
+                }
                 IconButton(onClick = { onDeleteModel(model) }) {
                     Icon(
                         Icons.Default.Delete,
@@ -389,6 +455,178 @@ private fun ProviderProfileRow(
             }
         }
     }
+}
+
+
+@Composable
+private fun EditProviderDialog(
+    profile: NightProviderProfileEntity,
+    onDismiss: () -> Unit,
+    onSave: (String, String?, String?, String, String?, String?) -> Unit,
+) {
+    var name by remember(profile.id) { mutableStateOf(profile.displayName) }
+    var endpoint by remember(profile.id) { mutableStateOf(profile.endpoint.orEmpty()) }
+    var region by remember(profile.id) { mutableStateOf(profile.region.orEmpty()) }
+    var language by remember(profile.id) { mutableStateOf(profile.language) }
+    var voiceName by remember(profile.id) { mutableStateOf(profile.voiceName.orEmpty()) }
+    var replacementKey by remember(profile.id) { mutableStateOf("") }
+    val groqPool =
+        profile.providerType.equals("groq", ignoreCase = true) &&
+            profile.serviceKind == "chat"
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF151B1E),
+        title = { Text("Edit " + profile.displayName, color = ProviderText) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                ProviderField(name, { name = it }, "Profile name")
+                ProviderField(
+                    endpoint,
+                    { endpoint = it },
+                    if (profile.providerType == "azure") "Azure endpoint" else "Endpoint (optional)",
+                )
+                if (profile.providerType == "azure" && profile.serviceKind == "speech") {
+                    ProviderField(region, { region = it }, "Azure region (optional)")
+                }
+                if (profile.serviceKind == "speech" || profile.serviceKind == "live_voice") {
+                    ProviderField(language, { language = it }, "Language")
+                    ProviderField(voiceName, { voiceName = it }, "Voice name (optional)")
+                }
+                if (groqPool) {
+                    Text(
+                        "Groq API keys are managed with the key-pool controls on the provider card.",
+                        color = ProviderMuted,
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp,
+                    )
+                } else {
+                    ProviderField(
+                        replacementKey,
+                        { replacementKey = it },
+                        "New API key (leave blank to keep current)",
+                        secret = true,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onSave(
+                        name,
+                        endpoint.ifBlank { null },
+                        region.ifBlank { null },
+                        language,
+                        voiceName.ifBlank { null },
+                        replacementKey.ifBlank { null },
+                    )
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ProviderAccent,
+                    contentColor = Color(0xFF07110B),
+                ),
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = ProviderMuted)
+            }
+        },
+    )
+}
+
+@Composable
+private fun EditModelDialog(
+    profile: NightProviderProfileEntity,
+    model: NightProviderModelEntity,
+    onDismiss: () -> Unit,
+    onSave: (String, String, String?, Set<String>) -> Unit,
+) {
+    val currentCaps = remember(model.id) {
+        model.capabilities.split(",").map { it.trim().lowercase() }.toSet()
+    }
+    var modelId by remember(model.id) { mutableStateOf(model.modelId) }
+    var name by remember(model.id) { mutableStateOf(model.displayName) }
+    var deployment by remember(model.id) { mutableStateOf(model.deploymentName.orEmpty()) }
+    var vision by remember(model.id) { mutableStateOf("vision" in currentCaps) }
+    var tools by remember(model.id) { mutableStateOf("tools" in currentCaps) }
+    var imageGeneration by remember(model.id) {
+        mutableStateOf("image_generation" in currentCaps)
+    }
+    var liveVoice by remember(model.id) { mutableStateOf("live_voice" in currentCaps) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF151B1E),
+        title = { Text("Edit " + model.displayName, color = ProviderText) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                ProviderField(modelId, { modelId = it }, "Model ID")
+                ProviderField(name, { name = it }, "Display name")
+                if (profile.providerType == "azure" && profile.serviceKind == "chat") {
+                    ProviderField(deployment, { deployment = it }, "Deployment name (optional)")
+                }
+
+                if (profile.serviceKind == "chat") {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = vision, onCheckedChange = { vision = it })
+                        Text("Vision", color = ProviderText)
+                        Spacer(Modifier.width(10.dp))
+                        Checkbox(checked = tools, onCheckedChange = { tools = it })
+                        Text("Agent tools", color = ProviderText)
+                    }
+                    if (profile.providerType == "azure") {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = imageGeneration,
+                                onCheckedChange = { imageGeneration = it },
+                            )
+                            Text("Image generation", color = ProviderText)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = liveVoice,
+                                onCheckedChange = { liveVoice = it },
+                            )
+                            Text("Live voice", color = ProviderText)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onSave(
+                        modelId,
+                        name,
+                        deployment.ifBlank { null },
+                        buildSet {
+                            if (vision) add("vision")
+                            if (tools) add("tools")
+                            if (imageGeneration) add("image_generation")
+                            if (liveVoice) add("live_voice")
+                        },
+                    )
+                },
+                enabled = modelId.isNotBlank() || deployment.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ProviderAccent,
+                    contentColor = Color(0xFF07110B),
+                ),
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = ProviderMuted)
+            }
+        },
+    )
 }
 
 @Composable
