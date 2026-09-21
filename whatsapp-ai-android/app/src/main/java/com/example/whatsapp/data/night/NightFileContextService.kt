@@ -22,6 +22,7 @@ class NightFileContextService private constructor(
     private val repository: NightRepository,
 ) {
     private val appContext = context.applicationContext
+    private val libraryManager = NightLibraryManager.get(appContext)
 
     init {
         runCatching { PDFBoxResourceLoader.init(appContext) }
@@ -31,6 +32,7 @@ class NightFileContextService private constructor(
         query: String? = null,
         limit: Int = 30,
     ): List<NightLibraryItemEntity> = withContext(Dispatchers.IO) {
+        libraryManager.syncFromDisk()
         val normalized = query.orEmpty().trim().lowercase(Locale.ROOT)
         repository.getLibraryItems()
             .asSequence()
@@ -50,6 +52,7 @@ class NightFileContextService private constructor(
         maxChars: Int = 18_000,
     ): Result<NightExtractedFile> = withContext(Dispatchers.IO) {
         runCatching {
+            libraryManager.syncFromDisk()
             val items = repository.getLibraryItems()
             val item = when {
                 !id.isNullOrBlank() -> items.firstOrNull { it.id == id }
