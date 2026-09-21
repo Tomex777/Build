@@ -676,8 +676,8 @@ private fun exportPdfEdits(
     if (temp.exists()) temp.delete()
 
     PDDocument.load(source).use { document ->
-        edits.groupBy { it.pageIndex }.forEach { (pageIndex, pageEdits) ->
-            if (pageIndex !in 0 until document.numberOfPages) return@forEach
+        edits.groupBy { it.pageIndex }.forEach pageLoop@ { (pageIndex, pageEdits) ->
+            if (pageIndex !in 0 until document.numberOfPages) return@pageLoop
             val page = document.getPage(pageIndex)
             val box = page.cropBox ?: page.mediaBox
             val pageWidth = box.width
@@ -690,10 +690,10 @@ private fun exportPdfEdits(
                 true,
                 true,
             ).use { stream ->
-                pageEdits.forEach { edit ->
+                pageEdits.forEach editLoop@ { edit ->
                     when (edit) {
                         is PdfEditAction.StrokeAction -> {
-                            if (edit.points.isEmpty()) return@forEach
+                            if (edit.points.isEmpty()) return@editLoop
                             val (red, green, blue, alpha, width) = when (edit.tool) {
                                 PdfEditorTool.HIGHLIGHT -> PdfStrokeStyle(255, 220, 50, 0.28f, pageHeight * 0.025f)
                                 PdfEditorTool.SIGN -> PdfStrokeStyle(20, 20, 20, 1f, pageHeight * 0.006f)
