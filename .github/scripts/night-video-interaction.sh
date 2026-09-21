@@ -48,15 +48,18 @@ def bounds(node):
     nums = [int(x) for x in re.findall(r"\d+", node.attrib.get("bounds", ""))]
     return nums if len(nums) == 4 else None
 
-if mode in ("text", "desc", "text_contains"):
-    attr = "content-desc" if mode == "desc" else "text"
+if mode in ("text", "desc", "text_contains", "desc_bounds"):
+    attr = "content-desc" if mode in ("desc", "desc_bounds") else "text"
     for node in root.iter("node"):
         actual = node.attrib.get(attr, "")
         matched = value in actual if mode == "text_contains" else actual == value
         if matched:
             b = bounds(node)
             if b:
-                print((b[0] + b[2]) // 2, (b[1] + b[3]) // 2)
+                if mode == "desc_bounds":
+                    print(*b)
+                else:
+                    print((b[0] + b[2]) // 2, (b[1] + b[3]) // 2)
                 raise SystemExit(0)
     raise SystemExit(2)
 
@@ -653,18 +656,24 @@ fi
 
 refresh_ui
 initial_trim="$(python3 /tmp/night_video_uia.py trim)"
-refresh_ui
-trim_bounds="$(python3 /tmp/night_video_uia.py bottom_seekbar)"
+trim_bounds="$(python3 /tmp/night_video_uia.py desc_bounds "Trim range" 2>/dev/null || true)"
+if [ -z "$trim_bounds" ]; then
+  echo "Night video editor did not expose the Trim range control." >&2
+  adb exec-out screencap -p > "$ARTIFACTS/failure-trim-control.png" || true
+  cp /tmp/window.xml "$ARTIFACTS/failure-trim-control.xml" 2>/dev/null || true
+  capture_media_logcat "trim-control-missing"
+  exit 1
+fi
 read -r tx1 ty1 tx2 ty2 <<<"$trim_bounds"
 trim_y=$(((ty1 + ty2) / 2))
+trim_width=$((tx2 - tx1))
+trim_start_x=$((tx2 - 12))
 
 trim_changed=false
-# Material3 RangeSlider changes its handles by dragging; a plain rail tap is
-# intentionally not a reliable thumb move. Drag the right/end handle inward
-# just like a user would when trimming the end of a clip.
-trim_start_x=$((tx1 + (tx2 - tx1) * 98 / 100))
+# Drag the actual end thumb on the semantic Trim range control. This avoids
+# accidentally scrubbing the pink preview seek bar above it.
 for pct in 72 65 58; do
-  trim_x=$((tx1 + (tx2 - tx1) * pct / 100))
+  trim_x=$((tx1 + trim_width * pct / 100))
   adb shell input swipe "$trim_start_x" "$trim_y" "$trim_x" "$trim_y" 650
   sleep 1
   refresh_ui
@@ -675,12 +684,14 @@ for pct in 72 65 58; do
   fi
 done
 if [ "$trim_changed" != "true" ]; then
-  echo "Night video trim range did not change after dragging the end handle." >&2
-  adb exec-out screencap -p > "$ARTIFACTS/failure-trim.png"
+  echo "Night video trim range did not change after dragging its semantic end handle." >&2
+  adb exec-out screencap -p > "$ARTIFACTS/failure-trim.png" || true
   cp /tmp/window.xml "$ARTIFACTS/failure-trim.xml" 2>/dev/null || true
+  capture_media_logcat "trim-did-not-change"
   exit 1
 fi
 printf 'before=%s\nafter=%s\n' "$initial_trim" "$changed_trim" > "$ARTIFACTS/07-trim-range.txt"
+adb exec-out screencap -p > "$ARTIFACTS/07-trim-changed.png" || true
 
 tap_desc "Mute"
 assert_desc "Unmute"
