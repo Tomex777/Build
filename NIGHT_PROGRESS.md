@@ -1,28 +1,25 @@
 # Night Progress
 
 - Active branch: `night-groq-key-pool-ci`
-- Last fully verified app commit: `345efc711529c34eeaa41ba472a779b226ee2dfc`
+- Last fully verified app commit: `f5fd3bb283129c0dd3a62f37a98996e4cee55c08`
 - Verified CI:
   - Night Integrated Regression `35633953916`: PASS
   - Android 16 build: PASS
   - Android 16 provider HTTP failover: PASS
   - Android 16 video: PASS
   - Android 16 message blocks: PASS
-  - Android 16 PDF editor: PASS
-  - Android 16 Live Voice UI: PASS
   - Android 16 Extension Configuration: PASS
+  - Android 16 Live Voice: PASS
+  - Android 16 PDF editor: PASS
   - Android 16 image editor: PASS
   - Android 16 Mihon reader: PASS
 - Message system status:
-  - Extension-owned namespaced message types are implemented.
-  - Night validates declared extension message types/templates instead of guessing.
-  - Extension tool results can persist/render extension-declared messages.
-  - Structured block messages persist/reload through a versioned codec.
-  - Legacy rich result cards now persist/reload too.
-  - Reusable Level/XP progression block is implemented.
-  - Extension Configuration is implemented and Android 16 verified.
-  - Extension Configuration supports toggle, single choice, multi-choice, number, range, text, action, Advanced fields, saved values, task overrides, and typed action dispatch back to the extension.
-  - Configuration edits replace the existing message without bumping chat activity timestamps.
-- Night calling rule remains user ↔ AI Live Voice only. No Calls bottom tab or person-to-person calling.
-- Current task state: message-types + Extension Configuration phase is green.
-- Exact next step: build the Browser message type, then full-browser/session sharing, then verification flow.
+  - Extensions declare their own namespaced Night message types; Night validates ownership/template rather than guessing.
+  - Extension tool results can persist/render declared extension messages.
+  - Extension Configuration is implemented with toggle, single-choice, multi-choice, number, range, text, action, Advanced, saved values, task overrides, and extension action dispatch.
+  - Structured blocks are versioned/persisted: text, code, copy, table, progress, level/XP, tool, error/retry, sources, confirmation, permission, options/question, diff, connection/auth, extension snapshot.
+  - Legacy rich cards now persist/reload: buttons, file result, anime, rich link, generated image, creation progress, image search, download, generic tool result.
+- Live Voice remains user ↔ AI only. No person-to-person calling and no Calls bottom tab.
+- Current task: Browser message type.
+- Browser phase order: inline mini-browser -> expand to full browser with same session/cookies -> session/cookie bridge -> verification flow.
+- After browser/verification: Memory & Summary -> Library + Tools integration -> Provider UX/Admin.
