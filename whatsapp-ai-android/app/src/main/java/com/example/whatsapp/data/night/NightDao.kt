@@ -72,6 +72,34 @@ interface NightDao {
     @Query("UPDATE night_chats SET latestSummary = :summary, summaryUpdatedAt = :updatedAt, lastSummarizedMessageAt = :toMessageAt, summaryDirty = 0 WHERE id = :chatId")
     suspend fun commitSummary(chatId: String, summary: String, updatedAt: Long, toMessageAt: Long)
 
+    @Query("SELECT COUNT(*) FROM night_messages WHERE chatId = :chatId AND createdAt > :after")
+    suspend fun countMessagesAfter(chatId: String, after: Long): Int
+
+    @Query("UPDATE night_chats SET summaryDirty = :dirty WHERE id = :chatId")
+    suspend fun setSummaryDirtyState(chatId: String, dirty: Boolean)
+
+    @Transaction
+    suspend fun commitSummaryCheckpoint(
+        checkpoint: NightSummaryCheckpointEntity,
+        summary: String,
+        updatedAt: Long,
+    ) {
+        insertCheckpoint(checkpoint)
+        commitSummary(
+            chatId = checkpoint.chatId,
+            summary = summary,
+            updatedAt = updatedAt,
+            toMessageAt = checkpoint.toMessageAt,
+        )
+        setSummaryDirtyState(
+            chatId = checkpoint.chatId,
+            dirty = countMessagesAfter(
+                chatId = checkpoint.chatId,
+                after = checkpoint.toMessageAt,
+            ) > 0,
+        )
+    }
+
     @Query("UPDATE night_chats SET summaryDirty = 1, updatedAt = :updatedAt, lastMessagePreview = :preview WHERE id = :chatId")
     suspend fun markSummaryDirty(chatId: String, updatedAt: Long, preview: String)
 
