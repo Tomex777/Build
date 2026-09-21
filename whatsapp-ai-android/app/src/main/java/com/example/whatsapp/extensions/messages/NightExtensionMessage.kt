@@ -8,6 +8,8 @@ object NightExtensionMessageApi {
     const val MAX_METADATA = 6
     const val MAX_ROWS = 8
     const val MAX_ACTIONS = 3
+    const val MAX_CONFIGURATION_FIELDS = 24
+    const val MAX_CONFIGURATION_OPTIONS = 16
 }
 
 enum class ExtensionCardTemplate(val wireName: String) {
@@ -20,7 +22,8 @@ enum class ExtensionCardTemplate(val wireName: String) {
     Status("status_card"),
     Entity("entity_card"),
     Gallery("gallery_card"),
-    CustomData("custom_data_card");
+    CustomData("custom_data_card"),
+    Configuration("configuration_card");
 
     companion object {
         fun fromWireName(value: String): ExtensionCardTemplate =
@@ -58,6 +61,52 @@ data class ExtensionCardAction(
     val requiresExtension: Boolean = true,
 )
 
+
+enum class ExtensionConfigurationFieldType(val wireName: String) {
+    Toggle("toggle"),
+    SingleChoice("single_choice"),
+    MultiChoice("multi_choice"),
+    Number("number"),
+    Range("range"),
+    Text("text"),
+    Action("action");
+
+    companion object {
+        fun fromWireName(value: String): ExtensionConfigurationFieldType =
+            entries.firstOrNull { it.wireName == value } ?: Text
+    }
+}
+
+data class ExtensionConfigurationOption(
+    val id: String,
+    val label: String,
+    val description: String = "",
+)
+
+data class ExtensionConfigurationField(
+    val id: String,
+    val label: String,
+    val type: ExtensionConfigurationFieldType,
+    val description: String = "",
+    val value: String = "",
+    val values: List<String> = emptyList(),
+    val options: List<ExtensionConfigurationOption> = emptyList(),
+    val placeholder: String = "",
+    val min: Double? = null,
+    val max: Double? = null,
+    val step: Double? = null,
+    val advanced: Boolean = false,
+    val actionLabel: String = "",
+)
+
+data class ExtensionConfiguration(
+    val id: String,
+    val fields: List<ExtensionConfigurationField>,
+    val submitActionId: String = "save_config",
+    val submitLabel: String = "Save",
+    val advancedLabel: String = "Advanced",
+)
+
 data class ExtensionMessageSnapshot(
     val schemaVersion: Int = NightExtensionMessageApi.SUPPORTED_SCHEMA_VERSION,
     val extensionId: String,
@@ -76,6 +125,7 @@ data class ExtensionMessageSnapshot(
     val rows: List<ExtensionCardRow> = emptyList(),
     val actions: List<ExtensionCardAction> = emptyList(),
     val extensionPayloadJson: String = "{}",
+    val configuration: ExtensionConfiguration? = null,
 ) {
     fun hasValidNamespace(): Boolean =
         extensionId.isNotBlank() &&
@@ -150,6 +200,58 @@ object ExtensionMessageCodec {
             }
         )
 
+        snapshot.configuration?.let { configuration ->
+            json.put(
+                "configuration",
+                JSONObject()
+                    .put("id", configuration.id)
+                    .put("submitActionId", configuration.submitActionId)
+                    .put("submitLabel", configuration.submitLabel)
+                    .put("advancedLabel", configuration.advancedLabel)
+                    .put(
+                        "fields",
+                        JSONArray().apply {
+                            configuration.fields
+                                .take(NightExtensionMessageApi.MAX_CONFIGURATION_FIELDS)
+                                .forEach { field ->
+                                    put(
+                                        JSONObject()
+                                            .put("id", field.id)
+                                            .put("label", field.label)
+                                            .put("type", field.type.wireName)
+                                            .put("description", field.description)
+                                            .put("value", field.value)
+                                            .put("values", JSONArray(field.values))
+                                            .put("placeholder", field.placeholder)
+                                            .put("advanced", field.advanced)
+                                            .put("actionLabel", field.actionLabel)
+                                            .apply {
+                                                field.min?.let { put("min", it) }
+                                                field.max?.let { put("max", it) }
+                                                field.step?.let { put("step", it) }
+                                            }
+                                            .put(
+                                                "options",
+                                                JSONArray().apply {
+                                                    field.options
+                                                        .take(NightExtensionMessageApi.MAX_CONFIGURATION_OPTIONS)
+                                                        .forEach { option ->
+                                                            put(
+                                                                JSONObject()
+                                                                    .put("id", option.id)
+                                                                    .put("label", option.label)
+                                                                    .put("description", option.description)
+                                                            )
+                                                        }
+                                                }
+                                            )
+                                    )
+                                }
+                        }
+                    )
+            )
+        }
+
         json.put(
             "extensionPayload",
             runCatching { JSONObject(snapshot.extensionPayloadJson) }
@@ -218,6 +320,99 @@ object ExtensionMessageCodec {
             }
         }
 
+        val configuration = json.optJSONObject("configuration")?.let { configurationJson ->
+            val configurationId = configurationJson.optString("id").trim()
+            if (configurationId.isBlank()) {
+                null
+            } else {
+                val fields = mutableListOf<ExtensionConfigurationField>()
+                val fieldsJson = configurationJson.optJSONArray("fields")
+                if (fieldsJson != null) {
+                    for (
+                        index in 0 until minOf(
+                            fieldsJson.length(),
+                            NightExtensionMessageApi.MAX_CONFIGURATION_FIELDS,
+                        )
+                    ) {
+                        val item = fieldsJson.optJSONObject(index) ?: continue
+                        val fieldId = item.optString("id").trim()
+                        val label = item.optString("label").trim()
+                        if (fieldId.isBlank() || label.isBlank()) continue
+
+                        val values = buildList {
+                            val valuesJson = item.optJSONArray("values")
+                            if (valuesJson != null) {
+                                for (valueIndex in 0 until valuesJson.length()) {
+                                    val value = valuesJson.optString(valueIndex).trim()
+                                    if (value.isNotBlank()) add(value)
+                                }
+                            }
+                        }
+
+                        val options = buildList {
+                            val optionsJson = item.optJSONArray("options")
+                            if (optionsJson != null) {
+                                for (
+                                    optionIndex in 0 until minOf(
+                                        optionsJson.length(),
+                                        NightExtensionMessageApi.MAX_CONFIGURATION_OPTIONS,
+                                    )
+                                ) {
+                                    val option = optionsJson.optJSONObject(optionIndex) ?: continue
+                                    val optionId = option.optString("id").trim()
+                                    val optionLabel = option.optString("label").trim()
+                                    if (optionId.isNotBlank() && optionLabel.isNotBlank()) {
+                                        add(
+                                            ExtensionConfigurationOption(
+                                                id = optionId,
+                                                label = optionLabel,
+                                                description = option.optString("description").trim(),
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        fields += ExtensionConfigurationField(
+                            id = fieldId,
+                            label = label,
+                            type = ExtensionConfigurationFieldType.fromWireName(
+                                item.optString("type")
+                            ),
+                            description = item.optString("description").trim(),
+                            value = item.optString("value"),
+                            values = values,
+                            options = options,
+                            placeholder = item.optString("placeholder"),
+                            min = item.takeIf { it.has("min") }?.optDouble("min"),
+                            max = item.takeIf { it.has("max") }?.optDouble("max"),
+                            step = item.takeIf { it.has("step") }?.optDouble("step"),
+                            advanced = item.optBoolean("advanced", false),
+                            actionLabel = item.optString("actionLabel").trim(),
+                        )
+                    }
+                }
+
+                ExtensionConfiguration(
+                    id = configurationId,
+                    fields = fields,
+                    submitActionId = configurationJson.optString(
+                        "submitActionId",
+                        "save_config",
+                    ).ifBlank { "save_config" },
+                    submitLabel = configurationJson.optString(
+                        "submitLabel",
+                        "Save",
+                    ).ifBlank { "Save" },
+                    advancedLabel = configurationJson.optString(
+                        "advancedLabel",
+                        "Advanced",
+                    ).ifBlank { "Advanced" },
+                )
+            }
+        }
+
         ExtensionMessageSnapshot(
             schemaVersion = json.optInt("schemaVersion", 1).coerceAtLeast(1),
             extensionId = extensionId,
@@ -240,6 +435,7 @@ object ExtensionMessageCodec {
             rows = rows,
             actions = actions,
             extensionPayloadJson = json.optJSONObject("extensionPayload")?.toString() ?: "{}",
+            configuration = configuration,
         )
     }.getOrNull()
 }
