@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - night-pdf-viewer-ci
+      - night-pdf-fullscreen-ci
     paths:
       - "whatsapp-ai-android/**"
       - ".github/workflows/night-pdf-viewer.yml"
