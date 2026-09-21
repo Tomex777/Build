@@ -211,11 +211,12 @@ fun RichResultBubble(
         is DownloadResultMessage -> DownloadResultBubble(item)
         is ToolResultMessage -> ToolResultBubble(item, onAction)
         is ExtensionResultMessage -> ExtensionResultBubble(item, onAction)
+        is StructuredResultMessage -> StructuredResultBubble(item, onAction)
     }
 }
 
 @Composable
-private fun BubbleFrame(
+internal fun BubbleFrame(
     time: String,
     modifier: Modifier = Modifier,
     mine: Boolean = false,
