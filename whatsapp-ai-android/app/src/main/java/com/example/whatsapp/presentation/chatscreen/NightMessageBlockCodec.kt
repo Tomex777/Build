@@ -44,6 +44,7 @@ object NightMessageBlockCodec {
             is NightCopyBlock -> first.title.ifBlank { first.label }
             is NightTableBlock -> first.title.ifBlank { "Table" }
             is NightProgressBlock -> first.title
+            is NightLevelBlock -> first.title
             is NightToolBlock -> first.title
             is NightErrorBlock -> first.title
             is NightSourcesBlock -> first.title
@@ -91,6 +92,16 @@ object NightMessageBlockCodec {
                 .put("primaryActionId", block.primaryActionId ?: "")
                 .put("primaryActionLabel", block.primaryActionLabel ?: "")
                 .apply { block.progress?.let { put("progress", it.coerceIn(0f, 1f)) } }
+
+            is NightLevelBlock -> base("level", block.blockId)
+                .put("title", block.title)
+                .put("level", block.level.coerceAtLeast(0))
+                .put("currentXp", block.currentXp.coerceAtLeast(0L))
+                .put("nextLevelXp", block.nextLevelXp.coerceAtLeast(0L))
+                .put("rank", block.rank)
+                .put("detail", block.detail)
+                .put("badgeText", block.badgeText)
+                .apply { block.action?.let { put("action", encodeAction(it)) } }
 
             is NightToolBlock -> base("tool", block.blockId)
                 .put("toolName", block.toolName)
@@ -251,6 +262,18 @@ object NightMessageBlockCodec {
                     .takeIf { it.isNotBlank() },
                 primaryActionLabel = json.optString("primaryActionLabel")
                     .takeIf { it.isNotBlank() },
+            )
+
+            "level" -> NightLevelBlock(
+                blockId = blockId,
+                title = json.optString("title"),
+                level = json.optInt("level", 0).coerceAtLeast(0),
+                currentXp = json.optLong("currentXp", 0L).coerceAtLeast(0L),
+                nextLevelXp = json.optLong("nextLevelXp", 0L).coerceAtLeast(0L),
+                rank = json.optString("rank"),
+                detail = json.optString("detail"),
+                badgeText = json.optString("badgeText"),
+                action = decodeAction(json.optJSONObject("action")),
             )
 
             "tool" -> NightToolBlock(

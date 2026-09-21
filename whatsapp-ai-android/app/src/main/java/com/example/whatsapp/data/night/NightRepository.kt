@@ -142,6 +142,11 @@ class NightRepository private constructor(
         )
     }
 
+    suspend fun replaceMessage(message: NightMessageEntity) {
+        requireNotNull(dao.getChat(message.chatId)) { "Unknown chat: " + message.chatId }
+        dao.upsertMessage(message)
+    }
+
     suspend fun getChat(chatId: String): NightChatEntity? = dao.getChat(chatId)
     suspend fun getChats(): List<NightChatEntity> = dao.getChats()
     suspend fun getMessages(chatId: String): List<NightMessageEntity> = dao.getMessages(chatId)

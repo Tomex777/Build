@@ -28,6 +28,17 @@ class NightMessageBlockCodecTest {
                 primaryActionId = "resume",
                 primaryActionLabel = "Resume",
             ),
+            NightLevelBlock(
+                "level",
+                title = "Researcher",
+                level = 12,
+                currentXp = 760,
+                nextLevelXp = 1000,
+                rank = "Gold",
+                detail = "240 XP until Level 13",
+                badgeText = "12",
+                action = NightBlockAction("details", "Details"),
+            ),
             NightToolBlock(
                 "tool",
                 toolName = "GitHub",
@@ -100,21 +111,28 @@ class NightMessageBlockCodecTest {
         assertTrue(decoded[2] is NightCopyBlock)
         assertTrue(decoded[3] is NightTableBlock)
         assertTrue(decoded[4] is NightProgressBlock)
-        assertTrue(decoded[5] is NightToolBlock)
-        assertTrue(decoded[6] is NightErrorBlock)
-        assertTrue(decoded[7] is NightSourcesBlock)
-        assertTrue(decoded[8] is NightConfirmationBlock)
-        assertTrue(decoded[9] is NightPermissionBlock)
-        assertTrue(decoded[10] is NightQuestionBlock)
-        assertTrue(decoded[11] is NightDiffBlock)
-        assertTrue(decoded[12] is NightConnectionBlock)
-        assertTrue(decoded[13] is NightExtensionBlock)
+        assertTrue(decoded[5] is NightLevelBlock)
+        assertTrue(decoded[6] is NightToolBlock)
+        assertTrue(decoded[7] is NightErrorBlock)
+        assertTrue(decoded[8] is NightSourcesBlock)
+        assertTrue(decoded[9] is NightConfirmationBlock)
+        assertTrue(decoded[10] is NightPermissionBlock)
+        assertTrue(decoded[11] is NightQuestionBlock)
+        assertTrue(decoded[12] is NightDiffBlock)
+        assertTrue(decoded[13] is NightConnectionBlock)
+        assertTrue(decoded[14] is NightExtensionBlock)
 
         val progress = decoded[4] as NightProgressBlock
         assertEquals(NightProgressState.Paused, progress.state)
         assertEquals(0.5f, progress.progress ?: -1f, 0f)
 
-        val extension = decoded[13] as NightExtensionBlock
+        val level = decoded[5] as NightLevelBlock
+        assertEquals(12, level.level)
+        assertEquals(760L, level.currentXp)
+        assertEquals(1000L, level.nextLevelXp)
+        assertEquals(0.76f, level.progress, 0f)
+
+        val extension = decoded[14] as NightExtensionBlock
         assertEquals("notion.page", extension.snapshot.messageType)
     }
 

@@ -119,6 +119,27 @@ data class NightProgressBlock(
     val primaryActionLabel: String? = null,
 ) : NightMessageBlock
 
+data class NightLevelBlock(
+    override val blockId: String,
+    val title: String,
+    val level: Int,
+    val currentXp: Long,
+    val nextLevelXp: Long,
+    val rank: String = "",
+    val detail: String = "",
+    val badgeText: String = "",
+    val action: NightBlockAction? = null,
+) : NightMessageBlock {
+    val progress: Float
+        get() = if (nextLevelXp <= 0L) {
+            0f
+        } else {
+            (currentXp.toDouble() / nextLevelXp.toDouble())
+                .toFloat()
+                .coerceIn(0f, 1f)
+        }
+}
+
 data class NightToolBlock(
     override val blockId: String,
     val toolName: String,
@@ -297,6 +318,7 @@ private fun NightBlockContent(
         is NightCopyBlock -> NightCopyBlockContent(block)
         is NightTableBlock -> NightTableBlockContent(block)
         is NightProgressBlock -> NightProgressBlockContent(messageId, block, onAction)
+        is NightLevelBlock -> NightLevelBlockContent(messageId, block, onAction)
         is NightToolBlock -> NightToolBlockContent(messageId, block, onAction)
         is NightErrorBlock -> NightErrorBlockContent(messageId, block, onAction)
         is NightSourcesBlock -> NightSourcesBlockContent(messageId, block, onAction)
@@ -496,6 +518,100 @@ private fun NightProgressBlockContent(
                     .align(Alignment.End)
                     .clickable { onAction(messageId, actionId) }
                     .padding(top = 8.dp, start = 8.dp, bottom = 2.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun NightLevelBlockContent(
+    messageId: String,
+    block: NightLevelBlock,
+    onAction: (String, String) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(BlockPanel, RoundedCornerShape(11.dp))
+            .padding(10.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                color = Color(0xFF49313A),
+                shape = CircleShape,
+                modifier = Modifier.size(42.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = block.badgeText.ifBlank { block.level.toString() }.take(3),
+                        color = BlockText,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(9.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = block.title,
+                    color = BlockText,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = buildString {
+                        append("Level ")
+                        append(block.level.coerceAtLeast(0))
+                        if (block.rank.isNotBlank()) {
+                            append(" • ")
+                            append(block.rank)
+                        }
+                    },
+                    color = BlockMuted,
+                    fontSize = 10.sp,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+
+            Text(
+                text = block.currentXp.coerceAtLeast(0L).toString() +
+                    " / " +
+                    block.nextLevelXp.coerceAtLeast(0L).toString() +
+                    " XP",
+                color = BlockMuted,
+                fontSize = 9.sp,
+            )
+        }
+
+        LinearProgressIndicator(
+            progress = { block.progress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 9.dp)
+                .height(5.dp),
+            color = BlockAccent,
+            trackColor = Color(0xFF42494C),
+        )
+
+        if (block.detail.isNotBlank()) {
+            Text(
+                text = block.detail,
+                color = BlockMuted,
+                fontSize = 10.sp,
+                lineHeight = 14.sp,
+                modifier = Modifier.padding(top = 7.dp),
+            )
+        }
+
+        block.action?.let { action ->
+            BlockActions(
+                messageId = messageId,
+                actions = listOf(action),
+                onAction = onAction,
             )
         }
     }
@@ -1097,6 +1213,17 @@ fun nightBlockPreviewMessages(): List<WhatsAppVisualMessage> {
                     state = NightProgressState.Downloading,
                     primaryActionId = "pause",
                     primaryActionLabel = "Pause",
+                ),
+                NightLevelBlock(
+                    blockId = "level",
+                    title = "Researcher",
+                    level = 12,
+                    currentXp = 760,
+                    nextLevelXp = 1000,
+                    rank = "Gold",
+                    detail = "240 XP until Level 13",
+                    badgeText = "12",
+                    action = NightBlockAction("view_progress", "Details"),
                 ),
             ),
         ),
