@@ -1,0 +1,137 @@
+name: PSA API map
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/psa-api-map.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Map PSA public API and first download hop
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          python3 - <<'PY'
+          import urllib.request, urllib.error, json, re, html
+          from urllib.parse import quote, urljoin
+
+          UA='Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
+          out={'api':[],'samples':[]}
+
+          def fetch(url,method='GET',data=None,headers=None):
+              h={'User-Agent':UA,'Accept':'*/*'}
+              if headers:h.update(headers)
+              req=urllib.request.Request(url,method=method,headers=h,data=data)
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r:
+                      body=r.read(2000000).decode('utf-8','ignore')
+                      return {'status':r.status,'url':r.geturl(),'headers':dict(r.headers),'body':body}
+              except urllib.error.HTTPError as e:
+                  return {'status':e.code,'url':url,'headers':dict(e.headers),'body':e.read(2000000).decode('utf-8','ignore'),'error':'HTTPError'}
+              except Exception as e:
+                  return {'status':None,'url':url,'headers':{},'body':'','error':repr(e)}
+
+          def strip(s):
+              return re.sub(r'\s+',' ',html.unescape(re.sub(r'<[^>]+>',' ',s or ''))).strip()
+
+          def anchors(src,base):
+              arr=[]
+              for m in re.finditer(r'<a\b([^>]*)>([\s\S]*?)</a>',src or '',re.I):
+                  hm=re.search(r'\bhref\s*=\s*["\']([^"\']+)',m.group(1),re.I)
+                  if not hm: continue
+                  arr.append({'text':strip(m.group(2)),'href':urljoin(base,html.unescape(hm.group(1)))})
+              return arr
+
+          checks=[
+            ('root','https://psa.wf/wp-json/'),
+            ('posts','https://psa.wf/wp-json/wp/v2/posts?per_page=3&_fields=id,date,slug,link,title,content,excerpt,categories,tags'),
+            ('search-movie','https://psa.wf/wp-json/wp/v2/search?search='+quote('Crime 101')+'&per_page=5'),
+            ('posts-search-movie','https://psa.wf/wp-json/wp/v2/posts?search='+quote('Crime 101')+'&per_page=5&_fields=id,date,slug,link,title,content'),
+            ('posts-search-tv','https://psa.wf/wp-json/wp/v2/posts?search='+quote('The Pitt')+'&per_page=5&_fields=id,date,slug,link,title,content'),
+            ('fallback','https://psa.wf/?rest_route=/wp/v2/posts&search='+quote('Crime 101')+'&per_page=3')
+          ]
+          raw={}
+          for name,url in checks:
+              r=fetch(url)
+              raw[name]=r
+              out['api'].append({
+                'name':name,'url':url,'status':r.get('status'),'finalUrl':r.get('url'),
+                'contentType':r.get('headers',{}).get('Content-Type'),
+                'location':r.get('headers',{}).get('Location'),
+                'error':r.get('error'),'bodyPreview':r.get('body','')[:7000]
+              })
+
+          def posts(name):
+              try:
+                  j=json.loads(raw[name].get('body',''))
+                  return j if isinstance(j,list) else []
+              except:return []
+
+          movie=posts('posts-search-movie')
+          tv=posts('posts-search-tv')
+
+          if not movie:
+              p=fetch('https://psa.wf/movie/crime-101-2026/')
+              if p.get('status')==200:
+                  movie=[{'link':p['url'],'title':{'rendered':'Crime 101 (2026)'},'content':{'rendered':p['body']}}]
+          if not tv:
+              p=fetch('https://psa.wf/tv-show/the-pitt/')
+              if p.get('status')==200:
+                  tv=[{'link':p['url'],'title':{'rendered':'The Pitt'},'content':{'rendered':p['body']}}]
+
+          for label,arr in [('movie',movie),('tv',tv)]:
+              if not arr:
+                  out['samples'].append({'label':label,'error':'No post'})
+                  continue
+              p=arr[0]
+              link=p.get('link')
+              content=((p.get('content') or {}).get('rendered') or '')
+              rec={'label':label,'id':p.get('id'),'title':(p.get('title') or {}).get('rendered'),'link':link}
+              aa=anchors(content,link or 'https://psa.wf/')
+              rec['apiAnchors']=[a for a in aa if re.search(r'download|torrent|episode|part|mirror|get link|link',a['text']+' '+a['href'],re.I)][:150]
+
+              if link:
+                  pg=fetch(link)
+                  rec['pageStatus']=pg.get('status')
+                  rec['pageFinalUrl']=pg.get('url')
+                  rec['pageTitle']=strip((re.search(r'<title[^>]*>([\s\S]*?)</title>',pg.get('body',''),re.I) or [None,''])[1])
+                  pa=anchors(pg.get('body',''),pg.get('url') or link)
+                  rec['pageAnchors']=[a for a in pa if re.search(r'download|torrent|episode|part|mirror|get link|link',a['text']+' '+a['href'],re.I)][:200]
+                  chosen=next((a for a in rec['pageAnchors'] if re.search(r'^download(?:\s+part\s+\d+)?$',a['text'],re.I)),None)
+                  if not chosen:
+                      chosen=next((a for a in rec['pageAnchors'] if re.search(r'download',a['text'],re.I)),None)
+                  rec['chosen']=chosen
+                  if chosen:
+                      dr=fetch(chosen['href'],headers={'Referer':link})
+                      rec['firstHop']={
+                        'status':dr.get('status'),'finalUrl':dr.get('url'),
+                        'contentType':dr.get('headers',{}).get('Content-Type'),
+                        'location':dr.get('headers',{}).get('Location'),
+                        'title':strip((re.search(r'<title[^>]*>([\s\S]*?)</title>',dr.get('body',''),re.I) or [None,''])[1]),
+                        'text':strip(dr.get('body',''))[:7000],
+                        'anchors':[a for a in anchors(dr.get('body',''),dr.get('url') or chosen['href']) if re.search(r'get link|continue|download|mirror|file|host|proceed',a['text']+' '+a['href'],re.I)][:150]
+                      }
+              out['samples'].append(rec)
+
+          json.dump(out,open('diagnostics/psa-api-map.json','w'),indent=2)
+          print(json.dumps(out,indent=2)[:70000])
+          PY
+
+      - name: Commit result
+        if: always()
+        run: |
+          test -f diagnostics/psa-api-map.json || echo '{"error":"no result"}' > diagnostics/psa-api-map.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/psa-api-map.json
+          git commit -m "record PSA API map" || true
+          git push || true
