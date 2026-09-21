@@ -95,12 +95,10 @@ assert_no_night_crash() {
 }
 
 PDF_SOURCE="whatsapp-ai-android/app/src/main/java/com/example/whatsapp/presentation/chatscreen/NightPdfViewerScreen.kt"
-if grep -q "ModalBottomSheet" "$PDF_SOURCE"; then
-  echo "Night PDF viewer regressed to a bottom-sheet implementation." >&2
-  exit 1
-fi
-if grep -q 'contentDescription = "PDF bottom sheet"' "$PDF_SOURCE"; then
-  echo "Night PDF viewer still exposes bottom-sheet semantics." >&2
+grep -q "ModalBottomSheet(" "$PDF_SOURCE"
+grep -q 'contentDescription = "PDF bottom sheet"' "$PDF_SOURCE"
+if grep -q 'PDF full screen viewer' "$PDF_SOURCE"; then
+  echo "Night PDF viewer must remain a document bottom sheet." >&2
   exit 1
 fi
 
@@ -113,7 +111,7 @@ adb shell am force-stop "$PACKAGE"
 adb shell am start -W -n "$ACTIVITY"
 sleep 6
 assert_alive
-assert_desc "PDF full screen viewer"
+assert_desc "PDF bottom sheet"
 assert_desc "Close PDF"
 assert_desc "Search document"
 assert_desc "Share PDF"
@@ -203,7 +201,7 @@ assert_no_night_crash
 
 printf '%s\n' \
   "androidApi=36" \
-  "documentFullscreen=true" \
+  "documentBottomSheet=true" \
   "pages=24" \
   "smoothScroll=true" \
   "zoomEnabled=true" \
