@@ -1,0 +1,32 @@
+{
+  "samples": [
+    {
+      "label": "movie",
+      "page": "https://downloadwella.com/015xrt6sv992/Almost.Popular.(THENKIRI.COM).2025.WEBRip.DOWNLOADED.FROM.THENKIRI.COM.mkv.html",
+      "fields": {
+        "op": "download2",
+        "id": "015xrt6sv992",
+        "rand": "",
+        "referer": "https://thenkiri.com/almost-popular-2025-download-hollywood-movie/",
+        "method_free": "",
+        "method_premium": ""
+      },
+      "directUrl": "javascript:void(0)",
+      "error": "URLError('unknown url type: javascript')"
+    },
+    {
+      "label": "episode",
+      "page": "https://downloadwella.com/jw919q64dtwv/The.Blame.S01E01.(THENKIRI.COM).mkv.html",
+      "fields": {
+        "op": "download2",
+        "id": "jw919q64dtwv",
+        "rand": "",
+        "referer": "https://thenkiri.com/the-blame-s01-complete-tv-series/",
+        "method_free": "",
+        "method_premium": ""
+      },
+      "directUrl": "javascript:void(0)",
+      "error": "URLError('unknown url type: javascript')"
+    }
+  ]
+}
