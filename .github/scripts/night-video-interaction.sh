@@ -266,21 +266,40 @@ assert_no_crash() {
 }
 
 dismiss_fullscreen_education() {
-  # Fresh Android emulators may place a system-owned immersive-mode tutorial
-  # above Night. It intercepts the first tap even though video is already
-  # rendering underneath, so clear it before testing Night's controls.
+  # Fresh Android emulators may place system-owned overlays above an otherwise
+  # healthy Night player: immersive-mode education or a transient Quickstep ANR.
+  # Clear those before evaluating Night's own controls.
   adb shell settings put secure immersive_mode_confirmations confirmed >/dev/null 2>&1 || true
 
   local coords="" x y
-  refresh_ui || return 0
-  coords="$(python3 /tmp/night_video_uia.py text "Got it" 2>/dev/null || true)"
-  if [ -n "$coords" ]; then
-    x="${coords% *}"
-    y="${coords#* }"
-    adb shell input tap "$x" "$y"
-    sleep 0.5
-    refresh_ui || true
-  fi
+  local attempt
+  for attempt in 1 2 3; do
+    refresh_ui || return 0
+
+    if grep -qi "isn't responding" /tmp/window.xml 2>/dev/null; then
+      coords="$(python3 /tmp/night_video_uia.py text "Wait" 2>/dev/null || true)"
+      if [ -n "$coords" ]; then
+        x="${coords% *}"
+        y="${coords#* }"
+        adb shell input tap "$x" "$y"
+        sleep 1
+        continue
+      fi
+    fi
+
+    coords="$(python3 /tmp/night_video_uia.py text "Got it" 2>/dev/null || true)"
+    if [ -n "$coords" ]; then
+      x="${coords% *}"
+      y="${coords#* }"
+      adb shell input tap "$x" "$y"
+      sleep 0.5
+      continue
+    fi
+
+    return 0
+  done
+
+  refresh_ui || true
 }
 
 show_controls() {
