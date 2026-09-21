@@ -41,6 +41,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.whatsapp.data.night.NightProviderKeySummary
 import com.example.whatsapp.data.night.NightProviderModelEntity
 import com.example.whatsapp.data.night.NightProviderProfileEntity
 
@@ -77,9 +78,13 @@ fun NightProvidersScreen(
     onDeleteProfile: (NightProviderProfileEntity) -> Unit,
     onDeleteModel: (NightProviderModelEntity) -> Unit,
     onTestModel: (NightProviderProfileEntity, NightProviderModelEntity) -> Unit,
+    providerKeys: (NightProviderProfileEntity) -> List<NightProviderKeySummary>,
+    onAddProviderKey: (NightProviderProfileEntity, String, String?) -> Unit,
+    onDeleteProviderKey: (NightProviderProfileEntity, String) -> Unit,
 ) {
     var showAddProfile by remember { mutableStateOf(false) }
     var addModelFor by remember { mutableStateOf<NightProviderProfileEntity?>(null) }
+    var addKeyFor by remember { mutableStateOf<NightProviderProfileEntity?>(null) }
 
     Column(
         modifier = Modifier
@@ -157,6 +162,9 @@ fun NightProvidersScreen(
                             onDeleteProfile = { onDeleteProfile(profile) },
                             onDeleteModel = onDeleteModel,
                             onTestModel = { model -> onTestModel(profile, model) },
+                            keys = providerKeys(profile),
+                            onAddKey = { addKeyFor = profile },
+                            onDeleteKey = { keyId -> onDeleteProviderKey(profile, keyId) },
                         )
                     }
                 }
@@ -170,6 +178,17 @@ fun NightProvidersScreen(
             onAdd = { provider, service, name, key, endpoint, region, language, voiceName, makeDefault ->
                 onAddProfile(provider, service, name, key, endpoint, region, language, voiceName, makeDefault)
                 showAddProfile = false
+            },
+        )
+    }
+
+    addKeyFor?.let { profile ->
+        AddGroqKeyDialog(
+            profile = profile,
+            onDismiss = { addKeyFor = null },
+            onAdd = { key, label ->
+                onAddProviderKey(profile, key, label)
+                addKeyFor = null
             },
         )
     }
@@ -194,6 +213,9 @@ private fun ProviderProfileRow(
     onDeleteProfile: () -> Unit,
     onDeleteModel: (NightProviderModelEntity) -> Unit,
     onTestModel: (NightProviderModelEntity) -> Unit,
+    keys: List<NightProviderKeySummary>,
+    onAddKey: () -> Unit,
+    onDeleteKey: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -227,6 +249,52 @@ private fun ProviderProfileRow(
             }
             IconButton(onClick = onDeleteProfile) {
                 Icon(Icons.Default.Delete, "Delete profile", tint = Color(0xFFFF6B78))
+            }
+        }
+
+        if (profile.providerType.equals("groq", ignoreCase = true) && profile.serviceKind == "chat") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 18.dp, top = 2.dp, bottom = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = keys.size.toString() + if (keys.size == 1) " key" else " keys" +
+                        " • automatic rotation",
+                    color = ProviderMuted,
+                    fontSize = 11.sp,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onAddKey) {
+                    Text("Add key", color = ProviderAccent, fontSize = 11.sp)
+                }
+            }
+
+            keys.forEach { key ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 28.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = key.label + " ••••" + key.suffix,
+                        color = ProviderMuted,
+                        fontSize = 10.sp,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(
+                        onClick = { onDeleteKey(key.id) },
+                        enabled = keys.size > 1,
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            if (keys.size > 1) "Delete Groq key" else "Keep at least one Groq key",
+                            tint = if (keys.size > 1) ProviderMuted else ProviderMuted.copy(alpha = 0.35f),
+                        )
+                    }
+                }
             }
         }
 
@@ -380,6 +448,62 @@ private fun AddProviderDialog(
                 ),
             ) {
                 Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = ProviderMuted)
+            }
+        },
+    )
+}
+
+@Composable
+private fun AddGroqKeyDialog(
+    profile: NightProviderProfileEntity,
+    onDismiss: () -> Unit,
+    onAdd: (String, String?) -> Unit,
+) {
+    var key by remember { mutableStateOf("") }
+    var label by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF151B1E),
+        title = {
+            Text(
+                "Add Groq key",
+                color = ProviderText,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Add another key to " + profile.displayName +
+                        ". Night rotates keys automatically and skips a key temporarily after rate-limit or authentication errors.",
+                    color = ProviderMuted,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                )
+                ProviderField(label, { label = it }, "Key label (optional)")
+                ProviderField(key, { key = it }, "API key", secret = true)
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onAdd(
+                        key.trim(),
+                        label.trim().ifBlank { null },
+                    )
+                },
+                enabled = key.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ProviderAccent,
+                    contentColor = Color(0xFF07110B),
+                ),
+            ) {
+                Text("Add")
             }
         },
         dismissButton = {
