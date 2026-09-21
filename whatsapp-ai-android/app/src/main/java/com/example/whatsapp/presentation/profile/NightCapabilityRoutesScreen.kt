@@ -125,10 +125,30 @@ fun NightCapabilityRoutesScreen(
                         lineHeight = 15.sp,
                         modifier = Modifier.padding(top = 2.dp),
                     )
+                    val modelBasedRoute =
+                        item.id == "vision" ||
+                            item.id == "image_generation" ||
+                            item.id == "live_voice"
+                    val hasCapableModel =
+                        profile != null &&
+                            models.any {
+                                it.profileId == profile.id &&
+                                    it.isEnabled &&
+                                    it.capabilities
+                                        .split(",")
+                                        .map { capabilityName -> capabilityName.trim() }
+                                        .contains(item.id)
+                            }
                     val routeUnavailable =
                         profile == null ||
                             !profile.isEnabled ||
-                            (route?.modelId != null && (model == null || !model.isEnabled))
+                            (route?.modelId != null && (model == null || !model.isEnabled)) ||
+                            (
+                                route != null &&
+                                    route.modelId == null &&
+                                    modelBasedRoute &&
+                                    !hasCapableModel
+                                )
                     Text(
                         when {
                             profile == null -> "Not configured"
@@ -137,9 +157,13 @@ fun NightCapabilityRoutesScreen(
                             model != null ->
                                 profile.displayName + " • " + model.displayName +
                                     if (model.isEnabled) "" else " • disabled"
-                            item.id == "vision" || item.id == "image_generation" ->
+                            modelBasedRoute ->
                                 profile.displayName + " • any capable model" +
-                                    if (profile.isEnabled) "" else " • disabled"
+                                    when {
+                                        !profile.isEnabled -> " • disabled"
+                                        !hasCapableModel -> " • unavailable"
+                                        else -> ""
+                                    }
                             else ->
                                 profile.displayName +
                                     if (profile.isEnabled) "" else " • disabled"
@@ -213,8 +237,27 @@ private fun RoutePickerDialog(
                 }
 
             "live_voice" -> profiles
-                .filter { it.serviceKind == "live_voice" && it.isEnabled }
-                .map { it to null }
+                .filter {
+                    it.providerType == "azure" &&
+                        it.isEnabled &&
+                        (it.serviceKind == "chat" || it.serviceKind == "live_voice")
+                }
+                .flatMap { profile ->
+                    val capableModels = models.filter {
+                        it.profileId == profile.id &&
+                            it.isEnabled &&
+                            it.capabilities
+                                .split(",")
+                                .map { capabilityName -> capabilityName.trim() }
+                                .contains("live_voice")
+                    }
+                    buildList {
+                        if (capableModels.isNotEmpty()) {
+                            add(profile to null)
+                            addAll(capableModels.map { model -> profile to model })
+                        }
+                    }
+                }
 
             else -> profiles
                 .filter { it.serviceKind == "speech" && it.isEnabled }
@@ -231,7 +274,7 @@ private fun RoutePickerDialog(
                     when (capability.id) {
                         "vision" -> "Add a vision-capable chat model first."
                         "image_generation" -> "Add an image-generation-capable Azure chat model first."
-                        "live_voice" -> "Add an Azure Live Voice profile first."
+                        "live_voice" -> "Add an enabled Azure model with Live Voice capability first."
                         else -> "Add an Azure Speech profile first."
                     },
                     color = RouteMuted,
@@ -259,7 +302,7 @@ private fun RoutePickerDialog(
                                 Text(
                                     model?.displayName
                                         ?: when (capability.id) {
-                                            "vision", "image_generation" -> "Any enabled capable model"
+                                            "vision", "image_generation", "live_voice" -> "Any enabled capable model"
                                             else -> profile.providerType.replaceFirstChar { it.uppercase() }
                                         },
                                     color = RouteMuted,
