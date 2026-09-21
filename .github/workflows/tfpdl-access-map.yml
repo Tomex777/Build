@@ -1,0 +1,97 @@
+name: TFPDL public access map
+
+on:
+  push:
+    paths:
+      - ".github/workflows/tfpdl-access-map.yml"
+  workflow_dispatch:
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Map public routes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, re, html, urllib.request
+          from urllib.parse import quote, urlparse
+
+          UA={"User-Agent":"Mozilla/5.0 (Android 16; Mobile)"}
+
+          def fetch(url, limit=200000):
+              req=urllib.request.Request(url, headers=UA)
+              try:
+                  with urllib.request.urlopen(req, timeout=25) as r:
+                      body=r.read(limit)
+                      return r.status, r.geturl(), dict(r.headers), body
+              except Exception as e:
+                  if hasattr(e, "read"):
+                      body=e.read(limit)
+                      return getattr(e,"code",0), url, dict(getattr(e,"headers",{})), body
+                  return 0, url, {}, str(e).encode()
+
+          print("=== HOST CHECKS ===")
+          for u in [
+              "https://tfp.re/",
+              "https://tfp.re/wp-json/",
+              "https://tfp.re/?rest_route=/",
+              "https://tfpdl.com/wp-json/",
+              "https://tfpdl.com/?rest_route=/",
+          ]:
+              st,final,h,b=fetch(u,5000)
+              print(st, "->", final, "type=", h.get("Content-Type"), "bytes=",len(b))
+
+          print("\n=== REST ROUTES (tfp.re) ===")
+          st,final,h,b=fetch("https://tfp.re/wp-json/", 800000)
+          if st==200:
+              root=json.loads(b)
+              routes=sorted(root.get("routes",{}).keys())
+              for r in routes:
+                  if any(k in r.lower() for k in ["wp/v2","search","ajax","postratings","telegram","cache","oembed"]):
+                      print(r)
+              print("ROUTE_COUNT", len(routes))
+
+          print("\n=== SEARCH FOR NARUTO ===")
+          st,final,h,b=fetch("https://tfp.re/wp-json/wp/v2/search?search="+quote("naruto")+"&per_page=3", 100000)
+          print("status",st,"final",final)
+          if st==200:
+              arr=json.loads(b)
+              for x in arr:
+                  print(x.get("id"), html.unescape(x.get("title","")), x.get("url"))
+
+          print("\n=== POSTS SEARCH DIRECT ===")
+          st,final,h,b=fetch("https://tfp.re/wp-json/wp/v2/posts?search="+quote("naruto")+"&per_page=2&_fields=id,slug,link,title,content", 300000)
+          print("status",st,"final",final)
+          if st==200:
+              arr=json.loads(b)
+              for p in arr:
+                  content=p.get("content",{}).get("rendered","")
+                  wrappers=re.findall(r'href=[\"\']([^\"\']*/tfpdl\?[^\"\']+)', content, flags=re.I)
+                  print("POST",p["id"],html.unescape(p["title"]["rendered"]),"wrappers",len(wrappers))
+                  for w in wrappers[:3]:
+                      print(" wrapper",html.unescape(w))
+
+          print("\n=== ALTERNATE PUBLIC REPRESENTATIONS ===")
+          tests=[
+              "https://tfp.re/feed/",
+              "https://tfp.re/feed/?s=naruto",
+              "https://tfp.re/wp-json/wp/v2/posts/273814?_fields=id,slug,link,title,content",
+              "https://tfp.re/wp-json/wp/v2/posts/273814?context=embed",
+              "https://tfp.re/wp-json/wp/v2/posts/273814?_embed=1",
+              "https://tfp.re/?p=273814",
+          ]
+          for u in tests:
+              st,final,h,b=fetch(u,200000)
+              txt=b.decode("utf-8","ignore")
+              print(st, urlparse(u).path or "/", "final=",final, "type=",h.get("Content-Type"), "tfpdl_wrapper=",("/tfpdl?" in txt), "bytes=",len(b))
+
+          print("\n=== NORMAL PAGE SCRIPT/FORM HINTS ===")
+          st,final,h,b=fetch("https://tfp.re/lanterns-s01-2160p-web-dl-ddp5-1-dv-hdr-x265-tfpdl/",300000)
+          txt=b.decode("utf-8","ignore")
+          for pat in [r'<script[^>]+src=[\"\']([^\"\']+)', r'<form[^>]+action=[\"\']([^\"\']+)', r'href=[\"\']([^\"\']*/tfpdl\?[^\"\']+)']:
+              vals=re.findall(pat,txt,re.I)
+              for v in vals[:20]:
+                  print(html.unescape(v))
+          PY
