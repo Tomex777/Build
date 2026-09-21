@@ -20,7 +20,7 @@ jobs:
       - name: Trace wrapper in browser
         shell: bash
         run: |
-          cat > /tmp/trace.js <<'JS'
+          cat > trace.js <<'JS'
           const { chromium } = require('playwright');
 
           (async () => {
@@ -34,7 +34,7 @@ jobs:
             page.on('response', async (res) => {
               const u = res.url();
               const ct = (await res.allHeaders())['content-type'] || '';
-              if (/tfp\.re|tfpdl\.com/i.test(u) || /location/i.test(ct)) {
+              if (/tfp\.re|tfpdl\.com|cloudflare/i.test(u)) {
                 console.log('RESPONSE', res.status(), ct, u);
               }
             });
@@ -42,20 +42,20 @@ jobs:
             const post = 'https://tfp.re/lanterns-s01-2160p-web-dl-ddp5-1-dv-hdr-x265-tfpdl/';
             const wrapper = 'https://tfp.re/tfpdl?d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ==';
 
-            let r1 = await page.goto(post, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(e => null);
+            const r1 = await page.goto(post, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => null);
             console.log('POST_STATUS', r1 ? r1.status() : 'ERR');
             console.log('POST_URL', page.url());
-            console.log('POST_TITLE', await page.title().catch(()=>'')); 
-            await page.waitForTimeout(2500);
+            console.log('POST_TITLE', await page.title().catch(()=>''));
+            await page.waitForTimeout(3000);
 
-            let r2 = await page.goto(wrapper, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(e => null);
+            const r2 = await page.goto(wrapper, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => null);
             console.log('WRAPPER_STATUS', r2 ? r2.status() : 'ERR');
             console.log('WRAPPER_URL_INITIAL', page.url());
-            console.log('WRAPPER_TITLE_INITIAL', await page.title().catch(()=>'')); 
+            console.log('WRAPPER_TITLE_INITIAL', await page.title().catch(()=>''));
             await page.waitForTimeout(15000);
 
             console.log('FINAL_URL', page.url());
-            console.log('FINAL_TITLE', await page.title().catch(()=>'')); 
+            console.log('FINAL_TITLE', await page.title().catch(()=>''));
             const body = await page.locator('body').innerText().catch(()=> '');
             console.log('BODY_SAMPLE', body.slice(0,800).replace(/\s+/g,' '));
             console.log('COOKIES', (await context.cookies()).map(c => c.name+'@'+c.domain).join(','));
@@ -63,4 +63,4 @@ jobs:
             await browser.close();
           })();
           JS
-          node /tmp/trace.js
+          node trace.js
