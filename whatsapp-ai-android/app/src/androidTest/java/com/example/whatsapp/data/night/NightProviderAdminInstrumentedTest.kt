@@ -353,4 +353,39 @@ class NightProviderAdminInstrumentedTest {
         manager.deleteProfile(profile)
     }
 
+
+    @Test
+    fun adminCanClearCapabilityRoute() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val repository = NightRepository.get(context)
+        val manager = NightProviderManager.get(context)
+        val suffix = UUID.randomUUID().toString()
+        val capability = "clear-route-" + suffix
+        val profile = manager.addProfile(
+            providerType = "azure",
+            serviceKind = "chat",
+            displayName = "Clear route " + suffix,
+            apiKey = "clear-route-key-" + suffix,
+            endpoint = "https://clear-route-" + suffix + ".openai.azure.com",
+            region = null,
+            makeDefault = false,
+        )
+        repository.setCapabilityRoute(
+            NightCapabilityRouteEntity(
+                id = "route-clear-" + suffix,
+                capability = capability,
+                providerProfileId = profile.id,
+                modelId = null,
+                useSelectedChatModelFirst = false,
+                updatedAt = System.currentTimeMillis(),
+            )
+        )
+
+        assertNotNull(repository.capabilityRoute(capability))
+        repository.clearCapabilityRoute(capability)
+        assertNull(repository.capabilityRoute(capability))
+
+        manager.deleteProfile(profile)
+    }
+
 }
