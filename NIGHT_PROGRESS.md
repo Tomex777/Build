@@ -1,25 +1,38 @@
 # Night Progress
 
 - Active branch: `night-groq-key-pool-ci`
-- Last fully verified app commit: `f5fd3bb283129c0dd3a62f37a98996e4cee55c08`
+- Last fully verified app commit: `76c4f178be03532f2df5c7c43b7fc7d5724b096a`
 - Verified CI:
   - Night Integrated Regression `35633953916`: PASS
   - Android 16 build: PASS
   - Android 16 provider HTTP failover: PASS
   - Android 16 video: PASS
   - Android 16 message blocks: PASS
-  - Android 16 Extension Configuration: PASS
-  - Android 16 Live Voice: PASS
   - Android 16 PDF editor: PASS
+  - Android 16 Live Voice: PASS
+  - Android 16 Extension Configuration: PASS
   - Android 16 image editor: PASS
   - Android 16 Mihon reader: PASS
+
 - Message system status:
-  - Extensions declare their own namespaced Night message types; Night validates ownership/template rather than guessing.
-  - Extension tool results can persist/render declared extension messages.
-  - Extension Configuration is implemented with toggle, single-choice, multi-choice, number, range, text, action, Advanced, saved values, task overrides, and extension action dispatch.
-  - Structured blocks are versioned/persisted: text, code, copy, table, progress, level/XP, tool, error/retry, sources, confirmation, permission, options/question, diff, connection/auth, extension snapshot.
-  - Legacy rich cards now persist/reload: buttons, file result, anime, rich link, generated image, creation progress, image search, download, generic tool result.
-- Live Voice remains user ↔ AI only. No person-to-person calling and no Calls bottom tab.
-- Current task: Browser message type.
-- Browser phase order: inline mini-browser -> expand to full browser with same session/cookies -> session/cookie bridge -> verification flow.
-- After browser/verification: Memory & Summary -> Library + Tools integration -> Provider UX/Admin.
+  - Extension Configuration is implemented and emulator-verified.
+  - Supported config controls: toggle, single choice, multi-choice, number, range, text, action, Advanced, Save.
+  - Saved extension settings persist by extension/config ID.
+  - Task overrides take precedence over saved settings, then extension defaults.
+  - Extensions can declare their own namespaced Night message types.
+  - Night validates extension ownership/template instead of guessing message type.
+  - Extension tool results can persist/render declared Night messages.
+  - Structured Night blocks are versioned and persist across reload.
+  - Older rich cards now have persistence paths.
+  - Reusable Level/XP progression block added.
+  - Extension configuration updates replace the existing card without bumping chat chronology.
+
+- Night calling rule: user ↔ AI Live Voice only. No human-to-human/WebRTC/FCM calling and no Calls bottom tab.
+
+- Current next phase:
+  1. Browser message type.
+  2. Full browser/session sharing.
+  3. Verification flow.
+  4. Memory & Summary.
+  5. Library + Tools integration.
+  6. Provider UX/Admin.
