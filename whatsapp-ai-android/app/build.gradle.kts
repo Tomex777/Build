@@ -116,6 +116,8 @@ dependencies {
 
     // Night local document understanding (PDF text extraction)
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+    // MIT, minSdk 21: embedded PDF rendering/zoom/scroll for Night documents.
+    implementation("io.github.afreakyelf:Pdf-Viewer:2.4.0")
 
     // Night local persistence
     implementation("androidx.room:room-runtime:2.7.2")
