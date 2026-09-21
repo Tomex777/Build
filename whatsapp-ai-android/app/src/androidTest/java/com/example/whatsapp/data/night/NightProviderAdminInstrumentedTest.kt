@@ -173,4 +173,132 @@ class NightProviderAdminInstrumentedTest {
 
         manager.deleteProfile(profile)
     }
+
+    @Test
+    fun editingProviderAndModelPersistsAdminChanges() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val repository = NightRepository.get(context)
+        val manager = NightProviderManager.get(context)
+        val secrets = NightSecretStore.get(context)
+        val suffix = UUID.randomUUID().toString()
+
+        val chatProfile = manager.addProfile(
+            providerType = "azure",
+            serviceKind = "chat",
+            displayName = "Azure chat " + suffix,
+            apiKey = "old-key-" + suffix,
+            endpoint = "https://old-" + suffix + ".openai.azure.com",
+            region = null,
+            makeDefault = false,
+        )
+        val model = manager.addModel(
+            profile = chatProfile,
+            modelId = "old-model-" + suffix,
+            displayName = "Old model",
+            deploymentName = "old-deployment-" + suffix,
+            capabilities = setOf("vision"),
+            makeDefault = false,
+        )
+        val speechProfile = manager.addProfile(
+            providerType = "azure",
+            serviceKind = "speech",
+            displayName = "Azure speech " + suffix,
+            apiKey = "speech-key-" + suffix,
+            endpoint = null,
+            region = "eastus",
+            language = "en-US",
+            voiceName = "en-US-JennyNeural",
+            makeDefault = false,
+        )
+
+        manager.updateProfile(
+            profile = chatProfile,
+            displayName = "Edited Azure chat",
+            endpoint = "  https://edited-" + suffix + ".openai.azure.com  ",
+            region = null,
+            language = "en-US",
+            voiceName = null,
+            replacementApiKey = "replacement-key-" + suffix,
+        )
+        manager.updateModel(
+            model = model,
+            modelId = "edited-model-" + suffix,
+            displayName = "Edited model",
+            deploymentName = "edited-deployment-" + suffix,
+            capabilities = setOf("tools", "image_generation", "live_voice"),
+        )
+        manager.updateProfile(
+            profile = speechProfile,
+            displayName = "Edited Azure speech",
+            endpoint = null,
+            region = "  canadacentral  ",
+            language = "fr-CA",
+            voiceName = "fr-CA-SylvieNeural",
+            replacementApiKey = null,
+        )
+
+        val updatedChatProfile = requireNotNull(repository.getProviderProfile(chatProfile.id))
+        assertEquals("Edited Azure chat", updatedChatProfile.displayName)
+        assertEquals(
+            "https://edited-" + suffix + ".openai.azure.com",
+            updatedChatProfile.endpoint,
+        )
+        assertEquals(
+            "replacement-key-" + suffix,
+            secrets.get(updatedChatProfile.secretAlias),
+        )
+
+        val updatedModel = requireNotNull(repository.getProviderModel(model.id))
+        assertEquals("edited-model-" + suffix, updatedModel.modelId)
+        assertEquals("Edited model", updatedModel.displayName)
+        assertEquals("edited-deployment-" + suffix, updatedModel.deploymentName)
+        assertEquals(
+            setOf("text", "tools", "image_generation", "live_voice"),
+            updatedModel.capabilities.split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet(),
+        )
+
+        val updatedSpeechProfile = requireNotNull(repository.getProviderProfile(speechProfile.id))
+        assertEquals("Edited Azure speech", updatedSpeechProfile.displayName)
+        assertEquals("canadacentral", updatedSpeechProfile.region)
+        assertEquals("fr-CA", updatedSpeechProfile.language)
+        assertEquals("fr-CA-SylvieNeural", updatedSpeechProfile.voiceName)
+
+        manager.deleteProfile(updatedChatProfile)
+        manager.deleteProfile(updatedSpeechProfile)
+    }
+
+    @Test
+    fun groqEditKeepsApiKeysInKeyPoolControls() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val manager = NightProviderManager.get(context)
+        val secrets = NightSecretStore.get(context)
+        val suffix = UUID.randomUUID().toString()
+        val profile = manager.addProfile(
+            providerType = "groq",
+            serviceKind = "chat",
+            displayName = "Groq pool " + suffix,
+            apiKey = "gsk_original_" + suffix,
+            endpoint = null,
+            region = null,
+            makeDefault = false,
+        )
+        val before = secrets.getProviderCredentials(profile.secretAlias).map { it.secret }
+
+        val result = runCatching {
+            manager.updateProfile(
+                profile = profile,
+                displayName = "Groq pool edited",
+                endpoint = null,
+                region = null,
+                language = "en-US",
+                voiceName = null,
+                replacementApiKey = "gsk_replacement_" + suffix,
+            )
+        }
+
+        assertEquals(true, result.isFailure)
+        assertEquals(before, secrets.getProviderCredentials(profile.secretAlias).map { it.secret })
+        manager.deleteProfile(profile)
+    }
+
 }
