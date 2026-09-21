@@ -10,6 +10,12 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
+    <queries>
+        <intent>
+            <action android:name="com.example.whatsapp.action.NIGHT_EXTENSION_SERVICE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".WhatsAppCloneApplication"
         android:allowBackup="true"
