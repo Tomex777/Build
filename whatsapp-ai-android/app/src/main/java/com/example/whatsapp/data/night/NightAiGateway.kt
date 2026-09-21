@@ -147,7 +147,7 @@ class NightAiGateway private constructor(
 
             val candidates = router.resolveChatCandidates(chatId)
             val resolved = candidates.firstOrNull()
-                ?: return@runCatching mergeLocalSummary(
+                ?: return@runCatching NightSummaryText.mergeFallback(
                     previous = chat.latestSummary,
                     transcript = transcript,
                 )
@@ -177,7 +177,7 @@ class NightAiGateway private constructor(
 
             runCatching { performSimpleChat(resolved, messages) }
                 .getOrElse {
-                    mergeLocalSummary(
+                    NightSummaryText.mergeFallback(
                         previous = chat.latestSummary,
                         transcript = transcript,
                     )
@@ -339,27 +339,6 @@ class NightAiGateway private constructor(
         }.trim()
     }
 
-    private fun mergeLocalSummary(
-        previous: String,
-        transcript: String,
-    ): String {
-        val old = previous.trim()
-        val recent = transcript
-            .lineSequence()
-            .filter { it.isNotBlank() }
-            .takeLast(14)
-            .joinToString(" • ") { it.take(240) }
-            .take(2600)
-
-        if (old.isBlank()) return recent.take(5000)
-        if (recent.isBlank()) return old.take(5000)
-
-        return buildString {
-            append(old.take(3500))
-            append("\nRecent update: ")
-            append(recent.take(1400))
-        }.take(5000)
-    }
 
     private suspend fun buildConversation(
         chatId: String,
