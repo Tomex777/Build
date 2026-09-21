@@ -301,4 +301,56 @@ class NightProviderAdminInstrumentedTest {
         manager.deleteProfile(profile)
     }
 
+
+    @Test
+    fun profileOnlyCapabilityRouteUsesAnyEnabledCapableModel() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val repository = NightRepository.get(context)
+        val manager = NightProviderManager.get(context)
+        val suffix = UUID.randomUUID().toString()
+        val capability = "admin-capability-" + suffix
+        val profile = manager.addProfile(
+            providerType = "azure",
+            serviceKind = "chat",
+            displayName = "Capability profile " + suffix,
+            apiKey = "capability-key-" + suffix,
+            endpoint = "https://capability-" + suffix + ".openai.azure.com",
+            region = null,
+            makeDefault = false,
+        )
+        manager.addModel(
+            profile = profile,
+            modelId = "default-model-" + suffix,
+            displayName = "Default without capability",
+            deploymentName = null,
+            capabilities = emptySet(),
+            makeDefault = true,
+        )
+        val capable = manager.addModel(
+            profile = profile,
+            modelId = "capable-model-" + suffix,
+            displayName = "Capable fallback",
+            deploymentName = null,
+            capabilities = setOf(capability),
+            makeDefault = false,
+        )
+        val chat = repository.createChat("Capability fallback test")
+        repository.setCapabilityRoute(
+            NightCapabilityRouteEntity(
+                id = "route-capability-" + suffix,
+                capability = capability,
+                providerProfileId = profile.id,
+                modelId = null,
+                useSelectedChatModelFirst = false,
+                updatedAt = System.currentTimeMillis(),
+            )
+        )
+
+        val resolved = NightCapabilityRouter(repository).resolveCapability(chat.id, capability)
+
+        assertEquals(profile.id, resolved?.profile?.id)
+        assertEquals(capable.id, resolved?.model?.id)
+        manager.deleteProfile(profile)
+    }
+
 }
