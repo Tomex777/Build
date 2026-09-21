@@ -148,10 +148,32 @@ adb shell input tap "$TOOLBAR_EMOJI_X" "$TOOLBAR_Y"
 sleep 1
 adb shell dumpsys input_method > input-method-emoji.txt
 adb exec-out screencap -p > emoji-panel.png
+adb shell uiautomator dump /sdcard/emoji-panel.xml >/dev/null
+adb pull /sdcard/emoji-panel.xml emoji-panel.xml >/dev/null
 EXPANDED_IME_TOP="$(ime_top_from_dump input-method-emoji.txt)"
-EMOJI_FIRST_Y=$(( EXPANDED_IME_TOP + EMOJI_FIRST_LOCAL_Y ))
 EXPANDED_TOOLBAR_Y=$(( EXPANDED_IME_TOP + TOOLBAR_LOCAL_Y ))
-echo "expanded_ime_top_px=$EXPANDED_IME_TOP emoji_first_y=$EMOJI_FIRST_Y"
+
+# The organized emoji panel now includes category chips/search controls, so the
+# first emoji is no longer at a fixed Y offset. Resolve the real on-screen
+# bounds of the "Slight smile" semantic node and tap its center.
+read -r EMOJI_FIRST_X EMOJI_FIRST_Y <<EOF
+$(python3 - <<'PY'
+import re
+import xml.etree.ElementTree as ET
+root = ET.parse('emoji-panel.xml').getroot()
+for node in root.iter():
+    if node.attrib.get('content-desc') == 'Slight smile':
+        m = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds', ''))
+        if not m:
+            raise SystemExit('Slight smile bounds missing')
+        x1, y1, x2, y2 = map(int, m.groups())
+        print((x1 + x2) // 2, (y1 + y2) // 2)
+        raise SystemExit(0)
+raise SystemExit('Slight smile emoji node not found')
+PY
+)
+EOF
+echo "expanded_ime_top_px=$EXPANDED_IME_TOP emoji_first=$EMOJI_FIRST_X,$EMOJI_FIRST_Y"
 adb shell input tap "$EMOJI_FIRST_X" "$EMOJI_FIRST_Y"
 sleep 1
 adb shell uiautomator dump /sdcard/after-emoji.xml
