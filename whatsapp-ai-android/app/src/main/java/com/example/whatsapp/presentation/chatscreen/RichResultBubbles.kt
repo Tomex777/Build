@@ -1402,7 +1402,7 @@ private fun ExtensionResultBubble(
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = "Created by " + snapshot.extensionName,
+                text = snapshot.extensionName,
                 color = RichMuted,
                 fontSize = 11.sp,
                 modifier = Modifier.padding(top = 2.dp),
@@ -1654,7 +1654,7 @@ private fun ExtensionResultBubble(
 
         if (!item.extensionAvailable) {
             Text(
-                text = "Created by " + snapshot.extensionName + " • Extension unavailable",
+                text = "Extension unavailable",
                 color = RichMuted,
                 fontSize = 10.sp,
                 modifier = Modifier.padding(top = 8.dp, start = 2.dp),
