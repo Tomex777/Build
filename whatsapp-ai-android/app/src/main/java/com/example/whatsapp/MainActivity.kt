@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.example.whatsapp.data.NightFileLibrary
+import com.example.whatsapp.data.browser.NightBrowserVerification
 import com.example.whatsapp.data.night.NightAgentToolExecutor
 import com.example.whatsapp.data.night.NightAiGateway
 import com.example.whatsapp.data.night.NightAppearanceController
@@ -48,6 +49,7 @@ import com.example.whatsapp.data.night.NightSpeechService
 import com.example.whatsapp.data.night.NightStructuredReplyParser
 import com.example.whatsapp.data.night.NightToolInvocation
 import com.example.whatsapp.data.night.NightVoiceRecorder
+import com.example.whatsapp.extensions.messages.ExtensionCardTemplate
 import com.example.whatsapp.extensions.messages.ExtensionConfigurationActionCodec
 import com.example.whatsapp.extensions.messages.ExtensionMessageCodec
 import com.example.whatsapp.extensions.messages.NightExtensionConfigurationStore
@@ -1553,6 +1555,86 @@ private fun NightApp(initialChatId: String? = null) {
                             val snapshot =
                                 ExtensionMessageCodec.decode(existing.payloadJson)
                                     ?: return@launch
+
+                            val browser = snapshot.browser
+                            if (
+                                snapshot.template == ExtensionCardTemplate.Browser &&
+                                browser != null &&
+                                browser.verifyActionId == actionId
+                            ) {
+                                val verifyingSnapshot = snapshot.copy(
+                                    status = "Verifying",
+                                    browser = NightBrowserVerification.verifying(browser),
+                                )
+                                repository.replaceMessage(
+                                    existing.copy(
+                                        payloadJson =
+                                            ExtensionMessageCodec.encode(verifyingSnapshot)
+                                    )
+                                )
+
+                                val extensionPayload = runCatching {
+                                    JSONObject(snapshot.extensionPayloadJson)
+                                }.getOrElse { JSONObject() }
+
+                                val verificationPayload = runCatching {
+                                    NightBrowserVerification.buildActionPayload(
+                                        context = context,
+                                        spec = browser,
+                                        extensionPayload = extensionPayload,
+                                    )
+                                }.getOrElse { error ->
+                                    JSONObject()
+                                        .put(
+                                            "browserSession",
+                                            JSONObject()
+                                                .put("sessionId", browser.sessionId)
+                                                .put("captureError", error.message ?: "Unable to read browser session.")
+                                        )
+                                        .put("extensionPayload", extensionPayload)
+                                }
+
+                                val actionResult = runCatching {
+                                    NightExtensionMessageActionRegistry.execute(
+                                        extensionId = snapshot.extensionId,
+                                        chatId = activeChatId,
+                                        messageId = messageId,
+                                        messageType = snapshot.messageType,
+                                        actionId = actionId,
+                                        payload = verificationPayload,
+                                    )
+                                }.getOrElse { error ->
+                                    JSONObject()
+                                        .put("verified", false)
+                                        .put(
+                                            "error",
+                                            error.message ?: "Verification handler failed.",
+                                        )
+                                }
+
+                                val outcome =
+                                    NightBrowserVerification.interpretResult(actionResult)
+                                val verifiedBrowser =
+                                    NightBrowserVerification.applyOutcome(
+                                        spec = browser,
+                                        outcome = outcome,
+                                    )
+                                val verifiedSnapshot = snapshot.copy(
+                                    status = if (outcome.verified) {
+                                        "Verified"
+                                    } else {
+                                        "Verification failed"
+                                    },
+                                    browser = verifiedBrowser,
+                                )
+                                repository.replaceMessage(
+                                    existing.copy(
+                                        payloadJson =
+                                            ExtensionMessageCodec.encode(verifiedSnapshot)
+                                    )
+                                )
+                                return@launch
+                            }
 
                             NightExtensionMessageActionRegistry.execute(
                                 extensionId = snapshot.extensionId,
