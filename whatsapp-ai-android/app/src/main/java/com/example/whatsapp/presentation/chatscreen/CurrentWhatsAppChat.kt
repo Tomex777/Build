@@ -162,6 +162,7 @@ sealed interface WhatsAppVisualMessage {
         override val id: String,
         val name: String,
         val detail: String,
+        val caption: String = "",
         val time: String,
         val mine: Boolean,
         val read: Boolean = false,
@@ -1243,6 +1244,16 @@ private fun CurrentFileBubble(
                         )
                     }
                 }
+            }
+
+            if (item.caption.isNotBlank()) {
+                Text(
+                    text = item.caption,
+                    color = PrimaryText,
+                    fontSize = (14f * appearance.messageFontScale).sp,
+                    fontFamily = appearance.fontFamily,
+                    modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 8.dp),
+                )
             }
 
             Row(
