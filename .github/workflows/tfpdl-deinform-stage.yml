@@ -43,20 +43,31 @@ jobs:
             const page = await context.newPage();
             page.setDefaultTimeout(12000);
 
-            page.on('request', req=>{
-              const u=req.url();
-              if(/deinform\.com|safetxt\.net/i.test(u)) {
-                say('request',{method:req.method(),rt:req.resourceType(),url:u,postData:req.postData()||null});
-              }
+            function watch(p,label){
+              p.on('request', req=>{
+                const u=req.url();
+                if(/deinform\.com|safetxt\.net/i.test(u)) {
+                  say('request',{page:label,method:req.method(),rt:req.resourceType(),url:u,postData:req.postData()||null});
+                }
+              });
+              p.on('response', async res=>{
+                const u=res.url();
+                if(/deinform\.com|safetxt\.net/i.test(u)){
+                  const h=await res.allHeaders().catch(()=>({}));
+                  say('response',{page:label,status:res.status(),rt:res.request().resourceType(),url:u,location:h.location||null,contentType:h['content-type']||null});
+                }
+              });
+              p.on('framenavigated', f=>{ if(f===p.mainFrame()) say('nav',{page:label,url:f.url()}); });
+            }
+            watch(page,'main');
+            let popupSeq=0;
+            context.on('page',p=>{
+              if(p===page) return;
+              popupSeq++;
+              const label='popup-'+popupSeq;
+              say('new_page',{page:label,url:p.url()});
+              watch(p,label);
             });
-            page.on('response', async res=>{
-              const u=res.url();
-              if(/deinform\.com|safetxt\.net/i.test(u)){
-                const h=await res.allHeaders().catch(()=>({}));
-                say('response',{status:res.status(),rt:res.request().resourceType(),url:u,location:h.location||null,contentType:h['content-type']||null});
-              }
-            });
-            page.on('framenavigated', f=>{ if(f===page.mainFrame()) say('nav',{url:f.url()}); });
 
             async function snapshot(label){
               const text=await page.locator('body').innerText().catch(()=>'');
@@ -138,22 +149,33 @@ jobs:
               const triggerVisible=await trigger.isVisible().catch(()=>false);
               if(triggerVisible){
                 say('verification_trigger',{id:'soralink-human-verif-main',src:await trigger.getAttribute('src')});
-                await page.touchscreen.tap(206, 350).catch(()=>{});
-                const box=await trigger.boundingBox().catch(()=>null);
-                if(box){
-                  await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2).catch(e=>say('verification_trigger_error',{message:e.message}));
-                } else {
-                  await trigger.tap({timeout:12000}).catch(e=>say('verification_trigger_error',{message:e.message}));
+                await trigger.tap({timeout:12000}).catch(e=>say('verification_trigger_error',{message:e.message}));
+                await page.waitForTimeout(5000);
+
+                const pages=context.pages();
+                say('page_inventory',{pages:pages.map((p,i)=>({index:i,url:p.url()}))});
+                for(let i=0;i<pages.length;i++){
+                  const p=pages[i];
+                  const text=await p.locator('body').innerText().catch(()=>'');
+                  const forms=await p.locator('form').evaluateAll(fs=>fs.map(f=>({
+                    action:f.action,method:(f.method||'get').toLowerCase(),
+                    inputs:[...f.querySelectorAll('input,button,textarea,select')].map(x=>({
+                      tag:x.tagName,type:x.getAttribute('type'),name:x.getAttribute('name'),
+                      value:x.getAttribute('value'),placeholder:x.getAttribute('placeholder'),
+                      text:(x.textContent||'').trim(),id:x.id||null
+                    }))
+                  }))).catch(()=>[]);
+                  const visibleInputs=await p.locator('input:visible').evaluateAll(xs=>xs.map(x=>({
+                    type:x.getAttribute('type'),name:x.getAttribute('name'),value:x.getAttribute('value'),
+                    placeholder:x.getAttribute('placeholder'),id:x.id||null,outer:x.outerHTML.slice(0,500)
+                  }))).catch(()=>[]);
+                  say('page_snapshot',{index:i,url:p.url(),title:await p.title().catch(()=>''),text:text.slice(0,3500),forms,visibleInputs});
+                  const numerical=visibleInputs.filter(x=>['text','number','tel'].includes((x.type||'text').toLowerCase()));
+                  const textHit=/(captcha|verification code|enter (the )?(number|code)|type (the )?(number|code)|security code)/i.test(text);
+                  if(numerical.length||textHit){
+                    say('verification_boundary',{stage:'popup-scan',index:i,url:p.url(),inputs:numerical,textHit,forms});
+                  }
                 }
-                await page.waitForTimeout(3500);
-                s=await snapshot('after-verification-trigger');
-                await sourceHints('after-verification-trigger');
-                ch=challenge(s);
-                if(ch.hit){
-                  say('verification_boundary',{stage:'after-trigger',url:page.url(),...ch,forms:s.forms,verificationImages:s.verificationImages});
-                  await browser.close(); return;
-                }
-                say('after_trigger_state',{url:page.url(),forms:s.forms,controls:s.controls,visibleInputs:s.visibleInputs,verificationImages:s.verificationImages});
                 await browser.close(); return;
               }
 
