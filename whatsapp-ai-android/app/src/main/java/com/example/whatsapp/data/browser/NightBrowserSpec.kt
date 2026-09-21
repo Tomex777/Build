@@ -5,6 +5,18 @@ import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
 
+enum class NightBrowserVerificationState(val wireName: String) {
+    Idle("idle"),
+    Verifying("verifying"),
+    Verified("verified"),
+    Failed("failed");
+
+    companion object {
+        fun fromWireName(value: String): NightBrowserVerificationState =
+            entries.firstOrNull { it.wireName == value } ?: Idle
+    }
+}
+
 data class NightBrowserSpec(
     val schemaVersion: Int = 1,
     val sessionId: String,
@@ -16,6 +28,10 @@ data class NightBrowserSpec(
     val javaScriptEnabled: Boolean = true,
     val thirdPartyCookies: Boolean = true,
     val userAgent: String? = null,
+    val verificationState: NightBrowserVerificationState =
+        NightBrowserVerificationState.Idle,
+    val verificationMessage: String = "",
+    val verifiedAt: Long? = null,
 ) {
     fun initialUri(): URI? = safeUri(initialUrl)
 
@@ -76,6 +92,8 @@ data class NightBrowserSpec(
                 ?.trim()
                 ?.take(512)
                 ?.takeIf { it.isNotBlank() },
+            verificationMessage = verificationMessage.trim().take(240),
+            verifiedAt = verifiedAt?.takeIf { it > 0L },
         )
     }
 
@@ -106,6 +124,9 @@ object NightBrowserSpecCodec {
             .put("javaScriptEnabled", safe.javaScriptEnabled)
             .put("thirdPartyCookies", safe.thirdPartyCookies)
             .put("userAgent", safe.userAgent ?: "")
+            .put("verificationState", safe.verificationState.wireName)
+            .put("verificationMessage", safe.verificationMessage)
+            .put("verifiedAt", safe.verifiedAt ?: 0L)
     }
 
     fun decode(json: JSONObject?): NightBrowserSpec? {
@@ -137,6 +158,12 @@ object NightBrowserSpecCodec {
                 userAgent = json.optString("userAgent")
                     .trim()
                     .takeIf { it.isNotBlank() },
+                verificationState = NightBrowserVerificationState.fromWireName(
+                    json.optString("verificationState")
+                ),
+                verificationMessage = json.optString("verificationMessage"),
+                verifiedAt = json.optLong("verifiedAt", 0L)
+                    .takeIf { it > 0L },
             ).sanitized()
         }.getOrNull()
     }
