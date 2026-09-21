@@ -5,6 +5,17 @@ import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
 
+enum class NightBrowserVerificationState(val wireName: String) {
+    Unverified("unverified"),
+    Verified("verified"),
+    Failed("failed");
+
+    companion object {
+        fun fromWireName(value: String): NightBrowserVerificationState =
+            entries.firstOrNull { it.wireName == value } ?: Unverified
+    }
+}
+
 data class NightBrowserSpec(
     val schemaVersion: Int = 1,
     val sessionId: String,
@@ -13,6 +24,11 @@ data class NightBrowserSpec(
     val title: String = "Browser",
     val verifyActionId: String? = null,
     val verifyLabel: String = "Verify",
+    val requiredCookieNames: List<String> = emptyList(),
+    val successUrlPrefixes: List<String> = emptyList(),
+    val verificationState: NightBrowserVerificationState =
+        NightBrowserVerificationState.Unverified,
+    val verificationMessage: String = "",
     val javaScriptEnabled: Boolean = true,
     val thirdPartyCookies: Boolean = true,
     val userAgent: String? = null,
@@ -72,6 +88,23 @@ data class NightBrowserSpec(
                 ?.take(120)
                 ?.takeIf { it.isNotBlank() },
             verifyLabel = verifyLabel.trim().take(48).ifBlank { "Verify" },
+            requiredCookieNames = requiredCookieNames
+                .asSequence()
+                .map { it.trim().take(96) }
+                .filter { it.isNotBlank() }
+                .distinct()
+                .take(16)
+                .toList(),
+            successUrlPrefixes = successUrlPrefixes
+                .asSequence()
+                .map { it.trim().take(1024) }
+                .filter { prefix ->
+                    prefix.isNotBlank() && isAllowedUrl(prefix)
+                }
+                .distinct()
+                .take(8)
+                .toList(),
+            verificationMessage = verificationMessage.trim().take(180),
             userAgent = userAgent
                 ?.trim()
                 ?.take(512)
@@ -103,6 +136,10 @@ object NightBrowserSpecCodec {
             .put("title", safe.title)
             .put("verifyActionId", safe.verifyActionId ?: "")
             .put("verifyLabel", safe.verifyLabel)
+            .put("requiredCookieNames", JSONArray(safe.requiredCookieNames))
+            .put("successUrlPrefixes", JSONArray(safe.successUrlPrefixes))
+            .put("verificationState", safe.verificationState.wireName)
+            .put("verificationMessage", safe.verificationMessage)
             .put("javaScriptEnabled", safe.javaScriptEnabled)
             .put("thirdPartyCookies", safe.thirdPartyCookies)
             .put("userAgent", safe.userAgent ?: "")
@@ -132,6 +169,18 @@ object NightBrowserSpecCodec {
                     .trim()
                     .takeIf { it.isNotBlank() },
                 verifyLabel = json.optString("verifyLabel").ifBlank { "Verify" },
+                requiredCookieNames = strings(
+                    json.optJSONArray("requiredCookieNames"),
+                    limit = 16,
+                ),
+                successUrlPrefixes = strings(
+                    json.optJSONArray("successUrlPrefixes"),
+                    limit = 8,
+                ),
+                verificationState = NightBrowserVerificationState.fromWireName(
+                    json.optString("verificationState")
+                ),
+                verificationMessage = json.optString("verificationMessage"),
                 javaScriptEnabled = json.optBoolean("javaScriptEnabled", true),
                 thirdPartyCookies = json.optBoolean("thirdPartyCookies", true),
                 userAgent = json.optString("userAgent")
@@ -145,4 +194,16 @@ object NightBrowserSpecCodec {
         runCatching { JSONObject(raw) }
             .getOrNull()
             ?.let(::decode)
+
+    private fun strings(
+        array: JSONArray?,
+        limit: Int,
+    ): List<String> = buildList {
+        if (array != null) {
+            for (index in 0 until minOf(array.length(), limit)) {
+                val value = array.optString(index).trim()
+                if (value.isNotBlank()) add(value)
+            }
+        }
+    }
 }
