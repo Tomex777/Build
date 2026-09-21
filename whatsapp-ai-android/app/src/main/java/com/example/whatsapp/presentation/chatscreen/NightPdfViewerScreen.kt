@@ -97,7 +97,7 @@ fun NightPdfViewerScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val file = remember(localPath) { File(localPath) }
-    val shownName = displayName?.takeIf { it.isNotBlank() } ?: shownName
+    val shownName = displayName?.takeIf { it.isNotBlank() } ?: file.name.ifBlank { "PDF document" }
 
     var viewer by remember(localPath) { mutableStateOf<PdfRendererView?>(null) }
     var viewerGeneration by remember(localPath) { mutableIntStateOf(0) }
