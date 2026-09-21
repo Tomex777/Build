@@ -1,10 +1,291 @@
 {
-  "startedAt": "2026-09-21T17:29:06.761Z",
-  "selection": null,
-  "cases": [],
-  "summary": {},
-  "error": {
-    "message": "terminated",
-    "stack": "TypeError: terminated\n    at Fetch.onAborted (node:internal/deps/undici/undici:11473:53)\n    at Fetch.emit (node:events:519:28)\n    at Fetch.terminate (node:internal/deps/undici/undici:10631:14)\n    at Object.onError (node:internal/deps/undici/undici:11596:38)\n    at Request.onError (node:internal/deps/undici/undici:2240:31)\n    at Object.errorRequest (node:internal/deps/undici/undici:1734:17)\n    at TLSSocket.<anonymous> (node:internal/deps/undici/undici:6531:16)\n    at TLSSocket.emit (node:events:531:35)\n    at node:net:347:12\n    at TCP.done (node:internal/tls/wrap:748:7)"
-  }
+  "startedAt": "2026-09-21T17:30:44.051Z",
+  "selection": [
+    {
+      "kind": "movie",
+      "id": 375120,
+      "title": "Spa Weekend 2026 1080p WEB-DL DDP5.1 x264-TFPDL",
+      "post": "https://tfp.re/spa-weekend-2026-1080p-web-dl-ddp5-1-x264-tfpdl/",
+      "wrapper": {
+        "href": "https://tfp.re/tfpdl?d048c7b91a=Q2hDNSs3cDNuVUpOc2RXS2QydEJOMVR1aHQzQldLUU0xV3dRdE5JbjFxbE53ZngycFgyZHk4VkU1dFByR1dFZG5qZG9kOERvOUR0NEVHMVgxNXkwa2c9PQ==",
+        "text": "Download Now"
+      }
+    },
+    {
+      "kind": "series",
+      "id": 373753,
+      "title": "Lanterns S01 2160p WEB-DL DDP5.1 DV HDR x265-TFPDL",
+      "post": "https://tfp.re/lanterns-s01-2160p-web-dl-ddp5-1-dv-hdr-x265-tfpdl/",
+      "wrapper": {
+        "href": "https://tfp.re/tfpdl?d048c7b91a=VDNIQmRrMmNzUlc2emZrWkxjYmw5YWN0eHZSYXJ5WVRYT1FXR3RrZTA3ZUwrN1RKU3NiUlptZUtJc1lDSnBiTXRXQU5nODJ1akdTaVVMMXVzdEVtcUE9PQ==",
+        "text": "E01 Download"
+      }
+    },
+    {
+      "kind": "series",
+      "id": 372485,
+      "title": "Bungou Stray Dogs Wan S02 DUAL 720p WEB-DL x265-TFPDL",
+      "post": "https://tfp.re/bungou-stray-dogs-wan-s02-dual-720p-web-dl-x265-tfpdl/",
+      "wrapper": {
+        "href": "https://tfp.re/tfpdl?d048c7b91a=RE1lNmRmZmdEemJ5SGt5QnJQM1ExTUFZSjAwZy9TaThQSnllbXFDSXdtclZmTk5hZnBqZ1dubHBLdFJhWmUyaXdVS0NJcWhzdkhiL0lnVmUvaFVLVkE9PQ==",
+        "text": "E01 Download"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "index": 1,
+      "kind": "movie",
+      "id": 375120,
+      "title": "Spa Weekend 2026 1080p WEB-DL DDP5.1 x264-TFPDL",
+      "post": "https://tfp.re/spa-weekend-2026-1080p-web-dl-ddp5-1-x264-tfpdl/",
+      "wrapper": {
+        "href": "https://tfp.re/tfpdl?d048c7b91a=Q2hDNSs3cDNuVUpOc2RXS2QydEJOMVR1aHQzQldLUU0xV3dRdE5JbjFxbE53ZngycFgyZHk4VkU1dFByR1dFZG5qZG9kOERvOUR0NEVHMVgxNXkwa2c9PQ==",
+        "text": "Download Now"
+      },
+      "actions": [],
+      "events": [
+        {
+          "t": "2026-09-21T17:30:49.399Z",
+          "type": "post-goto-error",
+          "message": "page.goto: url: expected string, got undefined"
+        },
+        {
+          "t": "2026-09-21T17:30:50.600Z",
+          "type": "wrapper-goto-error",
+          "wrapper": {
+            "href": "https://tfp.re/tfpdl?d048c7b91a=Q2hDNSs3cDNuVUpOc2RXS2QydEJOMVR1aHQzQldLUU0xV3dRdE5JbjFxbE53ZngycFgyZHk4VkU1dFByR1dFZG5qZG9kOERvOUR0NEVHMVgxNXkwa2c9PQ==",
+            "text": "Download Now"
+          },
+          "message": "page.goto: url: expected string, got object"
+        }
+      ],
+      "snapshots": [
+        {
+          "label": "wrapper-wait-0",
+          "url": "about:blank",
+          "title": "",
+          "text": "",
+          "visibleInputs": [],
+          "forms": [],
+          "controls": []
+        },
+        {
+          "label": "wrapper-wait-8",
+          "url": "about:blank",
+          "title": "",
+          "text": "",
+          "visibleInputs": [],
+          "forms": [],
+          "controls": []
+        },
+        {
+          "label": "wrapper-wait-20",
+          "url": "about:blank",
+          "title": "",
+          "text": "",
+          "visibleInputs": [],
+          "forms": [],
+          "controls": []
+        },
+        {
+          "label": "wrapper-wait-34",
+          "url": "about:blank",
+          "title": "",
+          "text": "",
+          "visibleInputs": [],
+          "forms": [],
+          "controls": []
+        }
+      ],
+      "status": "wrapper-did-not-reach-deinform",
+      "mirrors": [],
+      "mirrorHosts": [],
+      "wrapperAttempts": [
+        {
+          "href": "https://tfp.re/tfpdl?d048c7b91a=Q2hDNSs3cDNuVUpOc2RXS2QydEJOMVR1aHQzQldLUU0xV3dRdE5JbjFxbE53ZngycFgyZHk4VkU1dFByR1dFZG5qZG9kOERvOUR0NEVHMVgxNXkwa2c9PQ==",
+          "text": "Download Now"
+        }
+      ],
+      "finishedAt": "2026-09-21T17:31:25.680Z"
+    },
+    {
+      "index": 2,
+      "kind": "series",
+      "id": 373753,
+      "title": "Lanterns S01 2160p WEB-DL DDP5.1 DV HDR x265-TFPDL",
+      "post": "https://tfp.re/lanterns-s01-2160p-web-dl-ddp5-1-dv-hdr-x265-tfpdl/",
+      "wrapper": {
+        "href": "https://tfp.re/tfpdl?d048c7b91a=VDNIQmRrMmNzUlc2emZrWkxjYmw5YWN0eHZSYXJ5WVRYT1FXR3RrZTA3ZUwrN1RKU3NiUlptZUtJc1lDSnBiTXRXQU5nODJ1akdTaVVMMXVzdEVtcUE9PQ==",
+        "text": "E01 Download"
+      },
+      "actions": [],
+      "events": [
+        {
+          "t": "2026-09-21T17:30:49.400Z",
+          "type": "post-goto-error",
+          "message": "page.goto: url: expected string, got undefined"
+        },
+        {
+          "t": "2026-09-21T17:30:50.600Z",
+          "type": "wrapper-goto-error",
+          "wrapper": {
+            "href": "https://tfp.re/tfpdl?d048c7b91a=VDNIQmRrMmNzUlc2emZrWkxjYmw5YWN0eHZSYXJ5WVRYT1FXR3RrZTA3ZUwrN1RKU3NiUlptZUtJc1lDSnBiTXRXQU5nODJ1akdTaVVMMXVzdEVtcUE9PQ==",
+            "text": "E01 Download"
+          },
+          "message": "page.goto: url: expected string, got object"
+        }
+      ],
+      "snapshots": [
+        {
+          "label": "wrapper-wait-0",
+          "url": "about:blank",
+          "title": "",
+          "text": "",
+          "visibleInputs": [],
+          "forms": [],
+          "controls": []
+        },
+        {
+          "label": "wrapper-wait-8",
+          "url": "about:blank",
+          "title": "",
+          "text": "",
+          "visibleInputs": [],
+          "forms": [],
+          "controls": []
+        },
+        {
+          "label": "wrapper-wait-20",
+          "url": "about:blank",
+          "title": "",
+          "text": "",
+          "visibleInputs": [],
+          "forms": [],
+          "controls": []
+        },
+        {
+          "label": "wrapper-wait-34",
+          "url": "about:blank",
+          "title": "",
+          "text": "",
+          "visibleInputs": [],
+          "forms": [],
+          "controls": []
+        }
+      ],
+      "status": "wrapper-did-not-reach-deinform",
+      "mirrors": [],
+      "mirrorHosts": [],
+      "wrapperAttempts": [
+        {
+          "href": "https://tfp.re/tfpdl?d048c7b91a=VDNIQmRrMmNzUlc2emZrWkxjYmw5YWN0eHZSYXJ5WVRYT1FXR3RrZTA3ZUwrN1RKU3NiUlptZUtJc1lDSnBiTXRXQU5nODJ1akdTaVVMMXVzdEVtcUE9PQ==",
+          "text": "E01 Download"
+        }
+      ],
+      "finishedAt": "2026-09-21T17:31:25.679Z"
+    },
+    {
+      "index": 3,
+      "kind": "series",
+      "id": 372485,
+      "title": "Bungou Stray Dogs Wan S02 DUAL 720p WEB-DL x265-TFPDL",
+      "post": "https://tfp.re/bungou-stray-dogs-wan-s02-dual-720p-web-dl-x265-tfpdl/",
+      "wrapper": {
+        "href": "https://tfp.re/tfpdl?d048c7b91a=RE1lNmRmZmdEemJ5SGt5QnJQM1ExTUFZSjAwZy9TaThQSnllbXFDSXdtclZmTk5hZnBqZ1dubHBLdFJhWmUyaXdVS0NJcWhzdkhiL0lnVmUvaFVLVkE9PQ==",
+        "text": "E01 Download"
+      },
+      "actions": [],
+      "events": [
+        {
+          "t": "2026-09-21T17:30:49.400Z",
+          "type": "post-goto-error",
+          "message": "page.goto: url: expected string, got undefined"
+        },
+        {
+          "t": "2026-09-21T17:30:50.601Z",
+          "type": "wrapper-goto-error",
+          "wrapper": {
+            "href": "https://tfp.re/tfpdl?d048c7b91a=RE1lNmRmZmdEemJ5SGt5QnJQM1ExTUFZSjAwZy9TaThQSnllbXFDSXdtclZmTk5hZnBqZ1dubHBLdFJhWmUyaXdVS0NJcWhzdkhiL0lnVmUvaFVLVkE9PQ==",
+            "text": "E01 Download"
+          },
+          "message": "page.goto: url: expected string, got object"
+        }
+      ],
+      "snapshots": [
+        {
+          "label": "wrapper-wait-0",
+          "url": "about:blank",
+          "title": "",
+          "text": "",
+          "visibleInputs": [],
+          "forms": [],
+          "controls": []
+        },
+        {
+          "label": "wrapper-wait-8",
+          "url": "about:blank",
+          "title": "",
+          "text": "",
+          "visibleInputs": [],
+          "forms": [],
+          "controls": []
+        },
+        {
+          "label": "wrapper-wait-20",
+          "url": "about:blank",
+          "title": "",
+          "text": "",
+          "visibleInputs": [],
+          "forms": [],
+          "controls": []
+        },
+        {
+          "label": "wrapper-wait-34",
+          "url": "about:blank",
+          "title": "",
+          "text": "",
+          "visibleInputs": [],
+          "forms": [],
+          "controls": []
+        }
+      ],
+      "status": "wrapper-did-not-reach-deinform",
+      "mirrors": [],
+      "mirrorHosts": [],
+      "wrapperAttempts": [
+        {
+          "href": "https://tfp.re/tfpdl?d048c7b91a=RE1lNmRmZmdEemJ5SGt5QnJQM1ExTUFZSjAwZy9TaThQSnllbXFDSXdtclZmTk5hZnBqZ1dubHBLdFJhWmUyaXdVS0NJcWhzdkhiL0lnVmUvaFVLVkE9PQ==",
+          "text": "E01 Download"
+        }
+      ],
+      "finishedAt": "2026-09-21T17:31:25.680Z"
+    }
+  ],
+  "summary": {
+    "total": 3,
+    "success": 0,
+    "humanBoundaries": 0,
+    "statuses": [
+      {
+        "kind": "movie",
+        "title": "Spa Weekend 2026 1080p WEB-DL DDP5.1 x264-TFPDL",
+        "status": "wrapper-did-not-reach-deinform",
+        "mirrorHosts": []
+      },
+      {
+        "kind": "series",
+        "title": "Lanterns S01 2160p WEB-DL DDP5.1 DV HDR x265-TFPDL",
+        "status": "wrapper-did-not-reach-deinform",
+        "mirrorHosts": []
+      },
+      {
+        "kind": "series",
+        "title": "Bungou Stray Dogs Wan S02 DUAL 720p WEB-DL x265-TFPDL",
+        "status": "wrapper-did-not-reach-deinform",
+        "mirrorHosts": []
+      }
+    ]
+  },
+  "finishedAt": "2026-09-21T17:31:25.691Z"
 }
