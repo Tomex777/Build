@@ -31,6 +31,15 @@ adb exec-out screencap -p > night-message-blocks-artifacts/03-blocks-bottom.png
 adb shell uiautomator dump /sdcard/blocks-bottom.xml >/dev/null
 adb exec-out cat /sdcard/blocks-bottom.xml > night-message-blocks-artifacts/03-blocks-bottom.xml
 
+# One more viewport is required on the phone-sized API-36 layout to reach the
+# final diff + connection blocks. Keep this separate so the screenshots still
+# document the natural scrolling sequence.
+adb shell input swipe 360 1250 360 430 700
+sleep 2
+adb exec-out screencap -p > night-message-blocks-artifacts/04-blocks-final.png
+adb shell uiautomator dump /sdcard/blocks-final.xml >/dev/null
+adb exec-out cat /sdcard/blocks-final.xml > night-message-blocks-artifacts/04-blocks-final.xml
+
 cat night-message-blocks-artifacts/0*-blocks-*.xml > night-message-blocks-artifacts/all-blocks.xml
 grep -q "What should I focus on next?" night-message-blocks-artifacts/all-blocks.xml
 grep -q "Pull request is ready" night-message-blocks-artifacts/all-blocks.xml
