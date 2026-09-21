@@ -14,9 +14,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  message-blocks:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -39,12 +39,6 @@ jobs:
           fi
           yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
           "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
-
-      - name: Enable KVM
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
 
       - name: Add test Firebase config
         run: |
@@ -74,6 +68,43 @@ jobs:
           chmod +x gradlew
           ./gradlew :app:assembleDebug --stacktrace
 
+      - name: Upload block test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-message-blocks-apk
+          path: whatsapp-ai-android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  android-16:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Android 36 SDK
+        run: |
+          SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Download block test APK
+        uses: actions/download-artifact@v4
+        with:
+          name: night-message-blocks-apk
+          path: night-message-blocks-apk
+
       - name: Exercise reusable message blocks
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -85,10 +116,10 @@ jobs:
           ram-size: 2048M
           emulator-boot-timeout: 420
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -accel on -wipe-data
+          emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -accel on -wipe-data
           script: |
             set -euo pipefail
-            APK="whatsapp-ai-android/app/build/outputs/apk/debug/app-debug.apk"
+            APK="night-message-blocks-apk/app-debug.apk"
             OUT="night-message-blocks-artifacts"
             PACKAGE="com.example.whatsapp"
 
