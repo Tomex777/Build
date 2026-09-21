@@ -1,0 +1,41 @@
+{
+  "share": "VRiTEpLC",
+  "steps": [
+    {
+      "name": "guest-account",
+      "status": 200,
+      "body": "{\"status\":\"ok\",\"data\":{\"id\":\"30811ff5-81ce-47a7-be3f-fa4ccb3364d1\",\"rootFolder\":\"6fbe1f20-831d-4958-8efd-ec2642fdf381\",\"tier\":\"guest\",\"token\":\"j2iWyUXm6fPIbKlE86qnbB6B5uDigdsT\"}}"
+    },
+    {
+      "name": "config",
+      "status": 404,
+      "bodyPreview": ""
+    },
+    {
+      "name": "contents-sha-ua-token",
+      "status": 401,
+      "url": "https://api.gofile.io/contents/VRiTEpLC?wt=74211b81a77c07791c398d5b1ff6280215071866cf4c9cf1fca4439a27f2448b&cache=true&sortField=createTime&sortDirection=1",
+      "body": "{\"status\":\"error-notPremium\",\"data\":{}}"
+    },
+    {
+      "name": "contents-sha-token-ua",
+      "status": 429,
+      "url": "https://api.gofile.io/contents/VRiTEpLC?wt=22a0046e271bcd32733003ee894d1672f4b5373902a558eeb5833e01e8c19c8f&cache=true&sortField=createTime&sortDirection=1",
+      "body": "{\"status\":\"error-rateLimit\",\"data\":{}}"
+    },
+    {
+      "name": "contents-sha-ua",
+      "status": 429,
+      "url": "https://api.gofile.io/contents/VRiTEpLC?wt=020a76b642bf4f06b2f953f3230926eb8e79544e1485f307301d50ca047da900&cache=true&sortField=createTime&sortDirection=1",
+      "body": "{\"status\":\"error-rateLimit\",\"data\":{}}"
+    },
+    {
+      "name": "contents-sha-token",
+      "status": 429,
+      "url": "https://api.gofile.io/contents/VRiTEpLC?wt=a6fdfdfa39abb32e885caa89049ebb7209435039fd745b7fda4b594651566fed&cache=true&sortField=createTime&sortDirection=1",
+      "body": "{\"status\":\"error-rateLimit\",\"data\":{}}"
+    }
+  ],
+  "guestTokenPresent": true,
+  "websiteToken": null
+}
