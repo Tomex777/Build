@@ -250,7 +250,7 @@ fun NightPdfViewerScreen(
                         .padding(horizontal = 4.dp),
                 ) {
                     Text(
-                        text = file.name.ifBlank { "PDF document" },
+                        text = shownName,
                         color = Color.White,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
