@@ -404,6 +404,15 @@ fun CurrentWhatsAppConversation(
                                         if (index >= 0) scope.launch { state.animateScrollToItem(index) }
                                     },
                                 )
+                                is NightBlockMessage -> NightBlockMessageBubble(
+                                    item = item,
+                                    appearance = appearance,
+                                    onAction = onMessageButtonClick,
+                                    onReplyPreviewClick = { targetId ->
+                                        val index = messages.indexOfFirst { it.id == targetId }
+                                        if (index >= 0) scope.launch { state.animateScrollToItem(index) }
+                                    },
+                                )
                                 is RichResultMessage -> RichResultBubble(item, onMessageButtonClick)
                                 is WhatsAppVisualMessage.DateSeparator -> Unit
                             }
@@ -702,7 +711,7 @@ private fun Color.darken(factor: Float): Color {
 }
 
 @Composable
-private fun CurrentReplyBlock(
+internal fun CurrentReplyBlock(
     reply: ReplyPreview,
     appearance: NightChatAppearance,
     mine: Boolean = false,
