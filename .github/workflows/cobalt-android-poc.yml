@@ -46,6 +46,31 @@ jobs:
             ./mvnw -DskipTests -pl modules/lib -am install
           ) 2>&1 | tee cobalt-android-poc/cobalt-build.log
 
+      - name: Scan patched Cobalt for JVM logger leftovers
+        shell: bash
+        run: |
+          set -o pipefail
+          echo "=== Source references ==="
+          if grep -R -n --include='*.java' -E 'java\.lang\.System\.Logger|System\.Logger' cobalt-upstream/modules; then
+            echo "Unexpected System.Logger source references remain after patch" >&2
+            exit 1
+          fi
+          echo "No System.Logger source references remain."
+
+          echo "=== Compiled bytecode references ==="
+          : > cobalt-android-poc/logger-bytecode-report.txt
+          while IFS= read -r -d '' classfile; do
+            if grep -a -q -F 'java/lang/System$Logger' "$classfile"; then
+              echo "$classfile" | tee -a cobalt-android-poc/logger-bytecode-report.txt
+            fi
+          done < <(find cobalt-upstream/modules -type f -path '*/target/classes/*.class' -print0)
+          if [[ -s cobalt-android-poc/logger-bytecode-report.txt ]]; then
+            echo "System.Logger bytecode references remain:" >&2
+            cat cobalt-android-poc/logger-bytecode-report.txt >&2
+            exit 1
+          fi
+          echo "No System.Logger bytecode references remain."
+
       - name: Set up JDK 17 for Android
         uses: actions/setup-java@v4
         with:
@@ -161,7 +186,8 @@ jobs:
             adb logcat -c
             adb shell am start -W -n com.tomex.cobaltandroid/.MainActivity
             sleep 8
-            adb logcat -d -s CobaltPOC:I AndroidRuntime:E > cobalt-android-poc/runtime-log.txt
+            adb logcat -d -v threadtime > cobalt-android-poc/full-logcat.txt
+            grep -E 'CobaltPOC|AndroidRuntime|System\\$Logger|ClassNotFoundException|NoClassDefFoundError' cobalt-android-poc/full-logcat.txt > cobalt-android-poc/runtime-log.txt || true
             adb shell uiautomator dump /sdcard/cobalt-window.xml || true
             adb pull /sdcard/cobalt-window.xml cobalt-android-poc/window.xml || true
             cat cobalt-android-poc/runtime-log.txt
@@ -193,4 +219,6 @@ jobs:
           path: |
             cobalt-android-poc/runtime-log.txt
             cobalt-android-poc/window.xml
+            cobalt-android-poc/full-logcat.txt
+            cobalt-android-poc/logger-bytecode-report.txt
             cobalt-runtime/**/*.apk
