@@ -269,76 +269,18 @@ internal fun NightAniyomiVlcPlayer(
         }
         runCatching { player.setRate(playbackSpeed) }
         playing = true
-        var startedAt = SystemClock.elapsedRealtime()
-        var lastAdvanceAt = startedAt
-        var lastObservedPosition = -1L
 
+        // Keep state sampling deliberately small. Recovery is handled by a
+        // separate watchdog below so a stale playback sampler cannot silently
+        // disable decoder recovery.
         while (isActive && active) {
-            val now = SystemClock.elapsedRealtime()
             length = runCatching { player.length.coerceAtLeast(0L) }.getOrDefault(0L)
             position = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(0L)
             playing = runCatching { player.isPlaying }.getOrDefault(false)
 
-            if (userPaused) {
-                // Time spent intentionally paused must never count as decoder
-                // stall time. Keep the watchdog anchored to the paused position
-                // so Resume gets a fresh recovery window.
-                lastObservedPosition = position
-                lastAdvanceAt = now
-                startedAt = now
-            } else if (position > lastObservedPosition + 180L) {
-                lastObservedPosition = position
-                lastAdvanceAt = now
-            }
             if (position >= 500L) {
                 playbackStarted = true
             }
-
-            if (
-                !softwareDecode &&
-                !userPaused &&
-                length > 0L &&
-                position < (length - 1500L).coerceAtLeast(0L) &&
-                (
-                    (lastObservedPosition >= 500L && now - lastAdvanceAt >= 2500L) ||
-                        (lastObservedPosition < 500L && now - startedAt >= 9000L)
-                    )
-            ) {
-                // Treat startup latency differently from a decoder that truly stalled.
-                // Once playback has advanced, 2.5s without movement is suspicious.
-                // Before the first 500ms, allow a longer startup window so slow
-                // surface/codec initialization does not trigger a false fallback at 0ms.
-                fallbackResumePosition = position
-                if (virtualVideoDevice && hardwareRetryCount < 2) {
-                    hardwareRetryCount += 1
-                    Log.w(
-                        "NightVideo",
-                        "Virtual-device hardware playback stalled at ${position}ms; recreating VLC hardware player (retry $hardwareRetryCount).",
-                    )
-                    hardwareRetryGeneration += 1
-                    return@LaunchedEffect
-                }
-                Log.w(
-                    "NightVideo",
-                    "Hardware playback stalled at ${position}ms; recreating VLC with software decoding.",
-                )
-                softwareDecode = true
-                return@LaunchedEffect
-            }
-
-            audioTracks = runCatching {
-                player.audioTracks
-                    ?.filter { it.id >= 0 }
-                    ?.map { it.id to it.name.orEmpty().ifBlank { "Audio" } }
-                    .orEmpty()
-            }.getOrDefault(emptyList())
-
-            subtitleTracks = runCatching {
-                player.spuTracks
-                    ?.filter { it.id >= 0 }
-                    ?.map { it.id to it.name.orEmpty().ifBlank { "Subtitle" } }
-                    .orEmpty()
-            }.getOrDefault(emptyList())
 
             if (length > 0L && position >= (length - 450L).coerceAtLeast(0L)) {
                 if (!completionHandled) {
@@ -350,6 +292,100 @@ internal fun NightAniyomiVlcPlayer(
             }
 
             delay(250L)
+        }
+    }
+
+    LaunchedEffect(
+        active,
+        player,
+        softwareDecode,
+        hardwareRetryGeneration,
+        userPaused,
+    ) {
+        if (!active || softwareDecode || userPaused) return@LaunchedEffect
+
+        val startedAt = SystemClock.elapsedRealtime()
+        var lastAdvanceAt = startedAt
+        var lastObservedPosition = position
+        var lastHeartbeatAt = startedAt
+
+        while (isActive && active && !softwareDecode && !userPaused) {
+            delay(500L)
+
+            val now = SystemClock.elapsedRealtime()
+            val currentPosition = position
+            val currentLength = length
+            val currentPlaying = playing
+
+            if (currentPosition > lastObservedPosition + 180L) {
+                lastObservedPosition = currentPosition
+                lastAdvanceAt = now
+            }
+
+            if (virtualVideoDevice && now - lastHeartbeatAt >= 2000L) {
+                Log.d(
+                    "NightVideo",
+                    "Watchdog generation=$hardwareRetryGeneration " +
+                        "position=${currentPosition}ms length=${currentLength}ms " +
+                        "playing=$currentPlaying retry=$hardwareRetryCount.",
+                )
+                lastHeartbeatAt = now
+            }
+
+            val beforeFirstFrame =
+                lastObservedPosition < 500L && now - startedAt >= 9000L
+            val stoppedAfterStarting =
+                lastObservedPosition >= 500L &&
+                    !currentPlaying &&
+                    now - lastAdvanceAt >= 1500L
+            val stoppedAdvancing =
+                lastObservedPosition >= 500L &&
+                    now - lastAdvanceAt >= 3000L
+
+            if (
+                currentLength > 0L &&
+                currentPosition < (currentLength - 1500L).coerceAtLeast(0L) &&
+                (beforeFirstFrame || stoppedAfterStarting || stoppedAdvancing)
+            ) {
+                fallbackResumePosition = currentPosition
+                if (virtualVideoDevice && hardwareRetryCount < 2) {
+                    hardwareRetryCount += 1
+                    Log.w(
+                        "NightVideo",
+                        "Virtual-device hardware playback stalled at ${currentPosition}ms; " +
+                            "recreating VLC hardware player (retry $hardwareRetryCount).",
+                    )
+                    hardwareRetryGeneration += 1
+                    return@LaunchedEffect
+                }
+
+                Log.w(
+                    "NightVideo",
+                    "Hardware playback stalled at ${currentPosition}ms; " +
+                        "recreating VLC with software decoding.",
+                )
+                softwareDecode = true
+                return@LaunchedEffect
+            }
+        }
+    }
+
+    LaunchedEffect(audioMenu, subtitleMenu, player) {
+        if (audioMenu) {
+            audioTracks = runCatching {
+                player.audioTracks
+                    ?.filter { it.id >= 0 }
+                    ?.map { it.id to it.name.orEmpty().ifBlank { "Audio" } }
+                    .orEmpty()
+            }.getOrDefault(emptyList())
+        }
+        if (subtitleMenu) {
+            subtitleTracks = runCatching {
+                player.spuTracks
+                    ?.filter { it.id >= 0 }
+                    ?.map { it.id to it.name.orEmpty().ifBlank { "Subtitle" } }
+                    .orEmpty()
+            }.getOrDefault(emptyList())
         }
     }
 
