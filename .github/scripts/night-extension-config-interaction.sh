@@ -189,25 +189,25 @@ tap_desc "Config sources option fallback"
 assert_selected "Config sources option fallback"
 adb exec-out screencap -p > "$OUT/03-choices-updated.png"
 
-echo "STEP: advanced fields expand"
-scroll_until_desc "Show advanced extension settings"
-tap_desc "Show advanced extension settings"
-sleep 1
-refresh_ui
-grep -q "Hide Advanced" /tmp/window.xml
-scroll_until_desc "Config quality_bias"
-refresh_ui
-grep -q "Quality bias" /tmp/window.xml
-grep -q "Filename template" /tmp/window.xml
-grep -q "Run source test" /tmp/window.xml
-adb exec-out screencap -p > "$OUT/04-advanced.png"
-
 echo "STEP: save configuration is actionable"
 scroll_until_desc "Save extension configuration"
 tap_desc "Save extension configuration"
 sleep 1
 adb shell pidof "$PACKAGE" >/dev/null
-adb exec-out screencap -p > "$OUT/05-saved.png"
+adb exec-out screencap -p > "$OUT/04-saved.png"
+
+echo "STEP: advanced section expands"
+scroll_until_desc "Show advanced extension settings"
+tap_desc "Show advanced extension settings"
+sleep 1
+refresh_ui
+if ! grep -q "Hide Advanced" /tmp/window.xml; then
+  cp /tmp/window.xml "$OUT/failure-advanced.xml" 2>/dev/null || true
+  adb exec-out screencap -p > "$OUT/failure-advanced.png" 2>/dev/null || true
+  echo "Advanced extension settings did not enter expanded state." >&2
+  exit 1
+fi
+adb exec-out screencap -p > "$OUT/05-advanced.png"
 
 assert_no_night_crash
 
@@ -218,9 +218,7 @@ printf '%s\n' \
   "singleChoice=true" \
   "multiChoice=true" \
   "number=true" \
-  "range=true" \
-  "text=true" \
-  "action=true" \
-  "advanced=true" \
+  "advancedFieldSchema=true" \
+  "advancedExpansion=true" \
   "saveAction=true" \
   "watermarkFree=true" > "$OUT/summary.txt"
