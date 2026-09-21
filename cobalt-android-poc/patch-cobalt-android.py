@@ -47,6 +47,42 @@ if old_passkey not in passkey_text:
     raise SystemExit("Expected eager SystemPasskeyAuthenticator creation was not found")
 passkey_path.write_text(passkey_text.replace(old_passkey, new_passkey), encoding="utf-8")
 
+# Android has no java.lang.foreign API. Cobalt's MemorySegment overloads in
+# DataUtils are unused by production code (only a benchmark exercises them),
+# while the byte[] and ByteBuffer implementations are the real wire paths.
+# Remove only the foreign-memory specialization so DataUtils can initialize
+# on Android without changing any wire-format behavior.
+data_utils_path = modules / "wire/wire-core/src/main/java/com/github/auties00/cobalt/wire/core/util/DataUtils.java"
+data_utils = data_utils_path.read_text(encoding="utf-8")
+data_utils = data_utils.replace("import java.lang.foreign.MemorySegment;\n", "")
+data_utils = data_utils.replace("import java.lang.foreign.ValueLayout;\n", "")
+
+segment_fields_start = data_utils.find(
+    "    /**\n"
+    "     * Reads and writes {@code short} values from a {@link MemorySegment}"
+)
+segment_fields_end = data_utils.find("    static {\n", segment_fields_start)
+if segment_fields_start < 0 or segment_fields_end < 0:
+    raise SystemExit("Could not locate DataUtils MemorySegment field block")
+data_utils = data_utils[:segment_fields_start] + data_utils[segment_fields_end:]
+
+segment_methods_start = data_utils.find(
+    "    /**\n"
+    "     * Reads a {@code short} from {@code segment}"
+)
+segment_methods_end = data_utils.find(
+    "    /**\n"
+    "     * Returns a random integer in {@code [0, bound)}.",
+    segment_methods_start
+)
+if segment_methods_start < 0 or segment_methods_end < 0:
+    raise SystemExit("Could not locate DataUtils MemorySegment method block")
+data_utils = data_utils[:segment_methods_start] + data_utils[segment_methods_end:]
+
+if "java.lang.foreign" in data_utils or "MemorySegment" in data_utils or "ValueLayout" in data_utils:
+    raise SystemExit("Foreign-memory references remain in patched DataUtils")
+data_utils_path.write_text(data_utils, encoding="utf-8")
+
 logger_path = modules / "telemetry-core/src/main/java/com/github/auties00/cobalt/telemetry/log/Logger.java"
 logger_path.write_text(r'''package com.github.auties00.cobalt.telemetry.log;
 
