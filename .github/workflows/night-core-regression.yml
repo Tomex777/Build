@@ -72,6 +72,18 @@ jobs:
           PDF="whatsapp-ai-android/app/src/main/java/com/example/whatsapp/presentation/chatscreen/NightPdfViewerScreen.kt"
           ! grep -q "ModalBottomSheet" "$PDF"
           grep -q 'contentDescription = "PDF full screen viewer"' "$PDF"
+          python - <<'PY'
+          from pathlib import Path
+
+          shell = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/presentation/shell/ModernMainTabs.kt").read_text()
+          bottom = shell.split("private fun ModernBottomBar", 1)[1].split("private fun BottomItem", 1)[0]
+          assert "MainTab.Calls" not in bottom, "Night must not expose a Calls bottom-navigation tab"
+          assert 'MainTab.Updates' in bottom and 'MainTab.You' in bottom and 'MainTab.Chats' in bottom
+
+          main = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/MainActivity.kt").read_text()
+          call_handler = main.split("onCallClick = {", 1)[1].split("onMenuAction =", 1)[0]
+          assert "startLiveVoiceCall()" in call_handler, "Chat call button must launch Night Live Voice"
+          PY
 
       - name: Run unit tests and build integrated APK
         run: |
