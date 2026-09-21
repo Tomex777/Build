@@ -63,6 +63,16 @@ jobs:
           }
           JSON
 
+      - name: Guard locked PDF bottom sheet
+        run: |
+          PDF="whatsapp-ai-android/app/src/main/java/com/example/whatsapp/presentation/chatscreen/NightPdfViewerScreen.kt"
+          grep -q "ModalBottomSheet(" "$PDF"
+          grep -q 'contentDescription = "PDF bottom sheet"' "$PDF"
+          if grep -q 'PDF full screen viewer' "$PDF"; then
+            echo "PDF must remain a document bottom sheet." >&2
+            exit 1
+          fi
+
       - name: Run extension settings unit tests
         run: |
           cd whatsapp-ai-android
