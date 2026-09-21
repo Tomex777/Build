@@ -38,6 +38,7 @@ settings=text("app/src/main/java/com/night/keyboard/ui/screens/SettingsScreen.kt
 prefs=text("core/data/src/main/java/com/night/keyboard/data/prefs/KeyboardPreferences.kt")
 prediction_repo=text("core/data/src/main/java/com/night/keyboard/data/prediction/PredictionRepository.kt")
 prediction_dao=text("core/data/src/main/java/com/night/keyboard/data/prediction/LearnedWordDao.kt")
+service=text("app/src/main/java/com/night/keyboard/ime/KeyboardInputMethodService.kt")
 repeat_backspace=text("app/src/main/java/com/night/keyboard/ime/RepeatBackspaceKey.kt")
 editor=text("app/src/main/java/com/night/keyboard/ui/screens/EditorScreen.kt")
 editor_vm=text("app/src/main/java/com/night/keyboard/ui/screens/EditorViewModel.kt")
@@ -95,7 +96,6 @@ check("editor slider saves are coalesced", "debounce(120)" in editor_vm and "Buf
 check("active theme replacement is transactional", "@Transaction" in theme_dao and "replaceActive" in theme_dao and "dao.replaceActive(entity)" in theme_repo)
 check("theme saves are serialized", "Mutex()" in theme_repo and "withLock" in theme_repo)
 
-service=text("app/src/main/java/com/night/keyboard/ime/KeyboardInputMethodService.kt")
 online_client=text("app/src/main/java/com/night/keyboard/ime/KeyboardOnlineClient.kt")
 check("sensitive fields suppress IME private features", "sensitiveFieldFlow" in service and "privateMode" in ime)
 check("incognito suppresses clipboard capture", "incognitoMode" in service and "setIncognito" in prefs)
