@@ -1137,6 +1137,46 @@ private fun NightApp(initialChatId: String? = null) {
             onMakeModelDefault = { model ->
                 scope.launch { providerManager.makeModelDefault(model) }
             },
+            onEditProfile = { providerProfile, name, endpoint, region, language, voiceName, replacementKey ->
+                scope.launch {
+                    runCatching {
+                        providerManager.updateProfile(
+                            profile = providerProfile,
+                            displayName = name,
+                            endpoint = endpoint,
+                            region = region,
+                            language = language,
+                            voiceName = voiceName,
+                            replacementApiKey = replacementKey,
+                        )
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not update provider.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onEditModel = { model, modelId, name, deployment, capabilities ->
+                scope.launch {
+                    runCatching {
+                        providerManager.updateModel(
+                            model = model,
+                            modelId = modelId,
+                            displayName = name,
+                            deploymentName = deployment,
+                            capabilities = capabilities,
+                        )
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not update model.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
             onTestModel = { providerProfile, model ->
                 scope.launch {
                     aiGateway.testModel(providerProfile, model)
