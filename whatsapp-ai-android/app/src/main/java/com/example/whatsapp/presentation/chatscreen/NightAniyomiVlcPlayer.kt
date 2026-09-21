@@ -279,7 +279,14 @@ internal fun NightAniyomiVlcPlayer(
             position = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(0L)
             playing = runCatching { player.isPlaying }.getOrDefault(false)
 
-            if (position > lastObservedPosition + 180L) {
+            if (userPaused) {
+                // Time spent intentionally paused must never count as decoder
+                // stall time. Keep the watchdog anchored to the paused position
+                // so Resume gets a fresh recovery window.
+                lastObservedPosition = position
+                lastAdvanceAt = now
+                startedAt = now
+            } else if (position > lastObservedPosition + 180L) {
                 lastObservedPosition = position
                 lastAdvanceAt = now
             }
