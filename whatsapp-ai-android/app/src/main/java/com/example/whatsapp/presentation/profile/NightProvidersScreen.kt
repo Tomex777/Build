@@ -2,6 +2,7 @@ package com.example.whatsapp.presentation.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -505,7 +507,10 @@ private fun EditProviderDialog(
         containerColor = Color(0xFF151B1E),
         title = { Text("Edit " + profile.displayName, color = ProviderText) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 ProviderField(name, { name = it }, "Profile name")
                 ProviderField(
                     endpoint,
@@ -548,6 +553,11 @@ private fun EditProviderDialog(
                         replacementKey.ifBlank { null },
                     )
                 },
+                enabled = when {
+                    profile.providerType != "azure" -> true
+                    profile.serviceKind == "speech" -> endpoint.isNotBlank() || region.isNotBlank()
+                    else -> endpoint.isNotBlank()
+                },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ProviderAccent,
                     contentColor = Color(0xFF07110B),
@@ -589,7 +599,10 @@ private fun EditModelDialog(
         containerColor = Color(0xFF151B1E),
         title = { Text("Edit " + model.displayName, color = ProviderText) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 ProviderField(modelId, { modelId = it }, "Model ID")
                 ProviderField(name, { name = it }, "Display name")
                 if (profile.providerType == "azure" && profile.serviceKind == "chat") {
