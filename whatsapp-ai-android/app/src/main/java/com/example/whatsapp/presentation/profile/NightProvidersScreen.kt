@@ -116,6 +116,12 @@ fun NightProvidersScreen(
     var editModelFor by remember {
         mutableStateOf<Pair<NightProviderProfileEntity, NightProviderModelEntity>?>(null)
     }
+    var deleteProfileConfirm by remember {
+        mutableStateOf<NightProviderProfileEntity?>(null)
+    }
+    var deleteModelConfirm by remember {
+        mutableStateOf<Pair<NightProviderProfileEntity, NightProviderModelEntity>?>(null)
+    }
 
     Column(
         modifier = Modifier
@@ -190,8 +196,8 @@ fun NightProvidersScreen(
                             profile = profile,
                             models = models.filter { it.profileId == profile.id },
                             onAddModel = { addModelFor = profile },
-                            onDeleteProfile = { onDeleteProfile(profile) },
-                            onDeleteModel = onDeleteModel,
+                            onDeleteProfile = { deleteProfileConfirm = profile },
+                            onDeleteModel = { model -> deleteModelConfirm = profile to model },
                             onSetProfileEnabled = { enabled -> onSetProfileEnabled(profile, enabled) },
                             onMakeProfileDefault = { onMakeProfileDefault(profile) },
                             onSetModelEnabled = onSetModelEnabled,
@@ -271,6 +277,68 @@ fun NightProvidersScreen(
             },
         )
     }
+
+    deleteProfileConfirm?.let { profile ->
+        AlertDialog(
+            onDismissRequest = { deleteProfileConfirm = null },
+            containerColor = Color(0xFF151B1E),
+            title = { Text("Delete provider?", color = ProviderText) },
+            text = {
+                Text(
+                    "Delete " + profile.displayName +
+                        "? Night will remove its encrypted key, models, chat selections, and capability routes. Chats can fall back to another enabled provider if one is available.",
+                    color = ProviderMuted,
+                    lineHeight = 18.sp,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        deleteProfileConfirm = null
+                        onDeleteProfile(profile)
+                    },
+                ) {
+                    Text("Delete", color = Color(0xFFFF6B78))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteProfileConfirm = null }) {
+                    Text("Cancel", color = ProviderMuted)
+                }
+            },
+        )
+    }
+
+    deleteModelConfirm?.let { (profile, model) ->
+        AlertDialog(
+            onDismissRequest = { deleteModelConfirm = null },
+            containerColor = Color(0xFF151B1E),
+            title = { Text("Delete model?", color = ProviderText) },
+            text = {
+                Text(
+                    "Delete " + model.displayName + " from " + profile.displayName +
+                        "? Chats selecting it will fall back to another enabled model or provider. Capability routes pinned to it will fall back to this provider.",
+                    color = ProviderMuted,
+                    lineHeight = 18.sp,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        deleteModelConfirm = null
+                        onDeleteModel(model)
+                    },
+                ) {
+                    Text("Delete", color = Color(0xFFFF6B78))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteModelConfirm = null }) {
+                    Text("Cancel", color = ProviderMuted)
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -345,8 +413,10 @@ private fun ProviderProfileRow(
                     Text("Make default", color = ProviderAccent, fontSize = 11.sp)
                 }
             }
-            TextButton(onClick = onAddModel) {
-                Text("Add model", color = ProviderAccent, fontSize = 11.sp)
+            if (profile.serviceKind != "speech") {
+                TextButton(onClick = onAddModel) {
+                    Text("Add model", color = ProviderAccent, fontSize = 11.sp)
+                }
             }
         }
 
