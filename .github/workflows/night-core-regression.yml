@@ -13,6 +13,7 @@ on:
       - ".github/scripts/night-extension-config-interaction.sh"
       - ".github/scripts/night-browser-interaction.sh"
       - ".github/scripts/night-memory-interaction.sh"
+      - ".github/scripts/night-providers-interaction.sh"
       - ".github/scripts/night-mihon-reader-interaction.sh"
       - ".github/scripts/night-pdf-editor-interaction.sh"
       - ".github/scripts/night-video-interaction.sh"
@@ -203,6 +204,7 @@ jobs:
           - extension-config
           - browser
           - memory
+          - providers
           - image-editor
           - pdf-editor
           - mihon-reader
@@ -268,6 +270,8 @@ jobs:
               ;;
             memory)
               ;;
+            providers)
+              ;;
             image-editor)
               mkdir -p night-image-editor-apk
               cp night-integrated-apk/app-debug.apk night-image-editor-apk/app-debug.apk
@@ -309,6 +313,7 @@ jobs:
             night-extension-config-artifacts/
             night-browser-artifacts/
             night-memory-artifacts/
+            night-providers-artifacts/
             night-image-editor-artifacts/
             night-pdf-editor-artifacts/
             mihon-interaction-artifacts/
