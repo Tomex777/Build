@@ -102,7 +102,7 @@ jobs:
             "emulator" \
             "platforms;android-36" \
             "build-tools;36.0.0" \
-            "system-images;android-36;google_apis;x86_64"
+            "system-images;android-36;default;x86_64"
           echo "/usr/local/lib/android/sdk/platform-tools" >> "$GITHUB_PATH"
           echo "/usr/local/lib/android/sdk/emulator" >> "$GITHUB_PATH"
 
@@ -131,15 +131,14 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
-          target: google_apis
+          target: default
           arch: x86_64
-          profile: pixel_6
+          profile: pixel_2
           cores: 2
           ram-size: 2048M
           emulator-boot-timeout: 420
           disable-animations: true
-          force-avd-creation: true
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -accel on -wipe-data
+          emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -accel on -wipe-data
           script: |
             set -euo pipefail
             APK="night-message-blocks-apk/app-debug.apk"
