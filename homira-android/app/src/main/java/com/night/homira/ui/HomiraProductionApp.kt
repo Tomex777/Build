@@ -38,6 +38,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -6962,8 +6964,8 @@ private fun ActiveCallScreen(
     var localFeedPrimary by rememberSaveable {
         mutableStateOf(false)
     }
-    var selfViewScale by rememberSaveable {
-        mutableFloatStateOf(1f)
+    val selfViewScale = remember {
+        Animatable(1f)
     }
     var selfViewOffsetX by rememberSaveable {
         mutableFloatStateOf(0f)
@@ -7119,7 +7121,7 @@ private fun ActiveCallScreen(
             val baseTileHeightDp =
                 if (inPictureInPicture) 78f else 156f
             val effectiveScale =
-                if (inPictureInPicture) 1f else selfViewScale
+                if (inPictureInPicture) 1f else selfViewScale.value
             val tileWidth =
                 (baseTileWidthDp * effectiveScale).dp
             val tileHeight =
@@ -7131,11 +7133,37 @@ private fun ActiveCallScreen(
                 baseTileHeightDp.dp.toPx()
             }
             val sidePaddingPx = with(density) {
-                32.dp.toPx()
+                if (inPictureInPicture) 12.dp.toPx() else 32.dp.toPx()
             }
             val bottomReservedPx = with(density) {
-                180.dp.toPx()
+                if (inPictureInPicture) 12.dp.toPx() else 180.dp.toPx()
             }
+            val renderedWidthPx =
+                baseWidthPx * effectiveScale
+            val renderedHeightPx =
+                baseHeightPx * effectiveScale
+            val maxRenderedHorizontalTravel =
+                (
+                    availableWidthPx -
+                        renderedWidthPx -
+                        sidePaddingPx
+                ).coerceAtLeast(0f)
+            val maxRenderedVerticalTravel =
+                (
+                    availableHeightPx -
+                        renderedHeightPx -
+                        bottomReservedPx
+                ).coerceAtLeast(0f)
+            val renderedOffsetX =
+                selfViewOffsetX.coerceIn(
+                    -maxRenderedHorizontalTravel,
+                    0f
+                )
+            val renderedOffsetY =
+                selfViewOffsetY.coerceIn(
+                    0f,
+                    maxRenderedVerticalTravel
+                )
 
             if (
                 tileTrack != null &&
@@ -7151,24 +7179,14 @@ private fun ActiveCallScreen(
                         )
                         .offset {
                             IntOffset(
-                                if (inPictureInPicture) {
-                                    0
-                                } else {
-                                    selfViewOffsetX.roundToInt()
-                                },
-                                if (inPictureInPicture) {
-                                    0
-                                } else {
-                                    selfViewOffsetY.roundToInt()
-                                }
+                                renderedOffsetX.roundToInt(),
+                                renderedOffsetY.roundToInt()
                             )
                         }
                         .width(tileWidth)
                         .height(tileHeight)
                         .clickable(
-                            enabled =
-                                canSwapFeeds &&
-                                    !inPictureInPicture
+                            enabled = canSwapFeeds
                         ) {
                             localFeedPrimary =
                                 !localFeedPrimary
@@ -7193,13 +7211,15 @@ private fun ActiveCallScreen(
 
                                     val nextScale =
                                         (
-                                            selfViewScale *
+                                            selfViewScale.value *
                                                 zoom
                                         ).coerceIn(
                                             .65f,
                                             1.50f
                                         )
-                                    selfViewScale = nextScale
+                                    if (!inPictureInPicture) {
+                                        selfViewScale.snapTo(nextScale)
+                                    }
 
                                     val currentWidthPx =
                                         baseWidthPx *
@@ -7262,8 +7282,14 @@ private fun ActiveCallScreen(
                                 // WhatsApp-style elastic upper bound:
                                 // the tile may stretch while touched,
                                 // then returns to its normal maximum.
-                                if (selfViewScale > 1f) {
-                                    selfViewScale = 1f
+                                if (
+                                    !inPictureInPicture &&
+                                    selfViewScale.value > 1f
+                                ) {
+                                    selfViewScale.animateTo(
+                                        targetValue = 1f,
+                                        animationSpec = spring()
+                                    )
                                 }
                             }
                         },
