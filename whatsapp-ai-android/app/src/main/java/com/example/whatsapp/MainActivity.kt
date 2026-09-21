@@ -1322,6 +1322,9 @@ private fun NightApp(initialChatId: String? = null) {
                     )
                 }
             },
+            onClearRoute = { capability ->
+                scope.launch { repository.clearCapabilityRoute(capability) }
+            },
         )
 
         "scheduled_tasks" -> NightScheduledTasksScreen(
