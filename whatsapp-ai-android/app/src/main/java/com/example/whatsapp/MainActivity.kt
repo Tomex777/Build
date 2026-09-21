@@ -60,6 +60,7 @@ import com.example.whatsapp.presentation.chatscreen.NightChoiceDialog
 import com.example.whatsapp.presentation.chatscreen.NightChatMediaItem
 import com.example.whatsapp.presentation.chatscreen.NightMediaViewerScreen
 import com.example.whatsapp.presentation.chatscreen.NightPdfViewerScreen
+import com.example.whatsapp.presentation.chatscreen.NightPdfEditorScreen
 import com.example.whatsapp.presentation.chatscreen.NightMediaComposerScreen
 import com.example.whatsapp.presentation.chatscreen.ReplyKind
 import com.example.whatsapp.presentation.chatscreen.ReplyPreview
@@ -153,8 +154,11 @@ private fun NightApp(initialChatId: String? = null) {
     var choiceOpen by remember { mutableStateOf(false) }
     var mediaViewerPath by rememberSaveable { mutableStateOf<String?>(null) }
     var pdfSheetPath by rememberSaveable { mutableStateOf<String?>(null) }
+    var pdfViewerName by rememberSaveable { mutableStateOf<String?>(null) }
     var mediaDraft by remember { mutableStateOf<NightMediaDraft?>(null) }
     var mediaCaption by rememberSaveable { mutableStateOf("") }
+    var pdfDraft by remember { mutableStateOf<NightPdfDraft?>(null) }
+    var pdfCaption by rememberSaveable { mutableStateOf("") }
 
     val chats by repository.observeChats().collectAsState(initial = emptyList())
     val profiles by repository.observeProviderProfiles().collectAsState(initial = emptyList())
