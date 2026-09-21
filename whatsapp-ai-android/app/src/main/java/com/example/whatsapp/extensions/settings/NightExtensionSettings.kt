@@ -137,7 +137,7 @@ object NightExtensionSettingsResolver {
         is NightExtensionSettingSpec.Choice -> {
             val raw = (value as? NightExtensionSettingValue.StringValue)?.value ?: return null
             raw.takeIf { candidate -> spec.options.any { it.value == candidate } }
-                ?.let(NightExtensionSettingValue::StringValue)
+                ?.let { NightExtensionSettingValue.StringValue(it) }
         }
 
         is NightExtensionSettingSpec.Toggle ->
