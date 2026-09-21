@@ -31,7 +31,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p diagnostics
-          cat > /tmp/tfpdl-matrix.cjs <<'JS'
+          cat > tfpdl-matrix.cjs <<'JS'
           const { chromium } = require('playwright');
           const fs = require('fs');
 
@@ -415,7 +415,7 @@ jobs:
             }
           })();
           JS
-          node /tmp/tfpdl-matrix.cjs
+          node tfpdl-matrix.cjs
 
       - name: Commit validation result
         if: always()
