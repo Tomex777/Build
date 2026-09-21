@@ -116,7 +116,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                         onValueChange = { viewModel.floatingLift(it.toInt()) },
                         valueRange = 0f..96f,
                         steps = 11,
-                        modifier = Modifier.padding(horizontal = 14.dp, bottom = 8.dp),
+                        modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 8.dp),
                     )
                 }
             }
