@@ -10,6 +10,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.Message
 import android.os.Messenger
+import java.security.MessageDigest
 import com.example.whatsapp.extensions.messages.ExtensionCardTemplate
 import com.example.whatsapp.extensions.messages.NightExtensionMessageActionRegistry
 import com.example.whatsapp.extensions.messages.NightExtensionMessageTypeDefinition
@@ -37,6 +38,7 @@ data class NightInstalledExtensionSummary(
     val messageTypeCount: Int,
     val enabled: Boolean,
     val error: String? = null,
+    val signingDigest: String = "",
 )
 
 /**
@@ -59,6 +61,7 @@ class NightExternalExtensionManager private constructor(
         val displayName: String,
         val toolCount: Int,
         val messageTypeCount: Int,
+        val signingDigest: String,
     )
 
     private val app = context.applicationContext
@@ -110,6 +113,7 @@ class NightExternalExtensionManager private constructor(
                         messageTypeCount = 0,
                         enabled = false,
                         error = error.message ?: "Could not read extension descriptor.",
+                        signingDigest = signingDigest(component.packageName).orEmpty(),
                     )
                 }
         }
@@ -125,7 +129,12 @@ class NightExternalExtensionManager private constructor(
         discovered.forEach { item ->
             val duplicate = item.extensionId in duplicateIds
             val enabled =
-                !duplicate && isEnabled(item.component, item.extensionId)
+                !duplicate &&
+                    isEnabled(
+                        component = item.component,
+                        extensionId = item.extensionId,
+                        signingDigest = item.signingDigest,
+                    )
 
             if (enabled) {
                 runCatching {
@@ -180,6 +189,7 @@ class NightExternalExtensionManager private constructor(
                 approvalKey(
                     packageName = extension.packageName,
                     extensionId = extension.extensionId,
+                    signingDigest = extension.signingDigest,
                 ),
                 enabled,
             )
@@ -230,6 +240,9 @@ class NightExternalExtensionManager private constructor(
             toolCount = minOf(tools?.length() ?: 0, MAX_TOOLS),
             messageTypeCount =
                 minOf(messageTypes?.length() ?: 0, MAX_MESSAGE_TYPES),
+            signingDigest = requireNotNull(signingDigest(component.packageName)) {
+                "Could not verify the extension APK signing certificate."
+            },
         )
     }
 
@@ -325,17 +338,69 @@ class NightExternalExtensionManager private constructor(
     private fun isEnabled(
         component: ComponentName,
         extensionId: String,
+        signingDigest: String,
     ): Boolean =
         prefs.getBoolean(
-            approvalKey(component.packageName, extensionId),
+            approvalKey(
+                packageName = component.packageName,
+                extensionId = extensionId,
+                signingDigest = signingDigest,
+            ),
             false,
         )
 
     private fun approvalKey(
         packageName: String,
         extensionId: String,
+        signingDigest: String,
     ): String =
-        "enabled::" + packageName + "::" + extensionId
+        "enabled::" + packageName + "::" +
+            extensionId + "::" + signingDigest
+
+    @Suppress("DEPRECATION")
+    private fun signingDigest(packageName: String): String? =
+        runCatching {
+            val packageInfo =
+                if (android.os.Build.VERSION.SDK_INT >= 28) {
+                    app.packageManager.getPackageInfo(
+                        packageName,
+                        android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES,
+                    )
+                } else {
+                    app.packageManager.getPackageInfo(
+                        packageName,
+                        android.content.pm.PackageManager.GET_SIGNATURES,
+                    )
+                }
+
+            val signatures =
+                if (android.os.Build.VERSION.SDK_INT >= 28) {
+                    packageInfo.signingInfo
+                        ?.apkContentsSigners
+                        ?.toList()
+                        .orEmpty()
+                } else {
+                    packageInfo.signatures
+                        ?.toList()
+                        .orEmpty()
+                }
+
+            require(signatures.isNotEmpty()) {
+                "Extension package has no signing certificate."
+            }
+
+            signatures
+                .map { signature ->
+                    MessageDigest
+                        .getInstance("SHA-256")
+                        .digest(signature.toByteArray())
+                        .joinToString("") { byte ->
+                            "%02x".format(byte)
+                        }
+                }
+                .sorted()
+                .joinToString(":")
+        }.getOrNull()
 
     private fun Discovered.toSummary(
         enabled: Boolean,
@@ -350,6 +415,7 @@ class NightExternalExtensionManager private constructor(
             messageTypeCount = messageTypeCount,
             enabled = enabled,
             error = error,
+            signingDigest = signingDigest,
         )
 
     private suspend fun executeTool(
