@@ -40,6 +40,16 @@ jobs:
               userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
               viewport:{width:412,height:915},isMobile:true,hasTouch:true,deviceScaleFactor:1,locale:'en-US'
             });
+            context.on('response',async r=>{
+              try{
+                const u=r.url();
+                if(/^https:\/\/safetxt\.net\//i.test(u) && r.request().resourceType()==='document' && !out.safetxtDocument){
+                  const h=await r.allHeaders().catch(()=>({}));
+                  const body=await r.text();
+                  out.safetxtDocument={url:u,status:r.status(),headers:h,html:body.slice(0,250000)};
+                }
+              }catch(e){}
+            });
             let seq=0;
             const watch=(p,label)=>{
               p.on('request',r=>{const u=r.url(); if(/deinform\.com|safetxt\.net|tfp\.re/i.test(u)) push('request',{page:label,method:r.method(),rt:r.resourceType(),url:u,postData:r.postData()||null});});
