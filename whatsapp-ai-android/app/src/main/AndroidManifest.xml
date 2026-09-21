@@ -26,6 +26,11 @@
             android:configChanges="orientation|screenSize|smallestScreenSize"
             android:theme="@style/Theme.Whatsapp" />
         <activity
+            android:name=".NightMemoryPreviewActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Whatsapp" />
+        <activity
             android:name=".NightLiveVoicePreviewActivity"
             android:exported="true"
             android:screenOrientation="portrait"
