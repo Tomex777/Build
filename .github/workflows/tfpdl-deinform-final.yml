@@ -1,0 +1,109 @@
+name: TFPDL Deinform final resolver trace
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/tfpdl-deinform-final.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+      - name: Trace full Deinform SoraLink flow
+        run: |
+          cat > trace.cjs <<'JS'
+          const { chromium } = require('playwright');
+          const fs=require('fs');
+          const target='https://deinform.com/?id=U3VPVXdWcytJY216citiUHhNMVlUR0I5Ull6RXlqcVpEVUFZVytFNERJUUIyVDYxU21JZnN4UmY3V2wvcHM3LzhnWTRpMjVyQklTdk0rRVc2bHY4dVJKQVJmQ3UyQlg4WkR3ZEVMSjZLRjA9';
+          const out={target,events:[],snapshots:[]};
+          const push=(type,data={})=>{const x={t:new Date().toISOString(),type,...data};out.events.push(x);console.log(JSON.stringify(x));};
+
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const context=await browser.newContext({
+              userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
+              viewport:{width:412,height:915},isMobile:true,hasTouch:true,deviceScaleFactor:1,locale:'en-US'
+            });
+            let seq=0;
+            const watch=(p,label)=>{
+              p.on('request',r=>{const u=r.url(); if(/deinform\.com|safetxt\.net|tfp\.re/i.test(u)) push('request',{page:label,method:r.method(),rt:r.resourceType(),url:u,postData:r.postData()||null});});
+              p.on('response',async r=>{const u=r.url(); if(/deinform\.com|safetxt\.net|tfp\.re/i.test(u)){const h=await r.allHeaders().catch(()=>({})); push('response',{page:label,status:r.status(),rt:r.request().resourceType(),url:u,location:h.location||null,contentType:h['content-type']||null});}});
+              p.on('framenavigated',f=>{if(f===p.mainFrame())push('nav',{page:label,url:f.url()});});
+            };
+            const page=await context.newPage(); watch(page,'main');
+            context.on('page',p=>{if(p===page)return; seq++; watch(p,'popup-'+seq); push('new_page',{page:'popup-'+seq,url:p.url()});});
+            page.setDefaultTimeout(15000);
+
+            async function snap(p,label){
+              const d=await p.evaluate(()=>({
+                url:location.href,title:document.title,text:(document.body?.innerText||'').slice(0,4000),
+                forms:[...document.forms].map(f=>({action:f.action,method:(f.method||'get').toLowerCase(),id:f.id||null,fields:[...f.querySelectorAll('input,button,textarea,select')].map(x=>({tag:x.tagName,type:x.getAttribute('type'),name:x.getAttribute('name'),value:x.getAttribute('value'),id:x.id||null,visible:!!(x.offsetWidth||x.offsetHeight||x.getClientRects().length),text:(x.textContent||'').trim(),placeholder:x.getAttribute('placeholder')}))})),
+                elements:['soralink-human-verif-main','generater','showlink','pleasewaits'].map(id=>{const e=document.getElementById(id);if(!e)return{id,present:false};return{id,present:true,visible:!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length),disabled:!!e.disabled,href:e.href||null,src:e.src||null,style:e.getAttribute('style'),text:(e.textContent||'').trim(),outer:e.outerHTML.slice(0,3000)}})
+              })).catch(e=>({error:e.message}));
+              out.snapshots.push({label,...d}); push('snapshot',{label,url:d.url,elements:d.elements,forms:d.forms,text:(d.text||'').slice(0,700)});
+              return d;
+            }
+            async function clickVisible(selector,label){
+              const el=page.locator(selector);
+              if(!await el.count()){push('missing',{selector,label});return false;}
+              for(let i=0;i<30;i++){
+                if(await el.isVisible().catch(()=>false)){
+                  const box=await el.boundingBox().catch(()=>null);
+                  push('click',{label,selector,box,href:await el.getAttribute('href').catch(()=>null),src:await el.getAttribute('src').catch(()=>null)});
+                  if(box) await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2).catch(()=>{});
+                  else await el.tap().catch(()=>{});
+                  return true;
+                }
+                await page.waitForTimeout(1000);
+              }
+              push('not_visible',{selector,label}); return false;
+            }
+
+            await page.goto(target,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>push('goto_error',{message:e.message}));
+            await page.waitForTimeout(12000);
+            await snap(page,'before-human');
+            await clickVisible('#soralink-human-verif-main','human');
+            await page.waitForTimeout(4500);
+            await snap(page,'after-human');
+
+            await clickVisible('#generater','generater');
+            await page.waitForTimeout(12000);
+            await snap(page,'after-generater');
+
+            await clickVisible('#showlink','showlink');
+            await page.waitForTimeout(8000);
+
+            const pages=context.pages();
+            for(let i=0;i<pages.length;i++) await snap(pages[i],'final-page-'+i);
+            out.finalPages=pages.map((p,i)=>({index:i,url:p.url()}));
+            fs.writeFileSync('tfpdl-deinform-final.json',JSON.stringify(out,null,2));
+            await browser.close();
+          })().catch(e=>{out.error={message:e.message,stack:e.stack};fs.writeFileSync('tfpdl-deinform-final.json',JSON.stringify(out,null,2));console.error(e);process.exitCode=1;});
+          JS
+          node trace.cjs
+      - name: Commit result
+        if: always()
+        run: |
+          mkdir -p diagnostics
+          cp tfpdl-deinform-final.json diagnostics/tfpdl-deinform-final.json 2>/dev/null || echo '{"error":"no result"}' > diagnostics/tfpdl-deinform-final.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add diagnostics/tfpdl-deinform-final.json
+          git commit -m "record Deinform final resolver trace" || true
+          git push origin HEAD:main || true
