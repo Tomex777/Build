@@ -17,6 +17,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RectangleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -59,6 +60,8 @@ fun ImeKeyboard(
     clipboardFlow: Flow<List<ClipboardItem>>,
     sensitiveFieldFlow: Flow<Boolean>,
     inputTypeFlow: Flow<Int>,
+    learnedWordsFlow: Flow<Map<String, Int>>,
+    onLearnWord: (String) -> Unit,
     onEmojiUsed: (String) -> Unit,
     onToggleEmojiFavorite: (String) -> Unit,
 ) {
@@ -67,6 +70,7 @@ fun ImeKeyboard(
     val clips by clipboardFlow.collectAsState(initial = emptyList())
     val sensitiveField by sensitiveFieldFlow.collectAsState(initial = false)
     val inputType by inputTypeFlow.collectAsState(initial = 0)
+    val learnedWords by learnedWordsFlow.collectAsState(initial = emptyMap())
     val privateMode = sensitiveField || prefs.incognito
 
     var layer by remember { mutableStateOf(KeyboardLayer.LETTERS) }
@@ -81,8 +85,12 @@ fun ImeKeyboard(
         textVersion++
     }
 
-    LaunchedEffect(textVersion, privateMode) {
-        suggestions = if (privateMode) emptyList() else SuggestionEngine.suggest(controller.textBeforeCursor())
+    LaunchedEffect(textVersion, privateMode, learnedWords) {
+        suggestions = if (privateMode) {
+            emptyList()
+        } else {
+            SuggestionEngine.suggest(controller.textBeforeCursor(), learnedWords)
+        }
     }
 
     LaunchedEffect(inputType) {
@@ -98,16 +106,34 @@ fun ImeKeyboard(
         lastCorrection = null
     }
 
-    val widthFraction = if (prefs.oneHandedMode == OneHandedMode.OFF) 1f else .82f
-    val alignment = when (prefs.oneHandedMode) {
-        OneHandedMode.OFF -> Alignment.Center
-        OneHandedMode.LEFT -> Alignment.CenterStart
-        OneHandedMode.RIGHT -> Alignment.CenterEnd
+    val widthFraction = when {
+        prefs.floatingKeyboard -> prefs.floatingWidthPercent.coerceIn(60, 96) / 100f
+        prefs.oneHandedMode == OneHandedMode.OFF -> 1f
+        else -> .82f
+    }
+    val alignment = if (prefs.floatingKeyboard) {
+        Alignment.Center
+    } else {
+        when (prefs.oneHandedMode) {
+            OneHandedMode.OFF -> Alignment.Center
+            OneHandedMode.LEFT -> Alignment.CenterStart
+            OneHandedMode.RIGHT -> Alignment.CenterEnd
+        }
     }
 
-    Box(Modifier.fillMaxWidth(), contentAlignment = alignment) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(
+                horizontal = if (prefs.floatingKeyboard) 8.dp else 0.dp,
+                bottom = if (prefs.floatingKeyboard) prefs.floatingLiftDp.coerceIn(0, 96).dp else 0.dp,
+            ),
+        contentAlignment = alignment,
+    ) {
         Surface(
             color = Color(theme.backgroundArgb.toInt()),
+            shape = if (prefs.floatingKeyboard) RoundedCornerShape(18.dp) else RectangleShape,
+            shadowElevation = if (prefs.floatingKeyboard) 10.dp else 0.dp,
             modifier = Modifier.fillMaxWidth(widthFraction),
         ) {
             Column(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 5.dp)) {
@@ -140,6 +166,7 @@ fun ImeKeyboard(
                         onSuggestion = {
                             controller.replaceCurrentWord(it)
                             controller.commit(" ")
+                            if (!privateMode) onLearnWord(it)
                             textChanged()
                         },
                         onUndoCorrection = { correction ->
@@ -169,6 +196,7 @@ fun ImeKeyboard(
                     hapticsEnabled = prefs.haptics,
                     swipeTypingEnabled = prefs.swipeTyping,
                     swipeTrailEnabled = prefs.swipeTrail,
+                    learnedWords = learnedWords,
                     controller = controller,
                     onLayer = { layer = it; panel = ToolPanel.NONE; lastCorrection = null },
                     onShift = { shift = it },
@@ -182,22 +210,27 @@ fun ImeKeyboard(
                             word
                         }
                         controller.commit(output + " ")
+                        if (!privateMode) onLearnWord(output)
                         if (shift == ShiftState.ONCE) shift = ShiftState.OFF
                         textChanged()
                     },
                     onSpace = {
+                        val rawWord = controller.currentWord()
                         val correction = if (prefs.autocorrect && !privateMode) {
                             SuggestionEngine.autocorrect(
-                                controller.currentWord(),
+                                rawWord,
                                 prefs.autocorrectAggression,
+                                learnedWords,
                             )
                         } else {
                             null
                         }
+                        val finalWord = correction?.replacement ?: rawWord
                         if (correction != null) {
                             controller.replaceCurrentWord(correction.replacement)
                         }
                         controller.commit(" ")
+                        if (!privateMode && finalWord.isNotBlank()) onLearnWord(finalWord)
                         lastCorrection = correction
                         textChanged(clearCorrection = false)
                     },
@@ -921,6 +954,7 @@ private fun KeyboardRows(
     hapticsEnabled: Boolean,
     swipeTypingEnabled: Boolean,
     swipeTrailEnabled: Boolean,
+    learnedWords: Map<String, Int>,
     controller: KeyboardController,
     onLayer: (KeyboardLayer) -> Unit,
     onShift: (ShiftState) -> Unit,
@@ -994,7 +1028,7 @@ private fun KeyboardRows(
                         }
                         if (!change.pressed) {
                             if (active) {
-                                val word = SuggestionEngine.decodeSwipe(path.joinToString(""))
+                                val word = SuggestionEngine.decodeSwipe(path.joinToString(""), learnedWords)
                                 if (!word.isNullOrBlank()) onSwipeWord(word)
                             }
                             swipeTrail = emptyList()

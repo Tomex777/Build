@@ -32,6 +32,9 @@ data class KeyboardPreferenceState(
     val secondaryCharacters: Boolean = true,
     val incognito: Boolean = false,
     val oneHandedMode: OneHandedMode = OneHandedMode.OFF,
+    val floatingKeyboard: Boolean = false,
+    val floatingWidthPercent: Int = 74,
+    val floatingLiftDp: Int = 24,
     val emojiRecents: List<String> = emptyList(),
     val emojiFavorites: Set<String> = emptySet(),
     val serverUrl: String = "",
@@ -53,6 +56,9 @@ class KeyboardPreferences @Inject constructor(@ApplicationContext private val co
         val secondaryCharacters = booleanPreferencesKey("secondary_characters")
         val incognito = booleanPreferencesKey("incognito")
         val oneHandedMode = stringPreferencesKey("one_handed_mode")
+        val floatingKeyboard = booleanPreferencesKey("floating_keyboard")
+        val floatingWidthPercent = intPreferencesKey("floating_width_percent")
+        val floatingLiftDp = intPreferencesKey("floating_lift_dp")
         val emojiRecents = stringPreferencesKey("emoji_recents")
         val emojiFavorites = stringPreferencesKey("emoji_favorites")
         val serverUrl = stringPreferencesKey("server_url")
@@ -75,6 +81,9 @@ class KeyboardPreferences @Inject constructor(@ApplicationContext private val co
             oneHandedMode = runCatching {
                 OneHandedMode.valueOf(p[Keys.oneHandedMode] ?: OneHandedMode.OFF.name)
             }.getOrDefault(OneHandedMode.OFF),
+            floatingKeyboard = p[Keys.floatingKeyboard] ?: false,
+            floatingWidthPercent = (p[Keys.floatingWidthPercent] ?: 74).coerceIn(60, 96),
+            floatingLiftDp = (p[Keys.floatingLiftDp] ?: 24).coerceIn(0, 96),
             emojiRecents = decodeEmojiList(p[Keys.emojiRecents]),
             emojiFavorites = decodeEmojiList(p[Keys.emojiFavorites]).toSet(),
             serverUrl = p[Keys.serverUrl] ?: "",
@@ -131,6 +140,18 @@ class KeyboardPreferences @Inject constructor(@ApplicationContext private val co
 
     suspend fun setOneHandedMode(value: OneHandedMode) {
         context.keyboardDataStore.edit { it[Keys.oneHandedMode] = value.name }
+    }
+
+    suspend fun setFloatingKeyboard(value: Boolean) {
+        context.keyboardDataStore.edit { it[Keys.floatingKeyboard] = value }
+    }
+
+    suspend fun setFloatingWidthPercent(value: Int) {
+        context.keyboardDataStore.edit { it[Keys.floatingWidthPercent] = value.coerceIn(60, 96) }
+    }
+
+    suspend fun setFloatingLiftDp(value: Int) {
+        context.keyboardDataStore.edit { it[Keys.floatingLiftDp] = value.coerceIn(0, 96) }
     }
 
     suspend fun recordEmoji(output: String) {

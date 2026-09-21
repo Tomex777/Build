@@ -15,6 +15,7 @@ import androidx.lifecycle.*
 import androidx.savedstate.*
 import com.night.keyboard.data.clipboard.ClipboardRepository
 import com.night.keyboard.data.prefs.KeyboardPreferences
+import com.night.keyboard.data.prediction.PredictionRepository
 import com.night.keyboard.data.theme.ThemeRepository
 import com.night.keyboard.ui.theme.KeyboardTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -28,6 +29,7 @@ import kotlin.math.max
 class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
     @Inject lateinit var clipboardRepository: ClipboardRepository
     @Inject lateinit var preferences: KeyboardPreferences
+    @Inject lateinit var predictionRepository: PredictionRepository
     @Inject lateinit var themeRepository: ThemeRepository
 
     private val lifecycleRegistry = LifecycleRegistry(this)
@@ -109,6 +111,14 @@ class KeyboardInputMethodService : InputMethodService(), LifecycleOwner, ViewMod
                         clipboardFlow = clipboardRepository.items,
                         sensitiveFieldFlow = sensitiveFieldFlow,
                         inputTypeFlow = inputTypeFlow,
+                        learnedWordsFlow = predictionRepository.learnedWords,
+                        onLearnWord = { word ->
+                            if (!sensitiveFieldFlow.value && !incognitoMode) {
+                                serviceScope.launch(Dispatchers.IO) {
+                                    predictionRepository.learn(word)
+                                }
+                            }
+                        },
                         onEmojiUsed = { output ->
                             serviceScope.launch { preferences.recordEmoji(output) }
                         },

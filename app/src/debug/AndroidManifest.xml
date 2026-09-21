@@ -4,5 +4,9 @@
             android:name=".debug.ImeHarnessActivity"
             android:exported="true"
             android:label="Keyboard IME QA" />
+        <activity
+            android:name=".debug.ClipboardHarnessActivity"
+            android:exported="true"
+            android:label="Keyboard Clipboard QA" />
     </application>
 </manifest>

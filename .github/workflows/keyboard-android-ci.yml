@@ -128,7 +128,14 @@ jobs:
             after-repeat-backspace.png
             home-after-setup.png
             field-*.png
+            landscape-ime.png
+            small-screen-ime.png
+            large-screen-ime.png
+            font-scale-ime.png
             ime-window.xml
+            cursor-*.xml
+            clipboard-*.xml
+            password-private.xml
             email-*.xml
             url-*.xml
             number-*.xml
@@ -160,6 +167,12 @@ jobs:
             input-method-search.txt
             input-method-rtl.txt
             input-method-selected.txt
+            input-method-cursor-*.txt
+            input-method-password-private.txt
+            input-method-landscape.txt
+            input-method-small.txt
+            input-method-large.txt
+            input-method-font-scale.txt
             logcat.txt
             logcat-final.txt
           if-no-files-found: warn

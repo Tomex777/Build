@@ -43,13 +43,17 @@ object SuggestionEngine {
         "see" to listOf("you", "this", "that"),
     )
 
-    fun suggest(textBeforeCursor: String, limit: Int = 3): List<String> {
+    fun suggest(
+        textBeforeCursor: String,
+        learnedWords: Map<String, Int> = emptyMap(),
+        limit: Int = 3,
+    ): List<String> {
         if (limit <= 0) return emptyList()
         val prefix = currentWord(textBeforeCursor).lowercase()
         if (prefix.isNotBlank()) {
-            return common.asSequence()
+            return lexicon(learnedWords)
                 .filter { it.startsWith(prefix) && it != prefix }
-                .sortedByDescending { frequencies[it] ?: 0 }
+                .sortedByDescending { scoreFrequency(it, learnedWords) }
                 .take(limit)
                 .toList()
                 .ifEmpty { listOf(prefix) }
@@ -58,14 +62,23 @@ object SuggestionEngine {
         val previous = previousWord(textBeforeCursor).lowercase()
         val contextual = nextWords[previous].orEmpty()
         if (contextual.isNotEmpty()) return contextual.take(limit)
-        return listOf("I’m", "the", "thank you").take(limit)
+        val personal = learnedWords.entries
+            .asSequence()
+            .sortedByDescending { it.value }
+            .map { it.key }
+            .take(limit)
+            .toList()
+        return if (personal.isNotEmpty()) personal else listOf("I’m", "the", "thank you").take(limit)
     }
 
-    fun decodeSwipe(path: String): String? {
+    fun decodeSwipe(
+        path: String,
+        learnedWords: Map<String, Int> = emptyMap(),
+    ): String? {
         val normalized = collapseRepeats(path.lowercase().filter(Char::isLetter))
         if (normalized.length < 2) return null
 
-        return common.asSequence()
+        return lexicon(learnedWords)
             .filter { candidate ->
                 val compact = collapseRepeats(candidate.filter(Char::isLetter))
                 compact.isNotEmpty() &&
@@ -76,24 +89,28 @@ object SuggestionEngine {
                 val compact = collapseRepeats(candidate.filter(Char::isLetter))
                 val distance = editDistance(normalized, compact, 8)
                 val lengthPenalty = kotlin.math.abs(compact.length - normalized.length)
-                val frequencyBonus = (frequencies[candidate] ?: 0) / 40
+                val frequencyBonus = scoreFrequency(candidate, learnedWords) / 40
                 Triple(candidate, distance * 3 + lengthPenalty - frequencyBonus, compact.length)
             }
             .filter { (_, score, length) -> score <= maxOf(6, length) }
             .sortedWith(
                 compareBy<Triple<String, Int, Int>> { it.second }
-                    .thenByDescending { frequencies[it.first] ?: 0 },
+                    .thenByDescending { scoreFrequency(it.first, learnedWords) },
             )
             .firstOrNull()
             ?.first
     }
 
-    fun autocorrect(word: String, aggression: Int = 2): Autocorrection? {
+    fun autocorrect(
+        word: String,
+        aggression: Int = 2,
+        learnedWords: Map<String, Int> = emptyMap(),
+    ): Autocorrection? {
         val raw = word.trim()
         if (raw.length < 3 || raw.any(Char::isDigit) || raw.count(Char::isUpperCase) > 1) return null
 
         val lower = raw.lowercase()
-        if (lower in common) return null
+        if (lower in common || lower in learnedWords) return null
 
         val maxDistance = when (aggression.coerceIn(1, 3)) {
             1 -> 1
@@ -101,11 +118,11 @@ object SuggestionEngine {
             else -> if (lower.length >= 3) 2 else 1
         }
 
-        val candidate = common.asSequence()
+        val candidate = lexicon(learnedWords)
             .filter { kotlin.math.abs(it.length - lower.length) <= maxDistance }
             .map { candidate ->
                 val distance = editDistance(lower, candidate, maxDistance)
-                Triple(candidate, distance, frequencies[candidate] ?: 0)
+                Triple(candidate, distance, scoreFrequency(candidate, learnedWords))
             }
             .filter { (_, distance, _) -> distance in 1..maxDistance }
             .sortedWith(
@@ -127,6 +144,12 @@ object SuggestionEngine {
         if (trimmed.isBlank()) return ""
         return trimmed.takeLastWhile { it.isLetter() || it.code == 39 || it == '’' }
     }
+
+    private fun lexicon(learnedWords: Map<String, Int>): Sequence<String> =
+        (common.asSequence() + learnedWords.keys.asSequence()).distinct()
+
+    private fun scoreFrequency(word: String, learnedWords: Map<String, Int>): Int =
+        (frequencies[word] ?: 0) + (learnedWords[word] ?: 0) * 1_000
 
     private fun collapseRepeats(value: String): String = buildString {
         value.forEach { ch ->

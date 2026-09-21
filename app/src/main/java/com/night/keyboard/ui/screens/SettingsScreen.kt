@@ -87,6 +87,38 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                         )
                     }
                 }
+                ToggleRow(
+                    "Floating keyboard",
+                    "Use a narrower keyboard lifted above the bottom edge.",
+                    state.floatingKeyboard,
+                    viewModel::floatingKeyboard,
+                )
+                if (state.floatingKeyboard) {
+                    Text(
+                        "Floating width ${state.floatingWidthPercent}%",
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 2.dp),
+                    )
+                    Slider(
+                        value = state.floatingWidthPercent.toFloat(),
+                        onValueChange = { viewModel.floatingWidth(it.toInt()) },
+                        valueRange = 60f..96f,
+                        steps = 17,
+                        modifier = Modifier.padding(horizontal = 14.dp),
+                    )
+                    Text(
+                        "Bottom lift ${state.floatingLiftDp} dp",
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 2.dp),
+                    )
+                    Slider(
+                        value = state.floatingLiftDp.toFloat(),
+                        onValueChange = { viewModel.floatingLift(it.toInt()) },
+                        valueRange = 0f..96f,
+                        steps = 11,
+                        modifier = Modifier.padding(horizontal = 14.dp, bottom = 8.dp),
+                    )
+                }
             }
         }
 
@@ -136,6 +168,22 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                         state.swipeTrail,
                         viewModel::swipeTrail,
                     )
+                }
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Personal dictionary", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Words you type are learned only on-device and never in private fields.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    OutlinedButton(onClick = viewModel::clearLearnedWords) {
+                        Text("Clear")
+                    }
                 }
             }
         }

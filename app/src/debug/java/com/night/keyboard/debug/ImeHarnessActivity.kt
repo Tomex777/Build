@@ -1,5 +1,7 @@
 package com.night.keyboard.debug
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -33,9 +35,10 @@ class ImeHarnessActivity : ComponentActivity() {
                 WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE,
         )
         val mode = intent.getStringExtra("mode") ?: "normal"
+        val copyText = intent.getStringExtra("copyText")
         setContent {
             KeyboardTheme {
-                ImeHarnessScreen(mode)
+                ImeHarnessScreen(mode, copyText)
             }
         }
     }
@@ -97,7 +100,7 @@ private fun modeConfig(mode: String): HarnessMode = when (mode) {
 }
 
 @Composable
-private fun ImeHarnessScreen(mode: String) {
+private fun ImeHarnessScreen(mode: String, copyText: String?) {
     val config = remember(mode) { modeConfig(mode) }
     var value by remember(mode) {
         mutableStateOf(
@@ -109,11 +112,17 @@ private fun ImeHarnessScreen(mode: String) {
     }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val context = androidx.compose.ui.platform.LocalContext.current
 
-    LaunchedEffect(mode) {
+    LaunchedEffect(mode, copyText) {
         delay(700)
         focusRequester.requestFocus()
         keyboardController?.show()
+        if (!copyText.isNullOrBlank()) {
+            delay(900)
+            context.getSystemService(ClipboardManager::class.java)
+                .setPrimaryClip(ClipData.newPlainText("Keyboard QA", copyText))
+        }
     }
 
     Surface(color = Color(0xFFF7F7F8), modifier = Modifier.fillMaxSize()) {

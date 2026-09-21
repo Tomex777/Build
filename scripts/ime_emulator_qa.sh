@@ -89,7 +89,7 @@ SPACE_LOCAL_Y=620
 TOOLBAR_EMOJI_X=174
 TOOLBAR_LOCAL_Y=61
 EMOJI_FIRST_X=75
-EMOJI_FIRST_LOCAL_Y=196
+EMOJI_FIRST_LOCAL_Y=305
 
 Q_Y=$(( IME_TOP + Q_ROW_LOCAL_Y ))
 SHIFT_Y=$(( IME_TOP + BACKSPACE_LOCAL_Y ))
@@ -148,31 +148,9 @@ adb shell input tap "$TOOLBAR_EMOJI_X" "$TOOLBAR_Y"
 sleep 1
 adb shell dumpsys input_method > input-method-emoji.txt
 adb exec-out screencap -p > emoji-panel.png
-adb shell uiautomator dump /sdcard/emoji-panel.xml >/dev/null
-adb pull /sdcard/emoji-panel.xml emoji-panel.xml >/dev/null
 EXPANDED_IME_TOP="$(ime_top_from_dump input-method-emoji.txt)"
 EXPANDED_TOOLBAR_Y=$(( EXPANDED_IME_TOP + TOOLBAR_LOCAL_Y ))
-
-# The organized emoji panel now includes category chips/search controls, so the
-# first emoji is no longer at a fixed Y offset. Resolve the real on-screen
-# bounds of the "Slight smile" semantic node and tap its center.
-read -r EMOJI_FIRST_X EMOJI_FIRST_Y <<EOF
-$(python3 - <<'PY'
-import re
-import xml.etree.ElementTree as ET
-root = ET.parse('emoji-panel.xml').getroot()
-for node in root.iter():
-    if node.attrib.get('content-desc') == 'Slight smile':
-        m = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds', ''))
-        if not m:
-            raise SystemExit('Slight smile bounds missing')
-        x1, y1, x2, y2 = map(int, m.groups())
-        print((x1 + x2) // 2, (y1 + y2) // 2)
-        raise SystemExit(0)
-raise SystemExit('Slight smile emoji node not found')
-PY
-)
-EOF
+EMOJI_FIRST_Y=$(( EXPANDED_IME_TOP + EMOJI_FIRST_LOCAL_Y ))
 echo "expanded_ime_top_px=$EXPANDED_IME_TOP emoji_first=$EMOJI_FIRST_X,$EMOJI_FIRST_Y"
 adb shell input tap "$EMOJI_FIRST_X" "$EMOJI_FIRST_Y"
 sleep 1
@@ -250,6 +228,31 @@ assert phrase in after
 PY
 adb exec-out screencap -p > after-repeat-backspace.png
 
+# Real Android clipboard listener proof. First copy ordinary text while the
+# production IME owns a normal field and confirm Room-backed history receives it.
+PUBLIC_CLIP="keyboard-clipboard-public-qa"
+SENSITIVE_CLIP="keyboard-clipboard-sensitive-qa"
+adb shell am start -W -n com.night.keyboard/.debug.ImeHarnessActivity --es mode normal --es copyText "$PUBLIC_CLIP" >/dev/null
+sleep 4
+adb shell am start -W -n com.night.keyboard/.debug.ClipboardHarnessActivity >/dev/null
+sleep 2
+adb shell uiautomator dump /sdcard/clipboard-public.xml >/dev/null
+adb pull /sdcard/clipboard-public.xml clipboard-public.xml >/dev/null
+assert_xml_text clipboard-public.xml "Latest clip: $PUBLIC_CLIP"
+
+# Copy a different value while a Password EditorInfo is active. The listener
+# must suppress it, so the last persisted clip remains the ordinary public one.
+adb shell am start -W -n com.night.keyboard/.debug.ImeHarnessActivity --es mode password --es copyText "$SENSITIVE_CLIP" >/dev/null
+sleep 4
+adb shell am start -W -n com.night.keyboard/.debug.ClipboardHarnessActivity >/dev/null
+sleep 2
+adb shell uiautomator dump /sdcard/clipboard-sensitive.xml >/dev/null
+adb pull /sdcard/clipboard-sensitive.xml clipboard-sensitive.xml >/dev/null
+assert_xml_text clipboard-sensitive.xml "Latest clip: $PUBLIC_CLIP"
+if grep -q "$SENSITIVE_CLIP" clipboard-sensitive.xml; then
+  echo "Sensitive password-field clipboard content was persisted"
+  exit 1
+fi
 
 # Field-type matrix: repeatedly attach the same production IME to realistic host
 # EditorInfo configurations. Every mode must accept an actual key event without
@@ -295,6 +298,40 @@ exercise_text_mode() {
 for mode in email url number password search rtl; do
   exercise_text_mode "$mode"
 done
+
+assert_xml_text number-after.xml "11234567890"
+
+exercise_cursor_mode() {
+  local mode="$1"
+  adb shell am start -W -n com.night.keyboard/.debug.ImeHarnessActivity --es mode "$mode" >/dev/null
+  sleep 2
+  adb shell dumpsys input_method > "input-method-cursor-$mode.txt"
+  local mode_top
+  mode_top="$(ime_top_from_dump "input-method-cursor-$mode.txt")"
+  adb shell input tap "$Q_X" "$(( mode_top + Q_ROW_LOCAL_Y ))"
+  sleep 1
+  adb shell uiautomator dump "/sdcard/cursor-$mode-before.xml" >/dev/null
+  adb pull "/sdcard/cursor-$mode-before.xml" "cursor-$mode-before.xml" >/dev/null
+  assert_xml_text "cursor-$mode-before.xml" "Selection: 1-1"
+  adb shell input swipe "$SPACE_X" "$(( mode_top + SPACE_LOCAL_Y ))" 445 "$(( mode_top + SPACE_LOCAL_Y ))" 1200
+  sleep 1
+  adb shell uiautomator dump "/sdcard/cursor-$mode-after.xml" >/dev/null
+  adb pull "/sdcard/cursor-$mode-after.xml" "cursor-$mode-after.xml" >/dev/null
+  assert_xml_text "cursor-$mode-after.xml" "Selection: 0-0"
+}
+for mode in email url search rtl; do
+  exercise_cursor_mode "$mode"
+done
+
+adb shell am start -W -n com.night.keyboard/.debug.ImeHarnessActivity --es mode password >/dev/null
+sleep 2
+adb shell dumpsys input_method > input-method-password-private.txt
+PASSWORD_TOP="$(ime_top_from_dump input-method-password-private.txt)"
+adb shell input tap 28 "$(( PASSWORD_TOP + TOOLBAR_LOCAL_Y ))"
+sleep 1
+adb shell uiautomator dump /sdcard/password-private.xml >/dev/null
+adb pull /sdcard/password-private.xml password-private.xml >/dev/null
+assert_xml_text password-private.xml "Private mode"
 
 # Multiline must accept both a normal key and the IME Enter newline path.
 exercise_text_mode multiline
@@ -344,6 +381,47 @@ if grep -q 'text="Finish setup"' home-after-setup.xml; then echo "Finish setup c
 if grep -q 'text="Setup complete"' home-after-setup.xml; then echo "Permanent setup success card remained on Home"; exit 1; fi
 if grep -q 'text="Keyboard is active"' home-after-setup.xml; then echo "Permanent keyboard-active card remained on Home"; exit 1; fi
 adb exec-out screencap -p > home-after-setup.png
+
+adb shell settings put system accelerometer_rotation 0
+adb shell settings put system user_rotation 1
+adb shell am start -W -n com.night.keyboard/.debug.ImeHarnessActivity --es mode normal >/dev/null
+sleep 2
+adb shell dumpsys input_method > input-method-landscape.txt
+grep -q "mInputStarted=true mInputViewStarted=true" input-method-landscape.txt
+grep -q "mIsInputViewShown=true" input-method-landscape.txt
+adb exec-out screencap -p > landscape-ime.png
+adb shell settings put system user_rotation 0
+sleep 1
+
+adb shell wm size 720x1600
+adb shell wm density 320
+adb shell am start -W -n com.night.keyboard/.debug.ImeHarnessActivity --es mode normal >/dev/null
+sleep 2
+adb shell dumpsys input_method > input-method-small.txt
+grep -q "mIsInputViewShown=true" input-method-small.txt
+adb exec-out screencap -p > small-screen-ime.png
+adb shell wm size reset
+adb shell wm density reset
+sleep 1
+
+adb shell wm size 1600x2560
+adb shell wm density 320
+adb shell am start -W -n com.night.keyboard/.debug.ImeHarnessActivity --es mode normal >/dev/null
+sleep 2
+adb shell dumpsys input_method > input-method-large.txt
+grep -q "mIsInputViewShown=true" input-method-large.txt
+adb exec-out screencap -p > large-screen-ime.png
+adb shell wm size reset
+adb shell wm density reset
+sleep 1
+
+adb shell settings put system font_scale 1.30
+adb shell am start -W -n com.night.keyboard/.debug.ImeHarnessActivity --es mode normal >/dev/null
+sleep 2
+adb shell dumpsys input_method > input-method-font-scale.txt
+grep -q "mIsInputViewShown=true" input-method-font-scale.txt
+adb exec-out screencap -p > font-scale-ime.png
+adb shell settings put system font_scale 1.0
 
 # Final crash scan after all interactions, not only startup.
 adb logcat -d > logcat-final.txt
