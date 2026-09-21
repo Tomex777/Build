@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.whatsapp.data.browser.NightBrowserSpec
+import com.example.whatsapp.data.browser.NightBrowserVerificationState
 import com.example.whatsapp.presentation.browser.NightBrowserActivity
 import com.example.whatsapp.presentation.browser.NightBrowserWebView
 import com.example.whatsapp.presentation.browser.rememberNightBrowserController
@@ -184,6 +185,47 @@ fun NightBrowserMessageBubble(
                 )
             }
 
+            if (
+                safeSpec.verificationState != NightBrowserVerificationState.Idle ||
+                safeSpec.verificationMessage.isNotBlank()
+            ) {
+                val statusColor = when (safeSpec.verificationState) {
+                    NightBrowserVerificationState.Verified -> BrowserAccent
+                    NightBrowserVerificationState.Failed -> Color(0xFFFF8791)
+                    NightBrowserVerificationState.Verifying -> BrowserMuted
+                    NightBrowserVerificationState.Idle -> BrowserMuted
+                }
+                val statusText = safeSpec.verificationMessage.ifBlank {
+                    when (safeSpec.verificationState) {
+                        NightBrowserVerificationState.Verified -> "Session verified."
+                        NightBrowserVerificationState.Failed -> "Verification failed."
+                        NightBrowserVerificationState.Verifying -> "Checking session…"
+                        NightBrowserVerificationState.Idle -> ""
+                    }
+                }
+                if (statusText.isNotBlank()) {
+                    Text(
+                        text = statusText,
+                        color = statusColor,
+                        fontSize = 10.sp,
+                        modifier = Modifier
+                            .padding(start = 3.dp, top = 5.dp)
+                            .semantics {
+                                contentDescription = when (safeSpec.verificationState) {
+                                    NightBrowserVerificationState.Verified ->
+                                        "Browser session verified"
+                                    NightBrowserVerificationState.Failed ->
+                                        "Browser session verification failed"
+                                    NightBrowserVerificationState.Verifying ->
+                                        "Browser session verifying"
+                                    NightBrowserVerificationState.Idle ->
+                                        "Browser session status"
+                                }
+                            },
+                    )
+                }
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -232,20 +274,36 @@ fun NightBrowserMessageBubble(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     safeSpec.verifyActionId?.let { actionId ->
+                        val verifying =
+                            safeSpec.verificationState ==
+                                NightBrowserVerificationState.Verifying
+                        val verified =
+                            safeSpec.verificationState ==
+                                NightBrowserVerificationState.Verified
                         Surface(
                             color = BrowserToolbar,
                             shape = RoundedCornerShape(10.dp),
                             modifier = Modifier
                                 .semantics {
-                                    contentDescription = "Verify browser session"
+                                    contentDescription = when {
+                                        verified -> "Browser session verified"
+                                        verifying -> "Browser session verifying"
+                                        else -> "Verify browser session"
+                                    }
                                 },
                             onClick = {
-                                onAction(messageId, actionId)
+                                if (!verifying && !verified) {
+                                    onAction(messageId, actionId)
+                                }
                             },
                         ) {
                             Text(
-                                text = safeSpec.verifyLabel,
-                                color = BrowserAccent,
+                                text = when {
+                                    verified -> "Verified"
+                                    verifying -> "Verifying…"
+                                    else -> safeSpec.verifyLabel
+                                },
+                                color = if (verified) BrowserAccent else BrowserAccent,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(
