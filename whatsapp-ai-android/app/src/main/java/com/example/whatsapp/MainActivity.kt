@@ -38,6 +38,7 @@ import com.example.whatsapp.data.night.NightAiGateway
 import com.example.whatsapp.data.night.NightAppearanceController
 import com.example.whatsapp.data.night.NightAppearanceEntity
 import com.example.whatsapp.data.night.NightCapabilityRouteEntity
+import com.example.whatsapp.data.night.NightExtensionMessageEmitter
 import com.example.whatsapp.data.night.NightLibraryItemEntity
 import com.example.whatsapp.data.night.NightLinkPreviewService
 import com.example.whatsapp.data.night.NightLiveVoiceClient
@@ -58,6 +59,7 @@ import com.example.whatsapp.extensions.messages.ExtensionMessageCodec
 import com.example.whatsapp.extensions.messages.NightExtensionConfigurationStore
 import com.example.whatsapp.extensions.messages.NightExtensionMessageActionRegistry
 import com.example.whatsapp.extensions.messages.withConfigurationValues
+import com.example.whatsapp.extensions.runtime.NightExternalExtensionManager
 import com.example.whatsapp.presentation.chat_box.ChatListModel
 import com.example.whatsapp.presentation.chatscreen.AudioPlaybackUiState
 import com.example.whatsapp.presentation.chatscreen.ChoiceResultMessage
@@ -132,6 +134,7 @@ private fun NightApp(initialChatId: String? = null) {
     val providerManager = remember { NightProviderManager.get(context) }
     val aiGateway = remember { NightAiGateway.get(context) }
     val agentTools = remember { NightAgentToolExecutor.get(context) }
+    val extensionManager = remember { NightExternalExtensionManager.get(context) }
     val appearanceController = remember { NightAppearanceController(repository) }
     val voiceRecorder = remember { NightVoiceRecorder(context.applicationContext) }
     val scheduleManager = remember { NightScheduleManager.get(context) }
@@ -263,9 +266,23 @@ private fun NightApp(initialChatId: String? = null) {
         )
     }
 
+    suspend fun persistExtensionActionResult(
+        extensionId: String,
+        result: JSONObject?,
+    ) {
+        if (result == null) return
+        NightExtensionMessageEmitter.persistFromToolResult(
+            repository = repository,
+            chatId = activeChatId,
+            ownerExtensionId = extensionId,
+            result = result,
+        )
+    }
+
     LaunchedEffect(Unit) {
         repository.ensureProfile()
         repository.ensureAppearance()
+        runCatching { extensionManager.refreshInstalledExtensions() }
         val root = repository.ensureChat("night-core", "Night")
         if (repository.getMessages(root.id).isEmpty()) {
             repository.appendText(
@@ -1497,26 +1514,31 @@ private fun NightApp(initialChatId: String? = null) {
                                 )
                             )
 
-                            NightExtensionMessageActionRegistry.execute(
+                            val actionResult =
+                                NightExtensionMessageActionRegistry.execute(
+                                    extensionId = snapshot.extensionId,
+                                    chatId = activeChatId,
+                                    messageId = messageId,
+                                    messageType = snapshot.messageType,
+                                    actionId = configurationSubmission.actionId,
+                                    payload = JSONObject()
+                                        .put(
+                                            "configurationId",
+                                            configurationSubmission.configurationId,
+                                        )
+                                        .put("values", values)
+                                        .put(
+                                            "extensionPayload",
+                                            runCatching {
+                                                JSONObject(
+                                                    updatedSnapshot.extensionPayloadJson
+                                                )
+                                            }.getOrElse { JSONObject() },
+                                        ),
+                                )
+                            persistExtensionActionResult(
                                 extensionId = snapshot.extensionId,
-                                chatId = activeChatId,
-                                messageId = messageId,
-                                messageType = snapshot.messageType,
-                                actionId = configurationSubmission.actionId,
-                                payload = JSONObject()
-                                    .put(
-                                        "configurationId",
-                                        configurationSubmission.configurationId,
-                                    )
-                                    .put("values", values)
-                                    .put(
-                                        "extensionPayload",
-                                        runCatching {
-                                            JSONObject(
-                                                updatedSnapshot.extensionPayloadJson
-                                            )
-                                        }.getOrElse { JSONObject() },
-                                    ),
+                                result = actionResult,
                             )
                         }
                     }
@@ -1664,6 +1686,10 @@ private fun NightApp(initialChatId: String? = null) {
                                         )
                                 }
 
+                                persistExtensionActionResult(
+                                    extensionId = snapshot.extensionId,
+                                    result = actionResult,
+                                )
                                 val outcome =
                                     NightBrowserVerification.interpretResult(actionResult)
                                 val verifiedBrowser =
@@ -1688,15 +1714,20 @@ private fun NightApp(initialChatId: String? = null) {
                                 return@launch
                             }
 
-                            NightExtensionMessageActionRegistry.execute(
+                            val actionResult =
+                                NightExtensionMessageActionRegistry.execute(
+                                    extensionId = snapshot.extensionId,
+                                    chatId = activeChatId,
+                                    messageId = messageId,
+                                    messageType = snapshot.messageType,
+                                    actionId = actionId,
+                                    payload = runCatching {
+                                        JSONObject(snapshot.extensionPayloadJson)
+                                    }.getOrElse { JSONObject() },
+                                )
+                            persistExtensionActionResult(
                                 extensionId = snapshot.extensionId,
-                                chatId = activeChatId,
-                                messageId = messageId,
-                                messageType = snapshot.messageType,
-                                actionId = actionId,
-                                payload = runCatching {
-                                    JSONObject(snapshot.extensionPayloadJson)
-                                }.getOrElse { JSONObject() },
+                                result = actionResult,
                             )
                         }
                     }
