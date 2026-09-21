@@ -105,7 +105,7 @@ fun NightExtensionConfigurationBubble(
                     }
 
                     ExtensionConfigurationFieldType.Toggle ->
-                        put(field.id, values[field.id].toBooleanStrictOrNull() ?: false)
+                        put(field.id, values[field.id].orEmpty().toBooleanStrictOrNull() ?: false)
 
                     ExtensionConfigurationFieldType.Number,
                     ExtensionConfigurationFieldType.Range -> {
