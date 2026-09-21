@@ -199,10 +199,11 @@ sleep 2
 adb shell dumpsys activity activities | grep -q "ChatPreviewActivity"
 wait_desc "Browser message test.browser"
 
-echo "STEP: extension verify action remains actionable"
+echo "STEP: extension verify action reaches verified state"
 tap_desc "Verify browser session"
+wait_desc "Browser session verified"
 adb shell pidof "$PACKAGE" >/dev/null
-adb exec-out screencap -p > "$OUT/04-inline-after-return.png"
+adb exec-out screencap -p > "$OUT/04-inline-verified.png"
 
 assert_no_night_crash
 cp "$SERVER_LOG" "$OUT/final-server-log.txt"
@@ -215,5 +216,6 @@ printf '%s\n' \
   "sharedCurrentUrl=true" \
   "extensionBrowserTemplate=true" \
   "verifyAction=true" \
+  "verificationState=true" \
   "unsafeSchemesCoveredByUnitTests=true" \
   "watermarkFree=true" > "$OUT/summary.txt"
