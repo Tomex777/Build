@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.example.whatsapp.data.browser.NightBrowserSpec
+import com.example.whatsapp.data.browser.NightBrowserVerificationState
 import com.example.whatsapp.presentation.chatscreen.AnimeResultMessage
 import com.example.whatsapp.presentation.chatscreen.ButtonResultMessage
 import com.example.whatsapp.extensions.messages.ExtensionActionStyle
@@ -55,6 +56,9 @@ class ChatPreviewActivity : ComponentActivity() {
         setContent {
             WhatsappTheme(darkTheme = true) {
                 var text by remember { mutableStateOf("") }
+                var browserVerificationState by remember {
+                    mutableStateOf(NightBrowserVerificationState.Idle)
+                }
 
                 CurrentWhatsAppConversation(
                     contactName = "Night",
@@ -70,7 +74,7 @@ class ChatPreviewActivity : ComponentActivity() {
                         "approved-rich" -> approvedRichPreviewMessages()
                         "extension" -> extensionSchemaPreviewMessages()
                         "extension-config" -> extensionConfigurationPreviewMessages()
-                        "browser" -> browserPreviewMessages()
+                        "browser" -> browserPreviewMessages(browserVerificationState)
                         "blocks" -> nightBlockPreviewMessages()
                         "utility" -> utilityPreviewMessages()
                         else -> whatsappPreviewMessages()
@@ -84,7 +88,12 @@ class ChatPreviewActivity : ComponentActivity() {
                     onCameraClick = {},
                     onMicClick = {},
                     onAttachmentAction = {},
-                    onMessageButtonClick = { _, _ -> },
+                    onMessageButtonClick = { _, actionId ->
+                        if (mode == "browser" && actionId == "verify_session") {
+                            browserVerificationState =
+                                NightBrowserVerificationState.Verified
+                        }
+                    },
                     audioPlaybackState = when (mode) {
                         "audio" -> AudioPlaybackUiState(
                             activePath = "preview-audio",
@@ -306,7 +315,10 @@ private fun richApprovedPreviewMessages(image: String): List<WhatsAppVisualMessa
 
 
 
-private fun browserPreviewMessages(): List<WhatsAppVisualMessage> = listOf(
+private fun browserPreviewMessages(
+    verificationState: NightBrowserVerificationState =
+        NightBrowserVerificationState.Idle,
+): List<WhatsAppVisualMessage> = listOf(
     ExtensionResultMessage(
         id = "extension-browser-test",
         snapshot = ExtensionMessageSnapshot(
@@ -327,6 +339,19 @@ private fun browserPreviewMessages(): List<WhatsAppVisualMessage> = listOf(
                 verifyLabel = "Verify",
                 javaScriptEnabled = true,
                 thirdPartyCookies = true,
+                verificationState = verificationState,
+                verificationMessage = when (verificationState) {
+                    NightBrowserVerificationState.Verified ->
+                        "Session verified by Browser Test Extension."
+                    NightBrowserVerificationState.Failed ->
+                        "Verification failed."
+                    NightBrowserVerificationState.Verifying ->
+                        "Checking session…"
+                    NightBrowserVerificationState.Idle -> ""
+                },
+                verifiedAt = 1L.takeIf {
+                    verificationState == NightBrowserVerificationState.Verified
+                },
             ),
         ),
         time = "16:30",
