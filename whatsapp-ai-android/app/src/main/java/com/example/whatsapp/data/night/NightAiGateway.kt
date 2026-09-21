@@ -2,6 +2,7 @@ package com.example.whatsapp.data.night
 
 import android.content.Context
 import android.util.Base64
+import com.example.whatsapp.extensions.messages.ExtensionMessageCodec
 import com.example.whatsapp.extensions.messages.NightExtensionMessageTypeRegistry
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -116,43 +117,248 @@ class NightAiGateway private constructor(
     suspend fun summarize(
         chatId: String,
         displayName: String,
+    ): Result<String> {
+        val pending = repository.unsummarizedMessages(chatId)
+        return summarizePending(
+            chatId = chatId,
+            displayName = displayName,
+            pending = pending,
+        )
+    }
+
+    internal suspend fun summarizePending(
+        chatId: String,
+        displayName: String,
+        pending: List<NightMessageEntity>,
     ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            val pending = repository.unsummarizedMessages(chatId)
+            val chat = repository.getChat(chatId) ?: error("Chat not found.")
             if (pending.isEmpty()) {
-                return@runCatching repository.latestSummary(chatId)
+                return@runCatching chat.latestSummary
+            }
+
+            val transcript = buildSummaryTranscript(
+                messages = pending,
+                displayName = displayName,
+            )
+            if (transcript.isBlank()) {
+                return@runCatching chat.latestSummary
             }
 
             val candidates = router.resolveChatCandidates(chatId)
             val resolved = candidates.firstOrNull()
-                ?: return@runCatching localSummary(pending)
-
-            val chat = repository.getChat(chatId) ?: error("Chat not found.")
-            val transcript = pending.joinToString("\n") {
-                (if (it.role == "assistant") "Night" else displayName) + ": " + it.text
-            }
+                ?: return@runCatching mergeLocalSummary(
+                    previous = chat.latestSummary,
+                    transcript = transcript,
+                )
 
             val prompt = buildString {
                 append("Update the running summary of this private Night conversation. ")
-                append("Preserve decisions, preferences, unresolved tasks, referenced files, and facts useful later. ")
+                append("Preserve decisions, preferences, unresolved tasks, referenced files, extension state, and facts useful later. ")
+                append("Keep prior useful facts unless newer messages explicitly supersede them. ")
                 append("Be compact and factual. Do not invent anything.\n\n")
                 append("Previous summary:\n")
                 append(chat.latestSummary.ifBlank { "(none)" })
-                append("\n\nNew messages:\n")
-                append(transcript.take(12000))
+                append("\n\nNew finalized messages:\n")
+                append(transcript.take(16000))
             }
 
             val messages = JSONArray()
                 .put(
                     JSONObject()
                         .put("role", "system")
-                        .put("content", "You maintain compact persistent memory for Night.")
+                        .put(
+                            "content",
+                            "You maintain compact incremental persistent memory for Night. " +
+                                "Merge the previous summary with only the new messages."
+                        )
                 )
                 .put(JSONObject().put("role", "user").put("content", prompt))
 
             runCatching { performSimpleChat(resolved, messages) }
-                .getOrElse { localSummary(pending) }
+                .getOrElse {
+                    mergeLocalSummary(
+                        previous = chat.latestSummary,
+                        transcript = transcript,
+                    )
+                }
+                .trim()
+                .take(5000)
         }
+    }
+
+    private suspend fun buildSummaryTranscript(
+        messages: List<NightMessageEntity>,
+        displayName: String,
+    ): String = buildString {
+        messages.forEach { message ->
+            val context = summaryContext(message)
+            if (context.isBlank()) return@forEach
+
+            append(
+                when (message.role.lowercase()) {
+                    "assistant" -> "Night"
+                    "system" -> "System"
+                    else -> displayName
+                }
+            )
+            append(": ")
+            append(context.take(1200))
+            append("\n")
+        }
+    }.trim()
+
+    private suspend fun summaryContext(message: NightMessageEntity): String {
+        val text = message.text.trim()
+        val payload = runCatching { JSONObject(message.payloadJson) }
+            .getOrElse { JSONObject() }
+
+        return when (message.type.lowercase()) {
+            "extension" -> {
+                val snapshot = ExtensionMessageCodec.decode(message.payloadJson)
+                if (snapshot == null) {
+                    text.ifBlank { "[Extension message]" }
+                } else {
+                    buildString {
+                        append("[Extension ")
+                        append(snapshot.extensionName)
+                        append(" / ")
+                        append(snapshot.messageType)
+                        append("] ")
+                        append(snapshot.title)
+                        if (snapshot.subtitle.isNotBlank()) {
+                            append(" — ")
+                            append(snapshot.subtitle)
+                        }
+                        if (snapshot.status.isNotBlank()) {
+                            append(" [")
+                            append(snapshot.status)
+                            append("]")
+                        }
+                        snapshot.browser?.let { browser ->
+                            append(" [browser session ")
+                            append(browser.sessionId)
+                            append(", ")
+                            append(browser.verificationState.wireName)
+                            append("]")
+                        }
+                    }
+                }
+            }
+
+            "file", "pdf" -> {
+                val library = message.libraryFileId
+                    ?.let { repository.getLibraryItem(it) }
+                buildString {
+                    append(if (message.type == "pdf") "[PDF] " else "[File] ")
+                    append(
+                        library?.name
+                            ?: payload.optString("name").ifBlank {
+                                text.ifBlank { "attachment" }
+                            }
+                    )
+                    library?.mimeType
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { append(" (").append(it).append(")") }
+                    if (text.isNotBlank() && text != library?.name) {
+                        append(" — ")
+                        append(text)
+                    }
+                }
+            }
+
+            "image" -> "[Image] " + text.ifBlank {
+                payload.optString("caption").ifBlank { "image attachment" }
+            }
+
+            "video" -> "[Video] " + text.ifBlank {
+                payload.optString("caption").ifBlank { "video attachment" }
+            }
+
+            "voice" -> {
+                val transcript = payload.optString("transcript").trim()
+                "[Voice note] " + transcript.ifBlank {
+                    text.ifBlank { "voice note without transcript" }
+                }
+            }
+
+            "audio", "music" -> buildString {
+                append("[Audio] ")
+                append(
+                    payload.optString("title")
+                        .ifBlank { text.ifBlank { "audio attachment" } }
+                )
+                payload.optString("artist")
+                    .takeIf { it.isNotBlank() }
+                    ?.let { append(" — ").append(it) }
+            }
+
+            "link", "rich_link" -> buildString {
+                append("[Link] ")
+                append(
+                    payload.optString("title")
+                        .ifBlank { text.ifBlank { "web link" } }
+                )
+                payload.optString("url")
+                    .takeIf { it.isNotBlank() }
+                    ?.let { append(" — ").append(it.take(500)) }
+            }
+
+            "choice" -> buildString {
+                append("[Options] ")
+                append(text.ifBlank { "Choose an option" })
+                payload.optJSONArray("options")?.let { options ->
+                    val labels = buildList {
+                        for (index in 0 until minOf(options.length(), 12)) {
+                            val value = options.optString(index).trim()
+                            if (value.isNotBlank()) add(value)
+                        }
+                    }
+                    if (labels.isNotEmpty()) {
+                        append(": ")
+                        append(labels.joinToString(" | "))
+                    }
+                }
+                if (payload.has("selectedIndex") && !payload.isNull("selectedIndex")) {
+                    append(" [selected index ")
+                    append(payload.optInt("selectedIndex"))
+                    append("]")
+                }
+            }
+
+            "blocks" -> text.ifBlank { "[Structured Night message]" }
+
+            else -> text.ifBlank {
+                val title = payload.optString("title").trim()
+                if (title.isNotBlank()) {
+                    "[" + message.type + "] " + title
+                } else {
+                    "[" + message.type + " message]"
+                }
+            }
+        }.trim()
+    }
+
+    private fun mergeLocalSummary(
+        previous: String,
+        transcript: String,
+    ): String {
+        val old = previous.trim()
+        val recent = transcript
+            .lineSequence()
+            .filter { it.isNotBlank() }
+            .takeLast(14)
+            .joinToString(" • ") { it.take(240) }
+            .take(2600)
+
+        if (old.isBlank()) return recent.take(5000)
+        if (recent.isBlank()) return old.take(5000)
+
+        return buildString {
+            append(old.take(3500))
+            append("\nRecent update: ")
+            append(recent.take(1400))
+        }.take(5000)
     }
 
     private suspend fun buildConversation(
