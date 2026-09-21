@@ -13,3 +13,5 @@ rerun fixed continuation tracer
 inspect countdown source logic
 
 click actual verification trigger
+
+android touch verification trace
