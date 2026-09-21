@@ -33,6 +33,19 @@ if mode == "desc":
         raise SystemExit(2)
     x1,y1,x2,y2 = bounds(node)
     print(f"{(x1+x2)//2} {(y1+y2)//2}")
+elif mode == "click":
+    node = find_desc(value)
+    if node is None:
+        raise SystemExit(2)
+    parents = {child: parent for parent in root.iter() for child in parent}
+    current = node
+    while current is not None and current.attrib.get("clickable") != "true":
+        current = parents.get(current)
+    target = current if current is not None else node
+    if bounds(target) is None:
+        raise SystemExit(2)
+    x1,y1,x2,y2 = bounds(target)
+    print(f"{(x1+x2)//2} {(y1+y2)//2}")
 elif mode == "text":
     node = next((n for n in nodes if n.attrib.get("text") == value), None)
     if node is None or bounds(node) is None:
@@ -71,7 +84,7 @@ refresh_ui() {
 
 tap_desc() {
   refresh_ui
-  read -r x y <<<"$(python3 /tmp/night_ext_config_uia.py desc "$1")"
+  read -r x y <<<"$(python3 /tmp/night_ext_config_uia.py click "$1")"
   adb shell input tap "$x" "$y"
   sleep 1
 }
@@ -178,6 +191,8 @@ echo "STEP: advanced fields expand"
 scroll_until_desc "Show advanced extension settings"
 tap_desc "Show advanced extension settings"
 sleep 1
+refresh_ui
+grep -q "Hide Advanced" /tmp/window.xml
 scroll_until_desc "Config quality_bias"
 refresh_ui
 grep -q "Quality bias" /tmp/window.xml
