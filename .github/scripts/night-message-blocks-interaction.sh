@@ -13,6 +13,56 @@ adb logcat -c
 adb shell am force-stop com.example.whatsapp
 adb shell am start -W -n com.example.whatsapp/.ChatPreviewActivity --es mode blocks
 sleep 3
+
+# Android 16 emulator Quickstep can occasionally show a launcher ANR dialog
+# over an otherwise healthy preview app. Dismiss the system dialog and relaunch
+# before judging Night's UI.
+ready=false
+for attempt in 1 2 3; do
+  adb shell uiautomator dump /sdcard/blocks-ready.xml >/dev/null 2>&1 || true
+  adb exec-out cat /sdcard/blocks-ready.xml > /tmp/blocks-ready.xml 2>/dev/null || true
+
+  if grep -qi "isn't responding" /tmp/blocks-ready.xml 2>/dev/null; then
+    read -r wait_x wait_y <<<"$(python3 - <<'PY'
+import re
+import xml.etree.ElementTree as ET
+try:
+    root = ET.parse("/tmp/blocks-ready.xml").getroot()
+except Exception:
+    print("350 865")
+    raise SystemExit(0)
+for node in root.iter("node"):
+    if node.attrib.get("resource-id") == "android:id/aerr_wait":
+        nums = [int(x) for x in re.findall(r"\d+", node.attrib.get("bounds", ""))]
+        if len(nums) == 4:
+            print((nums[0] + nums[2]) // 2, (nums[1] + nums[3]) // 2)
+            raise SystemExit(0)
+print("350 865")
+PY
+)"
+    adb shell input tap "$wait_x" "$wait_y" || true
+    sleep 2
+    adb shell am force-stop com.example.whatsapp
+    adb shell am start -W -n com.example.whatsapp/.ChatPreviewActivity --es mode blocks >/dev/null
+    sleep 3
+    continue
+  fi
+
+  if grep -q "Fix" /tmp/blocks-ready.xml 2>/dev/null && grep -q "Validation" /tmp/blocks-ready.xml 2>/dev/null; then
+    ready=true
+    break
+  fi
+  sleep 2
+done
+
+if [ "$ready" != "true" ]; then
+  adb exec-out screencap -p > night-message-blocks-artifacts/failure-ready.png 2>/dev/null || true
+  cp /tmp/blocks-ready.xml night-message-blocks-artifacts/failure-ready.xml 2>/dev/null || true
+  adb logcat -d -v threadtime > night-message-blocks-artifacts/failure-ready-logcat.txt 2>/dev/null || true
+  echo "Night message block preview did not become ready." >&2
+  exit 1
+fi
+
 adb exec-out screencap -p > night-message-blocks-artifacts/01-blocks-top.png
 adb shell uiautomator dump /sdcard/blocks-top.xml >/dev/null
 adb exec-out cat /sdcard/blocks-top.xml > night-message-blocks-artifacts/01-blocks-top.xml
