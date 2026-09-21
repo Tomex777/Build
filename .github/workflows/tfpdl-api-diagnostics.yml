@@ -1,0 +1,49 @@
+name: TFPDL API diagnostics
+
+on:
+  push:
+    branches:
+      - tfpdl-api-diagnostics
+    paths:
+      - '.github/workflows/tfpdl-api-diagnostics.yml'
+      - 'diagnostics/tfpdl-probe.mjs'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run TFPDL network probe
+        env:
+          OUT_DIR: tfpdl-probe-output
+        run: node diagnostics/tfpdl-probe.mjs
+
+      - name: Print endpoint summary
+        if: always()
+        run: |
+          echo '===== summary.json ====='
+          cat tfpdl-probe-output/summary.json 2>/dev/null || true
+          echo '===== forms ====='
+          for f in tfpdl-probe-output/*-forms.json; do echo "--- $f"; cat "$f"; done 2>/dev/null || true
+
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfpdl-api-diagnostics
+          path: tfpdl-probe-output/
+          retention-days: 3
+          if-no-files-found: warn
