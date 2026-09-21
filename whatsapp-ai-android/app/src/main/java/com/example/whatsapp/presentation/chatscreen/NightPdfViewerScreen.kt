@@ -426,8 +426,8 @@ fun NightPdfViewerScreen(
                                     errorMessage = error.message ?: "Could not open this PDF."
                                 }
 
-                                override fun onPageChanged(currentPage: Int, totalPage: Int) {
-                                    this@NightPdfViewerScreen.currentPage = currentPage.coerceAtLeast(1)
+                                override fun onPageChanged(page: Int, totalPage: Int) {
+                                    currentPage = page.coerceAtLeast(1)
                                     totalPages = totalPage.coerceAtLeast(0)
                                 }
                             },
