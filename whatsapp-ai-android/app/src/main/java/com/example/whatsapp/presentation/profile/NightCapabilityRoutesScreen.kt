@@ -66,6 +66,7 @@ fun NightCapabilityRoutesScreen(
         model: NightProviderModelEntity?,
         useSelectedFirst: Boolean,
     ) -> Unit,
+    onClearRoute: (String) -> Unit,
 ) {
     var editing by remember { mutableStateOf<CapabilityItem?>(null) }
 
@@ -146,6 +147,10 @@ fun NightCapabilityRoutesScreen(
             models = models,
             current = routes.firstOrNull { it.capability == item.id },
             onDismiss = { editing = null },
+            onClear = {
+                onClearRoute(item.id)
+                editing = null
+            },
             onSelect = { profile, model ->
                 onSetRoute(
                     item.id,
@@ -166,6 +171,7 @@ private fun RoutePickerDialog(
     models: List<NightProviderModelEntity>,
     current: NightCapabilityRouteEntity?,
     onDismiss: () -> Unit,
+    onClear: () -> Unit,
     onSelect: (NightProviderProfileEntity, NightProviderModelEntity?) -> Unit,
 ) {
     val candidates: List<Pair<NightProviderProfileEntity, NightProviderModelEntity?>> =
@@ -248,7 +254,13 @@ private fun RoutePickerDialog(
                 }
             }
         },
-        confirmButton = {},
+        confirmButton = {
+            if (current != null) {
+                TextButton(onClick = onClear) {
+                    Text("Clear route", color = Color(0xFFFF6B78))
+                }
+            }
+        },
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Close", color = RouteMuted)
