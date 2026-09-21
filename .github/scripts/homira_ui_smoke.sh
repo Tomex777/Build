@@ -80,6 +80,9 @@ adb exec-out screencap -p > homira-android/app/build/ui-smoke/contact-actions.pn
 tap_ui "Info"
 assert_ui "Favorite"
 assert_ui "Share contact"
+adb exec-out screencap -p > homira-android/app/build/ui-smoke/contact-info-top.png
+adb shell input swipe 540 1500 540 650 350
+sleep 0.5
 assert_ui "Delete contact"
 adb exec-out screencap -p > homira-android/app/build/ui-smoke/contact-info.png
 adb shell input keyevent 4
