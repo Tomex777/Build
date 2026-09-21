@@ -86,7 +86,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          gradle -p cobalt-android-poc :app:assembleDebug --stacktrace 2>&1 | tee cobalt-android-poc/android-build.log
+          gradle -p cobalt-android-poc :app:assembleDebug --refresh-dependencies --stacktrace 2>&1 | tee cobalt-android-poc/android-build.log
 
       - name: Verify APK exists
         shell: bash
