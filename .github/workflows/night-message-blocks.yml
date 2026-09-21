@@ -102,13 +102,18 @@ jobs:
             "emulator" \
             "platforms;android-36" \
             "build-tools;36.0.0" \
-            "system-images;android-36;default;x86_64"
+            "system-images;android-36;google_apis;x86_64"
+          echo "/usr/local/lib/android/sdk/platform-tools" >> "$GITHUB_PATH"
+          echo "/usr/local/lib/android/sdk/emulator" >> "$GITHUB_PATH"
 
       - name: Prime ADB
         run: |
-          adb kill-server >/dev/null 2>&1 || true
-          adb start-server
-          adb devices -l
+          ADB="/usr/local/lib/android/sdk/platform-tools/adb"
+          test -x "$ADB"
+          "$ADB" version
+          "$ADB" kill-server >/dev/null 2>&1 || true
+          "$ADB" start-server
+          "$ADB" devices -l
 
       - name: Enable KVM
         run: |
