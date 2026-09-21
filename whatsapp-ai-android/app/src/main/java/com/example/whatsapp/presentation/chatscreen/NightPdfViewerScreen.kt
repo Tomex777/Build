@@ -81,7 +81,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private val PdfChrome = Color(0xFF111719)
+// Fullscreen document viewer: intentionally not a bottom sheet.\nprivate val PdfChrome = Color(0xFF111719)
 private val PdfCanvas = Color(0xFF24282A)
 private val PdfPanel = Color(0xFF20272A)
 private val PdfMuted = Color(0xFF9EA7AB)
