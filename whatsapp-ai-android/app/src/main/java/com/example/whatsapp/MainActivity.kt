@@ -48,6 +48,7 @@ import com.example.whatsapp.data.night.NightScheduleManager
 import com.example.whatsapp.data.night.NightSpeechService
 import com.example.whatsapp.data.night.NightStructuredReplyParser
 import com.example.whatsapp.data.night.NightSummaryCoordinator
+import com.example.whatsapp.data.night.NightSummaryPolicy
 import com.example.whatsapp.data.night.NightToolInvocation
 import com.example.whatsapp.data.night.NightVoiceRecorder
 import com.example.whatsapp.extensions.messages.ExtensionCardTemplate
@@ -267,7 +268,7 @@ private fun NightApp(initialChatId: String? = null) {
     LaunchedEffect(screen, activeChatId) {
         if (screen != "chat") return@LaunchedEffect
         while (true) {
-            delay(5 * 60 * 1000L)
+            delay(NightSummaryPolicy.CHECKPOINT_INTERVAL_MS)
             if (screen == "chat" && repository.unsummarizedMessages(activeChatId).isNotEmpty()) {
                 checkpoint(activeChatId)
             }
