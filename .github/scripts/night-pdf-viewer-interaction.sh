@@ -103,7 +103,8 @@ adb shell am force-stop "$PACKAGE"
 adb shell am start -W -n "$ACTIVITY"
 sleep 6
 assert_alive
-assert_desc "Back"
+assert_desc "PDF bottom sheet"
+assert_desc "Close PDF"
 assert_desc "Search document"
 assert_desc "Share PDF"
 assert_desc "Save PDF"
@@ -192,7 +193,7 @@ assert_no_night_crash
 
 printf '%s\n' \
   "androidApi=36" \
-  "fullScreenDocumentViewer=true" \
+  "documentBottomSheet=true" \
   "pages=24" \
   "smoothScroll=true" \
   "zoomEnabled=true" \
