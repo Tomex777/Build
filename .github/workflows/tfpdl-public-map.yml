@@ -1,0 +1,54 @@
+name: TFPDL public route map
+
+on:
+  push:
+    paths:
+      - ".github/workflows/tfpdl-public-map.yml"
+  workflow_dispatch:
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Map public surfaces
+        shell: bash
+        run: |
+          set +e
+          UA='Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36'
+
+          probe () {
+            u="$1"
+            echo
+            echo "=== $u ==="
+            curl --http1.1 -sS --max-time 20 --connect-timeout 8               -A "$UA" -D /tmp/h -o /tmp/b               -w 'status=%{http_code} final=%{url_effective} type=%{content_type} bytes=%{size_download}\n' "$u"
+            grep -Ei '^(HTTP/|location:|content-type:|server:|cf-mitigated:|set-cookie:|link:)' /tmp/h | head -20
+            echo "--- body ---"
+            head -c 500 /tmp/b | tr '\n' ' '
+            echo
+          }
+
+          for H in https://tfp.re https://tfpdl.com https://www.tfpdl.com; do
+            probe "$H/robots.txt"
+            probe "$H/wp-json/"
+            probe "$H/?rest_route=/"
+            probe "$H/wp-json/wp/v2/posts?per_page=1&_fields=id,link,title"
+            probe "$H/feed/"
+            probe "$H/wp-sitemap.xml"
+            probe "$H/sitemap_index.xml"
+          done
+
+          echo
+          echo "=== public JS inspection ==="
+          curl --http1.1 -sS --max-time 20 -A "$UA" https://tfp.re/qazwsxedcrfv.js -o /tmp/site.js
+          wc -c /tmp/site.js
+          grep -Eo 'https?://[^" ]+|/[A-Za-z0-9_./?=-]{4,}' /tmp/site.js | sort -u | head -100
+          echo "--- keywords ---"
+          grep -Ein 'tfpdl|download|redirect|location|ajax|fetch|window\.open|href|cookie|cloudflare' /tmp/site.js | head -120 || true
+
+          echo
+          echo "=== post representation variants ==="
+          POST='https://tfp.re/lanterns-s01-2160p-web-dl-ddp5-1-dv-hdr-x265-tfpdl/'
+          for U in "$POST" "${POST}feed/" "${POST}amp/" "${POST}?amp=1" "${POST}?output=1"; do
+            probe "$U"
+          done
