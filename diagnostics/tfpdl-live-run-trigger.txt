@@ -1,3 +1,5 @@
 trigger live TFPDL quick resolver probe
 trigger browser trace
 trigger fallback browser trace
+
+trace beyond countdown
