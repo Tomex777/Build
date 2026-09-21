@@ -202,6 +202,9 @@ interface NightDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertCapabilityRoute(route: NightCapabilityRouteEntity)
 
+    @Query("DELETE FROM night_capability_routes WHERE capability = :capability")
+    suspend fun deleteCapabilityRoute(capability: String)
+
     @Query("SELECT * FROM night_appearance WHERE id = 'global' LIMIT 1")
     fun observeAppearance(): Flow<NightAppearanceEntity?>
 
