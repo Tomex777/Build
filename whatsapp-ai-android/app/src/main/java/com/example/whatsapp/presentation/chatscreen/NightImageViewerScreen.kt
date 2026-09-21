@@ -353,7 +353,7 @@ private fun View.installNightEditorTapHandler(onTap: () -> Unit) {
     }
 }
 
-private fun shouldNightEditorStartWithSoftwareVideoDecode(): Boolean {
+private fun isNightEditorVirtualVideoDevice(): Boolean {
     val fingerprint = Build.FINGERPRINT.orEmpty()
     val model = Build.MODEL.orEmpty()
     val manufacturer = Build.MANUFACTURER.orEmpty()
@@ -384,8 +384,13 @@ internal fun NightVlcVideoSurface(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current.applicationContext
-    val startWithSoftwareDecode = remember { shouldNightEditorStartWithSoftwareVideoDecode() }
-    var softwareDecode by remember(path) { mutableStateOf(startWithSoftwareDecode) }
+    val virtualVideoDevice = remember { isNightEditorVirtualVideoDevice() }
+    // Match the full-screen player: hardware first everywhere. In particular,
+    // do not force avcodec from frame zero on Goldfish/ranchu, because that
+    // path has already produced a permanent black 0:00 preview in CI.
+    var softwareDecode by remember(path) { mutableStateOf(false) }
+    var hardwareRetryGeneration by remember(path) { mutableStateOf(0) }
+    var hardwareRetryCount by remember(path) { mutableStateOf(0) }
     var userPaused by remember(path) { mutableStateOf(false) }
     var fallbackResumePosition by remember(path) { mutableLongStateOf(0L) }
     val mediaUri = remember(path) {
@@ -396,14 +401,14 @@ internal fun NightVlcVideoSurface(
         }
     }
 
-    val libVlc = remember(path, softwareDecode) {
+    val libVlc = remember(path, softwareDecode, hardwareRetryGeneration) {
         val options = arrayListOf(
             "--audio-time-stretch",
             "--network-caching=1500",
         )
         LibVLC(context, options)
     }
-    val player = remember(path, softwareDecode) { MediaPlayer(libVlc) }
+    val player = remember(path, softwareDecode, hardwareRetryGeneration) { MediaPlayer(libVlc) }
     var attachedPlayer by remember(path) {
         mutableStateOf<MediaPlayer?>(null)
     }
@@ -432,53 +437,90 @@ internal fun NightVlcVideoSurface(
         }
     }
 
-    LaunchedEffect(active, player, softwareDecode, attachedPlayer) {
-        if (active) {
-            if (attachedPlayer !== player) {
-                playing = false
-                return@LaunchedEffect
-            }
-            player.play()
-            if (softwareDecode && fallbackResumePosition > 0L) {
-                runCatching { player.setTime(fallbackResumePosition) }
-            }
-            playing = true
-            var startedAt = SystemClock.elapsedRealtime()
-            var lastAdvanceAt = startedAt
-            var lastObservedPosition = -1L
-            while (isActive) {
-                val now = SystemClock.elapsedRealtime()
-                length = player.length.coerceAtLeast(0L)
-                position = player.time.coerceAtLeast(0L)
-                playing = player.isPlaying
-                if (position > lastObservedPosition + 180L) {
-                    lastObservedPosition = position
-                    lastAdvanceAt = now
-                }
-                if (
-                    !softwareDecode &&
-                    !userPaused &&
-                    length > 0L &&
-                    position < (length - 1500L).coerceAtLeast(0L) &&
-                    (
-                        (lastObservedPosition >= 500L && now - lastAdvanceAt >= 2500L) ||
-                            (lastObservedPosition < 500L && now - startedAt >= 9000L)
-                        )
-                ) {
-                    // Do not mistake normal surface/decoder startup for a 0ms stall.
-                    fallbackResumePosition = position
-                    Log.w(
-                        "NightVideo",
-                        "Editor playback stalled at ${position}ms; recreating VLC with software decoding.",
-                    )
-                    softwareDecode = true
-                    return@LaunchedEffect
-                }
-                delay(250)
-            }
-        } else {
+    LaunchedEffect(active, player, softwareDecode, hardwareRetryGeneration) {
+        if (!active) {
             runCatching { player.pause() }
             playing = false
+            return@LaunchedEffect
+        }
+
+        var attachmentChecks = 0
+        while (
+            isActive &&
+            active &&
+            attachedPlayer !== player &&
+            attachmentChecks < 120
+        ) {
+            attachmentChecks += 1
+            delay(50L)
+        }
+        if (!active || !isActive) return@LaunchedEffect
+        if (attachedPlayer !== player) {
+            playing = false
+            Log.e(
+                "NightVideo",
+                "Timed out waiting for editor VLC surface attachment " +
+                    "(generation=$hardwareRetryGeneration, software=$softwareDecode).",
+            )
+            return@LaunchedEffect
+        }
+
+        Log.i(
+            "NightVideo",
+            "Starting editor VLC playback " +
+                "(generation=$hardwareRetryGeneration, software=$softwareDecode, " +
+                "resume=${fallbackResumePosition}ms).",
+        )
+        player.play()
+        if (fallbackResumePosition > 0L) {
+            runCatching { player.setTime(fallbackResumePosition) }
+        }
+        playing = true
+        var startedAt = SystemClock.elapsedRealtime()
+        var lastAdvanceAt = startedAt
+        var lastObservedPosition = -1L
+
+        while (isActive && active) {
+            val now = SystemClock.elapsedRealtime()
+            length = runCatching { player.length.coerceAtLeast(0L) }.getOrDefault(0L)
+            position = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(0L)
+            playing = runCatching { player.isPlaying }.getOrDefault(false)
+
+            if (position > lastObservedPosition + 180L) {
+                lastObservedPosition = position
+                lastAdvanceAt = now
+            }
+            if (
+                !softwareDecode &&
+                !userPaused &&
+                length > 0L &&
+                position < (length - 1500L).coerceAtLeast(0L) &&
+                (
+                    (lastObservedPosition >= 500L && now - lastAdvanceAt >= 2500L) ||
+                        (lastObservedPosition < 500L && now - startedAt >= 9000L)
+                    )
+            ) {
+                fallbackResumePosition = position
+                if (virtualVideoDevice && hardwareRetryCount < 2) {
+                    hardwareRetryCount += 1
+                    Log.w(
+                        "NightVideo",
+                        "Virtual-device editor playback stalled at ${position}ms; " +
+                            "recreating VLC hardware player (retry $hardwareRetryCount).",
+                    )
+                    hardwareRetryGeneration += 1
+                    return@LaunchedEffect
+                }
+
+                Log.w(
+                    "NightVideo",
+                    "Editor hardware playback stalled at ${position}ms; " +
+                        "recreating VLC with software decoding.",
+                )
+                softwareDecode = true
+                return@LaunchedEffect
+            }
+            delay(250L)
         }
     }
 
@@ -503,6 +545,11 @@ internal fun NightVlcVideoSurface(
                             }.isSuccess
                             if (attached) {
                                 attachedPlayer = player
+                                Log.i(
+                                    "NightVideo",
+                                    "Attached editor VLC surface " +
+                                        "(generation=$hardwareRetryGeneration, software=$softwareDecode).",
+                                )
                                 layout.installNightEditorTapHandler(onToggleControls)
                             } else {
                                 Log.e("NightVideo", "Could not attach editor VLC player to video surface.")
