@@ -98,6 +98,40 @@ adb shell am force-stop "$PACKAGE"
 adb shell am start -W -n "$ACTIVITY"
 sleep 4
 
+ready=false
+for attempt in 1 2 3; do
+  refresh_ui || true
+  if grep -qi "isn't responding" /tmp/window.xml 2>/dev/null; then
+    # Android's emulator launcher (Quickstep) can occasionally raise a system
+    # ANR dialog over a healthy Night preview. Dismiss that system-owned
+    # dialog explicitly, relaunch Night, and retry readiness.
+    if coords="$(python3 /tmp/night_memory_uia.py click_text "Close app" 2>/dev/null)"; then
+      read -r x y <<<"$coords"
+      adb shell input tap "$x" "$y" || true
+      sleep 1
+    else
+      adb shell input keyevent 4 || true
+    fi
+    adb shell am force-stop "$PACKAGE"
+    adb shell am start -W -n "$ACTIVITY" >/dev/null
+    sleep 3
+    continue
+  fi
+  if python3 /tmp/night_memory_uia.py text "Latest summary" >/dev/null 2>&1; then
+    ready=true
+    break
+  fi
+  sleep 2
+done
+
+if [ "$ready" != "true" ]; then
+  cp /tmp/window.xml "$OUT/failure-ready.xml" 2>/dev/null || true
+  adb exec-out screencap -p > "$OUT/failure-ready.png" 2>/dev/null || true
+  adb logcat -d -v threadtime > "$OUT/failure-ready-logcat.txt" 2>/dev/null || true
+  echo "Memory preview did not become ready." >&2
+  exit 1
+fi
+
 echo "STEP: memory screen shows current summary state"
 assert_text "Latest summary"
 assert_text "There are newer unsummarized messages."
