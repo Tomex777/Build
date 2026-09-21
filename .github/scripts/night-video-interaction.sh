@@ -346,6 +346,35 @@ if [ "$second_seconds" -le "$first_seconds" ]; then
   adb exec-out screencap -p > "$ARTIFACTS/failure-playback-stalled.png" || true
   exit 1
 fi
+printf 'first=%s\nsecond=%s\n' "$first_time" "$second_time" > "$ARTIFACTS/02-playback-progress.txt"
+adb exec-out screencap -p > "$ARTIFACTS/02-playback-advanced.png" || true
+
+echo "STEP: hide and show controls through the VLC surface"
+show_controls
+# Tap clear video space, away from the central previous/play/next row and
+# bottom toolbar, so the native VLC-view tap bridge must toggle the overlay.
+adb shell input tap 80 760
+sleep 1
+refresh_ui
+if python3 /tmp/night_video_uia.py desc "Pause" >/dev/null 2>&1 || \
+   python3 /tmp/night_video_uia.py desc "Play" >/dev/null 2>&1; then
+  echo "Night video controls did not hide after tapping the video surface." >&2
+  adb exec-out screencap -p > "$ARTIFACTS/failure-controls-would-not-hide.png" || true
+  cp /tmp/window.xml "$ARTIFACTS/failure-controls-would-not-hide.xml" 2>/dev/null || true
+  capture_media_logcat "controls-would-not-hide"
+  exit 1
+fi
+adb exec-out screencap -p > "$ARTIFACTS/03-controls-hidden.png" || true
+adb shell input tap 80 760
+sleep 1
+if ! desc_is_visible "Pause" && ! desc_is_visible "Play"; then
+  echo "Night video controls did not reappear after tapping the VLC surface." >&2
+  adb exec-out screencap -p > "$ARTIFACTS/failure-controls-would-not-show.png" || true
+  cp /tmp/window.xml "$ARTIFACTS/failure-controls-would-not-show.xml" 2>/dev/null || true
+  capture_media_logcat "controls-would-not-show"
+  exit 1
+fi
+adb exec-out screencap -p > "$ARTIFACTS/04-controls-visible.png" || true
 
 echo "STEP: pause and resume"
 show_controls
@@ -389,20 +418,40 @@ fi
 echo "STEP: audio and subtitle tracks"
 show_controls
 tap_desc "Audio"
-refresh_ui
-cp /tmp/window.xml "$ARTIFACTS/02-audio-menu.xml"
-if ! grep -q "Night test audio" /tmp/window.xml && ! grep -q "Default audio" /tmp/window.xml; then
-  echo "Audio track menu did not expose the MP4 audio track." >&2
+audio_track_found=false
+for _ in $(seq 1 10); do
+  refresh_ui
+  if grep -q "Night test audio" /tmp/window.xml; then
+    audio_track_found=true
+    break
+  fi
+  sleep 1
+done
+cp /tmp/window.xml "$ARTIFACTS/05-audio-menu.xml"
+if [ "$audio_track_found" != "true" ]; then
+  echo "Audio track menu did not expose the real embedded AAC track." >&2
+  adb exec-out screencap -p > "$ARTIFACTS/failure-audio-track.png" || true
+  capture_media_logcat "audio-track-missing"
   exit 1
 fi
 adb shell input keyevent KEYCODE_BACK
 sleep 1
 show_controls
 tap_desc "Subtitles"
-refresh_ui
-cp /tmp/window.xml "$ARTIFACTS/03-subtitle-menu.xml"
-if ! grep -q "Night test subtitle" /tmp/window.xml; then
+subtitle_track_found=false
+for _ in $(seq 1 10); do
+  refresh_ui
+  if grep -q "Night test subtitle" /tmp/window.xml; then
+    subtitle_track_found=true
+    break
+  fi
+  sleep 1
+done
+cp /tmp/window.xml "$ARTIFACTS/06-subtitle-menu.xml"
+if [ "$subtitle_track_found" != "true" ]; then
   echo "Subtitle track from the real MP4 was not exposed by VLC." >&2
+  adb exec-out screencap -p > "$ARTIFACTS/failure-subtitle-track.png" || true
+  capture_media_logcat "subtitle-track-missing"
   exit 1
 fi
 tap_text "Night test subtitle"
@@ -623,6 +672,7 @@ assert_no_crash
 
 cat > "$ARTIFACTS/summary.txt" <<EOF
 realMp4Playback=true
+controlsHideShow=true
 pauseResume=true
 speed2x=true
 audioMenu=true
