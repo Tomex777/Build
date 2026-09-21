@@ -35,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -142,6 +143,7 @@ fun NightLiveVoiceScreen(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(176.dp)
+                    .clip(CircleShape)
                     .border(
                         width = 2.dp,
                         color = if (state == NightLiveVoiceClient.State.SPEAKING) {
@@ -216,7 +218,7 @@ fun NightLiveVoiceScreen(
                     shape = RoundedCornerShape(18.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 10.dp, bottom = 10.dp),
+                        .padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
