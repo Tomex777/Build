@@ -27,6 +27,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.whatsapp.data.night.NightChatEntity
+import com.example.whatsapp.data.night.NightSummaryCheckpointEntity
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private val MemoryBg = Color(0xFF0B0F11)
 private val MemoryText = Color(0xFFE7EAEC)
@@ -91,6 +95,8 @@ fun NightMemoryScreen(
 @Composable
 fun NightChatMemoryScreen(
     chat: NightChatEntity?,
+    checkpoints: List<NightSummaryCheckpointEntity>,
+    isRefreshing: Boolean,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
 ) {
@@ -102,47 +108,123 @@ fun NightChatMemoryScreen(
     ) {
         MemoryHeader(chat?.title ?: "Memory & summary", onBack)
 
-        Column(
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = 18.dp,
+                end = 18.dp,
+                top = 8.dp,
+                bottom = 28.dp,
+            ),
         ) {
-            Text(
-                "Latest summary",
-                color = MemoryText,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                chat?.latestSummary?.ifBlank { "No summary checkpoint has been created yet." }
-                    ?: "Chat not found.",
-                color = MemoryMuted,
-                fontSize = 13.sp,
-                lineHeight = 19.sp,
-                modifier = Modifier.padding(top = 9.dp),
-            )
-
-            if (chat?.summaryDirty == true) {
+            item {
                 Text(
-                    "There are newer unsummarized messages.",
-                    color = MemoryAccent,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 12.dp),
+                    "Latest summary",
+                    color = MemoryText,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
                 )
+
+                chat?.summaryUpdatedAt?.let { updatedAt ->
+                    Text(
+                        text = "Updated " + formatMemoryTime(updatedAt),
+                        color = MemoryMuted,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(top = 3.dp),
+                    )
+                }
+
+                Text(
+                    chat?.latestSummary?.ifBlank {
+                        "No summary checkpoint has been created yet."
+                    } ?: "Chat not found.",
+                    color = MemoryMuted,
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
+                    modifier = Modifier.padding(top = 9.dp),
+                )
+
+                if (chat?.summaryDirty == true) {
+                    Text(
+                        "There are newer unsummarized messages.",
+                        color = MemoryAccent,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                } else if (!chat?.latestSummary.isNullOrBlank()) {
+                    Text(
+                        "Up to date",
+                        color = MemoryAccent,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
+
+                Button(
+                    onClick = onRefresh,
+                    enabled = chat != null && !isRefreshing,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MemoryAccent,
+                        contentColor = Color(0xFF07110B),
+                    ),
+                    modifier = Modifier.padding(top = 18.dp),
+                ) {
+                    Text(if (isRefreshing) "Refreshing…" else "Refresh summary")
+                }
             }
 
-            Button(
-                onClick = onRefresh,
-                enabled = chat != null,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MemoryAccent,
-                    contentColor = Color(0xFF07110B),
-                ),
-                modifier = Modifier.padding(top = 18.dp),
-            ) {
-                Text("Refresh summary")
+            if (checkpoints.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "Summary history",
+                        color = MemoryText,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 28.dp, bottom = 6.dp),
+                    )
+                    Text(
+                        text = checkpoints.size.toString() + " checkpoint" +
+                            if (checkpoints.size == 1) "" else "s",
+                        color = MemoryMuted,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(bottom = 4.dp),
+                    )
+                }
+
+                items(
+                    items = checkpoints,
+                    key = { it.id },
+                ) { checkpoint ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 10.dp),
+                    ) {
+                        Text(
+                            text = formatMemoryTime(checkpoint.createdAt),
+                            color = MemoryAccent,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                        Text(
+                            text = checkpoint.summary,
+                            color = MemoryMuted,
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp,
+                            maxLines = 6,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                }
             }
         }
     }
 }
+
+private fun formatMemoryTime(timestamp: Long): String =
+    SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
+        .format(Date(timestamp))
 
 @Composable
 private fun MemoryHeader(
