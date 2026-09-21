@@ -76,6 +76,9 @@ object NightExtensionToolRegistry {
         return array
     }
 
+    fun extensionIdFor(qualifiedName: String): String? =
+        tools[qualifiedName]?.definition?.extensionId
+
     suspend fun execute(
         qualifiedName: String,
         chatId: String,
