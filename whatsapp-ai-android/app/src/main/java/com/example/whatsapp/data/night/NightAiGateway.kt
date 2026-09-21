@@ -1061,5 +1061,21 @@ class NightAiGateway private constructor(
                     tools = NightAgentToolExecutor.get(app),
                 ).also { instance = it }
             }
+
+        internal fun createForTesting(
+            context: Context,
+            http: OkHttpClient,
+        ): NightAiGateway {
+            val app = context.applicationContext
+            val repository = NightRepository.get(app)
+            return NightAiGateway(
+                context = app,
+                repository = repository,
+                router = NightCapabilityRouter(repository),
+                secrets = NightSecretStore.get(app),
+                http = http,
+                tools = NightAgentToolExecutor.get(app),
+            )
+        }
     }
 }
