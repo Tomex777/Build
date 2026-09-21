@@ -1436,7 +1436,7 @@ private fun NightApp(initialChatId: String? = null) {
 
                             val updatedSnapshot =
                                 snapshot.withConfigurationValues(values)
-                            repository.appendMessage(
+                            repository.replaceMessage(
                                 existing.copy(
                                     payloadJson =
                                         ExtensionMessageCodec.encode(updatedSnapshot)
