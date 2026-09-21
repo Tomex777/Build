@@ -59,6 +59,8 @@ import com.example.whatsapp.presentation.chatscreen.ChoiceResultMessage
 import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
 import com.example.whatsapp.presentation.chatscreen.ExtensionResultMessage
 import com.example.whatsapp.presentation.chatscreen.MangaResultMessage
+import com.example.whatsapp.presentation.chatscreen.NightBlockMessage
+import com.example.whatsapp.presentation.chatscreen.NightMessageBlockCodec
 import com.example.whatsapp.presentation.chatscreen.NightChatAppearance
 import com.example.whatsapp.presentation.chatscreen.NightChoiceDialog
 import com.example.whatsapp.presentation.chatscreen.NightChatMediaItem
@@ -2094,6 +2096,29 @@ private fun NightMessageEntity.toVisualMessage(
             }
         }
 
+        "blocks" -> {
+            val blocks = NightMessageBlockCodec.decode(payloadJson)
+            if (blocks.isNotEmpty()) {
+                NightBlockMessage(
+                    id = id,
+                    blocks = blocks,
+                    time = time,
+                    mine = mine,
+                    read = mine,
+                    reply = reply,
+                )
+            } else {
+                WhatsAppVisualMessage.TextMessage(
+                    id = id,
+                    text = text.ifBlank { "Structured message" },
+                    time = time,
+                    mine = mine,
+                    read = mine,
+                    reply = reply,
+                )
+            }
+        }
+
         else -> WhatsAppVisualMessage.TextMessage(
             id = id,
             text = text,
@@ -2167,6 +2192,17 @@ private fun NightMessageEntity.toReplyPreview(): ReplyPreview {
             kind = ReplyKind.Rich,
             meta = "Options",
         )
+
+        "blocks" -> {
+            val blocks = NightMessageBlockCodec.decode(payloadJson)
+            ReplyPreview(
+                messageId = id,
+                author = author,
+                text = NightMessageBlockCodec.previewText(blocks),
+                kind = ReplyKind.Rich,
+                meta = "Structured message",
+            )
+        }
 
         "extension" -> {
             val snapshot = ExtensionMessageCodec.decode(payloadJson)
