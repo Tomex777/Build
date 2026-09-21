@@ -1,0 +1,154 @@
+{
+  "pickedPost": {
+    "id": 373753,
+    "title": "Lanterns S01 2160p",
+    "link": "https://tfp.re/lanterns-s01-2160p-web-dl-ddp5-1-dv-hdr-x265-tfpdl/"
+  },
+  "wrapper": "https://tfp.re/tfpdl?d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ==",
+  "finalUrl": "https://deinform.com/",
+  "domains": [
+    "tfp.re",
+    "deinform.com",
+    "static.cloudflareinsights.com",
+    "",
+    "www.googletagmanager.com",
+    "cdn.pubfuture-ad.com",
+    "cdn.pixfuture.com",
+    "acscdn.com",
+    "live.demand.supply",
+    "fundingchoicesmessages.google.com",
+    "stats.wp.com",
+    "al5sm.com",
+    "www.intellipopup.com",
+    "c.adsco.re",
+    "www.google-analytics.com",
+    "my.rtmark.net",
+    "adsco.re",
+    "4.adsco.re",
+    "6.adsco.re",
+    "255md.com",
+    "intellipopup.com",
+    "pagead2.googlesyndication.com",
+    "api.ipify.org"
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "url": "https://deinform.com/cdn-cgi/rum?",
+      "postData": "{\"startTime\":1790007602000,\"pageloadId\":\"719d0a90-cd89-440b-8fc0-e5b8b9b838bd\",\"eventType\":1,\"nt\":\"navigate\",\"location\":\"https://deinform.com/\",\"versions\":{\"fl\":\"2024.11.0\",\"js\":\"2026.9.1\",\"timings\":2},\"bi\":{\"be\":\"Blink\",\"bev\":\"140\",\"bv\":\"140\",\"ov\":\"16\"},\"memory\":{\"totalJSHeapSize\":10000000,\"usedJSHeapSize\":10000000,\"jsHeapSizeLimit\":3760000000},\"firstPaint\":0,\"firstContentfulPaint\":0,\"timingsV2\":{\"nextHopProtocol\":\"h2\",\"domainLookupStart\":71243,\"domainLookupEnd\":71346,\"connectStart\":71346,\"connectEnd\":71389,\"secureConnectionStart\":71363,\"requestStart\":71389,\"responseStart\":71953,\"responseEnd\":71954,\"domInteractive\":71965,\"domComplete\":72001,\"loadEventStart\":72001,\"loadEventEnd\":72001,\"finalResponseHeadersStart\":71953,\"firstInterimResponseStart\":0,\"transferSize\":1236,\"decodedBodySize\":1437},\"siteToken\":\"a211b97c4969409aa8aef30ad2da604f\",\"st\":2}"
+    },
+    {
+      "method": "GET",
+      "url": "https://my.rtmark.net/gid.js",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "https://adsco.re/p",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "https://4.adsco.re/",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "https://4.adsco.re:2087/",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "https://6.adsco.re/",
+      "postData": null
+    },
+    {
+      "method": "GET",
+      "url": "https://6.adsco.re:2087/",
+      "postData": null
+    },
+    {
+      "method": "POST",
+      "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+      "postData": "[null,null,null,null,null,null,null,null,1790007675389,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0,[null,null,[1001306373799221]]]"
+    },
+    {
+      "method": "POST",
+      "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+      "postData": "[null,null,null,null,null,null,null,null,1790007675391,null,null,null,null,null,null,null,null,null,null,null,[[1,156,\"deinform.com\",\"deinform.com\",1]]]"
+    },
+    {
+      "method": "POST",
+      "url": "https://www.google-analytics.com/g/collect?v=2&tid=G-X8V6G8MK5Q&gtm=45je69h0v9119040899za20gxf1&_p=1790007674619&gcd=13l3l3l3l1l1&npa=0&dma=0&tcfd=10000&_eu=AAAI&are=1&cid=1881396605.1790007675&frm=0&ngs=1&pscdl=noapi&rcb=18&sr=412x915&uaa=arm&uab=64&uafvl=Chromium%3B140.0.7339.16%7CNot%253DA%253FBrand%3B24.0.0.0%7CHeadlessChrome%3B140.0.7339.16&uam=&uamb=0&uap=Android&uapv=16&uaw=0&ul=en-us&_s=1&tag_exp=115616985~115938466~115938468~118897920~118897930~120213116~120385422~120469145~120469153&sid=1790007675&sct=1&seg=0&dl=https%3A%2F%2Fdeinform.com%2F&dt=Deinform%20-%20Information%20Home&en=page_view&_fv=1&_ss=1&gap.plf=5&tfd=1423",
+      "postData": null
+    },
+    {
+      "method": "POST",
+      "url": "https://255md.com/5/10996743/?oo=1&js_build=iclick-v1.1910.0&userId=0803b824159f4552e96aa933b87d50f3&dmn=al5sm.com&tt=2&ix=0&tspl=925&cslt=44",
+      "postData": "{\"sync\":\"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\",\"async\":\"TBtSUh8cJhwUBWcfHEsSAwEFUA5MXwMBbAdIOzYuV04aDQxLEkhUEFBWAhlfGwkEVkYbCQFAAltXCk1IGwUWUQgEWVxXFEBWVUoYBk5LQw5QRF1HUFwHCVNcXWkTAgsJGAcaU04AT1hCSQZbGgxbGwkBQ0pKFVlAWgUNUUNQFUkBQR4dWEtHUx5GQw4UDksMVRsAHA8CHlUMAVIbCVAbCAoNWUBKDBhKDgRMUVBaAUBZWEVfHQUNBwdPWgUMXBUFAR8aFhNBFVtSQlheAkocEWcLGE1DUF9HUFcGDEVeWlgdRkNZWUBbARhLBgMADC1ABwBSGwkGVkYdAQYBUAgLXggECTQGXQMIFQNdQxYIVUoZB04MFRtbWxNHUF4dHVEbCU1YF1tSVxQJS1UbBUhUSQNZHxxGSEJHCxUIGQQFV1RbRE1IAw8EFlQWFVoRDEoZVUodC1wNHFc+AwgZE1kLTw0JHxQZCBANGxZnAB0bW0gbBRlaARpZGx8UGREKHBoPZwAdZlBIVElQGEwOQkpHWRc7EAwqUBpTWxtNSBoZE1IIBFRmQFkPFhoNKgtcS0MbQ0ZMBBNrBwkVAxEUVkYLNwALXEtDG0NGTAYXQAYCUxsJFBAXDQkSQBRLEVAPHh1JSE9MAkQbCRQbCh0aGgtcS1UbDhkxHRdGHQRYVxEMWFVPSllAURomVA4IBwcXFlRPUVhfRR9GVUoXEFceClwTNRgOAEcHAlkbCRRLUElGRUwPWkoAT1tYSQ9J\",\"quality_options\":{\"hil\":2,\"jsp\":1,\"ng\":true,\"ix\":false,\"pt\":false,\"np\":false,\"nw\":true,\"nb\":true,\"sw\":412,\"sh\":915,\"dpr\":1,\"pl\":\"https://deinform.com/\",\"wy\":0,\"wx\":0,\"ww\":412,\"wh\":915,\"cw\":412,\"wiw\":412,\"wih\":915,\"wfc\":5,\"sah\":915,\"navlng\":\"en-US\",\"drf\":\"\",\"wgl\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"tb\":false,\"btz\":\"UTC\",\"bto\":0,\"pnt\":0,\"pnrc\":0,\"bml\":1,\"bmi\":true,\"vsbl\":true,\"swf\":false},\"client_hints\":{\"os\":\"android\",\"os_version\":\"16\",\"is_mobile\":\"false\",\"browser_version\":\"140.0.7339.16\"}}"
+    },
+    {
+      "method": "POST",
+      "url": "https://fundingchoicesmessages.google.com/el/AGSKWxVYqTKcUFP_AHBivc-kkfY8dZPoXhWuIaKMB56DsO7cQKW-3DH9j-v3sL54w_LE9Ca5DvJpMq9QAk3wrglnJ-Fh9CFiL1kneytrNS3tl4AK06BaueMGSXjjHz1kDd436YeSSnZp6Q==",
+      "postData": "[null,null,null,null,null,null,null,null,1790007675522,null,null,null,null,null,null,null,null,null,null,null,[[1,156,\"deinform.com\",\"deinform.com\",1]]]"
+    },
+    {
+      "method": "POST",
+      "url": "https://adsco.re/p",
+      "postData": null
+    },
+    {
+      "method": "POST",
+      "url": "https://deinform.com/cdn-cgi/rum?",
+      "postData": "{\"startTime\":1790007674003,\"pageloadId\":\"87196634-e225-4f8e-8f2b-f72ffe817bc1\",\"eventType\":1,\"nt\":\"navigate\",\"location\":\"https://deinform.com/\",\"versions\":{\"fl\":\"2024.11.0\",\"js\":\"2026.9.1\",\"timings\":2},\"bi\":{\"be\":\"Blink\",\"bev\":\"140\",\"bv\":\"140\",\"ov\":\"16\"},\"memory\":{\"totalJSHeapSize\":10000000,\"usedJSHeapSize\":10000000,\"jsHeapSizeLimit\":3760000000},\"firstPaint\":800,\"firstContentfulPaint\":800,\"timingsV2\":{\"nextHopProtocol\":\"h2\",\"domainLookupStart\":1,\"domainLookupEnd\":1,\"connectStart\":1,\"connectEnd\":1,\"secureConnectionStart\":1,\"requestStart\":2,\"responseStart\":333,\"responseEnd\":636,\"domInteractive\":856,\"domComplete\":1579,\"loadEventStart\":1579,\"loadEventEnd\":1580,\"finalResponseHeadersStart\":333,\"firstInterimResponseStart\":0,\"transferSize\":80964,\"decodedBodySize\":251342},\"siteToken\":\"a211b97c4969409aa8aef30ad2da604f\",\"st\":2}"
+    },
+    {
+      "method": "POST",
+      "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+      "postData": "[null,null,null,null,null,null,null,null,1790007676183,null,null,[[1,1]],null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0]"
+    },
+    {
+      "method": "POST",
+      "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+      "postData": "[null,null,null,null,null,null,null,null,1790007676212,null,null,[[3,1]],null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0]"
+    },
+    {
+      "method": "POST",
+      "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+      "postData": "[null,null,null,null,null,null,null,null,1790007676245,null,null,[null,[1]],null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0]"
+    },
+    {
+      "method": "POST",
+      "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+      "postData": "[null,null,null,null,null,null,null,null,1790007676246,null,null,[[2,1]],null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0]"
+    },
+    {
+      "method": "POST",
+      "url": "https://fundingchoicesmessages.google.com/el/AGSKWxUYyOSUf2Veyr5vFPzhfOTaz0vBS-eIKJu8ou8IVo6wn_YpwNlX5OAQxaL6QbUFz2zG1kGIQ3yCtpTVSn4L-iWYjexg9qtfZYJGp6sDGzus4Ab0xJ-avUi23a4MJNbCig4C5Dw0Zw==",
+      "postData": "[null,null,null,null,null,null,null,null,1790007676305,null,null,null,null,null,null,null,null,null,null,null,[[1,186,\"deinform.com\",\"deinform.com\",3]]]"
+    },
+    {
+      "method": "GET",
+      "url": "https://api.ipify.org/?format=json",
+      "postData": null
+    },
+    {
+      "method": "POST",
+      "url": "https://deinform.com/wp-admin/admin-ajax.php?action=wp_dark_mode_update_visitor&_wpnonce=b621dac565",
+      "postData": "visitor_id=false&mode=dark&security_key=b621dac565&meta=%7B%22os%22%3A%22Linux+x86_64%22%2C%22browser%22%3A%22Mozilla%22%2C%22browser_version%22%3A%225.0+%28Linux+Android+16%3B+SM-A165F%29+AppleWebKit%2F537.36+%28KHTML%2C+like+Gecko%29+Chrome%2F140.0.0.0+Mobile+Safari%2F537.36%22%2C%22language%22%3A%22en-US%22%2C%22timezone%22%3A%22UTC%22%7D&ip=145.132.103.25"
+    }
+  ],
+  "redirects": [
+    {
+      "status": 301,
+      "url": "https://tfp.re/tfpdl?d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ==",
+      "location": "https://tfp.re/tfpdl/?d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ=="
+    },
+    {
+      "status": 302,
+      "url": "https://tfp.re/tfpdl/?d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ==",
+      "location": "https://deinform.com/?id=a2R1Q2Vyci9nVkRWUHAyd1ZpR1pGQXdseE1jbWM3aGZzbkd6alVtQndJVW9CRC9XVG9TRHFFa3Z0OVEwTzFZTS8ya0lBUGtKN29GeG5vbDdMdG1iZlJadUIxL09wZ0NtY0MzdHU5WDRHclU9"
+    }
+  ],
+  "humanBoundary": true
+}

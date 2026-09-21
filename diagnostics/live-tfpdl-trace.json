@@ -1,0 +1,1452 @@
+[
+  {
+    "t": "2026-09-21T16:19:15.457Z",
+    "type": "api_error",
+    "message": "apiRequestContext.get: Timeout 12000ms exceeded.\nCall log:\n  - → GET https://tfpdl.com/wp-json/wp/v2/posts?search=Farming%20Life%20in%20Another%20World&per_page=5&_fields=id,link,title,content\n    - user-agent: Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36\n    - accept: */*\n    - accept-encoding: gzip,deflate,br\n"
+  },
+  {
+    "t": "2026-09-21T16:19:15.457Z",
+    "type": "fallback_wrapper",
+    "post": "https://tfp.re/lanterns-s01-2160p-web-dl-ddp5-1-dv-hdr-x265-tfpdl/",
+    "wrapper": "https://tfp.re/tfpdl?d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ=="
+  },
+  {
+    "t": "2026-09-21T16:19:15.499Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "document",
+    "url": "https://tfp.re/lanterns-s01-2160p-web-dl-ddp5-1-dv-hdr-x265-tfpdl/",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:20:00.496Z",
+    "type": "post_goto_error",
+    "message": "page.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://tfp.re/lanterns-s01-2160p-web-dl-ddp5-1-dv-hdr-x265-tfpdl/\", waiting until \"domcontentloaded\"\n"
+  },
+  {
+    "t": "2026-09-21T16:20:02.001Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "document",
+    "url": "https://tfp.re/tfpdl?d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ==",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:20:06.549Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "document",
+    "url": "https://tfp.re/tfpdl/?d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ==",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:20:06.550Z",
+    "type": "response",
+    "status": 301,
+    "rt": "document",
+    "url": "https://tfp.re/tfpdl?d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ==",
+    "location": "https://tfp.re/tfpdl/?d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ==",
+    "contentType": "text/html; charset=iso-8859-1"
+  },
+  {
+    "t": "2026-09-21T16:20:46.999Z",
+    "type": "wrapper_goto_error",
+    "message": "page.goto: Timeout 45000ms exceeded.\nCall log:\n  - navigating to \"https://tfp.re/tfpdl?d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ==\", waiting until \"domcontentloaded\"\n"
+  },
+  {
+    "t": "2026-09-21T16:21:13.243Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "document",
+    "url": "https://deinform.com/?id=a2R1Q2Vyci9nVkRWUHAyd1ZpR1pGQXdseE1jbWM3aGZzbkd6alVtQndJVW9CRC9XVG9TRHFFa3Z0OVEwTzFZTS8ya0lBUGtKN29GeG5vbDdMdG1iZlJadUIxL09wZ0NtY0MzdHU5WDRHclU9",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:13.243Z",
+    "type": "response",
+    "status": 302,
+    "rt": "document",
+    "url": "https://tfp.re/tfpdl/?d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ==",
+    "location": "https://deinform.com/?id=a2R1Q2Vyci9nVkRWUHAyd1ZpR1pGQXdseE1jbWM3aGZzbkd6alVtQndJVW9CRC9XVG9TRHFFa3Z0OVEwTzFZTS8ya0lBUGtKN29GeG5vbDdMdG1iZlJadUIxL09wZ0NtY0MzdHU5WDRHclU9",
+    "contentType": "text/html; charset=UTF-8"
+  },
+  {
+    "t": "2026-09-21T16:21:13.955Z",
+    "type": "response",
+    "status": 200,
+    "rt": "document",
+    "url": "https://deinform.com/?id=a2R1Q2Vyci9nVkRWUHAyd1ZpR1pGQXdseE1jbWM3aGZzbkd6alVtQndJVW9CRC9XVG9TRHFFa3Z0OVEwTzFZTS8ya0lBUGtKN29GeG5vbDdMdG1iZlJadUIxL09wZ0NtY0MzdHU5WDRHclU9",
+    "location": null,
+    "contentType": "text/html; charset=UTF-8"
+  },
+  {
+    "t": "2026-09-21T16:21:13.959Z",
+    "type": "nav",
+    "url": "https://deinform.com/?id=a2R1Q2Vyci9nVkRWUHAyd1ZpR1pGQXdseE1jbWM3aGZzbkd6alVtQndJVW9CRC9XVG9TRHFFa3Z0OVEwTzFZTS8ya0lBUGtKN29GeG5vbDdMdG1iZlJadUIxL09wZ0NtY0MzdHU5WDRHclU9"
+  },
+  {
+    "t": "2026-09-21T16:21:13.964Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:13.985Z",
+    "type": "snapshot",
+    "label": "initial",
+    "url": "https://deinform.com/?id=a2R1Q2Vyci9nVkRWUHAyd1ZpR1pGQXdseE1jbWM3aGZzbkd6alVtQndJVW9CRC9XVG9TRHFFa3Z0OVEwTzFZTS8ya0lBUGtKN29GeG5vbDdMdG1iZlJadUIxL09wZ0NtY0MzdHU5WDRHclU9",
+    "title": "Landing..",
+    "text": "",
+    "forms": [],
+    "links": []
+  },
+  {
+    "t": "2026-09-21T16:21:13.997Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495",
+    "location": null,
+    "contentType": "text/javascript;charset=UTF-8"
+  },
+  {
+    "t": "2026-09-21T16:21:14.003Z",
+    "type": "request",
+    "method": "POST",
+    "rt": "document",
+    "url": "https://deinform.com/",
+    "postData": "_wpnonce=ed49329376&_wp_http_referer=%2F%3Fid%3Da2R1Q2Vyci9nVkRWUHAyd1ZpR1pGQXdseE1jbWM3aGZzbkd6alVtQndJVW9CRC9XVG9TRHFFa3Z0OVEwTzFZTS8ya0lBUGtKN29GeG5vbDdMdG1iZlJadUIxL09wZ0NtY0MzdHU5WDRHclU9&userid=7131&sltoken=rRmwNICkYq5IYORnPZZpurrqiim9p5SLdhv9J6ZFxdllYwVVy4dFcXDzp5oMfY1WGOtgxnCTSz8GjdvN%2BDLWqago4xQRNPg97AH3pZN1sC2wbyozkhYARC3PyJg3p3fzgFBVClGQsQ%3D%3D&lemmein=manual&post_location=https%3A%2F%2Fdeinform.com%2Funraveling-the-cosmos-exploring-the-wonders-of-physics%2F"
+  },
+  {
+    "t": "2026-09-21T16:21:14.006Z",
+    "type": "request",
+    "method": "POST",
+    "rt": "xhr",
+    "url": "https://deinform.com/cdn-cgi/rum?",
+    "postData": "{\"startTime\":1790007602000,\"pageloadId\":\"719d0a90-cd89-440b-8fc0-e5b8b9b838bd\",\"eventType\":1,\"nt\":\"navigate\",\"location\":\"https://deinform.com/\",\"versions\":{\"fl\":\"2024.11.0\",\"js\":\"2026.9.1\",\"timings\":2},\"bi\":{\"be\":\"Blink\",\"bev\":\"140\",\"bv\":\"140\",\"ov\":\"16\"},\"memory\":{\"totalJSHeapSize\":10000000,\"usedJSHeapSize\":10000000,\"jsHeapSizeLimit\":3760000000},\"firstPaint\":0,\"firstContentfulPaint\":0,\"timingsV2\":{\"nextHopProtocol\":\"h2\",\"domainLookupStart\":71243,\"domainLookupEnd\":71346,\"connectStart\":71346,\"connectEnd\":71389,\"secureConnectionStart\":71363,\"requestStart\":71389,\"responseStart\":71953,\"responseEnd\":71954,\"domInteractive\":71965,\"domComplete\":72001,\"loadEventStart\":72001,\"loadEventEnd\":72001,\"finalResponseHeadersStart\":71953,\"firstInterimResponseStart\":0,\"transferSize\":1236,\"decodedBodySize\":1437},\"siteToken\":\"a211b97c4969409aa8aef30ad2da604f\",\"st\":2}"
+  },
+  {
+    "t": "2026-09-21T16:21:14.031Z",
+    "type": "response",
+    "status": 204,
+    "rt": "xhr",
+    "url": "https://deinform.com/cdn-cgi/rum?",
+    "location": null,
+    "contentType": "text/plain"
+  },
+  {
+    "t": "2026-09-21T16:21:14.337Z",
+    "type": "response",
+    "status": 200,
+    "rt": "document",
+    "url": "https://deinform.com/",
+    "location": null,
+    "contentType": "text/html; charset=UTF-8"
+  },
+  {
+    "t": "2026-09-21T16:21:14.341Z",
+    "type": "nav",
+    "url": "https://deinform.com/"
+  },
+  {
+    "t": "2026-09-21T16:21:14.432Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "blob:https://deinform.com/81cff83b-441f-4813-b49a-b094ec289726",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.434Z",
+    "type": "nav",
+    "url": "https://deinform.com/"
+  },
+  {
+    "t": "2026-09-21T16:21:14.436Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "blob:https://deinform.com/81cff83b-441f-4813-b49a-b094ec289726",
+    "location": null,
+    "contentType": "text/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:14.495Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://deinform.com/wp-content/plugins/wp-dark-mode/assets/js/dark-mode.js?ver=5.2.11",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.527Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://deinform.com/wp-content/plugins/wp-dark-mode/assets/js/dark-mode.js?ver=5.2.11",
+    "location": null,
+    "contentType": "application/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:14.572Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://deinform.com/wp-content/plugins/wp-dark-mode/assets/js/app.min.js?ver=5.2.11",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.575Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://deinform.com/wp-includes/js/jquery/jquery.min.js?ver=3.7.1",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.575Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://deinform.com/wp-includes/js/jquery/jquery-migrate.min.js?ver=3.4.1",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.575Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://deinform.com/wp-content/themes/twentysixteen/js/functions.js?ver=20230629",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.575Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://www.googletagmanager.com/gtag/js?id=UA-172910315-1",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.575Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://cdn.pubfuture-ad.com/v2/unit/pt.js",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.575Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://cdn.pixfuture.com/pxft_iel.js?siteid=11769",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.575Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://acscdn.com/script/aclib.js",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.575Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://live.demand.supply/up.js",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.595Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://deinform.com/wp-includes/js/jquery/jquery-migrate.min.js?ver=3.4.1",
+    "location": null,
+    "contentType": "application/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:14.603Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://deinform.com/wp-includes/js/jquery/jquery.min.js?ver=3.7.1",
+    "location": null,
+    "contentType": "application/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:14.607Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://deinform.com/wp-content/plugins/wp-dark-mode/assets/js/app.min.js?ver=5.2.11",
+    "location": null,
+    "contentType": "application/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:14.621Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://fundingchoicesmessages.google.com/f/AGSKWxW-2D-NpOj-Hh67ZS7JVI4_Q0GEMemkPkF9m__v_6YFUh1r7KgeU9oTjsajdLc_nxARZIXW4BDHXowiQDVBBI8=",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.640Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://stats.wp.com/e-202639.js",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.640Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.641Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495",
+    "location": null,
+    "contentType": "text/javascript;charset=UTF-8"
+  },
+  {
+    "t": "2026-09-21T16:21:14.665Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://stats.wp.com/e-202639.js",
+    "location": null,
+    "contentType": "application/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:14.674Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://acscdn.com/script/aclib.js",
+    "location": null,
+    "contentType": "text/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:14.777Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://al5sm.com/tag.min.js",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.799Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://deinform.com/wp-content/themes/twentysixteen/js/functions.js?ver=20230629",
+    "location": null,
+    "contentType": "application/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:14.799Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://cdn.pixfuture.com/pxft_iel.js?siteid=11769",
+    "location": null,
+    "contentType": "application/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:14.810Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://www.intellipopup.com/b/spnp.min.js",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.846Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://www.googletagmanager.com/gtag/js?id=UA-172910315-1",
+    "location": null,
+    "contentType": "application/javascript; charset=UTF-8"
+  },
+  {
+    "t": "2026-09-21T16:21:14.907Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://c.adsco.re/",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.908Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://www.intellipopup.com/b/spnp.min.js",
+    "location": null,
+    "contentType": "application/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:14.908Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://al5sm.com/tag.min.js",
+    "location": null,
+    "contentType": "application/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:14.919Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://www.googletagmanager.com/gtag/js?id=G-X8V6G8MK5Q&cx=c&gtm=4e69h0",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.920Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://www.google-analytics.com/analytics.js",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.952Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "xhr",
+    "url": "https://my.rtmark.net/gid.js",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.966Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://www.google-analytics.com/analytics.js",
+    "location": null,
+    "contentType": "text/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:14.980Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "blob:https://deinform.com/a0a27bc0-aa7f-4d5b-9b34-161feac266a9",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.989Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://c.adsco.re/",
+    "location": null,
+    "contentType": "application/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:14.990Z",
+    "type": "console",
+    "level": "warning",
+    "text": "[GroupMarkerNotSet(crbug.com/242999)!:A07020000C1D0000]Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader (about:flags#enable-unsafe-swiftshader) flag to opt in to lower security guarantees for trusted content."
+  },
+  {
+    "t": "2026-09-21T16:21:14.992Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "blob:https://deinform.com/83cf16d3-d28a-4896-8ed0-445dfaa356f4",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.994Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "blob:https://deinform.com/a0a27bc0-aa7f-4d5b-9b34-161feac266a9",
+    "location": null,
+    "contentType": "application/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:14.994Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "blob:https://deinform.com/20ee98ed-679d-428a-b69a-d4fa80d2ce63",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:14.997Z",
+    "type": "console",
+    "level": "startGroupCollapsed",
+    "text": "Bot and proxy detection by Adscore.com"
+  },
+  {
+    "t": "2026-09-21T16:21:15.054Z",
+    "type": "console",
+    "level": "debug",
+    "text": "/./"
+  },
+  {
+    "t": "2026-09-21T16:21:15.204Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://cdn.pubfuture-ad.com/v2/unit/pt.js",
+    "location": null,
+    "contentType": "application/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:15.207Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "blob:https://deinform.com/83cf16d3-d28a-4896-8ed0-445dfaa356f4",
+    "location": null,
+    "contentType": "application/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:15.213Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://www.googletagmanager.com/gtag/js?id=G-X8V6G8MK5Q&cx=c&gtm=4e69h0",
+    "location": null,
+    "contentType": "application/javascript; charset=UTF-8"
+  },
+  {
+    "t": "2026-09-21T16:21:15.238Z",
+    "type": "console",
+    "level": "warning",
+    "text": "[GroupMarkerNotSet(crbug.com/242999)!:A0A020000C1D0000]Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader (about:flags#enable-unsafe-swiftshader) flag to opt in to lower security guarantees for trusted content."
+  },
+  {
+    "t": "2026-09-21T16:21:15.242Z",
+    "type": "response",
+    "status": 200,
+    "rt": "xhr",
+    "url": "https://my.rtmark.net/gid.js",
+    "location": null,
+    "contentType": "application/json; charset=utf-8"
+  },
+  {
+    "t": "2026-09-21T16:21:15.243Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "blob:https://deinform.com/20ee98ed-679d-428a-b69a-d4fa80d2ce63",
+    "location": null,
+    "contentType": "application/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:15.244Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://fundingchoicesmessages.google.com/f/AGSKWxW-2D-NpOj-Hh67ZS7JVI4_Q0GEMemkPkF9m__v_6YFUh1r7KgeU9oTjsajdLc_nxARZIXW4BDHXowiQDVBBI8=",
+    "location": null,
+    "contentType": "application/javascript; charset=utf-8"
+  },
+  {
+    "t": "2026-09-21T16:21:15.245Z",
+    "type": "console",
+    "level": "warning",
+    "text": "[.WebGL-0x38bc02684e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+  },
+  {
+    "t": "2026-09-21T16:21:15.246Z",
+    "type": "console",
+    "level": "warning",
+    "text": "[.WebGL-0x38bc02684e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+  },
+  {
+    "t": "2026-09-21T16:21:15.372Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "fetch",
+    "url": "https://adsco.re/p",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:15.373Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "fetch",
+    "url": "https://4.adsco.re/",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:15.373Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "fetch",
+    "url": "https://4.adsco.re:2087/",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:15.374Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "fetch",
+    "url": "https://6.adsco.re/",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:15.374Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "fetch",
+    "url": "https://6.adsco.re:2087/",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:15.378Z",
+    "type": "response",
+    "status": 200,
+    "rt": "fetch",
+    "url": "https://adsco.re/p",
+    "location": null,
+    "contentType": "text/plain"
+  },
+  {
+    "t": "2026-09-21T16:21:15.378Z",
+    "type": "response",
+    "status": 200,
+    "rt": "fetch",
+    "url": "https://4.adsco.re/",
+    "location": null,
+    "contentType": "text/plain"
+  },
+  {
+    "t": "2026-09-21T16:21:15.378Z",
+    "type": "response",
+    "status": 200,
+    "rt": "fetch",
+    "url": "https://4.adsco.re:2087/",
+    "location": null,
+    "contentType": "text/plain"
+  },
+  {
+    "t": "2026-09-21T16:21:15.380Z",
+    "type": "response",
+    "status": 200,
+    "rt": "fetch",
+    "url": "https://6.adsco.re/",
+    "location": null,
+    "contentType": "text/plain;charset=UTF-8"
+  },
+  {
+    "t": "2026-09-21T16:21:15.380Z",
+    "type": "response",
+    "status": 200,
+    "rt": "fetch",
+    "url": "https://6.adsco.re:2087/",
+    "location": null,
+    "contentType": "text/plain;charset=UTF-8"
+  },
+  {
+    "t": "2026-09-21T16:21:15.395Z",
+    "type": "request",
+    "method": "POST",
+    "rt": "xhr",
+    "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+    "postData": "[null,null,null,null,null,null,null,null,1790007675389,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0,[null,null,[1001306373799221]]]"
+  },
+  {
+    "t": "2026-09-21T16:21:15.395Z",
+    "type": "request",
+    "method": "POST",
+    "rt": "xhr",
+    "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+    "postData": "[null,null,null,null,null,null,null,null,1790007675391,null,null,null,null,null,null,null,null,null,null,null,[[1,156,\"deinform.com\",\"deinform.com\",1]]]"
+  },
+  {
+    "t": "2026-09-21T16:21:15.410Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://fundingchoicesmessages.google.com/f/AGSKWxWvW235pXN0UZFhhxphCGPswSK9oczm6BnAvb07pnCEbziOCkUEN2JNhW5z-8HGZCF7_ALc6Ykgwr7czfuKCv3iGdxWSylUZ1lWi6T7PCW5oHfQnV_uOkqljzdiz6DpK9FuLg4-jw==?fccs=W251bGwsbnVsbCxudWxsLG51bGwsbnVsbCxudWxsLFsxNzkwMDA3Njc1LDQwNjAwMDAwMF0sbnVsbCxudWxsLG51bGwsW251bGwsWzddXSwiaHR0cHM6Ly9kZWluZm9ybS5jb20vIixudWxsLFtbOCwidU95MmgyNUQ2OG8iXSxbOSwiZW4tVVMiXSxbMzUsIjE3OTAwMDc2NzUiXSxbMTksIjIiXSxbMTcsIlswXSJdLFsyNCwiIl0sWzI5LCJ0cnVlIl1dXQ",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:15.410Z",
+    "type": "console",
+    "level": "warning",
+    "text": "[GroupMarkerNotSet(crbug.com/242999)!:A040E6060C1D0000]Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader (about:flags#enable-unsafe-swiftshader) flag to opt in to lower security guarantees for trusted content."
+  },
+  {
+    "t": "2026-09-21T16:21:15.410Z",
+    "type": "console",
+    "level": "warning",
+    "text": "[GroupMarkerNotSet(crbug.com/242999)!:A070E6060C1D0000]Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader (about:flags#enable-unsafe-swiftshader) flag to opt in to lower security guarantees for trusted content."
+  },
+  {
+    "t": "2026-09-21T16:21:15.429Z",
+    "type": "request",
+    "method": "POST",
+    "rt": "fetch",
+    "url": "https://www.google-analytics.com/g/collect?v=2&tid=G-X8V6G8MK5Q&gtm=45je69h0v9119040899za20gxf1&_p=1790007674619&gcd=13l3l3l3l1l1&npa=0&dma=0&tcfd=10000&_eu=AAAI&are=1&cid=1881396605.1790007675&frm=0&ngs=1&pscdl=noapi&rcb=18&sr=412x915&uaa=arm&uab=64&uafvl=Chromium%3B140.0.7339.16%7CNot%253DA%253FBrand%3B24.0.0.0%7CHeadlessChrome%3B140.0.7339.16&uam=&uamb=0&uap=Android&uapv=16&uaw=0&ul=en-us&_s=1&tag_exp=115616985~115938466~115938468~118897920~118897930~120213116~120385422~120469145~120469153&sid=1790007675&sct=1&seg=0&dl=https%3A%2F%2Fdeinform.com%2F&dt=Deinform%20-%20Information%20Home&en=page_view&_fv=1&_ss=1&gap.plf=5&tfd=1423",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:15.435Z",
+    "type": "console",
+    "level": "warning",
+    "text": "[GroupMarkerNotSet(crbug.com/242999)!:A0D0E6060C1D0000]Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader (about:flags#enable-unsafe-swiftshader) flag to opt in to lower security guarantees for trusted content."
+  },
+  {
+    "t": "2026-09-21T16:21:15.436Z",
+    "type": "console",
+    "level": "warning",
+    "text": "[GroupMarkerNotSet(crbug.com/242999)!:A00008070C1D0000]Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader (about:flags#enable-unsafe-swiftshader) flag to opt in to lower security guarantees for trusted content."
+  },
+  {
+    "t": "2026-09-21T16:21:15.457Z",
+    "type": "request",
+    "method": "POST",
+    "rt": "xhr",
+    "url": "https://255md.com/5/10996743/?oo=1&js_build=iclick-v1.1910.0&userId=0803b824159f4552e96aa933b87d50f3&dmn=al5sm.com&tt=2&ix=0&tspl=925&cslt=44",
+    "postData": "{\"sync\":\"TBtSUh8cJhwUBWcfHEsSAwEFUA5MXwMBbAdIOzYuV04aDQxLEkhUEFBGBzJFTxEMT0pKRFcQSBlbA1hEWEdQQBQCFQMDGlgTDjcCCmceEE4+HQcDLUMWMkBAbF8COw4OFj1LCBFmEgIxGAVrHQxAZlBBJQcRNxESSktDCU9bQkkGRzEJUk1WVQ4BHTcYFkhLQwlNSAQYB1VMVwcVEVgKOwkMV1gIR0gVQwQeBVAOXkEVUVpaWF5JRkZOGhwQXUNQXkdQWg8dFQMDGlgBDwkZQAJZVRsJCUxRQhhMCVobCQZUVVVKBxZMS0MJTUgNAy1bDAcVAwMaWAoONwIGGlNJFUMFHQgCQUxXBxURXhMAHQ0bQAJZVRsCAjEEEF4xBFldVk5YXklGR04aHhBXPgELEgFrAghZXkdeWF5JRkROGgoWVQ4YMQ8XRBoFFQMDGlgSHAYRDUpLQwlPW0JJFVUDCEdYV0VYXklGQU4aBxVmDwYdSUgEQFwbG1BZFgsLNxIDVRwNG1taQkkCUgJPDQkdB1ZGGhscQAJZVRsCBhpJSARAXBsbQ1obEB8HBw9nDRxNBAkaBAAWVF0ZCx8UFAEKSk9QFltVGxUFGgoeFlRcDhcCS1ZGCwFXWBooN34tL05DNVsBCltcHxYsERUDFAwYWFcKT1pOQyFDBwtDaltXHgELSDEHTgAaXEFCPR4QTgsfWBATHkocSVhFUntZPXxIQ0JLIUMHC0NqW1ceAQtIERBRHxxLSEhCSQBCTFcVflxZHQgcSDwMW0dZESYFAQweUUdPGxtBRgpGQ1lFThodA1ZDUF5HUEMZTw0NAgRWRg4AV1gBWEwVQx0HHFAOWlwFFRFBEwxbUkxTDUVbThlIVFteFhkUFQMDGlgNAUpPUhRLDl8CSFRfXhYdDF8bCQ9LUVVKBgoaU0AIVEZMGAUWVFkGCx8UCQUOSk9WCVtVGwUaHElIBUJPWk1DFEBUVUoBEWcNHE0ECRoOFhZUXRsbWUUPBVtSVy9XExBVDQtBXlwETkV7UF1DAl9ZKRsGSgYQXUFbWFBSZyNAdggFAzxNWSkFElQMLlwDIQcfXQFdWhkKBRZSLzE8OC4USRVQCg9OLBdXBQIeGXBeCAsUDVpTDFlXCU9aQFtSeQEPXlVWFikFHwkHCxdcSg5PWVhJXhYAHRUDAxpYFB1KT0AaRVtXEQRMUVAWQk9fUF8UQFZVSgALXEtDVxQGAkdQWg8dFQMRehMKDBBVGgBfJg9VSEJJF0IPARUDAAVWRhELV1gMRVtdDEhUU14WHBlDGwkGVkYaACoNWgNbA1BGTAUFFlRcGxtEUlheDRoABxRLFkoCGhtJSFobAVsVEV4TAB0NG0ACDxhVEg9CSRFcMQJVU2xfFAAcEFdYCl9IFUMdBwUtXwsURGZfUxQDDQBXWAxYThVDCQEHHUYxCVJJR15YXktcWUBODBddDhhMUVBzAQJQVVYWMwoaRldOGg4YVAQaDw8BFlRdGxtdWlheWw0bT206WxVDBAIYUA5MCFkUZmVYSFsLGg5XGyZeAAcbH1AOTB5FXlEUVkYJDhlAAktbFUMJAh9QDhUQGxtDWhsQHwcHD2cNHE0ECRoEABZUFhVQQGkbCh0aGgtcS0NfAAYdDl4WBx5oTUFfHgEXHFdYXggVSgRGTAIBaw0FRVZeXw8JJlBDPVcbJlcEHQsZUA4aH0JcHxQTFyYLHRBXBBBMDEhUHwBBC0EVUEBpHwAeDVdYXggVSgRGTAIBawkIVFJcFEACGAQGBxRLEEo+HQsJLV8HGRUDVVcWFxxEVwtLNg5cAzUFAgZrWF0BZlxEJQocHxAQGlMfWA0ZC0dQXR0yU1xAXQ4LCTcGA14IC1BDUAgKHkcLQRVQQGkZDAsHGAtNBCZWEQ8cClAOCAxbSlZLVkYXDQZAAktKClZYX19LDFlfFRURVRYNHAYBPVENWwNDHwAAHFsZAxUVEVUPFw0HGD1RDSYIQ1BMSV4WDRhETVxbJQ0dN0dAAktbFUMeHAoUUgcOaEpcQwgHHDccBhpTWxtNSAEKLV0KTw0bERpYFiYdHAYaU1sbTUgDDgZcAQkVAxFcCRAYD1dOGgcbG1tbQkkcU0xXBhURRg5GQ1hZQEgFWwNDAhofAkdUQhhdVl8UAhYaGExbBhQWQ0ZMDwBSTFcVGx8UDh5bUlc3bCpbFUMaAB9QDl5BFVNARlheSERXElYbGhtbWkJJAUMITw1fUloJAQQ=\",\"async\":\"TBtSUh8cJhwUBWcfHEsSAwEFUA5MXwMBbAdIOzYuV04aDQxLEkhUEFBWAhlfGwkEVkYbCQFAAltXCk1IGwUWUQgEWVxXFEBWVUoYBk5LQw5QRF1HUFwHCVNcXWkTAgsJGAcaU04AT1hCSQZbGgxbGwkBQ0pKFVlAWgUNUUNQFUkBQR4dWEtHUx5GQw4UDksMVRsAHA8CHlUMAVIbCVAbCAoNWUBKDBhKDgRMUVBaAUBZWEVfHQUNBwdPWgUMXBUFAR8aFhNBFVtSQlheAkocEWcLGE1DUF9HUFcGDEVeWlgdRkNZWUBbARhLBgMADC1ABwBSGwkGVkYdAQYBUAgLXggECTQGXQMIFQNdQxYIVUoZB04MFRtbWxNHUF4dHVEbCU1YF1tSVxQJS1UbBUhUSQNZHxxGSEJHCxUIGQQFV1RbRE1IAw8EFlQWFVoRDEoZVUodC1wNHFc+AwgZE1kLTw0JHxQZCBANGxZnAB0bW0gbBRlaARpZGx8UGREKHBoPZwAdZlBIVElQGEwOQkpHWRc7EAwqUBpTWxtNSBoZE1IIBFRmQFkPFhoNKgtcS0MbQ0ZMBBNrBwkVAxEUVkYLNwALXEtDG0NGTAYXQAYCUxsJFBAXDQkSQBRLEVAPHh1JSE9MAkQbCRQbCh0aGgtcS1UbDhkxHRdGHQRYVxEMWFVPSllAURomVA4IBwcXFlRPUVhfRR9GVUoXEFceClwTNRgOAEcHAlkbCRRLUElGRUwPWkoAT1tYSQ9J\",\"quality_options\":{\"hil\":2,\"jsp\":1,\"ng\":true,\"ix\":false,\"pt\":false,\"np\":false,\"nw\":true,\"nb\":true,\"sw\":412,\"sh\":915,\"dpr\":1,\"pl\":\"https://deinform.com/\",\"wy\":0,\"wx\":0,\"ww\":412,\"wh\":915,\"cw\":412,\"wiw\":412,\"wih\":915,\"wfc\":5,\"sah\":915,\"navlng\":\"en-US\",\"drf\":\"\",\"wgl\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"tb\":false,\"btz\":\"UTC\",\"bto\":0,\"pnt\":0,\"pnrc\":0,\"bml\":1,\"bmi\":true,\"vsbl\":true,\"swf\":false},\"client_hints\":{\"os\":\"android\",\"os_version\":\"16\",\"is_mobile\":\"false\",\"browser_version\":\"140.0.7339.16\"}}"
+  },
+  {
+    "t": "2026-09-21T16:21:15.459Z",
+    "type": "response",
+    "status": 204,
+    "rt": "xhr",
+    "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+    "location": null,
+    "contentType": "text/html; charset=utf-8"
+  },
+  {
+    "t": "2026-09-21T16:21:15.487Z",
+    "type": "response",
+    "status": 204,
+    "rt": "xhr",
+    "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+    "location": null,
+    "contentType": "text/html; charset=utf-8"
+  },
+  {
+    "t": "2026-09-21T16:21:15.492Z",
+    "type": "console",
+    "level": "warning",
+    "text": "[GroupMarkerNotSet(crbug.com/242999)!:A0A0E6060C1D0000]Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader (about:flags#enable-unsafe-swiftshader) flag to opt in to lower security guarantees for trusted content."
+  },
+  {
+    "t": "2026-09-21T16:21:15.493Z",
+    "type": "response",
+    "status": 204,
+    "rt": "fetch",
+    "url": "https://www.google-analytics.com/g/collect?v=2&tid=G-X8V6G8MK5Q&gtm=45je69h0v9119040899za20gxf1&_p=1790007674619&gcd=13l3l3l3l1l1&npa=0&dma=0&tcfd=10000&_eu=AAAI&are=1&cid=1881396605.1790007675&frm=0&ngs=1&pscdl=noapi&rcb=18&sr=412x915&uaa=arm&uab=64&uafvl=Chromium%3B140.0.7339.16%7CNot%253DA%253FBrand%3B24.0.0.0%7CHeadlessChrome%3B140.0.7339.16&uam=&uamb=0&uap=Android&uapv=16&uaw=0&ul=en-us&_s=1&tag_exp=115616985~115938466~115938468~118897920~118897930~120213116~120385422~120469145~120469153&sid=1790007675&sct=1&seg=0&dl=https%3A%2F%2Fdeinform.com%2F&dt=Deinform%20-%20Information%20Home&en=page_view&_fv=1&_ss=1&gap.plf=5&tfd=1423",
+    "location": null,
+    "contentType": "text/plain"
+  },
+  {
+    "t": "2026-09-21T16:21:15.511Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://fundingchoicesmessages.google.com/f/AGSKWxWvW235pXN0UZFhhxphCGPswSK9oczm6BnAvb07pnCEbziOCkUEN2JNhW5z-8HGZCF7_ALc6Ykgwr7czfuKCv3iGdxWSylUZ1lWi6T7PCW5oHfQnV_uOkqljzdiz6DpK9FuLg4-jw==?fccs=W251bGwsbnVsbCxudWxsLG51bGwsbnVsbCxudWxsLFsxNzkwMDA3Njc1LDQwNjAwMDAwMF0sbnVsbCxudWxsLG51bGwsW251bGwsWzddXSwiaHR0cHM6Ly9kZWluZm9ybS5jb20vIixudWxsLFtbOCwidU95MmgyNUQ2OG8iXSxbOSwiZW4tVVMiXSxbMzUsIjE3OTAwMDc2NzUiXSxbMTksIjIiXSxbMTcsIlswXSJdLFsyNCwiIl0sWzI5LCJ0cnVlIl1dXQ",
+    "location": null,
+    "contentType": "application/javascript; charset=utf-8"
+  },
+  {
+    "t": "2026-09-21T16:21:15.525Z",
+    "type": "request",
+    "method": "POST",
+    "rt": "xhr",
+    "url": "https://fundingchoicesmessages.google.com/el/AGSKWxVYqTKcUFP_AHBivc-kkfY8dZPoXhWuIaKMB56DsO7cQKW-3DH9j-v3sL54w_LE9Ca5DvJpMq9QAk3wrglnJ-Fh9CFiL1kneytrNS3tl4AK06BaueMGSXjjHz1kDd436YeSSnZp6Q==",
+    "postData": "[null,null,null,null,null,null,null,null,1790007675522,null,null,null,null,null,null,null,null,null,null,null,[[1,156,\"deinform.com\",\"deinform.com\",1]]]"
+  },
+  {
+    "t": "2026-09-21T16:21:15.525Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://fundingchoicesmessages.google.com/f/AGSKWxXe839ENB3ez_3D7RRRCayLSfKvwgmgOrT8D4uDRiXMxbz5K2TyJviMwy2R1Nu349nOfSw7-w4-hZGJF0MsXYapQ2DFguBggKocvfsyFQlgUB1nEdMXMKvzlXZpoLLpqfKiQAM-GA==?fccs=W251bGwsbnVsbCxudWxsLG51bGwsbnVsbCxudWxsLFsxNzkwMDA3Njc1LDUyMzAwMDAwMF0sbnVsbCxudWxsLG51bGwsW251bGwsWzcsOV0sbnVsbCwyLG51bGwsImVuIl0sImh0dHBzOi8vZGVpbmZvcm0uY29tLyIsbnVsbCxbWzgsInVPeTJoMjVENjhvIl0sWzksImVuLVVTIl0sWzM1LCIxNzkwMDA3Njc1Il0sWzE5LCIyIl0sWzE3LCJbMF0iXSxbMjQsIiJdLFsyOSwidHJ1ZSJdXV0",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:15.562Z",
+    "type": "response",
+    "status": 204,
+    "rt": "xhr",
+    "url": "https://fundingchoicesmessages.google.com/el/AGSKWxVYqTKcUFP_AHBivc-kkfY8dZPoXhWuIaKMB56DsO7cQKW-3DH9j-v3sL54w_LE9Ca5DvJpMq9QAk3wrglnJ-Fh9CFiL1kneytrNS3tl4AK06BaueMGSXjjHz1kDd436YeSSnZp6Q==",
+    "location": null,
+    "contentType": "text/html; charset=utf-8"
+  },
+  {
+    "t": "2026-09-21T16:21:15.583Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://fundingchoicesmessages.google.com/f/AGSKWxXe839ENB3ez_3D7RRRCayLSfKvwgmgOrT8D4uDRiXMxbz5K2TyJviMwy2R1Nu349nOfSw7-w4-hZGJF0MsXYapQ2DFguBggKocvfsyFQlgUB1nEdMXMKvzlXZpoLLpqfKiQAM-GA==?fccs=W251bGwsbnVsbCxudWxsLG51bGwsbnVsbCxudWxsLFsxNzkwMDA3Njc1LDUyMzAwMDAwMF0sbnVsbCxudWxsLG51bGwsW251bGwsWzcsOV0sbnVsbCwyLG51bGwsImVuIl0sImh0dHBzOi8vZGVpbmZvcm0uY29tLyIsbnVsbCxbWzgsInVPeTJoMjVENjhvIl0sWzksImVuLVVTIl0sWzM1LCIxNzkwMDA3Njc1Il0sWzE5LCIyIl0sWzE3LCJbMF0iXSxbMjQsIiJdLFsyOSwidHJ1ZSJdXV0",
+    "location": null,
+    "contentType": "application/javascript; charset=utf-8"
+  },
+  {
+    "t": "2026-09-21T16:21:15.596Z",
+    "type": "request",
+    "method": "POST",
+    "rt": "fetch",
+    "url": "https://adsco.re/p",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:15.601Z",
+    "type": "request",
+    "method": "POST",
+    "rt": "xhr",
+    "url": "https://deinform.com/cdn-cgi/rum?",
+    "postData": "{\"startTime\":1790007674003,\"pageloadId\":\"87196634-e225-4f8e-8f2b-f72ffe817bc1\",\"eventType\":1,\"nt\":\"navigate\",\"location\":\"https://deinform.com/\",\"versions\":{\"fl\":\"2024.11.0\",\"js\":\"2026.9.1\",\"timings\":2},\"bi\":{\"be\":\"Blink\",\"bev\":\"140\",\"bv\":\"140\",\"ov\":\"16\"},\"memory\":{\"totalJSHeapSize\":10000000,\"usedJSHeapSize\":10000000,\"jsHeapSizeLimit\":3760000000},\"firstPaint\":800,\"firstContentfulPaint\":800,\"timingsV2\":{\"nextHopProtocol\":\"h2\",\"domainLookupStart\":1,\"domainLookupEnd\":1,\"connectStart\":1,\"connectEnd\":1,\"secureConnectionStart\":1,\"requestStart\":2,\"responseStart\":333,\"responseEnd\":636,\"domInteractive\":856,\"domComplete\":1579,\"loadEventStart\":1579,\"loadEventEnd\":1580,\"finalResponseHeadersStart\":333,\"firstInterimResponseStart\":0,\"transferSize\":80964,\"decodedBodySize\":251342},\"siteToken\":\"a211b97c4969409aa8aef30ad2da604f\",\"st\":2}"
+  },
+  {
+    "t": "2026-09-21T16:21:15.617Z",
+    "type": "response",
+    "status": 204,
+    "rt": "xhr",
+    "url": "https://deinform.com/cdn-cgi/rum?",
+    "location": null,
+    "contentType": "text/plain"
+  },
+  {
+    "t": "2026-09-21T16:21:15.640Z",
+    "type": "response",
+    "status": 200,
+    "rt": "fetch",
+    "url": "https://adsco.re/p",
+    "location": null,
+    "contentType": "text/plain"
+  },
+  {
+    "t": "2026-09-21T16:21:15.642Z",
+    "type": "console",
+    "level": "endGroup",
+    "text": "console.groupEnd"
+  },
+  {
+    "t": "2026-09-21T16:21:15.681Z",
+    "type": "response",
+    "status": 204,
+    "rt": "xhr",
+    "url": "https://255md.com/5/10996743/?oo=1&js_build=iclick-v1.1910.0&userId=0803b824159f4552e96aa933b87d50f3&dmn=al5sm.com&tt=2&ix=0&tspl=925&cslt=44",
+    "location": null,
+    "contentType": "text/plain; charset=utf-8"
+  },
+  {
+    "t": "2026-09-21T16:21:15.744Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://intellipopup.com/kicvutmgbbtsrkwilxq?OuXlaVSq=BQRCAAAAAAAACZUAArCzgalrGGAaatSZu5keiJvdQ6cHDHS96mD9yFWQ8mpS-VvoeXmY0hVqxjj2aKsI6T_Q6B57oH0IeNi2D-1CDr7njhc3mwrvpaAChocYyVhNJKyG4zsyUKPg_Qgv-In7Dw_cIDA0N6j6ZedbYE8dQw_Mg4dcPJvLceE9UHvENu71bFGvO6K1OcZk0Ibn7cz-xoCACZPnGthSwbATItBtkGRuStA9dwv6mOqEdLeWKHpArmuu91DMvuAZTeoSw-stuHI6ElGixchd0P-Xd6KaocampOqBlVpv8h7K89d8l2Z3nQhOoPV4xFtSCjxcZ1WJQ_9ZMQpqd5sPtFIXtOGUo6NWQ9nRGwipo-YoDKucamFN_70BvsE72Ae74R5XVCb915qJxqM_Zw4twIjTsAC86ia59-tF3SHf2FBiBPIU7GM-icZoPrv4s62N-ZWGTMH6oOlzwz7ABxSn84imrCJ6UkJrGP-8pxRlxz4FAvsyN7qqVvgJeU5kT6dRXtDpK5Wob7ZEsOzgcffAE3YJCfI_cuXYE0a37gKELpzd-px959LKx4ZaQYybXjztNwgxJvtC4r41vyyV7_rjTRO3Nmj1132znTr8CnMoTQJ1AAReo8b7QZgWr8bALkya0dtnmB8uhaLOhCb5_S3cbcQ5sSjwVqXvtD7NQvkYIafek6x75kAPpANn_22mR96UFE8yYwd_ujrxjZFa-p7ZBYlAd4LRyBNjJxBMV_xrkpHwzhHuPzGg5u4LrP3HbdxhNkB4ceWJyS-gTJCkyYSdJX8aNx0awMxaAvXFkhp_MwI8kqwVYTfljhd-EDkK_Ize7KNYzSH8p1wLx6AES4qaREaVH7qWjs9p-FR_zhzJ6pgiFeBEyfKOBzT62v4Pu-FfrdIrsIh6CbyEP1unIDO5DzupYD5gXpnplM81Zld2tW0B5jnWMZBPBAeIhzZwjAd_CZRJ48CyCDzRfW3HVuCOHxGtg_obAr5iXFgZ37j7Erw0iRzFYKgA2Yvz0oUiBlo8mnJI5O-ifTzW0hKnjEcUPfXgACuDo_tH6DPjRC1UCYN2W1imRao7crb7Kphd6vT1FBV8kgxazAsnyFYdVWw1Og8DWr-0aKUsGLo3wJqF0IaU1mb7PBnhzcrG1IL0WJxLktB_43odiZ8zra9P0qSMQCZu8LlJC4mGj5f0I8l7pPfBrNqppMJeqgATnj7cXgake04_YOHd2oQxvy7UAt4wTlKoZtYmReOitqZj8Bswp9_af3etkJEa9JYjpDrNhY2b5J7BxIy1lAptEs5ntUMyeeQxiAYmz94ztxZ3KrheNqdtbdyjFqWVZzLCG18n6YEAqcuwAFwbd8SMFYurPJO6GrPd1D59xQITM4WoMw2LxmezQ50jcmq_ToAdglue9Na7gub35GWSoSwabtNEkLIEl7g57vxm2Io67PwD2ebk6caugBTfMhiJ&CshvztjN=4&sevGkXQU=5173153&rfVFvZdk=&gAUrDaNH=0,0&LJkOcxCi=&lDOoYCAV=&BHcPJqtX=412,915,1,412,915,0",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:15.806Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://intellipopup.com/kicvutmgbbtsrkwilxq?OuXlaVSq=BQRCAAAAAAAACZUAArCzgalrGGAaatSZu5keiJvdQ6cHDHS96mD9yFWQ8mpS-VvoeXmY0hVqxjj2aKsI6T_Q6B57oH0IeNi2D-1CDr7njhc3mwrvpaAChocYyVhNJKyG4zsyUKPg_Qgv-In7Dw_cIDA0N6j6ZedbYE8dQw_Mg4dcPJvLceE9UHvENu71bFGvO6K1OcZk0Ibn7cz-xoCACZPnGthSwbATItBtkGRuStA9dwv6mOqEdLeWKHpArmuu91DMvuAZTeoSw-stuHI6ElGixchd0P-Xd6KaocampOqBlVpv8h7K89d8l2Z3nQhOoPV4xFtSCjxcZ1WJQ_9ZMQpqd5sPtFIXtOGUo6NWQ9nRGwipo-YoDKucamFN_70BvsE72Ae74R5XVCb915qJxqM_Zw4twIjTsAC86ia59-tF3SHf2FBiBPIU7GM-icZoPrv4s62N-ZWGTMH6oOlzwz7ABxSn84imrCJ6UkJrGP-8pxRlxz4FAvsyN7qqVvgJeU5kT6dRXtDpK5Wob7ZEsOzgcffAE3YJCfI_cuXYE0a37gKELpzd-px959LKx4ZaQYybXjztNwgxJvtC4r41vyyV7_rjTRO3Nmj1132znTr8CnMoTQJ1AAReo8b7QZgWr8bALkya0dtnmB8uhaLOhCb5_S3cbcQ5sSjwVqXvtD7NQvkYIafek6x75kAPpANn_22mR96UFE8yYwd_ujrxjZFa-p7ZBYlAd4LRyBNjJxBMV_xrkpHwzhHuPzGg5u4LrP3HbdxhNkB4ceWJyS-gTJCkyYSdJX8aNx0awMxaAvXFkhp_MwI8kqwVYTfljhd-EDkK_Ize7KNYzSH8p1wLx6AES4qaREaVH7qWjs9p-FR_zhzJ6pgiFeBEyfKOBzT62v4Pu-FfrdIrsIh6CbyEP1unIDO5DzupYD5gXpnplM81Zld2tW0B5jnWMZBPBAeIhzZwjAd_CZRJ48CyCDzRfW3HVuCOHxGtg_obAr5iXFgZ37j7Erw0iRzFYKgA2Yvz0oUiBlo8mnJI5O-ifTzW0hKnjEcUPfXgACuDo_tH6DPjRC1UCYN2W1imRao7crb7Kphd6vT1FBV8kgxazAsnyFYdVWw1Og8DWr-0aKUsGLo3wJqF0IaU1mb7PBnhzcrG1IL0WJxLktB_43odiZ8zra9P0qSMQCZu8LlJC4mGj5f0I8l7pPfBrNqppMJeqgATnj7cXgake04_YOHd2oQxvy7UAt4wTlKoZtYmReOitqZj8Bswp9_af3etkJEa9JYjpDrNhY2b5J7BxIy1lAptEs5ntUMyeeQxiAYmz94ztxZ3KrheNqdtbdyjFqWVZzLCG18n6YEAqcuwAFwbd8SMFYurPJO6GrPd1D59xQITM4WoMw2LxmezQ50jcmq_ToAdglue9Na7gub35GWSoSwabtNEkLIEl7g57vxm2Io67PwD2ebk6caugBTfMhiJ&CshvztjN=4&sevGkXQU=5173153&rfVFvZdk=&gAUrDaNH=0,0&LJkOcxCi=&lDOoYCAV=&BHcPJqtX=412,915,1,412,915,0",
+    "location": null,
+    "contentType": "application/javascript"
+  },
+  {
+    "t": "2026-09-21T16:21:16.185Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://fundingchoicesmessages.google.com/f/AGSKWxUhKSSm2bwYFpDcAJlF8xafiSIiJk5hu4L51y0hkUPvmBCKri1V951oAcQ88RVPgH1nLlrY7qY9p49O6EDnPRoq-U0jmp1kil4RzZM_pwdG0TdWAt3Br0w5UVjCgMHvVXm5oOnPdHHF-JEByHKTLS9cwkiN3pIqoJ_XbHbCVWnrPeYUv0kEZ6QQae02/_/assets/ads./html/ad./postad..468x60//photogallaryads.",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:16.185Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://pagead2.googlesyndication.com/pagead/js/lidar.js?fcd=true",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:16.185Z",
+    "type": "request",
+    "method": "POST",
+    "rt": "xhr",
+    "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+    "postData": "[null,null,null,null,null,null,null,null,1790007676183,null,null,[[1,1]],null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0]"
+  },
+  {
+    "t": "2026-09-21T16:21:16.214Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://fundingchoicesmessages.google.com/f/AGSKWxUhKSSm2bwYFpDcAJlF8xafiSIiJk5hu4L51y0hkUPvmBCKri1V951oAcQ88RVPgH1nLlrY7qY9p49O6EDnPRoq-U0jmp1kil4RzZM_pwdG0TdWAt3Br0w5UVjCgMHvVXm5oOnPdHHF-JEByHKTLS9cwkiN3pIqoJ_XbHbCVWnrPeYUv0kEZ6QQae02/_/assets/ads./html/ad./postad..468x60//photogallaryads.",
+    "location": null,
+    "contentType": "application/javascript; charset=utf-8"
+  },
+  {
+    "t": "2026-09-21T16:21:16.215Z",
+    "type": "response",
+    "status": 204,
+    "rt": "xhr",
+    "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+    "location": null,
+    "contentType": "text/html; charset=utf-8"
+  },
+  {
+    "t": "2026-09-21T16:21:16.215Z",
+    "type": "request",
+    "method": "POST",
+    "rt": "xhr",
+    "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+    "postData": "[null,null,null,null,null,null,null,null,1790007676212,null,null,[[3,1]],null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0]"
+  },
+  {
+    "t": "2026-09-21T16:21:16.238Z",
+    "type": "response",
+    "status": 204,
+    "rt": "xhr",
+    "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+    "location": null,
+    "contentType": "text/html; charset=utf-8"
+  },
+  {
+    "t": "2026-09-21T16:21:16.240Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://pagead2.googlesyndication.com/pagead/js/lidar.js?fcd=true",
+    "location": null,
+    "contentType": "text/javascript; charset=UTF-8"
+  },
+  {
+    "t": "2026-09-21T16:21:16.248Z",
+    "type": "request",
+    "method": "POST",
+    "rt": "xhr",
+    "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+    "postData": "[null,null,null,null,null,null,null,null,1790007676245,null,null,[null,[1]],null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0]"
+  },
+  {
+    "t": "2026-09-21T16:21:16.249Z",
+    "type": "request",
+    "method": "POST",
+    "rt": "xhr",
+    "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+    "postData": "[null,null,null,null,null,null,null,null,1790007676246,null,null,[[2,1]],null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0]"
+  },
+  {
+    "t": "2026-09-21T16:21:16.249Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "script",
+    "url": "https://fundingchoicesmessages.google.com/f/AGSKWxXbumsdJET4cOGnWPblKAEsALQSo-znTDfPIQ6Nn248DOXkS1OrtBmuiwRdZs0Wn3W-YbU7bWsaXwcvagLJaTuJIYPcvcm93sT2lvwRtTOIKTT8DUY-uCj1sPUXMUtGKOyRogLjeg==?fccs=W251bGwsbnVsbCxudWxsLG51bGwsbnVsbCxudWxsLFsxNzkwMDA3Njc2LDI0NzAwMDAwMF0sbnVsbCxudWxsLG51bGwsW251bGwsWzcsOSw2XSxudWxsLDIsbnVsbCwiZW4iLG51bGwsbnVsbCxudWxsLG51bGwsbnVsbCwxXSwiaHR0cHM6Ly9kZWluZm9ybS5jb20vIixudWxsLFtbOCwidU95MmgyNUQ2OG8iXSxbOSwiZW4tVVMiXSxbMzUsIjE3OTAwMDc2NzUiXSxbMTksIjIiXSxbMTcsIlswXSJdLFsyNCwiIl0sWzI5LCJ0cnVlIl1dXQ",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:16.268Z",
+    "type": "response",
+    "status": 204,
+    "rt": "xhr",
+    "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+    "location": null,
+    "contentType": "text/html; charset=utf-8"
+  },
+  {
+    "t": "2026-09-21T16:21:16.272Z",
+    "type": "response",
+    "status": 204,
+    "rt": "xhr",
+    "url": "https://fundingchoicesmessages.google.com/el/AGSKWxWWwk2x8XYFMWd54ftt0IXJz4T5w_IPLyNK-HHDWf0AlmBMa9ENMV-3BD6eSRqLgYy_9nzP-IXGZLbNFtNz7z9_FQn2-vRsEKrpJcCaNEranZxP3V7KiGYZAuQBocbkzfMKxPhG5g==",
+    "location": null,
+    "contentType": "text/html; charset=utf-8"
+  },
+  {
+    "t": "2026-09-21T16:21:16.304Z",
+    "type": "response",
+    "status": 200,
+    "rt": "script",
+    "url": "https://fundingchoicesmessages.google.com/f/AGSKWxXbumsdJET4cOGnWPblKAEsALQSo-znTDfPIQ6Nn248DOXkS1OrtBmuiwRdZs0Wn3W-YbU7bWsaXwcvagLJaTuJIYPcvcm93sT2lvwRtTOIKTT8DUY-uCj1sPUXMUtGKOyRogLjeg==?fccs=W251bGwsbnVsbCxudWxsLG51bGwsbnVsbCxudWxsLFsxNzkwMDA3Njc2LDI0NzAwMDAwMF0sbnVsbCxudWxsLG51bGwsW251bGwsWzcsOSw2XSxudWxsLDIsbnVsbCwiZW4iLG51bGwsbnVsbCxudWxsLG51bGwsbnVsbCwxXSwiaHR0cHM6Ly9kZWluZm9ybS5jb20vIixudWxsLFtbOCwidU95MmgyNUQ2OG8iXSxbOSwiZW4tVVMiXSxbMzUsIjE3OTAwMDc2NzUiXSxbMTksIjIiXSxbMTcsIlswXSJdLFsyNCwiIl0sWzI5LCJ0cnVlIl1dXQ",
+    "location": null,
+    "contentType": "application/javascript; charset=utf-8"
+  },
+  {
+    "t": "2026-09-21T16:21:16.306Z",
+    "type": "request",
+    "method": "POST",
+    "rt": "xhr",
+    "url": "https://fundingchoicesmessages.google.com/el/AGSKWxUYyOSUf2Veyr5vFPzhfOTaz0vBS-eIKJu8ou8IVo6wn_YpwNlX5OAQxaL6QbUFz2zG1kGIQ3yCtpTVSn4L-iWYjexg9qtfZYJGp6sDGzus4Ab0xJ-avUi23a4MJNbCig4C5Dw0Zw==",
+    "postData": "[null,null,null,null,null,null,null,null,1790007676305,null,null,null,null,null,null,null,null,null,null,null,[[1,186,\"deinform.com\",\"deinform.com\",3]]]"
+  },
+  {
+    "t": "2026-09-21T16:21:16.336Z",
+    "type": "response",
+    "status": 204,
+    "rt": "xhr",
+    "url": "https://fundingchoicesmessages.google.com/el/AGSKWxUYyOSUf2Veyr5vFPzhfOTaz0vBS-eIKJu8ou8IVo6wn_YpwNlX5OAQxaL6QbUFz2zG1kGIQ3yCtpTVSn4L-iWYjexg9qtfZYJGp6sDGzus4Ab0xJ-avUi23a4MJNbCig4C5Dw0Zw==",
+    "location": null,
+    "contentType": "text/html; charset=utf-8"
+  },
+  {
+    "t": "2026-09-21T16:21:19.336Z",
+    "type": "console",
+    "level": "warning",
+    "text": "The resource https://4.adsco.re:2087/ was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+  },
+  {
+    "t": "2026-09-21T16:21:19.336Z",
+    "type": "console",
+    "level": "warning",
+    "text": "The resource https://6.adsco.re/ was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+  },
+  {
+    "t": "2026-09-21T16:21:19.336Z",
+    "type": "console",
+    "level": "warning",
+    "text": "The resource https://4.adsco.re/ was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+  },
+  {
+    "t": "2026-09-21T16:21:19.336Z",
+    "type": "console",
+    "level": "warning",
+    "text": "The resource https://6.adsco.re:2087/ was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+  },
+  {
+    "t": "2026-09-21T16:21:19.336Z",
+    "type": "console",
+    "level": "warning",
+    "text": "The resource https://adsco.re/p was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+  },
+  {
+    "t": "2026-09-21T16:21:24.865Z",
+    "type": "request",
+    "method": "GET",
+    "rt": "fetch",
+    "url": "https://api.ipify.org/?format=json",
+    "postData": null
+  },
+  {
+    "t": "2026-09-21T16:21:24.917Z",
+    "type": "response",
+    "status": 200,
+    "rt": "fetch",
+    "url": "https://api.ipify.org/?format=json",
+    "location": null,
+    "contentType": "application/json"
+  },
+  {
+    "t": "2026-09-21T16:21:24.921Z",
+    "type": "request",
+    "method": "POST",
+    "rt": "xhr",
+    "url": "https://deinform.com/wp-admin/admin-ajax.php?action=wp_dark_mode_update_visitor&_wpnonce=b621dac565",
+    "postData": "visitor_id=false&mode=dark&security_key=b621dac565&meta=%7B%22os%22%3A%22Linux+x86_64%22%2C%22browser%22%3A%22Mozilla%22%2C%22browser_version%22%3A%225.0+%28Linux+Android+16%3B+SM-A165F%29+AppleWebKit%2F537.36+%28KHTML%2C+like+Gecko%29+Chrome%2F140.0.0.0+Mobile+Safari%2F537.36%22%2C%22language%22%3A%22en-US%22%2C%22timezone%22%3A%22UTC%22%7D&ip=145.132.103.25"
+  },
+  {
+    "t": "2026-09-21T16:21:25.464Z",
+    "type": "response",
+    "status": 200,
+    "rt": "xhr",
+    "url": "https://deinform.com/wp-admin/admin-ajax.php?action=wp_dark_mode_update_visitor&_wpnonce=b621dac565",
+    "location": null,
+    "contentType": "application/json; charset=UTF-8"
+  },
+  {
+    "t": "2026-09-21T16:21:28.465Z",
+    "type": "console",
+    "level": "warning",
+    "text": "The resource https://4.adsco.re:2087/ was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+  },
+  {
+    "t": "2026-09-21T16:21:28.465Z",
+    "type": "console",
+    "level": "warning",
+    "text": "The resource https://6.adsco.re/ was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+  },
+  {
+    "t": "2026-09-21T16:21:28.465Z",
+    "type": "console",
+    "level": "warning",
+    "text": "The resource https://4.adsco.re/ was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+  },
+  {
+    "t": "2026-09-21T16:21:28.465Z",
+    "type": "console",
+    "level": "warning",
+    "text": "The resource https://6.adsco.re:2087/ was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+  },
+  {
+    "t": "2026-09-21T16:21:28.465Z",
+    "type": "console",
+    "level": "warning",
+    "text": "The resource https://adsco.re/p was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally."
+  },
+  {
+    "t": "2026-09-21T16:21:34.022Z",
+    "type": "snapshot",
+    "label": "wait-0",
+    "url": "https://deinform.com/",
+    "title": "Deinform - Information Home",
+    "text": "Skip to content\nDeinform\nMENU\n\n\n0 Seconds\n\nTaxing the AI Economy: How Governments Plan to Capture Revenue\n\nArtificial Intelligence is creating new wealth streams, from AI-generated art to automated trading bots. But as jobs shift and businesses automate, governments are asking: how do we tax AI?\n\nCurrent Proposals:\n– “Robot tax” to replace lost income tax revenue from displaced workers.\n– AI service tax on companies using large-scale automation.\n– Royalties for AI-generated creative content.\n\nLegal Challenges:\n– Defining ownership of AI output.\n– Ensuring fair taxation without stifling innovation.\n– Cross-border tax enforcement in global AI services.\n\nFuture Outlook:\n– OECD exploring global frameworks for AI taxation.\n– Some countries experimenting with AI-specific levies.\n– Debate over whether AI should be treated as a “taxable entity.”\n\nConclusion:\nTaxing AI is one of the most complex policy debates of our time. Governments must strike a balance between capturing revenue and encouraging innovation in the AI-driven economy.\n\nPosted on\nCategories\nfinance, TechnologyLeave a comment\non Taxing the AI Economy: How Governments Plan to Capture Revenue\nCybersecurity in Banking: Who Pays After a Hack?\n\nBanking systems are prime targets for hackers. Recent ransomware attacks have caused millions in damages worldwide. But when customers lose money, the big question is: who pays?\n\nLegal Precedents:\n– In many cases, banks are liable if security negligence is proven.\n– Customers may be li",
+    "forms": [
+      {
+        "action": "https://deinform.com/unraveling-the-cosmos-exploring-the-wonders-of-physics/",
+        "method": "post",
+        "inputs": [
+          {
+            "tag": "INPUT",
+            "type": "hidden",
+            "name": "_wpnonce",
+            "value": "ed49329376",
+            "text": "",
+            "placeholder": null
+          },
+          {
+            "tag": "INPUT",
+            "type": "hidden",
+            "name": "_wp_http_referer",
+            "value": "/",
+            "text": "",
+            "placeholder": null
+          },
+          {
+            "tag": "INPUT",
+            "type": "hidden",
+            "name": "userid",
+            "value": "1048",
+            "text": "",
+            "placeholder": null
+          },
+          {
+            "tag": "INPUT",
+            "type": "hidden",
+            "name": "sltoken",
+            "value": "3UYQvKjIJIjkLfBNbYmif40kfRyWI/mA1pqy70Gb5znlsBo6Hb+srsmT1YXHRFdVRUqOxac/bY34AMt8EeKNXOtPp0FtKtaXYn7BcrNsP3P9/v0I7SoEZ9Ji9xHtQZrPx/iiuBBXbwE6wu/TrfAMUAG0ow==",
+            "text": "",
+            "placeholder": null
+          }
+        ]
+      }
+    ],
+    "links": [
+      {
+        "text": "Skip to content",
+        "href": "https://deinform.com/#content"
+      },
+      {
+        "text": "",
+        "href": "https://deinform.com/"
+      },
+      {
+        "text": "Deinform",
+        "href": "https://deinform.com/"
+      },
+      {
+        "text": "Home",
+        "href": "https://xproxxx.com/"
+      },
+      {
+        "text": "finance",
+        "href": "https://deinform.com/category/finance/"
+      },
+      {
+        "text": "Education",
+        "href": "https://deinform.com/category/education/"
+      },
+      {
+        "text": "Sports",
+        "href": "https://deinform.com/category/sports/"
+      },
+      {
+        "text": "Technology",
+        "href": "https://deinform.com/category/technology/"
+      },
+      {
+        "text": "Real Estate",
+        "href": "https://deinform.com/category/real-estate/"
+      },
+      {
+        "text": "Contact us",
+        "href": "https://deinform.com/contact-us/"
+      },
+      {
+        "text": "Taxing the AI Economy: How Governments Plan to Capture Revenue",
+        "href": "https://deinform.com/taxing-the-ai-economy-how-governments-plan-to-capture-revenue/"
+      },
+      {
+        "text": "deinform",
+        "href": "https://deinform.com/author/admin/"
+      },
+      {
+        "text": "",
+        "href": "https://deinform.com/taxing-the-ai-economy-how-governments-plan-to-capture-revenue/"
+      },
+      {
+        "text": "finance",
+        "href": "https://deinform.com/category/finance/"
+      },
+      {
+        "text": "Technology",
+        "href": "https://deinform.com/category/technology/"
+      },
+      {
+        "text": "Leave a comment on Taxing the AI Economy: How Governments Plan to Capture Revenue",
+        "href": "https://deinform.com/taxing-the-ai-economy-how-governments-plan-to-capture-revenue/#respond"
+      },
+      {
+        "text": "Cybersecurity in Banking: Who Pays After a Hack?",
+        "href": "https://deinform.com/cybersecurity-in-banking-who-pays-after-a-hack/"
+      },
+      {
+        "text": "deinform",
+        "href": "https://deinform.com/author/admin/"
+      },
+      {
+        "text": "",
+        "href": "https://deinform.com/cybersecurity-in-banking-who-pays-after-a-hack/"
+      },
+      {
+        "text": "finance",
+        "href": "https://deinform.com/category/finance/"
+      },
+      {
+        "text": "Technology",
+        "href": "https://deinform.com/category/technology/"
+      },
+      {
+        "text": "Leave a comment on Cybersecurity in Banking: Who Pays After a Hack?",
+        "href": "https://deinform.com/cybersecurity-in-banking-who-pays-after-a-hack/#respond"
+      },
+      {
+        "text": "Digital Identity & Money Laundering: The New Compliance Battle",
+        "href": "https://deinform.com/digital-identity-money-laundering-the-new-compliance-battle/"
+      },
+      {
+        "text": "deinform",
+        "href": "https://deinform.com/author/admin/"
+      },
+      {
+        "text": "",
+        "href": "https://deinform.com/digital-identity-money-laundering-the-new-compliance-battle/"
+      },
+      {
+        "text": "finance",
+        "href": "https://deinform.com/category/finance/"
+      },
+      {
+        "text": "Technology",
+        "href": "https://deinform.com/category/technology/"
+      },
+      {
+        "text": "Leave a comment on Digital Identity & Money Laundering: The New Compliance Battle",
+        "href": "https://deinform.com/digital-identity-money-laundering-the-new-compliance-battle/#respond"
+      },
+      {
+        "text": "Biometric Payments: Convenient or a Legal Nightmare?",
+        "href": "https://deinform.com/biometric-payments-convenient-or-a-legal-nightmare/"
+      },
+      {
+        "text": "deinform",
+        "href": "https://deinform.com/author/admin/"
+      },
+      {
+        "text": "",
+        "href": "https://deinform.com/biometric-payments-convenient-or-a-legal-nightmare/"
+      },
+      {
+        "text": "finance",
+        "href": "https://deinform.com/category/finance/"
+      },
+      {
+        "text": "Technology",
+        "href": "https://deinform.com/category/technology/"
+      },
+      {
+        "text": "Leave a comment on Biometric Payments: Convenient or a Legal Nightmare?",
+        "href": "https://deinform.com/biometric-payments-convenient-or-a-legal-nightmare/#respond"
+      },
+      {
+        "text": "Crypto Regulation in 2025: New Global Rules You Need to Know",
+        "href": "https://deinform.com/crypto-regulation-in-2025-new-global-rules-you-need-to-know/"
+      },
+      {
+        "text": "deinform",
+        "href": "https://deinform.com/author/admin/"
+      },
+      {
+        "text": "",
+        "href": "https://deinform.com/crypto-regulation-in-2025-new-global-rules-you-need-to-know/"
+      },
+      {
+        "text": "finance",
+        "href": "https://deinform.com/category/finance/"
+      },
+      {
+        "text": "Technology",
+        "href": "https://deinform.com/category/technology/"
+      },
+      {
+        "text": "Leave a comment on Crypto Regulation in 2025: New Global Rules You Need to Know",
+        "href": "https://deinform.com/crypto-regulation-in-2025-new-global-rules-you-need-to-know/#respond"
+      },
+      {
+        "text": "Page 2",
+        "href": "https://deinform.com/page/2/"
+      },
+      {
+        "text": "Page 22",
+        "href": "https://deinform.com/page/22/"
+      },
+      {
+        "text": "Next page",
+        "href": "https://deinform.com/page/2/"
+      },
+      {
+        "text": "Taxing the AI Economy: How Governments Plan to Capture Revenue",
+        "href": "https://deinform.com/taxing-the-ai-economy-how-governments-plan-to-capture-revenue/"
+      },
+      {
+        "text": "Cybersecurity in Banking: Who Pays After a Hack?",
+        "href": "https://deinform.com/cybersecurity-in-banking-who-pays-after-a-hack/"
+      },
+      {
+        "text": "Digital Identity & Money Laundering: The New Compliance Battle",
+        "href": "https://deinform.com/digital-identity-money-laundering-the-new-compliance-battle/"
+      },
+      {
+        "text": "Biometric Payments: Convenient or a Legal Nightmare?",
+        "href": "https://deinform.com/biometric-payments-convenient-or-a-legal-nightmare/"
+      },
+      {
+        "text": "Crypto Regulation in 2025: New Global Rules You Need to Know",
+        "href": "https://deinform.com/crypto-regulation-in-2025-new-global-rules-you-need-to-know/"
+      },
+      {
+        "text": "The Future of CBDCs (Central Bank Digital Currencies) and Legal Challenges",
+        "href": "https://deinform.com/the-future-of-cbdcs-central-bank-digital-currencies-and-legal-challenges/"
+      },
+      {
+        "text": "AI Agents in Finance – Who’s Liable When Money Goes Wrong?",
+        "href": "https://deinform.com/ai-agents-in-finance-whos-liable-when-money-goes-wrong/"
+      },
+      {
+        "text": "AI and the Renaissance of Modern Art: How Technology Is Redefining Creativity",
+        "href": "https://deinform.com/ai-and-the-renaissance-of-modern-art-how-technology-is-redefining-creativity/"
+      },
+      {
+        "text": "The Evolving Landscape of Arts and Entertainment in 2025",
+        "href": "https://deinform.com/the-evolving-landscape-of-arts-and-entertainment-in-2025/"
+      },
+      {
+        "text": "Navigate the Future of Temperature Management with Thermistors",
+        "href": "https://deinform.com/navigate-the-future-of-temperature-management-with-thermistors/"
+      },
+      {
+        "text": "The Timeless Power of Art: Why We Still Create, Observe, and Celebrate It",
+        "href": "https://deinform.com/the-timeless-power-of-art-why-we-still-create-observe-and-celebrate-it/"
+      },
+      {
+        "text": "Understanding Money and Stocks: A Beginner’s Guide",
+        "href": "https://deinform.com/understanding-money-and-stocks-a-beginners-guide/"
+      },
+      {
+        "text": "Maximizing Your Retirement Savings: Essential Tips for Financial Security",
+        "href": "https://deinform.com/maximizing-your-retirement-savings-essential-tips-for-financial-security/"
+      },
+      {
+        "text": "Taiwan’s Democratic Triumph: A Look at the 2024 Election",
+        "href": "https://deinform.com/taiwans-democratic-triumph-a-look-at-the-2024-election/"
+      },
+      {
+        "text": "A Comprehensive Comparison: Michigan vs Washington – Unveiling the Charms of Two Unique States",
+        "href": "https://deinform.com/a-comprehensive-comparison-michigan-vs-washington-unveiling-the-charms-of-two-unique-states/"
+      },
+      {
+        "text": "Unraveling the Intriguing Tale of Gypsy Rose Blanchard: A Story of Deception and Redemption",
+        "href": "https://deinform.com/unraveling-the-intriguing-tale-of-gypsy-rose-blanchard-a-story-of-deception-and-redemption/"
+      },
+      {
+        "text": "Unwrapping the Enigma: The Enduring Allure of the Grinch",
+        "href": "https://deinform.com/unwrapping-the-enigma-the-enduring-allure-of-the-grinch/"
+      },
+      {
+        "text": "Unraveling the Cosmos: Exploring the Wonders of Physics",
+        "href": "https://deinform.com/unraveling-the-cosmos-exploring-the-wonders-of-physics/"
+      },
+      {
+        "text": "Navigating the Financial Landscape: Trends, Innovations, and Strategies for Success",
+        "href": "https://deinform.com/navigating-the-financial-landscape-trends-innovations-and-strategies-for-success/"
+      },
+      {
+        "text": "The Evolution of AI Technology: Unraveling the Tapestry of Innovation",
+        "href": "https://deinform.com/the-evolution-of-ai-technology-unraveling-the-tapestry-of-innovation/"
+      },
+      {
+        "text": "Home",
+        "href": "https://xproxxx.com/"
+      },
+      {
+        "text": "finance",
+        "href": "https://deinform.com/category/finance/"
+      },
+      {
+        "text": "Education",
+        "href": "https://deinform.com/category/education/"
+      },
+      {
+        "text": "Sports",
+        "href": "https://deinform.com/category/sports/"
+      },
+      {
+        "text": "Technology",
+        "href": "https://deinform.com/category/technology/"
+      },
+      {
+        "text": "Real Estate",
+        "href": "https://deinform.com/category/real-estate/"
+      },
+      {
+        "text": "Contact us",
+        "href": "https://deinform.com/contact-us/"
+      },
+      {
+        "text": "Deinform",
+        "href": "https://deinform.com/"
+      },
+      {
+        "text": "Privacy Policy",
+        "href": "https://deinform.com/privacy-policy-2/"
+      },
+      {
+        "text": "About Us",
+        "href": "https://deinform.com/about-us/"
+      },
+      {
+        "text": "Terms & Condition",
+        "href": "https://deinform.com/terms-condition/"
+      },
+      {
+        "text": "",
+        "href": "https://adexchangerapid.com/ad/visit.php?al=1"
+      }
+    ]
+  },
+  {
+    "t": "2026-09-21T16:21:34.023Z",
+    "type": "human_boundary",
+    "url": "https://deinform.com/"
+  }
+]
