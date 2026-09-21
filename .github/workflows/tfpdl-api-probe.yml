@@ -1,4 +1,4 @@
-name: TFPDL download-route probe
+name: TFPDL wrapper trace
 
 on:
   push:
@@ -11,50 +11,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Inspect post links
+      - name: Trace one wrapper without downloading media
         shell: bash
         run: |
-          python3 - <<'PY'
-          import json, html, urllib.request
-          from html.parser import HTMLParser
-          from urllib.parse import urljoin
-
-          api = "https://tfpdl.com/wp-json/wp/v2/posts/373753"
-          req = urllib.request.Request(api, headers={"User-Agent":"Mozilla/5.0"})
-          with urllib.request.urlopen(req, timeout=30) as r:
-              post = json.load(r)
-
-          print("POST_ID", post.get("id"))
-          print("POST_LINK", post.get("link"))
-          print("TITLE", html.unescape(post.get("title",{}).get("rendered","")))
-
-          class P(HTMLParser):
-              def __init__(self):
-                  super().__init__()
-                  self.links = []
-                  self.cur = None
-                  self.txt = []
-              def handle_starttag(self, tag, attrs):
-                  if tag.lower() == "a":
-                      self.cur = dict(attrs).get("href")
-                      self.txt = []
-              def handle_data(self, data):
-                  if self.cur is not None:
-                      self.txt.append(data)
-              def handle_endtag(self, tag):
-                  if tag.lower() == "a" and self.cur is not None:
-                      self.links.append((self.cur, " ".join("".join(self.txt).split())))
-                      self.cur = None
-                      self.txt = []
-
-          p = P()
-          p.feed(post.get("content",{}).get("rendered",""))
-          print("\n=== ALL ANCHORS ===")
-          seen = set()
-          for i, (href, text) in enumerate(p.links, 1):
-              full = urljoin(post.get("link","https://tfpdl.com/"), html.unescape(href))
-              if (full, text) in seen:
-                  continue
-              seen.add((full, text))
-              print(f"{i:02d}. [{text}] {full}")
-          PY
+          set +e
+          URL='https://tfp.re/tfpdl?d048c7b91a=YlF6aUt4SGEyU2dJK0xBdC9oMVRQSUQ3bWN2NStiMlZxTnJlRmFSRnBQYUdsK09yRHkzT3djUW5kZ21sdENsYXU5bVZmQmRXYUhWN3ltQ0phNGlmUVE9PQ=='
+          REF='https://tfp.re/lanterns-s01-2160p-web-dl-ddp5-1-dv-hdr-x265-tfpdl/'
+          curl --http1.1 -sS --max-time 30 --connect-timeout 10             -A 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36'             -e "$REF"             -D /tmp/h -o /tmp/b -w 'HTTP_STATUS=%{http_code}\nFINAL_URL=%{url_effective}\n' "$URL"
+          echo '--- HEADERS ---'
+          cat /tmp/h
+          echo '--- BODY SIZE ---'
+          wc -c /tmp/b
+          echo '--- BODY SAMPLE ---'
+          head -c 1600 /tmp/b
+          echo
