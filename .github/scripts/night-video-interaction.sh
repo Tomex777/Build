@@ -252,19 +252,25 @@ dismiss_fullscreen_education() {
     x="${coords% *}"
     y="${coords#* }"
     adb shell input tap "$x" "$y"
-    sleep 1
+    sleep 0.5
+    refresh_ui || true
   fi
 }
 
 show_controls() {
+  # dismiss_fullscreen_education already leaves a fresh hierarchy in
+  # /tmp/window.xml. Reuse it rather than paying for two more UIAutomator dumps.
   dismiss_fullscreen_education
-  if desc_is_visible "Pause" || desc_is_visible "Play"; then
+  if python3 /tmp/night_video_uia.py desc "Pause" >/dev/null 2>&1 || \
+     python3 /tmp/night_video_uia.py desc "Play" >/dev/null 2>&1; then
     return 0
   fi
+
   adb shell input tap 354 760
-  sleep 1
+  sleep 0.5
   dismiss_fullscreen_education
-  if ! desc_is_visible "Pause" && ! desc_is_visible "Play"; then
+  if ! python3 /tmp/night_video_uia.py desc "Pause" >/dev/null 2>&1 && \
+     ! python3 /tmp/night_video_uia.py desc "Play" >/dev/null 2>&1; then
     echo "Night video controls did not become visible." >&2
     adb exec-out screencap -p > "$ARTIFACTS/failure-controls-hidden.png"
     cp /tmp/window.xml "$ARTIFACTS/failure-controls-hidden.xml" 2>/dev/null || true
@@ -284,7 +290,6 @@ read_current_time() {
   local attempt value
   for attempt in $(seq 1 12); do
     show_controls
-    refresh_ui
     value="$(python3 /tmp/night_video_uia.py times 2>/dev/null | head -n 1 || true)"
     if [ -n "$value" ]; then
       echo "$value"
@@ -308,7 +313,6 @@ prepare_timed_playback() {
   # this single hierarchy for both the seek bar and the pre-seek play state so
   # the 30-second fixture does not run back toward EOF while CI is inspecting it.
   show_controls
-  refresh_ui
   seek_bounds="$(python3 /tmp/night_video_uia.py bottom_seekbar 2>/dev/null || true)"
   play_coords="$(python3 /tmp/night_video_uia.py desc "Play" 2>/dev/null || true)"
   if [ -z "$seek_bounds" ]; then
