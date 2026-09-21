@@ -23,7 +23,8 @@ enum class ExtensionCardTemplate(val wireName: String) {
     Entity("entity_card"),
     Gallery("gallery_card"),
     CustomData("custom_data_card"),
-    Configuration("configuration_card");
+    Configuration("configuration_card"),
+    Browser("browser_card");
 
     companion object {
         fun fromWireName(value: String): ExtensionCardTemplate =
@@ -108,6 +109,36 @@ data class ExtensionConfiguration(
     val advancedLabel: String = "Advanced",
 )
 
+
+data class ExtensionBrowser(
+    val sessionId: String,
+    val url: String,
+    val allowedHosts: List<String> = emptyList(),
+    val javaScriptEnabled: Boolean = true,
+    val thirdPartyCookiesEnabled: Boolean = true,
+    val userAgent: String = "",
+    val inlineHeightDp: Int = 320,
+) {
+    fun normalizedAllowedHosts(): List<String> =
+        allowedHosts
+            .map { it.trim().lowercase() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .take(16)
+
+    fun isValid(): Boolean {
+        if (sessionId.isBlank() || sessionId.length > 96) return false
+        val parsed = runCatching { java.net.URI(url.trim()) }.getOrNull() ?: return false
+        val scheme = parsed.scheme?.lowercase()
+        val host = parsed.host?.lowercase()
+        if (scheme !in setOf("http", "https") || host.isNullOrBlank()) return false
+        val allowed = normalizedAllowedHosts()
+        return allowed.isEmpty() || allowed.any { candidate ->
+            host == candidate || host.endsWith("." + candidate)
+        }
+    }
+}
+
 data class ExtensionMessageSnapshot(
     val schemaVersion: Int = NightExtensionMessageApi.SUPPORTED_SCHEMA_VERSION,
     val extensionId: String,
@@ -127,6 +158,7 @@ data class ExtensionMessageSnapshot(
     val actions: List<ExtensionCardAction> = emptyList(),
     val extensionPayloadJson: String = "{}",
     val configuration: ExtensionConfiguration? = null,
+    val browser: ExtensionBrowser? = null,
 ) {
     fun hasValidNamespace(): Boolean =
         extensionId.isNotBlank() &&
@@ -251,6 +283,20 @@ object ExtensionMessageCodec {
                                 }
                         }
                     )
+            )
+        }
+
+        snapshot.browser?.takeIf { it.isValid() }?.let { browser ->
+            json.put(
+                "browser",
+                JSONObject()
+                    .put("sessionId", browser.sessionId.trim())
+                    .put("url", browser.url.trim())
+                    .put("allowedHosts", JSONArray(browser.normalizedAllowedHosts()))
+                    .put("javaScriptEnabled", browser.javaScriptEnabled)
+                    .put("thirdPartyCookiesEnabled", browser.thirdPartyCookiesEnabled)
+                    .put("userAgent", browser.userAgent.trim().take(512))
+                    .put("inlineHeightDp", browser.inlineHeightDp.coerceIn(240, 480))
             )
         }
 
@@ -416,6 +462,29 @@ object ExtensionMessageCodec {
             }
         }
 
+        val browser = json.optJSONObject("browser")?.let { browserJson ->
+            val candidate = ExtensionBrowser(
+                sessionId = browserJson.optString("sessionId").trim(),
+                url = browserJson.optString("url").trim(),
+                allowedHosts = buildList {
+                    val hosts = browserJson.optJSONArray("allowedHosts")
+                    if (hosts != null) {
+                        for (index in 0 until minOf(hosts.length(), 16)) {
+                            val host = hosts.optString(index).trim().lowercase()
+                            if (host.isNotBlank()) add(host)
+                        }
+                    }
+                },
+                javaScriptEnabled = browserJson.optBoolean("javaScriptEnabled", true),
+                thirdPartyCookiesEnabled =
+                    browserJson.optBoolean("thirdPartyCookiesEnabled", true),
+                userAgent = browserJson.optString("userAgent").trim().take(512),
+                inlineHeightDp = browserJson.optInt("inlineHeightDp", 320)
+                    .coerceIn(240, 480),
+            )
+            candidate.takeIf { it.isValid() }
+        }
+
         ExtensionMessageSnapshot(
             schemaVersion = json.optInt("schemaVersion", 1).coerceAtLeast(1),
             extensionId = extensionId,
@@ -439,6 +508,7 @@ object ExtensionMessageCodec {
             actions = actions,
             extensionPayloadJson = json.optJSONObject("extensionPayload")?.toString() ?: "{}",
             configuration = configuration,
+            browser = browser,
         )
     }.getOrNull()
 }
