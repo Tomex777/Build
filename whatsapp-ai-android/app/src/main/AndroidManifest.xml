@@ -47,6 +47,11 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Whatsapp" />
         <activity
+            android:name=".NightExtensionsPreviewActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Whatsapp" />
+        <activity
             android:name=".NightLiveVoicePreviewActivity"
             android:exported="true"
             android:screenOrientation="portrait"
