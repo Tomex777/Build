@@ -14,6 +14,7 @@ import java.io.File
 import java.io.FileOutputStream
 
 private const val NIGHT_PREVIEW_VIDEO_PATH = "night.preview.videoPath"
+private const val NIGHT_PREVIEW_IMAGE_PATH = "night.preview.imagePath"
 private const val NIGHT_PREVIEW_EXPORT_PREFS = "night_media_preview"
 
 class MediaEditorPreviewActivity : ComponentActivity() {
@@ -28,8 +29,13 @@ class MediaEditorPreviewActivity : ComponentActivity() {
                 ?.let(::File)
                 ?.takeIf { it.isFile && it.length() > 0L }
 
+        val requestedImage =
+            intent.getStringExtra(NIGHT_PREVIEW_IMAGE_PATH)
+                ?.let(::File)
+                ?.takeIf { it.isFile && it.length() > 0L }
+
         val fallback = File(cacheDir, "night-editor-preview.jpg")
-        if (requestedVideo == null && !fallback.exists()) {
+        if (requestedVideo == null && requestedImage == null && !fallback.exists()) {
             val bitmap = BitmapFactory.decodeResource(resources, R.drawable.bilal)
             FileOutputStream(fallback).use { output ->
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 94, output)
@@ -37,9 +43,19 @@ class MediaEditorPreviewActivity : ComponentActivity() {
             bitmap.recycle()
         }
 
-        val preview = requestedVideo ?: fallback
-        val mimeType = if (requestedVideo != null) "video/mp4" else "image/jpeg"
-        val fileName = if (requestedVideo != null) "Night test video.mp4" else "Night photo.jpg"
+        val preview = requestedVideo ?: requestedImage ?: fallback
+        val mimeType =
+            when {
+                requestedVideo != null -> "video/mp4"
+                preview.extension.equals("png", ignoreCase = true) -> "image/png"
+                else -> "image/jpeg"
+            }
+        val fileName =
+            when {
+                requestedVideo != null -> "Night test video.mp4"
+                requestedImage != null -> requestedImage.name
+                else -> "Night photo.jpg"
+            }
         val prefs =
             getSharedPreferences(
                 NIGHT_PREVIEW_EXPORT_PREFS,
