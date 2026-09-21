@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -313,6 +314,9 @@ private fun ExtensionConfigurationFieldContent(
                     Switch(
                         checked = scalarValue.toBooleanStrictOrNull() ?: false,
                         onCheckedChange = { onScalarChange(it.toString()) },
+                        modifier = Modifier.semantics {
+                            contentDescription = "Config " + field.id + " toggle"
+                        },
                     )
                 }
             }
@@ -337,6 +341,7 @@ private fun ExtensionConfigurationFieldContent(
                                 .semantics {
                                     contentDescription =
                                         "Config " + field.id + " option " + option.id
+                                    this.selected = selected
                                 }
                                 .clickable { onScalarChange(option.id) },
                         ) {
@@ -380,20 +385,22 @@ private fun ExtensionConfigurationFieldContent(
                                 .semantics {
                                     contentDescription =
                                         "Config " + field.id + " option " + option.id
+                                    this.selected = selected
+                                }
+                                .clickable {
+                                    onMultiChange(
+                                        if (selected) {
+                                            multiValue - option.id
+                                        } else {
+                                            multiValue + option.id
+                                        }
+                                    )
                                 },
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Checkbox(
                                 checked = selected,
-                                onCheckedChange = { checked ->
-                                    onMultiChange(
-                                        if (checked) {
-                                            multiValue + option.id
-                                        } else {
-                                            multiValue - option.id
-                                        }
-                                    )
-                                },
+                                onCheckedChange = null,
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
