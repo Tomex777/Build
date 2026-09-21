@@ -4,6 +4,7 @@ import android.app.Activity
 import android.os.Bundle
 import android.util.Log
 import android.widget.TextView
+import java.nio.file.Path
 
 class MainActivity : Activity() {
     private val tag = "CobaltPOC"
@@ -52,20 +53,46 @@ class MainActivity : Activity() {
             val linked = builder.javaClass.getMethod("linkedApi").invoke(builder)
             ok("linkedApi()", linked.javaClass.name)
 
-            val web = linked.javaClass.getMethod("webClient").invoke(linked)
-            ok("webClient()", web.javaClass.name)
+            val factoryClass = Class.forName(
+                "com.github.auties00.cobalt.store.linked.LinkedWhatsAppStoreFactory",
+                true,
+                classLoader
+            )
+            ok("Load LinkedWhatsAppStoreFactory")
+
+            val webMethod = linked.javaClass.getMethod("webClient", factoryClass)
 
             try {
-                val options = web.javaClass.getMethod("createConnection").invoke(web)
-                ok("createConnection()", options.javaClass.name)
+                val temporaryFactory = factoryClass.getMethod("temporary").invoke(null)
+                val tempWeb = webMethod.invoke(linked, temporaryFactory)
+                ok("webClient(temporary)", tempWeb.javaClass.name)
+                val tempOptions = tempWeb.javaClass.getMethod("createConnection").invoke(tempWeb)
+                ok("temporary createConnection()", tempOptions.javaClass.name)
             } catch (error: Throwable) {
-                return fail("createConnection()", error)
+                return fail("temporary createConnection()", error)
+            }
+
+            try {
+                val storeDir: Path = filesDir.toPath().resolve("cobalt-poc")
+                val persistentFactory = factoryClass
+                    .getMethod("persistent", Path::class.java)
+                    .invoke(null, storeDir)
+                ok("persistent(filesDir)", storeDir.toString())
+
+                val persistentWeb = webMethod.invoke(linked, persistentFactory)
+                ok("webClient(persistent)", persistentWeb.javaClass.name)
+                val persistentOptions = persistentWeb.javaClass
+                    .getMethod("createConnection")
+                    .invoke(persistentWeb)
+                ok("persistent createConnection()", persistentOptions.javaClass.name)
+            } catch (error: Throwable) {
+                return fail("persistent createConnection()", error)
             }
         } catch (error: Throwable) {
             return fail("bootstrap", error)
         }
 
-        lines += "READY  Cobalt linked-client bootstrap reached Android successfully."
+        lines += "READY  Cobalt linked-client stores initialize on Android successfully."
         return lines.joinToString("\n")
     }
 }
