@@ -100,19 +100,23 @@ jobs:
       - name: Checkout POC
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - name: Download packaged APK
+        uses: actions/download-artifact@v4
         with:
-          distribution: temurin
-          java-version: "17"
+          name: cobalt-android-baseline
+          path: cobalt-runtime
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.13"
-
-      - name: Build runtime probe APK
-        run: gradle -p cobalt-android-poc :app:assembleDebug --stacktrace
+      - name: Locate packaged APK
+        shell: bash
+        run: |
+          APK="$(find cobalt-runtime -type f -name '*debug*.apk' | head -n 1)"
+          if [[ -z "$APK" ]]; then
+            echo "Packaged APK not found in artifact" >&2
+            find cobalt-runtime -maxdepth 8 -type f -print
+            exit 1
+          fi
+          echo "COBALT_APK=$APK" >> "$GITHUB_ENV"
+          echo "Using APK: $APK"
 
       - name: Enable KVM
         run: |
@@ -131,7 +135,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
-            adb install -r cobalt-android-poc/app/build/outputs/apk/debug/app-debug.apk
+            adb install -r "$COBALT_APK"
             adb logcat -c
             adb shell am start -W -n com.tomex.cobaltandroid/.MainActivity
             sleep 8
@@ -167,4 +171,4 @@ jobs:
           path: |
             cobalt-android-poc/runtime-log.txt
             cobalt-android-poc/window.xml
-            cobalt-android-poc/app/build/outputs/apk/debug/app-debug.apk
+            cobalt-runtime/**/*.apk
