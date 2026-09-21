@@ -417,6 +417,17 @@ private fun voicemailTimestampMillis(createdAt: String): Long =
         OffsetDateTime.parse(createdAt).toInstant().toEpochMilli()
     }.getOrDefault(System.currentTimeMillis())
 
+private fun callSessionTimestampMillis(value: String?): Long? =
+    value?.let { timestamp ->
+        runCatching {
+            OffsetDateTime.parse(timestamp)
+                .toInstant()
+                .toEpochMilli()
+        }.recoverCatching {
+            Instant.parse(timestamp).toEpochMilli()
+        }.getOrNull()
+    }
+
 private val mimiP = HomiraPerson("mimi", "MiMi", "✿", HomiraPink, "+234 803 124 5678", favorite = true)
 private val hexP = HomiraPerson("hex", "Hex", "⚡", HomiraBlue, "+234 806 734 2011", favorite = true)
 private val adaP = HomiraPerson("ada", "Ada", "A", HomiraGreen, "+234 802 440 1812")
@@ -906,15 +917,138 @@ fun HomiraProductionApp(
             callEntries
         }
 
-        LaunchedEffect(liveBackendReady) {
+        LaunchedEffect(liveBackendReady, appContacts) {
             if (!liveBackendReady) return@LaunchedEffect
+
             runCatching {
                 callHistoryStore.normalizeInterruptedRinging()
+
+                val localUserId =
+                    liveRepository.currentUserId()
+                        ?: return@runCatching callHistoryStore.listRecent()
+
+                val knownPeople = appContacts.associateBy { it.id }
+                val recentSessions =
+                    liveRepository.listRecentCallSessions()
+                        .sortedBy {
+                            callSessionTimestampMillis(it.createdAt)
+                                ?: Long.MAX_VALUE
+                        }
+
+                recentSessions.forEach { session ->
+                    val incoming =
+                        session.calleeId == localUserId
+                    val peerUserId =
+                        if (incoming) {
+                            session.callerId
+                        } else {
+                            session.calleeId
+                        }
+
+                    val known = knownPeople[peerUserId]
+                    val profile =
+                        if (known == null) {
+                            liveRepository.loadProfileById(
+                                peerUserId
+                            )
+                        } else {
+                            null
+                        }
+                    val peerName =
+                        known?.name
+                            ?: profile?.displayName
+                                ?.takeIf { it.isNotBlank() }
+                            ?: profile?.username
+                                ?.takeIf { it.isNotBlank() }
+                            ?: profile?.phoneE164
+                            ?: "Homira caller"
+                    val peerNumber =
+                        known?.number
+                            ?: profile?.phoneE164
+                            .orEmpty()
+
+                    callHistoryStore.recordRinging(
+                        id = session.id,
+                        peerUserId = peerUserId,
+                        peerName = peerName,
+                        peerNumber = peerNumber,
+                        direction = if (incoming) {
+                            HomiraCallHistoryStore
+                                .DIRECTION_INCOMING
+                        } else {
+                            HomiraCallHistoryStore
+                                .DIRECTION_OUTGOING
+                        },
+                        mediaType = session.mediaType,
+                        startedAt =
+                            callSessionTimestampMillis(
+                                session.createdAt
+                            ) ?: System.currentTimeMillis()
+                    )
+
+                    val answeredAt =
+                        callSessionTimestampMillis(
+                            session.answeredAt
+                        )
+                    if (
+                        answeredAt != null ||
+                        session.state == "active" ||
+                        session.state == "ended"
+                    ) {
+                        callHistoryStore.markAnswered(
+                            session.id,
+                            answeredAt
+                                ?: System.currentTimeMillis()
+                        )
+                    }
+
+                    val terminalOutcome = when (
+                        session.state
+                    ) {
+                        "missed" ->
+                            HomiraCallHistoryStore
+                                .OUTCOME_MISSED
+                        "declined" ->
+                            HomiraCallHistoryStore
+                                .OUTCOME_DECLINED
+                        "cancelled" ->
+                            if (incoming) {
+                                HomiraCallHistoryStore
+                                    .OUTCOME_MISSED
+                            } else {
+                                HomiraCallHistoryStore
+                                    .OUTCOME_CANCELLED
+                            }
+                        "failed" ->
+                            HomiraCallHistoryStore
+                                .OUTCOME_FAILED
+                        "ended" ->
+                            HomiraCallHistoryStore
+                                .OUTCOME_ANSWERED
+                        else -> null
+                    }
+
+                    if (terminalOutcome != null) {
+                        callHistoryStore.markTerminal(
+                            id = session.id,
+                            outcome = terminalOutcome,
+                            endedAt =
+                                callSessionTimestampMillis(
+                                    session.endedAt
+                                ) ?: System.currentTimeMillis()
+                        )
+                    }
+                }
+
                 callHistoryStore.listRecent()
             }.onSuccess { history ->
                 localCallHistory = history
             }.onFailure {
-                Log.e("HomiraStartup", "Call history startup failed", it)
+                Log.e(
+                    "HomiraStartup",
+                    "Call history recovery failed",
+                    it
+                )
             }
         }
 
