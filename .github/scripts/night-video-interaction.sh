@@ -648,6 +648,10 @@ printf 'before=%s\nafter=%s\n' "$initial_trim" "$changed_trim" > "$ARTIFACTS/07-
 
 tap_desc "Mute"
 assert_desc "Unmute"
+tap_desc "Unmute"
+assert_desc "Mute"
+tap_desc "Mute"
+assert_desc "Unmute"
 adb exec-out screencap -p > "$ARTIFACTS/08-editor-ready.png"
 tap_desc "Send media"
 
