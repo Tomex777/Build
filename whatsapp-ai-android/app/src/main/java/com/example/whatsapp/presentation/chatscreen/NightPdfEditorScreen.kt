@@ -61,6 +61,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -118,6 +119,7 @@ fun NightPdfEditorScreen(
     onPreparedSend: (path: String, name: String) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val file = remember(localPath) { File(localPath) }
 
     var pageCount by remember(localPath) { mutableIntStateOf(0) }
@@ -171,7 +173,7 @@ fun NightPdfEditorScreen(
         exportError = null
         scope.launch {
             val result = withContext(Dispatchers.IO) {
-                exportPdfEdits(file, edits)
+                exportPdfEdits(context.applicationContext, file, edits)
             }
             exporting = false
             result.onSuccess {
@@ -664,11 +666,12 @@ private fun renderPdfPage(file: File, pageIndex: Int): Bitmap {
 }
 
 private fun exportPdfEdits(
+    context: android.content.Context,
     source: File,
     edits: List<PdfEditAction>,
 ): Result<Unit> = runCatching {
     require(source.isFile && source.length() > 0L) { "The PDF draft is missing." }
-    PDFBoxResourceLoader.init(com.example.whatsapp.NightApplicationHolder.context)
+    PDFBoxResourceLoader.init(context)
     val temp = File(source.parentFile, source.nameWithoutExtension + "_writing.pdf")
     if (temp.exists()) temp.delete()
 
