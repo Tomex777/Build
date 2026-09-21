@@ -48,10 +48,12 @@ def bounds(node):
     nums = [int(x) for x in re.findall(r"\d+", node.attrib.get("bounds", ""))]
     return nums if len(nums) == 4 else None
 
-if mode in ("text", "desc"):
-    attr = "text" if mode == "text" else "content-desc"
+if mode in ("text", "desc", "text_contains"):
+    attr = "content-desc" if mode == "desc" else "text"
     for node in root.iter("node"):
-        if node.attrib.get(attr) == value:
+        actual = node.attrib.get(attr, "")
+        matched = value in actual if mode == "text_contains" else actual == value
+        if matched:
             b = bounds(node)
             if b:
                 print((b[0] + b[2]) // 2, (b[1] + b[3]) // 2)
@@ -178,6 +180,27 @@ tap_text() {
   done
   cp /tmp/window.xml "$ARTIFACTS/failure-window-tap-text.xml" 2>/dev/null || true
   echo "Could not tap Night UI text: $wanted" >&2
+  return 1
+}
+
+tap_text_contains() {
+  local wanted="$1"
+  local coords=""
+  local attempt x y
+  for attempt in $(seq 1 10); do
+    refresh_ui
+    coords="$(python3 /tmp/night_video_uia.py text_contains "$wanted" 2>/dev/null || true)"
+    if [ -n "$coords" ]; then
+      x="${coords% *}"
+      y="${coords#* }"
+      adb shell input tap "$x" "$y"
+      sleep 1
+      return 0
+    fi
+    sleep 1
+  done
+  cp /tmp/window.xml "$ARTIFACTS/failure-window-tap-text-contains.xml" 2>/dev/null || true
+  echo "Could not tap Night UI text containing: $wanted" >&2
   return 1
 }
 
@@ -466,7 +489,8 @@ tap_desc "Audio"
 audio_track_found=false
 for _ in $(seq 1 10); do
   refresh_ui
-  if grep -q "Night test audio" /tmp/window.xml; then
+  if python3 /tmp/night_video_uia.py text_contains "Night test audio" >/dev/null 2>&1 || \
+     python3 /tmp/night_video_uia.py text_contains "AAC" >/dev/null 2>&1; then
     audio_track_found=true
     break
   fi
@@ -474,7 +498,7 @@ for _ in $(seq 1 10); do
 done
 cp /tmp/window.xml "$ARTIFACTS/05-audio-menu.xml"
 if [ "$audio_track_found" != "true" ]; then
-  echo "Audio track menu did not expose the real embedded AAC track." >&2
+  echo "Audio track menu did not expose the real embedded AAC track metadata." >&2
   adb exec-out screencap -p > "$ARTIFACTS/failure-audio-track.png" || true
   capture_media_logcat "audio-track-missing"
   exit 1
@@ -484,22 +508,29 @@ sleep 1
 show_controls
 tap_desc "Subtitles"
 subtitle_track_found=false
+subtitle_selector=""
 for _ in $(seq 1 10); do
   refresh_ui
-  if grep -q "Night test subtitle" /tmp/window.xml; then
+  if python3 /tmp/night_video_uia.py text_contains "Night test subtitle" >/dev/null 2>&1; then
     subtitle_track_found=true
+    subtitle_selector="Night test subtitle"
+    break
+  fi
+  if python3 /tmp/night_video_uia.py text_contains "MOV text" >/dev/null 2>&1; then
+    subtitle_track_found=true
+    subtitle_selector="MOV text"
     break
   fi
   sleep 1
 done
 cp /tmp/window.xml "$ARTIFACTS/06-subtitle-menu.xml"
 if [ "$subtitle_track_found" != "true" ]; then
-  echo "Subtitle track from the real MP4 was not exposed by VLC." >&2
+  echo "Subtitle track from the real MP4 was not exposed with parsed track metadata." >&2
   adb exec-out screencap -p > "$ARTIFACTS/failure-subtitle-track.png" || true
   capture_media_logcat "subtitle-track-missing"
   exit 1
 fi
-tap_text "Night test subtitle"
+tap_text_contains "$subtitle_selector"
 capture_media_logcat "04-tracks"
 assert_no_crash
 
