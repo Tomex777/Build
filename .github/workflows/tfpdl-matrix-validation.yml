@@ -279,27 +279,43 @@ jobs:
               }
             }
 
-            for(let i=0;i<15;i++){
-              await sleep(1000);
+            for(let i=0;i<20;i++){
+              await sleep(750);
               const safe=context.pages().find(p=>/^https:\/\/safetxt\.net\//i.test(p.url()));
               if(safe) return safe;
+
+              if(caseLog.safeTxtDocumentUrl){
+                const p=await context.newPage();
+                await p.goto(caseLog.safeTxtDocumentUrl,{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{});
+                return p;
+              }
+            }
+            if(caseLog.safeTxtDocumentUrl){
+              const p=await context.newPage();
+              await p.goto(caseLog.safeTxtDocumentUrl,{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{});
+              return p;
             }
             return null;
           }
 
           async function unlockSafeTxt(page,caseLog){
-            await page.waitForLoadState('domcontentloaded',{timeout:30000}).catch(()=>{});
-            await sleep(1000);
-            const meta=await page.evaluate(()=>({
-              url:location.href,
-              title:document.title,
-              token:document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')||'',
-              scripts:[...document.scripts].map(s=>s.textContent||'').join('\n'),
-              text:(document.body?.innerText||'').slice(0,5000)
-            })).catch(e=>({url:page.url(),error:e.message,token:'',scripts:'',text:''}));
+            let meta={url:page.url(),title:'',token:'',scripts:'',text:''};
+            let slug='';
+            for(let i=0;i<24;i++){
+              await page.waitForLoadState('domcontentloaded',{timeout:5000}).catch(()=>{});
+              await sleep(500);
+              meta=await page.evaluate(()=>({
+                url:location.href,
+                title:document.title,
+                token:document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')||'',
+                scripts:[...document.scripts].map(s=>s.textContent||'').join('\n'),
+                text:(document.body?.innerText||'').slice(0,5000)
+              })).catch(e=>({url:page.url(),error:e.message,token:'',scripts:'',text:''}));
+              slug=(meta.scripts.match(/slug:\s*['"]([^'"]+)['"]/)||[])[1]||'';
+              if(meta.token && slug) break;
+            }
 
             caseLog.safeTxt={url:meta.url,title:meta.title,text:meta.text};
-            const slug=(meta.scripts.match(/slug:\s*['"]([^'"]+)['"]/)||[])[1]||'';
             caseLog.safeTxt.slug=slug;
             caseLog.safeTxt.hasCsrf=!!meta.token;
 
@@ -375,9 +391,13 @@ jobs:
             });
             context.on('response',async r=>{
               const u=r.url();
-              if(/tfpdl\.com|tfp\.re|deinform\.com|safetxt\.net/i.test(u) && ['document','xhr','fetch'].includes(r.request().resourceType())){
+              const rt=r.request().resourceType();
+              if(/^https:\/\/safetxt\.net\//i.test(u) && rt==='document' && r.status()===200){
+                caseLog.safeTxtDocumentUrl=u;
+              }
+              if(/tfpdl\.com|tfp\.re|deinform\.com|safetxt\.net/i.test(u) && ['document','xhr','fetch'].includes(rt)){
                 const h=await r.allHeaders().catch(()=>({}));
-                record('response',{status:r.status(),rt:r.request().resourceType(),url:u,location:h.location||null,contentType:h['content-type']||null});
+                record('response',{status:r.status(),rt,url:u,location:h.location||null,contentType:h['content-type']||null});
               }
             });
 
