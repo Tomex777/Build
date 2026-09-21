@@ -70,6 +70,26 @@ const context = await browser.newContext({
 const page = await context.newPage();
 page.setDefaultTimeout(15_000);
 
+const apiChecks = [];
+async function checkApi(name, url) {
+  try {
+    const res = await context.request.get(url, { timeout: 30000, failOnStatusCode: false });
+    const body = await res.text();
+    const item = { name, url, status: res.status(), contentType: res.headers()['content-type'] || null, bodyPreview: body.slice(0, 2000) };
+    apiChecks.push(item);
+    log('api_check', item);
+    fs.writeFileSync(path.join(OUT, `api-${name}.txt`), body);
+  } catch (e) {
+    const item = { name, url, error: e.message };
+    apiChecks.push(item);
+    log('api_check_error', item);
+  }
+}
+
+await checkApi('wp-search', 'https://tfpdl.com/wp-json/wp/v2/search?search=Farming%20Life%20In%20Another%20World&per_page=3');
+await checkApi('wp-posts', 'https://tfpdl.com/wp-json/wp/v2/posts?search=Farming%20Life%20In%20Another%20World&per_page=3&_fields=id,date,link,slug,title,content,excerpt,categories,tags');
+await checkApi('wp-root', 'https://tfpdl.com/wp-json/');
+
 page.on('request', req => {
   const rt = req.resourceType();
   if (['document', 'xhr', 'fetch', 'script'].includes(rt)) {
@@ -161,7 +181,8 @@ const summary = {
   domainsSeen: [...new Set(events.flatMap(e => { try { return e.url ? [new URL(e.url).hostname] : []; } catch { return []; } }))],
   xhrFetch: events.filter(e => e.type === 'request' && ['xhr','fetch'].includes(e.resourceType)).map(e => ({ method: e.method, url: e.url, postData: e.postData })),
   redirects: events.filter(e => e.type === 'response' && e.location).map(e => ({ status: e.status, url: e.url, location: e.location })),
-  humanVerificationDetected: events.some(e => e.type === 'human_verification_boundary')
+  humanVerificationDetected: events.some(e => e.type === 'human_verification_boundary'),
+  apiChecks
 };
 fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify(summary, null, 2));
 console.log('\n=== SUMMARY ===\n' + JSON.stringify(summary, null, 2));
