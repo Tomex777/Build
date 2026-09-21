@@ -10,6 +10,7 @@ on:
       - ".github/scripts/night-image-editor-interaction.sh"
       - ".github/scripts/night-message-blocks-interaction.sh"
       - ".github/scripts/night-live-voice-interaction.sh"
+      - ".github/scripts/night-extension-config-interaction.sh"
       - ".github/scripts/night-mihon-reader-interaction.sh"
       - ".github/scripts/night-pdf-editor-interaction.sh"
       - ".github/scripts/night-video-interaction.sh"
@@ -194,6 +195,7 @@ jobs:
         suite:
           - message-blocks
           - live-voice
+          - extension-config
           - image-editor
           - pdf-editor
           - mihon-reader
@@ -253,6 +255,8 @@ jobs:
               ;;
             live-voice)
               ;;
+            extension-config)
+              ;;
             image-editor)
               mkdir -p night-image-editor-apk
               cp night-integrated-apk/app-debug.apk night-image-editor-apk/app-debug.apk
@@ -291,6 +295,7 @@ jobs:
           path: |
             night-message-blocks-artifacts/
             night-live-voice-artifacts/
+            night-extension-config-artifacts/
             night-image-editor-artifacts/
             night-pdf-editor-artifacts/
             mihon-interaction-artifacts/
