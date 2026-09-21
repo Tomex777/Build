@@ -61,22 +61,29 @@ jobs:
               for label,w in candidates:
                   if w in seen: continue
                   seen.add(w)
-                  url=f'https://api.gofile.io/contents/VRiTEpLC?wt={w}&cache=true&sortField=createTime&sortDirection=1'
-                  st,u,h,b=req(url,headers={
-                    'Authorization':'Bearer '+tok,
-                    'X-Website-Token':w,
-                    'X-BL':'en-US',
-                    'Referer':'https://gofile.io/d/VRiTEpLC',
-                    'Origin':'https://gofile.io'
-                  })
-                  txt=b.decode('utf-8','ignore')
-                  out['steps'].append({'name':'contents-'+label,'status':st,'url':url,'body':txt[:120000]})
-                  try:
-                      j=json.loads(txt)
-                      if j.get('status')=='ok':
-                          out['contents']=j
-                          break
-                  except: pass
+                  url=f'https://api.gofile.io/contents/VRiTEpLC?wt={w}&contentFilter=&page=1&pageSize=1000&sortField=name&sortDirection=1'
+                  for attempt in range(3):
+                      st,u,h,b=req(url,headers={
+                        'Authorization':'Bearer '+tok,
+                        'X-Website-Token':w,
+                        'X-BL':'en-US',
+                        'Referer':'https://gofile.io/d/VRiTEpLC',
+                        'Origin':'https://gofile.io'
+                      })
+                      txt=b.decode('utf-8','ignore')
+                      out['steps'].append({'name':'contents-'+label,'attempt':attempt+1,'status':st,'url':url,'body':txt[:120000]})
+                      try:
+                          j=json.loads(txt)
+                          if j.get('status')=='ok':
+                              out['contents']=j
+                              break
+                          if j.get('status')=='error-rateLimit':
+                              import time
+                              time.sleep(35)
+                              continue
+                      except: pass
+                      break
+                  if out.get('contents'): break
 
               if out.get('contents'):
                   d=out['contents'].get('data',{})
