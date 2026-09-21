@@ -21,18 +21,30 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 
+data class NightInstalledExtensionSummary(
+    val extensionId: String,
+    val displayName: String,
+    val packageName: String,
+    val serviceName: String,
+    val toolCount: Int,
+    val messageTypeCount: Int,
+    val enabled: Boolean,
+    val error: String? = null,
+)
+
 /**
  * Runtime bridge for independently installed Night extension APKs.
  *
  * Extension APKs expose an exported bound service with [ACTION_EXTENSION_SERVICE].
- * Night discovers those services, asks each service for a JSON descriptor, then
- * exposes the declared tools/message types through the same registries used by
- * in-process extensions.
+ * Night discovers those services and reads their JSON descriptors, but external
+ * extensions remain disabled until the user explicitly enables them in Night.
  *
  * IPC deliberately carries JSON-only payloads. Night never sends provider keys,
  * full conversation history, or another extension's state to an extension.
@@ -40,11 +52,28 @@ import org.json.JSONObject
 class NightExternalExtensionManager private constructor(
     context: Context,
 ) {
+    private data class Discovered(
+        val component: ComponentName,
+        val descriptor: JSONObject,
+        val extensionId: String,
+        val displayName: String,
+        val toolCount: Int,
+        val messageTypeCount: Int,
+    )
+
     private val app = context.applicationContext
-    private val extensionServices = ConcurrentHashMap<String, ComponentName>()
+    private val prefs =
+        app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val extensionServices =
+        ConcurrentHashMap<String, ComponentName>()
+
+    private val _extensions =
+        MutableStateFlow<List<NightInstalledExtensionSummary>>(emptyList())
+    val extensions: StateFlow<List<NightInstalledExtensionSummary>> =
+        _extensions
 
     suspend fun refreshInstalledExtensions(): List<String> {
-        val discovered = withContext(Dispatchers.IO) {
+        val components = withContext(Dispatchers.IO) {
             @Suppress("DEPRECATION")
             app.packageManager.queryIntentServices(
                 Intent(ACTION_EXTENSION_SERVICE),
@@ -59,17 +88,72 @@ class NightExternalExtensionManager private constructor(
                 .sortedBy { it.flattenToShortString() }
         }
 
-        val active = linkedSetOf<String>()
-        discovered.forEach { component ->
+        val discovered = mutableListOf<Discovered>()
+        val failures = mutableListOf<NightInstalledExtensionSummary>()
+
+        components.forEach { component ->
             runCatching {
                 val descriptor = request(
                     component = component,
                     what = MSG_DESCRIBE,
                     payload = Bundle(),
                 )
-                registerDescriptor(component, descriptor)
-            }.onSuccess { extensionId ->
-                active += extensionId
+                parseDescriptor(component, descriptor)
+            }.onSuccess(discovered::add)
+                .onFailure { error ->
+                    failures += NightInstalledExtensionSummary(
+                        extensionId = component.packageName,
+                        displayName = component.packageName,
+                        packageName = component.packageName,
+                        serviceName = component.className,
+                        toolCount = 0,
+                        messageTypeCount = 0,
+                        enabled = false,
+                        error = error.message ?: "Could not read extension descriptor.",
+                    )
+                }
+        }
+
+        val duplicateIds = discovered
+            .groupBy { it.extensionId }
+            .filterValues { it.size > 1 }
+            .keys
+
+        val active = linkedSetOf<String>()
+        val summaries = mutableListOf<NightInstalledExtensionSummary>()
+
+        discovered.forEach { item ->
+            val duplicate = item.extensionId in duplicateIds
+            val enabled =
+                !duplicate && isEnabled(item.component, item.extensionId)
+
+            if (enabled) {
+                runCatching {
+                    registerDescriptor(
+                        component = item.component,
+                        descriptor = item.descriptor,
+                    )
+                }.onSuccess {
+                    active += item.extensionId
+                    summaries += item.toSummary(
+                        enabled = true,
+                    )
+                }.onFailure { error ->
+                    unregister(item.extensionId)
+                    summaries += item.toSummary(
+                        enabled = false,
+                        error = error.message ?: "Could not register extension.",
+                    )
+                }
+            } else {
+                summaries += item.toSummary(
+                    enabled = false,
+                    error = if (duplicate) {
+                        "Duplicate extension id. Both packages are blocked until the conflict is removed."
+                    } else {
+                        null
+                    },
+                )
             }
         }
 
@@ -77,7 +161,34 @@ class NightExternalExtensionManager private constructor(
             .filterNot(active::contains)
             .forEach(::unregister)
 
+        _extensions.value =
+            (summaries + failures).sortedWith(
+                compareByDescending<NightInstalledExtensionSummary> { it.enabled }
+                    .thenBy { it.displayName.lowercase() }
+                    .thenBy { it.packageName }
+            )
+
         return active.toList()
+    }
+
+    suspend fun setEnabled(
+        extension: NightInstalledExtensionSummary,
+        enabled: Boolean,
+    ) {
+        prefs.edit()
+            .putBoolean(
+                approvalKey(
+                    packageName = extension.packageName,
+                    extensionId = extension.extensionId,
+                ),
+                enabled,
+            )
+            .apply()
+
+        if (!enabled) {
+            unregister(extension.extensionId)
+        }
+        refreshInstalledExtensions()
     }
 
     fun unregister(extensionId: String) {
@@ -87,19 +198,47 @@ class NightExternalExtensionManager private constructor(
         NightExtensionMessageActionRegistry.unregister(extensionId)
     }
 
-    private fun registerDescriptor(
+    private fun parseDescriptor(
         component: ComponentName,
         descriptor: JSONObject,
-    ): String {
+    ): Discovered {
         val schemaVersion = descriptor.optInt("schemaVersion", 1)
         require(schemaVersion in 1..SUPPORTED_SCHEMA_VERSION) {
             "Unsupported Night extension schema version: " + schemaVersion
         }
 
-        val extensionId = descriptor.optString("extensionId").trim().lowercase()
+        val extensionId =
+            descriptor.optString("extensionId").trim().lowercase()
         require(EXTENSION_ID.matches(extensionId)) {
             "Invalid Night extension id."
         }
+
+        val tools = descriptor.optJSONArray("tools")
+        val messageTypes = descriptor.optJSONArray("messageTypes")
+
+        return Discovered(
+            component = component,
+            descriptor = descriptor,
+            extensionId = extensionId,
+            displayName = descriptor.optString("name")
+                .trim()
+                .ifBlank {
+                    descriptor.optString("extensionName")
+                        .trim()
+                        .ifBlank { extensionId }
+                },
+            toolCount = minOf(tools?.length() ?: 0, MAX_TOOLS),
+            messageTypeCount =
+                minOf(messageTypes?.length() ?: 0, MAX_MESSAGE_TYPES),
+        )
+    }
+
+    private fun registerDescriptor(
+        component: ComponentName,
+        descriptor: JSONObject,
+    ): String {
+        val parsed = parseDescriptor(component, descriptor)
+        val extensionId = parsed.extensionId
 
         unregister(extensionId)
         extensionServices[extensionId] = component
@@ -183,6 +322,36 @@ class NightExternalExtensionManager private constructor(
         return extensionId
     }
 
+    private fun isEnabled(
+        component: ComponentName,
+        extensionId: String,
+    ): Boolean =
+        prefs.getBoolean(
+            approvalKey(component.packageName, extensionId),
+            false,
+        )
+
+    private fun approvalKey(
+        packageName: String,
+        extensionId: String,
+    ): String =
+        "enabled::" + packageName + "::" + extensionId
+
+    private fun Discovered.toSummary(
+        enabled: Boolean,
+        error: String? = null,
+    ): NightInstalledExtensionSummary =
+        NightInstalledExtensionSummary(
+            extensionId = extensionId,
+            displayName = displayName,
+            packageName = component.packageName,
+            serviceName = component.className,
+            toolCount = toolCount,
+            messageTypeCount = messageTypeCount,
+            enabled = enabled,
+            error = error,
+        )
+
     private suspend fun executeTool(
         extensionId: String,
         chatId: String,
@@ -190,7 +359,10 @@ class NightExternalExtensionManager private constructor(
         arguments: JSONObject,
     ): JSONObject {
         val component = extensionServices[extensionId]
-            ?: error("Night extension is no longer installed: " + extensionId)
+            ?: error(
+                "Night extension is disabled or no longer installed: " +
+                    extensionId
+            )
 
         return request(
             component = component,
@@ -213,7 +385,10 @@ class NightExternalExtensionManager private constructor(
         payload: JSONObject,
     ): JSONObject {
         val component = extensionServices[extensionId]
-            ?: error("Night extension is no longer installed: " + extensionId)
+            ?: error(
+                "Night extension is disabled or no longer installed: " +
+                    extensionId
+            )
 
         return request(
             component = component,
@@ -243,7 +418,9 @@ class NightExternalExtensionManager private constructor(
             )
         } finally {
             withContext(Dispatchers.Main.immediate) {
-                runCatching { app.unbindService(bound.connection) }
+                runCatching {
+                    app.unbindService(bound.connection)
+                }
             }
         }
     }
@@ -293,7 +470,9 @@ class NightExternalExtensionManager private constructor(
 
                 continuation.invokeOnCancellation {
                     if (bound) {
-                        runCatching { app.unbindService(connection) }
+                        runCatching {
+                            app.unbindService(connection)
+                        }
                     }
                 }
             }
@@ -331,12 +510,13 @@ class NightExternalExtensionManager private constructor(
 
                 val raw = reply.data.getString(KEY_RESULT_JSON).orEmpty()
                 continuation.resume(
-                    runCatching { JSONObject(raw.ifBlank { "{}" }) }
-                        .getOrElse {
-                            JSONObject()
-                                .put("ok", true)
-                                .put("result", raw)
-                        }
+                    runCatching {
+                        JSONObject(raw.ifBlank { "{}" })
+                    }.getOrElse {
+                        JSONObject()
+                            .put("ok", true)
+                            .put("result", raw)
+                    }
                 )
                 true
             }
@@ -402,6 +582,7 @@ class NightExternalExtensionManager private constructor(
         private const val MAX_TOOLS = 64
         private const val MAX_MESSAGE_TYPES = 64
         private const val REQUEST_TIMEOUT_MS = 15_000L
+        private const val PREFS_NAME = "night_external_extensions"
 
         private val EXTENSION_ID =
             Regex("[a-z0-9][a-z0-9_.-]{1,63}")
