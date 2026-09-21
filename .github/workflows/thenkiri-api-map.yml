@@ -1,0 +1,202 @@
+name: TheNkiri API map
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/thenkiri-api-map.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+
+      - name: Map API and download routes
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          cat > /tmp/thenkiri.cjs <<'JS'
+          const { chromium, request } = require('playwright');
+          const fs=require('fs');
+          const out={startedAt:new Date().toISOString(),api:[],samples:[],events:[]};
+          const save=()=>fs.writeFileSync('diagnostics/thenkiri-api-map.json',JSON.stringify(out,null,2));
+          const push=(type,data={})=>{out.events.push({t:new Date().toISOString(),type,...data});save();};
+          const UA='Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
+
+          function strip(s=''){return s.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim()}
+          function anchors(html=''){
+            return [...html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)]
+              .map(m=>({href:m[1].replaceAll('&amp;','&'),text:strip(m[2])}));
+          }
+          function host(u){try{return new URL(u).hostname}catch{return null}}
+
+          (async()=>{
+            let browser,api;
+            try{
+              api=await request.newContext({userAgent:UA});
+              const checks=[
+                ['root','https://thenkiri.com/wp-json/'],
+                ['posts','https://thenkiri.com/wp-json/wp/v2/posts?per_page=3&_fields=id,date,slug,link,title,content,excerpt,categories,tags'],
+                ['search-movie','https://thenkiri.com/wp-json/wp/v2/posts?search=Almost%20Popular&per_page=5&_fields=id,date,slug,link,title,content'],
+                ['search-series','https://thenkiri.com/wp-json/wp/v2/posts?search=The%20Blame%20S01&per_page=5&_fields=id,date,slug,link,title,content'],
+                ['fallback','https://thenkiri.com/?rest_route=/wp/v2/posts&search=Almost%20Popular&per_page=3']
+              ];
+              for(const [name,url] of checks){
+                try{
+                  const r=await api.get(url,{timeout:25000,failOnStatusCode:false});
+                  const text=await r.text();
+                  out.api.push({name,url,status:r.status(),contentType:r.headers()['content-type']||null,bodyPreview:text.slice(0,5000)});
+                }catch(e){out.api.push({name,url,error:e.message})}
+              }
+              save();
+
+              let moviePosts=[],seriesPosts=[];
+              for(const item of out.api){
+                if(item.name==='search-movie'&&item.status===200){try{moviePosts=JSON.parse(item.bodyPreview)}catch{}}
+                if(item.name==='search-series'&&item.status===200){try{seriesPosts=JSON.parse(item.bodyPreview)}catch{}}
+              }
+
+              browser=await chromium.launch({headless:true});
+              const context=await browser.newContext({
+                userAgent:UA,viewport:{width:412,height:915},locale:'en-US'
+              });
+              context.on('response',async r=>{
+                const u=r.url();
+                if(/thenkiri\.com|nkiri\.ink|download|file|stream|drive|server/i.test(u)){
+                  const h=await r.allHeaders().catch(()=>({}));
+                  push('response',{status:r.status(),rt:r.request().resourceType(),url:u,location:h.location||null,contentType:h['content-type']||null});
+                }
+              });
+
+              async function inspect(label,post){
+                if(!post)return;
+                const rec={label,id:post.id||null,title:post.title?.rendered||'',link:post.link||null,downloadAnchors:[],route:[]};
+                const html=post.content?.rendered||'';
+                rec.downloadAnchors=anchors(html).filter(a=>/download|episode|movie|server|stream|create/i.test((a.text||'')+' '+a.href)).slice(0,50);
+                out.samples.push(rec); save();
+
+                const page=await context.newPage();
+                page.setDefaultTimeout(12000);
+                await page.goto(post.link,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>rec.route.push({type:'post_error',message:e.message}));
+                await page.waitForTimeout(1800);
+
+                let candidates=await page.locator('a').evaluateAll(as=>as.map(a=>({text:(a.textContent||'').trim(),href:a.href})).filter(x=>x.href)).catch(()=>[]);
+                candidates=candidates.filter(a=>/download movie|download episode|download|episode/i.test(a.text||'') || /nkiri\.ink|download/i.test(a.href||''));
+                rec.pageAnchors=candidates.slice(0,80);
+
+                const chosen=candidates.find(a=>/download (movie|episode)/i.test(a.text||'')) || candidates[0];
+                if(chosen?.href){
+                  rec.chosen=chosen;
+                  page.on('request',r=>{
+                    if(['document','xhr','fetch','script'].includes(r.resourceType())) rec.route.push({type:'request',method:r.method(),rt:r.resourceType(),url:r.url(),postData:r.postData()||null});
+                  });
+                  page.on('response',async r=>{
+                    if(['document','xhr','fetch','script'].includes(r.request().resourceType())){
+                      const h=await r.allHeaders().catch(()=>({}));
+                      rec.route.push({type:'response',status:r.status(),rt:r.request().resourceType(),url:r.url(),location:h.location||null,contentType:h['content-type']||null});
+                    }
+                  });
+                  page.on('framenavigated',f=>{if(f===page.mainFrame())rec.route.push({type:'nav',url:f.url()})});
+
+                  await page.goto(chosen.href,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>rec.route.push({type:'download_goto_error',message:e.message}));
+                  await page.waitForTimeout(5000);
+                  rec.afterDownload={
+                    url:page.url(),host:host(page.url()),title:await page.title().catch(()=>''),
+                    text:(await page.locator('body').innerText().catch(()=>'' )).slice(0,5000),
+                    forms:await page.locator('form').evaluateAll(fs=>fs.map(f=>({
+                      action:f.action,method:(f.method||'get').toLowerCase(),
+                      inputs:[...f.querySelectorAll('input,button')].map(x=>({
+                        tag:x.tagName,type:x.getAttribute('type'),name:x.getAttribute('name'),
+                        value:x.getAttribute('value'),id:x.id||null,text:(x.textContent||'').trim(),
+                        placeholder:x.getAttribute('placeholder')
+                      }))
+                    }))).catch(()=>[]),
+                    controls:await page.locator('a,button,input[type=submit]').evaluateAll(es=>es.map(e=>({
+                      text:(e.textContent||e.getAttribute('value')||'').trim(),
+                      href:e.href||null,id:e.id||null,type:e.getAttribute('type')
+                    })).filter(x=>x.text||x.href)).catch(()=>[])
+                  };
+                  save();
+
+                  // Click only ordinary "Create download link"/download/continue controls; stop if human verification appears.
+                  const txt=rec.afterDownload.text||'';
+                  const human=/(captcha|verify you are human|enter.{0,20}(number|code)|verification code|security code)/i.test(txt) ||
+                    rec.afterDownload.forms.some(f=>f.inputs.some(x=>['text','number','tel'].includes((x.type||'').toLowerCase())));
+                  rec.humanBoundary=human;
+                  if(!human){
+                    const control=page.getByRole('button',{name:/create download link|download|continue|get link|proceed/i}).or(
+                      page.getByRole('link',{name:/create download link|download|continue|get link|proceed/i})
+                    );
+                    const n=await control.count().catch(()=>0);
+                    for(let i=0;i<Math.min(n,8);i++){
+                      const el=control.nth(i);
+                      if(await el.isVisible().catch(()=>false)){
+                        const text=(await el.innerText().catch(()=>'')).trim();
+                        const href=await el.getAttribute('href').catch(()=>null);
+                        rec.route.push({type:'ordinary_click',text,href});
+                        await el.click({timeout:8000}).catch(e=>rec.route.push({type:'click_error',message:e.message}));
+                        await page.waitForTimeout(5000);
+                        rec.afterClick={
+                          url:page.url(),host:host(page.url()),title:await page.title().catch(()=>''),
+                          text:(await page.locator('body').innerText().catch(()=>'' )).slice(0,4000)
+                        };
+                        break;
+                      }
+                    }
+                  }
+                  save();
+                }
+                await page.close().catch(()=>{});
+              }
+
+              let movie=moviePosts[0], series=seriesPosts[0];
+              if(!movie || !series){
+                const home=await context.newPage();
+                await home.goto('https://thenkiri.com/',{waitUntil:'domcontentloaded',timeout:45000});
+                const all=await home.locator('a').evaluateAll(as=>as.map(a=>({text:(a.textContent||'').trim(),href:a.href})).filter(x=>x.href));
+                if(!movie){
+                  const x=all.find(a=>/Almost Popular/i.test(a.text)); if(x) movie={link:x.href,title:{rendered:x.text},content:{rendered:''}};
+                }
+                if(!series){
+                  const x=all.find(a=>/The Blame/i.test(a.text)); if(x) series={link:x.href,title:{rendered:x.text},content:{rendered:''}};
+                }
+                await home.close();
+              }
+
+              await inspect('movie',movie);
+              await inspect('series',series);
+              out.finishedAt=new Date().toISOString();
+            }catch(e){
+              out.error={message:e.message,stack:e.stack};
+            }finally{
+              try{if(browser)await browser.close()}catch{}
+              try{if(api)await api.dispose()}catch{}
+              save();
+            }
+          })();
+          JS
+          node /tmp/thenkiri.cjs
+
+      - name: Commit result
+        if: always()
+        run: |
+          test -f diagnostics/thenkiri-api-map.json || echo '{"error":"no result"}' > diagnostics/thenkiri-api-map.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/thenkiri-api-map.json
+          git commit -m "record TheNkiri API map" || true
+          git push || true
