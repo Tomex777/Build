@@ -30,6 +30,20 @@ if mode == "text":
     if find_attr("text", value) is None:
         raise SystemExit(2)
     print("found")
+elif mode == "click_text":
+    node = find_attr("text", value)
+    if node is None:
+        raise SystemExit(2)
+    parents = {child: parent for parent in root.iter() for child in parent}
+    current = node
+    while current is not None and current.attrib.get("clickable") != "true":
+        current = parents.get(current)
+    target = current if current is not None else node
+    box = bounds(target)
+    if box is None:
+        raise SystemExit(2)
+    x1, y1, x2, y2 = box
+    print(f"{(x1+x2)//2} {(y1+y2)//2}")
 elif mode == "click_desc":
     node = find_attr("content-desc", value)
     if node is None:
@@ -86,6 +100,23 @@ tap_desc() {
   return 1
 }
 
+tap_text() {
+  local wanted="$1"
+  local attempt
+  for attempt in $(seq 1 10); do
+    refresh_ui
+    if coords="$(python3 /tmp/night_providers_uia.py click_text "$wanted" 2>/dev/null)"; then
+      read -r x y <<<"$coords"
+      adb shell input tap "$x" "$y"
+      sleep 1
+      return 0
+    fi
+    sleep 0.5
+  done
+  echo "Missing Provider UI text control after retries: $wanted" >&2
+  return 1
+}
+
 assert_no_night_crash() {
   adb logcat -d -v threadtime > "$OUT/logcat.txt"
   if grep -A8 "FATAL EXCEPTION:" "$OUT/logcat.txt" | grep -q "Process: $PACKAGE"; then
@@ -120,6 +151,12 @@ assert_text "Edit model"
 assert_text "Delete model"
 adb exec-out screencap -p > "$OUT/02-model-actions-menu.png"
 
+echo "STEP: destructive model action requires confirmation"
+tap_text "Delete model"
+assert_text "Delete model?"
+adb exec-out screencap -p > "$OUT/03-delete-model-confirmation.png"
+tap_text "Cancel"
+
 assert_no_night_crash
 
 printf '%s\n' \
@@ -127,4 +164,5 @@ printf '%s\n' \
   "phoneWidth=709x1536@240dpi" \
   "providerScreen=true" \
   "compactModelActions=true" \
-  "overflowMenu=true" > "$OUT/summary.txt"
+  "overflowMenu=true" \
+  "destructiveConfirmation=true" > "$OUT/summary.txt"
