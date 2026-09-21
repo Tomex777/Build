@@ -31,7 +31,7 @@ jobs:
           const { chromium } = require('playwright');
           const fs=require('fs');
           const target='https://deinform.com/?id=U3VPVXdWcytJY216citiUHhNMVlUR0I5Ull6RXlqcVpEVUFZVytFNERJUUIyVDYxU21JZnN4UmY3V2wvcHM3LzhnWTRpMjVyQklTdk0rRVc2bHY4dVJKQVJmQ3UyQlg4WkR3ZEVMSjZLRjA9';
-          const out={target,events:[],snapshots:[],safetxtDocument:null};
+          const out={target,events:[],snapshots:[],safetxtDocument:null,unlockAttempt:null};
           const push=(type,data={})=>{const x={t:new Date().toISOString(),type,...data};out.events.push(x);console.log(JSON.stringify(x));};
 
           (async()=>{
@@ -51,6 +51,7 @@ jobs:
               }catch(e){}
             });
             let seq=0;
+            let unlockPromise=Promise.resolve();
             const watch=(p,label)=>{
               p.on('request',r=>{const u=r.url(); if(/deinform\.com|safetxt\.net|tfp\.re/i.test(u)) push('request',{page:label,method:r.method(),rt:r.resourceType(),url:u,postData:r.postData()||null});});
               p.on('response',async r=>{
@@ -71,7 +72,46 @@ jobs:
               p.on('framenavigated',f=>{if(f===p.mainFrame())push('nav',{page:label,url:f.url()});});
             };
             const page=await context.newPage(); watch(page,'main');
-            context.on('page',p=>{if(p===page)return; seq++; watch(p,'popup-'+seq); push('new_page',{page:'popup-'+seq,url:p.url()});});
+            context.on('page',p=>{
+              if(p===page)return;
+              seq++;
+              const label='popup-'+seq;
+              watch(p,label);
+              push('new_page',{page:label,url:p.url()});
+              unlockPromise=(async()=>{
+                try{
+                  await p.waitForLoadState('domcontentloaded',{timeout:20000}).catch(()=>{});
+                  await p.waitForTimeout(1200);
+                  if(!/^https:\/\/safetxt\.net\//i.test(p.url())) return;
+                  out.unlockAttempt=await p.evaluate(async()=>{
+                    const token=document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')||'';
+                    const all=[...document.scripts].map(s=>s.textContent||'').join('\n');
+                    const m=all.match(/slug:\s*['"]([^'"]+)['"]/);
+                    const slug=m?.[1]||'';
+                    const body=new URLSearchParams({slug,password:'tfpdl',_token:token});
+                    const r=await fetch('https://safetxt.net/get-paste',{
+                      method:'POST',
+                      credentials:'include',
+                      headers:{
+                        'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-Requested-With':'XMLHttpRequest'
+                      },
+                      body:body.toString()
+                    });
+                    const raw=await r.text();
+                    let json=null,decoded=null;
+                    try{
+                      json=JSON.parse(raw);
+                      if(json?.status==='success'&&json?.content){
+                        const b=atob(json.content);
+                        try{decoded=decodeURIComponent(b.replace(/\+/g,'%20'));}catch{decoded=b;}
+                      }
+                    }catch{}
+                    return {status:r.status,token,slug,raw,json,decoded};
+                  });
+                }catch(e){out.unlockAttempt={error:e.message};}
+              })();
+            });
             page.setDefaultTimeout(15000);
 
             async function snap(p,label){
@@ -112,6 +152,7 @@ jobs:
 
             await clickVisible('#showlink','showlink');
             await page.waitForTimeout(8000);
+            await unlockPromise.catch(()=>{});
 
             const pages=context.pages();
             for(let i=0;i<pages.length;i++) await snap(pages[i],'final-page-'+i);
