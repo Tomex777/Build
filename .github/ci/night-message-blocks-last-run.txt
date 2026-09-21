@@ -1,4 +1,4 @@
-run_id=35578628380
-run_number=10
-tested_sha=1533a7662081c8f4d484febe5c959bbb96b7c2eb
-exercise_outcome=success
+run_id=35579572771
+run_number=12
+tested_sha=3e55b7bd3e5592955e73c31d9971bcf1a70921d9
+exercise_outcome=failure
