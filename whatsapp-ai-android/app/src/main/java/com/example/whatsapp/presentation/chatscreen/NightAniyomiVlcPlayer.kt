@@ -320,7 +320,7 @@ internal fun NightAniyomiVlcPlayer(
     }
 
     LaunchedEffect(controlsVisible, playing, controlsLocked, menuOpen, playbackStarted) {
-        if (controlsVisible && playing && playbackStarted && !controlsLocked && !menuOpen) {
+        if (!virtualVideoDevice && controlsVisible && playing && playbackStarted && !controlsLocked && !menuOpen) {
             delay(3200L)
             controlsVisible = false
         }
