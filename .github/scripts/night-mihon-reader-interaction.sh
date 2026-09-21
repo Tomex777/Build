@@ -98,6 +98,20 @@ find_and_tap_text() {
   return 1
 }
 
+dismiss_fullscreen_education() {
+  # Android 16 may place a system-owned immersive-mode education card over
+  # Night's fullscreen reader. It is not part of Night and intercepts gestures.
+  adb shell settings put secure immersive_mode_confirmations confirmed >/dev/null 2>&1 || true
+  for _ in 1 2 3; do
+    if text_is_visible "Got it"; then
+      tap_text "Got it"
+      sleep 1
+    else
+      return 0
+    fi
+  done
+}
+
 assert_no_crash() {
   adb logcat -d > mihon-interaction-artifacts/logcat-latest.txt || true
 
@@ -132,6 +146,7 @@ adb shell am start -W -n "$PACKAGE/.MihonReaderPreviewActivity" \
   --ez mihon.preview.openProductionReader true
 sleep 3
 assert_alive
+dismiss_fullscreen_education
 adb exec-out screencap -p > mihon-interaction-artifacts/02-reader-open.png
 
 # Hide controls and move one page through Mihon's RTL tap zone.
@@ -165,6 +180,7 @@ adb shell am force-stop "$PACKAGE"
 adb shell am start -W -n "$PACKAGE/.MihonReaderPreviewActivity" \
   --ez mihon.preview.openProductionReader true
 sleep 3
+dismiss_fullscreen_education
 adb shell run-as "$PACKAGE" cat shared_prefs/night_mihon_reader.xml \
   > mihon-interaction-artifacts/prefs-after-restart.xml
 grep -Eq 'progress:archive:.*value="1"' mihon-interaction-artifacts/prefs-after-restart.xml
