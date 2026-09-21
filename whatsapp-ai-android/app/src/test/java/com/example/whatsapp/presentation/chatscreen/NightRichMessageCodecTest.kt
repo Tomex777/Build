@@ -1,5 +1,6 @@
 package com.example.whatsapp.presentation.chatscreen
 
+import com.example.whatsapp.data.browser.NightBrowserSpec
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -88,6 +89,18 @@ class NightRichMessageCodecTest {
                 actions = listOf(
                     MessageAction("open", "Open"),
                 ),
+            ),
+            BrowserResultMessage(
+                id = "browser",
+                spec = NightBrowserSpec(
+                    sessionId = "test.browser",
+                    initialUrl = "https://example.com/start",
+                    allowedHosts = listOf("example.com"),
+                    title = "Example",
+                    verifyActionId = "verify",
+                ),
+                time = "10:09",
+                sourceLabel = "Test",
             ),
         )
 

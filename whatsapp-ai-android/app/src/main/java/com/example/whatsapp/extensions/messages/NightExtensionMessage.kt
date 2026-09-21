@@ -1,5 +1,7 @@
 package com.example.whatsapp.extensions.messages
 
+import com.example.whatsapp.data.browser.NightBrowserSpec
+import com.example.whatsapp.data.browser.NightBrowserSpecCodec
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -23,7 +25,8 @@ enum class ExtensionCardTemplate(val wireName: String) {
     Entity("entity_card"),
     Gallery("gallery_card"),
     CustomData("custom_data_card"),
-    Configuration("configuration_card");
+    Configuration("configuration_card"),
+    Browser("browser_card");
 
     companion object {
         fun fromWireName(value: String): ExtensionCardTemplate =
@@ -127,6 +130,7 @@ data class ExtensionMessageSnapshot(
     val actions: List<ExtensionCardAction> = emptyList(),
     val extensionPayloadJson: String = "{}",
     val configuration: ExtensionConfiguration? = null,
+    val browser: NightBrowserSpec? = null,
 ) {
     fun hasValidNamespace(): Boolean =
         extensionId.isNotBlank() &&
@@ -251,6 +255,13 @@ object ExtensionMessageCodec {
                                 }
                         }
                     )
+            )
+        }
+
+        snapshot.browser?.let { browser ->
+            json.put(
+                "browser",
+                NightBrowserSpecCodec.encode(browser),
             )
         }
 
@@ -416,6 +427,10 @@ object ExtensionMessageCodec {
             }
         }
 
+        val browser = NightBrowserSpecCodec.decode(
+            json.optJSONObject("browser")
+        )
+
         ExtensionMessageSnapshot(
             schemaVersion = json.optInt("schemaVersion", 1).coerceAtLeast(1),
             extensionId = extensionId,
@@ -439,6 +454,7 @@ object ExtensionMessageCodec {
             actions = actions,
             extensionPayloadJson = json.optJSONObject("extensionPayload")?.toString() ?: "{}",
             configuration = configuration,
+            browser = browser,
         )
     }.getOrNull()
 }

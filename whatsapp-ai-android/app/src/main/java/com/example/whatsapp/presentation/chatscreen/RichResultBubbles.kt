@@ -1,6 +1,7 @@
 package com.example.whatsapp.presentation.chatscreen
 
 import coil.compose.AsyncImage
+import com.example.whatsapp.data.browser.NightBrowserSpec
 import com.example.whatsapp.extensions.messages.ExtensionActionStyle
 import com.example.whatsapp.extensions.messages.ExtensionCardAction
 import com.example.whatsapp.extensions.messages.ExtensionCardTemplate
@@ -186,6 +187,14 @@ data class ExtensionResultMessage(
     val extensionAvailable: Boolean = true,
 ) : RichResultMessage
 
+
+data class BrowserResultMessage(
+    override val id: String,
+    val spec: NightBrowserSpec,
+    val time: String,
+    val sourceLabel: String = "",
+) : RichResultMessage
+
 private val RichBubble = Color(0xFF242625)
 private val RichPanel = Color(0xFF303436)
 private val RichText = Color(0xFFECEDEE)
@@ -211,6 +220,13 @@ fun RichResultBubble(
         is DownloadResultMessage -> DownloadResultBubble(item)
         is ToolResultMessage -> ToolResultBubble(item, onAction)
         is ExtensionResultMessage -> ExtensionResultBubble(item, onAction)
+        is BrowserResultMessage -> NightBrowserMessageBubble(
+            messageId = item.id,
+            spec = item.spec,
+            time = item.time,
+            sourceLabel = item.sourceLabel,
+            onAction = onAction,
+        )
     }
 }
 
@@ -1434,6 +1450,20 @@ private fun ExtensionResultBubble(
     ) {
         NightExtensionConfigurationBubble(
             item = item,
+            onAction = onAction,
+        )
+        return
+    }
+
+    if (
+        snapshot.template == ExtensionCardTemplate.Browser &&
+        snapshot.browser != null
+    ) {
+        NightBrowserMessageBubble(
+            messageId = item.id,
+            spec = snapshot.browser,
+            time = item.time,
+            sourceLabel = snapshot.extensionName,
             onAction = onAction,
         )
         return
