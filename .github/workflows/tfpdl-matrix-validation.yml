@@ -298,65 +298,97 @@ jobs:
             return null;
           }
 
-          async function unlockSafeTxt(page,caseLog){
-            let meta={url:page.url(),title:'',token:'',scripts:'',text:''};
-            let slug='';
-            for(let i=0;i<24;i++){
-              await page.waitForLoadState('domcontentloaded',{timeout:5000}).catch(()=>{});
-              await sleep(500);
-              meta=await page.evaluate(()=>({
-                url:location.href,
-                title:document.title,
-                token:document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')||'',
-                scripts:[...document.scripts].map(s=>s.textContent||'').join('\n'),
-                text:(document.body?.innerText||'').slice(0,5000)
-              })).catch(e=>({url:page.url(),error:e.message,token:'',scripts:'',text:''}));
-              slug=(meta.scripts.match(/slug:\s*['"]([^'"]+)['"]/)||[])[1]||'';
-              if(meta.token && slug) break;
+          function safeTxtMetaFromHtml(html='',url=''){
+            const token =
+              (html.match(/<meta[^>]*name=["']csrf-token["'][^>]*content=["']([^"']+)["']/i)||[])[1] ||
+              (html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']csrf-token["']/i)||[])[1] ||
+              '';
+            const slug=(html.match(/slug:\s*['"]([^'"]+)['"]/)||[])[1]||'';
+            const title=stripTags((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)||[])[1]||'');
+            return {url,title,token,slug,text:stripTags(html).slice(0,5000)};
+          }
+
+          async function unlockSafeTxt(context,page,caseLog){
+            let url=caseLog.safeTxtDocumentUrl || page?.url?.() || '';
+            let html=caseLog.safeTxtHtml || '';
+
+            // Prefer the exact document body captured from the live redirect.
+            // If that listener lost the body, fetch the same final URL again with
+            // this browser context's cookie jar rather than reading the DOM.
+            if(!html && url){
+              try{
+                const rr=await context.request.get(url,{
+                  headers:{
+                    'User-Agent':UA,
+                    'Referer':'https://deinform.com/',
+                    'Accept':'text/html,application/xhtml+xml'
+                  },
+                  timeout:30000
+                });
+                if(rr.ok()) html=await rr.text();
+              }catch(e){
+                caseLog.safeTxtRefetchError=e.message;
+              }
             }
 
-            caseLog.safeTxt={url:meta.url,title:meta.title,text:meta.text};
-            caseLog.safeTxt.slug=slug;
-            caseLog.safeTxt.hasCsrf=!!meta.token;
+            const meta=safeTxtMetaFromHtml(html,url);
+            caseLog.safeTxt={
+              url:meta.url,
+              title:meta.title,
+              text:meta.text,
+              slug:meta.slug,
+              hasCsrf:!!meta.token,
+              htmlCaptured:!!html
+            };
 
-            if(!slug || !meta.token){
+            if(!meta.slug || !meta.token){
               caseLog.status='safetxt-parse-failed';
               return null;
             }
 
-            const result=await page.evaluate(async({slug,token})=>{
-              const body=new URLSearchParams({slug,password:'tfpdl',_token:token});
-              const r=await fetch('https://safetxt.net/get-paste',{
-                method:'POST',
-                credentials:'include',
+            let rr;
+            try{
+              rr=await context.request.post('https://safetxt.net/get-paste',{
                 headers:{
-                  'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8',
-                  'X-Requested-With':'XMLHttpRequest'
+                  'User-Agent':UA,
+                  'Referer':url,
+                  'Origin':'https://safetxt.net',
+                  'X-Requested-With':'XMLHttpRequest',
+                  'Accept':'application/json, text/javascript, */*; q=0.01'
                 },
-                body:body.toString()
+                form:{
+                  slug:meta.slug,
+                  password:'tfpdl',
+                  _token:meta.token
+                },
+                timeout:30000
               });
-              const raw=await r.text();
-              let json=null,decoded=null;
-              try{
-                json=JSON.parse(raw);
-                if(json?.status==='success' && json?.content){
-                  const b=atob(json.content);
-                  try{decoded=decodeURIComponent(b.replace(/\+/g,'%20'));}catch{decoded=b;}
-                }
-              }catch{}
-              return {http:r.status,raw,json,decoded};
-            },{slug,token:meta.token});
+            }catch(e){
+              caseLog.status='safetxt-request-failed';
+              caseLog.safeTxt.requestError=e.message;
+              return null;
+            }
 
-            caseLog.safeTxt.http=result.http;
-            caseLog.safeTxt.apiStatus=result.json?.status||null;
-            caseLog.safeTxt.raw=result.raw?.slice(0,2000)||'';
+            const raw=await rr.text().catch(()=> '');
+            let json=null,decoded=null;
+            try{
+              json=JSON.parse(raw);
+              if(json?.status==='success' && json?.content){
+                const b=Buffer.from(json.content,'base64').toString('utf8');
+                try{decoded=decodeURIComponent(b.replace(/\+/g,'%20'));}catch{decoded=b;}
+              }
+            }catch{}
 
-            if(result.json?.status!=='success' || !result.decoded){
+            caseLog.safeTxt.http=rr.status();
+            caseLog.safeTxt.apiStatus=json?.status||null;
+            caseLog.safeTxt.raw=raw.slice(0,2000);
+
+            if(json?.status!=='success' || !decoded){
               caseLog.status='safetxt-unlock-failed';
               return null;
             }
 
-            const mirrors=anchors(result.decoded).map(x=>x.href);
+            const mirrors=anchors(decoded).map(x=>x.href);
             caseLog.mirrors=mirrors;
             caseLog.mirrorHosts=[...new Set(mirrors.map(u=>{try{return new URL(u).hostname}catch{return null}}).filter(Boolean))];
             caseLog.status=mirrors.length?'success':'safetxt-decoded-no-mirrors';
@@ -394,6 +426,14 @@ jobs:
               const rt=r.request().resourceType();
               if(/^https:\/\/safetxt\.net\//i.test(u) && rt==='document' && r.status()===200){
                 caseLog.safeTxtDocumentUrl=u;
+                try{
+                  const body=await r.text();
+                  if(body && /csrf-token|get-paste|unlock_form/i.test(body)){
+                    caseLog.safeTxtHtml=body.slice(0,300000);
+                  }
+                }catch(e){
+                  caseLog.safeTxtBodyError=e.message;
+                }
               }
               if(/tfpdl\.com|tfp\.re|deinform\.com|safetxt\.net/i.test(u) && ['document','xhr','fetch'].includes(rt)){
                 const h=await r.allHeaders().catch(()=>({}));
@@ -437,7 +477,7 @@ jobs:
                 return caseLog;
               }
 
-              await unlockSafeTxt(safe,caseLog);
+              await unlockSafeTxt(context,safe,caseLog);
               return caseLog;
             }catch(e){
               caseLog.status='error';
