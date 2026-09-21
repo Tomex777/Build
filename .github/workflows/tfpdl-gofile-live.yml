@@ -1,0 +1,144 @@
+name: TFPDL GoFile mirror trace
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tfpdl-gofile-live.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+
+      - name: Trace public GoFile share
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          cat > /tmp/gofile.cjs <<'JS'
+          const { chromium } = require('playwright');
+          const fs=require('fs');
+          const target='https://gofile.io/d/VRiTEpLC';
+          const out={target,startedAt:new Date().toISOString(),events:[],contentsResponses:[],files:[],snapshots:[]};
+          const save=()=>fs.writeFileSync('diagnostics/tfpdl-gofile-live-result.json',JSON.stringify(out,null,2));
+          (async()=>{
+            let browser;
+            try{
+              browser=await chromium.launch({headless:true});
+              const context=await browser.newContext({
+                userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
+                viewport:{width:412,height:915},isMobile:true,hasTouch:true,locale:'en-US'
+              });
+
+              context.on('request',r=>{
+                const u=r.url();
+                if(/api\.gofile\.io|gofile\.io\/d\//i.test(u)){
+                  out.events.push({type:'request',method:r.method(),rt:r.resourceType(),url:u,headers:r.headers(),postData:r.postData()||null});
+                }
+              });
+
+              context.on('response',async r=>{
+                const u=r.url();
+                if(/api\.gofile\.io\/contents\//i.test(u)){
+                  let body='';
+                  try{body=await r.text();}catch(e){body='ERR:'+e.message;}
+                  out.contentsResponses.push({
+                    url:u,status:r.status(),headers:await r.allHeaders().catch(()=>({})),body:body.slice(0,100000)
+                  });
+                  try{
+                    const j=JSON.parse(body);
+                    const d=j?.data;
+                    const vals=[];
+                    if(d?.type==='file') vals.push(d);
+                    if(d?.children){
+                      if(Array.isArray(d.children)) vals.push(...d.children);
+                      else vals.push(...Object.values(d.children));
+                    }
+                    for(const x of vals){
+                      if(x?.type==='file'){
+                        out.files.push({
+                          id:x.id||null,name:x.name||null,size:x.size||null,mimetype:x.mimetype||null,
+                          link:x.link||null,md5:x.md5||null,servers:x.servers||null,
+                          createTime:x.createTime||null
+                        });
+                      }
+                    }
+                  }catch{}
+                  save();
+                }
+              });
+
+              const page=await context.newPage();
+              page.setDefaultTimeout(20000);
+              await page.goto(target,{waitUntil:'domcontentloaded',timeout:60000}).catch(e=>out.events.push({type:'goto_error',message:e.message}));
+              await page.waitForTimeout(12000);
+              out.snapshots.push({
+                url:page.url(),
+                title:await page.title().catch(()=>''),
+                text:(await page.locator('body').innerText().catch(()=>'' )).slice(0,12000),
+                links:await page.locator('a').evaluateAll(as=>as.map(a=>({text:(a.textContent||'').trim(),href:a.href})).filter(x=>x.href)).catch(()=>[])
+              });
+              out.finishedAt=new Date().toISOString();
+            }catch(e){
+              out.error={message:e.message,stack:e.stack};
+            }finally{
+              try{if(browser)await browser.close();}catch{}
+              save();
+            }
+          })();
+          JS
+          node /tmp/gofile.cjs
+
+      - name: Verify first raw file URL headers
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,urllib.request
+          p='diagnostics/tfpdl-gofile-live-result.json'
+          try:
+              j=json.load(open(p))
+              files=j.get('files') or []
+              if files and files[0].get('link'):
+                  u=files[0]['link']
+                  req=urllib.request.Request(u,headers={'User-Agent':'Mozilla/5.0','Range':'bytes=0-0'})
+                  try:
+                      with urllib.request.urlopen(req,timeout=30) as r:
+                          j['rawFileProbe']={
+                            'url':u,'status':r.status,'finalUrl':r.geturl(),
+                            'contentType':r.headers.get('Content-Type'),
+                            'contentLength':r.headers.get('Content-Length'),
+                            'contentRange':r.headers.get('Content-Range'),
+                            'contentDisposition':r.headers.get('Content-Disposition'),
+                            'acceptRanges':r.headers.get('Accept-Ranges')
+                          }
+                  except Exception as e:
+                      j['rawFileProbe']={'url':u,'error':repr(e)}
+              json.dump(j,open(p,'w'),indent=2)
+          except Exception as e:
+              json.dump({'error':repr(e)},open(p,'w'),indent=2)
+          PY
+
+      - name: Commit result
+        if: always()
+        run: |
+          test -f diagnostics/tfpdl-gofile-live-result.json || echo '{"error":"no result"}' > diagnostics/tfpdl-gofile-live-result.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/tfpdl-gofile-live-result.json
+          git commit -m "record TFPDL GoFile mirror trace" || true
+          git push || true
