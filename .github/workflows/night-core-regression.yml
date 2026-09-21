@@ -166,7 +166,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Exercise provider HTTP failover
+      - name: Exercise provider HTTP failover and Library bridge
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
@@ -178,7 +178,7 @@ jobs:
           emulator-boot-timeout: 420
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -accel on -wipe-data
-          script: cd whatsapp-ai-android && chmod +x gradlew && ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.whatsapp.data.night.NightAiGatewayProviderInstrumentedTest --stacktrace
+          script: cd whatsapp-ai-android && chmod +x gradlew && ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.whatsapp.data.night.NightAiGatewayProviderInstrumentedTest,com.example.whatsapp.data.night.NightLibraryIntegrationInstrumentedTest --stacktrace
 
       - name: Upload provider test reports
         if: always()
