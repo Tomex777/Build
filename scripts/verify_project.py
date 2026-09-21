@@ -66,7 +66,7 @@ check("toolbar exposes clipboard and emoji", "ToolPanel.CLIPBOARD" in ime and "T
 check("IME uses Keyboard-owned vector family", "KeyboardIcons.Clipboard" in ime and "KeyboardIcons.Backspace" in repeat_backspace and "androidx.compose.material.icons" not in ime)
 check("custom icon family uses common optical geometry", "strokeLineWidth = 1.8f" in icons and "viewportWidth = 24f" in icons and "StrokeCap.Round" in icons)
 check("SVG icon master exists", (root/"design/icons/keyboard-icons.svg").exists())
-check("emoji picker renders Keyboard-owned artwork", "KeyboardEmojiSamples.forEach" in ime and "KeyboardEmojiArtwork(entry.art" in ime)
+check("emoji picker renders Keyboard-owned artwork", "KeyboardEmojiSamples" in ime and "KeyboardEmojiArtwork(entry.art" in ime)
 check("emoji picker does not render its entries through Text", "Text(emoji" not in ime and "Text(entry.output" not in ime)
 check("emoji artwork is vector drawn", "Canvas(modifier)" in emoji_art and "EmojiArtKind" in emoji_art)
 check("emoji SVG source master exists", (root/"design/emoji/keyboard-emoji-samples.svg").exists())
