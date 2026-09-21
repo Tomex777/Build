@@ -904,6 +904,7 @@ private fun NightApp(initialChatId: String? = null) {
                 screen = "chat"
             }
             "media_compose" -> cancelMediaDraft()
+            "pdf_compose" -> cancelPdfDraft()
             else -> {
                 screen = if (selectedTab == MainTab.You) "tabs" else "chat"
             }
@@ -911,6 +912,27 @@ private fun NightApp(initialChatId: String? = null) {
     }
 
     when (screen) {
+        "pdf_compose" -> {
+            val draft = pdfDraft
+            if (draft != null) {
+                NightPdfEditorScreen(
+                    localPath = draft.localPath,
+                    fileName = draft.name,
+                    caption = pdfCaption,
+                    onCaptionChange = { pdfCaption = it },
+                    onCancel = ::cancelPdfDraft,
+                    onPreparedSend = { path, name ->
+                        sendPdfDraft(
+                            preparedPath = path,
+                            preparedName = name,
+                        )
+                    },
+                )
+            } else {
+                screen = "chat"
+            }
+        }
+
         "media_compose" -> {
             val draft = mediaDraft
             if (draft != null) {
