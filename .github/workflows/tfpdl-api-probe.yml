@@ -21,40 +21,22 @@ jobs:
             "https://tfpdl.com/wp-json/wp/v2/search?search=naruto&per_page=2"
             "https://tfpdl.com/?rest_route=/wp/v2/posts&per_page=2"
           )
-
           for url in "${urls[@]}"; do
-            echo
             echo "============================================================"
             echo "URL: $url"
             headers="$(mktemp)"
             body="$(mktemp)"
-            code=$(curl -L --max-time 30 --connect-timeout 10               -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36"               -D "$headers" -o "$body" -sS -w "%{http_code}" "$url")
+            code=$(curl -L --max-time 30 --connect-timeout 10 -A "Mozilla/5.0" -D "$headers" -o "$body" -sS -w "%{http_code}" "$url")
             rc=$?
             echo "curl_exit=$rc"
             echo "http_status=$code"
-            echo "content_type=$(grep -i '^content-type:' "$headers" | tail -1 | tr -d '\r' || true)"
-            echo "server=$(grep -i '^server:' "$headers" | tail -1 | tr -d '\r' || true)"
+            grep -i '^content-type:' "$headers" | tail -1 | tr -d '\r' || true
+            grep -i '^server:' "$headers" | tail -1 | tr -d '\r' || true
             echo "body_bytes=$(wc -c < "$body" | tr -d ' ')"
-            python3 - "$body" <<'PY'
-import json, sys
-p=sys.argv[1]
-data=open(p,'rb').read()
+            python3 -c 'import json,sys; p=sys.argv[1]; t=open(p,"rb").read().decode("utf-8","replace"); 
 try:
-    text=data.decode('utf-8','replace')
+ o=json.loads(t); print("json_valid=true"); print("json_type="+type(o).__name__); print("summary="+(str(list(o.keys())[:15]) if isinstance(o,dict) else "list_length="+str(len(o)) if isinstance(o,list) else type(o).__name__))
 except Exception:
-    text=''
-try:
-    obj=json.loads(text)
-    print("json_valid=true")
-    if isinstance(obj, dict):
-        print("json_keys=" + ",".join(list(obj.keys())[:20]))
-    elif isinstance(obj, list):
-        print("json_list_length=" + str(len(obj)))
-        if obj and isinstance(obj[0], dict):
-            print("first_item_keys=" + ",".join(list(obj[0].keys())[:20]))
-except Exception as e:
-    print("json_valid=false")
-    print("sample=" + " ".join(text[:700].split()))
-PY
+ print("json_valid=false"); print("sample="+" ".join(t[:700].split()))' "$body"
             rm -f "$headers" "$body"
           done
