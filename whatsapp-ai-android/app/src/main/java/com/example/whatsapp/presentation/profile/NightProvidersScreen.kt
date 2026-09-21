@@ -3,6 +3,7 @@ package com.example.whatsapp.presentation.profile
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,10 +20,13 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -285,6 +289,8 @@ private fun ProviderProfileRow(
     onAddKey: () -> Unit,
     onDeleteKey: (String) -> Unit,
 ) {
+    var modelMenuFor by remember { mutableStateOf<String?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -399,7 +405,7 @@ private fun ProviderProfileRow(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         model.displayName,
-                        color = ProviderText,
+                        color = if (model.isEnabled) ProviderText else ProviderMuted,
                         fontSize = 13.sp,
                     )
                     Text(
@@ -426,31 +432,51 @@ private fun ProviderProfileRow(
                         fontSize = 10.sp,
                     )
                 }
-                TextButton(onClick = { onSetModelEnabled(model, !model.isEnabled) }) {
-                    Text(
-                        if (model.isEnabled) "Disable" else "Enable",
-                        color = ProviderAccent,
-                        fontSize = 10.sp,
-                    )
-                }
-                if (!model.isDefault) {
-                    TextButton(onClick = { onMakeModelDefault(model) }) {
-                        Text("Default", color = ProviderAccent, fontSize = 10.sp)
+                Box {
+                    IconButton(onClick = { modelMenuFor = model.id }) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            "Model actions",
+                            tint = ProviderMuted,
+                        )
                     }
-                }
-                IconButton(onClick = { onEditModel(model) }) {
-                    Icon(
-                        Icons.Default.Edit,
-                        "Edit model",
-                        tint = ProviderMuted,
-                    )
-                }
-                IconButton(onClick = { onDeleteModel(model) }) {
-                    Icon(
-                        Icons.Default.Delete,
-                        "Delete model",
-                        tint = ProviderMuted,
-                    )
+                    DropdownMenu(
+                        expanded = modelMenuFor == model.id,
+                        onDismissRequest = { modelMenuFor = null },
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(if (model.isEnabled) "Disable model" else "Enable model")
+                            },
+                            onClick = {
+                                modelMenuFor = null
+                                onSetModelEnabled(model, !model.isEnabled)
+                            },
+                        )
+                        if (!model.isDefault) {
+                            DropdownMenuItem(
+                                text = { Text("Make default") },
+                                onClick = {
+                                    modelMenuFor = null
+                                    onMakeModelDefault(model)
+                                },
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = { Text("Edit model") },
+                            onClick = {
+                                modelMenuFor = null
+                                onEditModel(model)
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete model", color = Color(0xFFFF6B78)) },
+                            onClick = {
+                                modelMenuFor = null
+                                onDeleteModel(model)
+                            },
+                        )
+                    }
                 }
             }
         }
