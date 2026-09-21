@@ -1,7 +1,9 @@
 package com.example.whatsapp
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -60,6 +62,7 @@ import com.example.whatsapp.extensions.messages.NightExtensionConfigurationStore
 import com.example.whatsapp.extensions.messages.NightExtensionMessageActionRegistry
 import com.example.whatsapp.extensions.messages.withConfigurationValues
 import com.example.whatsapp.extensions.runtime.NightExternalExtensionManager
+import com.example.whatsapp.extensions.tools.NightMcpManager
 import com.example.whatsapp.presentation.chat_box.ChatListModel
 import com.example.whatsapp.presentation.chatscreen.AudioPlaybackUiState
 import com.example.whatsapp.presentation.chatscreen.ChoiceResultMessage
@@ -87,6 +90,7 @@ import com.example.whatsapp.presentation.profile.NightChatMemoryScreen
 import com.example.whatsapp.presentation.profile.NightChatFilesScreen
 import com.example.whatsapp.presentation.profile.NightChatSearchScreen
 import com.example.whatsapp.presentation.profile.NightMemoryScreen
+import com.example.whatsapp.presentation.profile.NightMcpServersScreen
 import com.example.whatsapp.presentation.profile.NightLiveVoiceScreen
 import com.example.whatsapp.presentation.profile.NightProfileScreen
 import com.example.whatsapp.presentation.profile.NightProvidersScreen
@@ -135,6 +139,7 @@ private fun NightApp(initialChatId: String? = null) {
     val aiGateway = remember { NightAiGateway.get(context) }
     val agentTools = remember { NightAgentToolExecutor.get(context) }
     val extensionManager = remember { NightExternalExtensionManager.get(context) }
+    val mcpManager = remember { NightMcpManager.get(context) }
     val appearanceController = remember { NightAppearanceController(repository) }
     val voiceRecorder = remember { NightVoiceRecorder(context.applicationContext) }
     val scheduleManager = remember { NightScheduleManager.get(context) }
@@ -189,6 +194,7 @@ private fun NightApp(initialChatId: String? = null) {
     val appearanceEntity by repository.observeAppearance().collectAsState(initial = null)
     val scheduledTasks by repository.observeScheduledTasks().collectAsState(initial = emptyList())
     val capabilityRoutes by repository.observeCapabilityRoutes().collectAsState(initial = emptyList())
+    val mcpServers by mcpManager.states.collectAsState()
 
     val messageFlow = remember(activeChatId) { repository.observeMessages(activeChatId) }
     val messageEntities by messageFlow.collectAsState(initial = emptyList())
@@ -283,6 +289,7 @@ private fun NightApp(initialChatId: String? = null) {
         repository.ensureProfile()
         repository.ensureAppearance()
         runCatching { extensionManager.refreshInstalledExtensions() }
+        runCatching { mcpManager.refresh() }
         val root = repository.ensureChat("night-core", "Night")
         if (repository.getMessages(root.id).isEmpty()) {
             repository.appendText(
@@ -290,6 +297,39 @@ private fun NightApp(initialChatId: String? = null) {
                 role = "assistant",
                 text = "Night is ready. Choose an AI when you want a live model, or keep using Night Core for local actions.",
             )
+        }
+    }
+
+    DisposableEffect(extensionManager) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(
+                receiverContext: android.content.Context?,
+                intent: Intent?,
+            ) {
+                scope.launch {
+                    runCatching {
+                        extensionManager.refreshInstalledExtensions()
+                    }
+                }
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REPLACED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addDataScheme("package")
+        }
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            filter,
+            ContextCompat.RECEIVER_EXPORTED,
+        )
+
+        onDispose {
+            runCatching {
+                context.unregisterReceiver(receiver)
+            }
         }
     }
 
@@ -1096,11 +1136,98 @@ private fun NightApp(initialChatId: String? = null) {
             },
         )
 
+        "mcp_servers" -> NightMcpServersScreen(
+            servers = mcpServers,
+            onBack = { screen = "providers" },
+            onRefresh = {
+                scope.launch {
+                    runCatching { mcpManager.refresh() }
+                        .onFailure { error ->
+                            Toast.makeText(
+                                context,
+                                error.message ?: "Could not refresh MCP servers.",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                }
+            },
+            onSave = { existingId, name, endpoint, token, clearToken, enabled ->
+                scope.launch {
+                    runCatching {
+                        mcpManager.save(
+                            existingId = existingId,
+                            displayName = name,
+                            endpoint = endpoint,
+                            bearerToken = token,
+                            clearBearerToken = clearToken,
+                            enabled = enabled,
+                        )
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not save MCP server.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onSetEnabled = { state, enabled ->
+                scope.launch {
+                    runCatching {
+                        mcpManager.setEnabled(
+                            state.config.id,
+                            enabled,
+                        )
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not update MCP server.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onReconnect = { state ->
+                scope.launch {
+                    mcpManager.reconnect(state.config.id)
+                        .onSuccess { count ->
+                            Toast.makeText(
+                                context,
+                                state.config.displayName + " connected • " +
+                                    count + if (count == 1) " tool" else " tools",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                        .onFailure { error ->
+                            Toast.makeText(
+                                context,
+                                error.message ?: "Could not connect MCP server.",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                }
+            },
+            onDelete = { state ->
+                scope.launch {
+                    runCatching {
+                        mcpManager.delete(state.config.id)
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not delete MCP server.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+        )
+
         "providers" -> NightProvidersScreen(
             profiles = profiles,
             models = providerModels,
             onBack = { screen = "tabs" },
             onCapabilityRoutingClick = { screen = "capability_routes" },
+            onMcpServersClick = { screen = "mcp_servers" },
             onAddProfile = { provider, service, name, key, endpoint, region, language, voiceName, makeDefault ->
                 scope.launch {
                     runCatching {
@@ -1995,6 +2122,7 @@ private fun NightApp(initialChatId: String? = null) {
         onDispose {
             voiceRecorder.cancel()
             liveVoiceClient.stop()
+            mcpManager.disconnectAll()
             activePlayer?.release()
         }
     }
