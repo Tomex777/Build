@@ -300,6 +300,44 @@ read_current_time() {
   return 1
 }
 
+prepare_timed_playback() {
+  local label="$1"
+  local seek_bounds sx1 sy1 sx2 sy2 seek_y seek_x current_time current_seconds
+
+  show_controls
+  refresh_ui
+  seek_bounds="$(python3 /tmp/night_video_uia.py bottom_seekbar 2>/dev/null || true)"
+  if [ -z "$seek_bounds" ]; then
+    echo "Could not find the playback seek bar while preparing $label." >&2
+    adb exec-out screencap -p > "$ARTIFACTS/failure-$label-no-seekbar.png" || true
+    cp /tmp/window.xml "$ARTIFACTS/failure-$label-no-seekbar.xml" 2>/dev/null || true
+    capture_media_logcat "$label-no-seekbar"
+    exit 1
+  fi
+
+  read -r sx1 sy1 sx2 sy2 <<<"$seek_bounds"
+  seek_y=$(((sy1 + sy2) / 2))
+  seek_x=$((sx1 + (sx2 - sx1) * 20 / 100))
+  adb shell input tap "$seek_x" "$seek_y"
+  sleep 1
+
+  show_controls
+  if desc_is_visible "Play"; then
+    tap_desc "Play"
+    sleep 1
+  fi
+
+  current_time="$(read_current_time)"
+  current_seconds="$(to_seconds "$current_time")"
+  if [ "$current_seconds" -ge 18 ]; then
+    echo "Could not rewind into a safe playback window for $label: $current_time" >&2
+    adb exec-out screencap -p > "$ARTIFACTS/failure-$label-window.png" || true
+    capture_media_logcat "$label-window"
+    exit 1
+  fi
+  printf 'prepared=%s\n' "$current_time" > "$ARTIFACTS/$label-window.txt"
+}
+
 capture_dims() {
   local path="$1"
   adb exec-out screencap -p > "$path"
@@ -378,6 +416,7 @@ fi
 adb exec-out screencap -p > "$ARTIFACTS/04-controls-visible.png" || true
 
 echo "STEP: pause and resume"
+prepare_timed_playback "pause-resume"
 show_controls
 tap_desc "Pause"
 paused_time="$(read_current_time)"
@@ -402,6 +441,7 @@ capture_media_logcat "03-pause-resume"
 assert_no_crash
 
 echo "STEP: playback speed"
+prepare_timed_playback "speed"
 show_controls
 tap_text "1×"
 assert_text "2×"
