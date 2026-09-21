@@ -4,7 +4,7 @@
     {
       "name": "guest-account",
       "status": 200,
-      "body": "{\"status\":\"ok\",\"data\":{\"id\":\"28c239da-0f58-4bd1-b904-767bf2222463\",\"rootFolder\":\"196d7b0d-627c-4dd8-a49a-08efa1ab94fb\",\"tier\":\"guest\",\"token\":\"VBfhZXBWCtjl4UjDOJaWxvEHRugG5C6K\"}}"
+      "body": "{\"status\":\"ok\",\"data\":{\"id\":\"6a8428c6-5037-4733-bfd5-8be518b5986e\",\"rootFolder\":\"02ac61b4-78e4-4bef-92c6-eb1a3bed7a7f\",\"tier\":\"guest\",\"token\":\"SPN1uLDdQqT758VpuRgvZb7U1EGuiiOM\"}}"
     },
     {
       "name": "config",
@@ -15,14 +15,14 @@
       "name": "contents-dynamic-current",
       "attempt": 1,
       "status": 401,
-      "url": "https://api.gofile.io/contents/VRiTEpLC?wt=d4e6d970f2270cb42839e4c46a7c9139b3cd2a6a0da0e6becda9a2d2a842d7e7&contentFilter=&page=1&pageSize=1000&sortField=name&sortDirection=1",
+      "url": "https://api.gofile.io/contents/VRiTEpLC?contentFilter=&page=1&pageSize=1000&sortField=name&sortDirection=1",
       "body": "{\"status\":\"error-notPremium\",\"data\":{}}"
     },
     {
       "name": "contents-dynamic-previous",
       "attempt": 1,
       "status": 401,
-      "url": "https://api.gofile.io/contents/VRiTEpLC?wt=f465a9e94156d4f0fbd5ec078d6bd0fd5e810322d6e5e6e9169ba66ff3d2f4db&contentFilter=&page=1&pageSize=1000&sortField=name&sortDirection=1",
+      "url": "https://api.gofile.io/contents/VRiTEpLC?contentFilter=&page=1&pageSize=1000&sortField=name&sortDirection=1",
       "body": "{\"status\":\"error-notPremium\",\"data\":{}}"
     }
   ],
