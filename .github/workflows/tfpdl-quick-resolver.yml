@@ -1,6 +1,8 @@
 name: TFPDL quick resolver probe
 
 on:
+  pull_request:
+    branches: [main]
   push:
     paths:
       - '.github/workflows/tfpdl-quick-resolver.yml'
