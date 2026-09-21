@@ -90,12 +90,14 @@ adb exec-out screencap -p > "$OUT/01-live-voice.png"
 refresh_ui
 cp /tmp/window.xml "$OUT/01-live-voice.xml"
 
-tap_text "Mute"
+echo "STEP: mute control updates live state"
+tap_desc "Mute"
 assert_text "Microphone muted"
 adb exec-out screencap -p > "$OUT/02-live-voice-muted.png"
 
-tap_text "Speaker"
-tap_text "More"
+echo "STEP: speaker and more controls are interactive"
+tap_desc "Speaker"
+tap_desc "More"
 assert_text "Mic off • Speaker"
 adb exec-out screencap -p > "$OUT/03-live-voice-more.png"
 
