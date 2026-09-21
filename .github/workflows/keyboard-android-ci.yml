@@ -35,7 +35,7 @@ jobs:
       - name: Static project contract checks
         run: python3 scripts/verify_project.py
       - name: Unit tests, lint and APK
-        run: gradle --no-daemon :core:model:testDebugUnitTest :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+        run: gradle --no-daemon :core:model:testDebugUnitTest :core:data:testDebugUnitTest :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
