@@ -180,14 +180,7 @@ jobs:
           emulator-boot-timeout: 420
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -accel on -wipe-data
-          script: |
-            case "${{ matrix.suite }}" in
-              message-blocks) bash .github/scripts/night-message-blocks-interaction.sh ;;
-              image-editor) bash .github/scripts/night-image-editor-interaction.sh ;;
-              pdf-editor) bash .github/scripts/night-pdf-editor-interaction.sh ;;
-              mihon-reader) bash .github/scripts/night-mihon-reader-interaction.sh ;;
-              *) exit 2 ;;
-            esac
+          script: bash .github/scripts/night-${{ matrix.suite }}-interaction.sh
 
       - name: Upload selected UI evidence
         if: always()
