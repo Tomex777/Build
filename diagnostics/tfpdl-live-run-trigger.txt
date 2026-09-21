@@ -5,3 +5,5 @@ trigger fallback browser trace
 trace beyond countdown
 
 trigger deinform-only stage
+
+trace article continuation
