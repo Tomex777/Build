@@ -90,6 +90,7 @@ import com.example.whatsapp.presentation.profile.NightChatMemoryScreen
 import com.example.whatsapp.presentation.profile.NightChatFilesScreen
 import com.example.whatsapp.presentation.profile.NightChatSearchScreen
 import com.example.whatsapp.presentation.profile.NightMemoryScreen
+import com.example.whatsapp.presentation.profile.NightExtensionsScreen
 import com.example.whatsapp.presentation.profile.NightMcpServersScreen
 import com.example.whatsapp.presentation.profile.NightLiveVoiceScreen
 import com.example.whatsapp.presentation.profile.NightProfileScreen
@@ -195,6 +196,7 @@ private fun NightApp(initialChatId: String? = null) {
     val scheduledTasks by repository.observeScheduledTasks().collectAsState(initial = emptyList())
     val capabilityRoutes by repository.observeCapabilityRoutes().collectAsState(initial = emptyList())
     val mcpServers by mcpManager.states.collectAsState()
+    val extensions by extensionManager.extensions.collectAsState()
 
     val messageFlow = remember(activeChatId) { repository.observeMessages(activeChatId) }
     val messageEntities by messageFlow.collectAsState(initial = emptyList())
@@ -1136,6 +1138,47 @@ private fun NightApp(initialChatId: String? = null) {
             },
         )
 
+        "extensions" -> NightExtensionsScreen(
+            extensions = extensions,
+            onBack = { screen = "providers" },
+            onRefresh = {
+                scope.launch {
+                    runCatching {
+                        extensionManager.refreshInstalledExtensions()
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not refresh extensions.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onSetEnabled = { extension, enabled ->
+                scope.launch {
+                    runCatching {
+                        extensionManager.setEnabled(
+                            extension = extension,
+                            enabled = enabled,
+                        )
+                    }.onSuccess {
+                        Toast.makeText(
+                            context,
+                            extension.displayName +
+                                if (enabled) " enabled." else " disabled.",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not update extension.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+        )
+
         "mcp_servers" -> NightMcpServersScreen(
             servers = mcpServers,
             onBack = { screen = "providers" },
@@ -1228,6 +1271,7 @@ private fun NightApp(initialChatId: String? = null) {
             onBack = { screen = "tabs" },
             onCapabilityRoutingClick = { screen = "capability_routes" },
             onMcpServersClick = { screen = "mcp_servers" },
+            onExtensionsClick = { screen = "extensions" },
             onAddProfile = { provider, service, name, key, endpoint, region, language, voiceName, makeDefault ->
                 scope.launch {
                     runCatching {
