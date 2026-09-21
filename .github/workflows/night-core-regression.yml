@@ -12,6 +12,7 @@ on:
       - ".github/scripts/night-live-voice-interaction.sh"
       - ".github/scripts/night-extension-config-interaction.sh"
       - ".github/scripts/night-browser-interaction.sh"
+      - ".github/scripts/night-memory-interaction.sh"
       - ".github/scripts/night-mihon-reader-interaction.sh"
       - ".github/scripts/night-pdf-editor-interaction.sh"
       - ".github/scripts/night-video-interaction.sh"
@@ -86,6 +87,9 @@ jobs:
           main = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/MainActivity.kt").read_text()
           call_handler = main.split("onCallClick = {", 1)[1].split("onMenuAction =", 1)[0]
           assert "startLiveVoiceCall()" in call_handler, "Chat call button must launch Night Live Voice"
+
+          assert "delay(2 * 60 * 1000L)" not in main, "Night must not use the removed 2-minute idle summary checkpoint"
+          assert "NightSummaryPolicy.CHECKPOINT_INTERVAL_MS" in main, "Night chat must use the shared five-minute summary policy"
           PY
 
       - name: Run unit tests and build integrated APK
@@ -198,6 +202,7 @@ jobs:
           - live-voice
           - extension-config
           - browser
+          - memory
           - image-editor
           - pdf-editor
           - mihon-reader
@@ -261,6 +266,8 @@ jobs:
               ;;
             browser)
               ;;
+            memory)
+              ;;
             image-editor)
               mkdir -p night-image-editor-apk
               cp night-integrated-apk/app-debug.apk night-image-editor-apk/app-debug.apk
@@ -301,6 +308,7 @@ jobs:
             night-live-voice-artifacts/
             night-extension-config-artifacts/
             night-browser-artifacts/
+            night-memory-artifacts/
             night-image-editor-artifacts/
             night-pdf-editor-artifacts/
             mihon-interaction-artifacts/
