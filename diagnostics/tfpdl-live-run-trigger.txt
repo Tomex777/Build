@@ -15,3 +15,5 @@ inspect countdown source logic
 click actual verification trigger
 
 android touch verification trace
+
+trace popup resolver pages
