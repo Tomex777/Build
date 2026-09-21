@@ -11,65 +11,50 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Inspect post links and redirect wrappers
+      - name: Inspect post links
         shell: bash
         run: |
-          set -u
           python3 - <<'PY'
-import json, re, html, urllib.request
-from html.parser import HTMLParser
-from urllib.parse import urljoin
+          import json, html, urllib.request
+          from html.parser import HTMLParser
+          from urllib.parse import urljoin
 
-POST_API = "https://tfpdl.com/wp-json/wp/v2/posts/373753"
-req = urllib.request.Request(POST_API, headers={"User-Agent":"Mozilla/5.0"})
-with urllib.request.urlopen(req, timeout=30) as r:
-    post = json.load(r)
+          api = "https://tfpdl.com/wp-json/wp/v2/posts/373753"
+          req = urllib.request.Request(api, headers={"User-Agent":"Mozilla/5.0"})
+          with urllib.request.urlopen(req, timeout=30) as r:
+              post = json.load(r)
 
-print("POST_ID", post.get("id"))
-print("POST_LINK", post.get("link"))
-print("TITLE", html.unescape(post.get("title",{}).get("rendered","")))
+          print("POST_ID", post.get("id"))
+          print("POST_LINK", post.get("link"))
+          print("TITLE", html.unescape(post.get("title",{}).get("rendered","")))
 
-class P(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self.links=[]
-        self.cur=None
-        self.txt=[]
-    def handle_starttag(self, tag, attrs):
-        if tag.lower()=="a":
-            d=dict(attrs)
-            self.cur=d.get("href")
-            self.txt=[]
-    def handle_data(self, data):
-        if self.cur is not None:
-            self.txt.append(data)
-    def handle_endtag(self, tag):
-        if tag.lower()=="a" and self.cur is not None:
-            self.links.append((self.cur, " ".join("".join(self.txt).split())))
-            self.cur=None
-            self.txt=[]
+          class P(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.links = []
+                  self.cur = None
+                  self.txt = []
+              def handle_starttag(self, tag, attrs):
+                  if tag.lower() == "a":
+                      self.cur = dict(attrs).get("href")
+                      self.txt = []
+              def handle_data(self, data):
+                  if self.cur is not None:
+                      self.txt.append(data)
+              def handle_endtag(self, tag):
+                  if tag.lower() == "a" and self.cur is not None:
+                      self.links.append((self.cur, " ".join("".join(self.txt).split())))
+                      self.cur = None
+                      self.txt = []
 
-p=P()
-p.feed(post.get("content",{}).get("rendered",""))
-seen=set()
-links=[]
-for href,text in p.links:
-    full=urljoin(post.get("link","https://tfpdl.com/"), html.unescape(href))
-    key=(full,text)
-    if key not in seen:
-        seen.add(key); links.append(key)
-
-print("\n=== ALL ANCHORS ===")
-for i,(href,text) in enumerate(links,1):
-    print(f"{i:02d}. [{text}] {href}")
-
-cands=[]
-for href,text in links:
-    s=(href+" "+text).lower()
-    if any(k in s for k in ["download","episode","tfpdl","tfp.re","dl","720","1080","2160","x265","webrip","web-dl"]):
-        cands.append((href,text))
-
-print("\n=== CANDIDATE DOWNLOAD ROUTES ===")
-for i,(href,text) in enumerate(cands,1):
-    print(f"{i:02d}. [{text}] {href}")
-PY
+          p = P()
+          p.feed(post.get("content",{}).get("rendered",""))
+          print("\n=== ALL ANCHORS ===")
+          seen = set()
+          for i, (href, text) in enumerate(p.links, 1):
+              full = urljoin(post.get("link","https://tfpdl.com/"), html.unescape(href))
+              if (full, text) in seen:
+                  continue
+              seen.add((full, text))
+              print(f"{i:02d}. [{text}] {full}")
+          PY
