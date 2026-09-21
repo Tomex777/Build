@@ -48,6 +48,9 @@ class NightBrowserSpecTest {
             javaScriptEnabled = true,
             thirdPartyCookies = true,
             userAgent = "NightTest/1.0",
+            verificationState = NightBrowserVerificationState.Verified,
+            verificationMessage = "Connected.",
+            verifiedAt = 99L,
         )
 
         val decoded = NightBrowserSpecCodec.decode(
@@ -61,6 +64,9 @@ class NightBrowserSpecTest {
         assertEquals("verify_connection", decoded.verifyActionId)
         assertEquals("Done", decoded.verifyLabel)
         assertEquals("NightTest/1.0", decoded.userAgent)
+        assertEquals(NightBrowserVerificationState.Verified, decoded.verificationState)
+        assertEquals("Connected.", decoded.verificationMessage)
+        assertEquals(99L, decoded.verifiedAt)
         assertTrue(decoded.isAllowedUrl("https://accounts.example.com/callback"))
     }
 
