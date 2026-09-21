@@ -260,7 +260,8 @@ private fun ProviderProfileRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = keys.size.toString() + if (keys.size == 1) " key" else " keys" +
+                    text = keys.size.toString() +
+                        (if (keys.size == 1) " key" else " keys") +
                         " • automatic rotation",
                     color = ProviderMuted,
                     fontSize = 11.sp,
