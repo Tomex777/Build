@@ -526,6 +526,23 @@ private fun NightApp(initialChatId: String? = null) {
                 return@launch
             }
 
+            if (
+                mime.equals("application/pdf", ignoreCase = true) ||
+                saved.name.endsWith(".pdf", ignoreCase = true)
+            ) {
+                pdfDraft = NightPdfDraft(
+                    libraryId = saved.id,
+                    name = saved.name,
+                    localPath = saved.localPath,
+                    createdAt = saved.createdAt,
+                    replyToMessageId = replyId,
+                )
+                pdfCaption = ""
+                replyingToId = null
+                screen = "pdf_compose"
+                return@launch
+            }
+
             val messageId = java.util.UUID.randomUUID().toString()
             val payload = JSONObject()
                 .put("localPath", saved.localPath)
