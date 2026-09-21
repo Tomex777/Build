@@ -156,9 +156,9 @@ jobs:
             }
 
             return [
-              {kind:'movie',...movie,wrapper:movie.wrappers[0]},
-              {kind:'series',...series[0],wrapper:series[0].wrappers[0]},
-              {kind:'series',...series[1],wrapper:series[1].wrappers[0]}
+              {kind:'movie',...movie,wrapper:movie.wrappers[0].href},
+              {kind:'series',...series[0],wrapper:series[0].wrappers[0].href},
+              {kind:'series',...series[1],wrapper:series[1].wrappers[0].href}
             ];
           }
 
