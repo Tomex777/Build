@@ -94,6 +94,16 @@ assert_no_night_crash() {
   fi
 }
 
+PDF_SOURCE="whatsapp-ai-android/app/src/main/java/com/example/whatsapp/presentation/chatscreen/NightPdfViewerScreen.kt"
+if grep -q "ModalBottomSheet" "$PDF_SOURCE"; then
+  echo "Night PDF viewer regressed to a bottom-sheet implementation." >&2
+  exit 1
+fi
+if grep -q 'contentDescription = "PDF bottom sheet"' "$PDF_SOURCE"; then
+  echo "Night PDF viewer still exposes bottom-sheet semantics." >&2
+  exit 1
+fi
+
 adb install --no-streaming -r "$APK"
 adb shell wm size 709x1536
 adb shell wm density 240
