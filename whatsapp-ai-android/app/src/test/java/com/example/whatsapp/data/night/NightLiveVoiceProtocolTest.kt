@@ -96,4 +96,21 @@ class NightLiveVoiceProtocolTest {
         assertFalse(session.has("audio"))
         assertFalse(session.has("output_modalities"))
     }
+
+    @Test
+    fun voiceLiveUsesAzureStandardTypeForNeuralVoiceNames() {
+        val voice = NightLiveVoiceProtocol.sessionUpdate(
+            displayName = "Dawson",
+            voiceName = "en-US-AvaMultilingualNeural",
+            chatSummary = "",
+            modelName = "phi4-mm-realtime",
+            voiceLiveApi = true,
+        )
+            .getJSONObject("session")
+            .getJSONObject("voice")
+
+        assertEquals("azure-standard", voice.getString("type"))
+        assertEquals("en-US-AvaMultilingualNeural", voice.getString("name"))
+    }
+
 }
