@@ -78,6 +78,7 @@ import kotlinx.coroutines.isActive
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
+import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.util.VLCVideoLayout
 
 private fun View.installNightVideoTapHandler(onTap: () -> Unit) {
@@ -110,6 +111,136 @@ private fun isNightVirtualVideoDevice(): Boolean {
         product.contains("sdk_gphone", ignoreCase = true) ||
         hardware.contains("goldfish", ignoreCase = true) ||
         hardware.contains("ranchu", ignoreCase = true)
+}
+
+private data class NightVlcTrackMetadata(
+    val id: Int,
+    val description: String,
+    val codec: String,
+    val language: String,
+    val channels: Int = 0,
+    val rate: Int = 0,
+)
+
+private fun String.isNightGenericTrackLabel(): Boolean {
+    val normalized = trim().lowercase()
+    return normalized.isBlank() ||
+        normalized == "default" ||
+        normalized == "default audio" ||
+        normalized == "audio" ||
+        normalized == "audio track" ||
+        normalized == "subtitle" ||
+        normalized == "subtitle track" ||
+        normalized.startsWith("track ")
+}
+
+private fun nightVlcCodecLabel(codec: String): String {
+    return when (codec.trim().lowercase()) {
+        "mp4a", "aac" -> "AAC"
+        "tx3g", "text" -> "MOV text"
+        else -> codec.trim().uppercase()
+    }
+}
+
+private fun nightVlcSampleRateLabel(rate: Int): String {
+    if (rate <= 0) return ""
+    val whole = rate / 1000
+    val tenths = (rate % 1000) / 100
+    return if (tenths == 0) "$whole kHz" else "$whole.$tenths kHz"
+}
+
+private fun MediaPlayer.nightParsedTrackMetadata(type: Int): List<NightVlcTrackMetadata> {
+    val currentMedia = runCatching { this.media }.getOrNull() ?: return emptyList()
+    return try {
+        val tracks = mutableListOf<NightVlcTrackMetadata>()
+        for (index in 0 until currentMedia.trackCount) {
+            val track = runCatching { currentMedia.getTrack(index) }.getOrNull() ?: continue
+            if (track.type != type) continue
+            val audio = track as? IMedia.AudioTrack
+            tracks += NightVlcTrackMetadata(
+                id = track.id,
+                description = track.description.orEmpty().trim(),
+                codec = track.codec.orEmpty().trim(),
+                language = track.language.orEmpty().trim(),
+                channels = audio?.channels ?: 0,
+                rate = audio?.rate ?: 0,
+            )
+        }
+        tracks
+    } finally {
+        runCatching { currentMedia.release() }
+    }
+}
+
+private fun nightAudioTrackLabel(
+    legacyName: String,
+    metadata: NightVlcTrackMetadata?,
+): String {
+    val parts = mutableListOf<String>()
+    val richDescription = metadata?.description.orEmpty()
+    when {
+        richDescription.isNotNightGenericTrackLabel() -> parts += richDescription
+        !legacyName.isNightGenericTrackLabel() -> parts += legacyName.trim()
+    }
+
+    metadata?.codec
+        ?.takeIf { it.isNotBlank() }
+        ?.let(::nightVlcCodecLabel)
+        ?.takeIf { it.isNotBlank() }
+        ?.let(parts::add)
+
+    when (metadata?.channels ?: 0) {
+        1 -> parts += "Mono"
+        2 -> parts += "Stereo"
+        in 3..Int.MAX_VALUE -> parts += "${metadata?.channels} channels"
+    }
+
+    metadata?.rate
+        ?.takeIf { it > 0 }
+        ?.let(::nightVlcSampleRateLabel)
+        ?.takeIf { it.isNotBlank() }
+        ?.let(parts::add)
+
+    metadata?.language
+        ?.takeIf {
+            it.isNotBlank() &&
+                !it.equals("und", ignoreCase = true) &&
+                !it.equals("unknown", ignoreCase = true)
+        }
+        ?.uppercase()
+        ?.let(parts::add)
+
+    return parts.distinct().joinToString(" · ").ifBlank { "Audio track" }
+}
+
+private fun nightSubtitleTrackLabel(
+    legacyName: String,
+    metadata: NightVlcTrackMetadata?,
+): String {
+    val parts = mutableListOf<String>()
+    val richDescription = metadata?.description.orEmpty()
+    when {
+        richDescription.isNotNightGenericTrackLabel() -> parts += richDescription
+        !legacyName.isNightGenericTrackLabel() -> parts += legacyName.trim()
+        else -> parts += "Embedded subtitle"
+    }
+
+    metadata?.codec
+        ?.takeIf { it.isNotBlank() }
+        ?.let(::nightVlcCodecLabel)
+        ?.takeIf { it.isNotBlank() }
+        ?.let(parts::add)
+
+    metadata?.language
+        ?.takeIf {
+            it.isNotBlank() &&
+                !it.equals("und", ignoreCase = true) &&
+                !it.equals("unknown", ignoreCase = true)
+        }
+        ?.uppercase()
+        ?.let(parts::add)
+
+    return parts.distinct().joinToString(" · ")
 }
 
 private enum class NightVideoAspect(
@@ -373,19 +504,39 @@ internal fun NightAniyomiVlcPlayer(
     LaunchedEffect(audioMenu, subtitleMenu, player) {
         if (audioMenu) {
             audioTracks = runCatching {
+                val metadata = player.nightParsedTrackMetadata(IMedia.Track.Type.Audio)
                 player.audioTracks
                     ?.filter { it.id >= 0 }
-                    ?.map { it.id to it.name.orEmpty().ifBlank { "Audio" } }
+                    ?.mapIndexed { index, track ->
+                        val rich = metadata.firstOrNull { it.id == track.id }
+                            ?: metadata.getOrNull(index)
+                        track.id to nightAudioTrackLabel(track.name.orEmpty(), rich)
+                    }
                     .orEmpty()
             }.getOrDefault(emptyList())
+            Log.i(
+                "NightVideo",
+                "Audio menu tracks=" +
+                    audioTracks.joinToString { (id, name) -> "$id:$name" },
+            )
         }
         if (subtitleMenu) {
             subtitleTracks = runCatching {
+                val metadata = player.nightParsedTrackMetadata(IMedia.Track.Type.Text)
                 player.spuTracks
                     ?.filter { it.id >= 0 }
-                    ?.map { it.id to it.name.orEmpty().ifBlank { "Subtitle" } }
+                    ?.mapIndexed { index, track ->
+                        val rich = metadata.firstOrNull { it.id == track.id }
+                            ?: metadata.getOrNull(index)
+                        track.id to nightSubtitleTrackLabel(track.name.orEmpty(), rich)
+                    }
                     .orEmpty()
             }.getOrDefault(emptyList())
+            Log.i(
+                "NightVideo",
+                "Subtitle menu tracks=" +
+                    subtitleTracks.joinToString { (id, name) -> "$id:$name" },
+            )
         }
     }
 
