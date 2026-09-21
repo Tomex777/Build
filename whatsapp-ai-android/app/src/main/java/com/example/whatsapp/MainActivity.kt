@@ -59,7 +59,7 @@ import com.example.whatsapp.presentation.chatscreen.NightChatAppearance
 import com.example.whatsapp.presentation.chatscreen.NightChoiceDialog
 import com.example.whatsapp.presentation.chatscreen.NightChatMediaItem
 import com.example.whatsapp.presentation.chatscreen.NightMediaViewerScreen
-import com.example.whatsapp.presentation.chatscreen.NightPdfSheet
+import com.example.whatsapp.presentation.chatscreen.NightPdfViewerScreen
 import com.example.whatsapp.presentation.chatscreen.NightMediaComposerScreen
 import com.example.whatsapp.presentation.chatscreen.ReplyKind
 import com.example.whatsapp.presentation.chatscreen.ReplyPreview
@@ -1513,9 +1513,9 @@ private fun NightApp(initialChatId: String? = null) {
 
 
     pdfSheetPath?.let { pdfPath ->
-        NightPdfSheet(
+        NightPdfViewerScreen(
             localPath = pdfPath,
-            onDismiss = { pdfSheetPath = null },
+            onBack = { pdfSheetPath = null },
         )
     }
 
