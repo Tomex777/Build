@@ -96,7 +96,9 @@ scroll_until_desc() {
     if python3 /tmp/night_ext_config_uia.py desc "$desc" >/dev/null 2>&1; then
       return 0
     fi
-    adb shell input swipe 355 1240 355 520 600
+    # Swipe through the empty right-side chat gutter so form controls do not
+    # consume the gesture before the conversation list can scroll.
+    adb shell input swipe 660 1240 660 500 600
     sleep 1
   done
   return 1
