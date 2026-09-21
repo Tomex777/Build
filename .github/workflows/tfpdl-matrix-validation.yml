@@ -1,0 +1,432 @@
+name: TFPDL matrix validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tfpdl-matrix-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+
+      - name: Validate three live TFPDL items
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          cat > /tmp/tfpdl-matrix.cjs <<'JS'
+          const { chromium } = require('playwright');
+          const fs = require('fs');
+
+          const UA='Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
+          const out={
+            startedAt:new Date().toISOString(),
+            selection:null,
+            cases:[],
+            summary:{}
+          };
+          const save=()=>fs.writeFileSync('diagnostics/tfpdl-matrix-validation.json',JSON.stringify(out,null,2));
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+          function stripTags(s=''){
+            return s.replace(/<script\b[\s\S]*?<\/script>/gi,' ')
+              .replace(/<style\b[\s\S]*?<\/style>/gi,' ')
+              .replace(/<[^>]+>/g,' ')
+              .replace(/&nbsp;/g,' ')
+              .replace(/&amp;/g,'&')
+              .replace(/&#0?39;/g,"'")
+              .replace(/&quot;/g,'"')
+              .replace(/\s+/g,' ')
+              .trim();
+          }
+
+          function anchors(html=''){
+            const a=[];
+            for(const m of html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)){
+              a.push({href:m[1].replaceAll('&amp;','&'),text:stripTags(m[2])});
+            }
+            return a;
+          }
+
+          function isSeriesTitle(t=''){
+            return /\bS\d{1,2}(?:E\d{1,3})?\b/i.test(t) || /\bSeason\s+\d+\b/i.test(t);
+          }
+
+          function isMovieLike(t=''){
+            if(isSeriesTitle(t)) return false;
+            if(/\b(software|game|windows|android|apk|macos|linux|course|tutorial)\b/i.test(t)) return false;
+            return /\b(480p|720p|1080p|2160p|WEB[- .]?DL|BluRay|WEBRip|HDRip|DVDRip)\b/i.test(t);
+          }
+
+          async function getJson(url){
+            const r=await fetch(url,{headers:{'User-Agent':UA,'Accept':'application/json'}});
+            const text=await r.text();
+            if(!r.ok) throw new Error('HTTP '+r.status+' '+text.slice(0,200));
+            return JSON.parse(text);
+          }
+
+          async function pickCases(){
+            const posts=await getJson('https://tfpdl.com/wp-json/wp/v2/posts?per_page=50&_fields=id,link,title,content,date,slug');
+            const enriched=posts.map(p=>{
+              const title=stripTags(p?.title?.rendered||'');
+              const html=p?.content?.rendered||'';
+              const wraps=anchors(html).filter(x=>/\/tfpdl\?/i.test(x.href));
+              return {id:p.id,link:p.link,title,date:p.date,slug:p.slug,wrappers:wraps};
+            }).filter(x=>x.wrappers.length);
+
+            const series=[];
+            const seenSeries=new Set();
+            for(const p of enriched){
+              if(!isSeriesTitle(p.title)) continue;
+              const key=p.title
+                .replace(/\bS\d{1,2}(?:E\d{1,3})?\b.*$/i,'')
+                .replace(/\bSeason\s+\d+\b.*$/i,'')
+                .trim().toLowerCase();
+              if(seenSeries.has(key)) continue;
+              seenSeries.add(key);
+              series.push(p);
+              if(series.length===2) break;
+            }
+
+            let movie=enriched.find(p=>isMovieLike(p.title));
+            if(!movie) movie=enriched.find(p=>!isSeriesTitle(p.title));
+
+            if(series.length<2 || !movie){
+              throw new Error('Could not select 2 series + 1 movie from current posts');
+            }
+
+            return [
+              {kind:'movie',...movie,wrapper:movie.wrappers[0]},
+              {kind:'series',...series[0],wrapper:series[0].wrappers[0]},
+              {kind:'series',...series[1],wrapper:series[1].wrappers[0]}
+            ];
+          }
+
+          function looksHumanBoundary(snapshot){
+            const text=snapshot.text||'';
+            return snapshot.visibleInputs?.some(x=>['text','number','tel'].includes((x.type||'text').toLowerCase()))
+              || /(captcha|verification code|enter (the )?(number|code)|type (the )?(number|code)|security code|turnstile)/i.test(text);
+          }
+
+          async function pageSnapshot(page,label){
+            const data=await page.evaluate(()=>({
+              url:location.href,
+              title:document.title,
+              text:(document.body?.innerText||'').slice(0,8000),
+              visibleInputs:[...document.querySelectorAll('input')].filter(x=>!!(x.offsetWidth||x.offsetHeight||x.getClientRects().length)).map(x=>({
+                type:x.getAttribute('type')||'text',
+                name:x.getAttribute('name'),
+                id:x.id||null,
+                placeholder:x.getAttribute('placeholder'),
+                value:x.getAttribute('value')
+              })),
+              forms:[...document.forms].map(f=>({
+                action:f.action,
+                method:(f.method||'get').toLowerCase(),
+                id:f.id||null,
+                fields:[...f.querySelectorAll('input,button,textarea,select')].map(x=>({
+                  tag:x.tagName,
+                  type:x.getAttribute('type'),
+                  name:x.getAttribute('name'),
+                  value:x.getAttribute('value'),
+                  id:x.id||null,
+                  placeholder:x.getAttribute('placeholder'),
+                  text:(x.textContent||'').trim()
+                }))
+              })),
+              controls:[...document.querySelectorAll('a,button,input[type=submit],input[type=button],[role=button],[onclick]')].map(x=>({
+                tag:x.tagName,
+                text:(x.textContent||x.getAttribute('value')||'').trim(),
+                id:x.id||null,
+                href:x.href||null,
+                onclick:x.getAttribute('onclick'),
+                visible:!!(x.offsetWidth||x.offsetHeight||x.getClientRects().length)
+              })).filter(x=>x.visible).slice(0,120)
+            })).catch(e=>({url:page.url(),error:e.message,text:'',visibleInputs:[],forms:[],controls:[]}));
+            return {label,...data};
+          }
+
+          async function findDeinformPage(context,main,caseLog){
+            const pages=()=>context.pages().filter(p=>/^https:\/\/deinform\.com\//i.test(p.url()));
+            let hit=pages()[0];
+            if(hit) return hit;
+
+            for(let i=0;i<35;i++){
+              await sleep(1000);
+              hit=pages()[0];
+              if(hit) return hit;
+              if(/^https:\/\/deinform\.com\//i.test(main.url())) return main;
+
+              const snap=await pageSnapshot(main,'wrapper-wait-'+i);
+              if(i===0 || i===8 || i===20 || i===34) caseLog.snapshots.push(snap);
+              if(looksHumanBoundary(snap)){
+                caseLog.status='human-boundary-before-deinform';
+                caseLog.humanBoundary=snap;
+                return null;
+              }
+            }
+            return null;
+          }
+
+          async function runDeinform(context,page,caseLog){
+            page.setDefaultTimeout(12000);
+            caseLog.deinformStart=page.url();
+            caseLog.snapshots.push(await pageSnapshot(page,'deinform-entry'));
+
+            const human=page.locator('#soralink-human-verif-main');
+            for(let i=0;i<18;i++){
+              if(await human.count().catch(()=>0) && await human.isVisible().catch(()=>false)){
+                await human.click({timeout:8000}).catch(()=>{});
+                caseLog.actions.push('clicked-soralink-human');
+                break;
+              }
+              const snap=await pageSnapshot(page,'deinform-human-wait-'+i);
+              if(looksHumanBoundary(snap)){
+                caseLog.status='human-boundary-deinform';
+                caseLog.humanBoundary=snap;
+                return null;
+              }
+              await sleep(1000);
+            }
+
+            await sleep(3500);
+            caseLog.snapshots.push(await pageSnapshot(page,'deinform-after-human'));
+
+            const gen=page.locator('#generater');
+            if(await gen.count().catch(()=>0)){
+              for(let i=0;i<18;i++){
+                if(await gen.isVisible().catch(()=>false)){
+                  await gen.click({timeout:8000}).catch(()=>{});
+                  caseLog.actions.push('clicked-generater');
+                  break;
+                }
+                await sleep(1000);
+              }
+            }
+
+            await sleep(10500);
+            caseLog.snapshots.push(await pageSnapshot(page,'deinform-after-generater'));
+
+            const show=page.locator('#showlink');
+            if(await show.count().catch(()=>0)){
+              for(let i=0;i<15;i++){
+                if(await show.isVisible().catch(()=>false)){
+                  await show.click({timeout:8000}).catch(()=>{});
+                  caseLog.actions.push('clicked-showlink');
+                  break;
+                }
+                await sleep(1000);
+              }
+            }
+
+            for(let i=0;i<15;i++){
+              await sleep(1000);
+              const safe=context.pages().find(p=>/^https:\/\/safetxt\.net\//i.test(p.url()));
+              if(safe) return safe;
+            }
+            return null;
+          }
+
+          async function unlockSafeTxt(page,caseLog){
+            await page.waitForLoadState('domcontentloaded',{timeout:30000}).catch(()=>{});
+            await sleep(1000);
+            const meta=await page.evaluate(()=>({
+              url:location.href,
+              title:document.title,
+              token:document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')||'',
+              scripts:[...document.scripts].map(s=>s.textContent||'').join('\n'),
+              text:(document.body?.innerText||'').slice(0,5000)
+            })).catch(e=>({url:page.url(),error:e.message,token:'',scripts:'',text:''}));
+
+            caseLog.safeTxt={url:meta.url,title:meta.title,text:meta.text};
+            const slug=(meta.scripts.match(/slug:\s*['"]([^'"]+)['"]/)||[])[1]||'';
+            caseLog.safeTxt.slug=slug;
+            caseLog.safeTxt.hasCsrf=!!meta.token;
+
+            if(!slug || !meta.token){
+              caseLog.status='safetxt-parse-failed';
+              return null;
+            }
+
+            const result=await page.evaluate(async({slug,token})=>{
+              const body=new URLSearchParams({slug,password:'tfpdl',_token:token});
+              const r=await fetch('https://safetxt.net/get-paste',{
+                method:'POST',
+                credentials:'include',
+                headers:{
+                  'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8',
+                  'X-Requested-With':'XMLHttpRequest'
+                },
+                body:body.toString()
+              });
+              const raw=await r.text();
+              let json=null,decoded=null;
+              try{
+                json=JSON.parse(raw);
+                if(json?.status==='success' && json?.content){
+                  const b=atob(json.content);
+                  try{decoded=decodeURIComponent(b.replace(/\+/g,'%20'));}catch{decoded=b;}
+                }
+              }catch{}
+              return {http:r.status,raw,json,decoded};
+            },{slug,token:meta.token});
+
+            caseLog.safeTxt.http=result.http;
+            caseLog.safeTxt.apiStatus=result.json?.status||null;
+            caseLog.safeTxt.raw=result.raw?.slice(0,2000)||'';
+
+            if(result.json?.status!=='success' || !result.decoded){
+              caseLog.status='safetxt-unlock-failed';
+              return null;
+            }
+
+            const mirrors=anchors(result.decoded).map(x=>x.href);
+            caseLog.mirrors=mirrors;
+            caseLog.mirrorHosts=[...new Set(mirrors.map(u=>{try{return new URL(u).hostname}catch{return null}}).filter(Boolean))];
+            caseLog.status=mirrors.length?'success':'safetxt-decoded-no-mirrors';
+            return mirrors;
+          }
+
+          async function validateCase(browser,item,index){
+            const caseLog={
+              index,kind:item.kind,id:item.id,title:item.title,post:item.link,
+              wrapper:item.wrapper,
+              actions:[],events:[],snapshots:[],status:'started',
+              mirrors:[],mirrorHosts:[]
+            };
+            out.cases.push(caseLog); save();
+
+            const context=await browser.newContext({
+              userAgent:UA,
+              viewport:{width:412,height:915},
+              isMobile:true,
+              hasTouch:true,
+              locale:'en-US'
+            });
+            const main=await context.newPage();
+            main.setDefaultTimeout(12000);
+
+            const record=(type,data={})=>caseLog.events.push({t:new Date().toISOString(),type,...data});
+            context.on('request',r=>{
+              const u=r.url();
+              if(/tfpdl\.com|tfp\.re|deinform\.com|safetxt\.net/i.test(u) && ['document','xhr','fetch'].includes(r.resourceType())){
+                record('request',{method:r.method(),rt:r.resourceType(),url:u,postData:r.postData()||null});
+              }
+            });
+            context.on('response',async r=>{
+              const u=r.url();
+              if(/tfpdl\.com|tfp\.re|deinform\.com|safetxt\.net/i.test(u) && ['document','xhr','fetch'].includes(r.request().resourceType())){
+                const h=await r.allHeaders().catch(()=>({}));
+                record('response',{status:r.status(),rt:r.request().resourceType(),url:u,location:h.location||null,contentType:h['content-type']||null});
+              }
+            });
+
+            try{
+              await main.goto(item.post,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>record('post-goto-error',{message:e.message}));
+              await sleep(1200);
+
+              const wrapperCandidates=[item.wrapper];
+              try{
+                const u=new URL(item.wrapper);
+                for(const host of ['tfpdl.com','www.tfpdl.com','tfp.re']){
+                  const alt=new URL(item.wrapper);
+                  alt.hostname=host;
+                  const s=alt.toString();
+                  if(!wrapperCandidates.includes(s)) wrapperCandidates.push(s);
+                }
+              }catch{}
+
+              let dePage=null;
+              for(const w of wrapperCandidates){
+                caseLog.wrapperAttempts=caseLog.wrapperAttempts||[];
+                caseLog.wrapperAttempts.push(w);
+                await main.goto(w,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>record('wrapper-goto-error',{wrapper:w,message:e.message}));
+                dePage=await findDeinformPage(context,main,caseLog);
+                if(dePage) break;
+                if(caseLog.status.startsWith('human-boundary')) break;
+              }
+
+              if(!dePage){
+                if(caseLog.status==='started') caseLog.status='wrapper-did-not-reach-deinform';
+                return caseLog;
+              }
+
+              const safe=await runDeinform(context,dePage,caseLog);
+              if(!safe){
+                if(caseLog.status==='started') caseLog.status='deinform-did-not-reach-safetxt';
+                return caseLog;
+              }
+
+              await unlockSafeTxt(safe,caseLog);
+              return caseLog;
+            }catch(e){
+              caseLog.status='error';
+              caseLog.error={message:e.message,stack:e.stack};
+              return caseLog;
+            }finally{
+              caseLog.finishedAt=new Date().toISOString();
+              await context.close().catch(()=>{});
+              save();
+            }
+          }
+
+          (async()=>{
+            let browser;
+            try{
+              const selected=await pickCases();
+              out.selection=selected.map(x=>({
+                kind:x.kind,id:x.id,title:x.title,post:x.link,wrapper:x.wrapper
+              }));
+              save();
+
+              browser=await chromium.launch({headless:true});
+              for(let i=0;i<selected.length;i++){
+                await validateCase(browser,selected[i],i+1);
+              }
+
+              out.summary={
+                total:out.cases.length,
+                success:out.cases.filter(x=>x.status==='success').length,
+                humanBoundaries:out.cases.filter(x=>/human-boundary/.test(x.status)).length,
+                statuses:out.cases.map(x=>({kind:x.kind,title:x.title,status:x.status,mirrorHosts:x.mirrorHosts}))
+              };
+              out.finishedAt=new Date().toISOString();
+            }catch(e){
+              out.error={message:e.message,stack:e.stack};
+            }finally{
+              try{if(browser) await browser.close();}catch{}
+              save();
+            }
+          })();
+          JS
+          node /tmp/tfpdl-matrix.cjs
+
+      - name: Commit validation result
+        if: always()
+        shell: bash
+        run: |
+          test -f diagnostics/tfpdl-matrix-validation.json || echo '{"error":"probe did not produce result"}' > diagnostics/tfpdl-matrix-validation.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/tfpdl-matrix-validation.json
+          if ! git diff --cached --quiet; then
+            git commit -m "record TFPDL matrix validation"
+            git push
+          fi
