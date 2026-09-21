@@ -48,6 +48,12 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Whatsapp" />
         <activity
+            android:name=".PdfEditorPreviewActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.Whatsapp" />
+        <activity
             android:name=".MediaViewerPreviewActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize"
             android:exported="true"
