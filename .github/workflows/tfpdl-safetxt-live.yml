@@ -1,0 +1,162 @@
+name: TFPDL SafeTxt live trace
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tfpdl-safetxt-live.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+
+      - name: Trace fresh SafeTxt stage
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          cat > /tmp/safetxt-trace.mjs <<'JS'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const deinform='https://deinform.com/?id=U3VPVXdWcytJY216citiUHhNMVlUR0I5Ull6RXlqcVpEVUFZVytFNERJUUIyVDYxU21JZnN4UmY3V2wvcHM3LzhnWTRpMjVyQklTdk0rRVc2bHY4dVJKQVJmQ3UyQlg4WkR3ZEVMSjZLRjA9';
+          const out={startedAt:new Date().toISOString(),deinform,events:[],safetxt:null,snapshots:[],notes:[]};
+          const push=(type,data={})=>out.events.push({t:new Date().toISOString(),type,...data});
+
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext({
+            userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
+            viewport:{width:412,height:915},isMobile:true,hasTouch:true,deviceScaleFactor:1,locale:'en-US'
+          });
+
+          function watch(p,label){
+            p.on('request',r=>{
+              const u=r.url();
+              if(/deinform\.com|safetxt\.net/i.test(u) && ['document','xhr','fetch','script'].includes(r.resourceType())){
+                push('request',{page:label,method:r.method(),rt:r.resourceType(),url:u,postData:r.postData()||null});
+              }
+            });
+            p.on('response',async r=>{
+              const u=r.url();
+              if(/deinform\.com|safetxt\.net/i.test(u) && ['document','xhr','fetch','script'].includes(r.request().resourceType())){
+                const h=await r.allHeaders().catch(()=>({}));
+                push('response',{page:label,status:r.status(),rt:r.request().resourceType(),url:u,location:h.location||null,contentType:h['content-type']||null});
+              }
+            });
+            p.on('framenavigated',f=>{if(f===p.mainFrame())push('nav',{page:label,url:f.url()});});
+          }
+
+          async function snap(p,label){
+            const d=await p.evaluate(()=>({
+              url:location.href,
+              title:document.title,
+              text:(document.body?.innerText||'').slice(0,10000),
+              forms:[...document.forms].map(f=>({
+                action:f.action,
+                method:(f.method||'get').toLowerCase(),
+                id:f.id||null,
+                cls:typeof f.className==='string'?f.className:null,
+                outer:f.outerHTML.slice(0,20000),
+                fields:[...f.querySelectorAll('input,button,textarea,select')].map(x=>({
+                  tag:x.tagName,
+                  type:x.getAttribute('type'),
+                  name:x.getAttribute('name'),
+                  value:x.getAttribute('value'),
+                  id:x.id||null,
+                  placeholder:x.getAttribute('placeholder'),
+                  visible:!!(x.offsetWidth||x.offsetHeight||x.getClientRects().length),
+                  text:(x.textContent||'').trim(),
+                  outer:x.outerHTML.slice(0,1200)
+                }))
+              })),
+              links:[...document.querySelectorAll('a')].map(a=>({
+                text:(a.textContent||'').trim(),href:a.href,
+                visible:!!(a.offsetWidth||a.offsetHeight||a.getClientRects().length)
+              })).filter(x=>x.href).slice(0,250),
+              scripts:[...document.scripts].map(s=>s.src).filter(Boolean),
+              inline:[...document.scripts].filter(s=>!s.src).map(s=>s.textContent||'')
+                .filter(x=>/captcha|verify|verification|number|code|token|submit|download|ajax|password|safetxt/i.test(x))
+                .map(x=>x.slice(0,25000))
+            })).catch(e=>({error:e.message}));
+            out.snapshots.push({label,...d});
+            return d;
+          }
+
+          const main=await context.newPage(); watch(main,'deinform');
+          let popupResolve;
+          const popupPromise=new Promise(resolve=>popupResolve=resolve);
+          context.on('page',p=>{
+            if(p===main)return;
+            watch(p,'popup');
+            popupResolve(p);
+          });
+
+          await main.goto(deinform,{waitUntil:'domcontentloaded',timeout:45000}).catch(e=>out.notes.push('deinform goto '+e.message));
+          await main.waitForTimeout(12000);
+
+          const human=main.locator('#soralink-human-verif-main');
+          if(await human.count() && await human.isVisible().catch(()=>false)){
+            await human.tap({timeout:12000}).catch(e=>out.notes.push('human trigger '+e.message));
+          } else out.notes.push('human trigger missing');
+          await main.waitForTimeout(4500);
+
+          const gen=main.locator('#generater');
+          if(await gen.count() && await gen.isVisible().catch(()=>false)){
+            await gen.tap({timeout:12000}).catch(e=>out.notes.push('generate '+e.message));
+          } else out.notes.push('generate missing');
+          await main.waitForTimeout(12000);
+
+          const show=main.locator('#showlink');
+          if(await show.count() && await show.isVisible().catch(()=>false)){
+            await show.tap({timeout:12000}).catch(e=>out.notes.push('showlink '+e.message));
+          } else out.notes.push('showlink missing');
+
+          let popup=null;
+          try {
+            popup=await Promise.race([
+              popupPromise,
+              new Promise((_,rej)=>setTimeout(()=>rej(new Error('popup timeout')),12000))
+            ]);
+          } catch(e){ out.notes.push(e.message); }
+
+          if(popup){
+            await popup.waitForLoadState('domcontentloaded',{timeout:30000}).catch(()=>{});
+            await popup.waitForTimeout(4500);
+            out.safetxt=popup.url();
+            await snap(popup,'safetxt-entry');
+            await popup.waitForTimeout(8000);
+            await snap(popup,'safetxt-after-8s');
+          }
+
+          out.finishedAt=new Date().toISOString();
+          fs.writeFileSync('diagnostics/tfpdl-safetxt-live-result.json',JSON.stringify(out,null,2));
+          await browser.close();
+          JS
+          node /tmp/safetxt-trace.mjs
+
+      - name: Commit result
+        if: always()
+        run: |
+          test -f diagnostics/tfpdl-safetxt-live-result.json || echo '{"error":"probe did not produce result"}' > diagnostics/tfpdl-safetxt-live-result.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/tfpdl-safetxt-live-result.json
+          if ! git diff --cached --quiet; then
+            git commit -m "record TFPDL SafeTxt live trace"
+            git push
+          fi
