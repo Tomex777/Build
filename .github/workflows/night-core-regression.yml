@@ -205,6 +205,7 @@ jobs:
           - browser
           - memory
           - providers
+          - mcp-servers
           - image-editor
           - pdf-editor
           - mihon-reader
@@ -272,6 +273,8 @@ jobs:
               ;;
             providers)
               ;;
+            mcp-servers)
+              ;;
             image-editor)
               mkdir -p night-image-editor-apk
               cp night-integrated-apk/app-debug.apk night-image-editor-apk/app-debug.apk
@@ -314,6 +317,7 @@ jobs:
             night-browser-artifacts/
             night-memory-artifacts/
             night-providers-artifacts/
+            night-mcp-servers-artifacts/
             night-image-editor-artifacts/
             night-pdf-editor-artifacts/
             mihon-interaction-artifacts/
