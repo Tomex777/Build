@@ -111,10 +111,12 @@ fun NightBrowserWebView(
                 settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                 safeSpec.userAgent?.let { settings.userAgentString = it }
 
-                CookieManager.getInstance().apply {
-                    setAcceptCookie(true)
-                    setAcceptThirdPartyCookies(this@apply, safeSpec.thirdPartyCookies)
-                }
+                val cookieManager = CookieManager.getInstance()
+                cookieManager.setAcceptCookie(true)
+                cookieManager.setAcceptThirdPartyCookies(
+                    this,
+                    safeSpec.thirdPartyCookies,
+                )
 
                 webViewClient = object : WebViewClient() {
                     private fun shouldBlock(url: String): Boolean {
