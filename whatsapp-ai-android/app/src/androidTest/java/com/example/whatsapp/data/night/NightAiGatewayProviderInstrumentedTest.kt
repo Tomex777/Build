@@ -606,4 +606,270 @@ class NightAiGatewayProviderInstrumentedTest {
         )
     }
 
+
+    @Test
+    fun chatReplyFallsBackToAnotherEnabledProviderAfterFailure() = runBlocking {
+        val fallbackServer = MockWebServer()
+        fallbackServer.start()
+
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(500)
+                .setHeader("Content-Type", "application/json")
+                .setBody("""{"error":{"message":"primary unavailable"}}""")
+        )
+        fallbackServer.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "text/event-stream")
+                .setBody(
+                    "data: {\"choices\":[{\"delta\":{\"content\":\"Fallback answer.\"}}]}\n\n" +
+                        "data: [DONE]\n\n"
+                )
+        )
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val repository = NightRepository.get(context)
+        val gateway = NightAiGateway.createForTesting(
+            context = context,
+            http = OkHttpClient.Builder().build(),
+        )
+        val suffix = UUID.randomUUID().toString()
+        val chatId = "provider-fallback-" + suffix
+        val primaryProfileId = "primary-profile-" + suffix
+        val primaryModelId = "primary-model-" + suffix
+        val fallbackProfileId = "fallback-profile-" + suffix
+        val fallbackModelId = "fallback-model-" + suffix
+        val now = System.currentTimeMillis()
+
+        val primaryProfile = NightProviderProfileEntity(
+            id = primaryProfileId,
+            providerType = "groq",
+            serviceKind = "chat",
+            displayName = "Primary failing provider",
+            secretAlias = secretAlias,
+            endpoint = server.url("/openai/v1").toString().trimEnd('/'),
+            isEnabled = true,
+            isDefault = false,
+            createdAt = now,
+            updatedAt = now,
+        )
+        val primaryModel = NightProviderModelEntity(
+            id = primaryModelId,
+            profileId = primaryProfileId,
+            providerType = "groq",
+            modelId = "primary-model",
+            displayName = "Primary model",
+            capabilities = "text",
+            isEnabled = true,
+            isDefault = true,
+            createdAt = now,
+            updatedAt = now,
+        )
+        val fallbackProfile = NightProviderProfileEntity(
+            id = fallbackProfileId,
+            providerType = "groq",
+            serviceKind = "chat",
+            displayName = "Fallback provider",
+            secretAlias = secretAlias,
+            endpoint = fallbackServer.url("/openai/v1").toString().trimEnd('/'),
+            isEnabled = true,
+            isDefault = true,
+            createdAt = now,
+            updatedAt = now + 1,
+        )
+        val fallbackModel = NightProviderModelEntity(
+            id = fallbackModelId,
+            profileId = fallbackProfileId,
+            providerType = "groq",
+            modelId = "fallback-model",
+            displayName = "Fallback model",
+            capabilities = "text",
+            isEnabled = true,
+            isDefault = true,
+            createdAt = now,
+            updatedAt = now + 1,
+        )
+
+        try {
+            repository.ensureChat(chatId, "Provider fallback", now)
+            repository.upsertProviderProfile(primaryProfile)
+            repository.upsertProviderModel(primaryModel)
+            repository.upsertProviderProfile(fallbackProfile)
+            repository.upsertProviderModel(fallbackModel)
+            repository.setChatModel(
+                chatId = chatId,
+                provider = "groq",
+                profileId = primaryProfileId,
+                model = primaryModelId,
+            )
+            repository.appendText(
+                chatId = chatId,
+                role = "user",
+                text = "Answer this through provider failover.",
+                now = now + 2,
+            )
+
+            val updates = mutableListOf<String>()
+            val result = gateway.replyStreaming(
+                chatId = chatId,
+                displayName = "Tester",
+            ) { updates += it }
+
+            assertTrue(result.isSuccess)
+            assertEquals("Fallback answer.", result.getOrThrow())
+            assertEquals(1, server.requestCount)
+            assertEquals(1, fallbackServer.requestCount)
+            assertTrue(updates.contains(""))
+            assertTrue(updates.contains("Fallback answer."))
+        } finally {
+            repository.deleteChat(chatId)
+            repository.deleteProviderModel(primaryModelId)
+            repository.deleteProviderModel(fallbackModelId)
+            repository.deleteProviderProfile(primaryProfileId)
+            repository.deleteProviderProfile(fallbackProfileId)
+            fallbackServer.shutdown()
+        }
+    }
+
+    @Test
+    fun completedSideEffectPreventsCrossProviderRetry() = runBlocking {
+        val fallbackServer = MockWebServer()
+        fallbackServer.start()
+
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "text/event-stream")
+                .setBody(
+                    "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_options\",\"function\":{\"name\":\"create_options\",\"arguments\":\"{\\\"title\\\":\\\"Pick one\\\",\\\"options\\\":[\\\"A\\\",\\\"B\\\"]}\"}}]}}]}\n\n" +
+                        "data: [DONE]\n\n"
+                )
+        )
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(500)
+                .setHeader("Content-Type", "application/json")
+                .setBody("""{"error":{"message":"continuation failed"}}""")
+        )
+        fallbackServer.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "text/event-stream")
+                .setBody(
+                    "data: {\"choices\":[{\"delta\":{\"content\":\"This must not run.\"}}]}\n\n" +
+                        "data: [DONE]\n\n"
+                )
+        )
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val repository = NightRepository.get(context)
+        val gateway = NightAiGateway.createForTesting(
+            context = context,
+            http = OkHttpClient.Builder().build(),
+        )
+        val suffix = UUID.randomUUID().toString()
+        val chatId = "side-effect-no-retry-" + suffix
+        val primaryProfileId = "side-primary-profile-" + suffix
+        val primaryModelId = "side-primary-model-" + suffix
+        val fallbackProfileId = "side-fallback-profile-" + suffix
+        val fallbackModelId = "side-fallback-model-" + suffix
+        val now = System.currentTimeMillis()
+
+        val primaryProfile = NightProviderProfileEntity(
+            id = primaryProfileId,
+            providerType = "groq",
+            serviceKind = "chat",
+            displayName = "Primary side-effect provider",
+            secretAlias = secretAlias,
+            endpoint = server.url("/openai/v1").toString().trimEnd('/'),
+            isEnabled = true,
+            isDefault = false,
+            createdAt = now,
+            updatedAt = now,
+        )
+        val primaryModel = NightProviderModelEntity(
+            id = primaryModelId,
+            profileId = primaryProfileId,
+            providerType = "groq",
+            modelId = "side-primary-model",
+            displayName = "Primary tools model",
+            capabilities = "text,tools",
+            isEnabled = true,
+            isDefault = true,
+            createdAt = now,
+            updatedAt = now,
+        )
+        val fallbackProfile = NightProviderProfileEntity(
+            id = fallbackProfileId,
+            providerType = "groq",
+            serviceKind = "chat",
+            displayName = "Fallback side-effect provider",
+            secretAlias = secretAlias,
+            endpoint = fallbackServer.url("/openai/v1").toString().trimEnd('/'),
+            isEnabled = true,
+            isDefault = true,
+            createdAt = now,
+            updatedAt = now + 1,
+        )
+        val fallbackModel = NightProviderModelEntity(
+            id = fallbackModelId,
+            profileId = fallbackProfileId,
+            providerType = "groq",
+            modelId = "side-fallback-model",
+            displayName = "Fallback tools model",
+            capabilities = "text,tools",
+            isEnabled = true,
+            isDefault = true,
+            createdAt = now,
+            updatedAt = now + 1,
+        )
+
+        try {
+            repository.ensureChat(chatId, "Side effect retry guard", now)
+            repository.upsertProviderProfile(primaryProfile)
+            repository.upsertProviderModel(primaryModel)
+            repository.upsertProviderProfile(fallbackProfile)
+            repository.upsertProviderModel(fallbackModel)
+            repository.setChatModel(
+                chatId = chatId,
+                provider = "groq",
+                profileId = primaryProfileId,
+                model = primaryModelId,
+            )
+            repository.appendText(
+                chatId = chatId,
+                role = "user",
+                text = "Give me two options.",
+                now = now + 2,
+            )
+
+            val result = gateway.replyStreaming(
+                chatId = chatId,
+                displayName = "Tester",
+            ) { }
+
+            assertTrue(result.isFailure)
+            assertTrue(
+                result.exceptionOrNull()
+                    ?.message
+                    ?.contains("A Night action completed") == true
+            )
+            assertEquals(2, server.requestCount)
+            assertEquals(0, fallbackServer.requestCount)
+
+            val choiceMessages = repository.getMessages(chatId)
+                .filter { it.type == "choice" }
+            assertEquals(1, choiceMessages.size)
+            assertEquals("Pick one", choiceMessages.single().text)
+        } finally {
+            repository.deleteChat(chatId)
+            repository.deleteProviderModel(primaryModelId)
+            repository.deleteProviderModel(fallbackModelId)
+            repository.deleteProviderProfile(primaryProfileId)
+            repository.deleteProviderProfile(fallbackProfileId)
+            fallbackServer.shutdown()
+        }
+    }
+
 }
