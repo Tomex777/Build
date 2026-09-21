@@ -1,0 +1,162 @@
+name: Night Message Blocks
+
+on:
+  push:
+    branches:
+      - night-message-blocks-ci
+    paths:
+      - "whatsapp-ai-android/**"
+      - ".github/workflows/night-message-blocks.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: night-message-blocks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  message-blocks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Android 36 SDK
+        run: |
+          SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Add test Firebase config
+        run: |
+          cat > whatsapp-ai-android/app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "123456789012",
+              "project_id": "whatsapp-ai-preview",
+              "storage_bucket": "whatsapp-ai-preview.appspot.com"
+            },
+            "client": [{
+              "client_info": {
+                "mobilesdk_app_id": "1:123456789012:android:0123456789abcdef",
+                "android_client_info": {"package_name": "com.example.whatsapp"}
+              },
+              "oauth_client": [],
+              "api_key": [{"current_key": "AIzaSyDUMMY_PREVIEW_KEY_NOT_FOR_NETWORK_USE"}],
+              "services": {"appinvite_service": {"other_platform_oauth_client": []}}
+            }],
+            "configuration_version": "1"
+          }
+          JSON
+
+      - name: Build debug APK
+        run: |
+          cd whatsapp-ai-android
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Exercise reusable message blocks
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          cores: 2
+          ram-size: 2048M
+          emulator-boot-timeout: 420
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -accel on -wipe-data
+          script: |
+            set -euo pipefail
+            APK="whatsapp-ai-android/app/build/outputs/apk/debug/app-debug.apk"
+            OUT="night-message-blocks-artifacts"
+            PACKAGE="com.example.whatsapp"
+
+            mkdir -p "$OUT"
+            adb install --no-streaming -r "$APK"
+            adb shell wm size 709x1536
+            adb shell wm density 240
+            adb logcat -c
+
+            adb shell am force-stop "$PACKAGE"
+            adb shell am start -W -n "$PACKAGE/.ChatPreviewActivity" --es mode blocks
+            sleep 3
+            adb exec-out screencap -p > "$OUT/01-blocks-top.png"
+            adb shell uiautomator dump /sdcard/blocks-top.xml >/dev/null
+            adb exec-out cat /sdcard/blocks-top.xml > "$OUT/01-blocks-top.xml"
+
+            grep -q "Fix" "$OUT/01-blocks-top.xml"
+            grep -q "Validation" "$OUT/01-blocks-top.xml"
+
+            adb shell input swipe 360 1250 360 430 700
+            sleep 2
+            adb exec-out screencap -p > "$OUT/02-blocks-middle.png"
+            adb shell uiautomator dump /sdcard/blocks-middle.xml >/dev/null
+            adb exec-out cat /sdcard/blocks-middle.xml > "$OUT/02-blocks-middle.xml"
+
+            adb shell input swipe 360 1250 360 380 700
+            sleep 2
+            adb exec-out screencap -p > "$OUT/03-blocks-bottom.png"
+            adb shell uiautomator dump /sdcard/blocks-bottom.xml >/dev/null
+            adb exec-out cat /sdcard/blocks-bottom.xml > "$OUT/03-blocks-bottom.xml"
+
+            cat "$OUT"/0*-blocks-*.xml > "$OUT/all-blocks.xml"
+            grep -q "What should I focus on next?" "$OUT/all-blocks.xml"
+            grep -q "Pull request is ready" "$OUT/all-blocks.xml"
+            grep -q "Project Night" "$OUT/all-blocks.xml"
+            grep -q "Sources" "$OUT/all-blocks.xml"
+            grep -q "Workspace connection" "$OUT/all-blocks.xml"
+
+            if grep -qi "Created by" "$OUT/all-blocks.xml"; then
+              echo "Visible provenance watermark text is still present." >&2
+              exit 1
+            fi
+
+            adb logcat -d -v threadtime > "$OUT/logcat.txt"
+            if grep -A5 "FATAL EXCEPTION:" "$OUT/logcat.txt" | grep -q "Process: $PACKAGE"; then
+              echo "Night crashed while rendering reusable message blocks." >&2
+              exit 1
+            fi
+            if grep -q "ANR in $PACKAGE" "$OUT/logcat.txt"; then
+              echo "Night ANR while rendering reusable message blocks." >&2
+              exit 1
+            fi
+
+            {
+              echo "androidApi=36"
+              echo "messageBlocks=true"
+              echo "watermarkFree=true"
+              echo "codeCopyTable=true"
+              echo "progress=true"
+              echo "questionPermission=true"
+              echo "toolExtension=true"
+              echo "sourcesDiffConnection=true"
+            } > "$OUT/summary.txt"
+
+      - name: Upload message block evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-message-blocks-evidence
+          path: night-message-blocks-artifacts/
+          if-no-files-found: warn
