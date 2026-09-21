@@ -5,6 +5,16 @@ object NightSummaryPolicy {
 }
 
 object NightSummaryText {
+    fun currentChatContext(summary: String): String {
+        val memory = summary.trim().take(5000)
+        if (memory.isBlank()) return ""
+
+        return buildString {
+            append("Persistent summary of this chat (older context; newer messages override it):\\n")
+            append(memory)
+        }
+    }
+
     fun mergeFallback(
         previous: String,
         transcript: String,

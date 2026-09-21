@@ -347,6 +347,9 @@ class NightAiGateway private constructor(
     ): JSONArray {
         val messages = repository.getMessages(chatId)
             .filter { it.deliveryState != "sending" }
+        val currentChatMemory = NightSummaryText.currentChatContext(
+            repository.latestSummary(chatId)
+        )
         val otherChats = repository.getChats()
             .filter { it.id != chatId && it.latestSummary.isNotBlank() }
             .take(12)
@@ -402,6 +405,11 @@ class NightAiGateway private constructor(
             append("When the user asks you to choose from an existing Options card, you may add exactly one final line: ")
             append("NIGHT_CHOICE_SELECTION:{\"messageId\":\"the-choice-message-id\",\"index\":0}. ")
             append("Indexes are zero-based and must refer to an existing option. ")
+
+            if (currentChatMemory.isNotBlank()) {
+                append("\\n\\n")
+                append(currentChatMemory)
+            }
 
             if (otherChats.isNotEmpty()) {
                 append("\n\nOther Night chat summaries:\n")

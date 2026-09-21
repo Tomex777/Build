@@ -12,6 +12,22 @@ class NightSummaryPolicyTest {
     }
 
     @Test
+    fun currentChatContextRestoresPersistentSummary() {
+        val context = NightSummaryText.currentChatContext(
+            "User prefers dark mode. Pending task: finish Library + Tools integration."
+        )
+
+        assertTrue(context.contains("Persistent summary of this chat"))
+        assertTrue(context.contains("User prefers dark mode."))
+        assertTrue(context.contains("newer messages override it"))
+    }
+
+    @Test
+    fun blankCurrentChatSummaryAddsNoPromptContext() {
+        assertEquals("", NightSummaryText.currentChatContext("   "))
+    }
+
+    @Test
     fun fallbackPreservesPreviousSummaryAndAddsRecentUpdate() {
         val merged = NightSummaryText.mergeFallback(
             previous = "User prefers dark mode. Pending task: finish browser verification.",
