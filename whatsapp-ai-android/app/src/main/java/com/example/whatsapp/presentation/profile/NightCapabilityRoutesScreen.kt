@@ -125,13 +125,26 @@ fun NightCapabilityRoutesScreen(
                         lineHeight = 15.sp,
                         modifier = Modifier.padding(top = 2.dp),
                     )
+                    val routeUnavailable =
+                        profile == null ||
+                            !profile.isEnabled ||
+                            (route?.modelId != null && (model == null || !model.isEnabled))
                     Text(
                         when {
                             profile == null -> "Not configured"
-                            model != null -> profile.displayName + " • " + model.displayName
-                            else -> profile.displayName
+                            route?.modelId != null && model == null ->
+                                profile.displayName + " • routed model unavailable"
+                            model != null ->
+                                profile.displayName + " • " + model.displayName +
+                                    if (model.isEnabled) "" else " • disabled"
+                            item.id == "vision" || item.id == "image_generation" ->
+                                profile.displayName + " • any capable model" +
+                                    if (profile.isEnabled) "" else " • disabled"
+                            else ->
+                                profile.displayName +
+                                    if (profile.isEnabled) "" else " • disabled"
                         },
-                        color = if (profile == null) RouteMuted else RouteAccent,
+                        color = if (routeUnavailable) RouteMuted else RouteAccent,
                         fontSize = 11.sp,
                         modifier = Modifier.padding(top = 5.dp),
                     )
@@ -183,16 +196,20 @@ private fun RoutePickerDialog(
                         (capability.id != "image_generation" || it.providerType == "azure")
                 }
                 .flatMap { profile ->
-                    models
-                        .filter {
-                            it.profileId == profile.id &&
-                                it.isEnabled &&
-                                it.capabilities
-                                    .split(",")
-                                    .map { it.trim() }
-                                    .contains(capability.id)
+                    val capableModels = models.filter {
+                        it.profileId == profile.id &&
+                            it.isEnabled &&
+                            it.capabilities
+                                .split(",")
+                                .map { capabilityName -> capabilityName.trim() }
+                                .contains(capability.id)
+                    }
+                    buildList {
+                        if (capableModels.isNotEmpty()) {
+                            add(profile to null)
+                            addAll(capableModels.map { model -> profile to model })
                         }
-                        .map { profile to it }
+                    }
                 }
 
             "live_voice" -> profiles
@@ -241,7 +258,10 @@ private fun RoutePickerDialog(
                                 )
                                 Text(
                                     model?.displayName
-                                        ?: profile.providerType.replaceFirstChar { it.uppercase() },
+                                        ?: when (capability.id) {
+                                            "vision", "image_generation" -> "Any enabled capable model"
+                                            else -> profile.providerType.replaceFirstChar { it.uppercase() }
+                                        },
                                     color = RouteMuted,
                                     fontSize = 11.sp,
                                 )
