@@ -1,0 +1,156 @@
+name: Night Extension Settings
+
+on:
+  push:
+    branches:
+      - night-extension-settings-ci
+    paths:
+      - "whatsapp-ai-android/**"
+      - ".github/workflows/night-extension-settings.yml"
+      - ".github/scripts/night-extension-settings-interaction.sh"
+  workflow_dispatch:
+
+concurrency:
+  group: night-extension-settings-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Android 36 SDK
+        run: |
+          SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Add test Firebase config
+        run: |
+          cat > whatsapp-ai-android/app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "123456789012",
+              "project_id": "whatsapp-ai-preview",
+              "storage_bucket": "whatsapp-ai-preview.appspot.com"
+            },
+            "client": [{
+              "client_info": {
+                "mobilesdk_app_id": "1:123456789012:android:0123456789abcdef",
+                "android_client_info": {"package_name": "com.example.whatsapp"}
+              },
+              "oauth_client": [],
+              "api_key": [{"current_key": "AIzaSyDUMMY_PREVIEW_KEY_NOT_FOR_NETWORK_USE"}],
+              "services": {"appinvite_service": {"other_platform_oauth_client": []}}
+            }],
+            "configuration_version": "1"
+          }
+          JSON
+
+      - name: Run extension settings unit tests
+        run: |
+          cd whatsapp-ai-android
+          chmod +x gradlew
+          ./gradlew :app:testDebugUnitTest --tests "com.example.whatsapp.extensions.settings.NightExtensionSettingsResolverTest" --stacktrace
+
+      - name: Build debug APK
+        run: |
+          cd whatsapp-ai-android
+          ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Upload extension settings APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-extension-settings-apk
+          path: whatsapp-ai-android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  android-16:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android 36 emulator stack
+        run: |
+          SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" \
+            "platform-tools" \
+            "emulator" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "system-images;android-36;default;x86_64"
+          echo "/usr/local/lib/android/sdk/platform-tools" >> "$GITHUB_PATH"
+          echo "/usr/local/lib/android/sdk/emulator" >> "$GITHUB_PATH"
+
+      - name: Prime ADB
+        run: |
+          ADB="/usr/local/lib/android/sdk/platform-tools/adb"
+          test -x "$ADB"
+          "$ADB" version
+          "$ADB" kill-server >/dev/null 2>&1 || true
+          "$ADB" start-server
+          "$ADB" devices -l
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Download extension settings APK
+        uses: actions/download-artifact@v4
+        with:
+          name: night-extension-settings-apk
+          path: night-extension-settings-apk
+
+      - name: Exercise extension settings
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          cores: 2
+          ram-size: 2048M
+          emulator-boot-timeout: 420
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -accel on -wipe-data
+          script: bash .github/scripts/night-extension-settings-interaction.sh
+
+      - name: Upload extension settings evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-extension-settings-evidence
+          path: night-extension-settings-artifacts/
+          if-no-files-found: warn
