@@ -13,7 +13,7 @@ count() {
   local label="$1"
   local pattern="$2"
   local n
-  n=$(rg -n --glob '*.java' "$pattern" "$ROOT/modules" 2>/dev/null | wc -l | tr -d ' ')
+  n=$( { grep -R -n -E --include='*.java' "$pattern" "$ROOT/modules" 2>/dev/null || true; } | wc -l | tr -d ' ' )
   printf '%-34s %s\n' "$label" "$n"
 }
 
