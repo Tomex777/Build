@@ -1161,7 +1161,7 @@ fun nightBlockPreviewMessages(): List<WhatsAppVisualMessage> {
                 ),
                 NightDiffBlock(
                     blockId = "diff",
-                    before = "- Created by Night",
+                    before = "- Extension timed out",
                     after = "+ Extension unavailable",
                 ),
                 NightConnectionBlock(
