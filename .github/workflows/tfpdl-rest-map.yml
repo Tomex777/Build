@@ -1,4 +1,4 @@
-name: TFPDL REST route inventory
+name: TFPDL discovery fallbacks
 
 on:
   push:
@@ -11,44 +11,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Inspect REST namespaces and content URLs
+      - name: Compare discovery routes
         shell: bash
         run: |
           set +e
-          UA='Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36'
+          UA='Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36'
+          testurl () {
+            u="$1"
+            curl --http1.1 -sS --max-time 20 -A "$UA" -D /tmp/h -o /tmp/b               -w 'status=%{http_code} type=%{content_type} bytes=%{size_download}\n' "$u"
+            printf '%s | ' "$u"
+            tail -n1 /dev/null
+            grep -Ei '^cf-mitigated:' /tmp/h | tr '\n' ' '
+            echo
+            head -c 120 /tmp/b | tr '\n' ' '
+            echo
+          }
 
-          echo '=== REST ROOT ROUTES ==='
           for H in https://tfpdl.com https://www.tfpdl.com https://tfp.re; do
-            echo "--- $H ---"
-            curl -sS --retry 2 --retry-delay 1 --max-time 25 -A "$UA" "$H/wp-json/" -o /tmp/root.json
-            python3 - <<'PY'
-          import json,re
-          try:
-              x=json.load(open('/tmp/root.json'))
-              print('namespaces=',x.get('namespaces',[]))
-              routes=sorted(x.get('routes',{}))
-              picked=[r for r in routes if re.search(r'download|tfp|redirect|link|search|media|post|embed|feed',r,re.I)]
-              print('route_count=',len(routes),'interesting=',len(picked))
-              for r in picked: print(r)
-          except Exception as e:
-              print('PARSE_ERR',repr(e))
-          PY
+            echo "=== $H ==="
+            testurl "$H/wp-json/wp/v2/search?search=Lanterns&per_page=3"
+            testurl "$H/wp-json/wp/v2/posts?search=Lanterns&per_page=3&_fields=id,link,title"
+            testurl "$H/?rest_route=/wp/v2/search&search=Lanterns&per_page=3"
+            testurl "$H/?s=Lanterns"
+            testurl "$H/?s=Lanterns&feed=rss2"
+            testurl "$H/sitemap_index.xml"
+            testurl "$H/post-sitemap.xml"
           done
-
-          echo
-          echo '=== ALL URL-LIKE TARGETS IN POST CONTENT ==='
-          curl -sS --retry 2 --max-time 25 -A "$UA"             'https://tfpdl.com/wp-json/wp/v2/posts/373753' -o /tmp/post.json
-          python3 - <<'PY'
-          import json,re,html
-          from urllib.parse import urlparse
-          p=json.load(open('/tmp/post.json'))
-          c=html.unescape(p.get('content',{}).get('rendered',''))
-          urls=sorted(set(re.findall(r'https?://[^"\x27<>\s]+',c)))
-          for u in urls:
-              print(urlparse(u).netloc, u[:350])
-          print('TOTAL',len(urls))
-          print('file-ext hits', re.findall(r'https?://[^"\x27<>\s]+\.(?:mkv|mp4|avi|mov|zip|rar|7z|ts|m3u8)(?:\?[^"\x27<>\s]*)?',c,re.I))
-          print('script-tags-in-content',len(re.findall(r'<script\b',c,re.I)))
-          print('form-tags-in-content',len(re.findall(r'<form\b',c,re.I)))
-          print('iframe-tags-in-content',len(re.findall(r'<iframe\b',c,re.I)))
-          PY
