@@ -7,6 +7,17 @@ APK="night-pdf-editor-apk/app-debug.apk"
 OUT="night-pdf-editor-artifacts"
 mkdir -p "$OUT"
 
+on_error() {
+  code=$?
+  echo "PDF editor validation failed with exit code $code" >&2
+  adb shell uiautomator dump /sdcard/night-pdf-editor-failure.xml >/dev/null 2>&1 || true
+  adb exec-out cat /sdcard/night-pdf-editor-failure.xml > "$OUT/failure-window.xml" 2>/dev/null || true
+  adb exec-out screencap -p > "$OUT/failure-screen.png" 2>/dev/null || true
+  adb logcat -d -v threadtime > "$OUT/failure-logcat.txt" 2>/dev/null || true
+  exit "$code"
+}
+trap on_error ERR
+
 cat > /tmp/night_pdf_editor_uia.py <<'PY'
 import re
 import sys
@@ -154,14 +165,23 @@ wait_desc "Editable PDF page" 20
 adb exec-out screencap -p > "$OUT/00-editor-ready.png"
 refresh_ui
 cp /tmp/window.xml "$OUT/00-editor-ready.xml"
+echo "ASSERT: PDF tool View"
 assert_desc "PDF tool View"
+echo "ASSERT: PDF tool Draw"
 assert_desc "PDF tool Draw"
+echo "ASSERT: PDF tool Highlight"
 assert_desc "PDF tool Highlight"
+echo "ASSERT: PDF tool Text"
 assert_desc "PDF tool Text"
+echo "ASSERT: PDF tool Sign"
 assert_desc "PDF tool Sign"
+echo "ASSERT: Editable PDF page"
 assert_desc "Editable PDF page"
+echo "ASSERT: PDF caption"
 assert_desc "PDF caption"
+echo "ASSERT: Send PDF"
 assert_desc "Send PDF"
+echo "ASSERT: PDF editor page indicator"
 assert_desc "PDF editor page indicator"
 assert_text_contains "Night PDF editor.pdf"
 
