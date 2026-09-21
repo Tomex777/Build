@@ -295,7 +295,7 @@ exercise_text_mode() {
   adb exec-out screencap -p > "field-$mode.png"
 }
 
-for mode in email url number password search rtl; do
+for mode in email url number password search chat rtl; do
   exercise_text_mode "$mode"
 done
 
@@ -319,9 +319,21 @@ exercise_cursor_mode() {
   adb pull "/sdcard/cursor-$mode-after.xml" "cursor-$mode-after.xml" >/dev/null
   assert_xml_text "cursor-$mode-after.xml" "Selection: 0-0"
 }
-for mode in email url search rtl; do
+for mode in email url search chat rtl multiline; do
   exercise_cursor_mode "$mode"
 done
+
+# A pre-existing selection should collapse to a real caret and then move, rather
+# than inserting placeholder text or leaving an invalid selection range.
+adb shell am start -W -n com.night.keyboard/.debug.ImeHarnessActivity --es mode selected >/dev/null
+sleep 2
+adb shell dumpsys input_method > input-method-selected-cursor.txt
+SELECTED_TOP="$(ime_top_from_dump input-method-selected-cursor.txt)"
+adb shell input swipe "$SPACE_X" "$(( SELECTED_TOP + SPACE_LOCAL_Y ))" 445 "$(( SELECTED_TOP + SPACE_LOCAL_Y ))" 1200
+sleep 1
+adb shell uiautomator dump /sdcard/selected-cursor.xml >/dev/null
+adb pull /sdcard/selected-cursor.xml selected-cursor.xml >/dev/null
+assert_xml_text selected-cursor.xml "Selection: 5-5"
 
 adb shell am start -W -n com.night.keyboard/.debug.ImeHarnessActivity --es mode password >/dev/null
 sleep 2

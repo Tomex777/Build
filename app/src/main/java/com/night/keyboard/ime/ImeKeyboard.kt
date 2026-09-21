@@ -295,7 +295,7 @@ private fun ToolButton(
 ) {
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(39.dp).background(
+        modifier = Modifier.size(48.dp).background(
             if (selected) Color(0xFF20262D) else Color.Transparent,
             CircleShape,
         ),
@@ -1192,6 +1192,21 @@ private fun ImeKey(
         SpecialKey.EMOJI -> KeyboardIcons.Emoji
         else -> null
     }
+    val keyDescription = when (key.special) {
+        SpecialKey.SHIFT -> "Shift"
+        SpecialKey.BACKSPACE -> "Backspace"
+        SpecialKey.ENTER -> "Enter"
+        SpecialKey.SPACE -> "Spacebar"
+        SpecialKey.EMOJI -> "Emoji"
+        SpecialKey.NUMBERS -> "Numbers and symbols"
+        SpecialKey.LETTERS -> "Letters"
+        SpecialKey.MORE_SYMBOLS -> "More symbols"
+        SpecialKey.LESS_SYMBOLS -> "Previous symbols"
+        SpecialKey.COMMA -> "Comma"
+        SpecialKey.PERIOD -> "Period"
+        SpecialKey.VOICE -> "Voice"
+        null -> "Key $displayLabel"
+    }
 
     Box(
         modifier
@@ -1205,6 +1220,7 @@ private fun ImeKey(
                 },
             )
             .background(fill, RoundedCornerShape(radius))
+            .semantics { contentDescription = keyDescription }
             .then(
                 if (borderWidth > 0.dp) {
                     Modifier.border(borderWidth, borderColor, RoundedCornerShape(radius))

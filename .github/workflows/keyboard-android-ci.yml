@@ -167,6 +167,7 @@ jobs:
             input-method-search.txt
             input-method-rtl.txt
             input-method-selected.txt
+            input-method-selected-cursor.txt
             input-method-cursor-*.txt
             input-method-password-private.txt
             input-method-landscape.txt

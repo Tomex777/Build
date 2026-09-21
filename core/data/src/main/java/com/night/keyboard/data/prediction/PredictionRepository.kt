@@ -16,7 +16,7 @@ class PredictionRepository @Inject constructor(
     suspend fun learn(raw: String, now: Long = System.currentTimeMillis()) {
         val word = raw.trim()
             .lowercase()
-            .trim { !it.isLetter() && it != ''' && it != '’' }
+            .trim { !it.isLetter() && it.code != 39 && it != '’' }
 
         if (word.length !in 2..40) return
         if (!word.any(Char::isLetter)) return

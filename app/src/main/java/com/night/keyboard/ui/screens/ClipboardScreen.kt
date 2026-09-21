@@ -416,7 +416,7 @@ private fun ClipboardRow(
                 )
             }
             IconButton(onClick = onCopy) {
-                Icon(Icons.Outlined.ContentCopy, null)
+                Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy clip")
             }
         }
     }

@@ -86,6 +86,11 @@ private fun modeConfig(mode: String): HarnessMode = when (mode) {
         keyboardType = KeyboardType.Text,
         imeAction = ImeAction.Search,
     )
+    "chat" -> HarnessMode(
+        initialText = "chat message",
+        keyboardType = KeyboardType.Text,
+        imeAction = ImeAction.Send,
+    )
     "rtl" -> HarnessMode(
         initialText = "مرحبا بالعالم",
         keyboardType = KeyboardType.Text,
