@@ -47,6 +47,13 @@ tap_text() {
   sleep 1
 }
 
+tap_desc() {
+  refresh_ui
+  read -r x y <<<"$(python3 /tmp/night_live_voice_uia.py desc "$1")"
+  adb shell input tap "$x" "$y"
+  sleep 1
+}
+
 assert_text() {
   refresh_ui
   python3 /tmp/night_live_voice_uia.py text "$1" >/dev/null
