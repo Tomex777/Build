@@ -9,3 +9,5 @@ trigger deinform-only stage
 trace article continuation
 
 rerun fixed continuation tracer
+
+inspect countdown source logic
