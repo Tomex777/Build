@@ -48,6 +48,7 @@ import com.example.whatsapp.data.night.NightScheduleManager
 import com.example.whatsapp.data.night.NightSpeechService
 import com.example.whatsapp.data.night.NightStructuredReplyParser
 import com.example.whatsapp.data.night.NightSummaryCoordinator
+import com.example.whatsapp.data.night.NightSummaryCheckpointEntity
 import com.example.whatsapp.data.night.NightSummaryPolicy
 import com.example.whatsapp.data.night.NightToolInvocation
 import com.example.whatsapp.data.night.NightVoiceRecorder
@@ -173,6 +174,10 @@ private fun NightApp(initialChatId: String? = null) {
     var mediaCaption by rememberSaveable { mutableStateOf("") }
     var pdfDraft by remember { mutableStateOf<NightPdfDraft?>(null) }
     var pdfCaption by rememberSaveable { mutableStateOf("") }
+    var memoryCheckpoints by remember {
+        mutableStateOf<List<NightSummaryCheckpointEntity>>(emptyList())
+    }
+    var summaryRefreshing by remember { mutableStateOf(false) }
 
     val chats by repository.observeChats().collectAsState(initial = emptyList())
     val profiles by repository.observeProviderProfiles().collectAsState(initial = emptyList())
@@ -194,6 +199,12 @@ private fun NightApp(initialChatId: String? = null) {
     val activeChat = chats.firstOrNull { it.id == activeChatId }
     val activeModel = providerModels.firstOrNull { it.id == activeChat?.selectedModel }
     val activeProfile = profiles.firstOrNull { it.id == activeChat?.selectedProviderProfileId }
+
+    LaunchedEffect(screen, activeChatId, activeChat?.summaryUpdatedAt) {
+        if (screen == "chat_memory") {
+            memoryCheckpoints = repository.summaryCheckpoints(activeChatId)
+        }
+    }
 
     val messageById = remember(messageEntities) { messageEntities.associateBy { it.id } }
     val replyingTo = replyingToId?.let(messageById::get)
@@ -1208,9 +1219,22 @@ private fun NightApp(initialChatId: String? = null) {
 
         "chat_memory" -> NightChatMemoryScreen(
             chat = activeChat,
+            checkpoints = memoryCheckpoints,
+            isRefreshing = summaryRefreshing,
             onBack = { screen = "chat" },
             onRefresh = {
-                scope.launch { checkpoint(activeChatId) }
+                if (!summaryRefreshing) {
+                    summaryRefreshing = true
+                    scope.launch {
+                        try {
+                            checkpoint(activeChatId)
+                            memoryCheckpoints =
+                                repository.summaryCheckpoints(activeChatId)
+                        } finally {
+                            summaryRefreshing = false
+                        }
+                    }
+                }
             },
         )
 
