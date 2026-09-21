@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 # Keep every validation command self-contained: android-emulator-runner@v2
 # may execute script lines in separate shells, so shell variables/functions
 # are intentionally avoided here.
@@ -36,10 +37,16 @@ grep -q "Pull request is ready" night-message-blocks-artifacts/all-blocks.xml
 grep -q "Project Night" night-message-blocks-artifacts/all-blocks.xml
 grep -q "Sources" night-message-blocks-artifacts/all-blocks.xml
 grep -q "Workspace connection" night-message-blocks-artifacts/all-blocks.xml
-! grep -qi "Created by" night-message-blocks-artifacts/all-blocks.xml
+if grep -qi "Created by" night-message-blocks-artifacts/all-blocks.xml; then
+  echo "Visible watermark text found in Night message blocks." >&2
+  exit 1
+fi
 
 adb logcat -d -v threadtime > night-message-blocks-artifacts/logcat.txt
 test -z "$(grep -A5 "FATAL EXCEPTION:" night-message-blocks-artifacts/logcat.txt | grep "Process: com.example.whatsapp" | head -n 1)"
-! grep -q "ANR in com.example.whatsapp" night-message-blocks-artifacts/logcat.txt
+if grep -q "ANR in com.example.whatsapp" night-message-blocks-artifacts/logcat.txt; then
+  echo "Night message block preview hit an ANR." >&2
+  exit 1
+fi
 
 printf '%s\n' "androidApi=36" "messageBlocks=true" "watermarkFree=true" "codeCopyTable=true" "progress=true" "questionPermission=true" "toolExtension=true" "sourcesDiffConnection=true" > night-message-blocks-artifacts/summary.txt
