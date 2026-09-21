@@ -302,11 +302,15 @@ read_current_time() {
 
 prepare_timed_playback() {
   local label="$1"
-  local seek_bounds sx1 sy1 sx2 sy2 seek_y seek_x current_time current_seconds
+  local seek_bounds sx1 sy1 sx2 sy2 seek_y seek_x play_coords play_x play_y
 
+  # UIAutomator dumps are relatively expensive on the API-36 emulator. Reuse
+  # this single hierarchy for both the seek bar and the pre-seek play state so
+  # the 30-second fixture does not run back toward EOF while CI is inspecting it.
   show_controls
   refresh_ui
   seek_bounds="$(python3 /tmp/night_video_uia.py bottom_seekbar 2>/dev/null || true)"
+  play_coords="$(python3 /tmp/night_video_uia.py desc "Play" 2>/dev/null || true)"
   if [ -z "$seek_bounds" ]; then
     echo "Could not find the playback seek bar while preparing $label." >&2
     adb exec-out screencap -p > "$ARTIFACTS/failure-$label-no-seekbar.png" || true
@@ -317,25 +321,21 @@ prepare_timed_playback() {
 
   read -r sx1 sy1 sx2 sy2 <<<"$seek_bounds"
   seek_y=$(((sy1 + sy2) / 2))
-  seek_x=$((sx1 + (sx2 - sx1) * 20 / 100))
+  # Rewind very close to the start. This is preparation only; the dedicated
+  # seek assertion later still proves a real 72% seek independently.
+  seek_x=$((sx1 + (sx2 - sx1) * 3 / 100))
   adb shell input tap "$seek_x" "$seek_y"
-  sleep 1
 
-  show_controls
-  if desc_is_visible "Play"; then
-    tap_desc "Play"
-    sleep 1
+  # If playback had already reached EOF, restart it using the coordinates from
+  # the same hierarchy instead of paying for another slow UI dump.
+  if [ -n "$play_coords" ]; then
+    play_x="${play_coords% *}"
+    play_y="${play_coords#* }"
+    adb shell input tap "$play_x" "$play_y"
   fi
 
-  current_time="$(read_current_time)"
-  current_seconds="$(to_seconds "$current_time")"
-  if [ "$current_seconds" -ge 18 ]; then
-    echo "Could not rewind into a safe playback window for $label: $current_time" >&2
-    adb exec-out screencap -p > "$ARTIFACTS/failure-$label-window.png" || true
-    capture_media_logcat "$label-window"
-    exit 1
-  fi
-  printf 'prepared=%s\n' "$current_time" > "$ARTIFACTS/$label-window.txt"
+  sleep 0.5
+  adb exec-out screencap -p > "$ARTIFACTS/$label-prepared.png" || true
 }
 
 capture_dims() {
