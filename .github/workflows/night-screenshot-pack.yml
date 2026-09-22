@@ -68,7 +68,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -accel on -wipe-data
           script: |
-            set -euo pipefail
+            set -eu
             PACKAGE="com.example.whatsapp"
             APK="night-screenshot-apk/app-debug.apk"
             OUT="night-screenshots"
