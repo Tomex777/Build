@@ -2,17 +2,14 @@ package com.night.extensions.animepahe
 
 import android.content.ContentValues
 import android.content.Context
-import android.media.MediaCodec
-import android.media.MediaExtractor
-import android.media.MediaMetadataRetriever
-import android.media.MediaMuxer
+import com.arthenica.ffmpegkit.FFmpegKit
+import com.arthenica.ffmpegkit.FFmpegKitConfig
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import java.io.File
 import java.io.IOException
-import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
@@ -22,6 +19,8 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -37,7 +36,7 @@ data class AnimePaheDownloadResult(
     val uri: Uri,
     val displayName: String,
     val mimeType: String,
-    val remuxedToMp4: Boolean,
+    val muxedToMkv: Boolean,
 )
 
 class AnimePaheHlsDownloader(
@@ -114,7 +113,7 @@ class AnimePaheHlsDownloader(
                     file.name.endsWith(".ts") ||
                     file.name.endsWith(".part") ||
                     file.name == "joined.ts" ||
-                    file.name == "episode.mp4"
+                    file.name == "episode.mkv"
                 ) {
                     file.delete()
                 }
@@ -264,27 +263,26 @@ class AnimePaheHlsDownloader(
             )
         }
 
-        val remuxedMp4 =
-            File(tempDir, "episode.mp4")
-        if (remuxedMp4.exists()) {
-            remuxedMp4.delete()
+        val muxedMkv =
+            File(tempDir, "episode.mkv")
+        if (muxedMkv.exists()) {
+            muxedMkv.delete()
         }
 
-        val mp4Ready =
-            remuxJoinedTransportStreamToMp4(
+        val mkvReady =
+            muxJoinedTransportStreamToMkv(
                 input = joinedTs,
-                output = remuxedMp4,
-                expectedDurationUs = expectedDurationUs,
+                output = muxedMkv,
                 expectedInputBytes = inputBytes,
             )
 
         val sourceFile =
-            if (mp4Ready) remuxedMp4 else joinedTs
+            if (mkvReady) muxedMkv else joinedTs
         val extension =
-            if (mp4Ready) "mp4" else "ts"
+            if (mkvReady) "mkv" else "ts"
         val mime =
-            if (mp4Ready) {
-                "video/mp4"
+            if (mkvReady) {
+                "video/x-matroska"
             } else {
                 "video/mp2t"
             }
@@ -317,7 +315,7 @@ class AnimePaheHlsDownloader(
             uri = uri,
             displayName = displayName,
             mimeType = mime,
-            remuxedToMp4 = mp4Ready,
+            muxedToMkv = mkvReady,
         )
     }
 
@@ -369,10 +367,9 @@ class AnimePaheHlsDownloader(
         return cipher.doFinal(data)
     }
 
-    private fun remuxJoinedTransportStreamToMp4(
+    private suspend fun muxJoinedTransportStreamToMkv(
         input: File,
         output: File,
-        expectedDurationUs: Long,
         expectedInputBytes: Long,
     ): Boolean {
         if (
@@ -382,276 +379,51 @@ class AnimePaheHlsDownloader(
             return false
         }
 
-        val extractor = MediaExtractor()
-        var muxer: MediaMuxer? = null
-        var muxerStarted = false
+        val command =
+            listOf(
+                "-i \"${input.absolutePath}\"",
+                "-map 0:v",
+                "-map 0:a?",
+                "-map 0:s?",
+                "-map 0:t?",
+                "-f matroska",
+                "-c:a copy",
+                "-c:v copy",
+                "-c:s copy",
+                "\"${output.absolutePath}\"",
+                "-y",
+            ).joinToString(" ")
 
-        return try {
-            extractor.setDataSource(
-                input.absolutePath
-            )
+        val arguments =
+            FFmpegKitConfig.parseArguments(command)
 
-            val sourceToMux =
-                linkedMapOf<Int, Int>()
-            val muxableFormats =
-                mutableListOf<
-                    Pair<Int, android.media.MediaFormat>
-                >()
+        return suspendCancellableCoroutine { continuation ->
+            val session =
+                FFmpegKit.executeWithArgumentsAsync(
+                    arguments,
+                    { completed ->
+                        val valid =
+                            completed.returnCode.isValueSuccess &&
+                                output.exists() &&
+                                output.length() > 0L &&
+                                (
+                                    expectedInputBytes <= 0L ||
+                                        output.length() >=
+                                            expectedInputBytes * 55L / 100L
+                                    )
 
-            for (
-                track in
-                    0 until extractor.trackCount
-            ) {
-                val format =
-                    extractor.getTrackFormat(track)
-                val mime =
-                    format.getString(
-                        android.media.MediaFormat.KEY_MIME
-                    ).orEmpty()
-                if (
-                    mime.startsWith("video/") ||
-                    mime.startsWith("audio/")
-                ) {
-                    muxableFormats +=
-                        track to format
-                }
-            }
-
-            if (muxableFormats.isEmpty()) {
-                return false
-            }
-
-            muxer =
-                MediaMuxer(
-                    output.absolutePath,
-                    MediaMuxer.OutputFormat
-                        .MUXER_OUTPUT_MPEG_4,
+                        if (!valid) {
+                            output.delete()
+                        }
+                        if (continuation.isActive) {
+                            continuation.resume(valid)
+                        }
+                    },
                 )
 
-            muxableFormats.forEach {
-                    (sourceTrack, format),
-                ->
-                sourceToMux[sourceTrack] =
-                    muxer.addTrack(format)
-                extractor.selectTrack(sourceTrack)
-            }
-
-            muxer.start()
-            muxerStarted = true
-
-            val buffer =
-                ByteBuffer.allocateDirect(
-                    4 * 1024 * 1024
-                )
-            val info =
-                MediaCodec.BufferInfo()
-
-            var globalBaseUs: Long? = null
-            val ptsOffsetByTrack =
-                mutableMapOf<Int, Long>()
-            val lastOutputPtsByTrack =
-                mutableMapOf<Int, Long>()
-            val lastRawPtsByTrack =
-                mutableMapOf<Int, Long>()
-
-            while (true) {
-                val sourceTrack =
-                    extractor.sampleTrackIndex
-                if (sourceTrack < 0) {
-                    break
-                }
-
-                val muxTrack =
-                    sourceToMux[sourceTrack]
-                if (muxTrack == null) {
-                    extractor.advance()
-                    continue
-                }
-
-                buffer.clear()
-                val size =
-                    extractor.readSampleData(
-                        buffer,
-                        0,
-                    )
-                if (size < 0) {
-                    break
-                }
-
-                val rawPtsUs =
-                    extractor.sampleTime
-                        .coerceAtLeast(0L)
-                if (globalBaseUs == null) {
-                    globalBaseUs = rawPtsUs
-                }
-                val baseUs =
-                    globalBaseUs ?: rawPtsUs
-
-                var offsetUs =
-                    ptsOffsetByTrack[sourceTrack]
-                        ?: 0L
-                val previousRawUs =
-                    lastRawPtsByTrack[sourceTrack]
-                val previousOutputUs =
-                    lastOutputPtsByTrack[sourceTrack]
-
-                if (
-                    previousRawUs != null &&
-                    previousOutputUs != null &&
-                    rawPtsUs + 250_000L <
-                        previousRawUs
-                ) {
-                    val normalizedRawUs =
-                        (rawPtsUs - baseUs)
-                            .coerceAtLeast(0L)
-                    offsetUs =
-                        previousOutputUs +
-                            1L -
-                            normalizedRawUs
-                    ptsOffsetByTrack[sourceTrack] =
-                        offsetUs
-                }
-
-                var outputPtsUs =
-                    (rawPtsUs - baseUs)
-                        .coerceAtLeast(0L) +
-                        offsetUs
-                if (
-                    previousOutputUs != null &&
-                    outputPtsUs <=
-                        previousOutputUs
-                ) {
-                    outputPtsUs =
-                        previousOutputUs + 1L
-                }
-
-                info.set(
-                    0,
-                    size,
-                    outputPtsUs,
-                    extractor.sampleFlags,
-                )
-                muxer.writeSampleData(
-                    muxTrack,
-                    buffer,
-                    info,
-                )
-
-                lastRawPtsByTrack[sourceTrack] =
-                    rawPtsUs
-                lastOutputPtsByTrack[sourceTrack] =
-                    outputPtsUs
-                extractor.advance()
-            }
-
-            muxer.stop()
-            muxerStarted = false
-            muxer.release()
-            muxer = null
-
-            validateRemuxedMp4(
-                output = output,
-                expectedDurationUs =
-                    expectedDurationUs,
-                expectedInputBytes =
-                    expectedInputBytes,
-            )
-        } catch (_: Exception) {
-            false
-        } finally {
-            runCatching {
-                extractor.release()
-            }
-            if (muxerStarted) {
-                runCatching {
-                    muxer?.stop()
-                }
-            }
-            runCatching {
-                muxer?.release()
-            }
-            if (
-                !output.exists() ||
-                output.length() == 0L
-            ) {
+            continuation.invokeOnCancellation {
+                session.cancel()
                 output.delete()
-            }
-        }
-    }
-
-    private fun validateRemuxedMp4(
-        output: File,
-        expectedDurationUs: Long,
-        expectedInputBytes: Long,
-    ): Boolean {
-        if (
-            !output.exists() ||
-            output.length() <= 0L
-        ) {
-            return false
-        }
-
-        if (
-            expectedInputBytes > 0L &&
-            output.length() <
-                (
-                    expectedInputBytes *
-                        55L /
-                        100L
-                    )
-        ) {
-            output.delete()
-            return false
-        }
-
-        if (expectedDurationUs > 5_000_000L) {
-            val actualDurationUs =
-                mediaDurationUs(output)
-            if (
-                actualDurationUs <= 0L ||
-                actualDurationUs <
-                    (
-                        expectedDurationUs *
-                            9L /
-                            10L
-                        ) ||
-                actualDurationUs >
-                    (
-                        expectedDurationUs *
-                            11L /
-                            10L
-                        )
-            ) {
-                output.delete()
-                return false
-            }
-        }
-
-        return true
-    }
-
-    private fun mediaDurationUs(
-        file: File,
-    ): Long {
-        val retriever =
-            MediaMetadataRetriever()
-        return try {
-            retriever.setDataSource(
-                file.absolutePath
-            )
-            val durationMs =
-                retriever.extractMetadata(
-                    MediaMetadataRetriever
-                        .METADATA_KEY_DURATION
-                )
-                    ?.toLongOrNull()
-                    ?: 0L
-            durationMs * 1_000L
-        } catch (_: Exception) {
-            0L
-        } finally {
-            runCatching {
-                retriever.release()
             }
         }
     }
