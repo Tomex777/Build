@@ -41,32 +41,92 @@ print(f"{(x1+x2)//2} {(y1+y2)//2}")
 PY
 
 refresh_ui() {
-  adb shell uiautomator dump /sdcard/window.xml >/dev/null
-  adb exec-out cat /sdcard/window.xml > /tmp/window.xml
+  local attempt
+  rm -f /tmp/window.xml
+  for attempt in $(seq 1 10); do
+    if adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 &&
+       adb exec-out cat /sdcard/window.xml > /tmp/window.xml 2>/dev/null &&
+       grep -q "<hierarchy" /tmp/window.xml; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Could not obtain the Night image-editor UI hierarchy." >&2
+  adb exec-out screencap -p > "$OUT/failure-ui-hierarchy.png" 2>/dev/null || true
+  adb logcat -d -v threadtime > "$OUT/logcat-ui-hierarchy-failure.txt" 2>/dev/null || true
+  return 1
 }
 
 tap_desc() {
-  refresh_ui
-  read -r x y <<<"$(python3 /tmp/night_image_uia.py desc "$1")"
-  adb shell input tap "$x" "$y"
-  sleep 1
+  local wanted="$1"
+  local attempt coords x y
+  for attempt in $(seq 1 10); do
+    refresh_ui
+    coords="$(python3 /tmp/night_image_uia.py desc "$wanted" 2>/dev/null || true)"
+    if [ -n "$coords" ]; then
+      read -r x y <<<"$coords"
+      adb shell input tap "$x" "$y"
+      sleep 1
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Could not tap Night image-editor control: $wanted" >&2
+  cp /tmp/window.xml "$OUT/failure-tap-desc.xml" 2>/dev/null || true
+  adb exec-out screencap -p > "$OUT/failure-tap-desc.png" 2>/dev/null || true
+  return 1
 }
 
 tap_text() {
-  refresh_ui
-  read -r x y <<<"$(python3 /tmp/night_image_uia.py text "$1")"
-  adb shell input tap "$x" "$y"
-  sleep 1
+  local wanted="$1"
+  local attempt coords x y
+  for attempt in $(seq 1 10); do
+    refresh_ui
+    coords="$(python3 /tmp/night_image_uia.py text "$wanted" 2>/dev/null || true)"
+    if [ -n "$coords" ]; then
+      read -r x y <<<"$coords"
+      adb shell input tap "$x" "$y"
+      sleep 1
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Could not tap Night image-editor text: $wanted" >&2
+  cp /tmp/window.xml "$OUT/failure-tap-text.xml" 2>/dev/null || true
+  adb exec-out screencap -p > "$OUT/failure-tap-text.png" 2>/dev/null || true
+  return 1
 }
 
 assert_desc() {
-  refresh_ui
-  python3 /tmp/night_image_uia.py desc "$1" >/dev/null
+  local wanted="$1"
+  local attempt
+  for attempt in $(seq 1 10); do
+    refresh_ui
+    if python3 /tmp/night_image_uia.py desc "$wanted" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Night image-editor control did not appear: $wanted" >&2
+  cp /tmp/window.xml "$OUT/failure-assert-desc.xml" 2>/dev/null || true
+  adb exec-out screencap -p > "$OUT/failure-assert-desc.png" 2>/dev/null || true
+  return 1
 }
 
 assert_text() {
-  refresh_ui
-  python3 /tmp/night_image_uia.py text "$1" >/dev/null
+  local wanted="$1"
+  local attempt
+  for attempt in $(seq 1 10); do
+    refresh_ui
+    if python3 /tmp/night_image_uia.py text "$wanted" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Night image-editor text did not appear: $wanted" >&2
+  cp /tmp/window.xml "$OUT/failure-assert-text.xml" 2>/dev/null || true
+  adb exec-out screencap -p > "$OUT/failure-assert-text.png" 2>/dev/null || true
+  return 1
 }
 
 assert_alive() {
