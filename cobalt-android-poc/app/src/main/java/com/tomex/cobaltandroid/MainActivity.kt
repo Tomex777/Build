@@ -18,6 +18,7 @@ import java.lang.reflect.Proxy
 import java.nio.file.Path
 import java.util.Optional
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : Activity() {
     private val tag = "CobaltPOC"
@@ -31,6 +32,14 @@ class MainActivity : Activity() {
 
     @Volatile
     private var temporaryMode = false
+
+    @Volatile
+    private var liveHarnessMode = false
+
+    @Volatile
+    private var liveAutoReplyText: String? = null
+
+    private val liveReplySent = AtomicBoolean(false)
 
     private lateinit var phoneInput: EditText
     private lateinit var statusText: TextView
@@ -48,7 +57,20 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         buildUi()
-        probeSavedSession()
+
+        val livePhone = intent.getStringExtra("live_phone")?.filter(Char::isDigit).orEmpty()
+        val liveReply = intent.getStringExtra("live_reply")?.trim().orEmpty()
+        if (livePhone.length in 8..15) {
+            liveHarnessMode = true
+            liveAutoReplyText = liveReply.ifBlank {
+                "Got your message — Cobalt Android receive/reply test passed."
+            }
+            phoneInput.setText(livePhone)
+            setStatus("Live burner-account harness armed. Starting RAM-only pairing…")
+            phoneInput.post { startPairing(true) }
+        } else {
+            probeSavedSession()
+        }
     }
 
     private fun buildUi() {
@@ -99,7 +121,7 @@ class MainActivity : Activity() {
         root.addView(linkButton)
 
         temporaryLinkButton = Button(this).apply {
-            text = "10-second temporary link"
+            text = "Temporary link"
             setOnClickListener { startPairing(true) }
         }
         root.addView(temporaryLinkButton)
@@ -253,7 +275,7 @@ class MainActivity : Activity() {
         copyButton.isEnabled = false
         setStatus(
             if (temporary) {
-                "Creating RAM-only 10-second linked-device session…"
+                "Creating RAM-only linked-device session…"
             } else {
                 "Creating persistent linked-device session…"
             }
@@ -384,8 +406,12 @@ class MainActivity : Activity() {
                         if (temporaryMode) {
                             hasSavedSession = false
                             reconnectButton.isEnabled = false
-                            setStatus("Temporary link succeeded. Disconnecting automatically in 10 seconds…")
-                            scheduleTemporaryDisconnect()
+                            if (liveHarnessMode) {
+                                setStatus("LIVE TEST LINKED. Send one WhatsApp message to this burner account now.")
+                                Log.i(tag, "LIVE_TEST_LINKED")
+                            } else {
+                                setStatus("Temporary link succeeded. Session is RAM-only and will not be saved.")
+                            }
                         } else {
                             hasSavedSession = true
                             reconnectButton.isEnabled = true
@@ -416,6 +442,30 @@ class MainActivity : Activity() {
                     val rendered = renderMessage(info)
                     runOnUiThread {
                         appendEvent("RECEIVED  $rendered")
+                    }
+
+                    if (liveHarnessMode && info != null && !isFromMe(info) && liveReplySent.compareAndSet(false, true)) {
+                        Thread {
+                            try {
+                                sendLiveHarnessReply(client, info)
+                                Log.i(tag, "LIVE_TEST_REPLY_SENT")
+                                Thread.sleep(1500)
+                                disconnectCurrentInternal()
+                                temporaryMode = false
+                                liveHarnessMode = false
+                                runOnUiThread {
+                                    pairingCodeText.text = "LIVE TEST PASSED"
+                                    copyButton.isEnabled = false
+                                    disconnectButton.isEnabled = false
+                                    setChatEnabled(false)
+                                    setStatus("Live burner-account receive/reply test passed. RAM-only session disconnected.")
+                                }
+                                Log.i(tag, "LIVE_TEST_DONE")
+                            } catch (error: Throwable) {
+                                Log.e(tag, "LIVE_TEST_REPLY_FAILED", error)
+                                reportError("Live test reply", error)
+                            }
+                        }.start()
                     }
                     null
                 }
@@ -537,6 +587,56 @@ class MainActivity : Activity() {
                 runOnUiThread { sendButton.isEnabled = true }
                 reportError("Sending test message", error)
             }
+        }
+    }
+
+    private fun isFromMe(info: Any): Boolean {
+        return try {
+            val key = info.javaClass.getMethod("key").invoke(info)
+            key.javaClass.getMethod("fromMe").invoke(key) as? Boolean ?: false
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    private fun sendLiveHarnessReply(client: Any, info: Any) {
+        val key = info.javaClass.getMethod("key").invoke(info)
+        val parentOptional = key.javaClass.getMethod("parentJid").invoke(key) as Optional<*>
+        val senderOptional = key.javaClass.getMethod("senderJid").invoke(key) as Optional<*>
+        val recipient = parentOptional.orElse(null) ?: senderOptional.orElse(null)
+            ?: error("Inbound message has no replyable chat JID")
+
+        val reply = liveAutoReplyText
+            ?.takeIf { it.isNotBlank() }
+            ?: "Got your message — Cobalt Android receive/reply test passed."
+
+        val jidProviderClass = Class.forName(
+            "com.github.auties00.cobalt.wire.core.jid.JidProvider",
+            true,
+            classLoader
+        )
+        val containerClass = Class.forName(
+            "com.github.auties00.cobalt.wire.linked.message.LinkedMessageContainer",
+            true,
+            classLoader
+        )
+        val whatsappClientClass = Class.forName(
+            "com.github.auties00.cobalt.client.WhatsAppClient",
+            true,
+            classLoader
+        )
+
+        val container = containerClass
+            .getMethod("of", String::class.java)
+            .invoke(null, reply)
+
+        whatsappClientClass
+            .getMethod("sendMessage", jidProviderClass, containerClass)
+            .invoke(client, recipient, container)
+
+        runOnUiThread {
+            appendEvent("SENT  automatic live-test reply")
+            setStatus("Inbound message received; reply sent. Disconnecting RAM-only session…")
         }
     }
 
