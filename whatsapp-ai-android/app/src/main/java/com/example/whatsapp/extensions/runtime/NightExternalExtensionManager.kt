@@ -15,6 +15,7 @@ import com.example.whatsapp.extensions.messages.ExtensionCardTemplate
 import com.example.whatsapp.extensions.messages.NightExtensionMessageActionRegistry
 import com.example.whatsapp.extensions.messages.NightExtensionMessageTypeDefinition
 import com.example.whatsapp.extensions.messages.NightExtensionMessageTypeRegistry
+import com.example.whatsapp.extensions.tools.NightExtensionPreferenceRouter
 import com.example.whatsapp.extensions.tools.NightExtensionToolDefinition
 import com.example.whatsapp.extensions.tools.NightExtensionToolRegistry
 import java.util.UUID
@@ -138,6 +139,8 @@ class NightExternalExtensionManager private constructor(
                 )
             }
         }.apply()
+
+        syncPreferenceRouter()
     }
 
     suspend fun refreshInstalledExtensions(): List<String> {
@@ -241,6 +244,7 @@ class NightExternalExtensionManager private constructor(
                     .thenBy { it.displayName.lowercase() }
                     .thenBy { it.packageName }
             )
+        syncPreferenceRouter()
 
         return active.toList()
     }
@@ -352,6 +356,7 @@ class NightExternalExtensionManager private constructor(
                                 item.optBoolean("readOnlyHint", false)
                             else -> false
                         },
+                    capabilities = parsed.capabilities,
                 )
                 require(seenTools.add(definition.qualifiedName)) {
                     "Extension declares colliding tool names."
@@ -429,6 +434,24 @@ class NightExternalExtensionManager private constructor(
             ),
             false,
         )
+
+    private fun syncPreferenceRouter() {
+        val preferred =
+            _extensions.value
+                .asSequence()
+                .filter { it.enabled }
+                .flatMap { it.capabilities.asSequence() }
+                .distinct()
+                .mapNotNull { capability ->
+                    providersFor(capability)
+                        .firstOrNull()
+                        ?.extensionId
+                        ?.let { capability to it }
+                }
+                .toMap()
+
+        NightExtensionPreferenceRouter.replace(preferred)
+    }
 
     private fun preferredProviderKey(
         capability: NightIntegrationCapability,
