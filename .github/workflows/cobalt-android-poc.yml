@@ -1,9 +1,9 @@
-name: Cobalt Android POC
+name: WhatsApp Client Android
 
 on:
   push:
     branches:
-      - cobalt-android-poc
+      - whatsapp-client
     paths:
       - "cobalt-android-poc/**"
       - ".github/workflows/cobalt-android-poc.yml"
@@ -13,7 +13,7 @@ jobs:
   package-upstream-cobalt:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout POC
+      - name: Checkout client
         uses: actions/checkout@v4
 
       - name: Checkout pinned Cobalt
@@ -100,7 +100,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cobalt-android-baseline
+          name: whatsapp-client-apk
           if-no-files-found: ignore
           path: |
             cobalt-android-poc/cobalt-build.log
@@ -110,7 +110,7 @@ jobs:
   compatibility-audit:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout POC
+      - name: Checkout client
         uses: actions/checkout@v4
 
       - name: Checkout pinned Cobalt
@@ -144,13 +144,13 @@ jobs:
     needs: package-upstream-cobalt
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout POC
+      - name: Checkout client
         uses: actions/checkout@v4
 
       - name: Download packaged APK
         uses: actions/download-artifact@v4
         with:
-          name: cobalt-android-baseline
+          name: whatsapp-client-apk
           path: cobalt-runtime
 
       - name: Locate packaged APK
@@ -184,7 +184,7 @@ jobs:
           script: |
             adb install -r "$COBALT_APK"
             adb logcat -c
-            adb shell am start -W -n com.tomex.cobaltandroid/.MainActivity
+            adb shell am start -W -n com.tomex.whatsappclient/.MainActivity
             sleep 8
 
             # Capture the app's visible probe result first. Some API 36 emulator
@@ -195,7 +195,7 @@ jobs:
             adb pull /sdcard/cobalt-window.xml cobalt-android-poc/window.xml || true
 
             adb logcat -d -v threadtime > cobalt-android-poc/full-logcat.txt || true
-            grep -E 'CobaltPOC|AndroidRuntime|System\\$Logger|ClassNotFoundException|NoClassDefFoundError|NoSuchMethodError|UnsatisfiedLinkError' cobalt-android-poc/full-logcat.txt > cobalt-android-poc/runtime-log.txt || true
+            grep -E 'WhatsAppClient|AndroidRuntime|System\\$Logger|ClassNotFoundException|NoClassDefFoundError|NoSuchMethodError|UnsatisfiedLinkError' cobalt-android-poc/full-logcat.txt > cobalt-android-poc/runtime-log.txt || true
 
             echo "=== Visible probe ==="
             cat cobalt-android-poc/window.xml || true
@@ -207,7 +207,7 @@ jobs:
         shell: bash
         run: |
           {
-            echo "## Cobalt Android runtime probe"
+            echo "## WhatsApp Client runtime probe"
             echo
             echo "Emulator step: **${{ steps.emulator.outcome }}**"
             echo
@@ -223,7 +223,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cobalt-android-runtime-probe
+          name: whatsapp-client-runtime
           if-no-files-found: ignore
           path: |
             cobalt-android-poc/runtime-log.txt
