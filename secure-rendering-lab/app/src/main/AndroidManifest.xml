@@ -15,6 +15,15 @@
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
 
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+        <activity android:name=".ShizukuSecureCaptureActivity" android:exported="false" />
         <activity android:name=".SystemCapabilityActivity" android:exported="false" />
         <activity android:name=".DrmLabActivity" android:exported="false" />
         <activity android:name=".SecureSurfaceActivity" android:exported="false" />

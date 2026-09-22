@@ -18,11 +18,20 @@ class MainActivity : Activity() {
         root.addView(heading("Secure Rendering Lab"))
         root.addView(
             bodyText(
-                "A real-device lab for comparing ordinary rendering, FLAG_SECURE, secure SurfaceView layers, controlled self-exposure experiments, screen capture, and DRM capabilities."
+                "A real-device lab for comparing ordinary rendering, FLAG_SECURE, secure SurfaceView layers, shell-UID secure-layer capture, screen capture, and DRM capabilities."
             )
         )
 
         root.addCard(deviceCard())
+        root.addCard(
+            labCard(
+                "A · Shizuku secure-layer capture",
+                "Rootless-first experiment: run capture code as Android shell through Shizuku, request captureSecureLayers=true, and compare it directly with ordinary MediaProjection.",
+                "Open A capture test"
+            ) {
+                startActivity(Intent(this, ShizukuSecureCaptureActivity::class.java))
+            }
+        )
         root.addCard(
             labCard(
                 "1 · FLAG_SECURE window",
@@ -61,10 +70,10 @@ class MainActivity : Activity() {
         )
 
         val note = card().apply {
-            addView(heading("What this app does not do", 18f))
+            addView(heading("Protection boundary", 18f))
             addView(
                 bodyText(
-                    "It does not request privileged CAPTURE_SECURE_VIDEO_OUTPUT access, patch SurfaceFlinger, hook other apps, or bypass another app's DRM/security. The controlled bypasses only make this lab expose its own test content so you can see exactly where the protection boundary sits."
+                    "The A test can use a user-authorized Shizuku shell service to request secure layers without rooting the phone. It deliberately leaves protected DRM capture disabled. The other controlled bypasses only expose this lab's own test content."
                 )
             )
         }
