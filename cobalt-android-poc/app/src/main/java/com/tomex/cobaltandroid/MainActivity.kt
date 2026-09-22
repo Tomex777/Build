@@ -26,6 +26,9 @@ class MainActivity : Activity() {
     @Volatile
     private var currentClient: Any? = null
 
+    @Volatile
+    private var hasSavedSession = false
+
     private lateinit var phoneInput: EditText
     private lateinit var statusText: TextView
     private lateinit var pairingCodeText: TextView
@@ -157,12 +160,12 @@ class MainActivity : Activity() {
             try {
                 val options = loadLatestOptions()
                 runOnUiThread {
-                    if (options == null) {
-                        reconnectButton.isEnabled = false
+                    hasSavedSession = options != null
+                    reconnectButton.isEnabled = hasSavedSession
+                    if (!hasSavedSession) {
                         setStatus("Ready. Enter your WhatsApp number to create a linked-device pairing code.")
                     } else {
-                        reconnectButton.isEnabled = true
-                        setStatus("A saved Cobalt session exists. You can reconnect it or start a new link.")
+                        setStatus("A saved Cobalt session exists. Reconnect it after pairing, or start a new link.")
                     }
                 }
             } catch (error: Throwable) {
@@ -221,7 +224,7 @@ class MainActivity : Activity() {
                 }
 
                 val client = options.javaClass
-                    .getMethod("unregistered", Long::class.javaPrimitiveType, pairingClass)
+                    .getMethod("unregistered", java.lang.Long.TYPE, pairingClass)
                     .invoke(options, digits.toLong(), pairingHandler)
 
                 attachLoggedInListener(client)
@@ -291,6 +294,7 @@ class MainActivity : Activity() {
                     runOnUiThread {
                         pairingCodeText.text = "LINKED"
                         copyButton.isEnabled = false
+                        hasSavedSession = true
                         reconnectButton.isEnabled = true
                         disconnectButton.isEnabled = true
                         setStatus("Linked successfully. Credentials are stored locally on this phone.")
@@ -392,7 +396,7 @@ class MainActivity : Activity() {
 
     private fun setBusy(value: Boolean) {
         linkButton.isEnabled = !value
-        reconnectButton.isEnabled = !value && reconnectButton.isEnabled
+        reconnectButton.isEnabled = !value && hasSavedSession
         phoneInput.isEnabled = !value
     }
 
