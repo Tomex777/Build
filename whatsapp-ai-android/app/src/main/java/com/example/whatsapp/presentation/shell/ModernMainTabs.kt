@@ -1,7 +1,9 @@
 package com.example.whatsapp.presentation.shell
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -27,6 +29,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddComment
@@ -56,21 +59,27 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.VideoCall
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -299,6 +308,7 @@ data class ChatPreviewRow(
     val unread: Int = 0,
     val muted: Boolean = false,
     val pinned: Boolean = false,
+    val id: String = "",
 )
 
 private fun fallbackChats() = listOf(
@@ -314,31 +324,76 @@ fun ModernChatsTab(
     chats: List<ChatListModel>,
     onTabSelected: (MainTab) -> Unit,
     onChatClick: (ChatListModel) -> Unit,
+    onRenameChat: (ChatListModel) -> Unit = {},
     onNewChat: () -> Unit = {},
     onSettingsClick: () -> Unit,
     accentColor: Color = Pink,
 ) {
-    val rows = remember(chats) {
-        if (chats.isEmpty()) {
-            emptyList()
-        } else {
-            val avatars = listOf(
-                R.drawable.bilal,
-                R.drawable.harib,
-                R.drawable.taimoor,
-                R.drawable.hannan_ahmad,
-                R.drawable.abdussalam,
-                R.drawable.salleh,
+    val context = LocalContext.current
+    val listPrefs = remember {
+        context.getSharedPreferences("night_chat_list", android.content.Context.MODE_PRIVATE)
+    }
+    var query by remember { mutableStateOf("") }
+    var selectedFilter by remember { mutableStateOf("all") }
+    var favoriteIds by remember {
+        mutableStateOf(listPrefs.getStringSet("favorites", emptySet()).orEmpty().toSet())
+    }
+    var readIds by remember {
+        mutableStateOf(listPrefs.getStringSet("read", emptySet()).orEmpty().toSet())
+    }
+    var actionChat by remember { mutableStateOf<ChatListModel?>(null) }
+
+    val rows = remember(chats, favoriteIds, readIds) {
+        val avatars = listOf(
+            R.drawable.bilal,
+            R.drawable.harib,
+            R.drawable.taimoor,
+            R.drawable.hannan_ahmad,
+            R.drawable.abdussalam,
+            R.drawable.salleh,
+        )
+        chats.mapIndexed { index, item ->
+            val id = item.userId.orEmpty()
+            ChatPreviewRow(
+                name = item.name ?: "Chat",
+                message = item.message ?: "Tap to open chat",
+                time = item.time ?: "",
+                avatar = avatars[index % avatars.size],
+                unread = if (id.isNotBlank() && id !in readIds && !item.message.isNullOrBlank()) 1 else 0,
+                pinned = id.isNotBlank() && id in favoriteIds,
+                id = id,
             )
-            chats.mapIndexed { index, item ->
-                ChatPreviewRow(
-                    name = item.name ?: "Contact",
-                    message = item.message ?: "Tap to open chat",
-                    time = item.time ?: "",
-                    avatar = avatars[index % avatars.size],
-                )
-            }
         }
+    }
+
+    val visibleRows = remember(rows, query, selectedFilter) {
+        val needle = query.trim().lowercase()
+        rows.filter { row ->
+            val matchesQuery =
+                needle.isBlank() ||
+                    row.name.lowercase().contains(needle) ||
+                    row.message.lowercase().contains(needle)
+            val matchesFilter = when (selectedFilter) {
+                "unread" -> row.unread > 0
+                "favorites" -> row.pinned
+                else -> true
+            }
+            matchesQuery && matchesFilter
+        }
+    }
+
+    fun markRead(id: String) {
+        if (id.isBlank() || id in readIds) return
+        val next = readIds + id
+        readIds = next
+        listPrefs.edit().putStringSet("read", next).apply()
+    }
+
+    fun toggleFavorite(id: String) {
+        if (id.isBlank()) return
+        val next = if (id in favoriteIds) favoriteIds - id else favoriteIds + id
+        favoriteIds = next
+        listPrefs.edit().putStringSet("favorites", next).apply()
     }
 
     ModernAppScaffold(
@@ -346,6 +401,8 @@ fun ModernChatsTab(
         onTabSelected = onTabSelected,
         title = "Night",
         onSettingsClick = onSettingsClick,
+        showCamera = false,
+        showSearch = false,
         accentColor = accentColor,
         floatingAction = {
             FloatingActionButton(
@@ -369,6 +426,8 @@ fun ModernChatsTab(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             SearchPill(
+                value = query,
+                onValueChange = { query = it },
                 placeholder = "Search your chats",
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             )
@@ -379,33 +438,128 @@ fun ModernChatsTab(
                     .padding(horizontal = 12.dp, vertical = 3.dp),
                 horizontalArrangement = Arrangement.spacedBy(7.dp),
             ) {
-                FilterChip("All", selected = true, accentColor = accentColor)
-                FilterChip("Unread", accentColor = accentColor)
-                FilterChip("Favorites", accentColor = accentColor)
+                FilterChip(
+                    label = "All",
+                    selected = selectedFilter == "all",
+                    accentColor = accentColor,
+                    onClick = { selectedFilter = "all" },
+                )
+                FilterChip(
+                    label = "Unread",
+                    selected = selectedFilter == "unread",
+                    accentColor = accentColor,
+                    onClick = { selectedFilter = "unread" },
+                )
+                FilterChip(
+                    label = "Favorites",
+                    selected = selectedFilter == "favorites",
+                    accentColor = accentColor,
+                    onClick = { selectedFilter = "favorites" },
+                )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            LazyColumn(
-                contentPadding = PaddingValues(bottom = 84.dp),
-            ) {
-                items(rows) { row ->
-                    ChatRow(
-                        row = row,
-                        accentColor = accentColor,
-                        onClick = {
-                            val match = chats.firstOrNull { (it.name ?: "Contact") == row.name }
-                            if (match != null) onChatClick(match)
+            if (visibleRows.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = when {
+                            query.isNotBlank() -> "No chats match your search"
+                            selectedFilter == "favorites" -> "No favorite chats yet"
+                            selectedFilter == "unread" -> "No unread chats"
+                            else -> "No chats yet"
                         },
+                        color = Secondary,
+                        fontSize = 13.sp,
                     )
+                }
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(bottom = 84.dp),
+                ) {
+                    items(visibleRows, key = { it.id.ifBlank { it.name } }) { row ->
+                        ChatRow(
+                            row = row,
+                            accentColor = accentColor,
+                            onClick = {
+                                val match = chats.firstOrNull { it.userId == row.id }
+                                    ?: chats.firstOrNull { (it.name ?: "Chat") == row.name }
+                                if (match != null) {
+                                    markRead(row.id)
+                                    onChatClick(match)
+                                }
+                            },
+                            onLongClick = {
+                                val match = chats.firstOrNull { it.userId == row.id }
+                                    ?: chats.firstOrNull { (it.name ?: "Chat") == row.name }
+                                actionChat = match
+                            },
+                        )
+                    }
                 }
             }
         }
+    }
+
+    actionChat?.let { chat ->
+        val id = chat.userId.orEmpty()
+        val favorite = id in favoriteIds
+        AlertDialog(
+            onDismissRequest = { actionChat = null },
+            containerColor = SurfaceDark,
+            title = {
+                Text(
+                    text = chat.name ?: "Chat",
+                    color = Primary,
+                    fontSize = 18.sp,
+                )
+            },
+            text = {
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                toggleFavorite(id)
+                                actionChat = null
+                            }
+                            .padding(vertical = 12.dp),
+                    ) {
+                        Text(
+                            text = if (favorite) "Remove from favorites" else "Add to favorites",
+                            color = Primary,
+                            fontSize = 14.sp,
+                        )
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                actionChat = null
+                                onRenameChat(chat)
+                            }
+                            .padding(vertical = 12.dp),
+                    ) {
+                        Text(
+                            text = "Rename chat",
+                            color = Primary,
+                            fontSize = 14.sp,
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+        )
     }
 }
 
 @Composable
 private fun SearchPill(
+    value: String,
+    onValueChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
 ) {
@@ -425,11 +579,25 @@ private fun SearchPill(
             modifier = Modifier.size(20.dp),
         )
         Spacer(modifier = Modifier.width(9.dp))
-        Text(
-            text = placeholder,
-            color = Secondary,
-            fontSize = 14.sp,
-        )
+        Box(modifier = Modifier.weight(1f)) {
+            if (value.isEmpty()) {
+                Text(
+                    text = placeholder,
+                    color = Secondary,
+                    fontSize = 14.sp,
+                )
+            }
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                textStyle = TextStyle(
+                    color = Primary,
+                    fontSize = 14.sp,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 
@@ -438,6 +606,7 @@ private fun FilterChip(
     label: String,
     selected: Boolean = false,
     accentColor: Color = Pink,
+    onClick: () -> Unit,
 ) {
     Surface(
         color =
@@ -447,6 +616,7 @@ private fun FilterChip(
                 SurfaceDark
             },
         shape = RoundedCornerShape(18.dp),
+        modifier = Modifier.clickable(onClick = onClick),
     ) {
         Text(
             text = label,
@@ -457,16 +627,21 @@ private fun FilterChip(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ChatRow(
     row: ChatPreviewRow,
     accentColor: Color = Pink,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+            )
             .padding(start = 12.dp, end = 12.dp, top = 7.dp, bottom = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -2498,6 +2498,11 @@ private fun NightApp(initialChatId: String? = null) {
                     messageText = ""
                     screen = "chat"
                 },
+                onRenameChat = { row ->
+                    activeChatId = row.userId ?: "night-core"
+                    renameValue = row.name.orEmpty()
+                    renameOpen = true
+                },
                 onNewChat = {
                     scope.launch {
                         val chat = repository.createChat("New chat")
