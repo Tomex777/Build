@@ -617,7 +617,6 @@ private fun EditProviderDialog(
         title = { Text("Edit " + profile.displayName, color = ProviderText) },
         text = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 ProviderField(name, { name = it }, "Profile name")
@@ -708,7 +707,6 @@ private fun EditModelDialog(
         title = { Text("Edit " + model.displayName, color = ProviderText) },
         text = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 ProviderField(modelId, { modelId = it }, "Model ID")
