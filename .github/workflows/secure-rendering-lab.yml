@@ -43,11 +43,28 @@ jobs:
 
       - name: Build debug APK
         working-directory: secure-rendering-lab
-        run: gradle :app:assembleDebug --stacktrace
+        run: gradle :app:assembleDebug :systemlab:assembleDebug --stacktrace
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: secure-rendering-lab-debug
           path: secure-rendering-lab/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Upload system-lab sanity APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: secure-rendering-system-lab-sanity
+          path: secure-rendering-lab/systemlab/build/outputs/apk/debug/systemlab-debug.apk
+          if-no-files-found: error
+
+      - name: Package AOSP System Lab source
+        run: tar -czf secure-rendering-system-lab-aosp-source.tar.gz -C secure-rendering-lab aosp-system-lab
+
+      - name: Upload AOSP System Lab source
+        uses: actions/upload-artifact@v4
+        with:
+          name: secure-rendering-system-lab-aosp-source
+          path: secure-rendering-system-lab-aosp-source.tar.gz
           if-no-files-found: error

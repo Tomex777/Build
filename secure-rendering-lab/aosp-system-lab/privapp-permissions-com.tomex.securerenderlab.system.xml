@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<permissions>
+    <privapp-permissions package="com.tomex.securerenderlab.system">
+        <permission name="android.permission.CAPTURE_SECURE_VIDEO_OUTPUT" />
+        <permission name="android.permission.CAPTURE_VIDEO_OUTPUT" />
+    </privapp-permissions>
+</permissions>

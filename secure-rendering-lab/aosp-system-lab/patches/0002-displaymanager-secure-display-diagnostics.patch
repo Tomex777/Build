@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000002 Mon Sep 17 00:00:00 2001
+Subject: [PATCH] DisplayManagerService: log secure virtual display gate
+
+Diagnostic-only patch for Android 16. It preserves the existing SecurityException.
+
+diff --git a/services/core/java/com/android/server/display/DisplayManagerService.java b/services/core/java/com/android/server/display/DisplayManagerService.java
+--- a/services/core/java/com/android/server/display/DisplayManagerService.java
++++ b/services/core/java/com/android/server/display/DisplayManagerService.java
+@@
+-        if (callingUid != Process.SYSTEM_UID && (flags & VIRTUAL_DISPLAY_FLAG_SECURE) != 0) {
++        if ((flags & VIRTUAL_DISPLAY_FLAG_SECURE) != 0) {
++            final boolean secureProjection = canProjectSecureVideo(projection);
++            final boolean securePermission =
++                    hasSecureVideoOutputPermission("createVirtualDisplayInternal");
++            Slog.i(TAG, "[SecureRenderingLab] secure virtual display request uid=" + callingUid
++                    + " projection=" + secureProjection
++                    + " CAPTURE_SECURE_VIDEO_OUTPUT=" + securePermission);
++        }
++        if (callingUid != Process.SYSTEM_UID && (flags & VIRTUAL_DISPLAY_FLAG_SECURE) != 0) {
+             if (!canProjectSecureVideo(projection)
+                     && !hasSecureVideoOutputPermission("createVirtualDisplayInternal")) {
+                 throw new SecurityException("Requires CAPTURE_SECURE_VIDEO_OUTPUT "
+-- 
+2.43.0

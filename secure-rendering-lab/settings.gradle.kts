@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "SecureRenderingLab"
-include(":app")
+include(":app")\ninclude(":systemlab")

@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000001 Mon Sep 17 00:00:00 2001
+Subject: [PATCH] SurfaceFlinger: log secure capture permission decisions
+
+Diagnostic-only patch for Android 16. It does not alter any permission result.
+
+diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
+--- a/services/surfaceflinger/SurfaceFlinger.cpp
++++ b/services/surfaceflinger/SurfaceFlinger.cpp
+@@ -7395,6 +7395,15 @@ void SurfaceFlinger::captureDisplay(const DisplayCaptureArgs& args,
+         return;
+     }
+
++    if (captureArgs.captureSecureLayers) {
++        const int callingPid = IPCThreadState::self()->getCallingPid();
++        const int callingUid = IPCThreadState::self()->getCallingUid();
++        const bool allowed = hasCaptureBlackoutContentPermission();
++        ALOGI("[SecureRenderingLab] captureDisplay secureLayers=1 pid=%d uid=%d "
++              "CAPTURE_BLACKOUT_CONTENT=%d",
++              callingPid, callingUid, allowed);
++    }
++
+     if (captureArgs.captureSecureLayers && !hasCaptureBlackoutContentPermission()) {
+         ALOGD("Attempting to capture secure layers without CAPTURE_BLACKOUT_CONTENT");
+         invokeScreenCaptureError(PERMISSION_DENIED, captureListener);
+@@ -7554,6 +7563,15 @@ void SurfaceFlinger::captureLayers(const LayerCaptureArgs& args,
+     std::unordered_set<uint32_t> excludeLayerIds;
+     ui::Dataspace dataspace = static_cast<ui::Dataspace>(captureArgs.dataspace);
+
++    if (captureArgs.captureSecureLayers) {
++        const int callingPid = IPCThreadState::self()->getCallingPid();
++        const int callingUid = IPCThreadState::self()->getCallingUid();
++        const bool allowed = hasCaptureBlackoutContentPermission();
++        ALOGI("[SecureRenderingLab] captureLayers secureLayers=1 pid=%d uid=%d "
++              "CAPTURE_BLACKOUT_CONTENT=%d",
++              callingPid, callingUid, allowed);
++    }
++
+     if (captureArgs.captureSecureLayers && !hasCaptureBlackoutContentPermission()) {
+         ALOGD("Attempting to capture secure layers without CAPTURE_BLACKOUT_CONTENT");
+         invokeScreenCaptureError(PERMISSION_DENIED, captureListener);
+-- 
+2.43.0

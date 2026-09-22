@@ -75,3 +75,14 @@ This project does not:
 - bypass Widevine or other DRM systems
 
 It is a play box for seeing Android's documented protection boundaries on a real device. Controlled exposure modes only reveal this app's own synthetic test content.
+
+
+## AOSP System Lab 0.4
+
+The repository now also contains `aosp-system-lab/`, a separate Android 16 userdebug/system edition.
+
+It is built as a platform-signed privileged `system_ext` app and verifies the privileged secure-output path using only its own synthetic content. It requests `CAPTURE_SECURE_VIDEO_OUTPUT`, `CAPTURE_VIDEO_OUTPUT`, `CAPTURE_BLACKOUT_CONTENT`, and `READ_FRAME_BUFFER`, then reports which permissions the system build actually grants.
+
+The optional framework patches under `aosp-system-lab/patches/` only add SurfaceFlinger and DisplayManagerService diagnostics. They do not weaken or remove Android's permission checks.
+
+GitHub Actions compiles the same Java source as a normal SDK 36 **sanity APK**. That sideloaded APK remains unprivileged; the actual system behavior requires building it into an AOSP userdebug image with the supplied `Android.bp` and product fragment.
