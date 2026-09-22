@@ -45,6 +45,7 @@ import com.example.whatsapp.data.night.NightExtensionMessageEmitter
 import com.example.whatsapp.data.night.NightLibraryItemEntity
 import com.example.whatsapp.data.night.NightLinkPreviewService
 import com.example.whatsapp.data.night.NightLiveVoiceClient
+import com.example.whatsapp.data.night.NightMediaCollectionStore
 import com.example.whatsapp.data.night.NightMessageEntity
 import com.example.whatsapp.data.night.NightProviderManager
 import com.example.whatsapp.data.night.NightRepository
@@ -61,6 +62,7 @@ import com.example.whatsapp.extensions.messages.ExtensionConfigurationActionCode
 import com.example.whatsapp.extensions.messages.ExtensionMessageCodec
 import com.example.whatsapp.extensions.messages.NightExtensionConfigurationStore
 import com.example.whatsapp.extensions.messages.NightExtensionMessageActionRegistry
+import com.example.whatsapp.extensions.messages.NightExtensionStandardActions
 import com.example.whatsapp.extensions.messages.withConfigurationValues
 import com.example.whatsapp.extensions.runtime.NightExternalExtensionManager
 import com.example.whatsapp.extensions.tools.NightMcpManager
@@ -1911,6 +1913,67 @@ private fun NightApp(initialChatId: String? = null) {
                         screen = "tabs"
                     }
                     actionId.contains("summary") -> screen = "chat_memory"
+
+                    NightExtensionStandardActions
+                        .isMediaCollectionAction(actionId) -> {
+                        scope.launch {
+                            val existing =
+                                repository.getMessage(messageId) ?: return@launch
+                            if (existing.type != "extension") return@launch
+
+                            val snapshot =
+                                ExtensionMessageCodec.decode(existing.payloadJson)
+                                    ?: return@launch
+
+                            val localMessage =
+                                runCatching {
+                                    NightMediaCollectionStore.handleAction(
+                                        context = context,
+                                        snapshot = snapshot,
+                                        actionId = actionId,
+                                    )
+                                }.getOrElse { error ->
+                                    Toast.makeText(
+                                        context,
+                                        error.message
+                                            ?: "Could not update media collection.",
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                                    return@launch
+                                }
+
+                            Toast.makeText(
+                                context,
+                                localMessage,
+                                Toast.LENGTH_SHORT,
+                            ).show()
+
+                            runCatching {
+                                NightExtensionMessageActionRegistry.execute(
+                                    extensionId = snapshot.extensionId,
+                                    chatId = activeChatId,
+                                    messageId = messageId,
+                                    messageType = snapshot.messageType,
+                                    actionId = actionId,
+                                    payload = JSONObject()
+                                        .put(
+                                            "extensionPayload",
+                                            runCatching {
+                                                JSONObject(
+                                                    snapshot.extensionPayloadJson
+                                                )
+                                            }.getOrElse { JSONObject() },
+                                        )
+                                        .put("nightHandled", true),
+                                )
+                            }.onSuccess { result ->
+                                persistExtensionActionResult(
+                                    extensionId = snapshot.extensionId,
+                                    result = result,
+                                )
+                            }
+                        }
+                    }
 
                     else -> {
                         scope.launch {
