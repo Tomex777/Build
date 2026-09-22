@@ -6,8 +6,10 @@ Diagnostic-only patch for Android 16. It preserves the existing SecurityExceptio
 diff --git a/services/core/java/com/android/server/display/DisplayManagerService.java b/services/core/java/com/android/server/display/DisplayManagerService.java
 --- a/services/core/java/com/android/server/display/DisplayManagerService.java
 +++ b/services/core/java/com/android/server/display/DisplayManagerService.java
-@@
--        if (callingUid != Process.SYSTEM_UID && (flags & VIRTUAL_DISPLAY_FLAG_SECURE) != 0) {
+@@ -1920,6 +1920,14 @@
+                         + "VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY.");
+             }
+         }
 +        if ((flags & VIRTUAL_DISPLAY_FLAG_SECURE) != 0) {
 +            final boolean secureProjection = canProjectSecureVideo(projection);
 +            final boolean securePermission =
@@ -16,9 +18,8 @@ diff --git a/services/core/java/com/android/server/display/DisplayManagerService
 +                    + " projection=" + secureProjection
 +                    + " CAPTURE_SECURE_VIDEO_OUTPUT=" + securePermission);
 +        }
-+        if (callingUid != Process.SYSTEM_UID && (flags & VIRTUAL_DISPLAY_FLAG_SECURE) != 0) {
+         if (callingUid != Process.SYSTEM_UID && (flags & VIRTUAL_DISPLAY_FLAG_SECURE) != 0) {
              if (!canProjectSecureVideo(projection)
                      && !hasSecureVideoOutputPermission("createVirtualDisplayInternal")) {
-                 throw new SecurityException("Requires CAPTURE_SECURE_VIDEO_OUTPUT "
 -- 
 2.43.0

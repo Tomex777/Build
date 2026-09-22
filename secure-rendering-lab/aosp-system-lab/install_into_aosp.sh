@@ -1,1 +1,47 @@
-#!/usr/bin/env bash\nset -euo pipefail\n\nif [[ $# -lt 1 ]]; then\n  echo "Usage: $0 /path/to/aosp [--apply-diagnostics]" >&2\n  exit 2\nfi\n\nAOSP_ROOT="$(cd "$1" && pwd)"\nAPPLY_DIAGNOSTICS=""\nif [[ $# -ge 2 ]]; then\n  APPLY_DIAGNOSTICS="$2"\nfi\nSCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"\nDEST="$AOSP_ROOT/packages/apps/SecureRenderingSystemLab"\n\nrm -rf "$DEST"\nmkdir -p "$DEST"\ncp "$SCRIPT_DIR/Android.bp" "$DEST/"\ncp "$SCRIPT_DIR/AndroidManifest.xml" "$DEST/"\ncp "$SCRIPT_DIR/privapp-permissions-com.tomex.securerenderlab.system.xml" "$DEST/"\ncp -R "$SCRIPT_DIR/src" "$DEST/"\ncp -R "$SCRIPT_DIR/product" "$DEST/"\n\necho "Installed SecureRenderingSystemLab source at:"\necho "  $DEST"\necho\necho "Add this to your userdebug product makefile:"\necho "  inherit-product-if-exists, packages/apps/SecureRenderingSystemLab/product/secure_rendering_system_lab.mk"\n\nif [[ "$APPLY_DIAGNOSTICS" == "--apply-diagnostics" ]]; then\n  echo\n  echo "Applying diagnostic-only framework patches..."\n  git -C "$AOSP_ROOT/frameworks/native" apply "$SCRIPT_DIR/patches/0001-surfaceflinger-secure-capture-diagnostics.patch"\n  git -C "$AOSP_ROOT/frameworks/base" apply "$SCRIPT_DIR/patches/0002-displaymanager-secure-display-diagnostics.patch"\n  echo "Diagnostic patches applied."\nfi\n\necho\necho "Build from the AOSP root after lunching a userdebug target:"\necho "  m SecureRenderingSystemLab"\necho\necho "After boot:"\necho "  adb shell dumpsys package com.tomex.securerenderlab.system"\necho "  adb logcat -s SurfaceFlinger DisplayManagerService"\necho\necho "The secure-display self-test is OWN_CONTENT_ONLY and never mirrors the physical display."\n
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $0 /path/to/aosp [--apply-diagnostics]" >&2
+  exit 2
+fi
+
+AOSP_ROOT="$(cd "$1" && pwd)"
+APPLY_DIAGNOSTICS=""
+if [[ $# -ge 2 ]]; then
+  APPLY_DIAGNOSTICS="$2"
+fi
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DEST="$AOSP_ROOT/packages/apps/SecureRenderingSystemLab"
+
+rm -rf "$DEST"
+mkdir -p "$DEST"
+cp "$SCRIPT_DIR/Android.bp" "$DEST/"
+cp "$SCRIPT_DIR/AndroidManifest.xml" "$DEST/"
+cp "$SCRIPT_DIR/privapp-permissions-com.tomex.securerenderlab.system.xml" "$DEST/"
+cp -R "$SCRIPT_DIR/src" "$DEST/"
+cp -R "$SCRIPT_DIR/product" "$DEST/"
+
+echo "Installed SecureRenderingSystemLab source at:"
+echo "  $DEST"
+echo
+echo "Add this to your userdebug product makefile:"
+echo '  $(call inherit-product-if-exists, packages/apps/SecureRenderingSystemLab/product/secure_rendering_system_lab.mk)'
+
+if [[ "$APPLY_DIAGNOSTICS" == "--apply-diagnostics" ]]; then
+  echo
+  echo "Applying diagnostic-only framework patches..."
+  git -C "$AOSP_ROOT/frameworks/native" apply "$SCRIPT_DIR/patches/0001-surfaceflinger-secure-capture-diagnostics.patch"
+  git -C "$AOSP_ROOT/frameworks/base" apply "$SCRIPT_DIR/patches/0002-displaymanager-secure-display-diagnostics.patch"
+  echo "Diagnostic patches applied."
+fi
+
+echo
+echo "Build from the AOSP root after lunching a userdebug target:"
+echo "  m SecureRenderingSystemLab"
+echo
+echo "After boot:"
+echo "  adb shell dumpsys package com.tomex.securerenderlab.system"
+echo "  adb logcat -s SurfaceFlinger DisplayManagerService"
+echo
+echo "The secure-display self-test is OWN_CONTENT_ONLY and never mirrors the physical display."
