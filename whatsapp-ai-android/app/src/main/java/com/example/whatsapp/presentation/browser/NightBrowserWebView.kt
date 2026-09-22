@@ -36,6 +36,9 @@ class NightBrowserController {
         internal set
     var blockedUrl by mutableStateOf<String?>(null)
         internal set
+    var desktopMode by mutableStateOf(false)
+        internal set
+    private var mobileUserAgent: String? = null
 
     fun canGoBack(): Boolean = webView?.canGoBack() == true
     fun canGoForward(): Boolean = webView?.canGoForward() == true
@@ -50,6 +53,42 @@ class NightBrowserController {
 
     fun reload() {
         webView?.reload()
+    }
+
+    fun stop() {
+        webView?.stopLoading()
+    }
+
+    fun findInPage(query: String) {
+        val normalized = query.trim()
+        if (normalized.isBlank()) {
+            webView?.clearMatches()
+        } else {
+            webView?.findAllAsync(normalized)
+        }
+    }
+
+    fun clearFind() {
+        webView?.clearMatches()
+    }
+
+    fun setDesktopMode(enabled: Boolean) {
+        desktopMode = enabled
+        webView?.let { view ->
+            val current = mobileUserAgent ?: view.settings.userAgentString.orEmpty()
+            if (mobileUserAgent == null) mobileUserAgent = current
+            view.settings.userAgentString =
+                if (enabled) {
+                    current
+                        .replace("Mobile", "")
+                        .replace("Android", "X11; Linux x86_64")
+                } else {
+                    mobileUserAgent ?: current
+                }
+            view.settings.useWideViewPort = enabled
+            view.settings.loadWithOverviewMode = enabled
+            view.reload()
+        }
     }
 
     fun loadUrl(
@@ -110,6 +149,7 @@ fun NightBrowserWebView(
                 settings.safeBrowsingEnabled = true
                 settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                 safeSpec.userAgent?.let { settings.userAgentString = it }
+                controller.mobileUserAgent = settings.userAgentString
 
                 val cookieManager = CookieManager.getInstance()
                 cookieManager.setAcceptCookie(true)
