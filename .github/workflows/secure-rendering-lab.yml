@@ -184,11 +184,21 @@ jobs:
           adb wait-for-device
 
           set +e
-          adb remount
+          REMOUNT_OUTPUT="$(adb remount 2>&1)"
           REMOUNT_STATUS=$?
           set -e
+          printf '%s\n' "$REMOUNT_OUTPUT"
 
-          if [[ $REMOUNT_STATUS -ne 0 ]]; then
+          NEED_REBOOT=0
+          if [[ $REMOUNT_STATUS -ne 0 ]] || grep -qi "reboot" <<<"$REMOUNT_OUTPUT"; then
+            NEED_REBOOT=1
+          fi
+
+          if ! adb shell 'touch /system_ext/.securelab-write-test 2>/dev/null && rm -f /system_ext/.securelab-write-test'; then
+            NEED_REBOOT=1
+          fi
+
+          if [[ $NEED_REBOOT -eq 1 ]]; then
             adb disable-verity || true
             adb reboot
             adb wait-for-device
@@ -197,6 +207,8 @@ jobs:
             adb wait-for-device
             adb remount
           fi
+
+          adb shell 'touch /system_ext/.securelab-write-test && rm -f /system_ext/.securelab-write-test'
 
           adb shell mkdir -p /system_ext/priv-app/SecureRenderingSystemLab
           adb shell mkdir -p /system_ext/etc/permissions
