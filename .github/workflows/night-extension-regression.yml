@@ -1,0 +1,71 @@
+name: Night Extensions Regression
+
+on:
+  push:
+    branches:
+      - night-groq-key-pool-ci
+    paths:
+      - "whatsapp-ai-android/night-extension-sdk/**"
+      - "whatsapp-ai-android/extensions/**"
+      - "whatsapp-ai-android/settings.gradle.kts"
+      - "whatsapp-ai-android/build.gradle.kts"
+      - "whatsapp-ai-android/gradle/libs.versions.toml"
+      - ".github/workflows/night-extension-regression.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: night-extensions-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  animepahe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Android 36 SDK
+        run: |
+          SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Test SDK and AnimePahe extension
+        run: |
+          cd whatsapp-ai-android
+          chmod +x gradlew
+          ./gradlew \
+            :night-extension-sdk:assembleDebug \
+            :extensions:animepahe:testDebugUnitTest \
+            :extensions:animepahe:assembleDebug \
+            --stacktrace
+
+      - name: Upload AnimePahe extension APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-animepahe-extension-apk
+          path: whatsapp-ai-android/extensions/animepahe/build/outputs/apk/debug/animepahe-debug.apk
+          if-no-files-found: error
+
+      - name: Upload AnimePahe unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-animepahe-test-reports
+          path: |
+            whatsapp-ai-android/extensions/animepahe/build/reports/tests/testDebugUnitTest/
+            whatsapp-ai-android/extensions/animepahe/build/test-results/testDebugUnitTest/
+          if-no-files-found: ignore
