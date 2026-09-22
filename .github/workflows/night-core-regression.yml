@@ -17,6 +17,9 @@ on:
       - ".github/scripts/night-mihon-reader-interaction.sh"
       - ".github/scripts/night-pdf-editor-interaction.sh"
       - ".github/scripts/night-video-interaction.sh"
+      - ".github/scripts/night-mcp-servers-interaction.sh"
+      - ".github/scripts/night-extensions-interaction.sh"
+      - ".github/scripts/night-integrations-interaction.sh"
   workflow_dispatch:
 
 concurrency:
