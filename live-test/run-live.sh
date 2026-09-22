@@ -64,7 +64,17 @@ for _ in $(seq 1 120); do
   [[ -n "$CODE" ]] && break
   sleep 2
 done
-test -n "$CODE"
+
+if [[ -z "$CODE" ]]; then
+  echo "PAIRING_CODE_TIMEOUT"
+  echo "=== Cobalt app log ==="
+  adb logcat -d -v threadtime -s CobaltPOC:V AndroidRuntime:E 2>/dev/null | tail -n 400 || true
+  echo "=== Visible app state ==="
+  adb shell uiautomator dump /sdcard/cobalt-timeout.xml >/dev/null 2>&1 || true
+  adb pull /sdcard/cobalt-timeout.xml /tmp/cobalt-timeout.xml >/dev/null 2>&1 || true
+  cat /tmp/cobalt-timeout.xml 2>/dev/null || true
+  exit 1
+fi
 
 printf '%s' "$CODE" | openssl pkeyutl -encrypt \
   -pubin \
