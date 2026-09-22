@@ -1,5 +1,7 @@
 package com.example.whatsapp.presentation.profile
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -32,12 +34,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.whatsapp.presentation.shell.MainTab
 import com.example.whatsapp.presentation.shell.ModernAppScaffold
+import java.io.File
 
 private val YouBg = Color(0xFF0B0F11)
 private val YouSurface = Color(0xFF171C1F)
@@ -54,6 +60,7 @@ private data class YouRow(
 @Composable
 fun NightYouTab(
     displayName: String,
+    avatarPath: String? = null,
     onTabSelected: (MainTab) -> Unit,
     onProfileClick: () -> Unit,
     onProvidersClick: () -> Unit,
@@ -65,6 +72,14 @@ fun NightYouTab(
     onPrivacyClick: () -> Unit,
     onSettingsClick: () -> Unit,
 ) {
+    val avatarBitmap = androidx.compose.runtime.remember(avatarPath) {
+        avatarPath
+            ?.takeIf { it.isNotBlank() }
+            ?.let(::File)
+            ?.takeIf { it.isFile }
+            ?.let { BitmapFactory.decodeFile(it.absolutePath) }
+    }
+
     val rows = listOf(
         YouRow("providers", Icons.Default.AutoAwesome, "AI & providers", "DeepSeek, Groq, Azure, models and keys"),
         YouRow("memory", Icons.Default.Memory, "Memory", "Chat summaries and cross-chat references"),
@@ -105,12 +120,23 @@ fun NightYouTab(
                         modifier = Modifier.size(92.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(46.dp),
-                            )
+                            if (avatarBitmap != null) {
+                                Image(
+                                    bitmap = avatarBitmap.asImageBitmap(),
+                                    contentDescription = "Your profile photo",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape),
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(46.dp),
+                                )
+                            }
                         }
                     }
 
