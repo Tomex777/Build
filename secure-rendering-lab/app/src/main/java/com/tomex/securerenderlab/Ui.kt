@@ -27,7 +27,7 @@ fun Context.screenScroll(): Pair<ScrollView, LinearLayout> {
     }
     scroll.addView(
         root,
-        ScrollView.LayoutParams(
+        ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
