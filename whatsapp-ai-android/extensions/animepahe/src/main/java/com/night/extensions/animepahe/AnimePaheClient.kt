@@ -73,7 +73,6 @@ interface AnimePaheSession {
     fun baseUrl(): String
     fun quality(): String
     fun audio(): String
-    fun parallelDownloads(): Int
     fun userAgent(): String
     fun cookieForUrl(url: String): String
     fun saveBrowserSession(host: String, cookieHeader: String)
@@ -111,13 +110,6 @@ class AnimePaheSessionStore(
             .lowercase(Locale.US)
             .ifBlank { "sub" }
 
-    override fun parallelDownloads(): Int =
-        prefs.getString(KEY_PARALLEL_DOWNLOADS, "2")
-            .orEmpty()
-            .toIntOrNull()
-            ?.coerceIn(1, 6)
-            ?: 2
-
     override fun userAgent(): String =
         prefs.getString(KEY_USER_AGENT, DEFAULT_USER_AGENT)
             .orEmpty()
@@ -148,11 +140,6 @@ class AnimePaheSessionStore(
                 .lowercase(Locale.US)
                 .takeIf { it in setOf("sub", "eng", "kor", "chi") }
                 ?: audio()
-        val parallel =
-            values.optString("parallel_downloads")
-                .toIntOrNull()
-                ?.coerceIn(1, 6)
-                ?: parallelDownloads()
         val ua =
             values.optString("user_agent")
                 .trim()
@@ -163,7 +150,6 @@ class AnimePaheSessionStore(
             .putString(KEY_BASE_URL, base)
             .putString(KEY_QUALITY, quality)
             .putString(KEY_AUDIO, audio)
-            .putString(KEY_PARALLEL_DOWNLOADS, parallel.toString())
             .putString(KEY_USER_AGENT, ua)
             .apply()
     }
@@ -273,7 +259,6 @@ class AnimePaheSessionStore(
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_QUALITY = "quality"
         private const val KEY_AUDIO = "audio"
-        private const val KEY_PARALLEL_DOWNLOADS = "parallel_downloads"
         private const val KEY_USER_AGENT = "user_agent"
     }
 }
