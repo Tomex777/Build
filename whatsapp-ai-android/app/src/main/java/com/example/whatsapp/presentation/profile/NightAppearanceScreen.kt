@@ -50,11 +50,13 @@ private data class WallpaperChoice(
 )
 
 private val bubbleColors = listOf(
+    ColorChoice("Night pink", 0xFFCF4A69L),
     ColorChoice("Wine", 0xFF7E112EL),
     ColorChoice("Purple", 0xFF6D3CC3L),
     ColorChoice("Blue", 0xFF2457C5L),
     ColorChoice("Green", 0xFF176B4DL),
     ColorChoice("Teal", 0xFF0F766EL),
+    ColorChoice("Orange", 0xFFA34E12L),
     ColorChoice("Charcoal", 0xFF34383BL),
 )
 
