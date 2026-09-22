@@ -228,6 +228,10 @@ private fun NightApp(initialChatId: String? = null) {
     var mediaCaption by rememberSaveable { mutableStateOf("") }
     var pdfDraft by remember { mutableStateOf<NightPdfDraft?>(null) }
     var pdfCaption by rememberSaveable { mutableStateOf("") }
+    var draftChatTitle by rememberSaveable { mutableStateOf<String?>(null) }
+    var draftProviderType by rememberSaveable { mutableStateOf<String?>(null) }
+    var draftProviderProfileId by rememberSaveable { mutableStateOf<String?>(null) }
+    var draftModelId by rememberSaveable { mutableStateOf<String?>(null) }
     var memoryCheckpoints by remember {
         mutableStateOf<List<NightSummaryCheckpointEntity>>(emptyList())
     }
@@ -286,9 +290,12 @@ private fun NightApp(initialChatId: String? = null) {
     val appearance = (appearanceEntity ?: NightAppearanceEntity()).toChatAppearance()
     val activeChat = chats.firstOrNull { it.id == activeChatId }
     val enabledChatProfiles = profiles.filter { it.serviceKind == "chat" && it.isEnabled }
+    val selectedProfileId =
+        activeChat?.selectedProviderProfileId
+            ?: draftProviderProfileId.takeIf { activeChat == null && activeChatId != "night-core" }
     val activeProfile =
         profiles.firstOrNull {
-            it.id == activeChat?.selectedProviderProfileId &&
+            it.id == selectedProfileId &&
                 it.serviceKind == "chat" &&
                 it.isEnabled
         }
@@ -297,9 +304,12 @@ private fun NightApp(initialChatId: String? = null) {
     val enabledActiveModels = providerModels.filter {
         it.profileId == activeProfile?.id && it.isEnabled
     }
+    val selectedModelId =
+        activeChat?.selectedModel
+            ?: draftModelId.takeIf { activeChat == null && activeChatId != "night-core" }
     val activeModel =
         providerModels.firstOrNull {
-            it.id == activeChat?.selectedModel &&
+            it.id == selectedModelId &&
                 it.profileId == activeProfile?.id &&
                 it.isEnabled
         }
@@ -1086,7 +1096,9 @@ private fun NightApp(initialChatId: String? = null) {
 
     fun leaveChat() {
         val leavingId = activeChatId
-        scope.launch { checkpoint(leavingId) }
+        if (chats.any { it.id == leavingId }) {
+            scope.launch { checkpoint(leavingId) }
+        }
         screen = "tabs"
     }
 
@@ -1804,14 +1816,21 @@ private fun NightApp(initialChatId: String? = null) {
             selectedModelId = activeModel?.id,
             onBack = { screen = "chat" },
             onSelect = { providerProfile, model ->
-                scope.launch {
-                    repository.setChatModel(
-                        chatId = activeChatId,
-                        provider = providerProfile.providerType,
-                        profileId = providerProfile.id,
-                        model = model.id,
-                    )
+                if (activeChat == null && activeChatId != "night-core") {
+                    draftProviderType = providerProfile.providerType
+                    draftProviderProfileId = providerProfile.id
+                    draftModelId = model.id
                     screen = "chat"
+                } else {
+                    scope.launch {
+                        repository.setChatModel(
+                            chatId = activeChatId,
+                            provider = providerProfile.providerType,
+                            profileId = providerProfile.id,
+                            model = model.id,
+                        )
+                        screen = "chat"
+                    }
                 }
             },
         )
@@ -1926,6 +1945,7 @@ private fun NightApp(initialChatId: String? = null) {
 
         "chat" -> CurrentWhatsAppConversation(
             contactName = activeChat?.title
+                ?: draftChatTitle
                 ?: if (activeChatId == "night-core") "Night" else "New chat",
             subtitle = when {
                 activeModel != null && activeProfile != null ->
@@ -1964,6 +1984,29 @@ private fun NightApp(initialChatId: String? = null) {
                             )
                         }
                     replyingToId = null
+
+                    if (activeChat == null && activeChatId != "night-core") {
+                        if (
+                            !draftProviderProfileId.isNullOrBlank() &&
+                            !draftModelId.isNullOrBlank()
+                        ) {
+                            repository.setChatModel(
+                                chatId = activeChatId,
+                                provider = draftProviderType,
+                                profileId = draftProviderProfileId,
+                                model = draftModelId,
+                            )
+                        }
+                        draftChatTitle
+                            ?.trim()
+                            ?.takeIf { it.isNotBlank() && it != "New chat" }
+                            ?.let { repository.renameChat(activeChatId, it) }
+
+                        draftChatTitle = null
+                        draftProviderType = null
+                        draftProviderProfileId = null
+                        draftModelId = null
+                    }
 
                     val commandExecution =
                         scriptRuntime.executeSlashCommand(
@@ -2068,6 +2111,7 @@ private fun NightApp(initialChatId: String? = null) {
                     )
                     "Rename chat" -> {
                         renameValue = activeChat?.title
+                            ?: draftChatTitle
                             ?: if (activeChatId == "night-core") "Night" else "New chat"
                         renameOpen = true
                     }
@@ -2722,6 +2766,10 @@ private fun NightApp(initialChatId: String? = null) {
                 },
                 onChatClick = { row ->
                     activeChatId = row.userId ?: "night-core"
+                    draftChatTitle = null
+                    draftProviderType = null
+                    draftProviderProfileId = null
+                    draftModelId = null
                     messageText = ""
                     screen = "chat"
                 },
@@ -2732,6 +2780,10 @@ private fun NightApp(initialChatId: String? = null) {
                 },
                 onNewChat = {
                     activeChatId = java.util.UUID.randomUUID().toString()
+                    draftChatTitle = null
+                    draftProviderType = null
+                    draftProviderProfileId = null
+                    draftModelId = null
                     messageText = ""
                     replyingToId = null
                     directImageMode = false
@@ -2967,7 +3019,11 @@ private fun NightApp(initialChatId: String? = null) {
                     onClick = {
                         val value = renameValue.trim()
                         if (value.isNotBlank()) {
-                            scope.launch { repository.renameChat(activeChatId, value) }
+                            if (chats.any { it.id == activeChatId }) {
+                                scope.launch { repository.renameChat(activeChatId, value) }
+                            } else if (activeChatId != "night-core") {
+                                draftChatTitle = value
+                            }
                         }
                         renameOpen = false
                     }
