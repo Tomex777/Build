@@ -24,7 +24,6 @@ class AnimePaheNightExtensionService : NightExtensionService() {
     private val store by lazy { AnimePaheSessionStore(this) }
     private val client by lazy { AnimePaheClient(store) }
     private val hlsResolver by lazy { PaheBatcherHlsResolver(store) }
-    private val downloadQueue by lazy { AnimePaheDownloadQueue(this) }
 
     override fun descriptor(): JSONObject =
         nightExtensionDescriptor(
@@ -288,7 +287,8 @@ class AnimePaheNightExtensionService : NightExtensionService() {
 
             ACTION_VERIFY -> verifyAndRetry(payload)
 
-            ACTION_DOWNLOAD -> queueDownload(payload)
+            NightExtensionStandardActions.REFRESH_MEDIA ->
+                refreshMedia(payload)
 
             ACTION_SAVE_CONFIG -> {
                 val values =
@@ -667,44 +667,45 @@ class AnimePaheNightExtensionService : NightExtensionService() {
             .put("ok", true)
             .put("night_message", settingsCard())
 
-    private fun queueDownload(
+    private fun refreshMedia(
         payload: JSONObject,
     ): JSONObject {
-        val workId =
-            downloadQueue.enqueue(
-                payload = payload,
-                parallelism = store.parallelDownloads(),
-            )
+        val animeSession = payload.optString("animeSession").trim()
+        val episodeSession = payload.optString("episodeSession").trim()
+        require(animeSession.isNotBlank()) { "animeSession is required." }
+        require(episodeSession.isNotBlank()) { "episodeSession is required." }
+
+        val sources = client.sources(
+            animeSession = animeSession,
+            episodeSession = episodeSession,
+        )
+        val selected = client.selectPreferredSource(sources)
+        val resolved = hlsResolver.resolve(
+            source = selected,
+            playUrl =
+                store.baseUrl() +
+                    "/play/" +
+                    animeSession +
+                    "/" +
+                    episodeSession,
+        )
+        val headers = JSONObject().apply {
+            resolved.headers.forEach { (key, value) ->
+                put(key, value)
+            }
+        }
 
         return JSONObject()
             .put("ok", true)
-            .put("workId", workId)
+            .put("mediaUrl", resolved.url)
+            .put("mimeType", resolved.mimeType)
             .put(
-                "night_message",
-                nightExtensionMessage(
-                    extensionId = EXTENSION_ID,
-                    messageType = TYPE_DOWNLOAD,
-                    template = "media_card",
-                    extensionName = EXTENSION_NAME,
-                    title =
-                        payload.optString("title")
-                            .trim()
-                            .ifBlank { "AnimePahe download" },
-                    subtitle =
-                        "Background download queued.",
-                    body =
-                        "PaheBATCHER resume, AES-128 handling, MKV mux and TS fallback are active.",
-                    badge = "Download",
-                    status = "Queued",
-                    extensionPayload =
-                        JSONObject()
-                            .put("workId", workId)
-                            .put(
-                                "mediaId",
-                                payload.optString("mediaId"),
-                            ),
-                ),
+                "fileName",
+                payload.optString("fileName")
+                    .trim()
+                    .ifBlank { "AnimePahe episode.mkv" },
             )
+            .put("headers", headers)
     }
 
     private fun verifyAndRetry(
@@ -1289,7 +1290,7 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                     .filter { it.isNotBlank() }
                     .joinToString(" • "),
             body =
-                "Resolved through the proven PaheBATCHER HLS path. Night plays the stream; the extension handles resumable downloads.",
+                "Resolved through the proven PaheBATCHER path. Night core handles playback, resume, AES-128, remux and downloads.",
             badge =
                 quality.ifBlank { "Ready" },
             status = "Ready",
@@ -1304,9 +1305,11 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                         requiresExtension = false,
                     ),
                     nightAction(
-                        id = ACTION_DOWNLOAD,
+                        id =
+                            NightExtensionStandardActions
+                                .DOWNLOAD_MEDIA,
                         label = "Download",
-                        requiresExtension = true,
+                        requiresExtension = false,
                     ),
                 ),
             extensionPayload = payload,
@@ -1505,7 +1508,6 @@ class AnimePaheNightExtensionService : NightExtensionService() {
         const val ACTION_EPISODES_PREVIOUS = "episodes_previous"
         const val ACTION_RESOLVE = "resolve_episode"
         const val ACTION_VERIFY = "verify_session"
-        const val ACTION_DOWNLOAD = "download_episode"
         const val ACTION_SAVE_CONFIG = "save_config"
 
         const val TYPE_ANIME = "animepahe.anime"
