@@ -35,11 +35,27 @@ if [[ "$ROOT_STATUS" -ne 0 || "$DEBUGGABLE" != "1" ]]; then
 fi
 
 echo
-echo "--- adb remount -R ---"
-adb remount -R || true
-adb wait-for-device
-adb root || true
-adb wait-for-device
+echo "--- adb remount (emulator booted with -writable-system) ---"
+REMOUNT_OUT="$(adb remount 2>&1)"
+REMOUNT_STATUS=$?
+printf '%s\n' "$REMOUNT_OUT"
+
+if [[ "$REMOUNT_STATUS" -ne 0 ]]; then
+  echo
+  echo "RESULT: adb root works, but writable-system remount was rejected."
+  echo "Falling back to official AOSP Cuttlefish userdebug is required for this path."
+  exit 0
+fi
+
+echo
+echo "--- verify system_ext is writable ---"
+TEST_FILE="/system_ext/.secure_rendering_lab_write_test"
+if ! adb shell "echo ok > $TEST_FILE" 2>/dev/null; then
+  echo "RESULT: remount reported success but /system_ext is still not writable."
+  exit 0
+fi
+adb shell rm -f "$TEST_FILE" || true
+echo "/system_ext write test: SUCCESS"
 
 echo
 echo "--- push system app ---"

@@ -86,7 +86,7 @@ jobs:
           cores: 2
           ram-size: 3072M
           emulator-boot-timeout: 900
-          emulator-options: -no-snapshot-load -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          emulator-options: -writable-system -no-snapshot-load -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
           disable-animations: true
           script: env SYSTEMLAB_APK="$GITHUB_WORKSPACE/secure-rendering-system-lab-fast-cuttlefish/SecureRenderingSystemLab-platform.apk" SYSTEMLAB_PERMS="$GITHUB_WORKSPACE/secure-rendering-system-lab-fast-cuttlefish/privapp-permissions-com.tomex.securerenderlab.system.xml" SYSTEMLAB_REPORT="$GITHUB_WORKSPACE/systemlab-emulator-report.txt" bash secure-rendering-lab/aosp-system-lab/fast-cuttlefish/ci-emulator-probe.sh
 
