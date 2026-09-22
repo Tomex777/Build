@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -39,7 +40,6 @@ import com.example.whatsapp.data.night.NightAppearanceEntity
 private val ScreenBg = Color(0xFF0B0F11)
 private val TextMain = Color(0xFFE7EAEC)
 private val TextMuted = Color(0xFF9CA5A9)
-private val Accent = Color(0xFF21C063)
 
 private data class ColorChoice(val name: String, val argb: Long)
 private data class WallpaperChoice(
@@ -72,6 +72,8 @@ fun NightAppearanceScreen(
     onBack: () -> Unit,
     onUpdate: (NightAppearanceEntity) -> Unit,
 ) {
+    val accent = MaterialTheme.colorScheme.primary
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -104,10 +106,19 @@ fun NightAppearanceScreen(
                 lineHeight = 17.sp,
             )
 
+            SectionTitle("App accent / theme")
+            ColorChoices(
+                choices = bubbleColors,
+                selected = appearance.accentColor,
+                accent = accent,
+                onSelected = { onUpdate(appearance.copy(accentColor = it)) },
+            )
+
             SectionTitle("Your bubble")
             ColorChoices(
                 choices = bubbleColors,
                 selected = appearance.userBubbleColor,
+                accent = accent,
                 onSelected = { onUpdate(appearance.copy(userBubbleColor = it)) },
             )
 
@@ -115,6 +126,7 @@ fun NightAppearanceScreen(
             ColorChoices(
                 choices = bubbleColors,
                 selected = appearance.aiBubbleColor,
+                accent = accent,
                 onSelected = { onUpdate(appearance.copy(aiBubbleColor = it)) },
             )
 
@@ -152,7 +164,7 @@ fun NightAppearanceScreen(
             SectionTitle("Message font size")
             Text(
                 ((appearance.messageFontScale * 100).toInt()).toString() + "%",
-                color = Accent,
+                color = accent,
                 fontSize = 13.sp,
             )
             Slider(
@@ -186,7 +198,7 @@ fun NightAppearanceScreen(
                 ) {
                     Text(
                         label,
-                        color = if (appearance.fontFamilyKey == key) Accent else TextMain,
+                        color = if (appearance.fontFamilyKey == key) accent else TextMain,
                         fontSize = 15.sp,
                         fontFamily = family,
                         fontWeight = if (appearance.fontFamilyKey == key) FontWeight.SemiBold else FontWeight.Normal,
@@ -213,6 +225,7 @@ private fun SectionTitle(text: String) {
 private fun ColorChoices(
     choices: List<ColorChoice>,
     selected: Long,
+    accent: Color,
     onSelected: (Long) -> Unit,
 ) {
     Row(
@@ -231,7 +244,7 @@ private fun ColorChoices(
                 ) {}
                 Text(
                     choice.name,
-                    color = if (selected == choice.argb) Accent else TextMuted,
+                    color = if (selected == choice.argb) accent else TextMuted,
                     fontSize = 10.sp,
                     modifier = Modifier.padding(top = 5.dp),
                 )
