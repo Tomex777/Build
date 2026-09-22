@@ -61,6 +61,14 @@ internal class MihonReaderHostView(
                 (pages.size - 1).coerceAtLeast(0),
             )
 
+        // A page reported by the native reader is immediately mirrored into
+        // Compose state. That recomposition must not seek the reader again:
+        // doing so snaps a partially scrolled webtoon page back to offset 0.
+        // Only seek when Compose is asking for a page the host has not already
+        // reached (for example the page slider or restored progress).
+        val requestedPageChanged =
+            this.currentPage != safePage
+
         val structuralChange =
             this.pages != pages ||
                 this.mode != mode ||
@@ -91,11 +99,11 @@ internal class MihonReaderHostView(
         this.navigateToPan = navigateToPan
         this.tapZone = tapZone
         this.tapInvertMode = tapInvertMode
-        this.currentPage = safePage
 
         if (structuralChange) {
+            this.currentPage = safePage
             rebuild()
-        } else {
+        } else if (requestedPageChanged) {
             goToPage(safePage, smooth = false)
         }
     }
