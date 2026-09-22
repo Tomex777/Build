@@ -100,7 +100,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
           script: |
             adb install -r apk/app-debug.apk
-            adb logcat -c
+            adb logcat -c || true
             adb shell am force-stop com.night.mirrorchess
             adb shell am start -W -n com.night.mirrorchess/.MainActivity | tee launch.txt
             grep -q 'Status: ok' launch.txt
