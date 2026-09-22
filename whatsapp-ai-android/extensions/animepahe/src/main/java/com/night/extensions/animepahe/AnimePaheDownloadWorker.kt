@@ -59,7 +59,7 @@ class AnimePaheDownloadQueue(
                     payload.optString("fileName")
                         .trim()
                         .ifBlank {
-                            "AnimePahe episode.mp4"
+                            "AnimePahe episode.mkv"
                         },
                 )
                 .putString(
@@ -175,7 +175,7 @@ class AnimePaheDownloadWorker(
                 INPUT_FILE_NAME
             ).orEmpty()
                 .ifBlank {
-                    "AnimePahe episode.mp4"
+                    "AnimePahe episode.mkv"
                 }
 
         val workKey =
@@ -283,9 +283,9 @@ class AnimePaheDownloadWorker(
                 title = "Download complete",
                 text =
                     if (
-                        result.remuxedToMp4
+                        result.muxedToMkv
                     ) {
-                        "Saved MP4 to Downloads/Night/AnimePahe"
+                        "Saved MKV to Downloads/Night/AnimePahe"
                     } else {
                         "Saved TS fallback to Downloads/Night/AnimePahe"
                     },
