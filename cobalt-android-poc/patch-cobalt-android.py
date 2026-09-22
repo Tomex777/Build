@@ -310,12 +310,24 @@ for path, patches in get_last_patches.items():
             text = text.replace(old, new)
     path.write_text(text, encoding="utf-8")
 
+# Final normalization pass. Some generated/rewritten sources can be touched by
+# earlier compatibility transforms in this same script, so normalize getFirst
+# once more immediately before validation.
+for path in modules.rglob("*.java"):
+    if "src/main/java" not in path.as_posix():
+        continue
+    text = path.read_text(encoding="utf-8")
+    if ".getFirst()" in text:
+        text = text.replace(".getFirst()", ".get(0)")
+        path.write_text(text, encoding="utf-8")
+
 for path in modules.rglob("*.java"):
     if "src/main/java" not in path.as_posix():
         continue
     text = path.read_text(encoding="utf-8")
     if ".getFirst()" in text or ".getLast()" in text:
-        raise SystemExit(f"Java 21 list accessor remains in {path.relative_to(root)}")
+        leftovers = [line.strip() for line in text.splitlines() if ".getFirst()" in line or ".getLast()" in line]
+        raise SystemExit(f"Java 21 list accessor remains in {path.relative_to(root)}: {leftovers[:8]}")
 
 print(f"Backported Java 21 list accessors in {sequenced_changed} source files")
 
