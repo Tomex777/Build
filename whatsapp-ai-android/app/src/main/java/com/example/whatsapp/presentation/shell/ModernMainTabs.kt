@@ -99,6 +99,7 @@ fun ModernAppScaffold(
     showCamera: Boolean = true,
     showSearch: Boolean = true,
     showMenu: Boolean = true,
+    accentColor: Color = Pink,
     floatingAction: (@Composable () -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit,
 ) {
@@ -114,6 +115,7 @@ fun ModernAppScaffold(
                 showCamera = showCamera,
                 showSearch = showSearch,
                 showMenu = showMenu,
+                accentColor = accentColor,
             )
 
             Box(modifier = Modifier.weight(1f)) {
@@ -123,6 +125,7 @@ fun ModernAppScaffold(
             ModernBottomBar(
                 selected = selectedTab,
                 onSelected = onTabSelected,
+                accentColor = accentColor,
             )
         }
 
@@ -145,6 +148,7 @@ private fun ModernTopBar(
     showCamera: Boolean,
     showSearch: Boolean,
     showMenu: Boolean,
+    accentColor: Color,
 ) {
     Row(
         modifier = Modifier
@@ -158,7 +162,7 @@ private fun ModernTopBar(
     ) {
         Text(
             text = title,
-            color = if (title == "Night") Green else Primary,
+            color = if (title == "Night") accentColor else Primary,
             fontSize = if (title == "Night") 26.sp else 24.sp,
             fontWeight = if (title == "Night") FontWeight.SemiBold else FontWeight.Medium,
             modifier = Modifier.weight(1f),
@@ -201,6 +205,7 @@ private fun ModernTopBar(
 private fun ModernBottomBar(
     selected: MainTab,
     onSelected: (MainTab) -> Unit,
+    accentColor: Color,
 ) {
     Row(
         modifier = Modifier
@@ -216,18 +221,21 @@ private fun ModernBottomBar(
             selected = selected == MainTab.Chats,
             icon = Icons.Default.Chat,
             onClick = onSelected,
+            accentColor = accentColor,
         )
         BottomItem(
             tab = MainTab.Updates,
             selected = selected == MainTab.Updates,
             icon = Icons.Default.Folder,
             onClick = onSelected,
+            accentColor = accentColor,
         )
         BottomItem(
             tab = MainTab.You,
             selected = selected == MainTab.You,
             icon = Icons.Default.Person,
             onClick = onSelected,
+            accentColor = accentColor,
         )
     }
 }
@@ -238,6 +246,7 @@ private fun BottomItem(
     selected: Boolean,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: (MainTab) -> Unit,
+    accentColor: Color,
 ) {
     Column(
         modifier = Modifier
@@ -247,13 +256,18 @@ private fun BottomItem(
         verticalArrangement = Arrangement.Center,
     ) {
         Surface(
-            color = if (selected) GreenSoft else Color.Transparent,
+            color =
+                if (selected) {
+                    accentColor.copy(alpha = 0.18f)
+                } else {
+                    Color.Transparent
+                },
             shape = RoundedCornerShape(18.dp),
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = tab.label,
-                tint = if (selected) Green else Secondary,
+                tint = if (selected) accentColor else Secondary,
                 modifier = Modifier
                     .padding(horizontal = 20.dp, vertical = 5.dp)
                     .size(22.dp),
@@ -261,7 +275,7 @@ private fun BottomItem(
         }
         Text(
             text = tab.label,
-            color = if (selected) Green else Secondary,
+            color = if (selected) accentColor else Secondary,
             fontSize = 10.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             modifier = Modifier.padding(top = 2.dp),
@@ -294,6 +308,7 @@ fun ModernChatsTab(
     onChatClick: (ChatListModel) -> Unit,
     onNewChat: () -> Unit = {},
     onSettingsClick: () -> Unit,
+    accentColor: Color = Pink,
 ) {
     val rows = remember(chats) {
         if (chats.isEmpty()) {
@@ -323,11 +338,12 @@ fun ModernChatsTab(
         onTabSelected = onTabSelected,
         title = "Night",
         onSettingsClick = onSettingsClick,
+        accentColor = accentColor,
         floatingAction = {
             FloatingActionButton(
                 onClick = onNewChat,
-                containerColor = Green,
-                contentColor = Color(0xFF08110C),
+                containerColor = accentColor,
+                contentColor = Color.White,
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.size(56.dp),
             ) {
@@ -351,9 +367,9 @@ fun ModernChatsTab(
                     .padding(horizontal = 12.dp, vertical = 3.dp),
                 horizontalArrangement = Arrangement.spacedBy(7.dp),
             ) {
-                FilterChip("All", selected = true)
-                FilterChip("Unread")
-                FilterChip("Favorites")
+                FilterChip("All", selected = true, accentColor = accentColor)
+                FilterChip("Unread", accentColor = accentColor)
+                FilterChip("Favorites", accentColor = accentColor)
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -364,6 +380,7 @@ fun ModernChatsTab(
                 items(rows) { row ->
                     ChatRow(
                         row = row,
+                        accentColor = accentColor,
                         onClick = {
                             val match = chats.firstOrNull { (it.name ?: "Contact") == row.name }
                             if (match != null) onChatClick(match)
@@ -408,14 +425,20 @@ private fun SearchPill(
 private fun FilterChip(
     label: String,
     selected: Boolean = false,
+    accentColor: Color = Pink,
 ) {
     Surface(
-        color = if (selected) GreenSoft else SurfaceDark,
+        color =
+            if (selected) {
+                accentColor.copy(alpha = 0.18f)
+            } else {
+                SurfaceDark
+            },
         shape = RoundedCornerShape(18.dp),
     ) {
         Text(
             text = label,
-            color = if (selected) Green else Secondary,
+            color = if (selected) accentColor else Secondary,
             fontSize = 12.sp,
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
         )
@@ -425,6 +448,7 @@ private fun FilterChip(
 @Composable
 private fun ChatRow(
     row: ChatPreviewRow,
+    accentColor: Color = Pink,
     onClick: () -> Unit,
 ) {
     Row(
@@ -458,7 +482,7 @@ private fun ChatRow(
                 )
                 Text(
                     text = row.time,
-                    color = if (row.unread > 0) Green else Secondary,
+                    color = if (row.unread > 0) accentColor else Secondary,
                     fontSize = 10.sp,
                 )
             }
@@ -480,7 +504,7 @@ private fun ChatRow(
                         modifier = Modifier
                             .size(20.dp)
                             .clip(CircleShape)
-                            .background(Green),
+                            .background(accentColor),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
