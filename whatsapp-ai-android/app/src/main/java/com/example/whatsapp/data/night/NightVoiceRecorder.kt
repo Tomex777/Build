@@ -19,12 +19,17 @@ class NightVoiceRecorder(
     private var writerThread: Thread? = null
     @Volatile private var recording = false
     private var startedAt: Long = 0L
+    private val levelLock = Any()
+    private val recordedLevels = mutableListOf<Float>()
 
     val isRecording: Boolean
         get() = recording
 
-    fun start(): File {
+    fun start(
+        onLevel: ((Float) -> Unit)? = null,
+    ): File {
         check(!recording) { "Already recording." }
+        synchronized(levelLock) { recordedLevels.clear() }
 
         val dir = File(context.cacheDir, "night_voice").apply { mkdirs() }
         val stamp = System.currentTimeMillis()
@@ -67,6 +72,13 @@ class NightVoiceRecorder(
                     val read = recorder.read(buffer, 0, buffer.size)
                     if (read > 0) {
                         output.write(buffer, 0, read)
+                        val level = pcmLevel(buffer, read)
+                        synchronized(levelLock) {
+                            if (recordedLevels.size < MAX_CAPTURED_LEVELS) {
+                                recordedLevels.add(level)
+                            }
+                        }
+                        onLevel?.invoke(level)
                     }
                 }
             }
@@ -104,7 +116,10 @@ class NightVoiceRecorder(
         return runCatching {
             writeWave(raw, wav)
             raw.delete()
-            RecordedVoice(wav, durationMs)
+            val waveform = synchronized(levelLock) {
+                downsample(recordedLevels.toList(), WAVEFORM_POINTS)
+            }
+            RecordedVoice(wav, durationMs, waveform)
         }.getOrElse {
             raw.delete()
             wav.delete()
@@ -125,6 +140,36 @@ class NightVoiceRecorder(
         rawFile = null
         wavFile = null
         startedAt = 0L
+        synchronized(levelLock) { recordedLevels.clear() }
+    }
+
+    private fun pcmLevel(
+        buffer: ByteArray,
+        length: Int,
+    ): Float {
+        var peak = 0
+        var index = 0
+        while (index + 1 < length) {
+            val sample = ((buffer[index + 1].toInt() shl 8) or
+                (buffer[index].toInt() and 0xFF)).toShort().toInt()
+            val amplitude = kotlin.math.abs(sample).coerceAtMost(32767)
+            if (amplitude > peak) peak = amplitude
+            index += 2
+        }
+        return (peak / 32767f).coerceIn(0.03f, 1f)
+    }
+
+    private fun downsample(
+        source: List<Float>,
+        points: Int,
+    ): List<Float> {
+        if (source.isEmpty()) return emptyList()
+        if (source.size <= points) return source
+        return List(points) { index ->
+            val start = index * source.size / points
+            val end = ((index + 1) * source.size / points).coerceAtMost(source.size)
+            source.subList(start, end).maxOrNull() ?: 0.03f
+        }
     }
 
     private fun writeWave(raw: File, wav: File) {
@@ -169,10 +214,13 @@ class NightVoiceRecorder(
         private const val SAMPLE_RATE = 16_000
         private const val CHANNELS = 1
         private const val BITS_PER_SAMPLE = 16
+        private const val MAX_CAPTURED_LEVELS = 2_048
+        private const val WAVEFORM_POINTS = 48
     }
 }
 
 data class RecordedVoice(
     val file: File,
     val durationMs: Long,
+    val waveform: List<Float> = emptyList(),
 )
