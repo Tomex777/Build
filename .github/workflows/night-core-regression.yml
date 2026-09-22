@@ -20,6 +20,7 @@ on:
       - ".github/scripts/night-mcp-servers-interaction.sh"
       - ".github/scripts/night-extensions-interaction.sh"
       - ".github/scripts/night-integrations-interaction.sh"
+      - ".github/scripts/night-main-tabs-interaction.sh"
   workflow_dispatch:
 
 concurrency:
@@ -220,6 +221,7 @@ jobs:
           - mcp-servers
           - extensions
           - integrations
+          - main-tabs
           - image-editor
           - pdf-editor
           - mihon-reader
@@ -293,6 +295,8 @@ jobs:
               ;;
             integrations)
               ;;
+            main-tabs)
+              ;;
             image-editor)
               mkdir -p night-image-editor-apk
               cp night-integrated-apk/app-debug.apk night-image-editor-apk/app-debug.apk
@@ -338,6 +342,7 @@ jobs:
             night-mcp-servers-artifacts/
             night-extensions-artifacts/
             night-integrations-artifacts/
+            night-main-tabs-artifacts/
             night-image-editor-artifacts/
             night-pdf-editor-artifacts/
             mihon-interaction-artifacts/
