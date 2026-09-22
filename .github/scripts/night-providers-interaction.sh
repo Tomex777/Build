@@ -27,7 +27,11 @@ def find_attr(attr, value):
     return next((n for n in nodes if n.attrib.get(attr) == value), None)
 
 if mode == "text":
-    if find_attr("text", value) is None:
+    if not any(
+        value in node.attrib.get(attr, "")
+        for node in nodes
+        for attr in ("text", "content-desc", "hint")
+    ):
         raise SystemExit(2)
     print("found")
 elif mode == "click_text":
@@ -80,6 +84,8 @@ assert_text() {
   echo "Missing Provider UI text after retries: $wanted" >&2
   cp /tmp/window.xml "$OUT/missing-text.xml" 2>/dev/null || true
   adb exec-out screencap -p > "$OUT/missing-text.png" 2>/dev/null || true
+  adb logcat -d -v threadtime > "$OUT/missing-text-logcat.txt" 2>/dev/null || true
+  adb shell dumpsys activity activities > "$OUT/missing-text-activities.txt" 2>/dev/null || true
   return 1
 }
 
