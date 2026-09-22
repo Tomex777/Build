@@ -16,8 +16,8 @@ adb shell settings put global transition_animation_scale 0
 adb shell settings put global animator_duration_scale 0
 
 dismiss_quickstep() {
-  adb shell uiautomator dump /sdcard/night-shot.xml >/dev/null 2>&1 || true
-  adb exec-out cat /sdcard/night-shot.xml > /tmp/night-shot.xml 2>/dev/null || true
+  timeout 4s adb shell uiautomator dump /sdcard/night-shot.xml >/dev/null 2>&1 || true
+  timeout 3s adb exec-out cat /sdcard/night-shot.xml > /tmp/night-shot.xml 2>/dev/null || true
   if grep -qi "Quickstep isn't responding" /tmp/night-shot.xml 2>/dev/null; then
     python3 - <<'PY' >/tmp/quickstep-tap.txt || true
 import re
@@ -47,24 +47,24 @@ capture() {
   local activity="$2"
   shift 2
 
-  adb shell am force-stop "$PACKAGE"
-  if ! adb shell am start -W -n "$PACKAGE/$activity" "$@" >"/tmp/am-start-$name.txt" 2>&1; then
-    echo "Could not launch $name ($activity)" >> "$OUT/_capture-warnings.txt"
-    return 1
+  timeout 5s adb shell am force-stop "$PACKAGE" >/dev/null 2>&1 || true
+  if ! timeout 12s adb shell am start -W -n "$PACKAGE/$activity" "$@" >"/tmp/am-start-$name.txt" 2>&1; then
+    timeout 6s adb shell am start -n "$PACKAGE/$activity" "$@" >>"/tmp/am-start-$name.txt" 2>&1 || {
+      echo "Could not launch $name ($activity)" >> "$OUT/_capture-warnings.txt"
+      return 1
+    }
   fi
 
-  sleep 3
+  sleep 2
   dismiss_quickstep
   sleep 1
 
-  if ! adb exec-out screencap -p > "$OUT/$name.png"; then
+  if ! timeout 8s adb exec-out screencap -p > "$OUT/$name.png"; then
     echo "Could not screenshot $name ($activity)" >> "$OUT/_capture-warnings.txt"
     rm -f "$OUT/$name.png"
     return 1
   fi
 
-  adb shell uiautomator dump "/sdcard/$name.xml" >/dev/null 2>&1 || true
-  adb exec-out cat "/sdcard/$name.xml" > "$OUT/$name.xml" 2>/dev/null || true
   return 0
 }
 
