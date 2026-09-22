@@ -1131,6 +1131,9 @@ private fun CurrentFileBubble(
     val isPdf =
         item.mimeType?.contains("pdf", ignoreCase = true) == true ||
             item.name.endsWith(".pdf", ignoreCase = true)
+    val localAvailable = item.localPath
+        ?.let { path -> runCatching { File(path).isFile }.getOrDefault(false) }
+        ?: false
 
     Box(
         modifier = Modifier.fillMaxWidth(),
@@ -1231,8 +1234,18 @@ private fun CurrentFileBubble(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = Icons.Default.Download,
-                            contentDescription = "Open file",
+                            imageVector =
+                                if (item.mine || localAvailable) {
+                                    Icons.Default.Description
+                                } else {
+                                    Icons.Default.Download
+                                },
+                            contentDescription =
+                                if (item.mine || localAvailable) {
+                                    "Open file"
+                                } else {
+                                    "Download file"
+                                },
                             tint = PrimaryText,
                             modifier = Modifier.size(22.dp),
                         )

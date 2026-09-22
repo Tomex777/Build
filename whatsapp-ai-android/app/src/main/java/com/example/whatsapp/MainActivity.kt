@@ -20,6 +20,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -607,10 +608,7 @@ private fun NightApp(initialChatId: String? = null) {
         }
     }
 
-    val attachmentPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
+    fun importAttachmentUri(uri: Uri) {
         scope.launch {
             val saved = withContext(Dispatchers.IO) {
                 NightFileLibrary.importUri(context, uri)
@@ -728,6 +726,18 @@ private fun NightApp(initialChatId: String? = null) {
             )
             replyingToId = null
         }
+    }
+
+    val attachmentPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        uri?.let(::importAttachmentUri)
+    }
+
+    val galleryPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        uri?.let(::importAttachmentUri)
     }
 
     val cameraLauncher = rememberLauncherForActivityResult(
@@ -2391,7 +2401,11 @@ private fun NightApp(initialChatId: String? = null) {
             onAttachmentAction = { action ->
                 directImageMode = false
                 when (action) {
-                    "Gallery" -> attachmentPicker.launch(arrayOf("image/*", "video/*"))
+                    "Gallery" -> galleryPicker.launch(
+                        PickVisualMediaRequest(
+                            ActivityResultContracts.PickVisualMedia.ImageAndVideo
+                        )
+                    )
                     "Document" -> attachmentPicker.launch(arrayOf("*/*"))
                     "Audio" -> attachmentPicker.launch(arrayOf("audio/*"))
                     "Camera" -> cameraLauncher.launch(null)
