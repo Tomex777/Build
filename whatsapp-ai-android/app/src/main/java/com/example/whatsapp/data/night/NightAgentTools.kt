@@ -2,8 +2,8 @@ package com.example.whatsapp.data.night
 
 import android.content.Context
 import android.graphics.BitmapFactory
-import com.example.whatsapp.extensions.tools.NightExtensionToolRegistry
-import com.example.whatsapp.extensions.tools.NightMcpToolRegistry
+import com.example.whatsapp.extensions.runtime.NightIntegrationKind
+import com.example.whatsapp.extensions.tools.NightIntegrationToolRegistry
 import java.io.File
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -53,28 +53,27 @@ class NightAgentToolExecutor private constructor(
             "create_options" -> createOptions(chatId, args)
             "generate_image" -> generateImage(chatId, args)
             else -> {
-                val ownerExtensionId =
-                    NightExtensionToolRegistry.extensionIdFor(invocation.name)
-                if (ownerExtensionId != null) {
-                    val extensionResult = NightExtensionToolRegistry.execute(
+                val metadata =
+                    NightIntegrationToolRegistry.metadata(invocation.name)
+                        ?: error("Unknown Night tool: " + invocation.name)
+                val result =
+                    NightIntegrationToolRegistry.execute(
                         qualifiedName = invocation.name,
                         chatId = chatId,
                         arguments = args,
                     ) ?: error("Unknown Night tool: " + invocation.name)
 
-                    NightExtensionMessageEmitter.persistFromToolResult(
-                        repository = repository,
-                        chatId = chatId,
-                        ownerExtensionId = ownerExtensionId,
-                        result = extensionResult,
-                    ).toString()
-                } else {
-                    NightMcpToolRegistry.execute(
-                        qualifiedName = invocation.name,
-                        chatId = chatId,
-                        arguments = args,
-                    )?.toString()
-                        ?: error("Unknown Night tool: " + invocation.name)
+                when (metadata.kind) {
+                    NightIntegrationKind.EXTENSION ->
+                        NightExtensionMessageEmitter.persistFromToolResult(
+                            repository = repository,
+                            chatId = chatId,
+                            ownerExtensionId = metadata.integrationId,
+                            result = result,
+                        ).toString()
+
+                    NightIntegrationKind.MCP ->
+                        result.toString()
                 }
             }
         }
@@ -437,8 +436,7 @@ object NightAgentToolSchemas {
             "create_options",
             "generate_image",
         ) ||
-            name.startsWith("ext__") ||
-            NightMcpToolRegistry.isSideEffect(name)
+            NightIntegrationToolRegistry.isSideEffect(name)
 
     fun all(): JSONArray = JSONArray()
         .put(function(
@@ -537,14 +535,9 @@ object NightAgentToolSchemas {
             required = listOf("prompt"),
         ))
         .also { schemas ->
-            val extensionSchemas = NightExtensionToolRegistry.schemas()
-            for (index in 0 until extensionSchemas.length()) {
-                schemas.put(extensionSchemas.getJSONObject(index))
-            }
-
-            val mcpSchemas = NightMcpToolRegistry.schemas()
-            for (index in 0 until mcpSchemas.length()) {
-                schemas.put(mcpSchemas.getJSONObject(index))
+            val integrationSchemas = NightIntegrationToolRegistry.schemas()
+            for (index in 0 until integrationSchemas.length()) {
+                schemas.put(integrationSchemas.getJSONObject(index))
             }
         }
 
