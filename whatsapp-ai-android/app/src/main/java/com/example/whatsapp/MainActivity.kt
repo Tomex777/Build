@@ -232,6 +232,12 @@ private fun NightApp(initialChatId: String? = null) {
         mutableStateOf<List<NightSummaryCheckpointEntity>>(emptyList())
     }
     var summaryRefreshing by remember { mutableStateOf(false) }
+    val profileUiPrefs = remember {
+        context.getSharedPreferences("night_profile_ui", android.content.Context.MODE_PRIVATE)
+    }
+    var profileAvatarPath by rememberSaveable {
+        mutableStateOf(profileUiPrefs.getString("avatar_path", null))
+    }
 
     var integrationPreferenceRevision by remember { mutableStateOf(0) }
 
@@ -1329,12 +1335,23 @@ private fun NightApp(initialChatId: String? = null) {
 
         "profile" -> NightProfileScreen(
             displayName = displayName,
+            avatarPath = profileAvatarPath,
             onBack = { screen = "tabs" },
             onSaveName = { value ->
                 scope.launch {
                     repository.setDisplayName(value)
                     screen = "tabs"
                 }
+            },
+            onSaveAvatar = { path ->
+                profileAvatarPath = path
+                profileUiPrefs.edit().apply {
+                    if (path.isNullOrBlank()) {
+                        remove("avatar_path")
+                    } else {
+                        putString("avatar_path", path)
+                    }
+                }.apply()
             },
         )
 
@@ -2797,6 +2814,7 @@ private fun NightApp(initialChatId: String? = null) {
 
             MainTab.You -> NightYouTab(
                 displayName = displayName,
+                avatarPath = profileAvatarPath,
                 onTabSelected = {
                     selectedTabName = it.name
                     screen = "tabs"
