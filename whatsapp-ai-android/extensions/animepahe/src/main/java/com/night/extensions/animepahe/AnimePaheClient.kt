@@ -51,7 +51,6 @@ data class AnimePaheEpisodePage(
 
 data class AnimePaheSource(
     val kwikUrl: String,
-    val downloadPageUrl: String?,
     val resolution: Int?,
     val audio: String,
     val fansub: String,
@@ -498,7 +497,6 @@ class AnimePaheClient(
                     if (!src.startsWith("http")) return@mapNotNull null
                     AnimePaheSource(
                         kwikUrl = src,
-                        downloadPageUrl = null,
                         resolution =
                             attrs["data-resolution"]
                                 ?.filter(Char::isDigit)
@@ -513,19 +511,7 @@ class AnimePaheClient(
                 }
                 .toList()
 
-        val downloadLinks =
-            DOWNLOAD_HREF_REGEX.findAll(html)
-                .map { htmlDecode(it.groupValues[1]) }
-                .filter { it.startsWith("http") }
-                .toList()
-
-        return buttons.mapIndexed { index, source ->
-            source.copy(
-                downloadPageUrl =
-                    downloadLinks.getOrNull(index)
-                        ?.takeIf { it.isNotBlank() },
-            )
-        }
+        return buttons
     }
 
     fun selectPreferredSource(
@@ -669,10 +655,6 @@ class AnimePaheClient(
             Regex("""(?is)<button\b[^>]*data-src\s*=\s*"[^"]+"[^>]*>""")
         private val ATTR_REGEX =
             Regex("""(?i)(data-[a-z0-9_-]+)\s*=\s*"([^"]*)"""")
-        private val DOWNLOAD_HREF_REGEX =
-            Regex(
-                """(?i)href\s*=\s*"(https?://(?:pahe\.win|kwik\.[^/"]+)[^"]*)""""
-            )
 
         private fun htmlDecode(value: String): String =
             value
