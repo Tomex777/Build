@@ -296,6 +296,10 @@ for path in modules.rglob("*.java"):
         path.write_text(text, encoding="utf-8")
 
 get_last_patches = {
+    modules / "lib/src/main/java/com/github/auties00/cobalt/client/linked/LiveLinkedWhatsAppClient.java": (
+        ("store.signalStore().preKeys().getLast().id()",
+         "store.signalStore().preKeys().get(store.signalStore().preKeys().size() - 1).id()"),
+    ),
     modules / "lib/src/main/java/com/github/auties00/cobalt/export/LiveChatExporterService.java": (
         ("names.getLast()", "names.get(names.size() - 1)"),
     ),
