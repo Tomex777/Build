@@ -91,6 +91,15 @@ jobs:
 
           assert "delay(2 * 60 * 1000L)" not in main, "Night must not use the removed 2-minute idle summary checkpoint"
           assert "NightSummaryPolicy.CHECKPOINT_INTERVAL_MS" in main, "Night chat must use the shared five-minute summary policy"
+          assert 'screen = "integrations"' in main, "Night settings must route through the unified Integrations hub"
+
+          providers = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/presentation/profile/NightProvidersScreen.kt").read_text()
+          assert '"Integrations"' in providers, "Providers settings must expose one Integrations entry"
+          assert '"MCP servers"' not in providers and '"Extensions"' not in providers, "Providers settings must not split MCP and Extensions into separate entries"
+
+          agent_tools = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/data/night/NightAgentTools.kt").read_text()
+          assert "NightIntegrationToolRegistry" in agent_tools, "Agent tools must use the shared integration facade"
+          assert 'name.startsWith("ext__")' not in agent_tools, "Agent side-effect policy must not special-case extension name prefixes"
           PY
 
       - name: Run unit tests and build integrated APK
