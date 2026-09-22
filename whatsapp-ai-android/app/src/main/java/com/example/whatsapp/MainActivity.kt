@@ -1847,7 +1847,8 @@ private fun NightApp(initialChatId: String? = null) {
         )
 
         "chat" -> CurrentWhatsAppConversation(
-            contactName = activeChat?.title ?: "Night",
+            contactName = activeChat?.title
+                ?: if (activeChatId == "night-core") "Night" else "New chat",
             subtitle = when {
                 activeModel != null && activeProfile != null ->
                     activeModel.displayName + " • " + activeProfile.providerType.replaceFirstChar { it.uppercase() }
@@ -1988,7 +1989,8 @@ private fun NightApp(initialChatId: String? = null) {
                         NightBrowserActivity.createGeneralIntent(context)
                     )
                     "Rename chat" -> {
-                        renameValue = activeChat?.title.orEmpty()
+                        renameValue = activeChat?.title
+                            ?: if (activeChatId == "night-core") "Night" else "New chat"
                         renameOpen = true
                     }
                     "Choose AI" -> screen = "choose_ai"
@@ -2664,12 +2666,11 @@ private fun NightApp(initialChatId: String? = null) {
                     renameOpen = true
                 },
                 onNewChat = {
-                    scope.launch {
-                        val chat = repository.createChat("New chat")
-                        activeChatId = chat.id
-                        messageText = ""
-                        screen = "chat"
-                    }
+                    activeChatId = java.util.UUID.randomUUID().toString()
+                    messageText = ""
+                    replyingToId = null
+                    directImageMode = false
+                    screen = "chat"
                 },
                 onSettingsClick = { screen = "settings" },
                 accentColor = appearance.accentColor,
