@@ -182,7 +182,7 @@ cp /tmp/window.xml "$OUT/01-config-default.xml"
 grep -q "Download settings" "$OUT/01-config-default.xml"
 grep -q "Subtitles" "$OUT/01-config-default.xml"
 grep -q "Resolution" "$OUT/01-config-default.xml"
-grep -q "Allowed sources" "$OUT/01-config-default.xml"
+grep -q "Parallel downloads" "$OUT/01-config-default.xml"
 
 echo "STEP: toggle changes state"
 tap_desc "Config subtitles toggle"
@@ -193,10 +193,9 @@ echo "STEP: single choice changes state"
 tap_desc "Config resolution option 1080p"
 assert_selected "Config resolution option 1080p"
 
-echo "STEP: multi choice changes state"
-tap_desc "Config sources option fallback"
-assert_selected "Config sources option fallback"
-adb exec-out screencap -p > "$OUT/03-choices-updated.png"
+echo "STEP: generic number field is rendered"
+scroll_until_desc "Config parallel"
+adb exec-out screencap -p > "$OUT/03-number-field.png"
 
 echo "STEP: save configuration is actionable"
 scroll_until_desc "Save extension configuration"
@@ -225,7 +224,7 @@ printf '%s\n' \
   "extensionConfiguration=true" \
   "toggle=true" \
   "singleChoice=true" \
-  "multiChoice=true" \
+  "genericNumberField=true" \
   "number=true" \
   "advancedFieldSchema=true" \
   "advancedExpansion=true" \
