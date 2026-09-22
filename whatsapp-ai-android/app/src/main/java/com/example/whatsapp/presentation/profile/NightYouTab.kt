@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Schedule
@@ -59,6 +60,7 @@ fun NightYouTab(
     onMemoryClick: () -> Unit,
     onSchedulesClick: () -> Unit,
     onLibraryStorageClick: () -> Unit,
+    onBrowserClick: () -> Unit,
     onAppearanceClick: () -> Unit,
     onPrivacyClick: () -> Unit,
     onSettingsClick: () -> Unit,
@@ -68,6 +70,7 @@ fun NightYouTab(
         YouRow("memory", Icons.Default.Memory, "Memory", "Chat summaries and cross-chat references"),
         YouRow("scheduled", Icons.Default.Schedule, "Scheduled", "Tasks Night will run later"),
         YouRow("storage", Icons.Default.Storage, "Library & storage", "Manage Night-owned files"),
+        YouRow("browser", Icons.Default.Language, "Browser", "Open Night's full browser"),
         YouRow("appearance", Icons.Default.Palette, "Appearance", "Bubbles, wallpaper, font and text size"),
         YouRow("privacy", Icons.Default.Security, "Privacy", "Local data, permissions and retention"),
         YouRow("settings", Icons.Default.Settings, "Settings", "General Night settings"),
@@ -137,6 +140,7 @@ fun NightYouTab(
                                 "memory" -> onMemoryClick()
                                 "scheduled" -> onSchedulesClick()
                                 "storage" -> onLibraryStorageClick()
+                                "browser" -> onBrowserClick()
                                 "appearance" -> onAppearanceClick()
                                 "privacy" -> onPrivacyClick()
                                 else -> onSettingsClick()
