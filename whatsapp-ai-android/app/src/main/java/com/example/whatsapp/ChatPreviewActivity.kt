@@ -395,32 +395,13 @@ private fun extensionConfigurationPreviewMessages(): List<WhatsAppVisualMessage>
                         ),
                     ),
                     ExtensionConfigurationField(
-                        id = "sources",
-                        label = "Allowed sources",
-                        type = ExtensionConfigurationFieldType.MultiChoice,
-                        values = listOf("primary"),
-                        options = listOf(
-                            ExtensionConfigurationOption("primary", "Primary"),
-                            ExtensionConfigurationOption("fallback", "Fallback"),
-                            ExtensionConfigurationOption("archive", "Archive"),
-                        ),
-                    ),
-                    ExtensionConfigurationField(
                         id = "parallel",
                         label = "Parallel downloads",
                         type = ExtensionConfigurationFieldType.Number,
                         value = "2",
                         placeholder = "2",
-                    ),
-                    ExtensionConfigurationField(
-                        id = "quality_bias",
-                        label = "Quality bias",
-                        type = ExtensionConfigurationFieldType.Range,
-                        value = "70",
-                        min = 0.0,
-                        max = 100.0,
-                        step = 5.0,
-                        advanced = true,
+                        description =
+                            "How many downloads this extension may run at once.",
                     ),
                     ExtensionConfigurationField(
                         id = "filename",
@@ -430,10 +411,10 @@ private fun extensionConfigurationPreviewMessages(): List<WhatsAppVisualMessage>
                         advanced = true,
                     ),
                     ExtensionConfigurationField(
-                        id = "test_source",
-                        label = "Test source",
+                        id = "test_connection",
+                        label = "Test extension",
                         type = ExtensionConfigurationFieldType.Action,
-                        actionLabel = "Run source test",
+                        actionLabel = "Run connection test",
                         advanced = true,
                     ),
                 ),
