@@ -967,21 +967,21 @@ private fun CurrentPhotoBubble(
             }
 
             if (item.caption.isNotBlank()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 4.dp, end = 2.dp, top = 8.dp, bottom = 1.dp),
-                    verticalAlignment = Alignment.Bottom,
+                Box(
+                    modifier = Modifier.padding(
+                        start = 4.dp,
+                        end = 2.dp,
+                        top = 8.dp,
+                        bottom = 1.dp,
+                    ),
                 ) {
-                    Text(
+                    WhatsAppInlineMessageText(
                         text = item.caption,
-                        color = PrimaryText,
-                        fontSize = 14.sp,
-                        lineHeight = 18.sp,
-                        modifier = Modifier.weight(1f),
+                        time = item.time,
+                        mine = item.mine,
+                        read = item.read,
+                        appearance = appearance,
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    MessageMeta(item.time, item.mine, item.read)
                 }
             }
         }
@@ -1100,21 +1100,21 @@ private fun CurrentVideoBubble(
             }
 
             if (item.caption.isNotBlank()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 4.dp, end = 2.dp, top = 8.dp, bottom = 1.dp),
-                    verticalAlignment = Alignment.Bottom,
+                Box(
+                    modifier = Modifier.padding(
+                        start = 4.dp,
+                        end = 2.dp,
+                        top = 8.dp,
+                        bottom = 1.dp,
+                    ),
                 ) {
-                    Text(
+                    WhatsAppInlineMessageText(
                         text = item.caption,
-                        color = PrimaryText,
-                        fontSize = 14.sp,
-                        lineHeight = 18.sp,
-                        modifier = Modifier.weight(1f),
+                        time = item.time,
+                        mine = item.mine,
+                        read = item.read,
+                        appearance = appearance,
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    MessageMeta(item.time, item.mine, item.read)
                 }
             }
         }
@@ -1241,22 +1241,30 @@ private fun CurrentFileBubble(
             }
 
             if (item.caption.isNotBlank()) {
-                Text(
-                    text = item.caption,
-                    color = PrimaryText,
-                    fontSize = (14f * appearance.messageFontScale).sp,
-                    fontFamily = appearance.fontFamily,
-                    modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 8.dp),
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 5.dp, end = 2.dp),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                MessageMeta(item.time, item.mine, item.read)
+                Box(
+                    modifier = Modifier.padding(
+                        start = 4.dp,
+                        end = 4.dp,
+                        top = 8.dp,
+                    ),
+                ) {
+                    WhatsAppInlineMessageText(
+                        text = item.caption,
+                        time = item.time,
+                        mine = item.mine,
+                        read = item.read,
+                        appearance = appearance,
+                    )
+                }
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 5.dp, end = 2.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    MessageMeta(item.time, item.mine, item.read)
+                }
             }
         }
     }
@@ -1630,23 +1638,30 @@ private fun CurrentAudioBubble(
             }
 
             if (item.caption.isNotBlank()) {
-                Text(
-                    text = item.caption,
-                    color = PrimaryText,
-                    fontSize = (13f * appearance.messageFontScale).sp,
-                    lineHeight = (18f * appearance.messageFontScale).sp,
-                    fontFamily = appearance.fontFamily,
-                    modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 8.dp),
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp, end = 2.dp),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                MessageMeta(item.time, item.mine, item.read)
+                Box(
+                    modifier = Modifier.padding(
+                        start = 4.dp,
+                        end = 4.dp,
+                        top = 8.dp,
+                    ),
+                ) {
+                    WhatsAppInlineMessageText(
+                        text = item.caption,
+                        time = item.time,
+                        mine = item.mine,
+                        read = item.read,
+                        appearance = appearance,
+                    )
+                }
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp, end = 2.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    MessageMeta(item.time, item.mine, item.read)
+                }
             }
         }
     }
