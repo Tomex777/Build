@@ -133,22 +133,7 @@ jobs:
               adb shell uiautomator dump /sdcard/cobalt-live.xml >/dev/null 2>&1 || true
               adb pull /sdcard/cobalt-live.xml /tmp/cobalt-live.xml >/dev/null 2>&1 || true
               if [[ -s /tmp/cobalt-live.xml ]]; then
-                CODE="$(python3 - <<'PY'
-import re, xml.etree.ElementTree as ET
-try:
-    root = ET.parse('/tmp/cobalt-live.xml').getroot()
-except Exception:
-    print('')
-    raise SystemExit
-for node in root.iter('node'):
-    value = (node.attrib.get('text') or '').strip().replace(' ', '').replace('-', '')
-    if re.fullmatch(r'[A-Za-z0-9]{8}', value) and value not in {'LINKED'}:
-        print(value)
-        break
-else:
-    print('')
-PY
-)"
+                CODE="$(python3 -c "import re,xml.etree.ElementTree as ET; root=ET.parse('/tmp/cobalt-live.xml').getroot(); vals=[(n.attrib.get('text') or '').strip().replace(' ','').replace('-','') for n in root.iter('node')]; print(next((v for v in vals if re.fullmatch(r'[A-Za-z0-9]{8}',v) and v!='LINKED'),''))" 2>/dev/null || true)"
               fi
               if [[ -n "$CODE" ]]; then
                 break
