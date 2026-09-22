@@ -130,11 +130,12 @@ sleep 0.5
 tap_ui "Me"
 assert_ui "Me"
 assert_ui "Profile"
-assert_ui "Calls"
-assert_ui "Privacy"
-assert_ui "Notifications"
-assert_ui "Account"
-assert_ui "About"
+adb exec-out screencap -p > homira-android/app/build/ui-smoke/me-top.png
+assert_ui_after_scroll "Calls"
+assert_ui_after_scroll "Privacy"
+assert_ui_after_scroll "Notifications"
+assert_ui_after_scroll "Account"
+assert_ui_after_scroll "About"
 adb exec-out screencap -p > homira-android/app/build/ui-smoke/me.png
 
 tap_ui "Contacts"
