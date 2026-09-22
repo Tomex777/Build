@@ -47,6 +47,17 @@ android {
     buildFeatures {
         compose = true
     }
+
+    // Keep native media libraries out of one oversized universal APK.
+    // Users install the APK matching their CPU; universal remains available for CI/debugging.
+    splits {
+        abi {
+            isEnable = true
+            isUniversalApk = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+        }
+    }
 }
 
 dependencies {
