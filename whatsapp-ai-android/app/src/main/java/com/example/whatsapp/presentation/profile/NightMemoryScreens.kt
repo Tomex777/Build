@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,7 +37,6 @@ import java.util.Locale
 private val MemoryBg = Color(0xFF0B0F11)
 private val MemoryText = Color(0xFFE7EAEC)
 private val MemoryMuted = Color(0xFF9CA5A9)
-private val MemoryAccent = Color(0xFF21C063)
 
 @Composable
 fun NightMemoryScreen(
@@ -148,14 +148,14 @@ fun NightChatMemoryScreen(
                 if (chat?.summaryDirty == true) {
                     Text(
                         "There are newer unsummarized messages.",
-                        color = MemoryAccent,
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 12.dp),
                     )
                 } else if (!chat?.latestSummary.isNullOrBlank()) {
                     Text(
                         "Up to date",
-                        color = MemoryAccent,
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 12.dp),
                     )
@@ -165,7 +165,7 @@ fun NightChatMemoryScreen(
                     onClick = onRefresh,
                     enabled = chat != null && !isRefreshing,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MemoryAccent,
+                        containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = Color(0xFF07110B),
                     ),
                     modifier = Modifier.padding(top = 18.dp),
@@ -203,7 +203,7 @@ fun NightChatMemoryScreen(
                     ) {
                         Text(
                             text = formatMemoryTime(checkpoint.createdAt),
-                            color = MemoryAccent,
+                            color = MaterialTheme.colorScheme.primary,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
                         )
