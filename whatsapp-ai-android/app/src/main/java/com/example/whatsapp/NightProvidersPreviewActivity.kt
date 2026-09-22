@@ -23,7 +23,7 @@ class NightProvidersPreviewActivity : ComponentActivity() {
             id = "preview-groq",
             providerType = "groq",
             serviceKind = "chat",
-            displayName = "Groq primary",
+            displayName = "Groq Chat",
             secretAlias = "preview-groq-secret",
             endpoint = null,
             region = null,
@@ -39,7 +39,7 @@ class NightProvidersPreviewActivity : ComponentActivity() {
             id = "preview-azure",
             providerType = "azure",
             serviceKind = "chat",
-            displayName = "Azure fallback",
+            displayName = "Azure Chat",
             secretAlias = "preview-azure-secret",
             endpoint = "https://night-preview.openai.azure.com",
             region = null,
@@ -66,11 +66,11 @@ class NightProvidersPreviewActivity : ComponentActivity() {
                 updatedAt = now,
             ),
             NightProviderModelEntity(
-                id = "preview-groq-backup",
+                id = "preview-groq-fast",
                 profileId = groq.id,
                 providerType = "groq",
                 modelId = "llama-3.1-8b-instant",
-                displayName = "Llama 3.1 8B backup",
+                displayName = "Llama 3.1 8B",
                 deploymentName = null,
                 capabilities = "text,tools",
                 isEnabled = false,
@@ -116,9 +116,9 @@ class NightProvidersPreviewActivity : ComponentActivity() {
                     providerKeys = { profile ->
                         if (profile.id == groq.id) {
                             listOf(
-                                NightProviderKeySummary("key-1", "Primary", "1234"),
-                                NightProviderKeySummary("key-2", "Backup", "5678"),
-                                NightProviderKeySummary("key-3", "Burst", "9012"),
+                                NightProviderKeySummary("key-1", "Key 1", "1234"),
+                                NightProviderKeySummary("key-2", "Key 2", "5678"),
+                                NightProviderKeySummary("key-3", "Key 3", "9012"),
                             )
                         } else {
                             emptyList()
