@@ -140,7 +140,7 @@ sleep 4
 echo "STEP: provider admin fits phone width"
 assert_text "AI & providers"
 assert_text "Groq"
-assert_text "Groq primary"
+assert_text "Groq Chat"
 assert_text "Llama 3.3 70B"
 adb exec-out screencap -p > "$OUT/01-provider-phone-width.png"
 
