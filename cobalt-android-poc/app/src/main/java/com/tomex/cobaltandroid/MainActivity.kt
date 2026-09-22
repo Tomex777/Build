@@ -201,9 +201,20 @@ class MainActivity : Activity() {
                     true,
                     classLoader
                 )
-                val authenticator = authenticatorClass
-                    .getMethod("toTerminal")
-                    .invoke(null)
+                val authenticator = Proxy.newProxyInstance(
+                    authenticatorClass.classLoader,
+                    arrayOf(authenticatorClass)
+                ) { proxy, method, args ->
+                    when (method.name) {
+                        "assertCredential" -> throw UnsupportedOperationException(
+                            "WhatsApp requested a passkey integrity challenge. Android passkey relay is not wired yet."
+                        )
+                        "toString" -> "AndroidDeferredPasskeyAuthenticator"
+                        "hashCode" -> System.identityHashCode(proxy)
+                        "equals" -> proxy === args?.firstOrNull()
+                        else -> null
+                    }
+                }
 
                 val pairingHandler = Proxy.newProxyInstance(
                     pairingClass.classLoader,
