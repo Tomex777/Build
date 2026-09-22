@@ -38,15 +38,59 @@ print(*box)
 PY
 
 refresh_ui() {
-  adb shell uiautomator dump /sdcard/night-main-tabs.xml >/dev/null 2>&1
-  adb exec-out cat /sdcard/night-main-tabs.xml >/tmp/window.xml
+  local attempt
+  rm -f /tmp/window.xml
+  for attempt in $(seq 1 10); do
+    if adb shell uiautomator dump /sdcard/night-main-tabs.xml >/dev/null 2>&1 &&
+       adb exec-out cat /sdcard/night-main-tabs.xml >/tmp/window.xml 2>/dev/null &&
+       grep -q "<hierarchy" /tmp/window.xml; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Could not obtain the Night main-tabs UI hierarchy." >&2
+  adb exec-out screencap -p >"$OUT/failure-ui-hierarchy.png" 2>/dev/null || true
+  adb logcat -d -v threadtime >"$OUT/logcat-ui-hierarchy-failure.txt" 2>/dev/null || true
+  return 1
+}
+
+assert_desc() {
+  local wanted="$1"
+  local attempt
+  for attempt in $(seq 1 10); do
+    refresh_ui
+    if python3 /tmp/night_main_tabs_uia.py desc "$wanted" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  cp /tmp/window.xml "$OUT/failure-desc.xml" 2>/dev/null || true
+  adb exec-out screencap -p >"$OUT/failure-desc.png" 2>/dev/null || true
+  echo "Night main-tabs content description did not appear: $wanted" >&2
+  return 1
+}
+
+assert_text() {
+  local wanted="$1"
+  local attempt
+  for attempt in $(seq 1 10); do
+    refresh_ui
+    if python3 /tmp/night_main_tabs_uia.py text "$wanted" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  cp /tmp/window.xml "$OUT/failure-text.xml" 2>/dev/null || true
+  adb exec-out screencap -p >"$OUT/failure-text.png" 2>/dev/null || true
+  echo "Night main-tabs text did not appear: $wanted" >&2
+  return 1
 }
 
 launch_tab() {
   local tab="$1"
   adb shell am force-stop "$PACKAGE"
   adb shell am start -W -n "$ACTIVITY" --es tab "$tab" >/dev/null
-  sleep 3
+  sleep 2
   refresh_ui
 }
 
@@ -58,9 +102,9 @@ adb logcat -c
 echo "STEP: three-tab shell and FAB clearance"
 launch_tab chats
 
-python3 /tmp/night_main_tabs_uia.py desc "Chats" >/dev/null
-python3 /tmp/night_main_tabs_uia.py desc "Library" >/dev/null
-python3 /tmp/night_main_tabs_uia.py desc "You" >/dev/null
+assert_desc "Chats"
+assert_desc "Library"
+assert_desc "You"
 
 if grep -q 'content-desc="Calls"' /tmp/window.xml ||
    grep -q 'content-desc="Communities"' /tmp/window.xml; then
@@ -79,6 +123,7 @@ fi
 
 # Edge-to-edge is enabled, but ordinary content must start below Android's
 # status/notification bar instead of being obscured by it.
+assert_text "Night"
 read -r hx1 hy1 hx2 hy2 <<<"$(python3 /tmp/night_main_tabs_uia.py text "Night")"
 if [ "$hy1" -lt 32 ]; then
   echo "Night header overlaps the Android status bar: header top=$hy1" >&2
@@ -90,16 +135,16 @@ adb exec-out screencap -p >"$OUT/01-chats-three-tabs.png"
 
 echo "STEP: Library tab"
 launch_tab library
-python3 /tmp/night_main_tabs_uia.py desc "Chats" >/dev/null
-python3 /tmp/night_main_tabs_uia.py desc "Library" >/dev/null
-python3 /tmp/night_main_tabs_uia.py desc "You" >/dev/null
+assert_desc "Chats"
+assert_desc "Library"
+assert_desc "You"
 adb exec-out screencap -p >"$OUT/02-library.png"
 
 echo "STEP: You tab"
 launch_tab you
-python3 /tmp/night_main_tabs_uia.py desc "Chats" >/dev/null
-python3 /tmp/night_main_tabs_uia.py desc "Library" >/dev/null
-python3 /tmp/night_main_tabs_uia.py desc "You" >/dev/null
+assert_desc "Chats"
+assert_desc "Library"
+assert_desc "You"
 adb exec-out screencap -p >"$OUT/03-you.png"
 
 adb logcat -d -v threadtime >"$OUT/logcat.txt"
