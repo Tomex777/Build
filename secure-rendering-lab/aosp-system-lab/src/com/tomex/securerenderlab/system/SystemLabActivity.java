@@ -5,8 +5,10 @@ import android.app.Presentation;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
+import android.graphics.Rect;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.media.Image;
@@ -14,15 +16,21 @@ import android.media.ImageReader;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
+import android.os.Process;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -40,6 +48,8 @@ public final class SystemLabActivity extends Activity {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private TextView capabilityText;
     private TextView secureDisplayText;
+    private TextView secureLayerCaptureText;
+    private boolean autorun;
     private Presentation activePresentation;
     private VirtualDisplay activeDisplay;
     private ImageReader activeReader;
@@ -67,12 +77,14 @@ public final class SystemLabActivity extends Activity {
 
         root.addView(capabilityCard());
         root.addView(secureDisplayCard());
+        root.addView(secureLayerCaptureCard());
         root.addView(boundaryCard());
 
         setContentView(scroll);
         refreshCapabilities();
 
-        if (getIntent().getBooleanExtra("autorun", false)) {
+        autorun = getIntent().getBooleanExtra("autorun", false);
+        if (autorun) {
             mainHandler.postDelayed(this::runSecureDisplaySelfTest, 600L);
         }
     }
@@ -102,14 +114,36 @@ public final class SystemLabActivity extends Activity {
         return card;
     }
 
+    private LinearLayout secureLayerCaptureCard() {
+        LinearLayout card = card();
+        card.addView(title("SurfaceFlinger secure-layer self-capture", 18));
+        card.addView(body(
+                "Marks only this lab Activity as FLAG_SECURE, then captures only this app UID twice: "
+                        + "first with secure layers excluded, then with secure layers explicitly included. "
+                        + "The returned buffers are hashed in memory and immediately discarded."));
+        TextView secret = body("SECURE LAYER TEST · 0x51A7");
+        secret.setTextSize(24f);
+        secret.setTextColor(Color.WHITE);
+        secret.setGravity(Gravity.CENTER);
+        secret.setBackgroundColor(Color.rgb(112, 36, 122));
+        secret.setPadding(dp(12), dp(24), dp(12), dp(24));
+        card.addView(secret);
+        secureLayerCaptureText = body("Not run yet.");
+        card.addView(secureLayerCaptureText);
+        Button run = button("Run secure-layer compositor capture");
+        run.setOnClickListener(v -> runSecureLayerCaptureProbe());
+        card.addView(run);
+        return card;
+    }
+
     private LinearLayout boundaryCard() {
         LinearLayout card = card();
         card.addView(title("SurfaceFlinger boundary", 18));
         card.addView(body(
                 "CAPTURE_SECURE_VIDEO_OUTPUT controls secure virtual-display creation. "
                         + "CAPTURE_BLACKOUT_CONTENT is a separate SurfaceFlinger gate for requests that ask the "
-                        + "compositor to include secure layers. This lab reports that permission but deliberately "
-                        + "does not issue a global secure-layer screenshot request."));
+                        + "compositor to include secure layers. The self-capture experiment constrains the request "
+                        + "to this app's UID and keeps the returned pixels only in memory."));
         return card;
     }
 
@@ -170,6 +204,7 @@ public final class SystemLabActivity extends Activity {
                 secureDisplayText.setText("Secure virtual display returned null.");
                 Log.i(TAG, "CREATE|NULL");
                 cleanupSelfTest();
+                continueAutorunToSecureLayerCapture();
                 return;
             }
 
@@ -202,6 +237,7 @@ public final class SystemLabActivity extends Activity {
                                 "RESULT|FRAME|sampleBytes=" + resultSampleCount
                                         + "|checksum=" + resultChecksum);
                         cleanupSelfTest();
+                        continueAutorunToSecureLayerCapture();
                     });
                 } finally {
                     image.close();
@@ -224,18 +260,212 @@ public final class SystemLabActivity extends Activity {
                             "Secure virtual display was created, but no ImageReader frame arrived before timeout.");
                     Log.i(TAG, "RESULT|FRAME_TIMEOUT");
                     cleanupSelfTest();
+                    continueAutorunToSecureLayerCapture();
                 }
             }, 2500L);
         } catch (SecurityException e) {
             secureDisplayText.setText("SECURITY EXCEPTION\n" + e.getMessage());
             Log.i(TAG, "CREATE|SECURITY_EXCEPTION|" + String.valueOf(e.getMessage()));
             cleanupSelfTest();
+            continueAutorunToSecureLayerCapture();
         } catch (Throwable t) {
             secureDisplayText.setText(t.getClass().getSimpleName() + ": " + t.getMessage());
             Log.i(TAG,
                     "CREATE|ERROR|" + t.getClass().getSimpleName()
                             + "|" + String.valueOf(t.getMessage()));
             cleanupSelfTest();
+            continueAutorunToSecureLayerCapture();
+        }
+    }
+
+    private void continueAutorunToSecureLayerCapture() {
+        if (!autorun) return;
+        autorun = false;
+        mainHandler.postDelayed(this::runSecureLayerCaptureProbe, 700L);
+    }
+
+    private void runSecureLayerCaptureProbe() {
+        secureLayerCaptureText.setText(
+                "Applying FLAG_SECURE to this lab window, then comparing normal vs privileged capture…");
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+
+        mainHandler.postDelayed(() -> new Thread(() -> {
+            CaptureDigest normal = captureOwnUidDisplay(false);
+            CaptureDigest secure = captureOwnUidDisplay(true);
+
+            Log.i(TAG, "SF_CAPTURE|NORMAL|" + normal.toLogString());
+            Log.i(TAG, "SF_CAPTURE|SECURE|" + secure.toLogString());
+
+            final boolean different =
+                    normal.error == null
+                            && secure.error == null
+                            && normal.checksum != secure.checksum;
+
+            Log.i(TAG,
+                    "SF_CAPTURE|COMPARE|different=" + different
+                            + "|normalChecksum=" + normal.checksum
+                            + "|secureChecksum=" + secure.checksum);
+
+            runOnUiThread(() -> {
+                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+                secureLayerCaptureText.setText(
+                        "Normal capture: " + normal.toDisplayString()
+                                + "\n\nSecure-layer capture: " + secure.toDisplayString()
+                                + "\n\nBuffers differ: " + yesNo(different)
+                                + "\nFLAG_SECURE restored to OFF.");
+            });
+        }, "SecureLayerCaptureProbe").start(), 900L);
+    }
+
+    private CaptureDigest captureOwnUidDisplay(boolean includeSecureLayers) {
+        try {
+            Class<?> surfaceControlClass = Class.forName("android.view.SurfaceControl");
+            Method getDisplayToken =
+                    surfaceControlClass.getMethod("getInternalDisplayToken");
+            IBinder displayToken = (IBinder) getDisplayToken.invoke(null);
+            if (displayToken == null) {
+                return CaptureDigest.error(includeSecureLayers, "internal display token is null");
+            }
+
+            Class<?> builderClass =
+                    Class.forName("android.window.ScreenCapture$DisplayCaptureArgs$Builder");
+            Constructor<?> constructor = builderClass.getConstructor(IBinder.class);
+            Object builder = constructor.newInstance(displayToken);
+
+            Method setCaptureSecure =
+                    builderClass.getMethod("setCaptureSecureLayers", boolean.class);
+            Method setUid =
+                    builderClass.getMethod("setUid", long.class);
+            Method setSourceCrop =
+                    builderClass.getMethod("setSourceCrop", Rect.class);
+
+            setCaptureSecure.invoke(builder, includeSecureLayers);
+            setUid.invoke(builder, (long) Process.myUid());
+
+            int width = getResources().getDisplayMetrics().widthPixels;
+            int height = getResources().getDisplayMetrics().heightPixels;
+            setSourceCrop.invoke(builder, new Rect(0, 0, width, height));
+
+            Object captureArgs = builderClass.getMethod("build").invoke(builder);
+            Class<?> displayCaptureArgsClass =
+                    Class.forName("android.window.ScreenCapture$DisplayCaptureArgs");
+            Class<?> screenCaptureClass =
+                    Class.forName("android.window.ScreenCapture");
+
+            Method captureDisplay =
+                    screenCaptureClass.getMethod("captureDisplay", displayCaptureArgsClass);
+            Object result = captureDisplay.invoke(null, captureArgs);
+            if (result == null) {
+                return CaptureDigest.error(includeSecureLayers, "captureDisplay returned null");
+            }
+
+            Class<?> resultClass =
+                    Class.forName("android.window.ScreenCapture$ScreenshotHardwareBuffer");
+            boolean containsSecure =
+                    (boolean) resultClass.getMethod("containsSecureLayers").invoke(result);
+            Bitmap hardwareBitmap =
+                    (Bitmap) resultClass.getMethod("asBitmap").invoke(result);
+            if (hardwareBitmap == null) {
+                return CaptureDigest.error(includeSecureLayers, "asBitmap returned null");
+            }
+
+            Bitmap softwareBitmap =
+                    hardwareBitmap.copy(Bitmap.Config.ARGB_8888, false);
+            if (softwareBitmap == null) {
+                return CaptureDigest.error(includeSecureLayers, "hardware bitmap copy returned null");
+            }
+
+            long checksum = sampledBitmapChecksum(softwareBitmap);
+            int bitmapWidth = softwareBitmap.getWidth();
+            int bitmapHeight = softwareBitmap.getHeight();
+
+            softwareBitmap.recycle();
+            hardwareBitmap.recycle();
+
+            Object hardwareBuffer = resultClass.getMethod("getHardwareBuffer").invoke(result);
+            if (hardwareBuffer instanceof AutoCloseable) {
+                try {
+                    ((AutoCloseable) hardwareBuffer).close();
+                } catch (Exception ignored) {
+                }
+            }
+
+            return new CaptureDigest(
+                    includeSecureLayers,
+                    containsSecure,
+                    bitmapWidth,
+                    bitmapHeight,
+                    checksum,
+                    null);
+        } catch (Throwable t) {
+            Throwable cause = t;
+            if (t instanceof InvocationTargetException
+                    && ((InvocationTargetException) t).getCause() != null) {
+                cause = ((InvocationTargetException) t).getCause();
+            }
+            return CaptureDigest.error(
+                    includeSecureLayers,
+                    cause.getClass().getSimpleName() + ": " + String.valueOf(cause.getMessage()));
+        }
+    }
+
+    private long sampledBitmapChecksum(Bitmap bitmap) {
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        long total = (long) width * (long) height;
+        long step = Math.max(1L, total / 4096L);
+        long hash = 1469598103934665603L;
+        for (long i = 0; i < total; i += step) {
+            int x = (int) (i % width);
+            int y = (int) (i / width);
+            hash ^= (bitmap.getPixel(x, y) & 0xffffffffL);
+            hash *= 1099511628211L;
+        }
+        return hash;
+    }
+
+    private static final class CaptureDigest {
+        final boolean requestedSecure;
+        final boolean containsSecure;
+        final int width;
+        final int height;
+        final long checksum;
+        final String error;
+
+        CaptureDigest(
+                boolean requestedSecure,
+                boolean containsSecure,
+                int width,
+                int height,
+                long checksum,
+                String error) {
+            this.requestedSecure = requestedSecure;
+            this.containsSecure = containsSecure;
+            this.width = width;
+            this.height = height;
+            this.checksum = checksum;
+            this.error = error;
+        }
+
+        static CaptureDigest error(boolean requestedSecure, String error) {
+            return new CaptureDigest(requestedSecure, false, 0, 0, 0L, error);
+        }
+
+        String toLogString() {
+            if (error != null) {
+                return "requestedSecure=" + requestedSecure + "|error=" + error;
+            }
+            return "requestedSecure=" + requestedSecure
+                    + "|containsSecure=" + containsSecure
+                    + "|size=" + width + "x" + height
+                    + "|checksum=" + checksum;
+        }
+
+        String toDisplayString() {
+            if (error != null) return "ERROR · " + error;
+            return width + "×" + height
+                    + " · containsSecure=" + containsSecure
+                    + " · checksum=" + checksum;
         }
     }
 
