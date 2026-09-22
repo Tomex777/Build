@@ -98,6 +98,7 @@ data class NightChatMediaItem(
     val sender: String = "",
     val thumbnailPath: String? = null,
     val duration: String = "",
+    val requestHeaders: Map<String, String> = emptyMap(),
 ) {
     val isVideo: Boolean get() = mimeType.startsWith("video/")
 }
