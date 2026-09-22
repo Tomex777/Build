@@ -36,6 +36,10 @@ class MainActivity : Activity() {
     private lateinit var linkButton: Button
     private lateinit var reconnectButton: Button
     private lateinit var disconnectButton: Button
+    private lateinit var destinationInput: EditText
+    private lateinit var messageInput: EditText
+    private lateinit var sendButton: Button
+    private lateinit var incomingText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -146,6 +150,57 @@ class MainActivity : Activity() {
         root.addView(disconnectButton)
 
         root.addView(TextView(this).apply {
+            text = "END-TO-END MESSAGE TEST"
+            textSize = 12f
+            alpha = 0.60f
+            setPadding(0, dp(30), 0, dp(8))
+        })
+
+        destinationInput = EditText(this).apply {
+            hint = "Recipient number with country code"
+            inputType = InputType.TYPE_CLASS_PHONE
+            setSingleLine(true)
+            isEnabled = false
+        }
+        root.addView(
+            destinationInput,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        messageInput = EditText(this).apply {
+            hint = "Test message"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            minLines = 2
+            maxLines = 5
+            isEnabled = false
+        }
+        root.addView(
+            messageInput,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        sendButton = Button(this).apply {
+            text = "Send test message"
+            isEnabled = false
+            setOnClickListener { sendTestMessage() }
+        }
+        root.addView(sendButton)
+
+        incomingText = TextView(this).apply {
+            text = "Incoming messages will appear here after linking."
+            textSize = 14f
+            setTextIsSelectable(true)
+            setPadding(0, dp(16), 0, dp(8))
+        }
+        root.addView(incomingText)
+
+        root.addView(TextView(this).apply {
             text = "The WhatsApp protocol runs inside this APK. No Termux, VPS, or separate web server is required."
             textSize = 13f
             alpha = 0.65f
@@ -158,6 +213,7 @@ class MainActivity : Activity() {
     private fun probeSavedSession() {
         worker.execute {
             try {
+                verifyMessageSurface()
                 val options = loadLatestOptions()
                 runOnUiThread {
                     hasSavedSession = options != null
@@ -238,7 +294,7 @@ class MainActivity : Activity() {
                     .getMethod("unregistered", java.lang.Long.TYPE, pairingClass)
                     .invoke(options, digits.toLong(), pairingHandler)
 
-                attachLoggedInListener(client)
+                attachSessionListeners(client)
                 currentClient = client
 
                 runOnUiThread {
@@ -273,7 +329,7 @@ class MainActivity : Activity() {
                 val client = registered.orElse(null)
                     ?: error("The saved session has not completed WhatsApp pairing yet.")
 
-                attachLoggedInListener(client)
+                attachSessionListeners(client)
                 currentClient = client
 
                 runOnUiThread {
@@ -290,15 +346,15 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun attachLoggedInListener(client: Any) {
-        val listenerClass = Class.forName(
+    private fun attachSessionListeners(client: Any) {
+        val loggedInClass = Class.forName(
             "com.github.auties00.cobalt.listener.LoggedInListener",
             true,
             classLoader
         )
-        val listener = Proxy.newProxyInstance(
-            listenerClass.classLoader,
-            arrayOf(listenerClass)
+        val loggedInListener = Proxy.newProxyInstance(
+            loggedInClass.classLoader,
+            arrayOf(loggedInClass)
         ) { proxy, method, args ->
             when (method.name) {
                 "onLoggedIn" -> {
@@ -308,6 +364,7 @@ class MainActivity : Activity() {
                         hasSavedSession = true
                         reconnectButton.isEnabled = true
                         disconnectButton.isEnabled = true
+                        setChatEnabled(true)
                         setStatus("Linked successfully. Credentials are stored locally on this phone.")
                     }
                     null
@@ -319,14 +376,189 @@ class MainActivity : Activity() {
             }
         }
 
-        val linkedClientClass = Class.forName(
-            "com.github.auties00.cobalt.client.linked.LinkedWhatsAppClient",
+        val newMessageClass = Class.forName(
+            "com.github.auties00.cobalt.listener.NewMessageListener",
             true,
             classLoader
         )
-        linkedClientClass
-            .getMethod("addLoggedInListener", listenerClass)
-            .invoke(client, listener)
+        val newMessageListener = Proxy.newProxyInstance(
+            newMessageClass.classLoader,
+            arrayOf(newMessageClass)
+        ) { proxy, method, args ->
+            when (method.name) {
+                "onNewMessage" -> {
+                    val info = args?.getOrNull(1)
+                    val rendered = renderMessage(info)
+                    runOnUiThread {
+                        appendEvent("RECEIVED  $rendered")
+                    }
+                    null
+                }
+                "toString" -> "AndroidNewMessageListener"
+                "hashCode" -> System.identityHashCode(proxy)
+                "equals" -> proxy === args?.firstOrNull()
+                else -> null
+            }
+        }
+
+        val whatsappClientClass = Class.forName(
+            "com.github.auties00.cobalt.client.WhatsAppClient",
+            true,
+            classLoader
+        )
+        whatsappClientClass
+            .getMethod("addLoggedInListener", loggedInClass)
+            .invoke(client, loggedInListener)
+        whatsappClientClass
+            .getMethod("addNewMessageListener", newMessageClass)
+            .invoke(client, newMessageListener)
+    }
+
+    private fun verifyMessageSurface() {
+        val jidClass = Class.forName(
+            "com.github.auties00.cobalt.wire.core.jid.Jid",
+            true,
+            classLoader
+        )
+        val jidProviderClass = Class.forName(
+            "com.github.auties00.cobalt.wire.core.jid.JidProvider",
+            true,
+            classLoader
+        )
+        val containerClass = Class.forName(
+            "com.github.auties00.cobalt.wire.linked.message.LinkedMessageContainer",
+            true,
+            classLoader
+        )
+        val newMessageClass = Class.forName(
+            "com.github.auties00.cobalt.listener.NewMessageListener",
+            true,
+            classLoader
+        )
+        val whatsappClientClass = Class.forName(
+            "com.github.auties00.cobalt.client.WhatsAppClient",
+            true,
+            classLoader
+        )
+
+        jidClass.getMethod("of", String::class.java)
+        containerClass.getMethod("of", String::class.java)
+        whatsappClientClass.getMethod("sendMessage", jidProviderClass, containerClass)
+        whatsappClientClass.getMethod("addNewMessageListener", newMessageClass)
+        Log.i(tag, "Cobalt send/receive reflection surface verified.")
+    }
+
+    private fun sendTestMessage() {
+        val client = currentClient
+        if (client == null) {
+            setStatus("Link or reconnect WhatsApp before sending.")
+            return
+        }
+
+        val digits = destinationInput.text.toString().filter(Char::isDigit)
+        val body = messageInput.text.toString().trim()
+        if (digits.length !in 8..15) {
+            setStatus("Enter the recipient's full international number with country code.")
+            return
+        }
+        if (body.isBlank()) {
+            setStatus("Enter a message to send.")
+            return
+        }
+
+        sendButton.isEnabled = false
+        setStatus("Sending test message…")
+
+        worker.execute {
+            try {
+                val jidClass = Class.forName(
+                    "com.github.auties00.cobalt.wire.core.jid.Jid",
+                    true,
+                    classLoader
+                )
+                val jidProviderClass = Class.forName(
+                    "com.github.auties00.cobalt.wire.core.jid.JidProvider",
+                    true,
+                    classLoader
+                )
+                val containerClass = Class.forName(
+                    "com.github.auties00.cobalt.wire.linked.message.LinkedMessageContainer",
+                    true,
+                    classLoader
+                )
+                val whatsappClientClass = Class.forName(
+                    "com.github.auties00.cobalt.client.WhatsAppClient",
+                    true,
+                    classLoader
+                )
+
+                val recipient = jidClass
+                    .getMethod("of", String::class.java)
+                    .invoke(null, digits)
+                val container = containerClass
+                    .getMethod("of", String::class.java)
+                    .invoke(null, body)
+                val key = whatsappClientClass
+                    .getMethod("sendMessage", jidProviderClass, containerClass)
+                    .invoke(client, recipient, container)
+
+                runOnUiThread {
+                    appendEvent("SENT  $digits: $body")
+                    messageInput.text.clear()
+                    sendButton.isEnabled = true
+                    setStatus("Message handed to Cobalt successfully. Key: ${key ?: "created"}")
+                }
+            } catch (error: Throwable) {
+                runOnUiThread { sendButton.isEnabled = true }
+                reportError("Sending test message", error)
+            }
+        }
+    }
+
+    private fun renderMessage(info: Any?): String {
+        if (info == null) {
+            return "[message payload unavailable]"
+        }
+
+        return try {
+            val key = info.javaClass.getMethod("key").invoke(info)
+            val senderOptional = key.javaClass.getMethod("senderJid").invoke(key) as Optional<*>
+            val sender = senderOptional.orElse(null)?.toString() ?: "unknown"
+            val fromMe = key.javaClass.getMethod("fromMe").invoke(key) as? Boolean ?: false
+
+            val container = info.javaClass.getMethod("message").invoke(info)
+            val content = container.javaClass.getMethod("content").invoke(container)
+            val textMethod = content.javaClass.methods.firstOrNull {
+                it.name == "text" && it.parameterCount == 0
+            }
+            val textValue = textMethod?.invoke(content)
+            val text = when (textValue) {
+                is Optional<*> -> textValue.orElse(null)?.toString()
+                null -> null
+                else -> textValue.toString()
+            }
+            val body = text?.takeIf { it.isNotBlank() } ?: "[${content.javaClass.simpleName}]"
+            "${if (fromMe) "me" else sender}: $body"
+        } catch (error: Throwable) {
+            Log.w(tag, "Could not render incoming message", error)
+            "[${info.javaClass.simpleName}]"
+        }
+    }
+
+    private fun appendEvent(value: String) {
+        val previous = incomingText.text?.toString().orEmpty()
+        incomingText.text = if (previous == "Incoming messages will appear here after linking." || previous.isBlank()) {
+            value
+        } else {
+            "$value\n$previous"
+        }
+        Log.i(tag, value)
+    }
+
+    private fun setChatEnabled(enabled: Boolean) {
+        destinationInput.isEnabled = enabled
+        messageInput.isEnabled = enabled
+        sendButton.isEnabled = enabled
     }
 
     private fun createFreshOptions(): Any {
@@ -381,6 +613,7 @@ class MainActivity : Activity() {
                 disconnectCurrentInternal()
                 runOnUiThread {
                     disconnectButton.isEnabled = false
+                    setChatEnabled(false)
                     setStatus("Disconnected. Your linked credentials remain stored locally.")
                 }
             } catch (error: Throwable) {
