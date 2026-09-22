@@ -31,6 +31,20 @@ The lab can additionally:
 - intentionally render the same secure test secret into a normal View, demonstrating an app-level source-data leak before secure composition
 - run PixelCopy against both SurfaceViews and report the platform result codes
 
+### System capability detector
+
+Checks:
+
+- whether the APK is a system or updated-system app
+- whether it matches the Android platform signature
+- whether CAPTURE_SECURE_VIDEO_OUTPUT, CAPTURE_VIDEO_OUTPUT, or READ_FRAME_BUFFER are actually granted
+- whether a normal private virtual display can be created
+- whether a VIRTUAL_DISPLAY_FLAG_SECURE display is accepted or rejected by Android
+- build tags, verified-boot/VBMeta properties, SELinux state, visible su binaries, and PATH su
+- optional explicit su -c id test
+
+The detector does not modify SurfaceFlinger.
+
 ### DRM inspector
 
 Shows:
