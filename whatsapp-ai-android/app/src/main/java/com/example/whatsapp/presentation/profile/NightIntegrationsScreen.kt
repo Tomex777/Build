@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.whatsapp.extensions.runtime.NightInstalledExtensionSummary
+import com.example.whatsapp.extensions.runtime.NightIntegrationCapability
 import com.example.whatsapp.extensions.runtime.NightIntegrationSummary
 import com.example.whatsapp.extensions.runtime.asNightIntegration
 import com.example.whatsapp.extensions.tools.NightMcpServerRuntimeState
@@ -70,6 +71,9 @@ fun NightIntegrationsScreen(
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onSetExtensionEnabled: (NightInstalledExtensionSummary, Boolean) -> Unit,
+    preferredExtensionIds: Map<NightIntegrationCapability, String> = emptyMap(),
+    onSetPreferredExtension: (NightIntegrationCapability, NightInstalledExtensionSummary) -> Unit =
+        { _, _ -> },
     onSaveMcp: (
         existingId: String?,
         displayName: String,
@@ -92,6 +96,15 @@ fun NightIntegrationsScreen(
         mutableStateOf<NightMcpServerRuntimeState?>(null)
     }
     var showAddMcp by remember { mutableStateOf(false) }
+
+    val enabledProviderCountByCapability =
+        remember(extensions) {
+            NightIntegrationCapability.entries.associateWith { capability ->
+                extensions.count {
+                    it.enabled && capability in it.capabilities
+                }
+            }
+        }
 
     val integrations =
         remember(extensions, servers) {
@@ -212,6 +225,76 @@ fun NightIntegrationsScreen(
                             },
                             toggleEnabled = extension.enabled || extension.error == null,
                             statusAccent = extension.enabled,
+                            footer = {
+                                if (extension.capabilities.isNotEmpty()) {
+                                    Text(
+                                        text =
+                                            extension.capabilities
+                                                .map { it.wireName }
+                                                .sorted()
+                                                .joinToString(" • ") {
+                                                    it.replaceFirstChar { ch ->
+                                                        ch.uppercase()
+                                                    }
+                                                },
+                                        color = IntegrationMuted,
+                                        fontSize = 10.sp,
+                                        modifier = Modifier.padding(
+                                            start = 10.dp,
+                                            bottom = 2.dp,
+                                        ),
+                                    )
+                                }
+
+                                extension.capabilities
+                                    .sortedBy { it.wireName }
+                                    .forEach { capability ->
+                                        val providerCount =
+                                            enabledProviderCountByCapability[
+                                                capability
+                                            ] ?: 0
+                                        if (extension.enabled && providerCount > 1) {
+                                            val preferred =
+                                                preferredExtensionIds[
+                                                    capability
+                                                ] == extension.extensionId
+                                            TextButton(
+                                                onClick = {
+                                                    if (!preferred) {
+                                                        onSetPreferredExtension(
+                                                            capability,
+                                                            extension,
+                                                        )
+                                                    }
+                                                },
+                                            ) {
+                                                Text(
+                                                    text =
+                                                        if (preferred) {
+                                                            "Preferred for " +
+                                                                capability.wireName
+                                                                    .replaceFirstChar {
+                                                                        it.uppercase()
+                                                                    }
+                                                        } else {
+                                                            "Use for " +
+                                                                capability.wireName
+                                                                    .replaceFirstChar {
+                                                                        it.uppercase()
+                                                                    }
+                                                        },
+                                                    color =
+                                                        if (preferred) {
+                                                            IntegrationAccent
+                                                        } else {
+                                                            IntegrationMuted
+                                                        },
+                                                    fontSize = 11.sp,
+                                                )
+                                            }
+                                        }
+                                    }
+                            },
                         )
                     }
 
