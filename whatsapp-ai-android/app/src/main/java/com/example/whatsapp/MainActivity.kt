@@ -69,6 +69,7 @@ import com.example.whatsapp.presentation.chatscreen.ChoiceResultMessage
 import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
 import com.example.whatsapp.presentation.chatscreen.ExtensionResultMessage
 import com.example.whatsapp.presentation.chatscreen.MangaResultMessage
+import com.example.whatsapp.presentation.chatscreen.LyricsResultMessage
 import com.example.whatsapp.presentation.chatscreen.NightBlockMessage
 import com.example.whatsapp.presentation.chatscreen.NightMessageBlockCodec
 import com.example.whatsapp.presentation.chatscreen.NightRichMessageCodec
@@ -2526,6 +2527,17 @@ private fun NightMessageEntity.toVisualMessage(
                 .ifBlank { "Read" },
         )
 
+        "lyrics" -> LyricsResultMessage(
+            id = id,
+            title = payload?.optString("title").orEmpty().ifBlank {
+                text.ifBlank { "Lyrics" }
+            },
+            artist = payload?.optString("artist").orEmpty(),
+            lyrics = payload?.optString("lyrics").orEmpty().ifBlank { text },
+            source = payload?.optString("source").orEmpty(),
+            time = time,
+        )
+
         "extension" -> {
             val snapshot = ExtensionMessageCodec.decode(payloadJson)
             if (snapshot != null) {
@@ -2625,6 +2637,14 @@ private fun NightMessageEntity.toReplyPreview(): ReplyPreview {
             kind = ReplyKind.Audio,
             thumbnailPath = payload?.optString("artworkPath")?.takeIf { it.isNotBlank() },
             meta = payload?.optString("duration")?.takeIf { it.isNotBlank() },
+        )
+
+        "lyrics" -> ReplyPreview(
+            messageId = id,
+            author = author,
+            text = payload?.optString("title").orEmpty().ifBlank { text.ifBlank { "Lyrics" } },
+            kind = ReplyKind.Rich,
+            meta = payload?.optString("artist")?.takeIf { it.isNotBlank() },
         )
 
         "voice" -> ReplyPreview(
