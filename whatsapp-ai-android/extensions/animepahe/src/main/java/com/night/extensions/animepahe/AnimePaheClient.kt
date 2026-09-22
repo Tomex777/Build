@@ -224,7 +224,7 @@ class AnimePaheSessionStore(
             .lowercase(Locale.US)
 
     companion object {
-        const val DEFAULT_BASE_URL = "https://animepahe.ng"
+        const val DEFAULT_BASE_URL = "https://animepahe.pw"
         const val DEFAULT_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 16; Mobile) AppleWebKit/537.36 " +
                 "(KHTML, like Gecko) Chrome/135.0.0.0 Mobile Safari/537.36"
@@ -684,12 +684,33 @@ class AnimePaheClient(
         body: String?,
     ): Boolean {
         if (code == 403 || code == 419) return true
-        if (code != 503) return false
-        val lower = body.orEmpty().lowercase(Locale.US)
-        return lower.contains("cloudflare") ||
-            lower.contains("cf-chl") ||
-            lower.contains("just a moment") ||
-            lower.contains("challenge")
+        if (code != 200 && code != 503) return false
+        return looksLikeChallenge(body.orEmpty())
+    }
+
+    private fun looksLikeChallenge(body: String): Boolean {
+        if (body.length > 500_000) return false
+
+        val document = org.jsoup.Jsoup.parse(body)
+        val title = document.title().trim()
+        val visibleText = document.body()?.text().orEmpty().take(2_000)
+
+        val challengeTitle =
+            title.contains("Just a moment", true) ||
+                title.contains("Attention Required", true)
+
+        val challengeText =
+            visibleText.contains("Checking your browser", true) ||
+                visibleText.contains("Verify you are human", true) ||
+                visibleText.contains("Performing security verification", true) ||
+                visibleText.contains("Enable JavaScript and cookies to continue", true)
+
+        val cloudflareShell =
+            body.contains("cf-chl-", true) ||
+                body.contains("challenge-platform", true) ||
+                body.contains("cf-turnstile", true)
+
+        return challengeTitle || (cloudflareShell && challengeText)
     }
 
     internal fun decryptKwik(

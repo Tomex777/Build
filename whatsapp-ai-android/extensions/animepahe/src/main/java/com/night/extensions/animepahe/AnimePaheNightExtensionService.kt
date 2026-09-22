@@ -23,6 +23,7 @@ import org.json.JSONObject
 class AnimePaheNightExtensionService : NightExtensionService() {
     private val store by lazy { AnimePaheSessionStore(this) }
     private val client by lazy { AnimePaheClient(store) }
+    private val hlsResolver by lazy { PaheBatcherHlsResolver(store) }
 
     override fun descriptor(): JSONObject =
         nightExtensionDescriptor(
@@ -396,7 +397,15 @@ class AnimePaheNightExtensionService : NightExtensionService() {
         val selected =
             client.selectPreferredSource(sources)
         val resolved =
-            client.resolveDirectMp4(selected)
+            hlsResolver.resolve(
+                source = selected,
+                playUrl =
+                    store.baseUrl() +
+                        "/play/" +
+                        animeSession +
+                        "/" +
+                        episodeSession,
+            )
 
         return JSONObject()
             .put("ok", true)
