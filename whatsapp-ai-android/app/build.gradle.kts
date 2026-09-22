@@ -48,6 +48,14 @@ android {
         compose = true
     }
 
+    // libVLC and FFmpeg-kit both bundle the C++ shared runtime. They must share
+    // one packaged copy per ABI instead of failing mergeNativeLibs as a duplicate.
+    packaging {
+        jniLibs {
+            pickFirsts += "**/libc++_shared.so"
+        }
+    }
+
     // Keep native media libraries out of one oversized universal APK.
     // Users install the APK matching their CPU; universal remains available for CI/debugging.
     splits {
