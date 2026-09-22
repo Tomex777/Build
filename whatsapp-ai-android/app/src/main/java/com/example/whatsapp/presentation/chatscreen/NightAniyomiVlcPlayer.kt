@@ -270,7 +270,7 @@ internal fun NightAniyomiVlcPlayer(
     val activity = remember(context) { context.findNightActivity() }
     val appContext = context.applicationContext
     val virtualVideoDevice = remember { isNightVirtualVideoDevice() }
-    var softwareDecode by remember(item.localPath) { mutableStateOf(false) }
+    var softwareDecode by remember(item.localPath, item.requestHeaders) { mutableStateOf(false) }
     var hardwareRetryGeneration by remember(item.localPath) { mutableStateOf(0) }
     var hardwareRetryCount by remember(item.localPath) { mutableStateOf(0) }
     var userPaused by remember(item.localPath) { mutableStateOf(false) }
@@ -328,7 +328,7 @@ internal fun NightAniyomiVlcPlayer(
 
     val menuOpen = subtitleMenu || audioMenu || speedMenu || moreMenu
 
-    DisposableEffect(player, libVlc, item.localPath) {
+    DisposableEffect(player, libVlc, item.localPath, item.requestHeaders) {
         val media = Media(libVlc, mediaUri).apply {
             if (softwareDecode) {
                 // Do not call setHWDecoderEnabled(false, false) here: in this
@@ -340,6 +340,15 @@ internal fun NightAniyomiVlcPlayer(
                 setHWDecoderEnabled(true, false)
             }
             addOption(":network-caching=1500")
+            item.requestHeaders["Referer"]
+                ?.takeIf { it.isNotBlank() }
+                ?.let { addOption(":http-referrer=$it") }
+            item.requestHeaders["User-Agent"]
+                ?.takeIf { it.isNotBlank() }
+                ?.let { addOption(":http-user-agent=$it") }
+            item.requestHeaders["Cookie"]
+                ?.takeIf { it.isNotBlank() }
+                ?.let { addOption(":http-cookie=$it") }
         }
         player.media = media
         media.release()
