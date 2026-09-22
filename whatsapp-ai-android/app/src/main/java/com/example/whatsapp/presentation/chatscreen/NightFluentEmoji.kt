@@ -5,6 +5,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.InlineTextContent
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.appendInlineContent
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.em
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -75,6 +85,92 @@ fun NightFluentEmojiGlyph(
             )
         }
     }
+}
+
+@Composable
+fun NightFluentEmojiText(
+    text: String,
+    color: Color,
+    fontSize: TextUnit,
+    modifier: Modifier = Modifier,
+    lineHeight: TextUnit = TextUnit.Unspecified,
+    fontFamily: FontFamily? = null,
+    fontWeight: FontWeight? = null,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip,
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val loader = rememberNightFluentEmojiLoader(context)
+    val parsed =
+        remember(text) {
+            val used = linkedSetOf<String>()
+            val annotated =
+                buildAnnotatedString {
+                    var index = 0
+                    while (index < text.length) {
+                        val emoji =
+                            NightFluentEmoji.mappedEmoji.firstOrNull {
+                                text.startsWith(it, index)
+                            }
+                        if (emoji != null) {
+                            val inlineId =
+                                "night_fluent_" +
+                                    emoji.codePoints()
+                                        .toArray()
+                                        .joinToString("_")
+                            appendInlineContent(inlineId, emoji)
+                            used += emoji
+                            index += emoji.length
+                        } else {
+                            append(text[index])
+                            index += 1
+                        }
+                    }
+                }
+            annotated to used.toList()
+        }
+    val inline =
+        buildMap<String, InlineTextContent> {
+            parsed.second.forEach { emoji ->
+                val asset = NightFluentEmoji.assetUri(emoji) ?: return@forEach
+                val inlineId =
+                    "night_fluent_" +
+                        emoji.codePoints()
+                            .toArray()
+                            .joinToString("_")
+                put(
+                    inlineId,
+                    InlineTextContent(
+                        Placeholder(
+                            width = 1.15.em,
+                            height = 1.15.em,
+                            placeholderVerticalAlign =
+                                PlaceholderVerticalAlign.TextCenter,
+                        )
+                    ) {
+                        AsyncImage(
+                            model = asset,
+                            imageLoader = loader,
+                            contentDescription = emoji,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                )
+            }
+        }
+
+    Text(
+        text = parsed.first,
+        inlineContent = inline,
+        color = color,
+        fontSize = fontSize,
+        modifier = modifier,
+        lineHeight = lineHeight,
+        fontFamily = fontFamily,
+        fontWeight = fontWeight,
+        maxLines = maxLines,
+        overflow = overflow,
+    )
 }
 
 @Composable
