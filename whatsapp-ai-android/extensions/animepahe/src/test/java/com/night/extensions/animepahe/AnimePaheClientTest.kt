@@ -344,7 +344,6 @@ class AnimePaheClientTest {
 
         override fun audio(): String = audioValue
 
-        override fun parallelDownloads(): Int = 2
 
         override fun userAgent(): String = "Night AnimePahe Test"
 
