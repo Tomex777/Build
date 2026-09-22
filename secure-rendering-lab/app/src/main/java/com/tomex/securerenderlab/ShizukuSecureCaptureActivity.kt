@@ -158,10 +158,13 @@ class ShizukuSecureCaptureActivity :
         binding = false
 
         val uid = runCatching { remote?.serviceUid }.getOrNull()
+        val uidLabel =
+            if (uid == null) "" else " · UID " + uid
+        val shellLabel =
+            if (uid == 2000) " (shell)" else ""
+
         shizukuStatus.text =
-            "Shizuku user service connected"
-                + if (uid == null) "" else " · UID " + uid
-                + if (uid == 2000) " (shell)" else ""
+            "Shizuku user service connected" + uidLabel + shellLabel
     }
 
     override fun onServiceDisconnected(name: ComponentName?) {
