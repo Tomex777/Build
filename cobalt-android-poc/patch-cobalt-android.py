@@ -278,6 +278,43 @@ for path in lib_main.rglob("*.java"):
 
 print(f"Patched {virtual_changed_refs} virtual-thread references across {virtual_changed_files} Java files")
 
+
+# Java 21 SequencedCollection added List.getFirst/getLast. Android's Java
+# collection surface does not expose those APIs across minSdk 26, so backport
+# the production List usages used by the linked-message/login paths.
+sequenced_changed = 0
+for path in modules.rglob("src/main/java/**/*.java"):
+    text = path.read_text(encoding="utf-8")
+    original = text
+    # Cobalt's production getFirst() call sites are list-like indexed
+    # collections. Maven compilation below guards this assumption.
+    text = text.replace(".getFirst()", ".get(0)")
+    if text != original:
+        sequenced_changed += 1
+        path.write_text(text, encoding="utf-8")
+
+get_last_patches = {
+    modules / "lib/src/main/java/com/github/auties00/cobalt/export/LiveChatExporterService.java": (
+        ("names.getLast()", "names.get(names.size() - 1)"),
+    ),
+    modules / "lib/src/main/java/com/github/auties00/cobalt/sync/handler/UnarchiveChatsSettingHandler.java": (
+        ("mutations.getLast()", "mutations.get(mutations.size() - 1)"),
+    ),
+}
+for path, patches in get_last_patches.items():
+    text = path.read_text(encoding="utf-8")
+    for old, new in patches:
+        if old in text:
+            text = text.replace(old, new)
+    path.write_text(text, encoding="utf-8")
+
+for path in modules.rglob("src/main/java/**/*.java"):
+    text = path.read_text(encoding="utf-8")
+    if ".getFirst()" in text or ".getLast()" in text:
+        raise SystemExit(f"Java 21 list accessor remains in {path.relative_to(root)}")
+
+print(f"Backported Java 21 list accessors in {sequenced_changed} source files")
+
 logger_path = modules / "telemetry-core/src/main/java/com/github/auties00/cobalt/telemetry/log/Logger.java"
 logger_path.write_text(r'''package com.github.auties00.cobalt.telemetry.log;
 
