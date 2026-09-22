@@ -65,6 +65,7 @@ private val Accent = Color(0xFF21C063)
 fun NightFilesTab(
     onTabSelected: (MainTab) -> Unit,
     onSettingsClick: () -> Unit,
+    accentColor: Color = Color(0xFFD44368),
 ) {
     val context = LocalContext.current
     val repository = remember { NightRepository.get(context.applicationContext) }
@@ -92,11 +93,12 @@ fun NightFilesTab(
         title = "Library",
         onSettingsClick = onSettingsClick,
         showCamera = false,
+        accentColor = accentColor,
         floatingAction = {
             FloatingActionButton(
                 onClick = { picker.launch(arrayOf("*/*")) },
-                containerColor = Accent,
-                contentColor = Color(0xFF08110C),
+                containerColor = accentColor,
+                contentColor = Color.White,
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.size(56.dp),
             ) {
@@ -109,7 +111,10 @@ fun NightFilesTab(
         },
     ) {
         if (files.isEmpty()) {
-            EmptyLibrary(onAdd = { picker.launch(arrayOf("*/*")) })
+            EmptyLibrary(
+                onAdd = { picker.launch(arrayOf("*/*")) },
+                accentColor = accentColor,
+            )
         } else {
             LazyColumn(
                 modifier = Modifier
@@ -144,6 +149,7 @@ fun NightFilesTab(
                     LibraryFileRow(
                         file = file,
                         readableManga = readableManga,
+                        accentColor = accentColor,
                         onClick = {
                             if (readableManga) {
                                 context.startActivity(
@@ -163,7 +169,10 @@ fun NightFilesTab(
 }
 
 @Composable
-private fun EmptyLibrary(onAdd: () -> Unit) {
+private fun EmptyLibrary(
+    onAdd: () -> Unit,
+    accentColor: Color,
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -181,7 +190,7 @@ private fun EmptyLibrary(onAdd: () -> Unit) {
                     Icon(
                         imageVector = Icons.Default.Folder,
                         contentDescription = null,
-                        tint = Accent,
+                        tint = accentColor,
                         modifier = Modifier.size(38.dp),
                     )
                 }
@@ -214,7 +223,7 @@ private fun EmptyLibrary(onAdd: () -> Unit) {
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = null,
-                        tint = Accent,
+                        tint = accentColor,
                         modifier = Modifier.size(20.dp),
                     )
                     Spacer(modifier = Modifier.width(7.dp))
@@ -229,6 +238,7 @@ private fun EmptyLibrary(onAdd: () -> Unit) {
 private fun LibraryFileRow(
     file: NightLibraryItemEntity,
     readableManga: Boolean,
+    accentColor: Color,
     onClick: () -> Unit,
 ) {
     Surface(
@@ -256,7 +266,7 @@ private fun LibraryFileRow(
                             else -> Icons.Default.InsertDriveFile
                         },
                         contentDescription = null,
-                        tint = Accent,
+                        tint = accentColor,
                         modifier = Modifier.size(24.dp),
                     )
                 }
@@ -286,7 +296,7 @@ private fun LibraryFileRow(
                     } else {
                         "Available to Night • ID " + file.id.take(8)
                     },
-                    color = Accent,
+                    color = accentColor,
                     fontSize = 10.sp,
                     modifier = Modifier.padding(top = 3.dp),
                 )
