@@ -168,6 +168,35 @@ internal class MihonReaderPageView(
         loadJob?.cancel()
         imageView.recycle()
 
+        if (isWebtoon) {
+            // Give a remote/recycled page a stable footprint immediately.
+            // Without this, a not-yet-resolved image can briefly measure near
+            // zero height, collapsing the strip and moving the viewport.
+            val screenWidth =
+                resources.displayMetrics.widthPixels
+            val margin =
+                (
+                    screenWidth *
+                        (
+                            sidePaddingPercent
+                                .coerceIn(0, 25) / 100f
+                            )
+                    ).toInt()
+            pendingWebtoonLayout =
+                PendingWebtoonLayout(
+                    width =
+                        (screenWidth - margin * 2)
+                            .coerceAtLeast(1),
+                    height =
+                        resources.displayMetrics.heightPixels
+                            .coerceAtLeast(1) + gapPx,
+                    leftMargin = margin,
+                    rightMargin = margin,
+                    bottomMargin = gapPx,
+                )
+            applyPendingWebtoonLayout()
+        }
+
         loadJob = scope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
