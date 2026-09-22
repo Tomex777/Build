@@ -359,7 +359,7 @@ Deno.serve(async (req: Request) => {
   };
   const ttl =
     eventType === "incoming_call"
-      ? "45s"
+      ? "0s"
       : "3600s";
 
   for (const row of tokens) {

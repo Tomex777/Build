@@ -6,6 +6,7 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.net.ConnectivityManager
 import android.net.Network
+import android.net.NetworkCapabilities
 import android.media.projection.MediaProjection
 import android.os.Build
 import android.util.Log
@@ -13,6 +14,7 @@ import com.night.homira.data.CallSignalEnvelope
 import com.night.homira.data.HomiraCallSignaling
 import com.night.homira.data.HomiraTurnConfiguration
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -121,9 +123,13 @@ class HomiraWebRtcVoiceEngine(
     private var offerSent = false
     private var signalingReady = false
     private var signalJob: Job? = null
+    private var readyRetryJob: Job? = null
+    private var offerRetryJob: Job? = null
     private var iceRecoveryJob: Job? = null
     private var iceFailureDeadlineJob: Job? = null
     private var lastIceRestartAtMs = 0L
+    private var lastRemoteOfferSdp: String? = null
+    private var lastRemoteAnswerSdp: String? = null
 
     private val networkCallback =
         object : ConnectivityManager.NetworkCallback() {
@@ -137,11 +143,25 @@ class HomiraWebRtcVoiceEngine(
                         (previous != null && previous != network)
                 )
 
+                applyAdaptiveMediaProfile(network)
+
                 if (
                     previous != null &&
                     previous != network
                 ) {
                     scheduleNetworkPathRecovery()
+                }
+            }
+
+            override fun onCapabilitiesChanged(
+                network: Network,
+                networkCapabilities: NetworkCapabilities
+            ) {
+                if (lastObservedNetwork == network) {
+                    applyAdaptiveMediaProfile(
+                        network = network,
+                        capabilities = networkCapabilities
+                    )
                 }
             }
 
@@ -152,6 +172,9 @@ class HomiraWebRtcVoiceEngine(
                         "Default network lost; starting path recovery"
                     )
                     lastObservedNetwork = null
+                    applyAdaptiveMediaProfile(
+                        connectivityManager.activeNetwork
+                    )
                     scheduleNetworkPathRecovery()
                 }
             }
@@ -181,7 +204,6 @@ class HomiraWebRtcVoiceEngine(
 
         ensureWebRtcInitialized(appContext)
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-        _state.value = HomiraWebRtcState.Signaling
         registerNetworkCallback()
 
         audioDeviceModule = JavaAudioDeviceModule.builder(appContext)
@@ -235,43 +257,83 @@ class HomiraWebRtcVoiceEngine(
             listOf("homira-$callId")
         )
 
-        if (lowDataMode) {
-            applyLowDataProfile()
-        }
+        applyAdaptiveMediaProfile(
+            connectivityManager.activeNetwork
+        )
 
         if (initialVideoEnabled) {
             setVideoEnabled(true)
         }
 
-        signaling.connect()
-        signalingReady = true
-        signalJob = scope.launch {
+        signalJob = scope.launch(
+            start = CoroutineStart.UNDISPATCHED
+        ) {
             signaling.signals.collect { signal ->
                 if (signal.fromUserId != localUserId) {
                     handleSignal(signal)
                 }
             }
         }
+        signaling.connect()
+        signalingReady = true
+        _state.value = HomiraWebRtcState.Signaling
 
         sendLocalMediaState()
 
         if (!caller) {
-            signaling.send(
-                CallSignalEnvelope(
-                    type = "ready",
-                    fromUserId = localUserId
-                )
-            )
+            scheduleReadyHandshake()
         }
     }
 
     fun eglContext(): EglBase.Context = eglBase.eglBaseContext
 
-    private fun applyLowDataProfile() {
+    private data class MediaProfile(
+        val name: String,
+        val audioBitrateBps: Int,
+        val videoBitrateBps: Int,
+        val videoFps: Int,
+        val scaleDown: Double
+    )
+
+    private fun applyAdaptiveMediaProfile(
+        network: Network?,
+        capabilities: NetworkCapabilities? =
+            network?.let {
+                connectivityManager.getNetworkCapabilities(it)
+            }
+    ) {
+        val profile = when {
+            lowDataMode -> MediaProfile(
+                name = "low-data",
+                audioBitrateBps = 24_000,
+                videoBitrateBps = 350_000,
+                videoFps = 20,
+                scaleDown = 1.5
+            )
+
+            capabilities?.hasCapability(
+                NetworkCapabilities.NET_CAPABILITY_NOT_METERED
+            ) == true -> MediaProfile(
+                name = "high",
+                audioBitrateBps = 40_000,
+                videoBitrateBps = 2_000_000,
+                videoFps = 30,
+                scaleDown = 1.0
+            )
+
+            else -> MediaProfile(
+                name = "balanced",
+                audioBitrateBps = 32_000,
+                videoBitrateBps = 900_000,
+                videoFps = 24,
+                scaleDown = 1.25
+            )
+        }
+
         audioSender?.let { sender ->
             val parameters = sender.parameters
             parameters.encodings.forEach { encoding ->
-                encoding.maxBitrateBps = 24_000
+                encoding.maxBitrateBps = profile.audioBitrateBps
                 encoding.bitratePriority = 4.0
                 encoding.adaptiveAudioPacketTime = true
             }
@@ -281,13 +343,22 @@ class HomiraWebRtcVoiceEngine(
         videoSender?.let { sender ->
             val parameters = sender.parameters
             parameters.encodings.forEach { encoding ->
-                encoding.maxBitrateBps = 350_000
-                encoding.maxFramerate = 20
-                encoding.scaleResolutionDownBy = 1.5
+                encoding.maxBitrateBps = profile.videoBitrateBps
+                encoding.maxFramerate = profile.videoFps
+                encoding.scaleResolutionDownBy = profile.scaleDown
                 encoding.bitratePriority = 0.5
             }
             sender.parameters = parameters
         }
+
+        Log.i(
+            "HomiraWebRTC",
+            "Media quality profile=${profile.name} " +
+                "audio=${profile.audioBitrateBps} " +
+                "video=${profile.videoBitrateBps} " +
+                "fps=${profile.videoFps} " +
+                "scale=${profile.scaleDown}"
+        )
     }
 
     fun setMuted(muted: Boolean) {
@@ -581,6 +652,8 @@ class HomiraWebRtcVoiceEngine(
         signalingReady = false
 
         signalJob?.cancel()
+        readyRetryJob?.cancel()
+        offerRetryJob?.cancel()
         iceRecoveryJob?.cancel()
         iceFailureDeadlineJob?.cancel()
         networkChangeJob?.cancel()
@@ -647,12 +720,81 @@ class HomiraWebRtcVoiceEngine(
         scope.cancel()
     }
 
-    private suspend fun createAndSendOffer() {
-        if (offerSent) return
-        offerSent = true
-        val pc = requireNotNull(peerConnection)
-        val offer = pc.createOfferAwait()
-        pc.setLocalDescriptionAwait(offer)
+    private fun scheduleReadyHandshake() {
+        readyRetryJob?.cancel()
+        readyRetryJob = scope.launch {
+            repeat(16) { attempt ->
+                if (
+                    _state.value == HomiraWebRtcState.Closed ||
+                    remoteDescriptionSet
+                ) {
+                    return@launch
+                }
+
+                runCatching {
+                    signaling.send(
+                        CallSignalEnvelope(
+                            type = "ready",
+                            fromUserId = localUserId
+                        )
+                    )
+                }.onFailure { error ->
+                    Log.w(
+                        "HomiraWebRTC",
+                        "Could not send ready handshake",
+                        error
+                    )
+                }
+
+                if (attempt < 15) {
+                    delay(
+                        if (attempt < 4) {
+                            500L
+                        } else {
+                            1_000L
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    private fun scheduleOfferHandshakeRetry() {
+        offerRetryJob?.cancel()
+        offerRetryJob = scope.launch {
+            repeat(14) {
+                delay(850)
+
+                if (
+                    _state.value == HomiraWebRtcState.Closed ||
+                    remoteDescriptionSet
+                ) {
+                    return@launch
+                }
+
+                val currentOffer = peerConnection
+                    ?.localDescription
+                    ?.takeIf {
+                        it.type == SessionDescription.Type.OFFER
+                    }
+                    ?: return@launch
+
+                runCatching {
+                    sendOfferSignal(currentOffer)
+                }.onFailure { error ->
+                    Log.w(
+                        "HomiraWebRTC",
+                        "Could not retry offer handshake",
+                        error
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun sendOfferSignal(
+        offer: SessionDescription
+    ) {
         signaling.send(
             CallSignalEnvelope(
                 type = "offer",
@@ -663,10 +805,9 @@ class HomiraWebRtcVoiceEngine(
         )
     }
 
-    private suspend fun createAndSendAnswer() {
-        val pc = requireNotNull(peerConnection)
-        val answer = pc.createAnswerAwait()
-        pc.setLocalDescriptionAwait(answer)
+    private suspend fun sendAnswerSignal(
+        answer: SessionDescription
+    ) {
         signaling.send(
             CallSignalEnvelope(
                 type = "answer",
@@ -675,6 +816,33 @@ class HomiraWebRtcVoiceEngine(
                 sdpType = answer.type.canonicalForm()
             )
         )
+    }
+
+    private suspend fun createAndSendOffer() {
+        if (remoteDescriptionSet) return
+
+        val pc = requireNotNull(peerConnection)
+        if (!offerSent) {
+            val offer = pc.createOfferAwait()
+            pc.setLocalDescriptionAwait(offer)
+            offerSent = true
+        }
+
+        val currentOffer = pc.localDescription
+            ?.takeIf {
+                it.type == SessionDescription.Type.OFFER
+            }
+            ?: return
+
+        sendOfferSignal(currentOffer)
+        scheduleOfferHandshakeRetry()
+    }
+
+    private suspend fun createAndSendAnswer() {
+        val pc = requireNotNull(peerConnection)
+        val answer = pc.createAnswerAwait()
+        pc.setLocalDescriptionAwait(answer)
+        sendAnswerSignal(answer)
     }
 
     private fun registerNetworkCallback() {
@@ -863,9 +1031,23 @@ class HomiraWebRtcVoiceEngine(
 
             "offer" -> {
                 val sdp = signal.sdp ?: return
+                readyRetryJob?.cancel()
+
+                if (lastRemoteOfferSdp == sdp) {
+                    pc.localDescription
+                        ?.takeIf {
+                            it.type == SessionDescription.Type.ANSWER
+                        }
+                        ?.let { currentAnswer ->
+                            sendAnswerSignal(currentAnswer)
+                        }
+                    return
+                }
+
                 pc.setRemoteDescriptionAwait(
                     SessionDescription(SessionDescription.Type.OFFER, sdp)
                 )
+                lastRemoteOfferSdp = sdp
                 remoteDescriptionSet = true
                 flushPendingIce()
                 createAndSendAnswer()
@@ -873,10 +1055,14 @@ class HomiraWebRtcVoiceEngine(
 
             "answer" -> {
                 val sdp = signal.sdp ?: return
+                if (lastRemoteAnswerSdp == sdp) return
+
                 pc.setRemoteDescriptionAwait(
                     SessionDescription(SessionDescription.Type.ANSWER, sdp)
                 )
+                lastRemoteAnswerSdp = sdp
                 remoteDescriptionSet = true
+                offerRetryJob?.cancel()
                 flushPendingIce()
             }
 
@@ -922,6 +1108,8 @@ class HomiraWebRtcVoiceEngine(
 
                 PeerConnection.IceConnectionState.CONNECTED,
                 PeerConnection.IceConnectionState.COMPLETED -> {
+                    readyRetryJob?.cancel()
+                    offerRetryJob?.cancel()
                     iceRecoveryJob?.cancel()
                     iceFailureDeadlineJob?.cancel()
                     iceFailureDeadlineJob = null

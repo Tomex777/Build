@@ -603,6 +603,9 @@ fun HomiraProductionApp(
         var screenSharing by remember { mutableStateOf(false) }
         var remoteScreenSharing by remember { mutableStateOf(false) }
         var pendingOutgoingCall by remember { mutableStateOf<Pair<HomiraPerson, Boolean>?>(null) }
+        var incomingPushRequestedForCallId by remember {
+            mutableStateOf<String?>(null)
+        }
         var pendingIncomingAccept by remember { mutableStateOf(false) }
         var pendingVideoEnable by remember { mutableStateOf(false) }
 
@@ -1234,87 +1237,78 @@ fun HomiraProductionApp(
         fun startCallNow(person: HomiraPerson, video: Boolean) {
             liveScope.launch {
                 runCatching {
-                    liveRepository.startCall(calleeId = person.id, video = video)
+                    liveRepository.startCall(
+                        calleeId = person.id,
+                        video = video
+                    )
                 }.onSuccess { session ->
-                    val pushResult = runCatching {
-                        withTimeoutOrNull(6_000L) {
-                            liveRepository.requestIncomingCallPush(session.id)
-                        }
-                    }.onFailure {
-                        Log.e(
-                            "HomiraPush",
-                            "Incoming-call push request failed for ${session.id}",
-                            it
-                        )
-                    }.getOrNull()
+                    // Make caller signaling live immediately. Push delivery
+                    // and profile refresh must never delay the call channel.
+                    callHistoryStore.recordRinging(
+                        id = session.id,
+                        peerUserId = person.id,
+                        peerName = person.name,
+                        peerNumber = person.number,
+                        direction =
+                            HomiraCallHistoryStore.DIRECTION_OUTGOING,
+                        mediaType = session.mediaType
+                    )
+                    localCallHistory =
+                        callHistoryStore.listRecent()
 
-                    if (pushResult == null) {
-                        Log.w(
-                            "HomiraPush",
-                            "Incoming-call push timed out for ${session.id}"
-                        )
-                    } else if (pushResult.delivered <= 0) {
-                        Log.w(
-                            "HomiraPush",
-                            "Incoming-call push was not accepted: " +
-                                "reason=${pushResult.reason} error=${pushResult.error}"
-                        )
-                    }
+                    activeSession = session
+                    activePerson = person
+                    activeVideo = video
+                    minimized = false
 
-                    val refreshedPerson =
-                        if (person.avatarUri == null) {
-                            val profile = liveRepository.loadProfileById(person.id)
-                            if (profile == null) {
-                                person
-                            } else {
-                                val refreshedName = profile.displayName
+                    incomingCallNotifier?.showOngoing(
+                        callId = session.id,
+                        mediaType = session.mediaType,
+                        peerName = person.name,
+                        calling = true
+                    )
+
+                    if (person.avatarUri == null) {
+                        launch refresh@ {
+                            val profile = runCatching {
+                                liveRepository.loadProfileById(
+                                    person.id
+                                )
+                            }.getOrNull() ?: return@refresh
+
+                            val refreshedName =
+                                profile.displayName
                                     .takeIf { it.isNotBlank() }
                                     ?: profile.username
                                     ?: profile.phoneE164
                                     ?: person.name
 
-                                person.copy(
-                                    name = refreshedName,
-                                    marker = refreshedName
-                                        .firstOrNull()
-                                        ?.uppercaseChar()
-                                        ?.toString()
-                                        ?: person.marker,
-                                    number = profile.phoneE164
-                                        ?: person.number,
-                                    avatarUri = cacheProfileMediaP(
-                                        context,
-                                        liveRepository,
-                                        profile.avatarPath,
-                                        "${person.id}-avatar"
-                                    ),
-                                    callCardUri = null
-                                )
+                            val refreshedPerson = person.copy(
+                                name = refreshedName,
+                                marker = refreshedName
+                                    .firstOrNull()
+                                    ?.uppercaseChar()
+                                    ?.toString()
+                                    ?: person.marker,
+                                number = profile.phoneE164
+                                    ?: person.number,
+                                avatarUri = cacheProfileMediaP(
+                                    context,
+                                    liveRepository,
+                                    profile.avatarPath,
+                                    "${person.id}-avatar"
+                                ),
+                                callCardUri = null
+                            )
+
+                            if (
+                                activeSession?.id == session.id &&
+                                activePerson?.id == person.id
+                            ) {
+                                activePerson = refreshedPerson
                             }
-                        } else {
-                            person
                         }
-
-                    callHistoryStore.recordRinging(
-                        id = session.id,
-                        peerUserId = refreshedPerson.id,
-                        peerName = refreshedPerson.name,
-                        peerNumber = refreshedPerson.number,
-                        direction = HomiraCallHistoryStore.DIRECTION_OUTGOING,
-                        mediaType = session.mediaType
-                    )
-                    localCallHistory = callHistoryStore.listRecent()
-
-                    activeSession = session
-                    activePerson = refreshedPerson
-                    activeVideo = video
-                    minimized = false
-                    incomingCallNotifier?.showOngoing(
-                        callId = session.id,
-                        mediaType = session.mediaType,
-                        peerName = refreshedPerson.name,
-                        calling = true
-                    )
+                    }
                 }.onFailure {
                     Toast.makeText(
                         context,
@@ -2077,6 +2071,80 @@ fun HomiraProductionApp(
                 }
             } else {
                 runCatching { bridge.markActive() }
+            }
+        }
+
+        LaunchedEffect(
+            liveBackendReady,
+            activeSession?.id,
+            activeSession?.state,
+            webRtcState
+        ) {
+            if (!liveBackendReady) return@LaunchedEffect
+
+            val session = activeSession ?: return@LaunchedEffect
+            val localUserId =
+                liveRepository.currentUserId()
+                    ?: return@LaunchedEffect
+
+            if (
+                session.callerId != localUserId ||
+                session.state != "ringing" ||
+                webRtcState != HomiraWebRtcState.Signaling ||
+                incomingPushRequestedForCallId == session.id
+            ) {
+                return@LaunchedEffect
+            }
+
+            // Caller is now subscribed to signaling. Wake the callee only
+            // after this point so a fast "ready" cannot race ahead of us.
+            incomingPushRequestedForCallId = session.id
+
+            repeat(2) { attempt ->
+                val pushResult = runCatching {
+                    withTimeoutOrNull(6_000L) {
+                        liveRepository.requestIncomingCallPush(
+                            session.id
+                        )
+                    }
+                }.onFailure {
+                    Log.e(
+                        "HomiraPush",
+                        "Incoming-call push request failed for " +
+                            session.id,
+                        it
+                    )
+                }.getOrNull()
+
+                if (pushResult?.delivered?.let { it > 0 } == true) {
+                    Log.i(
+                        "HomiraPush",
+                        "Incoming-call push accepted for " +
+                            session.id +
+                            " attempts=" +
+                            pushResult.attempts
+                    )
+                    return@LaunchedEffect
+                }
+
+                if (pushResult == null) {
+                    Log.w(
+                        "HomiraPush",
+                        "Incoming-call push timed out for " +
+                            session.id
+                    )
+                } else {
+                    Log.w(
+                        "HomiraPush",
+                        "Incoming-call push was not accepted: " +
+                            "reason=${pushResult.reason} " +
+                            "error=${pushResult.error}"
+                    )
+                }
+
+                if (attempt == 0) {
+                    delay(900)
+                }
             }
         }
 

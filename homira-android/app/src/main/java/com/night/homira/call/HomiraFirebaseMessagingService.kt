@@ -18,11 +18,6 @@ class HomiraFirebaseMessagingService : FirebaseMessagingService() {
         persistMessagingTarget(installationId)
     }
 
-    @Deprecated("FCM registration tokens are being replaced by installation IDs")
-    override fun onNewToken(token: String) {
-        persistMessagingTarget(token)
-    }
-
     private fun persistMessagingTarget(target: String) {
         HomiraPushBootstrap.storeTarget(this, target)
 
