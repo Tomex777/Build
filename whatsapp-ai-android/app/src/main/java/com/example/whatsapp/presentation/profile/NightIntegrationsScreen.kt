@@ -235,11 +235,8 @@ fun NightIntegrationsScreen(
                                     Text(
                                         text =
                                             extension.capabilities
-                                                .map { it.wireName }
-                                                .sorted()
-                                                .joinToString(" • ") {
-                                                    it
-                                                },
+                                                .sortedBy { it.wireName }
+                                                .joinToString(" • ") { it.label },
                                         color = IntegrationMuted,
                                         fontSize = 10.sp,
                                         modifier = Modifier.padding(
@@ -278,10 +275,7 @@ fun NightIntegrationsScreen(
                                                                 capability.label
                                                         } else {
                                                             "Use for " +
-                                                                capability.wireName
-                                                                    .replaceFirstChar {
-                                                                        it.uppercase()
-                                                                    }
+                                                                capability.label
                                                         },
                                                     color =
                                                         if (preferred) {
