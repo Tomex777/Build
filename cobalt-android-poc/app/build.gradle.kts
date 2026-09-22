@@ -1,18 +1,23 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
-    namespace = "com.tomex.cobaltandroid"
+    namespace = "com.tomex.whatsappclient"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.tomex.cobaltandroid"
+        applicationId = "com.tomex.whatsappclient"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "0.1-poc"
+        versionName = "0.1.0"
+    }
+
+    buildFeatures {
+        compose = true
     }
 
     compileOptions {
@@ -34,9 +39,18 @@ android {
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.15.0")
-    implementation("androidx.activity:activity-ktx:1.10.1")
+    implementation("androidx.core:core-ktx:1.19.0")
+    implementation("androidx.activity:activity-compose:1.13.0")
 
-    // First test the published, unmodified Cobalt artifact.
+    val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
+    implementation(composeBom)
+    androidTestImplementation(composeBom)
+
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+
     implementation("com.github.auties00:cobalt-lib:0.1.0")
 }
