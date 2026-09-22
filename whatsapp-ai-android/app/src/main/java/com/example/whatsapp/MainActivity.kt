@@ -35,6 +35,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.example.whatsapp.data.NightFileLibrary
 import com.example.whatsapp.data.browser.NightBrowserVerification
+import com.example.whatsapp.presentation.browser.NightBrowserActivity
 import com.example.whatsapp.data.night.NightAgentToolExecutor
 import com.example.whatsapp.data.night.NightAiGateway
 import com.example.whatsapp.data.night.NightAppearanceController
@@ -1748,6 +1749,9 @@ private fun NightApp(initialChatId: String? = null) {
                 when (action) {
                     "Memory & summary" -> screen = "chat_memory"
                     "Files in chat" -> screen = "chat_files"
+                    "Browser" -> context.startActivity(
+                        NightBrowserActivity.createGeneralIntent(context)
+                    )
                     "Rename chat" -> {
                         renameValue = activeChat?.title.orEmpty()
                         renameOpen = true
@@ -2221,6 +2225,11 @@ private fun NightApp(initialChatId: String? = null) {
                 onLibraryStorageClick = {
                     selectedTabName = MainTab.Updates.name
                     screen = "tabs"
+                },
+                onBrowserClick = {
+                    context.startActivity(
+                        NightBrowserActivity.createGeneralIntent(context)
+                    )
                 },
                 onAppearanceClick = { screen = "appearance" },
                 onPrivacyClick = { screen = "settings" },
