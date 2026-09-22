@@ -20,27 +20,35 @@ jobs:
     timeout-minutes: 50
 
     steps:
-      - name: Checkout Torri privately
+      - name: Checkout build overlay
+        uses: actions/checkout@v4
+
+      - name: Checkout Mihon v0.20.4 base
         uses: actions/checkout@v4
         with:
-          repository: Tomex777/Torri
-          ref: 06d45527cddeb858b8691f7f19b184e7895b5ed6
+          repository: mihonapp/mihon
+          ref: df6507256acce8e7f3660783a3db6dbd1a31b6b5
           path: torri-src
           fetch-depth: 0
-          token: ${{ secrets.TORRI_TOKEN || secrets.GH_PAT || secrets.PAT || secrets.GITHUB_PAT || secrets.PERSONAL_ACCESS_TOKEN || secrets.REPO_TOKEN }}
 
-      - name: Verify requested Android SDK configuration
+      - name: Apply Torri overlay
         run: |
+          cp -a torri-overlay/. torri-src/
+          rm -f torri-src/app/google-services.json
+          rm -f torri-src/app/src/main/res/drawable/ic_mihon.xml
+          rm -f torri-src/app/src/main/res/drawable/ic_mihon_splash.xml
+
+          echo "Requested SDK configuration:"
           grep 'android-sdk-' torri-src/gradle/mihon.versions.toml
           grep -q 'android-sdk-min = "26"' torri-src/gradle/mihon.versions.toml
           grep -q 'android-sdk-compile = "36"' torri-src/gradle/mihon.versions.toml
           grep -q 'android-sdk-target = "36"' torri-src/gradle/mihon.versions.toml
 
-      - name: Set up Java
+      - name: Set up Java 21
         uses: actions/setup-java@v5
         with:
-          java-version-file: torri-src/.github/.java-version
           distribution: temurin
+          java-version: "21"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
