@@ -531,11 +531,24 @@ internal fun NightVlcVideoSurface(
             val stoppedAdvancing =
                 lastObservedPosition >= 500L &&
                     now - lastAdvanceAt >= 3000L
+            val missingTimeline =
+                currentLength <= 0L &&
+                    currentPosition < 500L &&
+                    !currentPlaying &&
+                    now - startedAt >= 9000L
+            val beforeEnd =
+                currentLength <= 0L ||
+                    currentPosition <
+                    (currentLength - 1500L).coerceAtLeast(0L)
 
             if (
-                currentLength > 0L &&
-                currentPosition < (currentLength - 1500L).coerceAtLeast(0L) &&
-                (beforeFirstFrame || stoppedAfterStarting || stoppedAdvancing)
+                beforeEnd &&
+                (
+                    missingTimeline ||
+                        beforeFirstFrame ||
+                        stoppedAfterStarting ||
+                        stoppedAdvancing
+                    )
             ) {
                 fallbackResumePosition = currentPosition
                 if (virtualVideoDevice && hardwareRetryCount < 2) {
