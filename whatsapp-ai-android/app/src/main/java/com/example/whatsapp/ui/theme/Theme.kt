@@ -16,7 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = WhatsAppGreen,
+    primary = NightDefaultAccent,
     secondary = WhatsAppMintGreen,
     tertiary = Pink80,
     background = DarkBackground,
