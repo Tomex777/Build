@@ -19,11 +19,17 @@ Toggles WindowManager.LayoutParams.FLAG_SECURE on the Activity and then requests
 
 Expected: the physical display still shows the Activity while the capture path omits or blacks the protected window.
 
+The 0.2 lab also has a controlled self-bypass: the Activity deliberately clears its own FLAG_SECURE immediately before one capture and restores it afterwards. This demonstrates policy removal by the protected app itself, not an OS-level bypass.
+
 ### Secure SurfaceView
 
 Places a normal SurfaceView and a SurfaceView created with setSecure(true) in one Activity.
 
 Expected: both are visible on the physical display; the secure surface should be omitted from an insecure capture.
+
+The lab can additionally:
+- intentionally render the same secure test secret into a normal View, demonstrating an app-level source-data leak before secure composition
+- run PixelCopy against both SurfaceViews and report the platform result codes
 
 ### DRM inspector
 
@@ -54,4 +60,4 @@ This project does not:
 - capture secure content from other apps
 - bypass Widevine or other DRM systems
 
-It is a play box for seeing Android's documented protection boundaries on a real device.
+It is a play box for seeing Android's documented protection boundaries on a real device. Controlled exposure modes only reveal this app's own synthetic test content.
