@@ -5,7 +5,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.example.whatsapp.presentation.shell.MainTab
 import com.example.whatsapp.presentation.shell.ModernCallsTab
 import com.example.whatsapp.presentation.shell.ModernChatsTab
 import com.example.whatsapp.presentation.shell.ModernCommunitiesTab
@@ -46,6 +45,8 @@ class MainTabsPreviewActivity : ComponentActivity() {
                         onMemoryClick = {},
                         onSchedulesClick = {},
                         onLibraryStorageClick = {},
+                        onMediaLibraryClick = {},
+                        onBrowserClick = {},
                         onAppearanceClick = {},
                         onPrivacyClick = {},
                         onSettingsClick = {},
