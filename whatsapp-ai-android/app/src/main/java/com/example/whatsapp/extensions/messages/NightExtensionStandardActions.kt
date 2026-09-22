@@ -3,6 +3,7 @@ package com.example.whatsapp.extensions.messages
 object NightExtensionStandardActions {
     const val PLAY_MEDIA = "night.media.play"
     const val DOWNLOAD_MEDIA = "night.media.download"
+    const val REFRESH_MEDIA = "night.media.refresh"
     const val ADD_TO_LIBRARY = "night.media.library.add"
     const val REMOVE_FROM_LIBRARY = "night.media.library.remove"
     const val ADD_TO_PLAYLIST = "night.media.playlist.add"
