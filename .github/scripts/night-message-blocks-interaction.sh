@@ -22,29 +22,29 @@ for attempt in 1 2 3; do
   adb shell uiautomator dump /sdcard/blocks-ready.xml >/dev/null 2>&1 || true
   adb exec-out cat /sdcard/blocks-ready.xml > /tmp/blocks-ready.xml 2>/dev/null || true
 
-  if grep -qi "isn't responding" /tmp/blocks-ready.xml 2>/dev/null; then
-    read -r wait_x wait_y <<<"$(python3 - <<'PY'
+  if grep -qi "Quickstep isn't responding" /tmp/blocks-ready.xml 2>/dev/null; then
+    read -r close_x close_y <<<"$(python3 - <<'PY'
 import re
 import xml.etree.ElementTree as ET
 try:
     root = ET.parse("/tmp/blocks-ready.xml").getroot()
 except Exception:
-    print("350 865")
+    print("350 755")
     raise SystemExit(0)
 for node in root.iter("node"):
-    if node.attrib.get("resource-id") == "android:id/aerr_wait":
+    if (
+        node.attrib.get("resource-id") == "android:id/aerr_close"
+        or node.attrib.get("text") == "Close app"
+    ):
         nums = [int(x) for x in re.findall(r"\d+", node.attrib.get("bounds", ""))]
         if len(nums) == 4:
             print((nums[0] + nums[2]) // 2, (nums[1] + nums[3]) // 2)
             raise SystemExit(0)
-print("350 865")
+print("350 755")
 PY
 )"
-    adb shell input tap "$wait_x" "$wait_y" || true
+    adb shell input tap "$close_x" "$close_y" || true
     sleep 2
-    adb shell am force-stop com.example.whatsapp
-    adb shell am start -W -n com.example.whatsapp/.ChatPreviewActivity --es mode blocks >/dev/null
-    sleep 3
     continue
   fi
 
