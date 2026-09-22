@@ -58,7 +58,7 @@ tap_desc() {
   for _ in $(seq 1 10); do
     refresh_ui
     if coords="$(python3 /tmp/night_integrations_uia.py desc_click "$wanted" 2>/dev/null)"; then
-      adb shell input tap "\${coords% *}" "\${coords#* }"
+      adb shell input tap "${coords% *}" "${coords#* }"
       sleep 1
       return 0
     fi
