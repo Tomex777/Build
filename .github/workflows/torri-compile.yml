@@ -50,13 +50,14 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Android SDK 36 and NDK
         run: |
-          yes | sdkmanager --licenses >/dev/null 2>&1 || true
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865"
+          SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865"
 
       - name: Compile Torri release APKs
         working-directory: torri-src
