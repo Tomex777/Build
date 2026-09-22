@@ -22,4 +22,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "Whatsapp"
 include(":app")
+include(":night-extension-sdk")
+include(":extensions:animepahe")
  
