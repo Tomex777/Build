@@ -42,18 +42,23 @@ abstract class BaseCaptureActivity : Activity() {
             val error = intent?.getStringExtra(CaptureService.EXTRA_ERROR)
             if (error != null) {
                 captureStatus.text = "Capture failed: " + error
+                onObserverCaptureFinished(null, error)
                 return
             }
 
             val path = intent?.getStringExtra(CaptureService.EXTRA_PATH)
             if (path.isNullOrBlank()) {
-                captureStatus.text = "Capture finished, but no image path was returned."
+                val message = "Capture finished, but no image path was returned."
+                captureStatus.text = message
+                onObserverCaptureFinished(null, message)
                 return
             }
 
             val bitmap = BitmapFactory.decodeFile(path)
             if (bitmap == null) {
-                captureStatus.text = "Capture file could not be decoded: " + path
+                val message = "Capture file could not be decoded: " + path
+                captureStatus.text = message
+                onObserverCaptureFinished(path, message)
                 return
             }
 
@@ -61,6 +66,7 @@ abstract class BaseCaptureActivity : Activity() {
             captureStatus.text =
                 "Captured by MediaProjection · " + bitmap.width + "×" + bitmap.height +
                     "\nSaved in this app's cache for inspection."
+            onObserverCaptureFinished(path, null)
         }
     }
 
@@ -105,13 +111,15 @@ abstract class BaseCaptureActivity : Activity() {
             )
         }
 
-    private fun requestOneFrame() {
+    protected fun requestOneFrame() {
         val manager =
             getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         captureStatus.text = "Waiting for Android's capture permission…"
         @Suppress("DEPRECATION")
         startActivityForResult(manager.createScreenCaptureIntent(), captureRequestCode)
     }
+
+    protected open fun onObserverCaptureFinished(path: String?, error: String?) = Unit
 
     @Deprecated("Deprecated in Android framework but retained here to support API 26 without an AndroidX activity dependency.")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
