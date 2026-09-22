@@ -83,6 +83,49 @@ if "java.lang.foreign" in data_utils or "MemorySegment" in data_utils or "ValueL
     raise SystemExit("Foreign-memory references remain in patched DataUtils")
 data_utils_path.write_text(data_utils, encoding="utf-8")
 
+
+# Android's java.nio.file.Files surface does not provide the Java 11
+# readString/writeString helpers across our minSdk range. Replace the few
+# production uses with Java-7-era byte APIs that Android API 26 supports.
+file_api_patches = {
+    modules / "lib/src/main/java/com/github/auties00/cobalt/store/linked/protobuf/persistent/PersistentLinkedWhatsAppStoreFactory.java": (
+        ("Files.writeString(temp, sessionId);",
+         "Files.write(temp, sessionId.getBytes(java.nio.charset.StandardCharsets.UTF_8));"),
+        ("var sessionId = Files.readString(pointer).strip();",
+         "var sessionId = new String(Files.readAllBytes(pointer), java.nio.charset.StandardCharsets.UTF_8).trim();"),
+    ),
+    modules / "lib/src/main/java/com/github/auties00/cobalt/store/cloud/protobuf/PersistentCloudWhatsAppStoreFactory.java": (
+        ("Files.writeString(temp, phoneNumberId);",
+         "Files.write(temp, phoneNumberId.getBytes(java.nio.charset.StandardCharsets.UTF_8));"),
+        ("var phoneNumberId = Files.readString(pointer).strip();",
+         "var phoneNumberId = new String(Files.readAllBytes(pointer), java.nio.charset.StandardCharsets.UTF_8).trim();"),
+    ),
+    modules / "lib/src/main/java/com/github/auties00/cobalt/client/linked/WhatsAppLinkedClientErrorHandler.java": (
+        ("Files.writeString(path, stackTraceWriter.toString(), StandardOpenOption.CREATE);",
+         "Files.write(path, stackTraceWriter.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8), StandardOpenOption.CREATE);"),
+    ),
+    modules / "lib/src/main/java/com/github/auties00/cobalt/client/linked/info/WhatsAppAndroidClientInfo.java": (
+        ("Files.writeString(path, json.toJSONString());",
+         "Files.write(path, json.toJSONString().getBytes(java.nio.charset.StandardCharsets.UTF_8));"),
+    ),
+}
+
+for path, patches in file_api_patches.items():
+    text = path.read_text(encoding="utf-8")
+    for old, new in patches:
+        if old not in text:
+            raise SystemExit(f"Expected Android Files API target not found in {path.relative_to(root)}: {old}")
+        text = text.replace(old, new)
+    path.write_text(text, encoding="utf-8")
+
+# Guard against accidentally leaving these unsupported Java 11 convenience
+# calls in production Cobalt code.
+main_java_root = modules / "lib/src/main/java"
+for path in main_java_root.rglob("*.java"):
+    text = path.read_text(encoding="utf-8")
+    if "Files.writeString(" in text or "Files.readString(" in text:
+        raise SystemExit(f"Unsupported Files.readString/writeString remains in {path.relative_to(root)}")
+
 logger_path = modules / "telemetry-core/src/main/java/com/github/auties00/cobalt/telemetry/log/Logger.java"
 logger_path.write_text(r'''package com.github.auties00.cobalt.telemetry.log;
 
