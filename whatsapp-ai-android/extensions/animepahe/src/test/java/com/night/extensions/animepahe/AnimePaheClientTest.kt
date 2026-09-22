@@ -302,6 +302,35 @@ class AnimePaheClientTest {
         assertEquals("B", selected.fansub)
     }
 
+    @Test
+    fun qualityFallbackMatchesPaheBatcherNearestLowerRule() {
+        session.qualityValue = "360"
+        session.audioValue = "sub"
+
+        val selected =
+            client.selectPreferredSource(
+                listOf(
+                    AnimePaheSource(
+                        kwikUrl = "https://kwik.example/1080",
+                        downloadPageUrl = null,
+                        resolution = 1080,
+                        audio = "jpn",
+                        fansub = "A",
+                    ),
+                    AnimePaheSource(
+                        kwikUrl = "https://kwik.example/720",
+                        downloadPageUrl = null,
+                        resolution = 720,
+                        audio = "jpn",
+                        fansub = "B",
+                    ),
+                )
+            )
+
+        assertEquals(720, selected.resolution)
+        assertEquals("B", selected.fansub)
+    }
+
     private class FakeSession(
         private val baseUrl: String,
     ) : AnimePaheSession {

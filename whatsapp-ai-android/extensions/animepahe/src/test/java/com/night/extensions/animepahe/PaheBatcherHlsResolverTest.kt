@@ -50,11 +50,15 @@ class PaheBatcherHlsResolverTest {
                 )
         )
 
+        val kwikUrl =
+            server.url("/e/Qc04STuVaA4f")
+                .toString()
+
         val result =
             resolver.resolve(
                 source =
                     AnimePaheSource(
-                        kwikUrl = server.url("/e/Qc04STuVaA4f").toString(),
+                        kwikUrl = kwikUrl,
                         downloadPageUrl = null,
                         resolution = 1080,
                         audio = "jpn",
@@ -68,8 +72,10 @@ class PaheBatcherHlsResolverTest {
             "application/vnd.apple.mpegurl",
             result.mimeType,
         )
-        assertTrue(result.headers["Referer"].orEmpty().endsWith("/"))
-        assertTrue(result.headers["Origin"].orEmpty().startsWith("http"))
+        assertEquals(
+            kwikUrl,
+            result.headers["Referer"],
+        )
         assertEquals("Night PaheBatcher Test", result.headers["User-Agent"])
 
         val request = server.takeRequest()

@@ -41,15 +41,13 @@ class PaheBatcherHlsResolver(
                     ?: throw IOException(
                         "Kwik page loaded, but no HLS URL could be extracted."
                     )
-                val origin = originOf(url)
                 return AnimePaheResolvedMedia(
                     url = hls,
                     mimeType = HLS_MIME_TYPE,
                     headers =
                         buildMap {
                             put("User-Agent", session.userAgent())
-                            put("Referer", "$origin/")
-                            put("Origin", origin)
+                            put("Referer", url)
                             session.cookieForUrl(hls)
                                 .takeIf { it.isNotBlank() }
                                 ?.let { put("Cookie", it) }
@@ -222,12 +220,6 @@ class PaheBatcherHlsResolver(
                 uri.fragment,
             ).toString()
         }.getOrNull()
-
-    private fun originOf(url: String): String =
-        runCatching {
-            val uri = URI(url)
-            "${uri.scheme}://${uri.host}"
-        }.getOrDefault("https://kwik.cx")
 
     companion object {
         const val HLS_MIME_TYPE = "application/vnd.apple.mpegurl"

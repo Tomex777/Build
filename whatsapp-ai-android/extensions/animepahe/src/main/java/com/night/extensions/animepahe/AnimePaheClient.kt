@@ -547,22 +547,18 @@ class AnimePaheClient(
                 .takeIf { it != "auto" }
                 ?.toIntOrNull()
 
-        return if (desired == null) {
-            languageMatches.maxByOrNull { it.resolution ?: 0 }
-                ?: languageMatches.first()
-        } else {
+        val sorted =
             languageMatches
-                .sortedWith(
-                    compareBy<AnimePaheSource> {
-                        val resolution = it.resolution ?: 0
-                        when {
-                            resolution == desired -> 0
-                            resolution < desired -> 1
-                            else -> 2
-                        }
-                    }.thenByDescending { it.resolution ?: 0 }
-                )
-                .first()
+                .sortedByDescending {
+                    it.resolution ?: 0
+                }
+
+        return if (desired == null) {
+            sorted.first()
+        } else {
+            sorted.firstOrNull {
+                (it.resolution ?: 0) <= desired
+            } ?: sorted.last()
         }
     }
 
