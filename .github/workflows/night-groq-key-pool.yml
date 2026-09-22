@@ -55,7 +55,7 @@ jobs:
                 "android_client_info": {"package_name": "com.example.whatsapp"}
               },
               "oauth_client": [],
-              "api_key": [{"current_key": "AIzaSyDUMMY_PREVIEW_KEY_NOT_FOR_NETWORK_USE"}],
+              "api_key": [{"current_key":"AIzaSyDUMMY_PREVIEW_KEY_NOT_FOR_NETWORK_USE"}],
               "services": {"appinvite_service": {"other_platform_oauth_client": []}}
             }],
             "configuration_version": "1"
@@ -72,9 +72,9 @@ jobs:
           chmod +x gradlew
           ./gradlew :app:testDebugUnitTest :app:assembleDebug --stacktrace
 
-      - name: Upload debug APK
+      - name: Upload ARM64 debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: night-groq-key-pool-apk
-          path: whatsapp-ai-android/app/build/outputs/apk/debug/app-debug.apk
+          name: night-groq-key-pool-arm64-apk
+          path: whatsapp-ai-android/app/build/outputs/apk/debug/*arm64-v8a*.apk
           if-no-files-found: error
