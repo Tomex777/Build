@@ -40,6 +40,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.whatsapp.extensions.runtime.asNightIntegration
 import com.example.whatsapp.extensions.tools.NightMcpServerRuntimeState
 
 private val McpBg = Color(0xFF0B0F11)
@@ -265,34 +266,24 @@ private fun McpServerRow(
     onReconnect: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(
-                    text = state.config.displayName,
-                    color =
-                        if (state.config.enabled) {
-                            McpText
-                        } else {
-                            McpMuted
-                        },
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-                Text(
-                    text = state.config.endpoint,
-                    color = McpMuted,
-                    fontSize = 10.sp,
-                    maxLines = 1,
-                )
-            }
+    val integration = state.asNightIntegration()
+    val status =
+        when {
+            !state.config.enabled -> "Disabled"
+            state.connected ->
+                "Connected • " +
+                    state.toolCount +
+                    if (state.toolCount == 1) " tool" else " tools"
+            else -> "Disconnected"
+        }
+
+    NightIntegrationRow(
+        integration = integration,
+        secondaryText = state.config.endpoint,
+        statusText = status,
+        onToggle = onSetEnabled,
+        statusAccent = state.connected,
+        trailingActions = {
             IconButton(onClick = onEdit) {
                 Icon(
                     Icons.Default.Edit,
@@ -307,71 +298,37 @@ private fun McpServerRow(
                     tint = Color(0xFFFF6B78),
                 )
             }
-        }
-
-        Text(
-            text = when {
-                !state.config.enabled ->
-                    "Disabled"
-                state.connected ->
-                    "Connected • " +
-                        state.toolCount +
-                        if (state.toolCount == 1) {
-                            " tool"
-                        } else {
-                            " tools"
-                        }
-                !state.error.isNullOrBlank() ->
-                    "Disconnected • " + state.error
-                else ->
-                    "Disconnected"
-            },
-            color =
-                if (state.connected) {
-                    McpAccent
-                } else {
-                    McpMuted
-                },
-            fontSize = 11.sp,
-            lineHeight = 15.sp,
-        )
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton(onClick = onSetEnabled) {
-                Text(
+        },
+        footer = {
+            if (state.config.enabled || state.hasBearerToken) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     if (state.config.enabled) {
-                        "Disable"
-                    } else {
-                        "Enable"
-                    },
-                    color = McpAccent,
-                    fontSize = 11.sp,
-                )
-            }
+                        TextButton(onClick = onReconnect) {
+                            Text(
+                                "Reconnect",
+                                color = McpAccent,
+                                fontSize = 11.sp,
+                            )
+                        }
+                    }
 
-            if (state.config.enabled) {
-                TextButton(onClick = onReconnect) {
-                    Text(
-                        "Reconnect",
-                        color = McpAccent,
-                        fontSize = 11.sp,
-                    )
+                    if (state.config.enabled && state.hasBearerToken) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+
+                    if (state.hasBearerToken) {
+                        Text(
+                            text = "Encrypted token saved",
+                            color = McpMuted,
+                            fontSize = 10.sp,
+                        )
+                    }
                 }
             }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            if (state.hasBearerToken) {
-                Text(
-                    text = "Encrypted token saved",
-                    color = McpMuted,
-                    fontSize = 10.sp,
-                )
-            }
-        }
-    }
+        },
+    )
 }
 
 @Composable
