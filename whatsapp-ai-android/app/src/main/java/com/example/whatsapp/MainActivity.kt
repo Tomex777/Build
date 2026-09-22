@@ -379,6 +379,37 @@ private fun NightApp(initialChatId: String? = null) {
         )
     }
 
+    suspend fun commitDraftChatMetadata(chatId: String) {
+        val profileId = draftProviderProfileId
+        val modelId = draftModelId
+        val providerType = draftProviderType
+        val title = draftChatTitle
+            ?.trim()
+            ?.takeIf { it.isNotBlank() && it != "New chat" }
+
+        if (!profileId.isNullOrBlank() && !modelId.isNullOrBlank()) {
+            repository.setChatModel(
+                chatId = chatId,
+                provider = providerType,
+                profileId = profileId,
+                model = modelId,
+            )
+        }
+        title?.let { repository.renameChat(chatId, it) }
+
+        if (
+            title != null ||
+            !profileId.isNullOrBlank() ||
+            !modelId.isNullOrBlank() ||
+            !providerType.isNullOrBlank()
+        ) {
+            draftChatTitle = null
+            draftProviderType = null
+            draftProviderProfileId = null
+            draftModelId = null
+        }
+    }
+
     suspend fun persistExtensionActionResult(
         extensionId: String,
         result: JSONObject?,
@@ -506,6 +537,7 @@ private fun NightApp(initialChatId: String? = null) {
             replyToMessageId = replyingToId,
         )
         repository.appendMessage(voiceMessage)
+        commitDraftChatMetadata(activeChatId)
         replyingToId = null
 
         val transcript = speechService.transcribe(saved.localPath).getOrNull()
@@ -774,6 +806,7 @@ private fun NightApp(initialChatId: String? = null) {
                     replyToMessageId = replyId,
                 )
             )
+            commitDraftChatMetadata(activeChatId)
             replyingToId = null
         }
     }
@@ -937,6 +970,7 @@ private fun NightApp(initialChatId: String? = null) {
                     replyToMessageId = finalDraft.replyToMessageId,
                 )
             )
+            commitDraftChatMetadata(chatId)
 
             if (finalDraft.localPath != draft.localPath) {
                 runCatching { File(draft.localPath).delete() }
@@ -1015,6 +1049,7 @@ private fun NightApp(initialChatId: String? = null) {
                     replyToMessageId = draft.replyToMessageId,
                 )
             )
+            commitDraftChatMetadata(chatId)
 
             pdfDraft = null
             pdfCaption = ""
@@ -1985,28 +2020,7 @@ private fun NightApp(initialChatId: String? = null) {
                         }
                     replyingToId = null
 
-                    if (activeChat == null && activeChatId != "night-core") {
-                        if (
-                            !draftProviderProfileId.isNullOrBlank() &&
-                            !draftModelId.isNullOrBlank()
-                        ) {
-                            repository.setChatModel(
-                                chatId = activeChatId,
-                                provider = draftProviderType,
-                                profileId = draftProviderProfileId,
-                                model = draftModelId,
-                            )
-                        }
-                        draftChatTitle
-                            ?.trim()
-                            ?.takeIf { it.isNotBlank() && it != "New chat" }
-                            ?.let { repository.renameChat(activeChatId, it) }
-
-                        draftChatTitle = null
-                        draftProviderType = null
-                        draftProviderProfileId = null
-                        draftModelId = null
-                    }
+                    commitDraftChatMetadata(activeChatId)
 
                     val commandExecution =
                         scriptRuntime.executeSlashCommand(
@@ -2967,6 +2981,7 @@ private fun NightApp(initialChatId: String? = null) {
                             replyToMessageId = replyingToId,
                         )
                     )
+                    commitDraftChatMetadata(activeChatId)
                     replyingToId = null
                 }
                 choiceOpen = false
