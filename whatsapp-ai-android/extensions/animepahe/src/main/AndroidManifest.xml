@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="false"
+        android:label="AnimePahe for Night"
+        android:supportsRtl="true">
+        <service
+            android:name=".AnimePaheNightExtensionService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.example.whatsapp.action.NIGHT_EXTENSION_SERVICE" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>
