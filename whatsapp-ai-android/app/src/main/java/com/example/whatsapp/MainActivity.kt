@@ -133,10 +133,29 @@ class MainActivity : ComponentActivity() {
 
         val initialChatId = intent?.getStringExtra("night_chat_id")
         setContent {
-            WhatsappTheme(darkTheme = true) {
-                NightApp(initialChatId = initialChatId)
-            }
+            NightThemeRoot(initialChatId = initialChatId)
         }
+    }
+}
+
+@Composable
+private fun NightThemeRoot(initialChatId: String? = null) {
+    val context = LocalContext.current
+    val repository = remember { NightRepository.get(context) }
+    val appearance by
+        repository.observeAppearance()
+            .collectAsState(initial = null)
+
+    LaunchedEffect(Unit) {
+        repository.ensureAppearance()
+    }
+
+    val current = appearance ?: NightAppearanceEntity()
+    WhatsappTheme(
+        darkTheme = true,
+        accentColor = ComposeColor(current.accentColor.toInt()),
+    ) {
+        NightApp(initialChatId = initialChatId)
     }
 }
 
