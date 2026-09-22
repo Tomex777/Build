@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tv
@@ -121,6 +122,15 @@ data class LinkPreviewMessage(
     val domain: String,
     val thumbnailPath: String? = null,
     val mine: Boolean = false,
+    val time: String,
+) : RichResultMessage
+
+data class LyricsResultMessage(
+    override val id: String,
+    val title: String,
+    val artist: String,
+    val lyrics: String,
+    val source: String = "",
     val time: String,
 ) : RichResultMessage
 
@@ -214,6 +224,7 @@ fun RichResultBubble(
         is MangaResultMessage -> MangaResultBubble(item, onAction)
         is ChoiceResultMessage -> ChoiceResultBubble(item, onAction)
         is LinkPreviewMessage -> LinkPreviewBubble(item)
+        is LyricsResultMessage -> LyricsResultBubble(item)
         is GeneratedImageResultMessage -> GeneratedImageResultBubble(item)
         is CreationResultMessage -> CreationResultBubble(item)
         is ImageSearchResultMessage -> ImageSearchBubble(item)
@@ -763,6 +774,73 @@ private fun LinkPreviewBubble(item: LinkPreviewMessage) {
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun LyricsResultBubble(item: LyricsResultMessage) {
+    BubbleFrame(time = item.time) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                color = RichPanel,
+                shape = CircleShape,
+                modifier = Modifier.size(44.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = RichAccent,
+                        modifier = Modifier.size(23.dp),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.title,
+                    color = RichText,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = item.artist.ifBlank { "Lyrics" },
+                    color = RichMuted,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
+
+        Text(
+            text = item.lyrics,
+            color = RichText,
+            fontSize = 13.sp,
+            lineHeight = 19.sp,
+            modifier = Modifier.padding(top = 10.dp, start = 2.dp, end = 2.dp),
+            maxLines = 18,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        if (item.source.isNotBlank()) {
+            Text(
+                text = item.source,
+                color = RichMuted,
+                fontSize = 10.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 8.dp, start = 2.dp),
+            )
         }
     }
 }
@@ -1789,6 +1867,14 @@ fun richPreviewMessagesPageTwo(): List<WhatsAppVisualMessage> = listOf(
         title = "Solo Leveling S2E8",
         detail = "184 MB of 428 MB • 5.7 MB/s",
         progress = 0.43f,
+        time = "19:25",
+    ),
+    LyricsResultMessage(
+        id = "lyrics",
+        title = "Midnight Drive",
+        artist = "Night Library",
+        lyrics = "City lights in the rear-view glow\nThe road hums low beneath the radio\nOne more mile before the morning shows",
+        source = "Lyrics • Music extension",
         time = "19:25",
     ),
     ToolResultMessage(
