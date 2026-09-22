@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -44,7 +45,6 @@ private val IntegrationBg = Color(0xFF0B0F11)
 private val IntegrationSurface = Color(0xFF151B1E)
 private val IntegrationText = Color(0xFFE7EAEC)
 private val IntegrationMuted = Color(0xFF9CA5A9)
-private val IntegrationAccent = Color(0xFF21C063)
 
 private sealed interface NightIntegrationUiItem {
     val summary: NightIntegrationSummary
@@ -160,7 +160,7 @@ fun NightIntegrationsScreen(
                 Icon(
                     Icons.Default.Add,
                     contentDescription = "Add MCP server",
-                    tint = IntegrationAccent,
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
         }
@@ -280,7 +280,7 @@ fun NightIntegrationsScreen(
                                                         },
                                                     color =
                                                         if (preferred) {
-                                                            IntegrationAccent
+                                                            MaterialTheme.colorScheme.primary
                                                         } else {
                                                             IntegrationMuted
                                                         },
@@ -345,7 +345,7 @@ fun NightIntegrationsScreen(
                                             ) {
                                                 Text(
                                                     "Reconnect",
-                                                    color = IntegrationAccent,
+                                                    color = MaterialTheme.colorScheme.primary,
                                                     fontSize = 11.sp,
                                                 )
                                             }
@@ -462,7 +462,7 @@ fun NightIntegrationsScreen(
                 ) {
                     Text(
                         "Enable",
-                        color = IntegrationAccent,
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
             },
