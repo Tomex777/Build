@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -56,7 +57,6 @@ import com.example.whatsapp.data.night.NightProviderProfileEntity
 private val ProviderBg = Color(0xFF0B0F11)
 private val ProviderText = Color(0xFFE7EAEC)
 private val ProviderMuted = Color(0xFF9CA5A9)
-private val ProviderAccent = Color(0xFF21C063)
 
 @Composable
 fun NightProvidersScreen(
@@ -148,10 +148,10 @@ fun NightProvidersScreen(
                 modifier = Modifier.weight(1f),
             )
             TextButton(onClick = onCapabilityRoutingClick) {
-                Text("Routing", color = ProviderAccent)
+                Text("Routing", color = MaterialTheme.colorScheme.primary)
             }
             IconButton(onClick = { showAddProfile = true }) {
-                Icon(Icons.Default.Add, "Add provider", tint = ProviderAccent)
+                Icon(Icons.Default.Add, "Add provider", tint = MaterialTheme.colorScheme.primary)
             }
         }
 
@@ -197,7 +197,7 @@ fun NightProvidersScreen(
                     }
                     Text(
                         "Manage",
-                        color = ProviderAccent,
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = 12.sp,
                     )
                 }
@@ -436,18 +436,18 @@ private fun ProviderProfileRow(
             TextButton(onClick = { onSetProfileEnabled(!profile.isEnabled) }) {
                 Text(
                     if (profile.isEnabled) "Disable" else "Enable",
-                    color = ProviderAccent,
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 11.sp,
                 )
             }
             if (!profile.isDefault) {
                 TextButton(onClick = onMakeProfileDefault) {
-                    Text("Make default", color = ProviderAccent, fontSize = 11.sp)
+                    Text("Make default", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
                 }
             }
             if (profile.serviceKind != "speech") {
                 TextButton(onClick = onAddModel) {
-                    Text("Add model", color = ProviderAccent, fontSize = 11.sp)
+                    Text("Add model", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
                 }
             }
         }
@@ -468,7 +468,7 @@ private fun ProviderProfileRow(
                     modifier = Modifier.weight(1f),
                 )
                 TextButton(onClick = onAddKey) {
-                    Text("Add key", color = ProviderAccent, fontSize = 11.sp)
+                    Text("Add key", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
                 }
             }
 
@@ -532,7 +532,7 @@ private fun ProviderProfileRow(
                 ) {
                     Text(
                         "Test",
-                        color = if (model.isEnabled) ProviderAccent else ProviderMuted,
+                        color = if (model.isEnabled) MaterialTheme.colorScheme.primary else ProviderMuted,
                         fontSize = 10.sp,
                     )
                 }
@@ -661,7 +661,7 @@ private fun EditProviderDialog(
                     else -> endpoint.isNotBlank()
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = ProviderAccent,
+                    containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = Color(0xFF07110B),
                 ),
             ) {
@@ -755,7 +755,7 @@ private fun EditModelDialog(
                 },
                 enabled = modelId.isNotBlank() || deployment.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = ProviderAccent,
+                    containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = Color(0xFF07110B),
                 ),
             ) {
@@ -878,7 +878,7 @@ private fun AddProviderDialog(
                         (service != "speech" && endpoint.isNotBlank())
                     ),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = ProviderAccent,
+                    containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = Color(0xFF07110B),
                 ),
             ) {
@@ -934,7 +934,7 @@ private fun AddGroqKeyDialog(
                 },
                 enabled = key.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = ProviderAccent,
+                    containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = Color(0xFF07110B),
                 ),
             ) {
@@ -1039,7 +1039,7 @@ private fun AddModelDialog(
                 },
                 enabled = modelId.isNotBlank() || deployment.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = ProviderAccent,
+                    containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = Color(0xFF07110B),
                 ),
             ) {
@@ -1073,7 +1073,7 @@ private fun ProviderField(
             unfocusedContainerColor = Color.Transparent,
             focusedTextColor = ProviderText,
             unfocusedTextColor = ProviderText,
-            cursorColor = ProviderAccent,
+            cursorColor = MaterialTheme.colorScheme.primary,
         ),
     )
 }
