@@ -2330,6 +2330,7 @@ private fun NightApp(initialChatId: String? = null) {
                     }
                 },
                 onSettingsClick = { screen = "settings" },
+                accentColor = appearance.accentColor,
             )
 
             MainTab.Updates -> NightFilesTab(
