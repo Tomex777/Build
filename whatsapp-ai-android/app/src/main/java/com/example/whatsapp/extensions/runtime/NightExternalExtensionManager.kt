@@ -271,6 +271,14 @@ class NightExternalExtensionManager private constructor(
                     parameters = normalizeParameters(
                         item.optJSONObject("parameters"),
                     ),
+                    readOnly =
+                        when {
+                            item.has("readOnly") ->
+                                item.optBoolean("readOnly", false)
+                            item.has("readOnlyHint") ->
+                                item.optBoolean("readOnlyHint", false)
+                            else -> false
+                        },
                 )
                 require(seenTools.add(definition.qualifiedName)) {
                     "Extension declares colliding tool names."
