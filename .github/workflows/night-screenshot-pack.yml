@@ -1,0 +1,199 @@
+name: Night Screenshot Pack
+
+on:
+  push:
+    branches:
+      - night-groq-key-pool-ci
+    paths:
+      - ".github/workflows/night-screenshot-pack.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: night-screenshot-pack-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Android 36 emulator stack
+        run: |
+          SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER"             "platform-tools"             "emulator"             "platforms;android-36"             "build-tools;36.0.0"             "system-images;android-36;default;x86_64"
+          echo "/usr/local/lib/android/sdk/platform-tools" >> "$GITHUB_PATH"
+          echo "/usr/local/lib/android/sdk/emulator" >> "$GITHUB_PATH"
+
+      - name: Add test Firebase config
+        run: |
+          cat > whatsapp-ai-android/app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "123456789012",
+              "project_id": "night-screenshot-pack",
+              "storage_bucket": "night-screenshot-pack.appspot.com"
+            },
+            "client": [{
+              "client_info": {
+                "mobilesdk_app_id": "1:123456789012:android:0123456789abcdef",
+                "android_client_info": {"package_name": "com.example.whatsapp"}
+              },
+              "oauth_client": [],
+              "api_key": [{"current_key": "AIzaSyDUMMY_PREVIEW_KEY_NOT_FOR_NETWORK_USE"}],
+              "services": {"appinvite_service": {"other_platform_oauth_client": []}}
+            }],
+            "configuration_version": "1"
+          }
+          JSON
+
+      - name: Build screenshot APK
+        run: |
+          cd whatsapp-ai-android
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Capture Night screens
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          cores: 2
+          ram-size: 2048M
+          emulator-boot-timeout: 420
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -accel on -wipe-data
+          script: |
+            set -euo pipefail
+            PACKAGE="com.example.whatsapp"
+            APK="whatsapp-ai-android/app/build/outputs/apk/debug/app-debug.apk"
+            OUT="night-screenshots"
+            mkdir -p "$OUT"
+            adb install --no-streaming -r "$APK"
+            adb shell wm size 709x1536
+            adb shell wm density 240
+            adb shell settings put global window_animation_scale 0
+            adb shell settings put global transition_animation_scale 0
+            adb shell settings put global animator_duration_scale 0
+
+            dismiss_quickstep() {
+              adb shell uiautomator dump /sdcard/night-shot.xml >/dev/null 2>&1 || true
+              adb exec-out cat /sdcard/night-shot.xml > /tmp/night-shot.xml 2>/dev/null || true
+              if grep -qi "Quickstep isn't responding" /tmp/night-shot.xml 2>/dev/null; then
+                python3 - <<'PY' >/tmp/quickstep-tap.txt || true
+            import re
+            import xml.etree.ElementTree as ET
+            try:
+                root = ET.parse("/tmp/night-shot.xml").getroot()
+            except Exception:
+                raise SystemExit(1)
+            for node in root.iter("node"):
+                if node.attrib.get("text") == "Close app" or node.attrib.get("resource-id") == "android:id/aerr_close":
+                    nums = [int(x) for x in re.findall(r"\d+", node.attrib.get("bounds", ""))]
+                    if len(nums) == 4:
+                        print((nums[0] + nums[2]) // 2, (nums[1] + nums[3]) // 2)
+                        raise SystemExit(0)
+            raise SystemExit(1)
+            PY
+                if [ -s /tmp/quickstep-tap.txt ]; then
+                  read -r x y </tmp/quickstep-tap.txt
+                  adb shell input tap "$x" "$y" || true
+                  sleep 2
+                fi
+              fi
+            }
+
+            capture() {
+              name="$1"
+              activity="$2"
+              shift 2
+              adb shell am force-stop "$PACKAGE"
+              adb shell am start -W -n "$PACKAGE/$activity" "$@" >/tmp/am-start.txt
+              sleep 3
+              dismiss_quickstep
+              sleep 1
+              adb exec-out screencap -p > "$OUT/$name.png"
+              adb shell uiautomator dump "/sdcard/$name.xml" >/dev/null 2>&1 || true
+              adb exec-out cat "/sdcard/$name.xml" > "$OUT/$name.xml" 2>/dev/null || true
+            }
+
+            capture_try() {
+              name="$1"
+              activity="$2"
+              shift 2
+              if ! capture "$name" "$activity" "$@"; then
+                echo "Could not capture $name" >> "$OUT/_capture-warnings.txt"
+              fi
+            }
+
+            # Main app surfaces.
+            capture "01-main-chats" ".MainTabsPreviewActivity" --es tab chats
+            capture "02-main-library" ".MainTabsPreviewActivity" --es tab library
+            capture "03-main-you" ".MainTabsPreviewActivity" --es tab you
+            capture "04-main-settings" ".MainTabsPreviewActivity" --es tab settings
+
+            # Chat and composer states.
+            capture "05-chat-default" ".ChatPreviewActivity"
+            capture "06-chat-attachments" ".ChatPreviewActivity" --ez attachments true
+            capture "07-chat-emoji" ".ChatPreviewActivity" --ez emoji true
+            capture "08-chat-menu" ".ChatPreviewActivity" --ez menu true
+            capture "09-chat-media" ".ChatPreviewActivity" --es mode media
+            capture "10-chat-audio" ".ChatPreviewActivity" --es mode audio
+            capture "11-chat-voice" ".ChatPreviewActivity" --es mode voice
+            capture "12-chat-documents" ".ChatPreviewActivity" --es mode docs
+            capture "13-chat-rich" ".ChatPreviewActivity" --es mode rich
+            capture "14-rich-page-one" ".RichBubblePreviewActivity" --ei page 1
+            capture "15-rich-page-two" ".RichBubblePreviewActivity" --ei page 2
+            capture "16-chat-approved-rich" ".ChatPreviewActivity" --es mode approved-rich
+            capture "17-chat-extension" ".ChatPreviewActivity" --es mode extension
+            capture "18-chat-extension-config" ".ChatPreviewActivity" --es mode extension-config
+            capture "19-chat-browser" ".ChatPreviewActivity" --es mode browser
+            capture "20-chat-message-blocks" ".ChatPreviewActivity" --es mode blocks
+            capture "21-chat-utility" ".ChatPreviewActivity" --es mode utility
+
+            # Settings/admin surfaces.
+            capture "22-providers" ".NightProvidersPreviewActivity"
+            capture "23-memory-summary" ".NightMemoryPreviewActivity"
+            capture "24-extensions" ".NightExtensionsPreviewActivity"
+            capture "25-integrations" ".NightIntegrationsPreviewActivity"
+            capture "26-mcp-servers" ".NightMcpServersPreviewActivity"
+            capture "27-live-voice" ".NightLiveVoicePreviewActivity"
+
+            # Viewer/editor surfaces.
+            capture "28-media-viewer" ".MediaViewerPreviewActivity"
+            capture "29-media-editor" ".MediaEditorPreviewActivity"
+            capture "30-pdf-viewer" ".PdfViewerPreviewActivity"
+            capture "31-pdf-editor" ".PdfEditorPreviewActivity"
+            capture_try "32-mihon-reader" ".MihonReaderPreviewActivity"
+
+            printf '%s\n'               "Night Android screenshot pack"               "branch=night-groq-key-pool-ci"               "commit=${GITHUB_SHA}"               "device=Android 16 / API 36 / 709x1536 @ 240 dpi"               "pngCount=$(find "$OUT" -maxdepth 1 -name '*.png' | wc -l)"               > "$OUT/README.txt"
+
+      - name: Upload Night screenshot pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-every-screen-screenshots
+          path: night-screenshots/
+          if-no-files-found: error
