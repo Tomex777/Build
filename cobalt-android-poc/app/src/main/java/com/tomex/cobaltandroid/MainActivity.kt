@@ -806,6 +806,9 @@ class MainActivity : Activity() {
         val code = raw.trim()
         pairingCodeText.text = code.chunked(4).joinToString(" ")
         copyButton.isEnabled = code.isNotBlank()
+        if (code.isNotBlank()) {
+            Log.i(tag, "PAIRING_CODE_READY:$code")
+        }
         setStatus("Pairing code ready. In WhatsApp open Linked devices → Link a device → Link with phone number, then enter this code.")
     }
 
