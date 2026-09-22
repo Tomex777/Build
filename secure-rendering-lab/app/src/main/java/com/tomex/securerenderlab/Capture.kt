@@ -127,7 +127,9 @@ abstract class BaseCaptureActivity : Activity() {
         if (requestCode != captureRequestCode) return
 
         if (resultCode != RESULT_OK || data == null) {
-            captureStatus.text = "Capture permission was cancelled."
+            val message = "Capture permission was cancelled."
+            captureStatus.text = message
+            onObserverCaptureFinished(null, message)
             return
         }
 
