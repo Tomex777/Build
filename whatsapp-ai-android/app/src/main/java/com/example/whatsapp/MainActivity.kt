@@ -110,6 +110,7 @@ import com.example.whatsapp.presentation.profile.NightScheduleDialog
 import com.example.whatsapp.presentation.profile.NightScheduledTasksScreen
 import com.example.whatsapp.presentation.profile.NightYouTab
 import com.example.whatsapp.presentation.reader.mihon.NightMihonArchiveLoader
+import com.example.whatsapp.presentation.scripts.NightScriptsScreen
 import com.example.whatsapp.presentation.reader.mihon.decodeMihonPages
 import com.example.whatsapp.presentation.shell.MainTab
 import com.example.whatsapp.presentation.shell.ModernChatsTab
@@ -1012,6 +1013,7 @@ private fun NightApp(initialChatId: String? = null) {
             }
             "media_compose" -> cancelMediaDraft()
             "pdf_compose" -> cancelPdfDraft()
+            "scripts" -> screen = "tabs"
             else -> {
                 screen = if (selectedTab == MainTab.You) "tabs" else "chat"
             }
@@ -1208,6 +1210,10 @@ private fun NightApp(initialChatId: String? = null) {
         )
 
         "media_library" -> NightMediaLibraryScreen(
+            onBack = { screen = "tabs" },
+        )
+
+        "scripts" -> NightScriptsScreen(
             onBack = { screen = "tabs" },
         )
 
@@ -2474,6 +2480,7 @@ private fun NightApp(initialChatId: String? = null) {
                     screen = "tabs"
                 },
                 onSettingsClick = { screen = "settings" },
+                onScriptsClick = { screen = "scripts" },
             )
 
             MainTab.You -> NightYouTab(
@@ -2486,10 +2493,6 @@ private fun NightApp(initialChatId: String? = null) {
                 onProvidersClick = { screen = "providers" },
                 onMemoryClick = { screen = "memory" },
                 onSchedulesClick = { screen = "scheduled_tasks" },
-                onLibraryStorageClick = {
-                    selectedTabName = MainTab.Updates.name
-                    screen = "tabs"
-                },
                 onMediaLibraryClick = {
                     screen = "media_library"
                 },
