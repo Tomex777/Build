@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -59,7 +60,6 @@ private val Bg = Color(0xFF0B0F11)
 private val SurfaceDark = Color(0xFF171C1F)
 private val Primary = Color(0xFFE7EAEC)
 private val Secondary = Color(0xFF9CA5A9)
-private val Accent = Color(0xFF21C063)
 
 @Composable
 fun NightFilesTab(
