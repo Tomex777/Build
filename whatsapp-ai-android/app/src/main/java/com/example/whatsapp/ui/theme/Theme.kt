@@ -50,19 +50,27 @@ fun WhatsappTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = false,
+    accentColor: Color? = null,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
     // Use the darkTheme parameter directly (passed from MainActivity observing ThemeViewModel)
     val isDark = darkTheme
     
-    val colorScheme = when {
+    val baseScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         isDark -> DarkColorScheme
         else -> LightColorScheme
     }
+    val effectiveAccent = accentColor ?: baseScheme.primary
+    val colorScheme =
+        baseScheme.copy(
+            primary = effectiveAccent,
+            secondary = effectiveAccent,
+            tertiary = effectiveAccent,
+        )
 
     CompositionLocalProvider(LocalThemePreference provides isDark) {
         MaterialTheme(
