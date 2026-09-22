@@ -11,6 +11,7 @@ import android.os.Looper
 import android.os.Message
 import android.os.Messenger
 import java.security.MessageDigest
+import com.night.extension.sdk.NightExtensionProtocol
 import com.example.whatsapp.extensions.messages.ExtensionCardTemplate
 import com.example.whatsapp.extensions.messages.NightExtensionMessageActionRegistry
 import com.example.whatsapp.extensions.messages.NightExtensionMessageTypeDefinition
@@ -734,27 +735,28 @@ class NightExternalExtensionManager private constructor(
 
     companion object {
         const val ACTION_EXTENSION_SERVICE =
-            "com.example.whatsapp.action.NIGHT_EXTENSION_SERVICE"
+            NightExtensionProtocol.ACTION_EXTENSION_SERVICE
 
-        const val MSG_DESCRIBE = 1
-        const val MSG_EXECUTE_TOOL = 2
-        const val MSG_EXECUTE_ACTION = 3
-        const val MSG_RESULT = 100
+        const val MSG_DESCRIBE = NightExtensionProtocol.MSG_DESCRIBE
+        const val MSG_EXECUTE_TOOL = NightExtensionProtocol.MSG_EXECUTE_TOOL
+        const val MSG_EXECUTE_ACTION = NightExtensionProtocol.MSG_EXECUTE_ACTION
+        const val MSG_RESULT = NightExtensionProtocol.MSG_RESULT
 
-        const val KEY_REQUEST_ID = "requestId"
-        const val KEY_OK = "ok"
-        const val KEY_ERROR = "error"
-        const val KEY_RESULT_JSON = "resultJson"
-        const val KEY_EXTENSION_ID = "extensionId"
-        const val KEY_CHAT_ID = "chatId"
-        const val KEY_TOOL_NAME = "toolName"
-        const val KEY_ARGUMENTS_JSON = "argumentsJson"
-        const val KEY_MESSAGE_ID = "messageId"
-        const val KEY_MESSAGE_TYPE = "messageType"
-        const val KEY_ACTION_ID = "actionId"
-        const val KEY_PAYLOAD_JSON = "payloadJson"
+        const val KEY_REQUEST_ID = NightExtensionProtocol.KEY_REQUEST_ID
+        const val KEY_OK = NightExtensionProtocol.KEY_OK
+        const val KEY_ERROR = NightExtensionProtocol.KEY_ERROR
+        const val KEY_RESULT_JSON = NightExtensionProtocol.KEY_RESULT_JSON
+        const val KEY_EXTENSION_ID = NightExtensionProtocol.KEY_EXTENSION_ID
+        const val KEY_CHAT_ID = NightExtensionProtocol.KEY_CHAT_ID
+        const val KEY_TOOL_NAME = NightExtensionProtocol.KEY_TOOL_NAME
+        const val KEY_ARGUMENTS_JSON = NightExtensionProtocol.KEY_ARGUMENTS_JSON
+        const val KEY_MESSAGE_ID = NightExtensionProtocol.KEY_MESSAGE_ID
+        const val KEY_MESSAGE_TYPE = NightExtensionProtocol.KEY_MESSAGE_TYPE
+        const val KEY_ACTION_ID = NightExtensionProtocol.KEY_ACTION_ID
+        const val KEY_PAYLOAD_JSON = NightExtensionProtocol.KEY_PAYLOAD_JSON
 
-        const val SUPPORTED_SCHEMA_VERSION = 1
+        const val SUPPORTED_SCHEMA_VERSION =
+            NightExtensionProtocol.SUPPORTED_SCHEMA_VERSION
         private const val MAX_TOOLS = 64
         private const val MAX_MESSAGE_TYPES = 64
         private const val REQUEST_TIMEOUT_MS = 15_000L
