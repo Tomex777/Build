@@ -394,16 +394,6 @@ private fun NightApp(initialChatId: String? = null) {
         )
     }
 
-    suspend fun commitDraftChatMetadata(chatId: String) {
-        val draft = NightDraftChatMetadata(
-            providerType = draftProviderType,
-            profileId = draftProviderProfileId,
-            modelId = draftModelId,
-            title = draftChatTitle,
-        )
-        commitDraftChatMetadataSnapshot(chatId, draft)
-    }
-
     suspend fun commitDraftChatMetadataSnapshot(chatId: String, draft: NightDraftChatMetadata) {
         val profileId = draft.profileId
         val modelId = draft.modelId
@@ -440,6 +430,16 @@ private fun NightApp(initialChatId: String? = null) {
                 draftModelId = null
             }
         }
+    }
+
+    suspend fun commitDraftChatMetadata(chatId: String) {
+        val draft = NightDraftChatMetadata(
+            providerType = draftProviderType,
+            profileId = draftProviderProfileId,
+            modelId = draftModelId,
+            title = draftChatTitle,
+        )
+        commitDraftChatMetadataSnapshot(chatId, draft)
     }
 
     suspend fun persistExtensionActionResult(

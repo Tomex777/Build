@@ -241,7 +241,7 @@ private fun MediaCollectionRow(
                                 else -> Icons.Default.Movie
                             },
                         contentDescription = null,
-                        tint = accent,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(25.dp),
                     )
                 }

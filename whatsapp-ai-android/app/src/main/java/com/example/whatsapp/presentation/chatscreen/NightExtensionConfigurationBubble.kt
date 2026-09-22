@@ -498,7 +498,7 @@ private fun ExtensionConfigurationFieldContent(
                             field.suffix.takeIf { it.isNotBlank() }
                                 ?.let { " " + it }
                                 .orEmpty(),
-                    color = extensionConfigAccent,
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(top = 5.dp),

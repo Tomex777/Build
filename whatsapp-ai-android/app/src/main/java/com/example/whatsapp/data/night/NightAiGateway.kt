@@ -353,7 +353,7 @@ class NightAiGateway private constructor(
                 buildString {
                     append("[Browser result] ")
                     append(browser?.title?.ifBlank { text } ?: text.ifBlank { "Browser" })
-                    browser?.url?.takeIf { it.isNotBlank() }?.let {
+                    browser?.initialUrl?.takeIf { it.isNotBlank() }?.let {
                         append(" — ")
                         append(it.take(500))
                     }
