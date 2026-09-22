@@ -38,7 +38,7 @@ class NightBrowserController {
         internal set
     var desktopMode by mutableStateOf(false)
         internal set
-    private var mobileUserAgent: String? = null
+    internal var mobileUserAgent: String? = null
 
     fun canGoBack(): Boolean = webView?.canGoBack() == true
     fun canGoForward(): Boolean = webView?.canGoForward() == true
