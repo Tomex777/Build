@@ -40,33 +40,14 @@ jobs:
           echo "/usr/local/lib/android/sdk/platform-tools" >> "$GITHUB_PATH"
           echo "/usr/local/lib/android/sdk/emulator" >> "$GITHUB_PATH"
 
-      - name: Add test Firebase config
-        run: |
-          cat > whatsapp-ai-android/app/google-services.json <<'JSON'
-          {
-            "project_info": {
-              "project_number": "123456789012",
-              "project_id": "night-screenshot-pack",
-              "storage_bucket": "night-screenshot-pack.appspot.com"
-            },
-            "client": [{
-              "client_info": {
-                "mobilesdk_app_id": "1:123456789012:android:0123456789abcdef",
-                "android_client_info": {"package_name": "com.example.whatsapp"}
-              },
-              "oauth_client": [],
-              "api_key": [{"current_key": "AIzaSyDUMMY_PREVIEW_KEY_NOT_FOR_NETWORK_USE"}],
-              "services": {"appinvite_service": {"other_platform_oauth_client": []}}
-            }],
-            "configuration_version": "1"
-          }
-          JSON
+      - name: Reuse exact Night regression APK
+        uses: actions/download-artifact@v4
+        with:
+          name: night-integrated-apk
+          path: night-screenshot-apk
+          run-id: 35686206684
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build screenshot APK
-        run: |
-          cd whatsapp-ai-android
-          chmod +x gradlew
-          ./gradlew :app:assembleDebug --stacktrace
 
       - name: Enable KVM
         run: |
@@ -89,7 +70,7 @@ jobs:
           script: |
             set -euo pipefail
             PACKAGE="com.example.whatsapp"
-            APK="whatsapp-ai-android/app/build/outputs/apk/debug/app-debug.apk"
+            APK="night-screenshot-apk/app-debug.apk"
             OUT="night-screenshots"
             mkdir -p "$OUT"
             adb install --no-streaming -r "$APK"
