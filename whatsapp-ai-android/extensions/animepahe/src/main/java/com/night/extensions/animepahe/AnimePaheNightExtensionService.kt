@@ -1258,6 +1258,8 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                     animeSession + ":" + episodeSession,
                 )
                 .put("mediaKind", "anime_episode")
+                .put("animeSession", animeSession)
+                .put("episodeSession", episodeSession)
                 .put("title", title + " • Episode " + episode)
                 .put("episode", episode)
                 .put("mediaUrl", resolved.url)
