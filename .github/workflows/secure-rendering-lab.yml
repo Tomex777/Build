@@ -107,3 +107,135 @@ jobs:
           name: secure-rendering-system-lab-aosp-source
           path: secure-rendering-system-lab-aosp-source.tar.gz
           if-no-files-found: error
+
+
+  privileged-emulator-test:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download platform-signed bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: secure-rendering-system-lab-fast-cuttlefish
+          path: fast-bundle
+
+      - name: Install Android emulator image
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$SDK_ROOT/cmdline-tools/16.0/bin/sdkmanager"
+          fi
+
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER"             "platform-tools"             "emulator"             "system-images;android-36;default;x86_64"
+
+          echo "no" | "$SDK_ROOT/cmdline-tools/latest/bin/avdmanager" create avd             --force             --name securelab             --package "system-images;android-36;default;x86_64"
+
+      - name: Enable KVM access
+        shell: bash
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+            ls -l /dev/kvm
+          else
+            echo "/dev/kvm is unavailable; emulator will fall back to software acceleration."
+          fi
+
+      - name: Boot writable AOSP emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          nohup "$SDK_ROOT/emulator/emulator" @securelab             -no-window             -no-audio             -no-snapshot             -no-boot-anim             -gpu swiftshader_indirect             -writable-system             > emulator.log 2>&1 &
+
+          adb wait-for-device
+          timeout 420 bash -c 'until [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" == "1" ]]; do sleep 5; done'
+
+          echo "Build type: $(adb shell getprop ro.build.type | tr -d "\r")"
+          echo "Debuggable: $(adb shell getprop ro.debuggable | tr -d "\r")"
+          adb shell getprop ro.build.fingerprint
+
+      - name: Install as platform privileged app
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          unzip -q fast-bundle/secure-rendering-system-lab-fast-cuttlefish.zip -d fast-bundle/payload
+          BUNDLE="$GITHUB_WORKSPACE/fast-bundle/payload/secure-rendering-system-lab-fast-cuttlefish"
+
+          DEBUGGABLE="$(adb shell getprop ro.debuggable | tr -d "\r")"
+          if [[ "$DEBUGGABLE" != "1" ]]; then
+            echo "Expected a debuggable AOSP image, got ro.debuggable=$DEBUGGABLE" >&2
+            exit 10
+          fi
+
+          adb root
+          adb wait-for-device
+
+          set +e
+          adb remount
+          REMOUNT_STATUS=$?
+          set -e
+
+          if [[ $REMOUNT_STATUS -ne 0 ]]; then
+            adb disable-verity || true
+            adb reboot
+            adb wait-for-device
+            timeout 300 bash -c 'until [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" == "1" ]]; do sleep 5; done'
+            adb root
+            adb wait-for-device
+            adb remount
+          fi
+
+          adb shell mkdir -p /system_ext/priv-app/SecureRenderingSystemLab
+          adb shell mkdir -p /system_ext/etc/permissions
+
+          adb push "$BUNDLE/SecureRenderingSystemLab-platform.apk"             /system_ext/priv-app/SecureRenderingSystemLab/SecureRenderingSystemLab.apk
+          adb push "$BUNDLE/privapp-permissions-com.tomex.securerenderlab.system.xml"             /system_ext/etc/permissions/privapp-permissions-com.tomex.securerenderlab.system.xml
+
+          adb shell chmod 0644 /system_ext/priv-app/SecureRenderingSystemLab/SecureRenderingSystemLab.apk
+          adb shell chmod 0644 /system_ext/etc/permissions/privapp-permissions-com.tomex.securerenderlab.system.xml
+          adb shell restorecon -RF /system_ext/priv-app/SecureRenderingSystemLab || true
+          adb shell restorecon -F /system_ext/etc/permissions/privapp-permissions-com.tomex.securerenderlab.system.xml || true
+
+          adb reboot
+          adb wait-for-device
+          timeout 300 bash -c 'until [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" == "1" ]]; do sleep 5; done'
+
+      - name: Verify privileged secure-display capability
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "=== Package path ==="
+          adb shell pm path com.tomex.securerenderlab.system
+
+          echo "=== Package permissions ==="
+          adb shell dumpsys package com.tomex.securerenderlab.system | grep -E             "CAPTURE_SECURE_VIDEO_OUTPUT|CAPTURE_VIDEO_OUTPUT|CAPTURE_BLACKOUT_CONTENT|READ_FRAME_BUFFER|pkgFlags|privateFlags" || true
+
+          adb logcat -c
+          adb shell am start             -n com.tomex.securerenderlab.system/.SystemLabActivity             --ez autorun true
+
+          sleep 6
+          adb logcat -d -s SecureRenderingLabSys:I '*:S' | tee secure-rendering-system-lab.log
+
+          grep -q 'CAPABILITIES|.*platformSigned=true.*secureVideo=GRANTED' secure-rendering-system-lab.log
+          grep -q 'CREATE|SUCCESS' secure-rendering-system-lab.log
+
+      - name: Upload emulator verification logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: secure-rendering-system-lab-emulator-log
+          path: |
+            secure-rendering-system-lab.log
+            emulator.log
+          if-no-files-found: warn
