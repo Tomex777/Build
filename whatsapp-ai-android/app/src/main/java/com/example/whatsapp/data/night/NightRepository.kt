@@ -81,6 +81,36 @@ class NightRepository private constructor(
         return chat
     }
 
+    private suspend fun ensureWritableChat(
+        chatId: String,
+        now: Long = System.currentTimeMillis(),
+    ): NightChatEntity {
+        dao.getChat(chatId)?.let { return it }
+        val created = NightChatEntity(
+            id = chatId,
+            title = if (chatId == "night-core") "Night" else "New chat",
+            createdAt = now,
+            updatedAt = now,
+        )
+        dao.upsertChat(created)
+        return created
+    }
+
+    private fun generatedChatTitle(text: String): String {
+        val cleaned = text
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        if (cleaned.isBlank() || cleaned.startsWith("/")) return "New chat"
+
+        val words = cleaned
+            .split(" ")
+            .filter { it.isNotBlank() }
+            .take(7)
+        val title = words.joinToString(" ").take(52).trim()
+        if (title.isBlank()) return "New chat"
+        return if (cleaned.length > title.length) title.trimEnd('.', ',', ':', ';') + "…" else title
+    }
+
     suspend fun appendText(
         chatId: String,
         role: String,
@@ -88,7 +118,7 @@ class NightRepository private constructor(
         replyToMessageId: String? = null,
         now: Long = System.currentTimeMillis(),
     ): NightMessageEntity {
-        val chat = requireNotNull(dao.getChat(chatId)) { "Unknown chat: " + chatId }
+        val chat = ensureWritableChat(chatId, now)
         val message = NightMessageEntity(
             id = UUID.randomUUID().toString(),
             chatId = chatId,
@@ -98,7 +128,24 @@ class NightRepository private constructor(
             createdAt = now,
             replyToMessageId = replyToMessageId,
         )
-        dao.appendMessage(chat.copy(updatedAt = now, lastMessagePreview = text.take(120)), message)
+        val title =
+            if (
+                role == "user" &&
+                chat.title == "New chat" &&
+                chat.lastMessagePreview.isBlank()
+            ) {
+                generatedChatTitle(text)
+            } else {
+                chat.title
+            }
+        dao.appendMessage(
+            chat.copy(
+                title = title,
+                updatedAt = now,
+                lastMessagePreview = text.take(120),
+            ),
+            message,
+        )
         return message
     }
 
@@ -110,7 +157,7 @@ class NightRepository private constructor(
         now: Long = System.currentTimeMillis(),
     ): NightMessageEntity {
         require(snapshot.hasValidNamespace()) { "Extension message type must be namespaced to its extensionId." }
-        val chat = requireNotNull(dao.getChat(chatId)) { "Unknown chat: " + chatId }
+        val chat = ensureWritableChat(chatId, now)
         val message = NightMessageEntity(
             id = UUID.randomUUID().toString(),
             chatId = chatId,
@@ -121,8 +168,19 @@ class NightRepository private constructor(
             replyToMessageId = replyToMessageId,
             payloadJson = ExtensionMessageCodec.encode(snapshot),
         )
+        val title =
+            if (
+                role == "user" &&
+                chat.title == "New chat" &&
+                chat.lastMessagePreview.isBlank()
+            ) {
+                generatedChatTitle(snapshot.title)
+            } else {
+                chat.title
+            }
         dao.appendMessage(
             chat.copy(
+                title = title,
                 updatedAt = now,
                 lastMessagePreview = snapshot.title.take(120),
             ),
@@ -132,11 +190,34 @@ class NightRepository private constructor(
     }
 
     suspend fun appendMessage(message: NightMessageEntity) {
-        val chat = requireNotNull(dao.getChat(message.chatId)) { "Unknown chat: " + message.chatId }
+        val chat = ensureWritableChat(message.chatId, message.createdAt)
+        val preview = message.text.take(120)
+        val titleSource =
+            message.text.takeIf { it.isNotBlank() }
+                ?: when (message.type) {
+                    "image" -> "Photo"
+                    "video" -> "Video"
+                    "voice" -> "Voice note"
+                    "audio" -> "Audio"
+                    "file" -> "File"
+                    else -> ""
+                }
+        val title =
+            if (
+                message.role == "user" &&
+                chat.title == "New chat" &&
+                chat.lastMessagePreview.isBlank() &&
+                titleSource.isNotBlank()
+            ) {
+                generatedChatTitle(titleSource)
+            } else {
+                chat.title
+            }
         dao.appendMessage(
             chat.copy(
+                title = title,
                 updatedAt = message.createdAt,
-                lastMessagePreview = message.text.take(120),
+                lastMessagePreview = preview,
             ),
             message,
         )
