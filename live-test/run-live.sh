@@ -53,10 +53,13 @@ unset PHONE
 
 CODE=""
 for _ in $(seq 1 120); do
-  adb shell uiautomator dump /sdcard/cobalt-live.xml >/dev/null 2>&1 || true
-  adb pull /sdcard/cobalt-live.xml /tmp/cobalt-live.xml >/dev/null 2>&1 || true
-  if [[ -s /tmp/cobalt-live.xml ]]; then
-    CODE="$(python3 -c 'import re,xml.etree.ElementTree as E; r=E.parse("/tmp/cobalt-live.xml").getroot(); nodes=list(r.iter("node")); start=next((i for i,n in enumerate(nodes) if (n.attrib.get("text") or "").strip()=="PAIRING CODE"),-1); vals=[] if start<0 else [((n.attrib.get("text") or "").strip().replace(" ","").replace("-",""), n.attrib.get("class") or "") for n in nodes[start+1:]]; print(next((v for v,cls in vals if cls=="android.widget.TextView" and re.fullmatch(r"[A-Za-z0-9]{8}",v) and v not in {"COPYCODE","LINKED"}),""))' 2>/dev/null || true)"
+  CODE="$(adb logcat -d -s CobaltPOC:I 2>/dev/null | sed -n 's/.*PAIRING_CODE_READY://p' | tail -n 1 | tr -d '\r\n' || true)"
+  if [[ -z "$CODE" ]]; then
+    adb shell uiautomator dump /sdcard/cobalt-live.xml >/dev/null 2>&1 || true
+    adb pull /sdcard/cobalt-live.xml /tmp/cobalt-live.xml >/dev/null 2>&1 || true
+    if [[ -s /tmp/cobalt-live.xml ]]; then
+      CODE="$(python3 -c 'import re,xml.etree.ElementTree as E; r=E.parse("/tmp/cobalt-live.xml").getroot(); nodes=list(r.iter("node")); start=next((i for i,n in enumerate(nodes) if (n.attrib.get("text") or "").strip()=="PAIRING CODE"),-1); vals=[] if start<0 else [((n.attrib.get("text") or "").strip().replace(" ","").replace("-",""), n.attrib.get("class") or "") for n in nodes[start+1:]]; print(next((v for v,cls in vals if cls=="android.widget.TextView" and re.fullmatch(r"[A-Za-z0-9]{8}",v) and v not in {"COPYCODE","LINKED"}),""))' 2>/dev/null || true)"
+    fi
   fi
   [[ -n "$CODE" ]] && break
   sleep 2
