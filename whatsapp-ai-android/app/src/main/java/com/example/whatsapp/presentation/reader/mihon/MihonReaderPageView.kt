@@ -2,17 +2,23 @@ package com.example.whatsapp.presentation.reader.mihon
 
 import android.content.Context
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.graphics.PointF
 import android.graphics.RectF
 import android.net.Uri
+import android.view.Gravity
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.ProgressBar
+import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.davemorrissey.labs.subscaleview.ImageSource
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import java.io.File
 import java.security.MessageDigest
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -50,12 +56,34 @@ internal class MihonReaderPageView(
     )
 
     private var pendingWebtoonLayout: PendingWebtoonLayout? = null
+    private var retryAction: (() -> Unit)? = null
 
     private val imageView: SubsamplingScaleImageView =
         if (isWebtoon) {
             MihonWebtoonSubsamplingImageView(context)
         } else {
             SubsamplingScaleImageView(context)
+        }
+
+    private val progressView =
+        ProgressBar(context).apply {
+            isIndeterminate = true
+            visibility = View.GONE
+        }
+
+    private val errorView =
+        TextView(context).apply {
+            text = "Page failed to load\nTap to retry"
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            textSize = 15f
+            setBackgroundColor(Color.BLACK)
+            visibility = View.GONE
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                retryAction?.invoke()
+            }
         }
 
     var onTap: (() -> Unit)? = null
@@ -96,6 +124,21 @@ internal class MihonReaderPageView(
                 LayoutParams.MATCH_PARENT,
             ),
         )
+        addView(
+            progressView,
+            LayoutParams(
+                LayoutParams.WRAP_CONTENT,
+                LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER,
+            ),
+        )
+        addView(
+            errorView,
+            LayoutParams(
+                LayoutParams.MATCH_PARENT,
+                LayoutParams.MATCH_PARENT,
+            ),
+        )
     }
 
     fun bind(
@@ -108,6 +151,20 @@ internal class MihonReaderPageView(
         readingMode: MihonReadingMode = MihonReadingMode.RIGHT_TO_LEFT,
         landscapeZoom: Boolean = true,
     ) {
+        retryAction = {
+            bind(
+                page = page,
+                cropBorders = cropBorders,
+                sidePaddingPercent = sidePaddingPercent,
+                gapPx = gapPx,
+                scaleType = scaleType,
+                zoomStart = zoomStart,
+                readingMode = readingMode,
+                landscapeZoom = landscapeZoom,
+            )
+        }
+        errorView.visibility = View.GONE
+        progressView.visibility = View.VISIBLE
         loadJob?.cancel()
         imageView.recycle()
 
@@ -191,6 +248,8 @@ internal class MihonReaderPageView(
                             SubsamplingScaleImageView
                                 .DefaultOnImageEventListener() {
                             override fun onReady() {
+                                progressView.visibility = View.GONE
+                                errorView.visibility = View.GONE
                                 maxScale = scale * 5f
                                 setDoubleTapZoomScale(scale * 2f)
 
@@ -235,14 +294,32 @@ internal class MihonReaderPageView(
                                     }
                                 }
                             }
+
+                            override fun onImageLoadError(e: Exception) {
+                                showPageLoadError()
+                            }
+
+                            override fun onTileLoadError(e: Exception) {
+                                showPageLoadError()
+                            }
                         },
                     )
                     setImage(
                         ImageSource.uri(context, resolved.uri),
                     )
                 }
+            }.onFailure { error ->
+                if (error is CancellationException) {
+                    return@onFailure
+                }
+                showPageLoadError()
             }
         }
+    }
+
+    private fun showPageLoadError() {
+        progressView.visibility = View.GONE
+        errorView.visibility = View.VISIBLE
     }
 
     override fun onAttachedToWindow() {
@@ -308,10 +385,13 @@ internal class MihonReaderPageView(
 
     fun recycle() {
         loadJob?.cancel()
+        progressView.visibility = View.GONE
+        errorView.visibility = View.GONE
         imageView.recycle()
     }
 
     fun destroy() {
+        retryAction = null
         scope.cancel()
         imageView.recycle()
     }
