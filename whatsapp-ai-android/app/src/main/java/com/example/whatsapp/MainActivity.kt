@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 41434)
-Total output lines: 4017
-
 package com.example.whatsapp
 
 import android.Manifest
@@ -1216,7 +1213,1474 @@ private fun NightApp(initialChatId: String? = null) {
             val position = runCatching { player.currentPosition }.getOrDefault(0)
 
             if (duration > 0) {
-                audioProgress = (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f)…16434 tokens truncated…                   spec = browser,
+                audioProgress = (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+                audioPositionLabel = formatDuration(position.toLong())
+            }
+
+            if (!player.isPlaying) {
+                audioIsPlaying = false
+                break
+            }
+            delay(250)
+        }
+    }
+
+    fun leaveChat() {
+        val leavingId = activeChatId
+        if (chats.any { it.id == leavingId }) {
+            scope.launch { checkpoint(leavingId) }
+        }
+        screen = "tabs"
+    }
+
+    BackHandler(enabled = screen != "tabs") {
+        when (screen) {
+            "chat" -> leaveChat()
+            "live_voice" -> {
+                liveVoiceClient.stop()
+                screen = "chat"
+            }
+            "media_viewer" -> {
+                mediaViewerPath = null
+                remoteMediaItem = null
+                screen = mediaViewerReturnScreen
+            }
+            "library_text" -> {
+                libraryTextFile = null
+                screen = "tabs"
+            }
+            "library_audio" -> {
+                libraryAudioFile = null
+                activePlayer?.pause()
+                audioIsPlaying = false
+                screen = "tabs"
+            }
+            "media_compose" -> cancelMediaDraft()
+            "pdf_compose" -> cancelPdfDraft()
+            "scripts" -> screen = "tabs"
+            else -> {
+                screen = if (selectedTab == MainTab.You) "tabs" else "chat"
+            }
+        }
+    }
+
+    when (screen) {
+        "library_text" -> {
+            val file = libraryTextFile
+            if (file != null) {
+                NightLibraryTextEditorScreen(
+                    localPath = file.localPath,
+                    displayName = file.name,
+                    onBack = {
+                        libraryTextFile = null
+                        screen = "tabs"
+                    },
+                )
+            } else {
+                screen = "tabs"
+            }
+        }
+
+        "library_audio" -> {
+            val file = libraryAudioFile
+            if (file != null) {
+                NightLibraryAudioScreen(
+                    displayName = file.name,
+                    isPlaying = activeAudioPath == file.localPath && audioIsPlaying,
+                    progress = if (activeAudioPath == file.localPath) audioProgress else 0f,
+                    positionLabel = if (activeAudioPath == file.localPath) {
+                        audioPositionLabel
+                    } else {
+                        "0:00"
+                    },
+                    onToggle = { playAudio(file.localPath) },
+                    onSeek = { seekAudio(file.localPath, it) },
+                    onBack = {
+                        libraryAudioFile = null
+                        activePlayer?.pause()
+                        audioIsPlaying = false
+                        screen = "tabs"
+                    },
+                )
+            } else {
+                screen = "tabs"
+            }
+        }
+
+        "pdf_compose" -> {
+            val draft = pdfDraft
+            if (draft != null) {
+                NightPdfEditorScreen(
+                    localPath = draft.localPath,
+                    fileName = draft.name,
+                    caption = pdfCaption,
+                    onCaptionChange = { pdfCaption = it },
+                    onCancel = ::cancelPdfDraft,
+                    onPreparedSend = { path, name ->
+                        sendPdfDraft(
+                            preparedPath = path,
+                            preparedName = name,
+                        )
+                    },
+                )
+            } else {
+                screen = "chat"
+            }
+        }
+
+        "media_compose" -> {
+            val draft = mediaDraft
+            if (draft != null) {
+                NightMediaComposerScreen(
+                    localPath = draft.localPath,
+                    mimeType = draft.mimeType,
+                    fileName = draft.name,
+                    videoThumbnailPath = draft.thumbnailPath,
+                    caption = mediaCaption,
+                    onCaptionChange = { mediaCaption = it },
+                    onCancel = ::cancelMediaDraft,
+                    onPreparedSend = { path, mime, name ->
+                        sendMediaDraft(
+                            preparedPath = path,
+                            preparedMimeType = mime,
+                            preparedName = name,
+                        )
+                    },
+                )
+            } else {
+                screen = "chat"
+            }
+        }
+
+        "media_viewer" -> {
+            val pathToShow = mediaViewerPath
+            val remoteItem = remoteMediaItem
+            val viewerItems =
+                if (remoteItem != null) {
+                    listOf(remoteItem)
+                } else {
+                    chatMediaItems
+                }
+            if (pathToShow != null && viewerItems.isNotEmpty()) {
+                val initialIndex = viewerItems.indexOfFirst { it.localPath == pathToShow }
+                    .takeIf { it >= 0 }
+                    ?: 0
+                NightMediaViewerScreen(
+                    items = viewerItems,
+                    initialIndex = initialIndex,
+                    onBack = {
+                        mediaViewerPath = null
+                        remoteMediaItem = null
+                        screen = mediaViewerReturnScreen
+                    },
+                    onEdit = { item ->
+                        if (
+                            item.localPath.startsWith("http://") ||
+                            item.localPath.startsWith("https://")
+                        ) {
+                            Toast.makeText(
+                                context,
+                                "Download remote media before editing it.",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        } else {
+                        val source = File(item.localPath)
+                        if (!source.exists()) {
+                            Toast.makeText(context, "This media is not available locally.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            scope.launch {
+                                val saved = withContext(Dispatchers.IO) {
+                                    NightFileLibrary.registerLocalFile(
+                                        context = context,
+                                        source = source,
+                                        name = "Edited " + source.name,
+                                        mimeType = item.mimeType,
+                                    )
+                                }
+                                if (saved != null) {
+                                    val payload = JSONObject()
+                                        .put("localPath", saved.localPath)
+                                        .put("mimeType", saved.mimeType)
+                                        .put("sizeBytes", saved.sizeBytes)
+                                    if (item.isVideo) {
+                                        val meta = withContext(Dispatchers.IO) {
+                                            extractVideoMeta(context, saved.localPath)
+                                        }
+                                        payload
+                                            .put("duration", meta.duration)
+                                            .put("aspectRatio", meta.aspectRatio)
+                                        meta.thumbnailPath?.let { payload.put("thumbnailPath", it) }
+                                    } else {
+                                        payload.put("aspectRatio", readImageAspectRatio(saved.localPath))
+                                    }
+                                    mediaDraft = NightMediaDraft(
+                                        libraryId = saved.id,
+                                        name = saved.name,
+                                        mimeType = saved.mimeType,
+                                        sizeBytes = saved.sizeBytes,
+                                        localPath = saved.localPath,
+                                        createdAt = saved.createdAt,
+                                        messageType = if (item.isVideo) "video" else "image",
+                                        payloadJson = payload.toString(),
+                                        thumbnailPath = if (item.isVideo) {
+                                            payload.optString("thumbnailPath").takeIf { it.isNotBlank() }
+                                        } else {
+                                            null
+                                        },
+                                        replyToMessageId = null,
+                                        chatId = activeChatId,
+                                        draftMetadata = NightDraftChatMetadata(
+                                            providerType = draftProviderType,
+                                            profileId = draftProviderProfileId,
+                                            modelId = draftModelId,
+                                            title = draftChatTitle,
+                                        ),
+                                    )
+                                    mediaCaption = item.caption
+                                    mediaViewerPath = null
+                                    screen = "media_compose"
+                                }
+                            }
+                        }
+                        }
+                    },
+                )
+            } else {
+                mediaViewerPath = null
+                remoteMediaItem = null
+                screen = "chat"
+            }
+        }
+
+        "live_voice" -> NightLiveVoiceScreen(
+            chatTitle = activeChat?.title ?: "Night",
+            state = liveVoiceState,
+            error = liveVoiceError,
+            microphoneMuted = liveVoiceMuted,
+            speakerEnabled = liveVoiceSpeaker,
+            onToggleMute = {
+                val next = !liveVoiceMuted
+                liveVoiceClient.setMicrophoneMuted(next)
+                liveVoiceMuted = next
+            },
+            onToggleSpeaker = {
+                val next = !liveVoiceSpeaker
+                if (liveVoiceClient.setSpeakerEnabled(next)) {
+                    liveVoiceSpeaker = next
+                } else {
+                    Toast.makeText(
+                        context,
+                        "Speaker output is not available on this device.",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            },
+            onEndCall = {
+                liveVoiceClient.stop()
+                liveVoiceMuted = false
+                liveVoiceSpeaker = false
+                screen = "chat"
+            },
+        )
+
+        "profile" -> NightProfileScreen(
+            displayName = displayName,
+            avatarPath = profileAvatarPath,
+            onBack = { screen = "tabs" },
+            onSaveName = { value ->
+                scope.launch {
+                    repository.setDisplayName(value)
+                    screen = "tabs"
+                }
+            },
+            onSaveAvatar = { path ->
+                profileAvatarPath = path
+                profileUiPrefs.edit().apply {
+                    if (path.isNullOrBlank()) {
+                        remove("avatar_path")
+                    } else {
+                        putString("avatar_path", path)
+                    }
+                }.apply()
+            },
+        )
+
+        "appearance" -> NightAppearanceScreen(
+            appearance = appearanceEntity ?: NightAppearanceEntity(),
+            onBack = { screen = "tabs" },
+            onUpdate = { updated ->
+                scope.launch { repository.setAppearance(updated) }
+            },
+        )
+
+        "media_library" -> NightMediaLibraryScreen(
+            onBack = { screen = "tabs" },
+        )
+
+        "scripts" -> NightScriptsScreen(
+            onBack = { screen = "tabs" },
+        )
+
+        "integrations" -> NightIntegrationsScreen(
+            extensions = extensions,
+            servers = mcpServers,
+            onBack = { screen = "providers" },
+            onRefresh = {
+                scope.launch {
+                    runCatching {
+                        extensionManager.refreshInstalledExtensions()
+                        mcpManager.refresh()
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not refresh integrations.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            preferredExtensionIds = preferredExtensionIds,
+            onSetPreferredExtension = { capability, extension ->
+                runCatching {
+                    extensionManager.setPreferredProvider(
+                        capability = capability,
+                        extensionId = extension.extensionId,
+                    )
+                }.onSuccess {
+                    integrationPreferenceRevision += 1
+                    Toast.makeText(
+                        context,
+                        extension.displayName + " is preferred for " +
+                            capability.wireName + ".",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }.onFailure { error ->
+                    Toast.makeText(
+                        context,
+                        error.message ?: "Could not change preferred provider.",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            },
+            onSetExtensionEnabled = { extension, enabled ->
+                scope.launch {
+                    runCatching {
+                        extensionManager.setEnabled(
+                            extension = extension,
+                            enabled = enabled,
+                        )
+                    }.onSuccess {
+                        Toast.makeText(
+                            context,
+                            extension.displayName +
+                                if (enabled) " enabled." else " disabled.",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not update integration.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onSaveMcp = { existingId, name, endpoint, token, clearToken, enabled ->
+                scope.launch {
+                    runCatching {
+                        mcpManager.save(
+                            existingId = existingId,
+                            displayName = name,
+                            endpoint = endpoint,
+                            bearerToken = token,
+                            clearBearerToken = clearToken,
+                            enabled = enabled,
+                        )
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not save MCP integration.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onSetMcpEnabled = { state, enabled ->
+                scope.launch {
+                    runCatching {
+                        mcpManager.setEnabled(
+                            state.config.id,
+                            enabled,
+                        )
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not update integration.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onReconnectMcp = { state ->
+                scope.launch {
+                    mcpManager.reconnect(state.config.id)
+                        .onSuccess { count ->
+                            Toast.makeText(
+                                context,
+                                state.config.displayName + " connected • " +
+                                    count + if (count == 1) " tool" else " tools",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                        .onFailure { error ->
+                            Toast.makeText(
+                                context,
+                                error.message ?: "Could not connect MCP integration.",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                }
+            },
+            onDeleteMcp = { state ->
+                scope.launch {
+                    runCatching {
+                        mcpManager.delete(state.config.id)
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not delete integration.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+        )
+
+        "extensions" -> NightExtensionsScreen(
+            extensions = extensions,
+            onBack = { screen = "providers" },
+            onRefresh = {
+                scope.launch {
+                    runCatching {
+                        extensionManager.refreshInstalledExtensions()
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not refresh extensions.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onSetEnabled = { extension, enabled ->
+                scope.launch {
+                    runCatching {
+                        extensionManager.setEnabled(
+                            extension = extension,
+                            enabled = enabled,
+                        )
+                    }.onSuccess {
+                        Toast.makeText(
+                            context,
+                            extension.displayName +
+                                if (enabled) " enabled." else " disabled.",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not update extension.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+        )
+
+        "mcp_servers" -> NightMcpServersScreen(
+            servers = mcpServers,
+            onBack = { screen = "providers" },
+            onRefresh = {
+                scope.launch {
+                    runCatching { mcpManager.refresh() }
+                        .onFailure { error ->
+                            Toast.makeText(
+                                context,
+                                error.message ?: "Could not refresh MCP servers.",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                }
+            },
+            onSave = { existingId, name, endpoint, token, clearToken, enabled ->
+                scope.launch {
+                    runCatching {
+                        mcpManager.save(
+                            existingId = existingId,
+                            displayName = name,
+                            endpoint = endpoint,
+                            bearerToken = token,
+                            clearBearerToken = clearToken,
+                            enabled = enabled,
+                        )
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not save MCP server.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onSetEnabled = { state, enabled ->
+                scope.launch {
+                    runCatching {
+                        mcpManager.setEnabled(
+                            state.config.id,
+                            enabled,
+                        )
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not update MCP server.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onReconnect = { state ->
+                scope.launch {
+                    mcpManager.reconnect(state.config.id)
+                        .onSuccess { count ->
+                            Toast.makeText(
+                                context,
+                                state.config.displayName + " connected • " +
+                                    count + if (count == 1) " tool" else " tools",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                        .onFailure { error ->
+                            Toast.makeText(
+                                context,
+                                error.message ?: "Could not connect MCP server.",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                }
+            },
+            onDelete = { state ->
+                scope.launch {
+                    runCatching {
+                        mcpManager.delete(state.config.id)
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not delete MCP server.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+        )
+
+        "providers" -> NightProvidersScreen(
+            profiles = profiles,
+            models = providerModels,
+            onBack = { screen = "tabs" },
+            onCapabilityRoutingClick = { screen = "capability_routes" },
+            onMcpServersClick = { screen = "integrations" },
+            onExtensionsClick = { screen = "integrations" },
+            onAddProfile = { provider, service, name, key, endpoint, region, language, voiceName, makeDefault ->
+                scope.launch {
+                    runCatching {
+                        providerManager.addProfile(
+                            providerType = provider,
+                            serviceKind = service,
+                            displayName = name,
+                            apiKey = key,
+                            endpoint = endpoint,
+                            region = region,
+                            language = language,
+                            voiceName = voiceName,
+                            makeDefault = makeDefault,
+                        )
+                    }.onFailure {
+                        Toast.makeText(context, it.message ?: "Could not save provider.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            },
+            onAddModel = { providerProfile, modelId, name, deployment, capabilities, makeDefault ->
+                scope.launch {
+                    runCatching {
+                        providerManager.addModel(
+                            profile = providerProfile,
+                            modelId = modelId,
+                            displayName = name,
+                            deploymentName = deployment,
+                            capabilities = capabilities,
+                            makeDefault = makeDefault,
+                        )
+                    }.onFailure {
+                        Toast.makeText(context, it.message ?: "Could not save model.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            },
+            onDeleteProfile = { providerProfile ->
+                scope.launch { providerManager.deleteProfile(providerProfile) }
+            },
+            onDeleteModel = { model ->
+                scope.launch { providerManager.deleteModel(model) }
+            },
+            onSetProfileEnabled = { providerProfile, enabled ->
+                scope.launch { providerManager.setProfileEnabled(providerProfile, enabled) }
+            },
+            onMakeProfileDefault = { providerProfile ->
+                scope.launch { providerManager.makeProfileDefault(providerProfile) }
+            },
+            onSetModelEnabled = { model, enabled ->
+                scope.launch { providerManager.setModelEnabled(model, enabled) }
+            },
+            onMakeModelDefault = { model ->
+                scope.launch { providerManager.makeModelDefault(model) }
+            },
+            onEditProfile = { providerProfile, name, endpoint, region, language, voiceName, replacementKey ->
+                scope.launch {
+                    runCatching {
+                        providerManager.updateProfile(
+                            profile = providerProfile,
+                            displayName = name,
+                            endpoint = endpoint,
+                            region = region,
+                            language = language,
+                            voiceName = voiceName,
+                            replacementApiKey = replacementKey,
+                        )
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not update provider.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onEditModel = { model, modelId, name, deployment, capabilities ->
+                scope.launch {
+                    runCatching {
+                        providerManager.updateModel(
+                            model = model,
+                            modelId = modelId,
+                            displayName = name,
+                            deploymentName = deployment,
+                            capabilities = capabilities,
+                        )
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not update model.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onTestModel = { providerProfile, model ->
+                scope.launch {
+                    aiGateway.testModel(providerProfile, model)
+                        .onSuccess { response ->
+                            Toast.makeText(
+                                context,
+                                if (response.trim() == "NIGHT_OK") {
+                                    model.displayName + " is connected."
+                                } else {
+                                    model.displayName + " replied: " + response.take(120)
+                                },
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                        .onFailure { error ->
+                            Toast.makeText(
+                                context,
+                                model.displayName + " failed: " + (error.message ?: "Unknown provider error."),
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                }
+            },
+            providerKeys = { providerProfile ->
+                providerManager.keySummaries(providerProfile)
+            },
+            onAddProviderKey = { providerProfile, key, label ->
+                scope.launch {
+                    runCatching {
+                        providerManager.addProviderKey(
+                            profile = providerProfile,
+                            apiKey = key,
+                            label = label,
+                        )
+                    }.onSuccess {
+                        Toast.makeText(
+                            context,
+                            "Groq key added.",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not add Groq key.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onDeleteProviderKey = { providerProfile, keyId ->
+                scope.launch {
+                    runCatching {
+                        providerManager.deleteProviderKey(providerProfile, keyId)
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not remove Groq key.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+        )
+
+        "choose_ai" -> NightAiSelectorScreen(
+            profiles = profiles,
+            models = providerModels,
+            selectedProfileId = activeProfile?.id,
+            selectedModelId = activeModel?.id,
+            onBack = { screen = "chat" },
+            onSelect = { providerProfile, model ->
+                if (activeChat == null && activeChatId != "night-core") {
+                    draftProviderType = providerProfile.providerType
+                    draftProviderProfileId = providerProfile.id
+                    draftModelId = model.id
+                    screen = "chat"
+                } else {
+                    scope.launch {
+                        repository.setChatModel(
+                            chatId = activeChatId,
+                            provider = providerProfile.providerType,
+                            profileId = providerProfile.id,
+                            model = model.id,
+                        )
+                        screen = "chat"
+                    }
+                }
+            },
+        )
+
+        "memory" -> NightMemoryScreen(
+            chats = chats,
+            onBack = { screen = "tabs" },
+            onChatClick = {
+                activeChatId = it.id
+                screen = "chat_memory"
+            },
+        )
+
+        "chat_memory" -> NightChatMemoryScreen(
+            chat = activeChat,
+            checkpoints = memoryCheckpoints,
+            isRefreshing = summaryRefreshing,
+            onBack = { screen = "chat" },
+            onRefresh = {
+                if (!summaryRefreshing) {
+                    summaryRefreshing = true
+                    scope.launch {
+                        try {
+                            checkpoint(activeChatId)
+                            memoryCheckpoints =
+                                repository.summaryCheckpoints(activeChatId)
+                        } finally {
+                            summaryRefreshing = false
+                        }
+                    }
+                }
+            },
+        )
+
+        "chat_search" -> NightChatSearchScreen(
+            title = activeChat?.title ?: "Night",
+            messages = messageEntities,
+            onBack = { screen = "chat" },
+        )
+
+        "chat_files" -> NightChatFilesScreen(
+            title = activeChat?.title ?: "Night",
+            messages = messageEntities,
+            onBack = { screen = "chat" },
+        )
+
+        "capability_routes" -> NightCapabilityRoutesScreen(
+            profiles = profiles,
+            models = providerModels,
+            routes = capabilityRoutes,
+            onBack = { screen = "providers" },
+            onSetRoute = { capability, providerProfile, model, useSelectedFirst ->
+                scope.launch {
+                    repository.setCapabilityRoute(
+                        NightCapabilityRouteEntity(
+                            id = capability,
+                            capability = capability,
+                            providerProfileId = providerProfile.id,
+                            modelId = model?.id,
+                            useSelectedChatModelFirst = useSelectedFirst,
+                            isEnabled = true,
+                            updatedAt = System.currentTimeMillis(),
+                        )
+                    )
+                }
+            },
+            onClearRoute = { capability ->
+                scope.launch { repository.clearCapabilityRoute(capability) }
+            },
+        )
+
+        "scheduled_tasks" -> NightScheduledTasksScreen(
+            tasks = scheduledTasks,
+            onBack = { screen = "tabs" },
+            onDelete = { task ->
+                scope.launch { scheduleManager.cancel(task) }
+            },
+        )
+
+        "settings" -> {
+            selectedTabName = MainTab.You.name
+            screen = "tabs"
+        }
+
+        "privacy" -> NightPrivacyScreen(
+            onBack = {
+                selectedTabName = MainTab.You.name
+                screen = "tabs"
+            },
+        )
+
+        "audio_picker" -> NightAudioPickerScreen(
+            onBack = { screen = "chat" },
+            onSelect = { uri ->
+                screen = "chat"
+                importAttachmentUri(uri)
+            },
+            onBrowseFiles = {
+                screen = "chat"
+                attachmentPicker.launch(arrayOf("audio/*"))
+            },
+            accentColor = appearance.accentColor,
+        )
+
+        "chat" -> CurrentWhatsAppConversation(
+            contactName = activeChat?.title
+                ?: draftChatTitle
+                ?: if (activeChatId == "night-core") "Night" else "New chat",
+            subtitle = when {
+                activeModel != null && activeProfile != null ->
+                    activeModel.displayName + " • " + activeProfile.providerType.replaceFirstChar { it.uppercase() }
+                else -> "Choose AI"
+            },
+            messages = visualMessages,
+            messageText = messageText,
+            onMessageTextChange = { messageText = it },
+            onBackClick = { leaveChat() },
+            appearance = appearance,
+            onSendClick = {
+                val text = messageText.trim()
+                if (text.isEmpty()) return@CurrentWhatsAppConversation
+                NightEmojiRecents.recordFromText(context, text)
+                val chatId = activeChatId
+                val replyId = replyingToId
+                val wantsDirectImage = directImageMode
+                val activeHasTools = activeModel?.capabilities
+                    ?.split(",")
+                    ?.map { it.trim().lowercase() }
+                    ?.contains("tools")
+                    ?: false
+                val draftMetadata = NightDraftChatMetadata(
+                    providerType = draftProviderType,
+                    profileId = draftProviderProfileId,
+                    modelId = draftModelId,
+                    title = draftChatTitle,
+                )
+                messageText = ""
+                replyingToId = null
+                if (wantsDirectImage) directImageMode = false
+
+                scope.launch {
+                    val userMessage =
+                        if (text.trimStart().startsWith("/")) {
+                            repository.appendText(
+                                chatId = chatId,
+                                role = "user",
+                                text = text,
+                                replyToMessageId = replyId,
+                            )
+                        } else {
+                            appendTextWithLinkPreview(
+                                repository = repository,
+                                linkPreviewService = linkPreviewService,
+                                chatId = chatId,
+                                role = "user",
+                                text = text,
+                                replyToMessageId = replyId,
+                            )
+                        }
+                    commitDraftChatMetadataSnapshot(chatId, draftMetadata)
+
+                    val commandExecution =
+                        scriptRuntime.executeSlashCommand(
+                            chatId = chatId,
+                            rawText = text,
+                            invokingMessageId = userMessage.id,
+                        )
+                    if (commandExecution != null) {
+                        commandExecution.response
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { response ->
+                                repository.appendText(
+                                    chatId = chatId,
+                                    role = "assistant",
+                                    text = response,
+                                    replyToMessageId = userMessage.id,
+                                )
+                            }
+                        return@launch
+                    }
+
+                    if (wantsDirectImage) {
+                        val prompt = text
+                            .removePrefix("Generate an image of ")
+                            .removePrefix("Generate an image of")
+                            .trim()
+                            .ifBlank { text.trim() }
+
+                        val toolResult = agentTools.execute(
+                            chatId = chatId,
+                            invocation = NightToolInvocation(
+                                id = "direct_image_" + java.util.UUID.randomUUID(),
+                                name = "generate_image",
+                                argumentsJson = JSONObject()
+                                    .put("prompt", prompt)
+                                    .put("size", "1024x1024")
+                                    .toString(),
+                            ),
+                        )
+                        val toolJson = runCatching { JSONObject(toolResult) }.getOrNull()
+                        if (toolJson?.optBoolean("ok", false) != true) {
+                            repository.appendText(
+                                chatId = chatId,
+                                role = "assistant",
+                                text = "I couldn't generate that image. " +
+                                    (toolJson?.optString("error")
+                                        ?.takeIf { it.isNotBlank() }
+                                        ?: "Check the image-generation route in AI & providers."),
+                            )
+                        }
+                        return@launch
+                    }
+
+                    if (!activeHasTools) {
+                        val localAppearanceResult = appearanceController.handleNaturalRequest(text)
+                        if (localAppearanceResult != null) {
+                            repository.appendText(
+                                chatId = chatId,
+                                role = "assistant",
+                                text = localAppearanceResult,
+                            )
+                            return@launch
+                        }
+                    }
+
+                    streamNightAssistantReply(
+                        repository = repository,
+                        aiGateway = aiGateway,
+                        chatId = chatId,
+                        displayName = displayName,
+                        noAiMessage = "No AI is selected for this chat yet. Tap Choose AI to pick a configured model.",
+                        failurePrefix = "I couldn't reach an available AI. ",
+                    )
+                }
+            },
+            onCallClick = {
+                if (
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.RECORD_AUDIO,
+                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) {
+                    startLiveVoiceCall()
+                } else {
+                    liveVoicePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                }
+            },
+            onMenuAction = { action ->
+                when (action) {
+                    "Memory & summary" -> screen = "chat_memory"
+                    "Files in chat" -> screen = "chat_files"
+                    "Browser" -> context.startActivity(
+                        NightBrowserActivity.createGeneralIntent(context)
+                    )
+                    "Rename chat" -> {
+                        renameValue = activeChat?.title
+                            ?: draftChatTitle
+                            ?: if (activeChatId == "night-core") "Night" else "New chat"
+                        renameOpen = true
+                    }
+                    "Choose AI" -> screen = "choose_ai"
+                    "Clear chat" -> {
+                        val chatId = activeChatId
+                        scope.launch { repository.clearChat(chatId) }
+                    }
+                    "Delete chat" -> {
+                        val chatId = activeChatId
+                        scope.launch {
+                            repository.deleteChat(chatId)
+                            repository.ensureChat("night-core", "Night")
+                            if (activeChatId == chatId) {
+                                activeChatId = "night-core"
+                                screen = "tabs"
+                            }
+                        }
+                    }
+                    "Export chat" -> {
+                        val title = activeChat?.title ?: "Night"
+                        val history = messageEntities
+                        scope.launch { exportChat(context, title, history) }
+                    }
+                    "Search chat" -> screen = "chat_search"
+                }
+            },
+            onMessageButtonClick = { messageId, actionId ->
+                val configurationSubmission =
+                    ExtensionConfigurationActionCodec.decode(actionId)
+
+                when {
+                    actionId.startsWith("script_command_") -> {
+                        scope.launch {
+                            val existing =
+                                repository.getMessage(messageId)
+                                    ?: return@launch
+                            val payload =
+                                runCatching {
+                                    JSONObject(existing.payloadJson)
+                                }.getOrElse { JSONObject() }
+                            val command =
+                                payload.optJSONObject("scriptCommands")
+                                    ?.optString(actionId)
+                                    ?.trim()
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?: return@launch
+
+                            val execution =
+                                scriptRuntime.executeSlashCommand(
+                                    chatId = existing.chatId,
+                                    rawText = command,
+                                    invokingMessageId = existing.id,
+                                )
+                            execution?.response
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let { response ->
+                                    repository.appendText(
+                                        chatId = existing.chatId,
+                                        role = "assistant",
+                                        text = response,
+                                        replyToMessageId = existing.id,
+                                    )
+                                }
+                        }
+                    }
+
+                    configurationSubmission != null -> {
+                        scope.launch {
+                            val existing =
+                                repository.getMessage(messageId) ?: return@launch
+                            if (existing.type != "extension") return@launch
+
+                            val snapshot =
+                                ExtensionMessageCodec.decode(existing.payloadJson)
+                                    ?: return@launch
+                            val values = runCatching {
+                                JSONObject(configurationSubmission.valuesJson)
+                            }.getOrElse { JSONObject() }
+
+                            NightExtensionConfigurationStore.save(
+                                context = context,
+                                extensionId = snapshot.extensionId,
+                                configurationId =
+                                    configurationSubmission.configurationId,
+                                values = values,
+                            )
+
+                            val updatedSnapshot =
+                                snapshot.withConfigurationValues(values)
+                            repository.replaceMessage(
+                                existing.copy(
+                                    payloadJson =
+                                        ExtensionMessageCodec.encode(updatedSnapshot)
+                                )
+                            )
+
+                            val actionResult =
+                                NightExtensionMessageActionRegistry.execute(
+                                    extensionId = snapshot.extensionId,
+                                    chatId = existing.chatId,
+                                    messageId = messageId,
+                                    messageType = snapshot.messageType,
+                                    actionId = configurationSubmission.actionId,
+                                    payload = JSONObject()
+                                        .put(
+                                            "configurationId",
+                                            configurationSubmission.configurationId,
+                                        )
+                                        .put("values", values)
+                                        .put(
+                                            "extensionPayload",
+                                            runCatching {
+                                                JSONObject(
+                                                    updatedSnapshot.extensionPayloadJson
+                                                )
+                                            }.getOrElse { JSONObject() },
+                                        ),
+                                )
+                            persistExtensionActionResult(
+                                extensionId = snapshot.extensionId,
+                                chatId = existing.chatId,
+                                result = actionResult,
+                            )
+                        }
+                    }
+
+                    actionId.startsWith("option_") -> {
+                        val index = actionId.removePrefix("option_").toIntOrNull()
+                        if (index != null) {
+                            scope.launch {
+                                val existing = repository.getMessage(messageId) ?: return@launch
+                                if (existing.type == "choice") {
+                                    val payload = runCatching { JSONObject(existing.payloadJson) }
+                                        .getOrElse { JSONObject() }
+                                    if (payload.optBoolean("multiple", false)) {
+                                        val selected = linkedSetOf<Int>()
+                                        payload.optJSONArray("selectedIndices")?.let { raw ->
+                                            for (position in 0 until raw.length()) {
+                                                selected += raw.optInt(position)
+                                            }
+                                        }
+                                        if (!selected.add(index)) {
+                                            selected.remove(index)
+                                        }
+                                        val encoded = JSONArray()
+                                        selected.sorted().forEach { encoded.put(it) }
+                                        payload
+                                            .put("selectedIndices", encoded)
+                                            .remove("selectedIndex")
+                                    } else {
+                                        payload.put("selectedIndex", index)
+                                    }
+                                    payload.put("selectedBy", "You")
+                                    repository.appendMessage(existing.copy(payloadJson = payload.toString()))
+                                }
+                            }
+                        }
+                    }
+                    actionId == "read" -> {
+                        scope.launch {
+                            val existing = repository.getMessage(messageId) ?: return@launch
+                            if (existing.type != "manga") return@launch
+
+                            val payload = runCatching { JSONObject(existing.payloadJson) }
+                                .getOrElse { JSONObject() }
+                            val title = payload.optString("title").ifBlank {
+                                existing.text.ifBlank { "Manga" }
+                            }
+                            val chapter = payload.optString("chapter")
+                            val archivePath = payload.optString("archivePath")
+                                .takeIf { it.isNotBlank() }
+
+                            if (archivePath != null && File(archivePath).exists()) {
+                                context.startActivity(
+                                    NightMihonReaderActivity.archiveIntent(
+                                        context = context,
+                                        localPath = archivePath,
+                                        displayName = title,
+                                    )
+                                )
+                                return@launch
+                            }
+
+                            val pagesRaw = when {
+                                payload.optJSONArray("pages") != null ->
+                                    payload.optJSONArray("pages")!!.toString()
+                                payload.optString("pages").isNotBlank() ->
+                                    payload.optString("pages")
+                                else -> ""
+                            }
+                            val pages = decodeMihonPages(pagesRaw)
+                            if (pages.isEmpty()) {
+                                Toast.makeText(
+                                    context,
+                                    "This manga card has no readable chapter pages yet.",
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                                return@launch
+                            }
+
+                            context.startActivity(
+                                NightMihonReaderActivity.intent(
+                                    context = context,
+                                    title = title,
+                                    chapter = chapter,
+                                    pages = pages,
+                                    readerKey = payload.optString("readerKey").ifBlank { title },
+                                    progressKey = payload.optString("progressKey")
+                                        .takeIf { it.isNotBlank() }
+                                        ?: ("manga:" + existing.id),
+                                )
+                            )
+                        }
+                    }
+                    actionId == "choose_ai" || actionId.startsWith("ai_") -> screen = "choose_ai"
+                    actionId == "open_library" -> {
+                        selectedTabName = MainTab.Updates.name
+                        screen = "tabs"
+                    }
+                    actionId.contains("summary") -> screen = "chat_memory"
+
+                    NightExtensionStandardActions
+                        .isPlaybackAction(actionId) -> {
+                        scope.launch {
+                            val existing =
+                                repository.getMessage(messageId) ?: return@launch
+                            if (existing.type != "extension") return@launch
+                            val snapshot =
+                                ExtensionMessageCodec.decode(existing.payloadJson)
+                                    ?: return@launch
+                            val payload =
+                                runCatching {
+                                    JSONObject(snapshot.extensionPayloadJson)
+                                }.getOrElse { JSONObject() }
+                            val url =
+                                payload.optString("mediaUrl")
+                                    .trim()
+                                    .takeIf {
+                                        it.startsWith("https://") ||
+                                            it.startsWith("http://")
+                                    }
+                            if (url == null) {
+                                Toast.makeText(
+                                    context,
+                                    "This extension did not provide a playable media URL.",
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                                return@launch
+                            }
+
+                            val headers =
+                                buildMap<String, String> {
+                                    payload.optJSONObject("headers")
+                                        ?.let { raw ->
+                                            raw.keys().forEach { key ->
+                                                val value =
+                                                    raw.optString(key).trim()
+                                                if (
+                                                    key.isNotBlank() &&
+                                                    value.isNotBlank()
+                                                ) {
+                                                    put(key, value)
+                                                }
+                                            }
+                                        }
+                                }
+                            val title =
+                                payload.optString("title")
+                                    .trim()
+                                    .ifBlank { snapshot.title }
+                            val mimeType =
+                                payload.optString("mimeType")
+                                    .trim()
+                                    .ifBlank { "video/mp4" }
+
+                            if (
+                                actionId ==
+                                    NightExtensionStandardActions.PLAY_MEDIA
+                            ) {
+                                remoteMediaItem =
+                                    NightChatMediaItem(
+                                        id = "remote:" + messageId,
+                                        localPath = url,
+                                        mimeType = mimeType,
+                                        caption = title,
+                                        sender = snapshot.extensionName,
+                                        requestHeaders = headers,
+                                    )
+                                mediaViewerPath = url
+                                mediaViewerReturnScreen = "chat"
+                                screen = "media_viewer"
+                            } else {
+                                val workId = runCatching {
+                                    NightMediaDownloadQueue.get(context).enqueue(
+                                        extensionId = snapshot.extensionId,
+                                        chatId = existing.chatId,
+                                        messageId = messageId,
+                                        messageType = snapshot.messageType,
+                                        payload = payload,
+                                    )
+                                }.getOrElse { error ->
+                                    Toast.makeText(
+                                        context,
+                                        error.message ?: "Could not start download.",
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                                    return@launch
+                                }
+                                Toast.makeText(
+                                    context,
+                                    "Night download started • " + workId.take(8),
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        }
+                    }
+
+                    NightExtensionStandardActions
+                        .isMediaCollectionAction(actionId) -> {
+                        scope.launch {
+                            val existing =
+                                repository.getMessage(messageId) ?: return@launch
+                            if (existing.type != "extension") return@launch
+
+                            val snapshot =
+                                ExtensionMessageCodec.decode(existing.payloadJson)
+                                    ?: return@launch
+
+                            val localMessage =
+                                runCatching {
+                                    NightMediaCollectionStore.handleAction(
+                                        context = context,
+                                        snapshot = snapshot,
+                                        actionId = actionId,
+                                    )
+                                }.getOrElse { error ->
+                                    Toast.makeText(
+                                        context,
+                                        error.message
+                                            ?: "Could not update media collection.",
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                                    return@launch
+                                }
+
+                            Toast.makeText(
+                                context,
+                                localMessage,
+                                Toast.LENGTH_SHORT,
+                            ).show()
+
+                            runCatching {
+                                NightExtensionMessageActionRegistry.execute(
+                                    extensionId = snapshot.extensionId,
+                                    chatId = existing.chatId,
+                                    messageId = messageId,
+                                    messageType = snapshot.messageType,
+                                    actionId = actionId,
+                                    payload = JSONObject()
+                                        .put(
+                                            "extensionPayload",
+                                            runCatching {
+                                                JSONObject(
+                                                    snapshot.extensionPayloadJson
+                                                )
+                                            }.getOrElse { JSONObject() },
+                                        )
+                                        .put("nightHandled", true),
+                                )
+                            }.onSuccess { result ->
+                                persistExtensionActionResult(
+                                    extensionId = snapshot.extensionId,
+                                    chatId = existing.chatId,
+                                    result = result,
+                                )
+                            }
+                        }
+                    }
+
+                    else -> {
+                        scope.launch {
+                            val existing =
+                                repository.getMessage(messageId) ?: return@launch
+                            if (existing.type != "extension") return@launch
+                            val snapshot =
+                                ExtensionMessageCodec.decode(existing.payloadJson)
+                                    ?: return@launch
+
+                            val browser = snapshot.browser
+                            if (
+                                snapshot.template == ExtensionCardTemplate.Browser &&
+                                browser != null &&
+                                browser.verifyActionId == actionId
+                            ) {
+                                val verifyingSnapshot = snapshot.copy(
+                                    status = "Verifying",
+                                    browser = NightBrowserVerification.verifying(browser),
+                                )
+                                repository.replaceMessage(
+                                    existing.copy(
+                                        payloadJson =
+                                            ExtensionMessageCodec.encode(verifyingSnapshot)
+                                    )
+                                )
+
+                                val extensionPayload = runCatching {
+                                    JSONObject(snapshot.extensionPayloadJson)
+                                }.getOrElse { JSONObject() }
+
+                                val verificationPayload = runCatching {
+                                    NightBrowserVerification.buildActionPayload(
+                                        context = context,
+                                        spec = browser,
+                                        extensionPayload = extensionPayload,
+                                    )
+                                }.getOrElse { error ->
+                                    JSONObject()
+                                        .put(
+                                            "browserSession",
+                                            JSONObject()
+                                                .put("sessionId", browser.sessionId)
+                                                .put("captureError", error.message ?: "Unable to read browser session.")
+                                        )
+                                        .put("extensionPayload", extensionPayload)
+                                }
+
+                                val actionResult = runCatching {
+                                    NightExtensionMessageActionRegistry.execute(
+                                        extensionId = snapshot.extensionId,
+                                        chatId = existing.chatId,
+                                        messageId = messageId,
+                                        messageType = snapshot.messageType,
+                                        actionId = actionId,
+                                        payload = verificationPayload,
+                                    )
+                                }.getOrElse { error ->
+                                    JSONObject()
+                                        .put("verified", false)
+                                        .put(
+                                            "error",
+                                            error.message ?: "Verification handler failed.",
+                                        )
+                                }
+
+                                persistExtensionActionResult(
+                                    extensionId = snapshot.extensionId,
+                                    chatId = existing.chatId,
+                                    result = actionResult,
+                                )
+                                val outcome =
+                                    NightBrowserVerification.interpretResult(actionResult)
+                                val verifiedBrowser =
+                                    NightBrowserVerification.applyOutcome(
+                                        spec = browser,
                                         outcome = outcome,
                                     )
                                 val verifiedSnapshot = snapshot.copy(
