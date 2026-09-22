@@ -354,10 +354,23 @@ internal fun NightAniyomiVlcPlayer(
         media.release()
 
         onDispose {
-            runCatching { player.stop() }
+            // VLC stop/release can block while MediaCodec is flushing. Doing
+            // that synchronously from Compose disposal freezes the UI exactly
+            // when decoder recovery swaps player generations. Detach the old
+            // surface immediately, then let native teardown finish off-main.
+            if (attachedPlayer === player) {
+                attachedPlayer = null
+            }
             runCatching { player.detachViews() }
-            runCatching { player.release() }
-            runCatching { libVlc.release() }
+            kotlin.concurrent.thread(
+                start = true,
+                isDaemon = true,
+                name = "NightVlcRelease",
+            ) {
+                runCatching { player.stop() }
+                runCatching { player.release() }
+                runCatching { libVlc.release() }
+            }
         }
     }
 
