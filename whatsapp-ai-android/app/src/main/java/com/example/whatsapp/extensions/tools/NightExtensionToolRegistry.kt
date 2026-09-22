@@ -9,6 +9,7 @@ data class NightExtensionToolDefinition(
     val name: String,
     val description: String,
     val parameters: JSONObject,
+    val readOnly: Boolean = false,
 ) {
     val qualifiedName: String =
         "ext__" + sanitize(extensionId) + "__" + sanitize(name)
@@ -78,6 +79,12 @@ object NightExtensionToolRegistry {
 
     fun extensionIdFor(qualifiedName: String): String? =
         tools[qualifiedName]?.definition?.extensionId
+
+    fun definition(qualifiedName: String): NightExtensionToolDefinition? =
+        tools[qualifiedName]?.definition
+
+    fun isSideEffect(qualifiedName: String): Boolean =
+        tools[qualifiedName]?.definition?.readOnly == false
 
     suspend fun execute(
         qualifiedName: String,
