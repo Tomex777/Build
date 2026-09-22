@@ -1,5 +1,6 @@
 package com.example.whatsapp.extensions.tools
 
+import com.example.whatsapp.extensions.runtime.NightIntegrationCapability
 import java.util.concurrent.ConcurrentHashMap
 import org.json.JSONArray
 import org.json.JSONObject
@@ -10,6 +11,7 @@ data class NightExtensionToolDefinition(
     val description: String,
     val parameters: JSONObject,
     val readOnly: Boolean = false,
+    val capabilities: Set<NightIntegrationCapability> = emptySet(),
 ) {
     val qualifiedName: String =
         "ext__" + sanitize(extensionId) + "__" + sanitize(name)
@@ -70,11 +72,37 @@ object NightExtensionToolRegistry {
     }
 
     fun schemas(): JSONArray {
+        val registered = tools.values.toList()
         val array = JSONArray()
-        tools.values
+        registered
+            .filter { shouldExposeToModel(it.definition, registered) }
             .sortedBy { it.definition.qualifiedName }
             .forEach { array.put(it.definition.toProviderSchema()) }
         return array
+    }
+
+    private fun shouldExposeToModel(
+        definition: NightExtensionToolDefinition,
+        all: List<Registered>,
+    ): Boolean {
+        if (definition.capabilities.isEmpty()) return true
+
+        val preferredIds =
+            NightExtensionPreferenceRouter
+                .preferredExtensionIds(definition.capabilities)
+        if (preferredIds.isEmpty()) return true
+
+        val preferredEquivalentExists =
+            all.any { candidate ->
+                candidate.definition.extensionId in preferredIds &&
+                    candidate.definition.name == definition.name &&
+                    candidate.definition.capabilities
+                        .intersect(definition.capabilities)
+                        .isNotEmpty()
+            }
+
+        if (!preferredEquivalentExists) return true
+        return definition.extensionId in preferredIds
     }
 
     fun extensionIdFor(qualifiedName: String): String? =
@@ -91,7 +119,52 @@ object NightExtensionToolRegistry {
         chatId: String,
         arguments: JSONObject,
     ): JSONObject? {
-        val registered = tools[qualifiedName] ?: return null
-        return registered.handler.execute(chatId, arguments)
+        val requested = tools[qualifiedName] ?: return null
+        val requestedDefinition = requested.definition
+
+        val equivalents =
+            tools.values
+                .filter { candidate ->
+                    candidate.definition.name == requestedDefinition.name &&
+                        (
+                            candidate.definition.qualifiedName ==
+                                requestedDefinition.qualifiedName ||
+                                (
+                                    requestedDefinition.capabilities.isNotEmpty() &&
+                                        candidate.definition.capabilities
+                                            .intersect(
+                                                requestedDefinition.capabilities
+                                            )
+                                            .isNotEmpty()
+                                )
+                        )
+                }
+
+        val preferredIds =
+            NightExtensionPreferenceRouter
+                .preferredExtensionIds(requestedDefinition.capabilities)
+
+        val ordered =
+            equivalents.sortedWith(
+                compareByDescending<Registered> {
+                    it.definition.extensionId in preferredIds
+                }
+                    .thenByDescending {
+                        it.definition.qualifiedName ==
+                            requestedDefinition.qualifiedName
+                    }
+                    .thenBy { it.definition.extensionId }
+            )
+
+        var lastError: Throwable? = null
+        ordered.forEach { candidate ->
+            runCatching {
+                candidate.handler.execute(chatId, arguments)
+            }.onSuccess { return it }
+                .onFailure { lastError = it }
+        }
+
+        lastError?.let { throw it }
+        return null
     }
 }
