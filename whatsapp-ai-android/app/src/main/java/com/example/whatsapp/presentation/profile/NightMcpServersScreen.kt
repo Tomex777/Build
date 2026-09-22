@@ -332,7 +332,7 @@ private fun McpServerRow(
 }
 
 @Composable
-private fun McpServerDialog(
+internal fun McpServerDialog(
     title: String,
     initialName: String,
     initialEndpoint: String,
