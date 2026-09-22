@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AudioFile
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
@@ -35,8 +36,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -65,6 +68,7 @@ private val Secondary = Color(0xFF9CA5A9)
 fun NightFilesTab(
     onTabSelected: (MainTab) -> Unit,
     onSettingsClick: () -> Unit,
+    onScriptsClick: () -> Unit,
     accentColor: Color = Color(0xFFD44368),
 ) {
     val context = LocalContext.current
@@ -72,9 +76,11 @@ fun NightFilesTab(
     val libraryStore = remember { NightLibraryStore.get(context.applicationContext) }
     val scope = rememberCoroutineScope()
     val files by repository.observeLibrary().collectAsState(initial = emptyList())
+    var libraryReady by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         libraryStore.migrateLegacy()
+        libraryReady = true
     }
 
     val picker = rememberLauncherForActivityResult(
@@ -100,7 +106,7 @@ fun NightFilesTab(
                 containerColor = accentColor,
                 contentColor = Color.White,
                 shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.size(56.dp),
+                modifier = Modifier.size(62.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
@@ -110,59 +116,125 @@ fun NightFilesTab(
             }
         },
     ) {
-        if (files.isEmpty()) {
-            EmptyLibrary(
-                onAdd = { picker.launch(arrayOf("*/*")) },
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Bg),
+        ) {
+            LibraryWorkspaceShortcut(
                 accentColor = accentColor,
+                onClick = onScriptsClick,
             )
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Bg),
-                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 96.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                item {
-                    Column(modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)) {
+
+            when {
+                !libraryReady -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         Text(
-                            text = "Library",
-                            color = Primary,
-                            fontSize = 19.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = "Files here stay inside Night and can be referenced by you or the AI later.",
+                            text = "Loading your library…",
                             color = Secondary,
                             fontSize = 12.sp,
-                            lineHeight = 16.sp,
-                            modifier = Modifier.padding(top = 3.dp),
                         )
                     }
                 }
 
-                items(files, key = { it.id }) { file ->
-                    val readableManga = NightMihonArchiveLoader.isSupportedArchive(
-                        fileName = file.name,
-                        mimeType = file.mimeType,
-                    )
-                    LibraryFileRow(
-                        file = file,
-                        readableManga = readableManga,
+                files.isEmpty() -> {
+                    EmptyLibrary(
+                        onAdd = { picker.launch(arrayOf("*/*")) },
                         accentColor = accentColor,
-                        onClick = {
-                            if (readableManga) {
-                                context.startActivity(
-                                    NightMihonReaderActivity.archiveIntent(
-                                        context = context,
-                                        localPath = file.localPath,
-                                        displayName = file.name,
-                                    )
-                                )
-                            }
-                        },
                     )
                 }
+
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = 12.dp,
+                            end = 12.dp,
+                            top = 4.dp,
+                            bottom = 96.dp,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(files, key = { it.id }) { file ->
+                            val readableManga = NightMihonArchiveLoader.isSupportedArchive(
+                                fileName = file.name,
+                                mimeType = file.mimeType,
+                            )
+                            LibraryFileRow(
+                                file = file,
+                                readableManga = readableManga,
+                                accentColor = accentColor,
+                                onClick = {
+                                    if (readableManga) {
+                                        context.startActivity(
+                                            NightMihonReaderActivity.archiveIntent(
+                                                context = context,
+                                                localPath = file.localPath,
+                                                displayName = file.name,
+                                            )
+                                        )
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LibraryWorkspaceShortcut(
+    accentColor: Color,
+    onClick: () -> Unit,
+) {
+    Surface(
+        color = SurfaceDark,
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier
+            .padding(start = 12.dp, end = 12.dp, top = 7.dp, bottom = 5.dp)
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                color = Color(0xFF222A2D),
+                shape = RoundedCornerShape(13.dp),
+                modifier = Modifier.size(44.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Code,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(23.dp),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(11.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Scripts & projects",
+                    color = Primary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    text = "Create, edit, import and export Night JavaScript and local web projects",
+                    color = Secondary,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
             }
         }
     }
@@ -196,7 +268,7 @@ private fun EmptyLibrary(
                 }
             }
             Text(
-                text = "Library",
+                text = "No files yet",
                 color = Primary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
