@@ -2024,32 +2024,6 @@ private fun WhatsAppInlineMessageText(
             annotated to used.toList()
         }
     val annotated =
-                buildAnnotatedString {
-                    var index = 0
-                    while (index < text.length) {
-                        val emoji =
-                            NightFluentEmoji.mappedEmoji
-                                .firstOrNull { candidate ->
-                                    text.startsWith(candidate, index)
-                                }
-                        if (emoji != null) {
-                            val inlineId =
-                                "night_fluent_" +
-                                    emoji.codePoints()
-                                        .toArray()
-                                        .joinToString("_")
-                            appendInlineContent(inlineId, emoji)
-                            used += emoji
-                            index += emoji.length
-                        } else {
-                            append(text[index])
-                            index += 1
-                        }
-                    }
-                }
-            annotated to used.toList()
-        }
-    val annotated =
         remember(annotatedAndEmoji.first, time, mine, read) {
             buildAnnotatedString {
                 append(annotatedAndEmoji.first)
