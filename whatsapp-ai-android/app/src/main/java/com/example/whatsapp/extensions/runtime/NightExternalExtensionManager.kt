@@ -77,6 +77,69 @@ class NightExternalExtensionManager private constructor(
     val extensions: StateFlow<List<NightInstalledExtensionSummary>> =
         _extensions
 
+
+    fun providersFor(
+        capability: NightIntegrationCapability,
+    ): List<NightInstalledExtensionSummary> {
+        val candidates =
+            _extensions.value.filter {
+                it.enabled && capability in it.capabilities
+            }
+        if (candidates.isEmpty()) return emptyList()
+
+        val preferredId =
+            prefs.getString(
+                preferredProviderKey(capability),
+                null,
+            )
+                ?.trim()
+                .orEmpty()
+
+        return candidates.sortedWith(
+            compareByDescending<NightInstalledExtensionSummary> {
+                preferredId.isNotBlank() &&
+                    it.extensionId == preferredId
+            }
+                .thenBy { it.displayName.lowercase() }
+                .thenBy { it.extensionId }
+        )
+    }
+
+    fun preferredProvider(
+        capability: NightIntegrationCapability,
+    ): NightInstalledExtensionSummary? =
+        providersFor(capability).firstOrNull()
+
+    fun setPreferredProvider(
+        capability: NightIntegrationCapability,
+        extensionId: String?,
+    ) {
+        val normalized = extensionId?.trim().orEmpty()
+        if (normalized.isNotBlank()) {
+            require(
+                _extensions.value.any {
+                    it.extensionId == normalized &&
+                        it.enabled &&
+                        capability in it.capabilities
+                }
+            ) {
+                "Preferred extension must be enabled and provide " +
+                    capability.wireName + "."
+            }
+        }
+
+        prefs.edit().apply {
+            if (normalized.isBlank()) {
+                remove(preferredProviderKey(capability))
+            } else {
+                putString(
+                    preferredProviderKey(capability),
+                    normalized,
+                )
+            }
+        }.apply()
+    }
+
     suspend fun refreshInstalledExtensions(): List<String> {
         val components = withContext(Dispatchers.IO) {
             @Suppress("DEPRECATION")
@@ -366,6 +429,11 @@ class NightExternalExtensionManager private constructor(
             ),
             false,
         )
+
+    private fun preferredProviderKey(
+        capability: NightIntegrationCapability,
+    ): String =
+        "preferred_provider::" + capability.wireName
 
     private fun approvalKey(
         packageName: String,
