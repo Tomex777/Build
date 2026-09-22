@@ -24,6 +24,7 @@ class AnimePaheNightExtensionService : NightExtensionService() {
     private val store by lazy { AnimePaheSessionStore(this) }
     private val client by lazy { AnimePaheClient(store) }
     private val hlsResolver by lazy { PaheBatcherHlsResolver(store) }
+    private val downloadQueue by lazy { AnimePaheDownloadQueue(this) }
 
     override fun descriptor(): JSONObject =
         nightExtensionDescriptor(
@@ -127,6 +128,13 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                             "Use after resolving the user's chosen episode.",
                     ),
                     NightMessageTypeDescriptor(
+                        messageType = TYPE_DOWNLOAD,
+                        template = "media_card",
+                        description = "AnimePahe background download status.",
+                        whenToUse =
+                            "Use after the user starts an AnimePahe episode download.",
+                    ),
+                    NightMessageTypeDescriptor(
                         messageType = TYPE_SETTINGS,
                         template = "configuration_card",
                         description = "AnimePahe extension settings.",
@@ -219,6 +227,8 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                 }
 
             ACTION_VERIFY -> verifyAndRetry(payload)
+
+            ACTION_DOWNLOAD -> queueDownload(payload)
 
             ACTION_SAVE_CONFIG -> {
                 val values =
@@ -426,6 +436,46 @@ class AnimePaheNightExtensionService : NightExtensionService() {
         JSONObject()
             .put("ok", true)
             .put("night_message", settingsCard())
+
+    private fun queueDownload(
+        payload: JSONObject,
+    ): JSONObject {
+        val workId =
+            downloadQueue.enqueue(
+                payload = payload,
+                parallelism = store.parallelDownloads(),
+            )
+
+        return JSONObject()
+            .put("ok", true)
+            .put("workId", workId)
+            .put(
+                "night_message",
+                nightExtensionMessage(
+                    extensionId = EXTENSION_ID,
+                    messageType = TYPE_DOWNLOAD,
+                    template = "media_card",
+                    extensionName = EXTENSION_NAME,
+                    title =
+                        payload.optString("title")
+                            .trim()
+                            .ifBlank { "AnimePahe download" },
+                    subtitle =
+                        "Background download queued.",
+                    body =
+                        "PaheBATCHER resume, AES-128 handling, MP4 remux and TS fallback are active.",
+                    badge = "Download",
+                    status = "Queued",
+                    extensionPayload =
+                        JSONObject()
+                            .put("workId", workId)
+                            .put(
+                                "mediaId",
+                                payload.optString("mediaId"),
+                            ),
+                ),
+            )
+    }
 
     private fun verifyAndRetry(
         payload: JSONObject,
@@ -778,6 +828,8 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                 .put("mediaUrl", resolved.url)
                 .put("mimeType", resolved.mimeType)
                 .put("fileName", fileName)
+                .put("quality", source.resolution ?: 0)
+                .put("audio", source.audio)
                 .put("headers", headers)
 
         return nightExtensionMessage(
@@ -795,7 +847,7 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                     .filter { it.isNotBlank() }
                     .joinToString(" • "),
             body =
-                "Resolved by AnimePahe. Playback and downloading are handled by Night.",
+                "Resolved through the proven PaheBATCHER HLS path. Night plays the stream; the extension handles resumable downloads.",
             badge =
                 quality.ifBlank { "Ready" },
             status = "Ready",
@@ -810,11 +862,9 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                         requiresExtension = false,
                     ),
                     nightAction(
-                        id =
-                            NightExtensionStandardActions
-                                .DOWNLOAD_MEDIA,
+                        id = ACTION_DOWNLOAD,
                         label = "Download",
-                        requiresExtension = false,
+                        requiresExtension = true,
                     ),
                 ),
             extensionPayload = payload,
@@ -1000,11 +1050,13 @@ class AnimePaheNightExtensionService : NightExtensionService() {
         const val ACTION_EPISODES = "episodes"
         const val ACTION_RESOLVE = "resolve_episode"
         const val ACTION_VERIFY = "verify_session"
+        const val ACTION_DOWNLOAD = "download_episode"
         const val ACTION_SAVE_CONFIG = "save_config"
 
         const val TYPE_ANIME = "animepahe.anime"
         const val TYPE_EPISODE = "animepahe.episode"
         const val TYPE_SOURCE = "animepahe.source"
+        const val TYPE_DOWNLOAD = "animepahe.download_status"
         const val TYPE_SETTINGS = "animepahe.settings"
         const val TYPE_VERIFY = "animepahe.verify"
 
