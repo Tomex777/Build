@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -48,7 +49,6 @@ private val McpBg = Color(0xFF0B0F11)
 private val McpSurface = Color(0xFF151B1E)
 private val McpText = Color(0xFFE7EAEC)
 private val McpMuted = Color(0xFF9CA5A9)
-private val McpAccent = Color(0xFF21C063)
 
 @Composable
 fun NightMcpServersScreen(
@@ -111,7 +111,7 @@ fun NightMcpServersScreen(
                 Icon(
                     Icons.Default.Add,
                     contentDescription = "Add MCP server",
-                    tint = McpAccent,
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
         }
@@ -309,7 +309,7 @@ private fun McpServerRow(
                         TextButton(onClick = onReconnect) {
                             Text(
                                 "Reconnect",
-                                color = McpAccent,
+                                color = MaterialTheme.colorScheme.primary,
                                 fontSize = 11.sp,
                             )
                         }
@@ -463,7 +463,7 @@ internal fun McpServerDialog(
                         ),
                 colors =
                     ButtonDefaults.buttonColors(
-                        containerColor = McpAccent,
+                        containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = Color(0xFF07110B),
                     ),
             ) {
@@ -506,7 +506,7 @@ private fun McpField(
                 unfocusedContainerColor = Color.Transparent,
                 focusedTextColor = McpText,
                 unfocusedTextColor = McpText,
-                cursorColor = McpAccent,
+                cursorColor = MaterialTheme.colorScheme.primary,
             ),
     )
 }
