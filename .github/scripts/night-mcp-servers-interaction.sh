@@ -53,10 +53,42 @@ refresh_ui() {
   adb exec-out cat /sdcard/night-mcp.xml > /tmp/window.xml
 }
 
+dismiss_quickstep_anr() {
+  if grep -qi "Quickstep isn't responding" /tmp/window.xml 2>/dev/null; then
+    local coords
+    coords="$(python3 - <<'PY'
+import re
+import xml.etree.ElementTree as ET
+root = ET.parse("/tmp/window.xml").getroot()
+for node in root.iter("node"):
+    if (
+        node.attrib.get("resource-id") == "android:id/aerr_close"
+        or node.attrib.get("text") == "Close app"
+    ):
+        nums = [int(x) for x in re.findall(r"\d+", node.attrib.get("bounds", ""))]
+        if len(nums) == 4:
+            print((nums[0] + nums[2]) // 2, (nums[1] + nums[3]) // 2)
+            raise SystemExit(0)
+raise SystemExit(2)
+PY
+)" || true
+    if [ -n "$coords" ]; then
+      read -r x y <<<"$coords"
+      adb shell input tap "$x" "$y" || true
+      sleep 2
+    fi
+    return 0
+  fi
+  return 1
+}
+
 assert_text() {
   local wanted="$1"
   for attempt in $(seq 1 10); do
     refresh_ui
+    if dismiss_quickstep_anr; then
+      continue
+    fi
     if python3 /tmp/night_mcp_uia.py text "$wanted" >/dev/null 2>&1; then
       return 0
     fi
@@ -72,6 +104,9 @@ tap_desc() {
   local wanted="$1"
   for attempt in $(seq 1 10); do
     refresh_ui
+    if dismiss_quickstep_anr; then
+      continue
+    fi
     if coords="$(python3 /tmp/night_mcp_uia.py click_desc "$wanted" 2>/dev/null)"; then
       read -r x y <<<"$coords"
       adb shell input tap "$x" "$y"
