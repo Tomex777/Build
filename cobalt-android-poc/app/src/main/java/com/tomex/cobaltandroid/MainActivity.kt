@@ -29,11 +29,15 @@ class MainActivity : Activity() {
     @Volatile
     private var hasSavedSession = false
 
+    @Volatile
+    private var temporaryMode = false
+
     private lateinit var phoneInput: EditText
     private lateinit var statusText: TextView
     private lateinit var pairingCodeText: TextView
     private lateinit var copyButton: Button
     private lateinit var linkButton: Button
+    private lateinit var temporaryLinkButton: Button
     private lateinit var reconnectButton: Button
     private lateinit var disconnectButton: Button
     private lateinit var destinationInput: EditText
@@ -90,9 +94,15 @@ class MainActivity : Activity() {
 
         linkButton = Button(this).apply {
             text = "Link with code"
-            setOnClickListener { startPairing() }
+            setOnClickListener { startPairing(false) }
         }
         root.addView(linkButton)
+
+        temporaryLinkButton = Button(this).apply {
+            text = "10-second temporary link"
+            setOnClickListener { startPairing(true) }
+        }
+        root.addView(temporaryLinkButton)
 
         reconnectButton = Button(this).apply {
             text = "Reconnect saved session"
@@ -230,23 +240,30 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun startPairing() {
+    private fun startPairing(temporary: Boolean) {
         val digits = phoneInput.text.toString().filter(Char::isDigit)
         if (digits.length !in 8..15) {
             setStatus("Enter the full international number with country code, without the + sign.")
             return
         }
 
+        temporaryMode = temporary
         setBusy(true)
         pairingCodeText.text = "…"
         copyButton.isEnabled = false
-        setStatus("Creating persistent linked-device session…")
+        setStatus(
+            if (temporary) {
+                "Creating RAM-only 10-second linked-device session…"
+            } else {
+                "Creating persistent linked-device session…"
+            }
+        )
 
         worker.execute {
             try {
                 disconnectCurrentInternal()
 
-                val options = createFreshOptions()
+                val options = if (temporary) createTemporaryOptions() else createFreshOptions()
                 val pairingClass = Class.forName(
                     "com.github.auties00.cobalt.client.linked.LinkedWhatsAppClientVerificationHandler\$Web\$PairingCode",
                     true,
@@ -361,11 +378,19 @@ class MainActivity : Activity() {
                     runOnUiThread {
                         pairingCodeText.text = "LINKED"
                         copyButton.isEnabled = false
-                        hasSavedSession = true
-                        reconnectButton.isEnabled = true
                         disconnectButton.isEnabled = true
                         setChatEnabled(true)
-                        setStatus("Linked successfully. Credentials are stored locally on this phone.")
+
+                        if (temporaryMode) {
+                            hasSavedSession = false
+                            reconnectButton.isEnabled = false
+                            setStatus("Temporary link succeeded. Disconnecting automatically in 10 seconds…")
+                            scheduleTemporaryDisconnect()
+                        } else {
+                            hasSavedSession = true
+                            reconnectButton.isEnabled = true
+                            setStatus("Linked successfully. Credentials are stored locally on this phone.")
+                        }
                     }
                     null
                 }
@@ -561,6 +586,31 @@ class MainActivity : Activity() {
         sendButton.isEnabled = enabled
     }
 
+    private fun createTemporaryOptions(): Any {
+        val clientClass = Class.forName(
+            "com.github.auties00.cobalt.client.WhatsAppClient",
+            true,
+            classLoader
+        )
+        val builder = clientClass.getMethod("builder").invoke(null)
+        val linked = builder.javaClass.getMethod("linkedApi").invoke(builder)
+
+        val factoryClass = Class.forName(
+            "com.github.auties00.cobalt.store.linked.LinkedWhatsAppStoreFactory",
+            true,
+            classLoader
+        )
+        val temporaryFactory = factoryClass
+            .getMethod("temporary")
+            .invoke(null)
+
+        val web = linked.javaClass
+            .getMethod("webClient", factoryClass)
+            .invoke(linked, temporaryFactory)
+
+        return web.javaClass.getMethod("createConnection").invoke(web)
+    }
+
     private fun createFreshOptions(): Any {
         val web = createPersistentWebBuilder()
         return web.javaClass.getMethod("createConnection").invoke(web)
@@ -638,8 +688,39 @@ class MainActivity : Activity() {
         setStatus("Pairing code ready. In WhatsApp open Linked devices → Link a device → Link with phone number, then enter this code.")
     }
 
+    private fun scheduleTemporaryDisconnect() {
+        Thread {
+            try {
+                repeat(10) { elapsed ->
+                    Thread.sleep(1_000)
+                    val remaining = 9 - elapsed
+                    runOnUiThread {
+                        if (temporaryMode && currentClient != null) {
+                            setStatus("Temporary link succeeded. Disconnecting in ${remaining.coerceAtLeast(0)} seconds…")
+                        }
+                    }
+                }
+
+                if (temporaryMode) {
+                    disconnectCurrentInternal()
+                    temporaryMode = false
+                    runOnUiThread {
+                        pairingCodeText.text = "TEMP TEST PASSED"
+                        copyButton.isEnabled = false
+                        disconnectButton.isEnabled = false
+                        setChatEnabled(false)
+                        setStatus("10-second temporary WhatsApp link test passed and disconnected. No session was saved.")
+                    }
+                }
+            } catch (error: Throwable) {
+                reportError("Temporary disconnect", error)
+            }
+        }.start()
+    }
+
     private fun setBusy(value: Boolean) {
         linkButton.isEnabled = !value
+        temporaryLinkButton.isEnabled = !value
         reconnectButton.isEnabled = !value && hasSavedSession
         phoneInput.isEnabled = !value
     }
