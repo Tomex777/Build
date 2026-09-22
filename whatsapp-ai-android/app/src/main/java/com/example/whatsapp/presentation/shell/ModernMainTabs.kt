@@ -1160,7 +1160,8 @@ fun ModernSettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppBg),
+            .background(AppBg)
+            .windowInsetsPadding(WindowInsets.navigationBars),
     ) {
         Row(
             modifier = Modifier
