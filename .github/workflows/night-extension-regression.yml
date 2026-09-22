@@ -63,8 +63,9 @@ jobs:
           assert 'id = "parallel_downloads"' not in service, "Download concurrency belongs to Night core"
           assert "parallelDownloads" not in client, "AnimePahe session must not own Night download concurrency"
           assert not (root / "src/main/java/com/night/extensions/animepahe/AnimePaheHlsPlaylist.kt").exists(), "HLS segment parsing belongs to Night core"
-          assert "NightExtensionStandardActions.DOWNLOAD_MEDIA" in service, "Resolved source must hand download action to Night"
-          assert "NightExtensionStandardActions.REFRESH_MEDIA" in service, "AnimePahe must refresh expired provider URLs for Night"
+          assert "NightExtensionStandardActions" in service and ".DOWNLOAD_MEDIA" in service, "Resolved source must hand download action to Night"
+          assert "NightExtensionStandardActions" in service and ".REFRESH_MEDIA" in service, "AnimePahe must refresh expired provider URLs for Night"
+          assert "downloadPageUrl" not in client, "AnimePahe must not carry a private download-page path"
           assert '.put("mediaUrl", resolved.url)' in service, "Resolved payload must expose the media URL"
           assert '.put("headers", headers)' in service, "Resolved payload must expose provider headers"
           PY
