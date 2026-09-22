@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - mirrorchess-sdk36-min26-20260922
+  pull_request:
+    branches:
+      - verify/mirrorchess-v12-20260909
   workflow_dispatch:
 
 permissions:
