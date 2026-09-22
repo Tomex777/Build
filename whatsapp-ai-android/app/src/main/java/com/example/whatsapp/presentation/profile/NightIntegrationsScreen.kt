@@ -99,11 +99,16 @@ fun NightIntegrationsScreen(
 
     val enabledProviderCountByCapability =
         remember(extensions) {
-            NightIntegrationCapability.entries.associateWith { capability ->
-                extensions.count {
-                    it.enabled && capability in it.capabilities
+            extensions
+                .asSequence()
+                .filter { it.enabled }
+                .flatMap { it.capabilities.asSequence() }
+                .distinct()
+                .associateWith { capability ->
+                    extensions.count {
+                        it.enabled && capability in it.capabilities
+                    }
                 }
-            }
         }
 
     val integrations =
@@ -233,9 +238,7 @@ fun NightIntegrationsScreen(
                                                 .map { it.wireName }
                                                 .sorted()
                                                 .joinToString(" • ") {
-                                                    it.replaceFirstChar { ch ->
-                                                        ch.uppercase()
-                                                    }
+                                                    it
                                                 },
                                         color = IntegrationMuted,
                                         fontSize = 10.sp,
@@ -272,10 +275,7 @@ fun NightIntegrationsScreen(
                                                     text =
                                                         if (preferred) {
                                                             "Preferred for " +
-                                                                capability.wireName
-                                                                    .replaceFirstChar {
-                                                                        it.uppercase()
-                                                                    }
+                                                                capability.label
                                                         } else {
                                                             "Use for " +
                                                                 capability.wireName
