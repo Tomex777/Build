@@ -7,20 +7,11 @@ import org.junit.Test
 
 class AnimePaheDescriptorTest {
     @Test
-    fun descriptorLeavesGenericDownloadingToNightCore() {
-        val descriptor = AnimePaheNightExtensionService().descriptor()
-
-        val capabilities = descriptor.getJSONArray("capabilities")
-        val capabilityValues =
-            (0 until capabilities.length()).map(capabilities::getString)
-        assertFalse(capabilityValues.contains("downloads"))
-
-        val types = descriptor.getJSONArray("messageTypes")
-        val messageTypeValues =
-            (0 until types.length()).map {
-                types.getJSONObject(it).getString("messageType")
-            }
-        assertFalse(messageTypeValues.any { it.contains("download_status") })
+    fun extensionNoLongerDeclaresProviderOwnedDownloadStatusType() {
+        assertFalse(
+            AnimePaheNightExtensionService::class.java.declaredFields
+                .any { it.name == "TYPE_DOWNLOAD" }
+        )
     }
 
     @Test
