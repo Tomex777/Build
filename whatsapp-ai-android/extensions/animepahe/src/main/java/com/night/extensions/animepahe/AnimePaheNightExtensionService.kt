@@ -693,7 +693,7 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                     subtitle =
                         "Background download queued.",
                     body =
-                        "PaheBATCHER resume, AES-128 handling, MP4 remux and TS fallback are active.",
+                        "PaheBATCHER resume, AES-128 handling, MKV mux and TS fallback are active.",
                     badge = "Download",
                     status = "Queued",
                     extensionPayload =
