@@ -74,6 +74,7 @@ import com.example.whatsapp.presentation.chatscreen.NightBlockMessage
 import com.example.whatsapp.presentation.chatscreen.NightMessageBlockCodec
 import com.example.whatsapp.presentation.chatscreen.NightRichMessageCodec
 import com.example.whatsapp.presentation.chatscreen.NightChatAppearance
+import com.example.whatsapp.presentation.chatscreen.NightEmojiRecents
 import com.example.whatsapp.presentation.chatscreen.NightChoiceDialog
 import com.example.whatsapp.presentation.chatscreen.NightChatMediaItem
 import com.example.whatsapp.presentation.chatscreen.NightMediaViewerScreen
@@ -1656,6 +1657,7 @@ private fun NightApp(initialChatId: String? = null) {
             onSendClick = {
                 val text = messageText.trim()
                 if (text.isEmpty()) return@CurrentWhatsAppConversation
+                NightEmojiRecents.recordFromText(context, text)
                 messageText = ""
 
                 scope.launch {
