@@ -1989,6 +1989,27 @@ private fun WhatsAppInlineMessageText(
             val used = linkedSetOf<String>()
             val annotated =
                 buildAnnotatedString {
+                    NightFluentEmoji.tokenize(text).forEach { token ->
+                        when (token) {
+                            is NightFluentEmoji.Token.Text ->
+                                append(token.value)
+
+                            is NightFluentEmoji.Token.Emoji -> {
+                                val inlineId =
+                                    "night_fluent_" +
+                                        token.value.codePoints()
+                                            .toArray()
+                                            .joinToString("_")
+                                appendInlineContent(inlineId, token.value)
+                                used += token.value
+                            }
+                        }
+                    }
+                }
+            annotated to used.toList()
+        }
+    val annotated =
+                buildAnnotatedString {
                     var index = 0
                     while (index < text.length) {
                         val emoji =
@@ -2041,12 +2062,23 @@ private fun WhatsAppInlineMessageText(
                                     PlaceholderVerticalAlign.TextCenter,
                             )
                     ) {
-                        AsyncImage(
-                            model = asset,
-                            imageLoader = emojiLoader,
-                            contentDescription = emoji,
-                            modifier = Modifier.fillMaxSize(),
-                        )
+                        var failed by remember(emoji, asset) {
+                            mutableStateOf(false)
+                        }
+                        if (!failed) {
+                            AsyncImage(
+                                model = asset,
+                                imageLoader = emojiLoader,
+                                contentDescription = emoji,
+                                modifier = Modifier.fillMaxSize(),
+                                onError = { failed = true },
+                            )
+                        } else {
+                            Text(
+                                text = emoji,
+                                fontSize = (14f * appearance.messageFontScale).sp,
+                            )
+                        }
                     }
                 )
             }
