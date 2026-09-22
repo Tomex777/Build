@@ -11,6 +11,7 @@ object NightExtensionMessageApi {
     const val MAX_ROWS = 8
     const val MAX_ACTIONS = 3
     const val MAX_CONFIGURATION_FIELDS = 24
+    const val MAX_CONFIGURATION_SECTIONS = 12
     const val MAX_CONFIGURATION_OPTIONS = 16
 }
 
@@ -229,7 +230,7 @@ object ExtensionMessageCodec {
                         "sections",
                         JSONArray().apply {
                             configuration.sections
-                                .take(12)
+                                .take(NightExtensionMessageApi.MAX_CONFIGURATION_SECTIONS)
                                 .forEach { section ->
                                     put(
                                         JSONObject()
@@ -376,7 +377,7 @@ object ExtensionMessageCodec {
                             for (
                                 sectionIndex in 0 until minOf(
                                     sectionsJson.length(),
-                                    12,
+                                    NightExtensionMessageApi.MAX_CONFIGURATION_SECTIONS,
                                 )
                             ) {
                                 val section =
