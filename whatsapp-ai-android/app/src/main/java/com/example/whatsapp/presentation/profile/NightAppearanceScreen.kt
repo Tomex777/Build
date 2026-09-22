@@ -1,5 +1,7 @@
 package com.example.whatsapp.presentation.profile
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -27,10 +29,20 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -40,6 +52,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.whatsapp.data.night.NightAppearanceEntity
+import com.example.whatsapp.data.night.NightAppearanceFontRegistry
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import android.widget.Toast
 
 private val ScreenBg = Color(0xFF0B0F11)
 private val TextMain = Color(0xFFE7EAEC)
@@ -79,6 +96,35 @@ fun NightAppearanceScreen(
     onUpdate: (NightAppearanceEntity) -> Unit,
 ) {
     val accent = MaterialTheme.colorScheme.primary
+    val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var fontRevision by rememberSaveable { mutableIntStateOf(0) }
+    val fontPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        NightAppearanceFontRegistry.addFromUri(context, uri)
+                    }
+                }.onSuccess { font ->
+                    fontRevision += 1
+                    onUpdate(appearance.copy(fontFamilyKey = font.key))
+                }.onFailure { error ->
+                    Toast.makeText(
+                        context,
+                        error.message ?: "Could not load that font.",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }
+    }
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) { NightAppearanceFontRegistry.load(context) }
+        fontRevision += 1
+    }
 
     Column(
         modifier = Modifier
@@ -139,6 +185,30 @@ fun NightAppearanceScreen(
                 selected = appearance.accentColor,
                 accent = accent,
                 onSelected = { onUpdate(appearance.copy(accentColor = it)) },
+            )
+            var customAccent by rememberSaveable(appearance.accentColor) {
+                mutableStateOf("#%08X".format(appearance.accentColor.toInt()))
+            }
+            var accentError by rememberSaveable { mutableStateOf(false) }
+            OutlinedTextField(
+                value = customAccent,
+                onValueChange = { value ->
+                    customAccent = value
+                    val parsed = runCatching {
+                        val hex = value.trim().removePrefix("#")
+                        require(hex.matches(Regex("(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})")))
+                        val argb = if (hex.length == 6) "FF$hex" else hex
+                        android.graphics.Color.parseColor("#$argb").toLong() and 0xFFFFFFFFL
+                    }.getOrNull()
+                    accentError = parsed == null
+                    if (parsed != null) onUpdate(appearance.copy(accentColor = parsed))
+                },
+                label = { Text("Custom accent (hex)") },
+                supportingText = { Text(if (accentError) "Enter a 6 or 8 digit hex color." else "Updates Night as you type.") },
+                isError = accentError,
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
             )
 
             SectionTitle("Your bubble")
@@ -222,18 +292,13 @@ fun NightAppearanceScreen(
             )
 
             SectionTitle("Font")
-            listOf(
-                "system" to "System",
-                "serif" to "Serif",
-                "monospace" to "Monospace",
-                "cursive" to "Cursive",
-            ).forEach { (key, label) ->
-                val family = when (key) {
-                    "serif" -> FontFamily.Serif
-                    "monospace" -> FontFamily.Monospace
-                    "cursive" -> FontFamily.Cursive
-                    else -> FontFamily.Default
-                }
+            val availableFonts = remember(fontRevision) {
+                NightAppearanceFontRegistry.available()
+            }
+            availableFonts.forEach { font ->
+                val key = font.key
+                val label = font.label
+                val family = font.family
                 val selected = appearance.fontFamilyKey == key
                 Surface(
                     color = if (selected) accent.copy(alpha = 0.10f) else Color.Transparent,
@@ -261,6 +326,14 @@ fun NightAppearanceScreen(
                     }
                 }
             }
+            OutlinedButton(
+                onClick = {
+                    fontPicker.launch(arrayOf("font/ttf", "font/otf", "application/octet-stream", "*/*"))
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Add .ttf or .otf font", color = accent)
+            }
 
             Spacer(Modifier.height(20.dp))
         }
@@ -271,12 +344,8 @@ fun NightAppearanceScreen(
 private fun AppearancePreview(
     appearance: NightAppearanceEntity,
 ) {
-    val family = when (appearance.fontFamilyKey) {
-        "serif" -> FontFamily.Serif
-        "monospace" -> FontFamily.Monospace
-        "cursive" -> FontFamily.Cursive
-        else -> FontFamily.Default
-    }
+    val family = NightAppearanceFontRegistry.find(appearance.fontFamilyKey)?.family
+        ?: FontFamily.Default
     Surface(
         color = Color(0xFF111719),
         shape = RoundedCornerShape(22.dp),

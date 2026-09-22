@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -24,13 +26,17 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,6 +53,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -604,9 +612,8 @@ private fun EditProviderDialog(
         profile.providerType.equals("groq", ignoreCase = true) &&
             profile.serviceKind == "chat"
 
-    AlertDialog(
+    ProviderBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF151B1E),
         title = { Text("Edit " + profile.displayName, color = ProviderText) },
         text = {
             Column(
@@ -696,9 +703,8 @@ private fun EditModelDialog(
     }
     var liveVoice by remember(model.id) { mutableStateOf("live_voice" in currentCaps) }
 
-    AlertDialog(
+    ProviderBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF151B1E),
         title = { Text("Edit " + model.displayName, color = ProviderText) },
         text = {
             Column(
@@ -785,9 +791,8 @@ private fun AddProviderDialog(
     var voiceName by remember { mutableStateOf("") }
     var makeDefault by remember { mutableStateOf(true) }
 
-    AlertDialog(
+    ProviderBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF151B1E),
         title = { Text("Add provider", color = ProviderText) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -902,9 +907,8 @@ private fun AddGroqKeyDialog(
     var key by remember { mutableStateOf("") }
     var label by remember { mutableStateOf("") }
 
-    AlertDialog(
+    ProviderBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF151B1E),
         title = {
             Text(
                 "Add Groq key",
@@ -964,9 +968,8 @@ private fun AddModelDialog(
     var liveVoice by remember { mutableStateOf(profile.serviceKind == "live_voice") }
     var makeDefault by remember { mutableStateOf(true) }
 
-    AlertDialog(
+    ProviderBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF151B1E),
         title = {
             Text(
                 "Add model to " + profile.displayName,
@@ -1061,19 +1064,91 @@ private fun ProviderField(
     label: String,
     secret: Boolean = false,
 ) {
+    var showSecret by remember(label) { mutableStateOf(false) }
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
         singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-        visualTransformation = if (secret) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = when {
+                secret -> KeyboardType.Password
+                label.contains("endpoint", ignoreCase = true) -> KeyboardType.Uri
+                else -> KeyboardType.Text
+            },
+        ),
+        visualTransformation = if (secret && !showSecret) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        trailingIcon = if (secret) {
+            {
+                IconButton(onClick = { showSecret = !showSecret }) {
+                    Icon(
+                        imageVector = if (showSecret) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = if (showSecret) "Hide value" else "Show value",
+                        tint = ProviderMuted,
+                    )
+                }
+            }
+        } else null,
         colors = TextFieldDefaults.colors(
             focusedContainerColor = Color.Transparent,
             unfocusedContainerColor = Color.Transparent,
             focusedTextColor = ProviderText,
             unfocusedTextColor = ProviderText,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            unfocusedLabelColor = ProviderMuted,
             cursorColor = MaterialTheme.colorScheme.primary,
         ),
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProviderBottomSheet(
+    onDismissRequest: () -> Unit,
+    title: @Composable () -> Unit,
+    text: @Composable () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    dismissButton: @Composable () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        containerColor = Color(0xFF151B1E),
+        contentColor = ProviderText,
+        sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        dragHandle = {
+            androidx.compose.material3.BottomSheetDefaults.DragHandle(
+                color = ProviderMuted,
+            )
+        },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .navigationBarsPadding()
+                .padding(start = 20.dp, end = 20.dp, bottom = 12.dp)
+                .heightIn(max = 680.dp),
+        ) {
+            Box(modifier = Modifier.padding(bottom = 14.dp)) { title() }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 500.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { text() }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 14.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                dismissButton()
+                confirmButton()
+            }
+        }
+    }
 }

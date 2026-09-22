@@ -23,6 +23,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -45,13 +46,13 @@ private val ChoiceBg = Color(0xFF151B1E)
 private val ChoicePanel = Color(0xFF20272A)
 private val ChoiceText = Color(0xFFECEDEE)
 private val ChoiceMuted = Color(0xFF9EA7AB)
-private val ChoiceAccent = Color(0xFFCF4A69)
 
 @Composable
 fun NightChoiceDialog(
     onDismiss: () -> Unit,
     onCreate: (title: String, options: List<String>, multiple: Boolean) -> Unit,
 ) {
+    val accent = MaterialTheme.colorScheme.primary
     var title by remember { mutableStateOf("") }
     var multiple by remember { mutableStateOf(false) }
     val options = remember { mutableStateListOf("", "") }
@@ -111,14 +112,14 @@ fun NightChoiceDialog(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Surface(
-                                color = ChoiceAccent.copy(alpha = 0.18f),
+                                color = accent.copy(alpha = 0.18f),
                                 shape = CircleShape,
                                 modifier = Modifier.size(28.dp),
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Text(
                                         (index + 1).toString(),
-                                        color = ChoiceAccent,
+                                        color = accent,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                     )
@@ -169,9 +170,9 @@ fun NightChoiceDialog(
                     onClick = { if (options.size < 8) options.add("") },
                     enabled = options.size < 8,
                 ) {
-                    Icon(Icons.Default.Add, null, tint = ChoiceAccent, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Add, null, tint = accent, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(5.dp))
-                    Text("Add option", color = ChoiceAccent)
+                    Text("Add option", color = accent)
                 }
 
                 Text(
@@ -187,7 +188,7 @@ fun NightChoiceDialog(
                 onClick = { onCreate(title.trim(), clean, multiple) },
                 enabled = title.trim().isNotBlank() && clean.size >= 2,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = ChoiceAccent,
+                    containerColor = accent,
                     contentColor = Color(0xFF10161A),
                 ),
             ) {

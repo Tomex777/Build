@@ -81,8 +81,6 @@ private val Secondary = Color(0xFF9CA5A9)
 @Composable
 fun NightFilesTab(
     onTabSelected: (MainTab) -> Unit,
-    onSettingsClick: () -> Unit,
-    onScriptsClick: () -> Unit,
     onFileOpen: (NightLibraryItemEntity) -> Unit = {},
     accentColor: Color = Color(0xFFD44368),
 ) {
@@ -94,8 +92,8 @@ fun NightFilesTab(
 
     val files by repository.observeLibrary().collectAsState(initial = emptyList())
     var libraryReady by remember { mutableStateOf(false) }
-    var query by remember { mutableStateOf("") }
-    var typeFilter by remember { mutableStateOf("All") }
+    var query by rememberSaveable { mutableStateOf("") }
+    var typeFilter by rememberSaveable { mutableStateOf("All") }
     var selectedFolderId by rememberSaveable { mutableStateOf<String?>(null) }
     var folderRevision by remember { mutableIntStateOf(0) }
     var newFolderOpen by remember { mutableStateOf(false) }
@@ -175,9 +173,9 @@ fun NightFilesTab(
         selectedTab = MainTab.Updates,
         onTabSelected = onTabSelected,
         title = "Library",
-        onSettingsClick = onSettingsClick,
         showCamera = false,
         showSearch = false,
+        showMenu = false,
         accentColor = accentColor,
         floatingAction = {
             Surface(
@@ -208,16 +206,17 @@ fun NightFilesTab(
                 .fillMaxSize()
                 .background(Bg),
         ) {
-            LibraryWorkspaceShortcut(
-                accentColor = accentColor,
-                onClick = onScriptsClick,
-            )
-
             LibrarySearchAndFilters(
                 query = query,
                 onQueryChange = { query = it },
                 selectedType = typeFilter,
                 onTypeSelected = { typeFilter = it },
+                hasActiveFilters = query.isNotBlank() || typeFilter != "All" || selectedFolderId != null,
+                onClearFilters = {
+                    query = ""
+                    typeFilter = "All"
+                    selectedFolderId = null
+                },
                 accentColor = accentColor,
             )
 
@@ -621,6 +620,8 @@ private fun LibrarySearchAndFilters(
     onQueryChange: (String) -> Unit,
     selectedType: String,
     onTypeSelected: (String) -> Unit,
+    hasActiveFilters: Boolean,
+    onClearFilters: () -> Unit,
     accentColor: Color,
 ) {
     Row(
@@ -673,56 +674,16 @@ private fun LibrarySearchAndFilters(
                 }
             }
     }
-}
 
-@Composable
-private fun LibraryWorkspaceShortcut(
-    accentColor: Color,
-    onClick: () -> Unit,
-) {
-    Surface(
-        color = SurfaceDark,
-        shape = RoundedCornerShape(18.dp),
-        modifier = Modifier
-            .padding(start = 12.dp, end = 12.dp, top = 7.dp, bottom = 5.dp)
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-    ) {
+    if (hasActiveFilters) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 15.dp, end = 12.dp, top = 1.dp, bottom = 2.dp),
+            horizontalArrangement = Arrangement.End,
         ) {
-            Surface(
-                color = Color(0xFF222A2D),
-                shape = RoundedCornerShape(13.dp),
-                modifier = Modifier.size(44.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.Code,
-                        contentDescription = null,
-                        tint = accentColor,
-                        modifier = Modifier.size(23.dp),
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(11.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Scripts & projects",
-                    color = Primary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-                Text(
-                    text = "Create, edit, import and export Night JavaScript and local web projects",
-                    color = Secondary,
-                    fontSize = 11.sp,
-                    lineHeight = 15.sp,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
+            TextButton(onClick = onClearFilters) {
+                Text("Clear filters", color = accentColor, fontSize = 12.sp)
             }
         }
     }

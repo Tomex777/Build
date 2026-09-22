@@ -100,11 +100,12 @@ private val Divider = Color(0xFF20272A)
 private val Missed = Color(0xFFFF4B62)
 
 enum class MainTab(val label: String) {
-    Chats("Chats"),
+    Chats("Chat"),
     Updates("Library"),
+    Scripts("Scripts/Projects"),
     Communities("Communities"),
     Calls("Calls"),
-    You("You"),
+    You("U"),
 }
 
 @Composable
@@ -248,6 +249,13 @@ private fun ModernBottomBar(
             accentColor = accentColor,
         )
         BottomItem(
+            tab = MainTab.Scripts,
+            selected = selected == MainTab.Scripts,
+            icon = Icons.Default.Code,
+            onClick = onSelected,
+            accentColor = accentColor,
+        )
+        BottomItem(
             tab = MainTab.You,
             selected = selected == MainTab.You,
             icon = Icons.Default.Person,
@@ -267,7 +275,7 @@ private fun BottomItem(
 ) {
     Column(
         modifier = Modifier
-            .width(84.dp)
+            .weight(1f)
             .clickable { onClick(tab) },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -286,14 +294,14 @@ private fun BottomItem(
                 contentDescription = tab.label,
                 tint = if (selected) accentColor else Secondary,
                 modifier = Modifier
-                    .padding(horizontal = 20.dp, vertical = 5.dp)
+                    .padding(horizontal = 14.dp, vertical = 5.dp)
                     .size(22.dp),
             )
         }
         Text(
             text = tab.label,
             color = if (selected) accentColor else Secondary,
-            fontSize = 10.sp,
+            fontSize = if (tab.label.length > 8) 8.sp else 10.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             modifier = Modifier.padding(top = 2.dp),
         )
@@ -403,6 +411,7 @@ fun ModernChatsTab(
         onSettingsClick = onSettingsClick,
         showCamera = false,
         showSearch = false,
+        showMenu = false,
         accentColor = accentColor,
         floatingAction = {
             FloatingActionButton(
@@ -1339,7 +1348,6 @@ fun ModernSettingsScreen(
     onAppearanceClick: () -> Unit = {},
     onMemoryClick: () -> Unit = {},
     onSchedulesClick: () -> Unit = {},
-    onScriptsClick: () -> Unit = {},
     onMediaLibraryClick: () -> Unit = {},
     onBrowserClick: () -> Unit = {},
     onPrivacyClick: () -> Unit = {},
@@ -1349,7 +1357,6 @@ fun ModernSettingsScreen(
         SettingsRow("appearance", Icons.Default.Palette, "Appearance", "Theme, accent, wallpaper and chat text"),
         SettingsRow("memory", Icons.Default.Memory, "Memory", "Summaries, checkpoints and cross-chat context"),
         SettingsRow("scheduled", Icons.Default.Schedule, "Scheduled", "Tasks Night can run later"),
-        SettingsRow("scripts", Icons.Default.Code, "Scripts & projects", "JavaScript commands, utilities and web projects"),
         SettingsRow("media", Icons.Default.Movie, "Media library", "Anime, manga, music and saved extension media"),
         SettingsRow("browser", Icons.Default.Language, "Browser", "Night browser sessions and verification"),
         SettingsRow("privacy", Icons.Default.Lock, "Privacy", "Local data, permissions and provider credentials"),
@@ -1445,7 +1452,6 @@ fun ModernSettingsScreen(
                                 "appearance" -> onAppearanceClick()
                                 "memory" -> onMemoryClick()
                                 "scheduled" -> onSchedulesClick()
-                                "scripts" -> onScriptsClick()
                                 "media" -> onMediaLibraryClick()
                                 "browser" -> onBrowserClick()
                                 "privacy" -> onPrivacyClick()

@@ -187,6 +187,19 @@ class NightSpeechService private constructor(
     companion object {
         @Volatile private var instance: NightSpeechService? = null
 
+        internal fun createForTesting(
+            context: Context,
+            http: OkHttpClient,
+        ): NightSpeechService {
+            val app = context.applicationContext
+            return NightSpeechService(
+                context = app,
+                repository = NightRepository.get(app),
+                secrets = NightSecretStore.get(app),
+                http = http,
+            )
+        }
+
         fun get(context: Context): NightSpeechService =
             instance ?: synchronized(this) {
                 val app = context.applicationContext

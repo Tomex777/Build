@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 41434)
+Total output lines: 4017
+
 package com.example.whatsapp
 
 import android.Manifest
@@ -25,6 +28,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +47,7 @@ import com.example.whatsapp.data.night.NightAgentToolExecutor
 import com.example.whatsapp.data.night.NightAiGateway
 import com.example.whatsapp.data.night.NightAppearanceController
 import com.example.whatsapp.data.night.NightAppearanceEntity
+import com.example.whatsapp.data.night.NightAppearanceFontRegistry
 import com.example.whatsapp.data.night.NightCapabilityRouteEntity
 import com.example.whatsapp.data.night.NightExtensionMessageEmitter
 import com.example.whatsapp.data.night.NightLibraryItemEntity
@@ -119,7 +124,7 @@ import com.example.whatsapp.presentation.scripts.NightScriptsScreen
 import com.example.whatsapp.presentation.reader.mihon.decodeMihonPages
 import com.example.whatsapp.presentation.shell.MainTab
 import com.example.whatsapp.presentation.shell.ModernChatsTab
-import com.example.whatsapp.presentation.shell.ModernSettingsScreen
+import com.example.whatsapp.presentation.shell.ModernAppScaffold
 import com.example.whatsapp.ui.theme.WhatsappTheme
 import java.io.File
 import java.io.FileOutputStream
@@ -151,15 +156,22 @@ class MainActivity : ComponentActivity() {
 private fun NightThemeRoot(initialChatId: String? = null) {
     val context = LocalContext.current
     val repository = remember { NightRepository.get(context) }
+    var fontCatalogRevision by remember { mutableIntStateOf(0) }
     val appearance by
         repository.observeAppearance()
             .collectAsState(initial = null)
 
     LaunchedEffect(Unit) {
-        repository.ensureAppearance()
+        withContext(Dispatchers.IO) {
+            NightAppearanceFontRegistry.load(context.applicationContext)
+            repository.ensureAppearance()
+        }
+        fontCatalogRevision += 1
     }
 
-    val current = appearance ?: NightAppearanceEntity()
+    val current = remember(appearance, fontCatalogRevision) {
+        appearance ?: NightAppearanceEntity()
+    }
     WhatsappTheme(
         darkTheme = true,
         accentColor = ComposeColor(current.accentColor.toInt()),
@@ -201,6 +213,9 @@ private fun NightApp(initialChatId: String? = null) {
     var renameOpen by remember { mutableStateOf(false) }
     var renameValue by rememberSaveable { mutableStateOf("") }
     var isRecording by remember { mutableStateOf(false) }
+    var recordingChatId by remember { mutableStateOf<String?>(null) }
+    var recordingReplyToId by remember { mutableStateOf<String?>(null) }
+    var recordingDraftMetadata by remember { mutableStateOf<NightDraftChatMetadata?>(null) }
     var recordingLevels by remember { mutableStateOf<List<Float>>(emptyList()) }
     var recordingStartedAt by remember { mutableStateOf(0L) }
     var recordingElapsedMs by remember { mutableStateOf(0L) }
@@ -225,6 +240,9 @@ private fun NightApp(initialChatId: String? = null) {
     var mediaViewerReturnScreen by rememberSaveable { mutableStateOf("chat") }
     var mediaDraft by remember { mutableStateOf<NightMediaDraft?>(null) }
     var pendingCameraFile by remember { mutableStateOf<File?>(null) }
+    var pendingCameraChatId by remember { mutableStateOf<String?>(null) }
+    var pendingCameraReplyId by remember { mutableStateOf<String?>(null) }
+    var pendingCameraMetadata by remember { mutableStateOf<NightDraftChatMetadata?>(null) }
     var mediaCaption by rememberSaveable { mutableStateOf("") }
     var pdfDraft by remember { mutableStateOf<NightPdfDraft?>(null) }
     var pdfCaption by rememberSaveable { mutableStateOf("") }
@@ -380,10 +398,20 @@ private fun NightApp(initialChatId: String? = null) {
     }
 
     suspend fun commitDraftChatMetadata(chatId: String) {
-        val profileId = draftProviderProfileId
-        val modelId = draftModelId
-        val providerType = draftProviderType
-        val title = draftChatTitle
+        val draft = NightDraftChatMetadata(
+            providerType = draftProviderType,
+            profileId = draftProviderProfileId,
+            modelId = draftModelId,
+            title = draftChatTitle,
+        )
+        commitDraftChatMetadataSnapshot(chatId, draft)
+    }
+
+    suspend fun commitDraftChatMetadataSnapshot(chatId: String, draft: NightDraftChatMetadata) {
+        val profileId = draft.profileId
+        val modelId = draft.modelId
+        val providerType = draft.providerType
+        val title = draft.title
             ?.trim()
             ?.takeIf { it.isNotBlank() && it != "New chat" }
 
@@ -403,21 +431,29 @@ private fun NightApp(initialChatId: String? = null) {
             !modelId.isNullOrBlank() ||
             !providerType.isNullOrBlank()
         ) {
-            draftChatTitle = null
-            draftProviderType = null
-            draftProviderProfileId = null
-            draftModelId = null
+            if (
+                draftChatTitle == draft.title &&
+                draftProviderType == draft.providerType &&
+                draftProviderProfileId == draft.profileId &&
+                draftModelId == draft.modelId
+            ) {
+                draftChatTitle = null
+                draftProviderType = null
+                draftProviderProfileId = null
+                draftModelId = null
+            }
         }
     }
 
     suspend fun persistExtensionActionResult(
         extensionId: String,
+        chatId: String,
         result: JSONObject?,
     ) {
         if (result == null) return
         NightExtensionMessageEmitter.persistFromToolResult(
             repository = repository,
-            chatId = activeChatId,
+            chatId = chatId,
             ownerExtensionId = extensionId,
             result = result,
         )
@@ -483,8 +519,14 @@ private fun NightApp(initialChatId: String? = null) {
     }
 
     suspend fun persistVoiceRecording() {
+        val chatId = recordingChatId ?: activeChatId
+        val replyId = recordingReplyToId
+        val draftMetadata = recordingDraftMetadata
         val recorded = voiceRecorder.stop()
         isRecording = false
+        recordingChatId = null
+        recordingReplyToId = null
+        recordingDraftMetadata = null
         recordingStartedAt = 0L
         recordingElapsedMs = 0L
         recordingLevels = emptyList()
@@ -512,7 +554,7 @@ private fun NightApp(initialChatId: String? = null) {
                 sizeBytes = saved.sizeBytes,
                 localPath = saved.localPath,
                 createdAt = saved.createdAt,
-                sourceChatId = activeChatId,
+                sourceChatId = chatId,
                 sourceMessageId = messageId,
             )
         )
@@ -527,20 +569,25 @@ private fun NightApp(initialChatId: String? = null) {
 
         val voiceMessage = NightMessageEntity(
             id = messageId,
-            chatId = activeChatId,
+            chatId = chatId,
             role = "user",
             type = "voice",
             text = "",
             createdAt = System.currentTimeMillis(),
             libraryFileId = saved.id,
             payloadJson = initialPayload.toString(),
-            replyToMessageId = replyingToId,
+            replyToMessageId = replyId,
         )
         repository.appendMessage(voiceMessage)
-        commitDraftChatMetadata(activeChatId)
-        replyingToId = null
+        if (draftMetadata != null) {
+            commitDraftChatMetadataSnapshot(chatId, draftMetadata)
+        } else {
+            commitDraftChatMetadata(chatId)
+        }
+        if (replyingToId == replyId) replyingToId = null
 
-        val transcript = speechService.transcribe(saved.localPath).getOrNull()
+        val transcription = speechService.transcribe(saved.localPath)
+        val transcript = transcription.getOrNull()?.trim()
         if (!transcript.isNullOrBlank()) {
             val updatedPayload = JSONObject(voiceMessage.payloadJson)
                 .put("transcript", transcript)
@@ -555,16 +602,36 @@ private fun NightApp(initialChatId: String? = null) {
             streamNightAssistantReply(
                 repository = repository,
                 aiGateway = aiGateway,
-                chatId = activeChatId,
+                chatId = chatId,
                 displayName = displayName,
                 noAiMessage = "I transcribed the voice note, but no AI is selected for this chat yet.",
                 failurePrefix = "I transcribed the voice note, but I couldn't reach an available AI. ",
             )
+        } else {
+            val detail = transcription.exceptionOrNull()?.message
+                ?.takeIf { it.isNotBlank() }
+            Toast.makeText(
+                context,
+                if (detail == null) {
+                    "Voice note saved and still playable, but no transcript was returned."
+                } else {
+                    "Voice note saved and still playable, but transcription failed: " + detail
+                },
+                Toast.LENGTH_LONG,
+            ).show()
         }
     }
 
     fun startVoiceRecording() {
         runCatching {
+            recordingChatId = activeChatId
+            recordingReplyToId = replyingToId
+            recordingDraftMetadata = NightDraftChatMetadata(
+                providerType = draftProviderType,
+                profileId = draftProviderProfileId,
+                modelId = draftModelId,
+                title = draftChatTitle,
+            )
             recordingLevels = emptyList()
             recordingElapsedMs = 0L
             recordingStartedAt = System.currentTimeMillis()
@@ -577,6 +644,9 @@ private fun NightApp(initialChatId: String? = null) {
             }
             isRecording = true
         }.onFailure {
+            recordingChatId = null
+            recordingReplyToId = null
+            recordingDraftMetadata = null
             recordingStartedAt = 0L
             recordingElapsedMs = 0L
             recordingLevels = emptyList()
@@ -691,12 +761,19 @@ private fun NightApp(initialChatId: String? = null) {
     }
 
     fun importAttachmentUri(uri: Uri) {
+        val chatId = activeChatId
+        val replyId = replyingToId
+        val draftMetadata = NightDraftChatMetadata(
+            providerType = draftProviderType,
+            profileId = draftProviderProfileId,
+            modelId = draftModelId,
+            title = draftChatTitle,
+        )
         scope.launch {
             val saved = withContext(Dispatchers.IO) {
                 NightFileLibrary.importUri(context, uri)
             } ?: return@launch
 
-            val replyId = replyingToId
             val mime = saved.mimeType
 
             if (mime.startsWith("image/") || mime.startsWith("video/")) {
@@ -731,9 +808,11 @@ private fun NightApp(initialChatId: String? = null) {
                     payloadJson = payload.toString(),
                     thumbnailPath = thumbnailPath,
                     replyToMessageId = replyId,
+                    chatId = chatId,
+                    draftMetadata = draftMetadata,
                 )
                 mediaCaption = ""
-                replyingToId = null
+                if (replyingToId == replyId) replyingToId = null
                 screen = "media_compose"
                 return@launch
             }
@@ -748,9 +827,11 @@ private fun NightApp(initialChatId: String? = null) {
                     localPath = saved.localPath,
                     createdAt = saved.createdAt,
                     replyToMessageId = replyId,
+                    chatId = chatId,
+                    draftMetadata = draftMetadata,
                 )
                 pdfCaption = ""
-                replyingToId = null
+                if (replyingToId == replyId) replyingToId = null
                 screen = "pdf_compose"
                 return@launch
             }
@@ -788,7 +869,7 @@ private fun NightApp(initialChatId: String? = null) {
                     sizeBytes = saved.sizeBytes,
                     localPath = saved.localPath,
                     createdAt = saved.createdAt,
-                    sourceChatId = activeChatId,
+                    sourceChatId = chatId,
                     sourceMessageId = messageId,
                 )
             )
@@ -796,7 +877,7 @@ private fun NightApp(initialChatId: String? = null) {
             repository.appendMessage(
                 NightMessageEntity(
                     id = messageId,
-                    chatId = activeChatId,
+                    chatId = chatId,
                     role = "user",
                     type = messageType,
                     text = messageTextValue,
@@ -806,8 +887,8 @@ private fun NightApp(initialChatId: String? = null) {
                     replyToMessageId = replyId,
                 )
             )
-            commitDraftChatMetadata(activeChatId)
-            replyingToId = null
+            commitDraftChatMetadataSnapshot(chatId, draftMetadata)
+            if (replyingToId == replyId) replyingToId = null
         }
     }
 
@@ -830,6 +911,9 @@ private fun NightApp(initialChatId: String? = null) {
         pendingCameraFile = null
         if (!captured || source == null || !source.isFile || source.length() <= 0L) {
             source?.delete()
+            pendingCameraChatId = null
+            pendingCameraReplyId = null
+            pendingCameraMetadata = null
             return@rememberLauncherForActivityResult
         }
 
@@ -863,10 +947,15 @@ private fun NightApp(initialChatId: String? = null) {
                 messageType = "image",
                 payloadJson = payload.toString(),
                 thumbnailPath = null,
-                replyToMessageId = replyingToId,
+                replyToMessageId = pendingCameraReplyId,
+                chatId = pendingCameraChatId.orEmpty(),
+                draftMetadata = pendingCameraMetadata,
             )
             mediaCaption = ""
-            replyingToId = null
+            if (replyingToId == pendingCameraReplyId) replyingToId = null
+            pendingCameraChatId = null
+            pendingCameraReplyId = null
+            pendingCameraMetadata = null
             screen = "media_compose"
         }
     }
@@ -878,6 +967,14 @@ private fun NightApp(initialChatId: String? = null) {
         )
         pendingCameraFile?.delete()
         pendingCameraFile = source
+        pendingCameraChatId = activeChatId
+        pendingCameraReplyId = replyingToId
+        pendingCameraMetadata = NightDraftChatMetadata(
+            providerType = draftProviderType,
+            profileId = draftProviderProfileId,
+            modelId = draftModelId,
+            title = draftChatTitle,
+        )
         val uri = FileProvider.getUriForFile(
             context,
             context.packageName + ".files",
@@ -901,7 +998,7 @@ private fun NightApp(initialChatId: String? = null) {
         preparedName: String? = null,
     ) {
         val draft = mediaDraft ?: return
-        val chatId = activeChatId
+        val chatId = draft.chatId.ifBlank { activeChatId }
         val caption = mediaCaption.trim()
         val messageId = java.util.UUID.randomUUID().toString()
 
@@ -970,7 +1067,8 @@ private fun NightApp(initialChatId: String? = null) {
                     replyToMessageId = finalDraft.replyToMessageId,
                 )
             )
-            commitDraftChatMetadata(chatId)
+            draft.draftMetadata?.let { commitDraftChatMetadataSnapshot(chatId, it) }
+                ?: commitDraftChatMetadata(chatId)
 
             if (finalDraft.localPath != draft.localPath) {
                 runCatching { File(draft.localPath).delete() }
@@ -998,7 +1096,7 @@ private fun NightApp(initialChatId: String? = null) {
         preparedName: String,
     ) {
         val draft = pdfDraft ?: return
-        val chatId = activeChatId
+        val chatId = draft.chatId.ifBlank { activeChatId }
         val caption = pdfCaption.trim()
         val messageId = java.util.UUID.randomUUID().toString()
 
@@ -1049,7 +1147,8 @@ private fun NightApp(initialChatId: String? = null) {
                     replyToMessageId = draft.replyToMessageId,
                 )
             )
-            commitDraftChatMetadata(chatId)
+            draft.draftMetadata?.let { commitDraftChatMetadataSnapshot(chatId, it) }
+                ?: commitDraftChatMetadata(chatId)
 
             pdfDraft = null
             pdfCaption = ""
@@ -1117,1457 +1216,7 @@ private fun NightApp(initialChatId: String? = null) {
             val position = runCatching { player.currentPosition }.getOrDefault(0)
 
             if (duration > 0) {
-                audioProgress = (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-                audioPositionLabel = formatDuration(position.toLong())
-            }
-
-            if (!player.isPlaying) {
-                audioIsPlaying = false
-                break
-            }
-            delay(250)
-        }
-    }
-
-    fun leaveChat() {
-        val leavingId = activeChatId
-        if (chats.any { it.id == leavingId }) {
-            scope.launch { checkpoint(leavingId) }
-        }
-        screen = "tabs"
-    }
-
-    BackHandler(enabled = screen != "tabs") {
-        when (screen) {
-            "chat" -> leaveChat()
-            "live_voice" -> {
-                liveVoiceClient.stop()
-                screen = "chat"
-            }
-            "media_viewer" -> {
-                mediaViewerPath = null
-                remoteMediaItem = null
-                screen = mediaViewerReturnScreen
-            }
-            "library_text" -> {
-                libraryTextFile = null
-                screen = "tabs"
-            }
-            "library_audio" -> {
-                libraryAudioFile = null
-                activePlayer?.pause()
-                audioIsPlaying = false
-                screen = "tabs"
-            }
-            "media_compose" -> cancelMediaDraft()
-            "pdf_compose" -> cancelPdfDraft()
-            "scripts" -> screen = "tabs"
-            else -> {
-                screen = if (selectedTab == MainTab.You) "tabs" else "chat"
-            }
-        }
-    }
-
-    when (screen) {
-        "library_text" -> {
-            val file = libraryTextFile
-            if (file != null) {
-                NightLibraryTextEditorScreen(
-                    localPath = file.localPath,
-                    displayName = file.name,
-                    onBack = {
-                        libraryTextFile = null
-                        screen = "tabs"
-                    },
-                )
-            } else {
-                screen = "tabs"
-            }
-        }
-
-        "library_audio" -> {
-            val file = libraryAudioFile
-            if (file != null) {
-                NightLibraryAudioScreen(
-                    displayName = file.name,
-                    isPlaying = activeAudioPath == file.localPath && audioIsPlaying,
-                    progress = if (activeAudioPath == file.localPath) audioProgress else 0f,
-                    positionLabel = if (activeAudioPath == file.localPath) {
-                        audioPositionLabel
-                    } else {
-                        "0:00"
-                    },
-                    onToggle = { playAudio(file.localPath) },
-                    onSeek = { seekAudio(file.localPath, it) },
-                    onBack = {
-                        libraryAudioFile = null
-                        activePlayer?.pause()
-                        audioIsPlaying = false
-                        screen = "tabs"
-                    },
-                )
-            } else {
-                screen = "tabs"
-            }
-        }
-
-        "pdf_compose" -> {
-            val draft = pdfDraft
-            if (draft != null) {
-                NightPdfEditorScreen(
-                    localPath = draft.localPath,
-                    fileName = draft.name,
-                    caption = pdfCaption,
-                    onCaptionChange = { pdfCaption = it },
-                    onCancel = ::cancelPdfDraft,
-                    onPreparedSend = { path, name ->
-                        sendPdfDraft(
-                            preparedPath = path,
-                            preparedName = name,
-                        )
-                    },
-                )
-            } else {
-                screen = "chat"
-            }
-        }
-
-        "media_compose" -> {
-            val draft = mediaDraft
-            if (draft != null) {
-                NightMediaComposerScreen(
-                    localPath = draft.localPath,
-                    mimeType = draft.mimeType,
-                    fileName = draft.name,
-                    videoThumbnailPath = draft.thumbnailPath,
-                    caption = mediaCaption,
-                    onCaptionChange = { mediaCaption = it },
-                    onCancel = ::cancelMediaDraft,
-                    onPreparedSend = { path, mime, name ->
-                        sendMediaDraft(
-                            preparedPath = path,
-                            preparedMimeType = mime,
-                            preparedName = name,
-                        )
-                    },
-                )
-            } else {
-                screen = "chat"
-            }
-        }
-
-        "media_viewer" -> {
-            val pathToShow = mediaViewerPath
-            val remoteItem = remoteMediaItem
-            val viewerItems =
-                if (remoteItem != null) {
-                    listOf(remoteItem)
-                } else {
-                    chatMediaItems
-                }
-            if (pathToShow != null && viewerItems.isNotEmpty()) {
-                val initialIndex = viewerItems.indexOfFirst { it.localPath == pathToShow }
-                    .takeIf { it >= 0 }
-                    ?: 0
-                NightMediaViewerScreen(
-                    items = viewerItems,
-                    initialIndex = initialIndex,
-                    onBack = {
-                        mediaViewerPath = null
-                        remoteMediaItem = null
-                        screen = mediaViewerReturnScreen
-                    },
-                    onEdit = { item ->
-                        if (
-                            item.localPath.startsWith("http://") ||
-                            item.localPath.startsWith("https://")
-                        ) {
-                            Toast.makeText(
-                                context,
-                                "Download remote media before editing it.",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        } else {
-                        val source = File(item.localPath)
-                        if (!source.exists()) {
-                            Toast.makeText(context, "This media is not available locally.", Toast.LENGTH_SHORT).show()
-                        } else {
-                            scope.launch {
-                                val saved = withContext(Dispatchers.IO) {
-                                    NightFileLibrary.registerLocalFile(
-                                        context = context,
-                                        source = source,
-                                        name = "Edited " + source.name,
-                                        mimeType = item.mimeType,
-                                    )
-                                }
-                                if (saved != null) {
-                                    val payload = JSONObject()
-                                        .put("localPath", saved.localPath)
-                                        .put("mimeType", saved.mimeType)
-                                        .put("sizeBytes", saved.sizeBytes)
-                                    if (item.isVideo) {
-                                        val meta = withContext(Dispatchers.IO) {
-                                            extractVideoMeta(context, saved.localPath)
-                                        }
-                                        payload
-                                            .put("duration", meta.duration)
-                                            .put("aspectRatio", meta.aspectRatio)
-                                        meta.thumbnailPath?.let { payload.put("thumbnailPath", it) }
-                                    } else {
-                                        payload.put("aspectRatio", readImageAspectRatio(saved.localPath))
-                                    }
-                                    mediaDraft = NightMediaDraft(
-                                        libraryId = saved.id,
-                                        name = saved.name,
-                                        mimeType = saved.mimeType,
-                                        sizeBytes = saved.sizeBytes,
-                                        localPath = saved.localPath,
-                                        createdAt = saved.createdAt,
-                                        messageType = if (item.isVideo) "video" else "image",
-                                        payloadJson = payload.toString(),
-                                        thumbnailPath = if (item.isVideo) {
-                                            payload.optString("thumbnailPath").takeIf { it.isNotBlank() }
-                                        } else {
-                                            null
-                                        },
-                                        replyToMessageId = null,
-                                    )
-                                    mediaCaption = item.caption
-                                    mediaViewerPath = null
-                                    screen = "media_compose"
-                                }
-                            }
-                        }
-                        }
-                    },
-                )
-            } else {
-                mediaViewerPath = null
-                remoteMediaItem = null
-                screen = "chat"
-            }
-        }
-
-        "live_voice" -> NightLiveVoiceScreen(
-            chatTitle = activeChat?.title ?: "Night",
-            state = liveVoiceState,
-            error = liveVoiceError,
-            microphoneMuted = liveVoiceMuted,
-            speakerEnabled = liveVoiceSpeaker,
-            onToggleMute = {
-                val next = !liveVoiceMuted
-                liveVoiceClient.setMicrophoneMuted(next)
-                liveVoiceMuted = next
-            },
-            onToggleSpeaker = {
-                val next = !liveVoiceSpeaker
-                if (liveVoiceClient.setSpeakerEnabled(next)) {
-                    liveVoiceSpeaker = next
-                } else {
-                    Toast.makeText(
-                        context,
-                        "Speaker output is not available on this device.",
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                }
-            },
-            onEndCall = {
-                liveVoiceClient.stop()
-                liveVoiceMuted = false
-                liveVoiceSpeaker = false
-                screen = "chat"
-            },
-        )
-
-        "profile" -> NightProfileScreen(
-            displayName = displayName,
-            avatarPath = profileAvatarPath,
-            onBack = { screen = "tabs" },
-            onSaveName = { value ->
-                scope.launch {
-                    repository.setDisplayName(value)
-                    screen = "tabs"
-                }
-            },
-            onSaveAvatar = { path ->
-                profileAvatarPath = path
-                profileUiPrefs.edit().apply {
-                    if (path.isNullOrBlank()) {
-                        remove("avatar_path")
-                    } else {
-                        putString("avatar_path", path)
-                    }
-                }.apply()
-            },
-        )
-
-        "appearance" -> NightAppearanceScreen(
-            appearance = appearanceEntity ?: NightAppearanceEntity(),
-            onBack = { screen = "tabs" },
-            onUpdate = { updated ->
-                scope.launch { repository.setAppearance(updated) }
-            },
-        )
-
-        "media_library" -> NightMediaLibraryScreen(
-            onBack = { screen = "tabs" },
-        )
-
-        "scripts" -> NightScriptsScreen(
-            onBack = { screen = "tabs" },
-        )
-
-        "integrations" -> NightIntegrationsScreen(
-            extensions = extensions,
-            servers = mcpServers,
-            onBack = { screen = "providers" },
-            onRefresh = {
-                scope.launch {
-                    runCatching {
-                        extensionManager.refreshInstalledExtensions()
-                        mcpManager.refresh()
-                    }.onFailure { error ->
-                        Toast.makeText(
-                            context,
-                            error.message ?: "Could not refresh integrations.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
-                }
-            },
-            preferredExtensionIds = preferredExtensionIds,
-            onSetPreferredExtension = { capability, extension ->
-                runCatching {
-                    extensionManager.setPreferredProvider(
-                        capability = capability,
-                        extensionId = extension.extensionId,
-                    )
-                }.onSuccess {
-                    integrationPreferenceRevision += 1
-                    Toast.makeText(
-                        context,
-                        extension.displayName + " is preferred for " +
-                            capability.wireName + ".",
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                }.onFailure { error ->
-                    Toast.makeText(
-                        context,
-                        error.message ?: "Could not change preferred provider.",
-                        Toast.LENGTH_LONG,
-                    ).show()
-                }
-            },
-            onSetExtensionEnabled = { extension, enabled ->
-                scope.launch {
-                    runCatching {
-                        extensionManager.setEnabled(
-                            extension = extension,
-                            enabled = enabled,
-                        )
-                    }.onSuccess {
-                        Toast.makeText(
-                            context,
-                            extension.displayName +
-                                if (enabled) " enabled." else " disabled.",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                    }.onFailure { error ->
-                        Toast.makeText(
-                            context,
-                            error.message ?: "Could not update integration.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
-                }
-            },
-            onSaveMcp = { existingId, name, endpoint, token, clearToken, enabled ->
-                scope.launch {
-                    runCatching {
-                        mcpManager.save(
-                            existingId = existingId,
-                            displayName = name,
-                            endpoint = endpoint,
-                            bearerToken = token,
-                            clearBearerToken = clearToken,
-                            enabled = enabled,
-                        )
-                    }.onFailure { error ->
-                        Toast.makeText(
-                            context,
-                            error.message ?: "Could not save MCP integration.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
-                }
-            },
-            onSetMcpEnabled = { state, enabled ->
-                scope.launch {
-                    runCatching {
-                        mcpManager.setEnabled(
-                            state.config.id,
-                            enabled,
-                        )
-                    }.onFailure { error ->
-                        Toast.makeText(
-                            context,
-                            error.message ?: "Could not update integration.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
-                }
-            },
-            onReconnectMcp = { state ->
-                scope.launch {
-                    mcpManager.reconnect(state.config.id)
-                        .onSuccess { count ->
-                            Toast.makeText(
-                                context,
-                                state.config.displayName + " connected • " +
-                                    count + if (count == 1) " tool" else " tools",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        }
-                        .onFailure { error ->
-                            Toast.makeText(
-                                context,
-                                error.message ?: "Could not connect MCP integration.",
-                                Toast.LENGTH_LONG,
-                            ).show()
-                        }
-                }
-            },
-            onDeleteMcp = { state ->
-                scope.launch {
-                    runCatching {
-                        mcpManager.delete(state.config.id)
-                    }.onFailure { error ->
-                        Toast.makeText(
-                            context,
-                            error.message ?: "Could not delete integration.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
-                }
-            },
-        )
-
-        "extensions" -> NightExtensionsScreen(
-            extensions = extensions,
-            onBack = { screen = "providers" },
-            onRefresh = {
-                scope.launch {
-                    runCatching {
-                        extensionManager.refreshInstalledExtensions()
-                    }.onFailure { error ->
-                        Toast.makeText(
-                            context,
-                            error.message ?: "Could not refresh extensions.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
-                }
-            },
-            onSetEnabled = { extension, enabled ->
-                scope.launch {
-                    runCatching {
-                        extensionManager.setEnabled(
-                            extension = extension,
-                            enabled = enabled,
-                        )
-                    }.onSuccess {
-                        Toast.makeText(
-                            context,
-                            extension.displayName +
-                                if (enabled) " enabled." else " disabled.",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                    }.onFailure { error ->
-                        Toast.makeText(
-                            context,
-                            error.message ?: "Could not update extension.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
-                }
-            },
-        )
-
-        "mcp_servers" -> NightMcpServersScreen(
-            servers = mcpServers,
-            onBack = { screen = "providers" },
-            onRefresh = {
-                scope.launch {
-                    runCatching { mcpManager.refresh() }
-                        .onFailure { error ->
-                            Toast.makeText(
-                                context,
-                                error.message ?: "Could not refresh MCP servers.",
-                                Toast.LENGTH_LONG,
-                            ).show()
-                        }
-                }
-            },
-            onSave = { existingId, name, endpoint, token, clearToken, enabled ->
-                scope.launch {
-                    runCatching {
-                        mcpManager.save(
-                            existingId = existingId,
-                            displayName = name,
-                            endpoint = endpoint,
-                            bearerToken = token,
-                            clearBearerToken = clearToken,
-                            enabled = enabled,
-                        )
-                    }.onFailure { error ->
-                        Toast.makeText(
-                            context,
-                            error.message ?: "Could not save MCP server.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
-                }
-            },
-            onSetEnabled = { state, enabled ->
-                scope.launch {
-                    runCatching {
-                        mcpManager.setEnabled(
-                            state.config.id,
-                            enabled,
-                        )
-                    }.onFailure { error ->
-                        Toast.makeText(
-                            context,
-                            error.message ?: "Could not update MCP server.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
-                }
-            },
-            onReconnect = { state ->
-                scope.launch {
-                    mcpManager.reconnect(state.config.id)
-                        .onSuccess { count ->
-                            Toast.makeText(
-                                context,
-                                state.config.displayName + " connected • " +
-                                    count + if (count == 1) " tool" else " tools",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        }
-                        .onFailure { error ->
-                            Toast.makeText(
-                                context,
-                                error.message ?: "Could not connect MCP server.",
-                                Toast.LENGTH_LONG,
-                            ).show()
-                        }
-                }
-            },
-            onDelete = { state ->
-                scope.launch {
-                    runCatching {
-                        mcpManager.delete(state.config.id)
-                    }.onFailure { error ->
-                        Toast.makeText(
-                            context,
-                            error.message ?: "Could not delete MCP server.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
-                }
-            },
-        )
-
-        "providers" -> NightProvidersScreen(
-            profiles = profiles,
-            models = providerModels,
-            onBack = { screen = "tabs" },
-            onCapabilityRoutingClick = { screen = "capability_routes" },
-            onMcpServersClick = { screen = "integrations" },
-            onExtensionsClick = { screen = "integrations" },
-            onAddProfile = { provider, service, name, key, endpoint, region, language, voiceName, makeDefault ->
-                scope.launch {
-                    runCatching {
-                        providerManager.addProfile(
-                            providerType = provider,
-                            serviceKind = service,
-                            displayName = name,
-                            apiKey = key,
-                            endpoint = endpoint,
-                            region = region,
-                            language = language,
-                            voiceName = voiceName,
-                            makeDefault = makeDefault,
-                        )
-                    }.onFailure {
-                        Toast.makeText(context, it.message ?: "Could not save provider.", Toast.LENGTH_LONG).show()
-                    }
-                }
-            },
-            onAddModel = { providerProfile, modelId, name, deployment, capabilities, makeDefault ->
-                scope.launch {
-                    runCatching {
-                        providerManager.addModel(
-                            profile = providerProfile,
-                            modelId = modelId,
-                            displayName = name,
-                            deploymentName = deployment,
-                            capabilities = capabilities,
-                            makeDefault = makeDefault,
-                        )
-                    }.onFailure {
-                        Toast.makeText(context, it.message ?: "Could not save model.", Toast.LENGTH_LONG).show()
-                    }
-                }
-            },
-            onDeleteProfile = { providerProfile ->
-                scope.launch { providerManager.deleteProfile(providerProfile) }
-            },
-            onDeleteModel = { model ->
-                scope.launch { providerManager.deleteModel(model) }
-            },
-            onSetProfileEnabled = { providerProfile, enabled ->
-                scope.launch { providerManager.setProfileEnabled(providerProfile, enabled) }
-            },
-            onMakeProfileDefault = { providerProfile ->
-                scope.launch { providerManager.makeProfileDefault(providerProfile) }
-            },
-            onSetModelEnabled = { model, enabled ->
-                scope.launch { providerManager.setModelEnabled(model, enabled) }
-            },
-            onMakeModelDefault = { model ->
-                scope.launch { providerManager.makeModelDefault(model) }
-            },
-            onEditProfile = { providerProfile, name, endpoint, region, language, voiceName, replacementKey ->
-                scope.launch {
-                    runCatching {
-                        providerManager.updateProfile(
-                            profile = providerProfile,
-                            displayName = name,
-                            endpoint = endpoint,
-                            region = region,
-                            language = language,
-                            voiceName = voiceName,
-                            replacementApiKey = replacementKey,
-                        )
-                    }.onFailure { error ->
-                        Toast.makeText(
-                            context,
-                            error.message ?: "Could not update provider.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
-                }
-            },
-            onEditModel = { model, modelId, name, deployment, capabilities ->
-                scope.launch {
-                    runCatching {
-                        providerManager.updateModel(
-                            model = model,
-                            modelId = modelId,
-                            displayName = name,
-                            deploymentName = deployment,
-                            capabilities = capabilities,
-                        )
-                    }.onFailure { error ->
-                        Toast.makeText(
-                            context,
-                            error.message ?: "Could not update model.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
-                }
-            },
-            onTestModel = { providerProfile, model ->
-                scope.launch {
-                    aiGateway.testModel(providerProfile, model)
-                        .onSuccess { response ->
-                            Toast.makeText(
-                                context,
-                                if (response.trim() == "NIGHT_OK") {
-                                    model.displayName + " is connected."
-                                } else {
-                                    model.displayName + " replied: " + response.take(120)
-                                },
-                                Toast.LENGTH_LONG,
-                            ).show()
-                        }
-                        .onFailure { error ->
-                            Toast.makeText(
-                                context,
-                                model.displayName + " failed: " + (error.message ?: "Unknown provider error."),
-                                Toast.LENGTH_LONG,
-                            ).show()
-                        }
-                }
-            },
-            providerKeys = { providerProfile ->
-                providerManager.keySummaries(providerProfile)
-            },
-            onAddProviderKey = { providerProfile, key, label ->
-                scope.launch {
-                    runCatching {
-                        providerManager.addProviderKey(
-                            profile = providerProfile,
-                            apiKey = key,
-                            label = label,
-                        )
-                    }.onSuccess {
-                        Toast.makeText(
-                            context,
-                            "Groq key added.",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                    }.onFailure { error ->
-                        Toast.makeText(
-                            context,
-                            error.message ?: "Could not add Groq key.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
-                }
-            },
-            onDeleteProviderKey = { providerProfile, keyId ->
-                scope.launch {
-                    runCatching {
-                        providerManager.deleteProviderKey(providerProfile, keyId)
-                    }.onFailure { error ->
-                        Toast.makeText(
-                            context,
-                            error.message ?: "Could not remove Groq key.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
-                }
-            },
-        )
-
-        "choose_ai" -> NightAiSelectorScreen(
-            profiles = profiles,
-            models = providerModels,
-            selectedProfileId = activeProfile?.id,
-            selectedModelId = activeModel?.id,
-            onBack = { screen = "chat" },
-            onSelect = { providerProfile, model ->
-                if (activeChat == null && activeChatId != "night-core") {
-                    draftProviderType = providerProfile.providerType
-                    draftProviderProfileId = providerProfile.id
-                    draftModelId = model.id
-                    screen = "chat"
-                } else {
-                    scope.launch {
-                        repository.setChatModel(
-                            chatId = activeChatId,
-                            provider = providerProfile.providerType,
-                            profileId = providerProfile.id,
-                            model = model.id,
-                        )
-                        screen = "chat"
-                    }
-                }
-            },
-        )
-
-        "memory" -> NightMemoryScreen(
-            chats = chats,
-            onBack = { screen = "tabs" },
-            onChatClick = {
-                activeChatId = it.id
-                screen = "chat_memory"
-            },
-        )
-
-        "chat_memory" -> NightChatMemoryScreen(
-            chat = activeChat,
-            checkpoints = memoryCheckpoints,
-            isRefreshing = summaryRefreshing,
-            onBack = { screen = "chat" },
-            onRefresh = {
-                if (!summaryRefreshing) {
-                    summaryRefreshing = true
-                    scope.launch {
-                        try {
-                            checkpoint(activeChatId)
-                            memoryCheckpoints =
-                                repository.summaryCheckpoints(activeChatId)
-                        } finally {
-                            summaryRefreshing = false
-                        }
-                    }
-                }
-            },
-        )
-
-        "chat_search" -> NightChatSearchScreen(
-            title = activeChat?.title ?: "Night",
-            messages = messageEntities,
-            onBack = { screen = "chat" },
-        )
-
-        "chat_files" -> NightChatFilesScreen(
-            title = activeChat?.title ?: "Night",
-            messages = messageEntities,
-            onBack = { screen = "chat" },
-        )
-
-        "capability_routes" -> NightCapabilityRoutesScreen(
-            profiles = profiles,
-            models = providerModels,
-            routes = capabilityRoutes,
-            onBack = { screen = "providers" },
-            onSetRoute = { capability, providerProfile, model, useSelectedFirst ->
-                scope.launch {
-                    repository.setCapabilityRoute(
-                        NightCapabilityRouteEntity(
-                            id = capability,
-                            capability = capability,
-                            providerProfileId = providerProfile.id,
-                            modelId = model?.id,
-                            useSelectedChatModelFirst = useSelectedFirst,
-                            isEnabled = true,
-                            updatedAt = System.currentTimeMillis(),
-                        )
-                    )
-                }
-            },
-            onClearRoute = { capability ->
-                scope.launch { repository.clearCapabilityRoute(capability) }
-            },
-        )
-
-        "scheduled_tasks" -> NightScheduledTasksScreen(
-            tasks = scheduledTasks,
-            onBack = { screen = "tabs" },
-            onDelete = { task ->
-                scope.launch { scheduleManager.cancel(task) }
-            },
-        )
-
-        "settings" -> ModernSettingsScreen(
-            onBack = { screen = "tabs" },
-            displayName = displayName,
-            onProfileClick = { screen = "profile" },
-            onProvidersClick = { screen = "providers" },
-            onAppearanceClick = { screen = "appearance" },
-            onMemoryClick = { screen = "memory" },
-            onSchedulesClick = { screen = "scheduled_tasks" },
-            onScriptsClick = { screen = "scripts" },
-            onMediaLibraryClick = { screen = "media_library" },
-            onBrowserClick = {
-                context.startActivity(NightBrowserActivity.createGeneralIntent(context))
-            },
-            onPrivacyClick = { screen = "privacy" },
-        )
-
-        "privacy" -> NightPrivacyScreen(
-            onBack = { screen = "settings" },
-        )
-
-        "audio_picker" -> NightAudioPickerScreen(
-            onBack = { screen = "chat" },
-            onSelect = { uri ->
-                screen = "chat"
-                importAttachmentUri(uri)
-            },
-            onBrowseFiles = {
-                screen = "chat"
-                attachmentPicker.launch(arrayOf("audio/*"))
-            },
-            accentColor = appearance.accentColor,
-        )
-
-        "chat" -> CurrentWhatsAppConversation(
-            contactName = activeChat?.title
-                ?: draftChatTitle
-                ?: if (activeChatId == "night-core") "Night" else "New chat",
-            subtitle = when {
-                activeModel != null && activeProfile != null ->
-                    activeModel.displayName + " • " + activeProfile.providerType.replaceFirstChar { it.uppercase() }
-                else -> "Choose AI"
-            },
-            messages = visualMessages,
-            messageText = messageText,
-            onMessageTextChange = { messageText = it },
-            onBackClick = { leaveChat() },
-            appearance = appearance,
-            onSendClick = {
-                val text = messageText.trim()
-                if (text.isEmpty()) return@CurrentWhatsAppConversation
-                NightEmojiRecents.recordFromText(context, text)
-                messageText = ""
-
-                scope.launch {
-                    val replyId = replyingToId
-                    val userMessage =
-                        if (text.trimStart().startsWith("/")) {
-                            repository.appendText(
-                                chatId = activeChatId,
-                                role = "user",
-                                text = text,
-                                replyToMessageId = replyId,
-                            )
-                        } else {
-                            appendTextWithLinkPreview(
-                                repository = repository,
-                                linkPreviewService = linkPreviewService,
-                                chatId = activeChatId,
-                                role = "user",
-                                text = text,
-                                replyToMessageId = replyId,
-                            )
-                        }
-                    replyingToId = null
-
-                    commitDraftChatMetadata(activeChatId)
-
-                    val commandExecution =
-                        scriptRuntime.executeSlashCommand(
-                            chatId = activeChatId,
-                            rawText = text,
-                            invokingMessageId = userMessage.id,
-                        )
-                    if (commandExecution != null) {
-                        directImageMode = false
-                        commandExecution.response
-                            ?.takeIf { it.isNotBlank() }
-                            ?.let { response ->
-                                repository.appendText(
-                                    chatId = activeChatId,
-                                    role = "assistant",
-                                    text = response,
-                                    replyToMessageId = userMessage.id,
-                                )
-                            }
-                        return@launch
-                    }
-
-                    if (directImageMode) {
-                        directImageMode = false
-                        val prompt = text
-                            .removePrefix("Generate an image of ")
-                            .removePrefix("Generate an image of")
-                            .trim()
-                            .ifBlank { text.trim() }
-
-                        val toolResult = agentTools.execute(
-                            chatId = activeChatId,
-                            invocation = NightToolInvocation(
-                                id = "direct_image_" + java.util.UUID.randomUUID(),
-                                name = "generate_image",
-                                argumentsJson = JSONObject()
-                                    .put("prompt", prompt)
-                                    .put("size", "1024x1024")
-                                    .toString(),
-                            ),
-                        )
-                        val toolJson = runCatching { JSONObject(toolResult) }.getOrNull()
-                        if (toolJson?.optBoolean("ok", false) != true) {
-                            repository.appendText(
-                                chatId = activeChatId,
-                                role = "assistant",
-                                text = "I couldn't generate that image. " +
-                                    (toolJson?.optString("error")
-                                        ?.takeIf { it.isNotBlank() }
-                                        ?: "Check the image-generation route in AI & providers."),
-                            )
-                        }
-                        return@launch
-                    }
-
-                    val activeHasTools = activeModel?.capabilities
-                        ?.split(",")
-                        ?.map { it.trim().lowercase() }
-                        ?.contains("tools")
-                        ?: false
-
-                    if (!activeHasTools) {
-                        val localAppearanceResult = appearanceController.handleNaturalRequest(text)
-                        if (localAppearanceResult != null) {
-                            repository.appendText(
-                                chatId = activeChatId,
-                                role = "assistant",
-                                text = localAppearanceResult,
-                            )
-                            return@launch
-                        }
-                    }
-
-                    streamNightAssistantReply(
-                        repository = repository,
-                        aiGateway = aiGateway,
-                        chatId = activeChatId,
-                        displayName = displayName,
-                        noAiMessage = "No AI is selected for this chat yet. Tap Choose AI to pick a configured model.",
-                        failurePrefix = "I couldn't reach an available AI. ",
-                    )
-                }
-            },
-            onCallClick = {
-                if (
-                    ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.RECORD_AUDIO,
-                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                ) {
-                    startLiveVoiceCall()
-                } else {
-                    liveVoicePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                }
-            },
-            onMenuAction = { action ->
-                when (action) {
-                    "Memory & summary" -> screen = "chat_memory"
-                    "Files in chat" -> screen = "chat_files"
-                    "Browser" -> context.startActivity(
-                        NightBrowserActivity.createGeneralIntent(context)
-                    )
-                    "Rename chat" -> {
-                        renameValue = activeChat?.title
-                            ?: draftChatTitle
-                            ?: if (activeChatId == "night-core") "Night" else "New chat"
-                        renameOpen = true
-                    }
-                    "Choose AI" -> screen = "choose_ai"
-                    "Clear chat" -> scope.launch { repository.clearChat(activeChatId) }
-                    "Delete chat" -> scope.launch {
-                        repository.deleteChat(activeChatId)
-                        activeChatId = "night-core"
-                        repository.ensureChat("night-core", "Night")
-                        screen = "tabs"
-                    }
-                    "Export chat" -> scope.launch {
-                        exportChat(context, activeChat?.title ?: "Night", messageEntities)
-                    }
-                    "Search chat" -> screen = "chat_search"
-                }
-            },
-            onMessageButtonClick = { messageId, actionId ->
-                val configurationSubmission =
-                    ExtensionConfigurationActionCodec.decode(actionId)
-
-                when {
-                    actionId.startsWith("script_command_") -> {
-                        scope.launch {
-                            val existing =
-                                repository.getMessage(messageId)
-                                    ?: return@launch
-                            val payload =
-                                runCatching {
-                                    JSONObject(existing.payloadJson)
-                                }.getOrElse { JSONObject() }
-                            val command =
-                                payload.optJSONObject("scriptCommands")
-                                    ?.optString(actionId)
-                                    ?.trim()
-                                    ?.takeIf { it.isNotBlank() }
-                                    ?: return@launch
-
-                            val execution =
-                                scriptRuntime.executeSlashCommand(
-                                    chatId = activeChatId,
-                                    rawText = command,
-                                    invokingMessageId = existing.id,
-                                )
-                            execution?.response
-                                ?.takeIf { it.isNotBlank() }
-                                ?.let { response ->
-                                    repository.appendText(
-                                        chatId = activeChatId,
-                                        role = "assistant",
-                                        text = response,
-                                        replyToMessageId = existing.id,
-                                    )
-                                }
-                        }
-                    }
-
-                    configurationSubmission != null -> {
-                        scope.launch {
-                            val existing =
-                                repository.getMessage(messageId) ?: return@launch
-                            if (existing.type != "extension") return@launch
-
-                            val snapshot =
-                                ExtensionMessageCodec.decode(existing.payloadJson)
-                                    ?: return@launch
-                            val values = runCatching {
-                                JSONObject(configurationSubmission.valuesJson)
-                            }.getOrElse { JSONObject() }
-
-                            NightExtensionConfigurationStore.save(
-                                context = context,
-                                extensionId = snapshot.extensionId,
-                                configurationId =
-                                    configurationSubmission.configurationId,
-                                values = values,
-                            )
-
-                            val updatedSnapshot =
-                                snapshot.withConfigurationValues(values)
-                            repository.replaceMessage(
-                                existing.copy(
-                                    payloadJson =
-                                        ExtensionMessageCodec.encode(updatedSnapshot)
-                                )
-                            )
-
-                            val actionResult =
-                                NightExtensionMessageActionRegistry.execute(
-                                    extensionId = snapshot.extensionId,
-                                    chatId = activeChatId,
-                                    messageId = messageId,
-                                    messageType = snapshot.messageType,
-                                    actionId = configurationSubmission.actionId,
-                                    payload = JSONObject()
-                                        .put(
-                                            "configurationId",
-                                            configurationSubmission.configurationId,
-                                        )
-                                        .put("values", values)
-                                        .put(
-                                            "extensionPayload",
-                                            runCatching {
-                                                JSONObject(
-                                                    updatedSnapshot.extensionPayloadJson
-                                                )
-                                            }.getOrElse { JSONObject() },
-                                        ),
-                                )
-                            persistExtensionActionResult(
-                                extensionId = snapshot.extensionId,
-                                result = actionResult,
-                            )
-                        }
-                    }
-
-                    actionId.startsWith("option_") -> {
-                        val index = actionId.removePrefix("option_").toIntOrNull()
-                        if (index != null) {
-                            scope.launch {
-                                val existing = repository.getMessage(messageId) ?: return@launch
-                                if (existing.type == "choice") {
-                                    val payload = runCatching { JSONObject(existing.payloadJson) }
-                                        .getOrElse { JSONObject() }
-                                    if (payload.optBoolean("multiple", false)) {
-                                        val selected = linkedSetOf<Int>()
-                                        payload.optJSONArray("selectedIndices")?.let { raw ->
-                                            for (position in 0 until raw.length()) {
-                                                selected += raw.optInt(position)
-                                            }
-                                        }
-                                        if (!selected.add(index)) {
-                                            selected.remove(index)
-                                        }
-                                        val encoded = JSONArray()
-                                        selected.sorted().forEach { encoded.put(it) }
-                                        payload
-                                            .put("selectedIndices", encoded)
-                                            .remove("selectedIndex")
-                                    } else {
-                                        payload.put("selectedIndex", index)
-                                    }
-                                    payload.put("selectedBy", "You")
-                                    repository.appendMessage(existing.copy(payloadJson = payload.toString()))
-                                }
-                            }
-                        }
-                    }
-                    actionId == "read" -> {
-                        scope.launch {
-                            val existing = repository.getMessage(messageId) ?: return@launch
-                            if (existing.type != "manga") return@launch
-
-                            val payload = runCatching { JSONObject(existing.payloadJson) }
-                                .getOrElse { JSONObject() }
-                            val title = payload.optString("title").ifBlank {
-                                existing.text.ifBlank { "Manga" }
-                            }
-                            val chapter = payload.optString("chapter")
-                            val archivePath = payload.optString("archivePath")
-                                .takeIf { it.isNotBlank() }
-
-                            if (archivePath != null && File(archivePath).exists()) {
-                                context.startActivity(
-                                    NightMihonReaderActivity.archiveIntent(
-                                        context = context,
-                                        localPath = archivePath,
-                                        displayName = title,
-                                    )
-                                )
-                                return@launch
-                            }
-
-                            val pagesRaw = when {
-                                payload.optJSONArray("pages") != null ->
-                                    payload.optJSONArray("pages")!!.toString()
-                                payload.optString("pages").isNotBlank() ->
-                                    payload.optString("pages")
-                                else -> ""
-                            }
-                            val pages = decodeMihonPages(pagesRaw)
-                            if (pages.isEmpty()) {
-                                Toast.makeText(
-                                    context,
-                                    "This manga card has no readable chapter pages yet.",
-                                    Toast.LENGTH_LONG,
-                                ).show()
-                                return@launch
-                            }
-
-                            context.startActivity(
-                                NightMihonReaderActivity.intent(
-                                    context = context,
-                                    title = title,
-                                    chapter = chapter,
-                                    pages = pages,
-                                    readerKey = payload.optString("readerKey").ifBlank { title },
-                                    progressKey = payload.optString("progressKey")
-                                        .takeIf { it.isNotBlank() }
-                                        ?: ("manga:" + existing.id),
-                                )
-                            )
-                        }
-                    }
-                    actionId == "choose_ai" || actionId.startsWith("ai_") -> screen = "choose_ai"
-                    actionId == "open_library" -> {
-                        selectedTabName = MainTab.Updates.name
-                        screen = "tabs"
-                    }
-                    actionId.contains("summary") -> screen = "chat_memory"
-
-                    NightExtensionStandardActions
-                        .isPlaybackAction(actionId) -> {
-                        scope.launch {
-                            val existing =
-                                repository.getMessage(messageId) ?: return@launch
-                            if (existing.type != "extension") return@launch
-                            val snapshot =
-                                ExtensionMessageCodec.decode(existing.payloadJson)
-                                    ?: return@launch
-                            val payload =
-                                runCatching {
-                                    JSONObject(snapshot.extensionPayloadJson)
-                                }.getOrElse { JSONObject() }
-                            val url =
-                                payload.optString("mediaUrl")
-                                    .trim()
-                                    .takeIf {
-                                        it.startsWith("https://") ||
-                                            it.startsWith("http://")
-                                    }
-                            if (url == null) {
-                                Toast.makeText(
-                                    context,
-                                    "This extension did not provide a playable media URL.",
-                                    Toast.LENGTH_LONG,
-                                ).show()
-                                return@launch
-                            }
-
-                            val headers =
-                                buildMap<String, String> {
-                                    payload.optJSONObject("headers")
-                                        ?.let { raw ->
-                                            raw.keys().forEach { key ->
-                                                val value =
-                                                    raw.optString(key).trim()
-                                                if (
-                                                    key.isNotBlank() &&
-                                                    value.isNotBlank()
-                                                ) {
-                                                    put(key, value)
-                                                }
-                                            }
-                                        }
-                                }
-                            val title =
-                                payload.optString("title")
-                                    .trim()
-                                    .ifBlank { snapshot.title }
-                            val mimeType =
-                                payload.optString("mimeType")
-                                    .trim()
-                                    .ifBlank { "video/mp4" }
-
-                            if (
-                                actionId ==
-                                    NightExtensionStandardActions.PLAY_MEDIA
-                            ) {
-                                remoteMediaItem =
-                                    NightChatMediaItem(
-                                        id = "remote:" + messageId,
-                                        localPath = url,
-                                        mimeType = mimeType,
-                                        caption = title,
-                                        sender = snapshot.extensionName,
-                                        requestHeaders = headers,
-                                    )
-                                mediaViewerPath = url
-                                mediaViewerReturnScreen = "chat"
-                                screen = "media_viewer"
-                            } else {
-                                val workId = runCatching {
-                                    NightMediaDownloadQueue.get(context).enqueue(
-                                        extensionId = snapshot.extensionId,
-                                        chatId = activeChatId,
-                                        messageId = messageId,
-                                        messageType = snapshot.messageType,
-                                        payload = payload,
-                                    )
-                                }.getOrElse { error ->
-                                    Toast.makeText(
-                                        context,
-                                        error.message ?: "Could not start download.",
-                                        Toast.LENGTH_LONG,
-                                    ).show()
-                                    return@launch
-                                }
-                                Toast.makeText(
-                                    context,
-                                    "Night download started • " + workId.take(8),
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-                            }
-                        }
-                    }
-
-                    NightExtensionStandardActions
-                        .isMediaCollectionAction(actionId) -> {
-                        scope.launch {
-                            val existing =
-                                repository.getMessage(messageId) ?: return@launch
-                            if (existing.type != "extension") return@launch
-
-                            val snapshot =
-                                ExtensionMessageCodec.decode(existing.payloadJson)
-                                    ?: return@launch
-
-                            val localMessage =
-                                runCatching {
-                                    NightMediaCollectionStore.handleAction(
-                                        context = context,
-                                        snapshot = snapshot,
-                                        actionId = actionId,
-                                    )
-                                }.getOrElse { error ->
-                                    Toast.makeText(
-                                        context,
-                                        error.message
-                                            ?: "Could not update media collection.",
-                                        Toast.LENGTH_LONG,
-                                    ).show()
-                                    return@launch
-                                }
-
-                            Toast.makeText(
-                                context,
-                                localMessage,
-                                Toast.LENGTH_SHORT,
-                            ).show()
-
-                            runCatching {
-                                NightExtensionMessageActionRegistry.execute(
-                                    extensionId = snapshot.extensionId,
-                                    chatId = activeChatId,
-                                    messageId = messageId,
-                                    messageType = snapshot.messageType,
-                                    actionId = actionId,
-                                    payload = JSONObject()
-                                        .put(
-                                            "extensionPayload",
-                                            runCatching {
-                                                JSONObject(
-                                                    snapshot.extensionPayloadJson
-                                                )
-                                            }.getOrElse { JSONObject() },
-                                        )
-                                        .put("nightHandled", true),
-                                )
-                            }.onSuccess { result ->
-                                persistExtensionActionResult(
-                                    extensionId = snapshot.extensionId,
-                                    result = result,
-                                )
-                            }
-                        }
-                    }
-
-                    else -> {
-                        scope.launch {
-                            val existing =
-                                repository.getMessage(messageId) ?: return@launch
-                            if (existing.type != "extension") return@launch
-                            val snapshot =
-                                ExtensionMessageCodec.decode(existing.payloadJson)
-                                    ?: return@launch
-
-                            val browser = snapshot.browser
-                            if (
-                                snapshot.template == ExtensionCardTemplate.Browser &&
-                                browser != null &&
-                                browser.verifyActionId == actionId
-                            ) {
-                                val verifyingSnapshot = snapshot.copy(
-                                    status = "Verifying",
-                                    browser = NightBrowserVerification.verifying(browser),
-                                )
-                                repository.replaceMessage(
-                                    existing.copy(
-                                        payloadJson =
-                                            ExtensionMessageCodec.encode(verifyingSnapshot)
-                                    )
-                                )
-
-                                val extensionPayload = runCatching {
-                                    JSONObject(snapshot.extensionPayloadJson)
-                                }.getOrElse { JSONObject() }
-
-                                val verificationPayload = runCatching {
-                                    NightBrowserVerification.buildActionPayload(
-                                        context = context,
-                                        spec = browser,
-                                        extensionPayload = extensionPayload,
-                                    )
-                                }.getOrElse { error ->
-                                    JSONObject()
-                                        .put(
-                                            "browserSession",
-                                            JSONObject()
-                                                .put("sessionId", browser.sessionId)
-                                                .put("captureError", error.message ?: "Unable to read browser session.")
-                                        )
-                                        .put("extensionPayload", extensionPayload)
-                                }
-
-                                val actionResult = runCatching {
-                                    NightExtensionMessageActionRegistry.execute(
-                                        extensionId = snapshot.extensionId,
-                                        chatId = activeChatId,
-                                        messageId = messageId,
-                                        messageType = snapshot.messageType,
-                                        actionId = actionId,
-                                        payload = verificationPayload,
-                                    )
-                                }.getOrElse { error ->
-                                    JSONObject()
-                                        .put("verified", false)
-                                        .put(
-                                            "error",
-                                            error.message ?: "Verification handler failed.",
-                                        )
-                                }
-
-                                persistExtensionActionResult(
-                                    extensionId = snapshot.extensionId,
-                                    result = actionResult,
-                                )
-                                val outcome =
-                                    NightBrowserVerification.interpretResult(actionResult)
-                                val verifiedBrowser =
-                                    NightBrowserVerification.applyOutcome(
-                                        spec = browser,
+                audioProgress = (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f)…16434 tokens truncated…                   spec = browser,
                                         outcome = outcome,
                                     )
                                 val verifiedSnapshot = snapshot.copy(
@@ -2590,7 +1239,7 @@ private fun NightApp(initialChatId: String? = null) {
                             val actionResult =
                                 NightExtensionMessageActionRegistry.execute(
                                     extensionId = snapshot.extensionId,
-                                    chatId = activeChatId,
+                                    chatId = existing.chatId,
                                     messageId = messageId,
                                     messageType = snapshot.messageType,
                                     actionId = actionId,
@@ -2600,6 +1249,7 @@ private fun NightApp(initialChatId: String? = null) {
                                 )
                             persistExtensionActionResult(
                                 extensionId = snapshot.extensionId,
+                                chatId = existing.chatId,
                                 result = actionResult,
                             )
                         }
@@ -2803,7 +1453,10 @@ private fun NightApp(initialChatId: String? = null) {
                     directImageMode = false
                     screen = "chat"
                 },
-                onSettingsClick = { screen = "settings" },
+                onSettingsClick = {
+                    selectedTabName = MainTab.You.name
+                    screen = "tabs"
+                },
                 accentColor = appearance.accentColor,
             )
 
@@ -2812,8 +1465,7 @@ private fun NightApp(initialChatId: String? = null) {
                     selectedTabName = it.name
                     screen = "tabs"
                 },
-                onSettingsClick = { screen = "settings" },
-                onScriptsClick = { screen = "scripts" },
+                accentColor = appearance.accentColor,
                 onFileOpen = { file ->
                     val mime = file.mimeType.lowercase()
                     val name = file.name.lowercase()
@@ -2876,9 +1528,31 @@ private fun NightApp(initialChatId: String? = null) {
                 },
             )
 
+            MainTab.Scripts -> ModernAppScaffold(
+                selectedTab = MainTab.Scripts,
+                onTabSelected = {
+                    selectedTabName = it.name
+                    screen = "tabs"
+                },
+                title = "Scripts & Projects",
+                showCamera = false,
+                showSearch = false,
+                showMenu = false,
+                accentColor = appearance.accentColor,
+            ) { _ ->
+                NightScriptsScreen(
+                    onBack = {
+                        selectedTabName = MainTab.Chats.name
+                        screen = "tabs"
+                    },
+                    tabMode = true,
+                )
+            }
+
             MainTab.You -> NightYouTab(
                 displayName = displayName,
                 avatarPath = profileAvatarPath,
+                accentColor = appearance.accentColor,
                 onTabSelected = {
                     selectedTabName = it.name
                     screen = "tabs"
@@ -2897,7 +1571,6 @@ private fun NightApp(initialChatId: String? = null) {
                 },
                 onAppearanceClick = { screen = "appearance" },
                 onPrivacyClick = { screen = "privacy" },
-                onSettingsClick = { screen = "settings" },
             )
 
             else -> {
@@ -2939,6 +1612,13 @@ private fun NightApp(initialChatId: String? = null) {
                                 localPath = saved.localPath,
                                 createdAt = saved.createdAt,
                                 replyToMessageId = null,
+                                chatId = activeChatId,
+                                draftMetadata = NightDraftChatMetadata(
+                                    providerType = draftProviderType,
+                                    profileId = draftProviderProfileId,
+                                    modelId = draftModelId,
+                                    title = draftChatTitle,
+                                ),
                             )
                             pdfCaption = sourceMessage?.caption.orEmpty()
                             pdfSheetPath = null
@@ -2964,6 +1644,14 @@ private fun NightApp(initialChatId: String? = null) {
         NightChoiceDialog(
             onDismiss = { choiceOpen = false },
             onCreate = { title, options, multiple ->
+                val chatId = activeChatId
+                val replyId = replyingToId
+                val draftMetadata = NightDraftChatMetadata(
+                    providerType = draftProviderType,
+                    profileId = draftProviderProfileId,
+                    modelId = draftModelId,
+                    title = draftChatTitle,
+                )
                 scope.launch {
                     val messageId = java.util.UUID.randomUUID().toString()
                     val payload = JSONObject()
@@ -2972,17 +1660,17 @@ private fun NightApp(initialChatId: String? = null) {
                     repository.appendMessage(
                         NightMessageEntity(
                             id = messageId,
-                            chatId = activeChatId,
+                            chatId = chatId,
                             role = "user",
                             type = "choice",
                             text = title,
                             createdAt = System.currentTimeMillis(),
                             payloadJson = payload.toString(),
-                            replyToMessageId = replyingToId,
+                            replyToMessageId = replyId,
                         )
                     )
-                    commitDraftChatMetadata(activeChatId)
-                    replyingToId = null
+                    commitDraftChatMetadataSnapshot(chatId, draftMetadata)
+                    if (replyingToId == replyId) replyingToId = null
                 }
                 choiceOpen = false
             },
@@ -3452,12 +2140,21 @@ private fun nightTime(timestamp: Long = System.currentTimeMillis()): String =
 private fun formatChatListTime(timestamp: Long): String =
     if (timestamp <= 0L) "" else nightTime(timestamp)
 
+private data class NightDraftChatMetadata(
+    val providerType: String?,
+    val profileId: String?,
+    val modelId: String?,
+    val title: String?,
+)
+
 private data class NightPdfDraft(
     val libraryId: String,
     val name: String,
     val localPath: String,
     val createdAt: Long,
     val replyToMessageId: String?,
+    val chatId: String = "",
+    val draftMetadata: NightDraftChatMetadata? = null,
 )
 
 private data class NightMediaDraft(
@@ -3471,6 +2168,8 @@ private data class NightMediaDraft(
     val payloadJson: String,
     val thumbnailPath: String?,
     val replyToMessageId: String?,
+    val chatId: String = "",
+    val draftMetadata: NightDraftChatMetadata? = null,
 )
 
 private fun formatDuration(durationMs: Long): String {
@@ -3746,7 +2445,7 @@ private suspend fun streamNightAssistantReply(
     if (parsed.text.isBlank()) {
         repository.deleteMessage(messageId)
     } else {
-        repository.appendMessage(
+        repository.finishStreamingMessage(
             base.copy(
                 text = parsed.text,
                 deliveryState = "sent",

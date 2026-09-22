@@ -144,17 +144,25 @@ assert_text "Groq Chat"
 assert_text "Llama 3.3 70B"
 adb exec-out screencap -p > "$OUT/01-provider-phone-width.png"
 
+echo "STEP: provider configuration opens in a bottom sheet"
+tap_desc "Edit profile"
+assert_text "Profile name"
+assert_text "Save"
+assert_text "Cancel"
+adb exec-out screencap -p > "$OUT/02-provider-edit-bottom-sheet.png"
+tap_text "Cancel"
+
 echo "STEP: model actions use compact overflow menu"
 tap_desc "Model actions"
 assert_text "Disable model"
 assert_text "Edit model"
 assert_text "Delete model"
-adb exec-out screencap -p > "$OUT/02-model-actions-menu.png"
+adb exec-out screencap -p > "$OUT/03-model-actions-menu.png"
 
 echo "STEP: destructive model action requires confirmation"
 tap_text "Delete model"
 assert_text "Delete model?"
-adb exec-out screencap -p > "$OUT/03-delete-model-confirmation.png"
+adb exec-out screencap -p > "$OUT/04-delete-model-confirmation.png"
 tap_text "Cancel"
 
 assert_no_night_crash
@@ -163,6 +171,7 @@ printf '%s\n' \
   "androidApi=36" \
   "phoneWidth=709x1536@240dpi" \
   "providerScreen=true" \
+  "providerEditing=bottom-sheet" \
   "compactModelActions=true" \
   "overflowMenu=true" \
   "destructiveConfirmation=true" > "$OUT/summary.txt"

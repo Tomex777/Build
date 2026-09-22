@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -55,7 +56,6 @@ private val ExtensionConfigBubble = Color(0xFF242625)
 private val ExtensionConfigPanel = Color(0xFF303436)
 private val ExtensionConfigText = Color(0xFFECEDEE)
 private val ExtensionConfigMuted = Color(0xFF9EA7AB)
-private val ExtensionConfigAccent = Color(0xFFCF4A69)
 
 @Composable
 fun NightExtensionConfigurationBubble(
@@ -63,6 +63,7 @@ fun NightExtensionConfigurationBubble(
     onAction: (messageId: String, actionId: String) -> Unit,
 ) {
     val snapshot = item.snapshot
+    val extensionConfigAccent = MaterialTheme.colorScheme.primary
     val configuration = snapshot.configuration ?: return
     val context = LocalContext.current
     val saved = remember(snapshot.extensionId, configuration.id) {
@@ -236,7 +237,7 @@ fun NightExtensionConfigurationBubble(
                             } else {
                                 configuration.advancedLabel
                             },
-                            color = ExtensionConfigAccent,
+                            color = extensionConfigAccent,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp),
@@ -497,7 +498,7 @@ private fun ExtensionConfigurationFieldContent(
                             field.suffix.takeIf { it.isNotBlank() }
                                 ?.let { " " + it }
                                 .orEmpty(),
-                    color = ExtensionConfigAccent,
+                    color = extensionConfigAccent,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(top = 5.dp),

@@ -138,7 +138,7 @@ class NightRepository private constructor(
             } else {
                 chat.title
             }
-        dao.appendMessage(
+        val orderedMessage = dao.appendMessage(
             chat.copy(
                 title = title,
                 updatedAt = now,
@@ -146,7 +146,7 @@ class NightRepository private constructor(
             ),
             message,
         )
-        return message
+        return orderedMessage
     }
 
     suspend fun appendExtensionMessage(
@@ -178,7 +178,7 @@ class NightRepository private constructor(
             } else {
                 chat.title
             }
-        dao.appendMessage(
+        val orderedMessage = dao.appendMessage(
             chat.copy(
                 title = title,
                 updatedAt = now,
@@ -186,7 +186,7 @@ class NightRepository private constructor(
             ),
             message,
         )
-        return message
+        return orderedMessage
     }
 
     suspend fun appendMessage(message: NightMessageEntity) {
@@ -220,6 +220,15 @@ class NightRepository private constructor(
                 lastMessagePreview = preview,
             ),
             message,
+        )
+    }
+
+    suspend fun finishStreamingMessage(message: NightMessageEntity): NightMessageEntity {
+        val now = System.currentTimeMillis()
+        val chat = ensureWritableChat(message.chatId, now)
+        return dao.finishStreamingMessage(
+            chat = chat,
+            message = message.copy(createdAt = now),
         )
     }
 

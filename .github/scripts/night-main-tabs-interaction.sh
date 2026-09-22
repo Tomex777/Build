@@ -99,21 +99,16 @@ adb shell wm size 709x1536
 adb shell wm density 240
 adb logcat -c
 
-echo "STEP: three-tab shell and FAB clearance"
+echo "STEP: four-tab shell and FAB clearance"
 launch_tab chats
 
-assert_desc "Chats"
+assert_desc "Chat"
 assert_desc "Library"
-assert_desc "You"
-
-if grep -q 'content-desc="Calls"' /tmp/window.xml ||
-   grep -q 'content-desc="Communities"' /tmp/window.xml; then
-  echo "Night exposed a fourth bottom-navigation tab." >&2
-  exit 1
-fi
+assert_desc "Scripts/Projects"
+assert_desc "U"
 
 read -r fx1 fy1 fx2 fy2 <<<"$(python3 /tmp/night_main_tabs_uia.py desc "New chat FAB")"
-read -r tx1 ty1 tx2 ty2 <<<"$(python3 /tmp/night_main_tabs_uia.py desc "You")"
+read -r tx1 ty1 tx2 ty2 <<<"$(python3 /tmp/night_main_tabs_uia.py desc "U")"
 
 if [ "$fy2" -ge "$ty1" ]; then
   echo "New chat FAB overlaps the bottom navigation: FAB bottom=$fy2, nav top=$ty1" >&2
@@ -131,21 +126,32 @@ if [ "$hy1" -lt 32 ]; then
   exit 1
 fi
 
-adb exec-out screencap -p >"$OUT/01-chats-three-tabs.png"
+adb exec-out screencap -p >"$OUT/01-chats-four-tabs.png"
 
 echo "STEP: Library tab"
 launch_tab library
-assert_desc "Chats"
+assert_desc "Chat"
 assert_desc "Library"
-assert_desc "You"
+assert_desc "Scripts/Projects"
+assert_desc "U"
 adb exec-out screencap -p >"$OUT/02-library.png"
+
+echo "STEP: Scripts/Projects tab"
+launch_tab scripts
+assert_desc "Chat"
+assert_desc "Library"
+assert_desc "Scripts/Projects"
+assert_desc "U"
+assert_text "Projects"
+adb exec-out screencap -p >"$OUT/03-scripts-projects.png"
 
 echo "STEP: You tab"
 launch_tab you
-assert_desc "Chats"
+assert_desc "Chat"
 assert_desc "Library"
-assert_desc "You"
-adb exec-out screencap -p >"$OUT/03-you.png"
+assert_desc "Scripts/Projects"
+assert_desc "U"
+adb exec-out screencap -p >"$OUT/04-you.png"
 
 adb logcat -d -v threadtime >"$OUT/logcat.txt"
 if grep -A8 "FATAL EXCEPTION:" "$OUT/logcat.txt" | grep -q "Process: $PACKAGE"; then
@@ -155,6 +161,6 @@ fi
 
 printf '%s\n' \
   "androidApi=36" \
-  "bottomTabs=Chats,Library,You" \
+  "bottomTabs=Chat,Library,Scripts/Projects,U" \
   "fabClearOfBottomNav=true" \
   "statusBarInset=true" >"$OUT/summary.txt"

@@ -1,17 +1,11 @@
 # Night Progress
 
 - Active branch: `night-groq-key-pool-ci`
-- Current app head when this roadmap was refreshed: `1f2d6367ae47225f2116742766a1ec738bec2214`
-- Exact-head status at refresh:
+- Current confirmed baseline: `04c78f69c01192022daaeadc5ea73f92e673f06a`
+- Baseline status supplied by the latest real-device handoff:
   - Night Groq Key Pool: PASS
-  - Night Integrated Regression: build/unit tests PASS
-  - Android 16 main tabs/FAB/status-bar: PASS
-  - Android 16 Providers: PASS
-  - Android 16 Memory: PASS
-  - Android 16 Extensions: PASS
-  - Android 16 Message Blocks: PASS
-  - Android 16 Extension Configuration: PASS
-  - Remaining Android 16 suites were still running; do not mark the head fully verified until the workflow completes.
+  - Night Integrated Regression: GREEN
+  - Browser Android-16 failure passed on rerun at the same SHA without source changes; treat the earlier failure as CI/emulator flakiness.
 
 ## Completed Night platform phases
 
@@ -32,7 +26,7 @@
 - Mihon reader integration
 - Live Voice
 - App-wide system-inset audit
-- Three-tab shell: Chats / Library / You
+- Four-tab shell: Chat / Library / Scripts & Projects / U
 - Theme/font/appearance controls + AI appearance tool
 - Fluent Emoji renderer + latest 30 used emoji recents
 - WhatsApp-style inline timestamp/read metadata
@@ -92,7 +86,7 @@ Stable standard actions:
 
 ## Product rules now locked
 
-- Bottom navigation is exactly Chats / Library / You.
+- Latest required bottom navigation: Chat / Library / Scripts & Projects / U. Move the existing Scripts/Projects workspace into its own tab; consolidate configuration into U.
 - Integrations belongs in Settings/You, never as a fourth tab.
 - Mihon Reader defaults to true immersive fullscreen and hides system bars.
 - Normal Night screens respect status/navigation safe insets.
@@ -103,12 +97,22 @@ Stable standard actions:
 - Fluent Emoji is the app-wide emoji renderer.
 - Text/caption message timestamps use WhatsApp-style trailing inline metadata.
 
-## Current phase: real extension rollout
+## Current phase: real-device cleanup
+
+Work the user's latest real-device priorities in order: persistent chat history, provider prompt/context correctness, chat/tool/browser ordering and scrolling, voice transcription diagnostics, then main navigation and appearance/provider/filter cleanup. Keep model-context bounds separate from the unbounded visible/persisted message history.
+
+The confirmed baseline has no visible message-flow cap: Room observes the complete chat, and the `takeLast(60)` bound exists only while assembling model context. Earlier fixes already addressed user-message persistence (`a0e2a5a2`) and restoring the current-chat summary into prompts (`fc357f36`). No prior root-cause fix for visible history disappearance was found in the conversation record.
+
+Current local cleanup changes add deterministic message ordering, monotonic timestamps for new inserts, chronological completion of streamed assistant messages after tool results, reply/rich-extension context in provider requests, and a playable-audio-preserving STT failure message. Focused Android regressions have been added; they still need to run in CI.
+
+This cleanup pass also moves the existing Scripts/Projects workspace to the third main tab, removes its Library shortcut and the duplicate Settings entry from the chat-list menu, keeps U as the configuration home, persists Library filter state, and propagates the saved accent through major app surfaces. Provider add/edit/key/model forms now use bottom sheets. Appearance accepts validated custom accents and imported TTF/OTF fonts; appearance tool calls use validated setting/value actions. Android unit/instrumentation and UI regression runs remain pending because this workspace has no Gradle distribution or `adb`, and the wrapper download is blocked by network access.
+
+## Extension rollout checkpoint
 
 The shared framework is frozen unless a real extension exposes a concrete missing capability.
 
 Reference extension order:
-1. First anime extension APK
+1. AnimePahe extension v0.2.0
    - search
    - anime/media card output
    - details / episode discovery

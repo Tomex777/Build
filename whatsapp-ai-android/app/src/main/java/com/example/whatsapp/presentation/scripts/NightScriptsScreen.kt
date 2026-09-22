@@ -78,6 +78,7 @@ private enum class WorkspaceMode {
 @Composable
 fun NightScriptsScreen(
     onBack: () -> Unit,
+    tabMode: Boolean = false,
 ) {
     val context = LocalContext.current
     val workspace = remember { NightScriptWorkspace.get(context.applicationContext) }
@@ -113,6 +114,7 @@ fun NightScriptsScreen(
         val active = editingFile ?: return
         NightWorkspaceEditor(
             file = active,
+            tabMode = tabMode,
             initialText = remember(active.relativePath, revision) {
                 workspace.readFile(active)
             },
@@ -153,8 +155,11 @@ fun NightScriptsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(ScriptsBg)
-                .statusBarsPadding()
-                .navigationBarsPadding(),
+                .then(
+                    if (tabMode) Modifier else Modifier
+                        .statusBarsPadding()
+                        .navigationBarsPadding()
+                ),
         ) {
             WorkspaceTopBar(
                 title = project.name,
@@ -193,14 +198,19 @@ fun NightScriptsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(ScriptsBg)
-            .statusBarsPadding()
-            .navigationBarsPadding(),
+            .then(
+                if (tabMode) Modifier else Modifier
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+            ),
     ) {
-        WorkspaceTopBar(
-            title = "Workspace",
-            subtitle = "Scripts and local web projects",
-            onBack = onBack,
-        )
+        if (!tabMode) {
+            WorkspaceTopBar(
+                title = "Workspace",
+                subtitle = "Scripts and local web projects",
+                onBack = onBack,
+            )
+        }
 
         Row(
             modifier = Modifier
@@ -604,6 +614,7 @@ private fun WorkspaceEmpty(
 @Composable
 private fun NightWorkspaceEditor(
     file: NightWorkspaceFile,
+    tabMode: Boolean,
     initialText: String,
     onBack: () -> Unit,
     onSave: (String) -> Unit,
@@ -625,8 +636,11 @@ private fun NightWorkspaceEditor(
         modifier = Modifier
             .fillMaxSize()
             .background(ScriptsBg)
-            .statusBarsPadding()
-            .navigationBarsPadding(),
+            .then(
+                if (tabMode) Modifier else Modifier
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+            ),
     ) {
         Row(
             modifier = Modifier

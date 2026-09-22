@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,13 +48,13 @@ private val MediaLibraryBg = Color(0xFF0B0F11)
 private val MediaLibrarySurface = Color(0xFF171C1F)
 private val MediaLibraryText = Color(0xFFE7EAEC)
 private val MediaLibraryMuted = Color(0xFF9CA5A9)
-private val MediaLibraryAccent = Color(0xFFD44368)
 
 @Composable
 fun NightMediaLibraryScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    val accent = MaterialTheme.colorScheme.primary
     var revision by remember { mutableIntStateOf(0) }
 
     val saved =
@@ -162,7 +163,7 @@ fun NightMediaLibraryScreen(
                         Icon(
                             Icons.Default.PlaylistPlay,
                             contentDescription = null,
-                            tint = MediaLibraryAccent,
+                            tint = accent,
                             modifier = Modifier.size(21.dp),
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -240,7 +241,7 @@ private fun MediaCollectionRow(
                                 else -> Icons.Default.Movie
                             },
                         contentDescription = null,
-                        tint = MediaLibraryAccent,
+                        tint = accent,
                         modifier = Modifier.size(25.dp),
                     )
                 }

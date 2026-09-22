@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -249,7 +250,6 @@ private val BlockBubble = Color(0xFF242625)
 private val BlockPanel = Color(0xFF303436)
 private val BlockText = Color(0xFFECEDEE)
 private val BlockMuted = Color(0xFF9EA7AB)
-private val BlockAccent = Color(0xFFCF4A69)
 private val BlockGreen = Color(0xFF25D366)
 private val BlockBlue = Color(0xFF53BDEB)
 
@@ -400,7 +400,7 @@ private fun NightCopyBlockContent(block: NightCopyBlock) {
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = block.label,
-                color = BlockAccent,
+                color = MaterialTheme.colorScheme.primary,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.clickable {
@@ -511,7 +511,7 @@ private fun NightProgressBlockContent(
         if (!actionId.isNullOrBlank() && !actionLabel.isNullOrBlank()) {
             Text(
                 text = actionLabel,
-                color = BlockAccent,
+                color = MaterialTheme.colorScheme.primary,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
@@ -593,7 +593,7 @@ private fun NightLevelBlockContent(
                 .fillMaxWidth()
                 .padding(top = 9.dp)
                 .height(5.dp),
-            color = BlockAccent,
+            color = MaterialTheme.colorScheme.primary,
             trackColor = Color(0xFF42494C),
         )
 
@@ -783,7 +783,7 @@ private fun NightPermissionBlockContent(
             .padding(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Settings, contentDescription = null, tint = BlockAccent, modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(7.dp))
             Text(block.title, color = BlockText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         }
@@ -800,7 +800,7 @@ private fun NightPermissionBlockContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Surface(
-                    color = if (option.selected) BlockAccent else Color(0xFF454B4E),
+                    color = if (option.selected) MaterialTheme.colorScheme.primary else Color(0xFF454B4E),
                     shape = CircleShape,
                     modifier = Modifier.size(18.dp),
                 ) {
@@ -878,7 +878,7 @@ private fun NightQuestionBlockContent(
             if (block.allowCustom) {
                 Text(
                     text = "Other…",
-                    color = BlockAccent,
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 11.sp,
                     modifier = Modifier
                         .clickable { onAction(messageId, "question:" + block.blockId + ":custom") }

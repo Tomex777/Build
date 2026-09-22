@@ -36,17 +36,20 @@ interface NightDao {
         updatedAt: Long,
     )
 
-    @Query("SELECT * FROM night_messages WHERE chatId = :chatId ORDER BY createdAt ASC")
+    @Query("SELECT * FROM night_messages WHERE chatId = :chatId ORDER BY createdAt ASC, rowid ASC")
     fun observeMessages(chatId: String): Flow<List<NightMessageEntity>>
 
-    @Query("SELECT * FROM night_messages WHERE chatId = :chatId ORDER BY createdAt ASC")
+    @Query("SELECT * FROM night_messages WHERE chatId = :chatId ORDER BY createdAt ASC, rowid ASC")
     suspend fun getMessages(chatId: String): List<NightMessageEntity>
 
     @Query("SELECT * FROM night_messages WHERE id = :messageId LIMIT 1")
     suspend fun getMessage(messageId: String): NightMessageEntity?
 
-    @Query("SELECT * FROM night_messages ORDER BY createdAt DESC LIMIT :limit")
+    @Query("SELECT * FROM night_messages ORDER BY createdAt DESC, rowid DESC LIMIT :limit")
     suspend fun getRecentMessagesAcrossChats(limit: Int): List<NightMessageEntity>
+
+    @Query("SELECT MAX(createdAt) FROM night_messages WHERE chatId = :chatId")
+    suspend fun latestMessageTimestamp(chatId: String): Long?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertMessage(message: NightMessageEntity)
@@ -57,7 +60,7 @@ interface NightDao {
     @Query("DELETE FROM night_messages WHERE chatId = :chatId")
     suspend fun clearMessages(chatId: String)
 
-    @Query("SELECT * FROM night_messages WHERE chatId = :chatId AND createdAt > :after ORDER BY createdAt ASC")
+    @Query("SELECT * FROM night_messages WHERE chatId = :chatId AND createdAt > :after ORDER BY createdAt ASC, rowid ASC")
     suspend fun getMessagesAfter(chatId: String, after: Long): List<NightMessageEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -242,9 +245,45 @@ interface NightDao {
     suspend fun deleteScheduledTask(id: String)
 
     @Transaction
-    suspend fun appendMessage(chat: NightChatEntity, message: NightMessageEntity) {
-        upsertChat(chat)
-        upsertMessage(message)
-        markSummaryDirty(chat.id, message.createdAt, message.text.take(120))
+    suspend fun appendMessage(chat: NightChatEntity, message: NightMessageEntity): NightMessageEntity {
+        val existing = getMessage(message.id)
+        val lastCreatedAt = latestMessageTimestamp(chat.id)
+        val orderedMessage = message.copy(
+            createdAt = existing?.createdAt ?: maxOf(
+                message.createdAt,
+                lastCreatedAt?.plus(1L) ?: message.createdAt,
+            ),
+        )
+        val orderedChat = chat.copy(
+            updatedAt = maxOf(chat.updatedAt, orderedMessage.createdAt),
+            lastMessagePreview = orderedMessage.text.take(120),
+        )
+        upsertChat(orderedChat)
+        upsertMessage(orderedMessage)
+        markSummaryDirty(chat.id, orderedChat.updatedAt, orderedMessage.text.take(120))
+        return orderedMessage
+    }
+
+    @Transaction
+    suspend fun finishStreamingMessage(
+        chat: NightChatEntity,
+        message: NightMessageEntity,
+    ): NightMessageEntity {
+        deleteMessage(message.id)
+        val lastCreatedAt = latestMessageTimestamp(chat.id)
+        val orderedMessage = message.copy(
+            createdAt = maxOf(
+                message.createdAt,
+                lastCreatedAt?.plus(1L) ?: message.createdAt,
+            ),
+        )
+        val orderedChat = chat.copy(
+            updatedAt = maxOf(chat.updatedAt, orderedMessage.createdAt),
+            lastMessagePreview = orderedMessage.text.take(120),
+        )
+        upsertChat(orderedChat)
+        upsertMessage(orderedMessage)
+        markSummaryDirty(chat.id, orderedChat.updatedAt, orderedMessage.text.take(120))
+        return orderedMessage
     }
 }

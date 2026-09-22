@@ -2,6 +2,7 @@ package com.example.whatsapp.presentation.chatscreen
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
+import com.example.whatsapp.data.night.NightAppearanceFontRegistry
 
 data class NightChatAppearance(
     val userBubbleColor: Color = Color(0xFF7E112E),
@@ -14,10 +15,5 @@ data class NightChatAppearance(
     val messageFontScale: Float = 1f,
 ) {
     val fontFamily: FontFamily
-        get() = when (fontFamilyKey) {
-            "serif" -> FontFamily.Serif
-            "monospace" -> FontFamily.Monospace
-            "cursive" -> FontFamily.Cursive
-            else -> FontFamily.Default
-        }
+        get() = NightAppearanceFontRegistry.find(fontFamilyKey)?.family ?: FontFamily.Default
 }

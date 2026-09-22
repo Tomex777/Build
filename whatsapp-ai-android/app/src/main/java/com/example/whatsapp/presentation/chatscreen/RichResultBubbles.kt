@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -298,7 +299,7 @@ private fun ButtonResultBubble(
                 Icon(
                     imageVector = Icons.Default.Movie,
                     contentDescription = null,
-                    tint = Color(0xFFFF6D91),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(25.dp),
                 )
             }
@@ -347,13 +348,13 @@ private fun ButtonResultBubble(
                             Icon(
                                 imageVector = actionIcon(action.id),
                                 contentDescription = null,
-                                tint = Color(0xFFFF6D91),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(17.dp),
                             )
                             Spacer(modifier = Modifier.width(5.dp))
                             Text(
                                 text = action.label,
-                                color = Color(0xFFFF7998),
+                                color = MaterialTheme.colorScheme.primary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
@@ -380,7 +381,7 @@ private fun ButtonResultBubble(
                     ) {
                         Text(
                             text = action.label,
-                            color = Color(0xFFFF7998),
+                            color = MaterialTheme.colorScheme.primary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -947,13 +948,13 @@ private fun MetaChip(
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        color = if (accent) Color(0xFF7A263E) else Color(0xFF3A4043),
+        color = if (accent) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else Color(0xFF3A4043),
         shape = RoundedCornerShape(9.dp),
         modifier = modifier,
     ) {
         Text(
             text = text,
-            color = if (accent) Color(0xFFFF7B9B) else RichText,
+            color = if (accent) MaterialTheme.colorScheme.primary else RichText,
             fontSize = 10.sp,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
         )
@@ -972,7 +973,7 @@ private fun FullActionButton(
     Surface(
         color = when {
             !enabled -> Color(0xFF34383A)
-            primary -> Color(0xFFB51E42)
+            primary -> MaterialTheme.colorScheme.primary
             else -> RichPanel
         },
         shape = RoundedCornerShape(12.dp),
@@ -1011,7 +1012,7 @@ private fun ChoiceOption(
     onClick: () -> Unit,
 ) {
     Surface(
-        color = if (selected) Color(0xFF9D2142) else RichPanel,
+        color = if (selected) MaterialTheme.colorScheme.primary else RichPanel,
         shape = RoundedCornerShape(12.dp),
         modifier = modifier.clickable(enabled = enabled, onClick = onClick),
     ) {
@@ -1031,7 +1032,7 @@ private fun ChoiceOption(
             }
             Text(
                 text = text,
-                color = if (selected) Color.White else Color(0xFFFF7998),
+                color = if (selected) Color.White else MaterialTheme.colorScheme.primary,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -1161,7 +1162,7 @@ private fun CreationResultBubble(item: CreationResultMessage) {
                     .fillMaxWidth()
                     .height(4.dp)
                     .clip(RoundedCornerShape(4.dp)),
-                color = Color(0xFFCF4A69),
+                color = MaterialTheme.colorScheme.primary,
                 trackColor = Color(0xFF41484B),
             )
         } else if (item.state == CreationState.Ready) {
@@ -1983,4 +1984,3 @@ fun approvedRichPreviewMessages(): List<WhatsAppVisualMessage> = listOf(
         time = "14:24",
     ),
 )
-

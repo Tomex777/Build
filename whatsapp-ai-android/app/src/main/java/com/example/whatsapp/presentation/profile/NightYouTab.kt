@@ -26,7 +26,6 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -61,6 +60,7 @@ private data class YouRow(
 fun NightYouTab(
     displayName: String,
     avatarPath: String? = null,
+    accentColor: Color,
     onTabSelected: (MainTab) -> Unit,
     onProfileClick: () -> Unit,
     onProvidersClick: () -> Unit,
@@ -70,7 +70,6 @@ fun NightYouTab(
     onBrowserClick: () -> Unit,
     onAppearanceClick: () -> Unit,
     onPrivacyClick: () -> Unit,
-    onSettingsClick: () -> Unit,
 ) {
     val avatarBitmap = androidx.compose.runtime.remember(avatarPath) {
         avatarPath
@@ -88,17 +87,16 @@ fun NightYouTab(
         YouRow("browser", Icons.Default.Language, "Browser", "Open Night's full browser"),
         YouRow("appearance", Icons.Default.Palette, "Appearance", "Bubbles, wallpaper, font and text size"),
         YouRow("privacy", Icons.Default.Security, "Privacy", "Local data, permissions and retention"),
-        YouRow("settings", Icons.Default.Settings, "Settings", "General Night settings"),
     )
 
     ModernAppScaffold(
         selectedTab = MainTab.You,
         onTabSelected = onTabSelected,
         title = "You",
-        onSettingsClick = onSettingsClick,
         showCamera = false,
         showSearch = false,
         showMenu = false,
+        accentColor = accentColor,
     ) {
         LazyColumn(
             modifier = Modifier
@@ -169,7 +167,6 @@ fun NightYouTab(
                                 "browser" -> onBrowserClick()
                                 "appearance" -> onAppearanceClick()
                                 "privacy" -> onPrivacyClick()
-                                else -> onSettingsClick()
                             }
                         }
                         .padding(horizontal = 18.dp, vertical = 13.dp),

@@ -50,6 +50,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -72,6 +73,8 @@ import androidx.compose.ui.unit.sp
 import com.example.whatsapp.data.browser.NightBrowserSessionStore
 import com.example.whatsapp.data.browser.NightBrowserSpec
 import com.example.whatsapp.data.browser.NightBrowserSpecCodec
+import com.example.whatsapp.data.night.NightAppearanceEntity
+import com.example.whatsapp.data.night.NightRepository
 import com.example.whatsapp.ui.theme.WhatsappTheme
 import java.net.URLEncoder
 import java.util.UUID
@@ -81,7 +84,6 @@ private val BrowserChrome = ComposeColor(0xFF172126)
 private val BrowserPanel = ComposeColor(0xFF202C33)
 private val BrowserText = ComposeColor(0xFFE9EDEF)
 private val BrowserMuted = ComposeColor(0xFF8696A0)
-private val BrowserAccent = ComposeColor(0xFFD44368)
 
 private data class BrowserTab(
     val id: String,
@@ -116,7 +118,17 @@ class NightBrowserActivity : ComponentActivity() {
         window.navigationBarColor = Color.BLACK
 
         setContent {
-            WhatsappTheme(darkTheme = true) {
+            val context = LocalContext.current
+            val repository = remember(context) {
+                NightRepository.get(context.applicationContext)
+            }
+            val appearance by repository.observeAppearance().collectAsState(initial = null)
+            WhatsappTheme(
+                darkTheme = true,
+                accentColor = ComposeColor(
+                    (appearance?.accentColor ?: NightAppearanceEntity().accentColor).toInt()
+                ),
+            ) {
                 NightBrowserFullScreen(
                     spec = spec,
                     onClose = ::finish,
@@ -161,6 +173,7 @@ fun NightBrowserFullScreen(
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
+    val browserAccent = androidx.compose.material3.MaterialTheme.colorScheme.primary
     val safeSpec = remember(spec) { spec.sanitized() }
     val controller = rememberNightBrowserController()
     val generalMode = !safeSpec.restrictedToAllowedHosts
@@ -625,7 +638,7 @@ fun NightBrowserFullScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(2.dp),
-                    color = BrowserAccent,
+                    color = browserAccent,
                     trackColor = BrowserPanel,
                 )
             }

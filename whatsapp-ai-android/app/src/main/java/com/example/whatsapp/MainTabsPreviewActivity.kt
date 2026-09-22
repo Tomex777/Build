@@ -11,6 +11,9 @@ import com.example.whatsapp.presentation.shell.ModernCommunitiesTab
 import com.example.whatsapp.presentation.shell.ModernSettingsScreen
 import com.example.whatsapp.presentation.files.NightFilesTab
 import com.example.whatsapp.presentation.profile.NightYouTab
+import com.example.whatsapp.presentation.scripts.NightScriptsScreen
+import com.example.whatsapp.presentation.shell.MainTab
+import com.example.whatsapp.presentation.shell.ModernAppScaffold
 import com.example.whatsapp.ui.theme.WhatsappTheme
 
 class MainTabsPreviewActivity : ComponentActivity() {
@@ -27,9 +30,18 @@ class MainTabsPreviewActivity : ComponentActivity() {
                 when (tab) {
                     "updates", "files", "library" -> NightFilesTab(
                         onTabSelected = {},
-                        onSettingsClick = {},
-                        onScriptsClick = {},
                     )
+                    "scripts", "projects" -> ModernAppScaffold(
+                        selectedTab = MainTab.Scripts,
+                        onTabSelected = {},
+                        title = "Scripts & Projects",
+                        showCamera = false,
+                        showSearch = false,
+                        showMenu = false,
+                        accentColor = androidx.compose.ui.graphics.Color(0xFFCF4A69),
+                    ) {
+                        NightScriptsScreen(onBack = {}, tabMode = true)
+                    }
                     "communities" -> ModernCommunitiesTab(
                         onTabSelected = {},
                         onSettingsClick = {},
@@ -40,6 +52,7 @@ class MainTabsPreviewActivity : ComponentActivity() {
                     )
                     "you" -> NightYouTab(
                         displayName = "Dawson",
+                        accentColor = androidx.compose.ui.graphics.Color(0xFFCF4A69),
                         onTabSelected = {},
                         onProfileClick = {},
                         onProvidersClick = {},
@@ -49,7 +62,6 @@ class MainTabsPreviewActivity : ComponentActivity() {
                         onBrowserClick = {},
                         onAppearanceClick = {},
                         onPrivacyClick = {},
-                        onSettingsClick = {},
                     )
                     "settings" -> ModernSettingsScreen(
                         onBack = {},

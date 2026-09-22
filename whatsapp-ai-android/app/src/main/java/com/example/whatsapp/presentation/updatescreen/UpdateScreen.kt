@@ -13,6 +13,7 @@ fun UpdateScreen(navHostController: NavHostController) {
             val route = when (tab) {
                 MainTab.Chats -> Routes.HomeScreen.route
                 MainTab.Updates -> Routes.UpdateScreen.route
+                MainTab.Scripts -> Routes.HomeScreen.route
                 MainTab.Communities -> Routes.CommunitiesScreen.route
                 MainTab.Calls -> Routes.CallScreen.route
                 MainTab.You -> Routes.SettingScreen.route

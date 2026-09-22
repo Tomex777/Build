@@ -88,8 +88,16 @@ jobs:
 
           shell = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/presentation/shell/ModernMainTabs.kt").read_text()
           bottom = shell.split("private fun ModernBottomBar", 1)[1].split("private fun BottomItem", 1)[0]
-          assert "MainTab.Calls" not in bottom, "Night must not expose a Calls bottom-navigation tab"
-          assert 'MainTab.Updates' in bottom and 'MainTab.You' in bottom and 'MainTab.Chats' in bottom
+          expected_tabs = ['MainTab.Chats', 'MainTab.Updates', 'MainTab.Scripts', 'MainTab.You']
+          positions = [bottom.index(tab) for tab in expected_tabs]
+          assert positions == sorted(positions), "Night bottom navigation must be Chat, Library, Scripts/Projects, U"
+          assert 'MainTab.Calls' not in bottom and 'MainTab.Communities' not in bottom
+
+          files = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/presentation/files/NightFilesTab.kt").read_text()
+          you = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/presentation/profile/NightYouTab.kt").read_text()
+          assert "Scripts & Projects" not in files, "Scripts/Projects must have a dedicated tab, not a Library shortcut"
+          assert '"Settings"' not in you, "U must not duplicate a separate Settings row"
+          assert "rememberSaveable { mutableStateOf(\"\") }" in files, "Library search must survive tab recomposition"
 
           main = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/MainActivity.kt").read_text()
           call_handler = main.split("onCallClick = {", 1)[1].split("onMenuAction =", 1)[0]
@@ -100,6 +108,7 @@ jobs:
           assert 'screen = "integrations"' in main, "Night settings must route through the unified Integrations hub"
 
           providers = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/presentation/profile/NightProvidersScreen.kt").read_text()
+          assert "private fun ProviderBottomSheet" in providers and providers.count("ProviderBottomSheet(") >= 5, "Provider, key and model editing must use compact bottom sheets"
           assert '"Integrations"' in providers, "Providers settings must expose one Integrations entry"
           assert '"MCP servers"' not in providers and '"Extensions"' not in providers, "Providers settings must not split MCP and Extensions into separate entries"
 
@@ -122,6 +131,7 @@ jobs:
           assert "accentColor: Color? = null" in theme, "Night Material theme must accept the saved accent"
           assert "primary = effectiveAccent" in theme, "Night Material primary color must come from the active appearance accent"
           assert 'accentColor = ComposeColor(current.accentColor.toInt())' in main, "Night root must apply the persisted accent"
+          assert "MaterialTheme.colorScheme.primary" in Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/presentation/chatscreen/RichResultBubbles.kt").read_text(), "Rich action controls must consume the current accent"
 
           assert '.padding(end = 18.dp, bottom = 116.dp)' in shell, "Night FAB must keep clearance above the bottom bar"
           assert 'contentDescription = "New chat FAB"' in shell, "Night FAB bounds must remain testable on Android 16"
@@ -217,7 +227,7 @@ jobs:
           emulator-boot-timeout: 420
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -accel on -wipe-data
-          script: cd whatsapp-ai-android && chmod +x gradlew && ./gradlew :app:connectedDebugAndroidTest -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8" --max-workers=1 -Pandroid.testInstrumentationRunnerArguments.class=com.example.whatsapp.data.night.NightAiGatewayProviderInstrumentedTest,com.example.whatsapp.data.night.NightLibraryIntegrationInstrumentedTest,com.example.whatsapp.data.night.NightProviderAdminInstrumentedTest,com.example.whatsapp.extensions.tools.NightMcpHttpBridgeInstrumentedTest,com.example.whatsapp.extensions.tools.NightExtensionToolIntegrationInstrumentedTest --stacktrace
+          script: cd whatsapp-ai-android && chmod +x gradlew && ./gradlew :app:connectedDebugAndroidTest -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8" --max-workers=1 -Pandroid.testInstrumentationRunnerArguments.class=com.example.whatsapp.data.night.NightAiGatewayProviderInstrumentedTest,com.example.whatsapp.data.night.NightChatHistoryInstrumentedTest,com.example.whatsapp.data.night.NightSpeechServiceInstrumentedTest,com.example.whatsapp.data.night.NightAppearanceControllerInstrumentedTest,com.example.whatsapp.data.night.NightLibraryIntegrationInstrumentedTest,com.example.whatsapp.data.night.NightProviderAdminInstrumentedTest,com.example.whatsapp.extensions.tools.NightMcpHttpBridgeInstrumentedTest,com.example.whatsapp.extensions.tools.NightExtensionToolIntegrationInstrumentedTest --stacktrace
 
       - name: Upload provider test reports
         if: always()

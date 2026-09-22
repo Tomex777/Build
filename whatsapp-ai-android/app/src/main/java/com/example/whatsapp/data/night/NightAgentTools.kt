@@ -297,6 +297,18 @@ class NightAgentToolExecutor private constructor(
     }
 
     private suspend fun setAppearance(args: JSONObject): String {
+        if (args.has("setting")) {
+            val setting = args.optString("setting").trim()
+            val value = args.optString("value").trim()
+            require(setting.isNotBlank()) { "setting is required." }
+            require(value.isNotBlank()) { "value is required." }
+            val result = appearance.applyToolAction(setting, value)
+            return JSONObject()
+                .put("ok", true)
+                .put("result", result)
+                .toString()
+        }
+
         val instruction = args.optString("instruction").trim()
         require(instruction.isNotBlank()) { "instruction is required." }
         val result = appearance.handleNaturalRequest(instruction)
@@ -517,10 +529,23 @@ object NightAgentToolSchemas {
         ))
         .put(function(
             name = "set_appearance",
-            description = "Change Night appearance: app accent/theme color, user/AI bubble color, wallpaper color, font family or font size.",
+            description = "Change a user-requested Night appearance setting. Use setting and value; colors accept a supported name or valid #RRGGBB/#AARRGGBB, font_family must be registered, font_size must be 0.85-1.30 or 85%-130%, and theme currently supports dark.",
             properties = JSONObject()
-                .put("instruction", string("Natural-language appearance change, e.g. 'make the app accent purple', 'use a serif font', or 'make my bubbles blue'.")),
-            required = listOf("instruction"),
+                .put("setting", JSONObject()
+                    .put("type", "string")
+                    .put("enum", JSONArray(listOf(
+                        "accent_color",
+                        "user_bubble_color",
+                        "ai_bubble_color",
+                        "wallpaper_color",
+                        "font_family",
+                        "font_size",
+                        "theme",
+                    )))
+                    .put("description", "Appearance property to change."))
+                .put("value", string("Validated value for the selected appearance property."))
+                .put("instruction", string("Legacy natural-language appearance instruction.")),
+            required = listOf("setting", "value"),
         ))
         .put(function(
             name = "create_options",

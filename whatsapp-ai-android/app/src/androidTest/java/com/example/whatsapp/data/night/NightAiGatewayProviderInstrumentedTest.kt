@@ -582,6 +582,117 @@ class NightAiGatewayProviderInstrumentedTest {
     }
 
     @Test
+    fun providerRequestKeepsMultiTurnExtensionAndReplyReferences() = runBlocking {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "text/event-stream")
+                .setBody(
+                    "data: {\"choices\":[{\"delta\":{\"content\":\"I can open the verification flow.\"}}]}\n\n" +
+                        "data: [DONE]\n\n"
+                )
+        )
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val repository = NightRepository.get(context)
+        val gateway = NightAiGateway.createForTesting(
+            context = context,
+            http = OkHttpClient.Builder().build(),
+        )
+        val suffix = UUID.randomUUID().toString()
+        val chatId = "context-reference-" + suffix
+        val profileId = "context-profile-" + suffix
+        val modelId = "context-model-" + suffix
+        val extensionResultId = UUID.randomUUID().toString()
+        val now = System.currentTimeMillis()
+        val profile = NightProviderProfileEntity(
+            id = profileId,
+            providerType = "groq",
+            serviceKind = "chat",
+            displayName = "Context test",
+            secretAlias = secretAlias,
+            endpoint = server.url("/openai/v1").toString().trimEnd('/'),
+            isEnabled = true,
+            isDefault = true,
+            createdAt = now,
+            updatedAt = now,
+        )
+        val model = NightProviderModelEntity(
+            id = modelId,
+            profileId = profileId,
+            providerType = "groq",
+            modelId = "context-test-model",
+            displayName = "Context test model",
+            capabilities = "text",
+            isEnabled = true,
+            isDefault = true,
+            createdAt = now,
+            updatedAt = now,
+        )
+
+        try {
+            repository.ensureChat(chatId, "Context test", now)
+            repository.upsertProviderProfile(profile)
+            repository.upsertProviderModel(model)
+            repository.setChatModel(chatId, "groq", profileId, modelId)
+            repository.appendText(
+                chatId = chatId,
+                role = "user",
+                text = "The AnimePahe extension still needs verification.",
+                now = now,
+            )
+            repository.appendMessage(
+                NightMessageEntity(
+                    id = extensionResultId,
+                    chatId = chatId,
+                    role = "assistant",
+                    type = "extension",
+                    text = "AnimePahe verification needed",
+                    createdAt = now,
+                    payloadJson = JSONObject()
+                        .put("extensionName", "AnimePahe")
+                        .put("title", "AnimePahe verification needed")
+                        .put("body", "Open AnimePahe in Night Browser and finish Cloudflare verification.")
+                        .toString(),
+                )
+            )
+            repeat(65) { index ->
+                repository.appendText(
+                    chatId = chatId,
+                    role = "assistant",
+                    text = "Unrelated intervening message $index.",
+                    now = now,
+                )
+            }
+            repository.appendText(
+                chatId = chatId,
+                role = "user",
+                text = "Can the extension open it automatically?",
+                replyToMessageId = extensionResultId,
+                now = now,
+            )
+
+            val result = gateway.replyStreaming(chatId, "Tester") { }
+            assertTrue(result.isSuccess)
+
+            val request = server.takeRequest()
+            val body = request.body.readUtf8()
+            val requestMessages = JSONObject(body).getJSONArray("messages")
+            val submittedContext = (0 until requestMessages.length())
+                .map { requestMessages.getJSONObject(it).optString("content") }
+                .joinToString("\n")
+            assertTrue(submittedContext.contains("finish Cloudflare verification"))
+            assertTrue(submittedContext.contains("Reply context"))
+            assertTrue(submittedContext.contains("Can the extension open it automatically?"))
+            assertTrue(!body.contains("groq-key-a"))
+        } finally {
+            repository.deleteChat(chatId)
+            repository.deleteProviderModel(modelId)
+            repository.deleteProviderProfile(profileId)
+        }
+    }
+
+    @Test
     fun azureChatUsesApiKeyHeaderAndDeploymentName() = runBlocking {
         server.enqueue(
             MockResponse()
