@@ -1,7 +1,6 @@
 package com.example.whatsapp
 
 import android.Manifest
-import android.app.DownloadManager
 import android.content.BroadcastReceiver
 import android.content.Intent
 import android.content.IntentFilter
@@ -12,7 +11,6 @@ import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -51,6 +49,7 @@ import com.example.whatsapp.data.night.NightLibraryItemEntity
 import com.example.whatsapp.data.night.NightLinkPreviewService
 import com.example.whatsapp.data.night.NightLiveVoiceClient
 import com.example.whatsapp.data.night.NightMediaCollectionStore
+import com.example.whatsapp.data.night.NightMediaDownloadQueue
 import com.example.whatsapp.data.night.NightMessageEntity
 import com.example.whatsapp.data.night.NightProviderManager
 import com.example.whatsapp.data.night.NightRepository
@@ -2351,40 +2350,25 @@ private fun NightApp(initialChatId: String? = null) {
                                 mediaViewerReturnScreen = "chat"
                                 screen = "media_viewer"
                             } else {
-                                val safeName =
-                                    payload.optString("fileName")
-                                        .trim()
-                                        .ifBlank { title + ".mp4" }
-                                        .replace(
-                                            Regex("[^A-Za-z0-9._ -]+"),
-                                            "_",
-                                        )
-                                        .take(160)
-                                        .ifBlank { "Night download.mp4" }
-                                val request =
-                                    DownloadManager.Request(Uri.parse(url))
-                                        .setTitle(title)
-                                        .setMimeType(mimeType)
-                                        .setNotificationVisibility(
-                                            DownloadManager.Request
-                                                .VISIBILITY_VISIBLE_NOTIFY_COMPLETED
-                                        )
-                                        .setDestinationInExternalFilesDir(
-                                            context,
-                                            Environment.DIRECTORY_DOWNLOADS,
-                                            safeName,
-                                        )
-                                headers.forEach { (key, value) ->
-                                    request.addRequestHeader(key, value)
+                                val workId = runCatching {
+                                    NightMediaDownloadQueue.get(context).enqueue(
+                                        extensionId = snapshot.extensionId,
+                                        chatId = activeChatId,
+                                        messageId = messageId,
+                                        messageType = snapshot.messageType,
+                                        payload = payload,
+                                    )
+                                }.getOrElse { error ->
+                                    Toast.makeText(
+                                        context,
+                                        error.message ?: "Could not start download.",
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                                    return@launch
                                 }
-                                val manager =
-                                    context.getSystemService(
-                                        android.content.Context.DOWNLOAD_SERVICE
-                                    ) as DownloadManager
-                                manager.enqueue(request)
                                 Toast.makeText(
                                     context,
-                                    "Download started.",
+                                    "Night download started • " + workId.take(8),
                                     Toast.LENGTH_SHORT,
                                 ).show()
                             }
