@@ -1,9 +1,11 @@
 package com.example.whatsapp.presentation.files
 
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
@@ -30,22 +32,28 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.InsertDriveFile
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -53,6 +61,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.whatsapp.NightMihonReaderActivity
+import com.example.whatsapp.data.night.NightLibraryFolder
+import com.example.whatsapp.data.night.NightLibraryFolderStore
 import com.example.whatsapp.data.night.NightLibraryItemEntity
 import com.example.whatsapp.data.night.NightLibraryStore
 import com.example.whatsapp.data.night.NightRepository
@@ -79,13 +89,30 @@ fun NightFilesTab(
     val context = LocalContext.current
     val repository = remember { NightRepository.get(context.applicationContext) }
     val libraryStore = remember { NightLibraryStore.get(context.applicationContext) }
+    val folderStore = remember { NightLibraryFolderStore.get(context.applicationContext) }
     val scope = rememberCoroutineScope()
+
     val files by repository.observeLibrary().collectAsState(initial = emptyList())
     var libraryReady by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var typeFilter by remember { mutableStateOf("All") }
+    var selectedFolderId by rememberSaveable { mutableStateOf<String?>(null) }
+    var folderRevision by remember { mutableIntStateOf(0) }
+    var newFolderOpen by remember { mutableStateOf(false) }
+    var newFolderName by remember { mutableStateOf("") }
+    var fabActionsOpen by remember { mutableStateOf(false) }
+    var moveFile by remember { mutableStateOf<NightLibraryItemEntity?>(null) }
+    var deleteFolder by remember { mutableStateOf<NightLibraryFolder?>(null) }
 
-    val filteredFiles = remember(files, query, typeFilter) {
+    val folders = remember(folderRevision) { folderStore.folders() }
+
+    val filteredFiles = remember(
+        files,
+        query,
+        typeFilter,
+        selectedFolderId,
+        folderRevision,
+    ) {
         val needle = query.trim().lowercase()
         files
             .filter { file ->
@@ -95,7 +122,10 @@ fun NightFilesTab(
                         file.mimeType.lowercase().contains(needle)
                 val matchesType =
                     typeFilter == "All" || libraryCategory(file) == typeFilter
-                matchesQuery && matchesType
+                val matchesFolder =
+                    selectedFolderId == null ||
+                        folderStore.folderForItem(file.id) == selectedFolderId
+                matchesQuery && matchesType && matchesFolder
             }
             .sortedByDescending { it.createdAt }
     }
@@ -105,12 +135,38 @@ fun NightFilesTab(
         libraryReady = true
     }
 
+    LaunchedEffect(files.map { it.id }) {
+        folderStore.prune(files.mapTo(linkedSetOf()) { it.id })
+    }
+
+    LaunchedEffect(folders, selectedFolderId) {
+        if (
+            selectedFolderId != null &&
+            folders.none { it.id == selectedFolderId }
+        ) {
+            selectedFolderId = null
+        }
+    }
+
     val picker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments(),
     ) { uris ->
         scope.launch {
             uris.forEach { uri ->
                 libraryStore.importUri(uri)
+                    .onSuccess { item ->
+                        selectedFolderId?.let { folderId ->
+                            folderStore.assign(item.id, folderId)
+                            folderRevision += 1
+                        }
+                    }
+                    .onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not add this file.",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
             }
         }
     }
@@ -124,18 +180,26 @@ fun NightFilesTab(
         showSearch = false,
         accentColor = accentColor,
         floatingAction = {
-            FloatingActionButton(
-                onClick = { picker.launch(arrayOf("*/*")) },
-                containerColor = accentColor,
-                contentColor = Color.White,
+            Surface(
+                color = accentColor,
                 shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.size(62.dp),
+                modifier = Modifier
+                    .size(60.dp)
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = { picker.launch(arrayOf("*/*")) },
+                            onLongPress = { fabActionsOpen = true },
+                        )
+                    },
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add files",
-                    modifier = Modifier.size(25.dp),
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add files",
+                        tint = Color.White,
+                        modifier = Modifier.size(25.dp),
+                    )
+                }
             }
         },
     ) {
@@ -155,6 +219,18 @@ fun NightFilesTab(
                 selectedType = typeFilter,
                 onTypeSelected = { typeFilter = it },
                 accentColor = accentColor,
+            )
+
+            LibraryFolderStrip(
+                folders = folders,
+                selectedFolderId = selectedFolderId,
+                accentColor = accentColor,
+                onSelect = { selectedFolderId = it },
+                onNewFolder = {
+                    newFolderName = ""
+                    newFolderOpen = true
+                },
+                onLongPress = { deleteFolder = it },
             )
 
             when {
@@ -184,7 +260,11 @@ fun NightFilesTab(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = "No Library files match this view",
+                            text = if (selectedFolderId != null) {
+                                "This folder has no matching files"
+                            } else {
+                                "No Library files match this view"
+                            },
                             color = Secondary,
                             fontSize = 12.sp,
                         )
@@ -193,7 +273,8 @@ fun NightFilesTab(
 
                 else -> {
                     val datedFiles = filteredFiles.groupBy {
-                        DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(it.createdAt))
+                        DateFormat.getDateInstance(DateFormat.MEDIUM)
+                            .format(Date(it.createdAt))
                     }
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -212,17 +293,27 @@ fun NightFilesTab(
                                     color = Secondary,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 2.dp),
+                                    modifier = Modifier.padding(
+                                        start = 4.dp,
+                                        top = 8.dp,
+                                        bottom = 2.dp,
+                                    ),
                                 )
                             }
                             items(datedGroup, key = { it.id }) { file ->
-                                val readableManga = NightMihonArchiveLoader.isSupportedArchive(
-                                    fileName = file.name,
-                                    mimeType = file.mimeType,
-                                )
+                                val readableManga =
+                                    NightMihonArchiveLoader.isSupportedArchive(
+                                        fileName = file.name,
+                                        mimeType = file.mimeType,
+                                    )
                                 LibraryFileRow(
                                     file = file,
                                     readableManga = readableManga,
+                                    folderName = folders
+                                        .firstOrNull {
+                                            it.id == folderStore.folderForItem(file.id)
+                                        }
+                                        ?.name,
                                     accentColor = accentColor,
                                     onClick = {
                                         if (readableManga) {
@@ -237,6 +328,7 @@ fun NightFilesTab(
                                             onFileOpen(file)
                                         }
                                     },
+                                    onLongClick = { moveFile = file },
                                 )
                             }
                         }
@@ -244,6 +336,282 @@ fun NightFilesTab(
                 }
             }
         }
+    }
+
+    if (fabActionsOpen) {
+        AlertDialog(
+            onDismissRequest = { fabActionsOpen = false },
+            title = { Text("Library actions") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Surface(
+                        color = SurfaceDark,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                fabActionsOpen = false
+                                picker.launch(arrayOf("*/*"))
+                            },
+                    ) {
+                        Text(
+                            "Add files",
+                            color = Primary,
+                            modifier = Modifier.padding(14.dp),
+                        )
+                    }
+                    Surface(
+                        color = SurfaceDark,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                fabActionsOpen = false
+                                newFolderName = ""
+                                newFolderOpen = true
+                            },
+                    ) {
+                        Text(
+                            "New folder",
+                            color = Primary,
+                            modifier = Modifier.padding(14.dp),
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+        )
+    }
+
+    if (newFolderOpen) {
+        AlertDialog(
+            onDismissRequest = { newFolderOpen = false },
+            title = { Text("New folder") },
+            text = {
+                OutlinedTextField(
+                    value = newFolderName,
+                    onValueChange = { newFolderName = it.take(48) },
+                    label = { Text("Folder name") },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        runCatching {
+                            folderStore.createFolder(newFolderName)
+                        }.onSuccess { folder ->
+                            selectedFolderId = folder.id
+                            folderRevision += 1
+                            newFolderOpen = false
+                        }.onFailure { error ->
+                            Toast.makeText(
+                                context,
+                                error.message ?: "Could not create folder.",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    },
+                    enabled = newFolderName.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = accentColor,
+                    ),
+                ) {
+                    Text("Create")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { newFolderOpen = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
+    moveFile?.let { file ->
+        AlertDialog(
+            onDismissRequest = { moveFile = null },
+            title = { Text("Move ${file.name}") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FolderMoveChoice(
+                        label = "No folder",
+                        selected = folderStore.folderForItem(file.id) == null,
+                        accentColor = accentColor,
+                    ) {
+                        folderStore.assign(file.id, null)
+                        folderRevision += 1
+                        moveFile = null
+                    }
+                    folders.forEach { folder ->
+                        FolderMoveChoice(
+                            label = folder.name,
+                            selected = folderStore.folderForItem(file.id) == folder.id,
+                            accentColor = accentColor,
+                        ) {
+                            folderStore.assign(file.id, folder.id)
+                            folderRevision += 1
+                            moveFile = null
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { moveFile = null }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
+    deleteFolder?.let { folder ->
+        AlertDialog(
+            onDismissRequest = { deleteFolder = null },
+            title = { Text("Delete folder?") },
+            text = {
+                Text(
+                    "Files stay in Library. Only the “${folder.name}” folder is removed."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        folderStore.deleteFolder(folder.id)
+                        if (selectedFolderId == folder.id) {
+                            selectedFolderId = null
+                        }
+                        folderRevision += 1
+                        deleteFolder = null
+                    },
+                ) {
+                    Text("Delete", color = Color(0xFFFF5C72))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteFolder = null }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun LibraryFolderStrip(
+    folders: List<NightLibraryFolder>,
+    selectedFolderId: String?,
+    accentColor: Color,
+    onSelect: (String?) -> Unit,
+    onNewFolder: () -> Unit,
+    onLongPress: (NightLibraryFolder) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 12.dp, vertical = 5.dp),
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        FolderChip(
+            name = "All files",
+            selected = selectedFolderId == null,
+            accentColor = accentColor,
+            onClick = { onSelect(null) },
+        )
+
+        folders.forEach { folder ->
+            Surface(
+                color = if (selectedFolderId == folder.id) {
+                    accentColor.copy(alpha = 0.18f)
+                } else {
+                    SurfaceDark
+                },
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.pointerInput(folder.id, selectedFolderId) {
+                    detectTapGestures(
+                        onTap = { onSelect(folder.id) },
+                        onLongPress = { onLongPress(folder) },
+                    )
+                },
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Folder,
+                        contentDescription = null,
+                        tint = if (selectedFolderId == folder.id) accentColor else Secondary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = folder.name,
+                        color = if (selectedFolderId == folder.id) accentColor else Secondary,
+                        fontSize = 11.sp,
+                    )
+                }
+            }
+        }
+
+        FolderChip(
+            name = "+ New",
+            selected = false,
+            accentColor = accentColor,
+            onClick = onNewFolder,
+        )
+    }
+}
+
+@Composable
+private fun FolderChip(
+    name: String,
+    selected: Boolean,
+    accentColor: Color,
+    onClick: () -> Unit,
+) {
+    Surface(
+        color = if (selected) {
+            accentColor.copy(alpha = 0.18f)
+        } else {
+            SurfaceDark
+        },
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier.clickable(onClick = onClick),
+    ) {
+        Text(
+            text = name,
+            color = if (selected) accentColor else Secondary,
+            fontSize = 11.sp,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+        )
+    }
+}
+
+@Composable
+private fun FolderMoveChoice(
+    label: String,
+    selected: Boolean,
+    accentColor: Color,
+    onClick: () -> Unit,
+) {
+    Surface(
+        color = if (selected) {
+            accentColor.copy(alpha = 0.16f)
+        } else {
+            SurfaceDark
+        },
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
+        Text(
+            text = label,
+            color = if (selected) accentColor else Primary,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
+        )
     }
 }
 
@@ -430,15 +798,22 @@ private fun EmptyLibrary(
 private fun LibraryFileRow(
     file: NightLibraryItemEntity,
     readableManga: Boolean,
+    folderName: String?,
     accentColor: Color,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
 ) {
     Surface(
         color = SurfaceDark,
         shape = RoundedCornerShape(15.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .pointerInput(file.id) {
+                detectTapGestures(
+                    onTap = { onClick() },
+                    onLongPress = { onLongClick() },
+                )
+            },
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
@@ -454,7 +829,9 @@ private fun LibraryFileRow(
                         imageVector = when {
                             file.mimeType.startsWith("image/") -> Icons.Default.Image
                             file.mimeType.startsWith("audio/") -> Icons.Default.AudioFile
-                            file.mimeType.contains("pdf") || file.mimeType.startsWith("text/") -> Icons.Default.Description
+                            file.mimeType.contains("pdf") ||
+                                file.mimeType.startsWith("text/") ->
+                                Icons.Default.Description
                             else -> Icons.Default.InsertDriveFile
                         },
                         contentDescription = null,
@@ -476,8 +853,18 @@ private fun LibraryFileRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = formatSize(file.sizeBytes) + " • " +
-                        DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(file.createdAt)),
+                    text = buildString {
+                        append(formatSize(file.sizeBytes))
+                        append(" • ")
+                        append(
+                            DateFormat.getDateInstance(DateFormat.MEDIUM)
+                                .format(Date(file.createdAt))
+                        )
+                        if (!folderName.isNullOrBlank()) {
+                            append(" • ")
+                            append(folderName)
+                        }
+                    },
                     color = Secondary,
                     fontSize = 11.sp,
                     modifier = Modifier.padding(top = 3.dp),
@@ -486,7 +873,7 @@ private fun LibraryFileRow(
                     text = if (readableManga) {
                         "Mihon reader • Tap to read"
                     } else {
-                        "Available to Night • ID " + file.id.take(8)
+                        "Available to Night • Hold to move"
                     },
                     color = accentColor,
                     fontSize = 10.sp,
@@ -528,7 +915,9 @@ private fun libraryCategory(file: NightLibraryItemEntity): String {
 }
 
 private fun formatSize(bytes: Long): String = when {
-    bytes >= 1024L * 1024L -> String.format("%.1f MB", bytes / (1024f * 1024f))
-    bytes >= 1024L -> String.format("%.0f KB", bytes / 1024f)
+    bytes >= 1024L * 1024L ->
+        String.format("%.1f MB", bytes / (1024f * 1024f))
+    bytes >= 1024L ->
+        String.format("%.0f KB", bytes / 1024f)
     else -> "$bytes B"
 }
