@@ -214,6 +214,7 @@ sealed interface WhatsAppVisualMessage {
         val read: Boolean = false,
         val localPath: String? = null,
         val transcript: String? = null,
+        val waveform: List<Float> = emptyList(),
         val reply: ReplyPreview? = null,
     ) : WhatsAppVisualMessage
 
@@ -268,6 +269,8 @@ fun CurrentWhatsAppConversation(
     onCameraClick: () -> Unit = {},
     onMicClick: () -> Unit = {},
     isRecording: Boolean = false,
+    recordingLevels: List<Float> = emptyList(),
+    recordingDuration: String = "0:00",
     onVoiceClick: (String) -> Unit = {},
     onAudioClick: (String) -> Unit = {},
     audioPlaybackState: AudioPlaybackUiState = AudioPlaybackUiState(),
@@ -458,6 +461,8 @@ fun CurrentWhatsAppConversation(
                 onCameraClick = onCameraClick,
                 onMicClick = onMicClick,
                 isRecording = isRecording,
+                recordingLevels = recordingLevels,
+                recordingDuration = recordingDuration,
                 onEmojiClick = {
                     keyboardController?.hide()
                     showAttachments = false
@@ -1839,6 +1844,7 @@ private fun CurrentVoiceBubble(
                             progress = progress,
                             mine = item.mine,
                             accent = appearance.accentColor,
+                            levels = item.waveform,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(34.dp),
@@ -1903,13 +1909,22 @@ private fun VoiceWaveform(
     progress: Float,
     mine: Boolean,
     accent: Color,
+    levels: List<Float> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
-    val heights = listOf(
+    val fallback = listOf(
         9, 14, 7, 19, 11, 16, 8, 23, 13, 18, 9, 25, 14, 20, 8, 16,
         11, 27, 15, 21, 10, 18, 8, 24, 12, 17, 9, 26, 14, 19, 7, 22,
         11, 16, 8, 24, 13, 18, 10, 27, 15, 20, 9, 17, 12, 23, 8, 15,
     )
+    val heights =
+        if (levels.isEmpty()) {
+            fallback
+        } else {
+            levels.takeLast(48).map { level ->
+                (7 + (level.coerceIn(0.03f, 1f) * 22f)).toInt()
+            }
+        }
     val completed = (progress.coerceIn(0f, 1f) * heights.size).toInt()
     val playedColor = if (mine) Color(0xFFFFAEC2) else accent
     val remainingColor = if (mine) Color(0xFFB85B73) else Color(0xFF7C8589)
@@ -2179,6 +2194,8 @@ private fun CurrentComposer(
     onCameraClick: () -> Unit,
     onMicClick: () -> Unit,
     isRecording: Boolean = false,
+    recordingLevels: List<Float> = emptyList(),
+    recordingDuration: String = "0:00",
     onEmojiClick: () -> Unit,
     applyNavigationPadding: Boolean = true,
     appearance: NightChatAppearance = NightChatAppearance(),
@@ -2241,61 +2258,92 @@ private fun CurrentComposer(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(start = 3.dp, end = 2.dp),
             ) {
-                IconButton(onClick = onEmojiClick) {
-                    Icon(
-                        imageVector = Icons.Default.SentimentSatisfiedAlt,
-                        contentDescription = "Emoji",
-                        tint = SecondaryText,
-                        modifier = Modifier.size(28.dp),
+                if (isRecording) {
+                    Box(
+                        modifier = Modifier
+                            .padding(start = 13.dp)
+                            .size(9.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFFF5A67)),
                     )
-                }
-
-                TextField(
-                    value = text,
-                    onValueChange = onTextChange,
-                    placeholder = {
-                        Text(
-                            text = "Message",
-                            color = Color(0xFF8F999E),
-                            fontSize = 16.sp,
-                        fontFamily = appearance.fontFamily,
+                    Text(
+                        text = recordingDuration,
+                        color = PrimaryText,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(start = 10.dp, end = 10.dp),
+                    )
+                    VoiceWaveform(
+                        progress = 1f,
+                        mine = false,
+                        accent = appearance.accentColor,
+                        levels = recordingLevels,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(32.dp),
+                    )
+                    Text(
+                        text = "Recording",
+                        color = SecondaryText,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(horizontal = 10.dp),
+                    )
+                } else {
+                    IconButton(onClick = onEmojiClick) {
+                        Icon(
+                            imageVector = Icons.Default.SentimentSatisfiedAlt,
+                            contentDescription = "Emoji",
+                            tint = SecondaryText,
+                            modifier = Modifier.size(28.dp),
                         )
-                    },
-                    modifier = Modifier.weight(1f),
-                    maxLines = 5,
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedTextColor = PrimaryText,
-                        unfocusedTextColor = PrimaryText,
-                        cursorColor = appearance.accentColor,
-                    ),
-                    textStyle = LocalTextStyle.current.copy(
-                        fontSize = 16.sp,
-                        lineHeight = 20.sp,
-                        fontFamily = appearance.fontFamily,
-                    ),
-                )
+                    }
 
-                IconButton(onClick = onAttachmentClick) {
-                    Icon(
-                        imageVector = Icons.Default.AttachFile,
-                        contentDescription = "Attach",
-                        tint = SecondaryText,
-                        modifier = Modifier.size(25.dp),
+                    TextField(
+                        value = text,
+                        onValueChange = onTextChange,
+                        placeholder = {
+                            Text(
+                                text = "Message",
+                                color = Color(0xFF8F999E),
+                                fontSize = 16.sp,
+                                fontFamily = appearance.fontFamily,
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                        maxLines = 5,
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            focusedTextColor = PrimaryText,
+                            unfocusedTextColor = PrimaryText,
+                            cursorColor = appearance.accentColor,
+                        ),
+                        textStyle = LocalTextStyle.current.copy(
+                            fontSize = 16.sp,
+                            lineHeight = 20.sp,
+                            fontFamily = appearance.fontFamily,
+                        ),
                     )
-                }
 
-                IconButton(onClick = onCameraClick) {
-                    Icon(
-                        imageVector = Icons.Default.PhotoCamera,
-                        contentDescription = "Camera",
-                        tint = SecondaryText,
-                        modifier = Modifier.size(25.dp),
-                    )
+                    IconButton(onClick = onAttachmentClick) {
+                        Icon(
+                            imageVector = Icons.Default.AttachFile,
+                            contentDescription = "Attach",
+                            tint = SecondaryText,
+                            modifier = Modifier.size(25.dp),
+                        )
+                    }
+
+                    IconButton(onClick = onCameraClick) {
+                        Icon(
+                            imageVector = Icons.Default.PhotoCamera,
+                            contentDescription = "Camera",
+                            tint = SecondaryText,
+                            modifier = Modifier.size(25.dp),
+                        )
+                    }
                 }
             }
         }
