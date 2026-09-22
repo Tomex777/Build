@@ -224,6 +224,7 @@ private fun NightApp(initialChatId: String? = null) {
     var libraryAudioFile by remember { mutableStateOf<NightLibraryItemEntity?>(null) }
     var mediaViewerReturnScreen by rememberSaveable { mutableStateOf("chat") }
     var mediaDraft by remember { mutableStateOf<NightMediaDraft?>(null) }
+    var pendingCameraFile by remember { mutableStateOf<File?>(null) }
     var mediaCaption by rememberSaveable { mutableStateOf("") }
     var pdfDraft by remember { mutableStateOf<NightPdfDraft?>(null) }
     var pdfCaption by rememberSaveable { mutableStateOf("") }
@@ -774,18 +775,17 @@ private fun NightApp(initialChatId: String? = null) {
     }
 
     val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview(),
-    ) { bitmap: Bitmap? ->
-        if (bitmap == null) return@rememberLauncherForActivityResult
+        contract = ActivityResultContracts.TakePicture(),
+    ) { captured ->
+        val source = pendingCameraFile
+        pendingCameraFile = null
+        if (!captured || source == null || !source.isFile || source.length() <= 0L) {
+            source?.delete()
+            return@rememberLauncherForActivityResult
+        }
+
         scope.launch {
             val saved = withContext(Dispatchers.IO) {
-                val source = File(
-                    context.cacheDir,
-                    "night_camera_" + System.currentTimeMillis() + ".jpg",
-                )
-                FileOutputStream(source).use { output ->
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 92, output)
-                }
                 NightFileLibrary.registerLocalFile(
                     context = context,
                     source = source,
@@ -794,7 +794,9 @@ private fun NightApp(initialChatId: String? = null) {
                         ".jpg",
                     mimeType = "image/jpeg",
                 )
-            } ?: return@launch
+            }
+            source.delete()
+            if (saved == null) return@launch
 
             val payload = JSONObject()
                 .put("localPath", saved.localPath)
@@ -818,6 +820,21 @@ private fun NightApp(initialChatId: String? = null) {
             replyingToId = null
             screen = "media_compose"
         }
+    }
+
+    fun launchCameraCapture() {
+        val source = File(
+            context.cacheDir,
+            "night_camera_" + System.currentTimeMillis() + ".jpg",
+        )
+        pendingCameraFile?.delete()
+        pendingCameraFile = source
+        val uri = FileProvider.getUriForFile(
+            context,
+            context.packageName + ".files",
+            source,
+        )
+        cameraLauncher.launch(uri)
     }
 
     fun cancelMediaDraft() {
@@ -2527,7 +2544,7 @@ private fun NightApp(initialChatId: String? = null) {
                     )
                     "Document" -> attachmentPicker.launch(arrayOf("*/*"))
                     "Audio" -> attachmentPicker.launch(arrayOf("audio/*"))
-                    "Camera" -> cameraLauncher.launch(null)
+                    "Camera" -> launchCameraCapture()
                     "Choose AI" -> screen = "choose_ai"
                     "Schedule" -> scheduleOpen = true
                     "Options" -> choiceOpen = true
@@ -2609,7 +2626,7 @@ private fun NightApp(initialChatId: String? = null) {
                     }
                 }
             },
-            onCameraClick = { cameraLauncher.launch(null) },
+            onCameraClick = { launchCameraCapture() },
             isRecording = isRecording,
             recordingLevels = recordingLevels,
             recordingDuration = formatDuration(recordingElapsedMs),
