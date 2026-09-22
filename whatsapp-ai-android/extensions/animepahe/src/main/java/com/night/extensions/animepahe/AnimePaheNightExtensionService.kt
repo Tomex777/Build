@@ -146,7 +146,7 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                     NightMessageTypeDescriptor(
                         messageType = TYPE_SOURCE,
                         template = "media_card",
-                        description = "Resolved playable/downloadable AnimePahe episode.",
+                        description = "Resolved AnimePahe provider source for Night core media handling.",
                         whenToUse =
                             "Use after resolving the user's chosen episode.",
                     ),
@@ -1321,11 +1321,7 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                                 "Defaults used when resolving an episode.",
                         ),
                         nightConfigurationSection(
-                            id = "downloads",
-                            title = "Advanced",
-                            description =
-                                "Connection settings for this extension only.",
-                        ),
+                            id = "advanced",
                             title = "Advanced",
                             description =
                                 "Connection settings for this extension only.",
