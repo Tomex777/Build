@@ -283,7 +283,9 @@ print(f"Patched {virtual_changed_refs} virtual-thread references across {virtual
 # collection surface does not expose those APIs across minSdk 26, so backport
 # the production List usages used by the linked-message/login paths.
 sequenced_changed = 0
-for path in modules.rglob("src/main/java/**/*.java"):
+for path in modules.rglob("*.java"):
+    if "src/main/java" not in path.as_posix():
+        continue
     text = path.read_text(encoding="utf-8")
     original = text
     # Cobalt's production getFirst() call sites are list-like indexed
@@ -308,7 +310,9 @@ for path, patches in get_last_patches.items():
             text = text.replace(old, new)
     path.write_text(text, encoding="utf-8")
 
-for path in modules.rglob("src/main/java/**/*.java"):
+for path in modules.rglob("*.java"):
+    if "src/main/java" not in path.as_posix():
+        continue
     text = path.read_text(encoding="utf-8")
     if ".getFirst()" in text or ".getLast()" in text:
         raise SystemExit(f"Java 21 list accessor remains in {path.relative_to(root)}")
