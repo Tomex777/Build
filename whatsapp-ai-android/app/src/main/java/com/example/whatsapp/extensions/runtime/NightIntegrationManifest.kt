@@ -1,5 +1,6 @@
 package com.example.whatsapp.extensions.runtime
 
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -13,12 +14,17 @@ data class NightIntegrationManifest(
     val id: String,
     val displayName: String,
     val kind: NightIntegrationKind,
+    val capabilities: Set<NightIntegrationCapability> = emptySet(),
 ) {
     fun toJson(): JSONObject =
         JSONObject()
             .put("id", id)
             .put("name", displayName)
             .put("type", kind.wireName)
+            .put(
+                "capabilities",
+                JSONArray(capabilities.map { it.wireName }.sorted()),
+            )
 
     companion object {
         fun fromJson(
@@ -46,10 +52,26 @@ data class NightIntegrationManifest(
                         }
                 }
 
+            val capabilities =
+                buildSet {
+                    json.optJSONArray("capabilities")?.let { array ->
+                        for (index in 0 until array.length()) {
+                            NightIntegrationCapability
+                                .fromWireName(array.optString(index))
+                                ?.let(::add)
+                        }
+                    }
+                    json.optString("category")
+                        .takeIf { it.isNotBlank() }
+                        ?.let(NightIntegrationCapability::fromWireName)
+                        ?.let(::add)
+                }
+
             return NightIntegrationManifest(
                 id = id,
                 displayName = displayName,
                 kind = kind,
+                capabilities = capabilities,
             )
         }
     }
