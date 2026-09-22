@@ -102,9 +102,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.InlineTextContent
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.appendInlineContent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.example.whatsapp.R
 import java.io.File
@@ -678,27 +684,13 @@ private fun CurrentTextBubble(
                 )
             }
 
-            Row(
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                Text(
-                    text = item.text,
-                    color = PrimaryText,
-                    fontSize = (14f * appearance.messageFontScale).sp,
-                    lineHeight = (19f * appearance.messageFontScale).sp,
-                    fontFamily = appearance.fontFamily,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-
-                MessageMeta(
-                    time = item.time,
-                    mine = item.mine,
-                    read = item.read,
-                    modifier = Modifier
-                        .align(Alignment.Bottom)
-                        .padding(start = 7.dp, bottom = 1.dp),
-                )
-            }
+            WhatsAppInlineMessageText(
+                text = item.text,
+                time = item.time,
+                mine = item.mine,
+                read = item.read,
+                appearance = appearance,
+            )
         }
     }
 }
@@ -1981,6 +1973,63 @@ private fun CurrentDateSeparator(label: String) {
             )
         }
     }
+}
+
+@Composable
+private fun WhatsAppInlineMessageText(
+    text: String,
+    time: String,
+    mine: Boolean,
+    read: Boolean,
+    appearance: NightChatAppearance,
+) {
+    val metaId = "night_message_meta"
+    val annotated =
+        remember(text, time, mine, read) {
+            buildAnnotatedString {
+                append(text)
+                // A real inline placeholder reserves the trailing space on the
+                // final line, instead of laying timestamp metadata in a
+                // separate column that can sit visually above short text.
+                append(" ")
+                appendInlineContent(metaId, "\uFFFC")
+            }
+        }
+    val inline =
+        remember(time, mine, read) {
+            mapOf(
+                metaId to
+                    InlineTextContent(
+                        placeholder =
+                            Placeholder(
+                                width = if (mine) 3.7.em else 2.35.em,
+                                height = 1.25.em,
+                                placeholderVerticalAlign =
+                                    PlaceholderVerticalAlign.TextBottom,
+                            )
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.BottomEnd,
+                        ) {
+                            MessageMeta(
+                                time = time,
+                                mine = mine,
+                                read = read,
+                            )
+                        }
+                    }
+            )
+        }
+
+    Text(
+        text = annotated,
+        inlineContent = inline,
+        color = PrimaryText,
+        fontSize = (14f * appearance.messageFontScale).sp,
+        lineHeight = (19f * appearance.messageFontScale).sp,
+        fontFamily = appearance.fontFamily,
+    )
 }
 
 @Composable
