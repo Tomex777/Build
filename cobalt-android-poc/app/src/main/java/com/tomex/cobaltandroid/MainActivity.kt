@@ -47,6 +47,7 @@ class MainActivity : Activity() {
     private lateinit var copyButton: Button
     private lateinit var linkButton: Button
     private lateinit var temporaryLinkButton: Button
+    private lateinit var liveBurnerButton: Button
     private lateinit var reconnectButton: Button
     private lateinit var disconnectButton: Button
     private lateinit var destinationInput: EditText
@@ -122,9 +123,25 @@ class MainActivity : Activity() {
 
         temporaryLinkButton = Button(this).apply {
             text = "Temporary link"
-            setOnClickListener { startPairing(true) }
+            setOnClickListener {
+                liveHarnessMode = false
+                liveAutoReplyText = null
+                liveReplySent.set(false)
+                startPairing(true)
+            }
         }
         root.addView(temporaryLinkButton)
+
+        liveBurnerButton = Button(this).apply {
+            text = "Live burner test"
+            setOnClickListener {
+                liveHarnessMode = true
+                liveAutoReplyText = "Got your message - Cobalt Android receive/reply test passed."
+                liveReplySent.set(false)
+                startPairing(true)
+            }
+        }
+        root.addView(liveBurnerButton)
 
         reconnectButton = Button(this).apply {
             text = "Reconnect saved session"
@@ -275,7 +292,11 @@ class MainActivity : Activity() {
         copyButton.isEnabled = false
         setStatus(
             if (temporary) {
-                "Creating RAM-only linked-device session…"
+                if (liveHarnessMode) {
+                    "Creating RAM-only live burner test session…"
+                } else {
+                    "Creating RAM-only linked-device session…"
+                }
             } else {
                 "Creating persistent linked-device session…"
             }
@@ -821,6 +842,7 @@ class MainActivity : Activity() {
     private fun setBusy(value: Boolean) {
         linkButton.isEnabled = !value
         temporaryLinkButton.isEnabled = !value
+        liveBurnerButton.isEnabled = !value
         reconnectButton.isEnabled = !value && hasSavedSession
         phoneInput.isEnabled = !value
     }
