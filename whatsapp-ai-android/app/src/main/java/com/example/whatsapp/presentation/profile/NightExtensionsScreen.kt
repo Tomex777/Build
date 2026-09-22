@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -36,7 +37,6 @@ import com.example.whatsapp.extensions.runtime.asNightIntegration
 private val ExtensionBg = Color(0xFF0B0F11)
 private val ExtensionText = Color(0xFFE7EAEC)
 private val ExtensionMuted = Color(0xFF9CA5A9)
-private val ExtensionAccent = Color(0xFF21C063)
 
 @Composable
 fun NightExtensionsScreen(
@@ -191,7 +191,7 @@ fun NightExtensionsScreen(
                 ) {
                     Text(
                         "Enable",
-                        color = ExtensionAccent,
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
             },
