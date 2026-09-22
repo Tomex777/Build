@@ -1,5 +1,6 @@
 package com.example.whatsapp.extensions.tools
 
+import com.example.whatsapp.extensions.runtime.NightIntegrationCapability
 import com.example.whatsapp.extensions.runtime.NightIntegrationKind
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -84,6 +85,118 @@ class NightIntegrationToolRegistryTest {
         } finally {
             NightExtensionToolRegistry.unregisterExtension("anime")
             NightMcpToolRegistry.unregisterServer("github")
+        }
+    }
+
+    @Test
+    fun preferredCapabilityProviderOwnsEquivalentModelTool() {
+        val capability = NightIntegrationCapability.require("unreal_engine")
+        val preferred =
+            NightExtensionToolDefinition(
+                extensionId = "unreal.primary",
+                name = "search_assets",
+                description = "Search Unreal assets.",
+                parameters = JSONObject()
+                    .put("type", "object")
+                    .put("properties", JSONObject()),
+                readOnly = true,
+                capabilities = setOf(capability),
+            )
+        val fallback =
+            NightExtensionToolDefinition(
+                extensionId = "unreal.fallback",
+                name = "search_assets",
+                description = "Search Unreal assets.",
+                parameters = JSONObject()
+                    .put("type", "object")
+                    .put("properties", JSONObject()),
+                readOnly = true,
+                capabilities = setOf(capability),
+            )
+
+        try {
+            NightExtensionPreferenceRouter.setPreferred(
+                capability,
+                preferred.extensionId,
+            )
+            NightExtensionToolRegistry.register(preferred) { _, _ ->
+                JSONObject().put("provider", "preferred")
+            }
+            NightExtensionToolRegistry.register(fallback) { _, _ ->
+                JSONObject().put("provider", "fallback")
+            }
+
+            val schemas = NightExtensionToolRegistry.schemas()
+            val names =
+                (0 until schemas.length())
+                    .map {
+                        schemas.getJSONObject(it)
+                            .getJSONObject("function")
+                            .getString("name")
+                    }
+                    .toSet()
+
+            assertTrue(preferred.qualifiedName in names)
+            assertFalse(fallback.qualifiedName in names)
+        } finally {
+            NightExtensionToolRegistry.unregisterExtension(preferred.extensionId)
+            NightExtensionToolRegistry.unregisterExtension(fallback.extensionId)
+            NightExtensionPreferenceRouter.clearForTests()
+        }
+    }
+
+    @Test
+    fun preferredExtensionToolFallsBackToEquivalentProvider() {
+        val capability = NightIntegrationCapability.require("unreal_engine")
+        val preferred =
+            NightExtensionToolDefinition(
+                extensionId = "unreal.primary",
+                name = "resolve_asset",
+                description = "Resolve an Unreal asset.",
+                parameters = JSONObject()
+                    .put("type", "object")
+                    .put("properties", JSONObject()),
+                capabilities = setOf(capability),
+            )
+        val fallback =
+            NightExtensionToolDefinition(
+                extensionId = "unreal.fallback",
+                name = "resolve_asset",
+                description = "Resolve an Unreal asset.",
+                parameters = JSONObject()
+                    .put("type", "object")
+                    .put("properties", JSONObject()),
+                capabilities = setOf(capability),
+            )
+
+        try {
+            NightExtensionPreferenceRouter.setPreferred(
+                capability,
+                preferred.extensionId,
+            )
+            NightExtensionToolRegistry.register(preferred) { _, _ ->
+                error("primary unavailable")
+            }
+            NightExtensionToolRegistry.register(fallback) { _, _ ->
+                JSONObject()
+                    .put("ok", true)
+                    .put("provider", "fallback")
+            }
+
+            val result =
+                kotlinx.coroutines.runBlocking {
+                    NightExtensionToolRegistry.execute(
+                        qualifiedName = preferred.qualifiedName,
+                        chatId = "chat",
+                        arguments = JSONObject(),
+                    )
+                }
+
+            assertEquals("fallback", result?.optString("provider"))
+        } finally {
+            NightExtensionToolRegistry.unregisterExtension(preferred.extensionId)
+            NightExtensionToolRegistry.unregisterExtension(fallback.extensionId)
+            NightExtensionPreferenceRouter.clearForTests()
         }
     }
 
