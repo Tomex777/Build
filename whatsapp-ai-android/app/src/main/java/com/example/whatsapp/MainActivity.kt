@@ -86,6 +86,7 @@ import com.example.whatsapp.presentation.chatscreen.NightChatAppearance
 import com.example.whatsapp.presentation.chatscreen.NightEmojiRecents
 import com.example.whatsapp.presentation.chatscreen.NightChoiceDialog
 import com.example.whatsapp.presentation.chatscreen.NightChatMediaItem
+import com.example.whatsapp.presentation.chatscreen.NightAudioPickerScreen
 import com.example.whatsapp.presentation.chatscreen.NightMediaViewerScreen
 import com.example.whatsapp.presentation.chatscreen.NightPdfViewerScreen
 import com.example.whatsapp.presentation.chatscreen.NightPdfEditorScreen
@@ -1911,6 +1912,19 @@ private fun NightApp(initialChatId: String? = null) {
             onBack = { screen = "settings" },
         )
 
+        "audio_picker" -> NightAudioPickerScreen(
+            onBack = { screen = "chat" },
+            onSelect = { uri ->
+                screen = "chat"
+                importAttachmentUri(uri)
+            },
+            onBrowseFiles = {
+                screen = "chat"
+                attachmentPicker.launch(arrayOf("audio/*"))
+            },
+            accentColor = appearance.accentColor,
+        )
+
         "chat" -> CurrentWhatsAppConversation(
             contactName = activeChat?.title
                 ?: if (activeChatId == "night-core") "Night" else "New chat",
@@ -2560,7 +2574,7 @@ private fun NightApp(initialChatId: String? = null) {
                         )
                     )
                     "Document" -> attachmentPicker.launch(arrayOf("*/*"))
-                    "Audio" -> attachmentPicker.launch(arrayOf("audio/*"))
+                    "Audio" -> screen = "audio_picker"
                     "Camera" -> launchCameraCapture()
                     "Choose AI" -> screen = "choose_ai"
                     "Schedule" -> scheduleOpen = true
