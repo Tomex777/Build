@@ -10,7 +10,10 @@ val Purple40 = Color(0xFF6650a4)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
 
-// WhatsApp Colors
+// Night's default accent. User appearance can override this at runtime.
+val NightDefaultAccent = Color(0xFFCF4A69)
+
+// Legacy WhatsApp-clone colors retained only for old unused surfaces.
 val WhatsAppGreen = Color(0xFF19ab60)
 val WhatsAppDarkGreen = Color(0xFF008169)
 val WhatsAppMintGreen = Color(0xFFc3f7d2)
