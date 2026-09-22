@@ -18,7 +18,7 @@ class MainActivity : Activity() {
         root.addView(heading("Secure Rendering Lab"))
         root.addView(
             bodyText(
-                "A real-device lab for comparing ordinary rendering, FLAG_SECURE, secure SurfaceView layers, screen capture, and DRM capabilities."
+                "A real-device lab for comparing ordinary rendering, FLAG_SECURE, secure SurfaceView layers, controlled self-exposure experiments, screen capture, and DRM capabilities."
             )
         )
 
@@ -26,7 +26,7 @@ class MainActivity : Activity() {
         root.addCard(
             labCard(
                 "1 · FLAG_SECURE window",
-                "Toggle the real WindowManager secure flag, then ask MediaProjection to capture one frame. The phone should still show the test content while the capture path omits the protected window.",
+                "Toggle the real WindowManager secure flag, compare MediaProjection output, then run a controlled self-bypass where the app removes its own flag for one capture.",
                 "Open FLAG_SECURE lab"
             ) {
                 startActivity(Intent(this, FlagSecureActivity::class.java))
@@ -35,7 +35,7 @@ class MainActivity : Activity() {
         root.addCard(
             labCard(
                 "2 · Secure SurfaceView",
-                "Render two surfaces in one Activity: one ordinary and one created with SurfaceView.setSecure(true). Compare them in a captured frame.",
+                "Compare ordinary and secure SurfaceViews, intentionally leak the same source data through a normal View, and probe both surfaces with PixelCopy.",
                 "Open Surface lab"
             ) {
                 startActivity(Intent(this, SecureSurfaceActivity::class.java))
@@ -55,7 +55,7 @@ class MainActivity : Activity() {
             addView(heading("What this app does not do", 18f))
             addView(
                 bodyText(
-                    "It does not request privileged CAPTURE_SECURE_VIDEO_OUTPUT access, patch SurfaceFlinger, hook other apps, or bypass DRM. The point is to expose the normal Android protection boundaries so you can see exactly where captured pixels disappear."
+                    "It does not request privileged CAPTURE_SECURE_VIDEO_OUTPUT access, patch SurfaceFlinger, hook other apps, or bypass another app's DRM/security. The controlled bypasses only make this lab expose its own test content so you can see exactly where the protection boundary sits."
                 )
             )
         }
