@@ -15,6 +15,7 @@ data class NightIntegrationSummary(
     val kind: NightIntegrationKind,
     val enabled: Boolean,
     val toolCount: Int,
+    val capabilities: Set<NightIntegrationCapability> = emptySet(),
     val error: String? = null,
 )
 
@@ -25,6 +26,7 @@ fun NightInstalledExtensionSummary.asNightIntegration(): NightIntegrationSummary
         kind = NightIntegrationKind.EXTENSION,
         enabled = enabled,
         toolCount = toolCount,
+        capabilities = capabilities,
         error = error,
     )
 
