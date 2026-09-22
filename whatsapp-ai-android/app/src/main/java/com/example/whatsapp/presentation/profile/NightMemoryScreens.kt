@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -47,7 +48,7 @@ fun NightMemoryScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MemoryBg)
-            .statusBarsPadding(),
+            .statusBarsPadding().navigationBarsPadding(),
     ) {
         MemoryHeader("Memory", onBack)
 
@@ -104,7 +105,7 @@ fun NightChatMemoryScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MemoryBg)
-            .statusBarsPadding(),
+            .statusBarsPadding().navigationBarsPadding(),
     ) {
         MemoryHeader(chat?.title ?: "Memory & summary", onBack)
 
