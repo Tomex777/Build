@@ -10,22 +10,38 @@ class NightCapabilityRouter(
 ) {
     suspend fun resolveChatModel(chatId: String): NightResolvedModel? {
         val chat = repository.getChat(chatId) ?: return null
+        val enabledProfiles = repository.enabledProviderProfiles("chat")
 
-        val profile = chat.selectedProviderProfileId
+        val selectedProfile = chat.selectedProviderProfileId
             ?.let { repository.getProviderProfile(it) }
+            ?.takeIf { it.isEnabled && it.serviceKind == "chat" }
+        val defaultProfile = repository.defaultProviderProfile("chat")
             ?.takeIf { it.isEnabled }
-            ?: repository.defaultProviderProfile("chat")
-                ?.takeIf { it.isEnabled }
-            ?: return null
 
-        val model = chat.selectedModel
-            ?.let { repository.getProviderModel(it) }
-            ?.takeIf { it.profileId == profile.id && it.isEnabled }
-            ?: repository.defaultProviderModel(profile.id)
-                ?.takeIf { it.isEnabled }
-            ?: return null
+        val candidates = buildList {
+            selectedProfile?.let(::add)
+            defaultProfile?.let(::add)
+            if (enabledProfiles.size == 1) add(enabledProfiles.single())
+        }.distinctBy { it.id }
 
-        return NightResolvedModel(profile, model)
+        candidates.forEach { profile ->
+            val selectedModel = chat.selectedModel
+                ?.let { repository.getProviderModel(it) }
+                ?.takeIf { it.profileId == profile.id && it.isEnabled }
+            val defaultModel = repository.defaultProviderModel(profile.id)
+                ?.takeIf { it.isEnabled }
+            val enabledModels = repository.enabledProviderModels(profile.id)
+
+            val model = selectedModel
+                ?: defaultModel
+                ?: enabledModels.singleOrNull()
+
+            if (model != null) {
+                return NightResolvedModel(profile, model)
+            }
+        }
+
+        return null
     }
 
     suspend fun resolveChatCandidates(chatId: String): List<NightResolvedModel> {

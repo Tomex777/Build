@@ -257,8 +257,26 @@ private fun NightApp(initialChatId: String? = null) {
     val displayName = profile?.displayName ?: "Dawson"
     val appearance = (appearanceEntity ?: NightAppearanceEntity()).toChatAppearance()
     val activeChat = chats.firstOrNull { it.id == activeChatId }
-    val activeModel = providerModels.firstOrNull { it.id == activeChat?.selectedModel }
-    val activeProfile = profiles.firstOrNull { it.id == activeChat?.selectedProviderProfileId }
+    val enabledChatProfiles = profiles.filter { it.serviceKind == "chat" && it.isEnabled }
+    val activeProfile =
+        profiles.firstOrNull {
+            it.id == activeChat?.selectedProviderProfileId &&
+                it.serviceKind == "chat" &&
+                it.isEnabled
+        }
+            ?: enabledChatProfiles.firstOrNull { it.isDefault }
+            ?: enabledChatProfiles.singleOrNull()
+    val enabledActiveModels = providerModels.filter {
+        it.profileId == activeProfile?.id && it.isEnabled
+    }
+    val activeModel =
+        providerModels.firstOrNull {
+            it.id == activeChat?.selectedModel &&
+                it.profileId == activeProfile?.id &&
+                it.isEnabled
+        }
+            ?: enabledActiveModels.firstOrNull { it.isDefault }
+            ?: enabledActiveModels.singleOrNull()
 
     LaunchedEffect(screen, activeChatId, activeChat?.summaryUpdatedAt) {
         if (screen == "chat_memory") {
@@ -339,6 +357,7 @@ private fun NightApp(initialChatId: String? = null) {
     LaunchedEffect(Unit) {
         repository.ensureProfile()
         repository.ensureAppearance()
+        runCatching { providerManager.ensureProviderOnboardingDefaults() }
         runCatching { extensionManager.refreshInstalledExtensions() }
         runCatching { mcpManager.refresh() }
         val root = repository.ensureChat("night-core", "Night")
@@ -1646,8 +1665,8 @@ private fun NightApp(initialChatId: String? = null) {
         "choose_ai" -> NightAiSelectorScreen(
             profiles = profiles,
             models = providerModels,
-            selectedProfileId = activeChat?.selectedProviderProfileId,
-            selectedModelId = activeChat?.selectedModel,
+            selectedProfileId = activeProfile?.id,
+            selectedModelId = activeModel?.id,
             onBack = { screen = "chat" },
             onSelect = { providerProfile, model ->
                 scope.launch {
@@ -3221,31 +3240,26 @@ private suspend fun appendTextWithLinkPreview(
     text: String,
     replyToMessageId: String? = null,
 ) {
-    val preview = linkPreviewService.resolveFromText(text)
+    val persisted = repository.appendText(
+        chatId = chatId,
+        role = role,
+        text = text,
+        replyToMessageId = replyToMessageId,
+    )
 
-    if (preview == null) {
-        repository.appendText(
-            chatId = chatId,
-            role = role,
-            text = text,
-            replyToMessageId = replyToMessageId,
-        )
-        return
-    }
+    val preview = runCatching {
+        linkPreviewService.resolveFromText(text)
+    }.getOrNull() ?: return
 
     val body = text
         .replace(preview.url, "")
         .replace(Regex("\\s+"), " ")
         .trim()
 
-    repository.appendMessage(
-        NightMessageEntity(
-            id = java.util.UUID.randomUUID().toString(),
-            chatId = chatId,
-            role = role,
+    repository.replaceMessage(
+        persisted.copy(
             type = "link",
             text = body,
-            createdAt = System.currentTimeMillis(),
             payloadJson = JSONObject()
                 .put("url", preview.url)
                 .put("title", preview.title)
@@ -3253,7 +3267,6 @@ private suspend fun appendTextWithLinkPreview(
                 .put("site", preview.site)
                 .put("imageUrl", preview.imageUrl ?: "")
                 .toString(),
-            replyToMessageId = replyToMessageId,
         )
     )
 }

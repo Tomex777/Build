@@ -67,6 +67,7 @@ class NightProviderManager private constructor(
             updatedAt = now,
         )
         repository.upsertProviderProfile(profile)
+        ensureBundledChatModel(profile)
         return profile
     }
 
@@ -237,6 +238,43 @@ class NightProviderManager private constructor(
                 isDefault = true,
                 updatedAt = System.currentTimeMillis(),
             )
+        )
+    }
+
+    suspend fun ensureProviderOnboardingDefaults() {
+        repository.enabledProviderProfiles("chat").forEach { profile ->
+            ensureBundledChatModel(profile)
+        }
+    }
+
+    private suspend fun ensureBundledChatModel(
+        profile: NightProviderProfileEntity,
+    ): NightProviderModelEntity? {
+        if (
+            profile.serviceKind != "chat" ||
+            !profile.providerType.equals("groq", ignoreCase = true)
+        ) {
+            return null
+        }
+
+        val existing = repository.getProviderModels(profile.id)
+        if (existing.isNotEmpty()) {
+            val enabled = existing.filter { it.isEnabled }
+            val currentDefault = enabled.firstOrNull { it.isDefault }
+            if (currentDefault != null) return currentDefault
+
+            val onlyEnabled = enabled.singleOrNull() ?: return null
+            makeModelDefault(onlyEnabled)
+            return repository.getProviderModel(onlyEnabled.id)
+        }
+
+        return addModel(
+            profile = profile,
+            modelId = "openai/gpt-oss-20b",
+            displayName = "GPT-OSS 20B",
+            deploymentName = null,
+            capabilities = setOf("tools"),
+            makeDefault = true,
         )
     }
 

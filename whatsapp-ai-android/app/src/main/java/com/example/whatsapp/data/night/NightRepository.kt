@@ -216,6 +216,9 @@ class NightRepository private constructor(
     suspend fun enabledProviderModels(profileId: String): List<NightProviderModelEntity> =
         dao.getEnabledProviderModels(profileId)
 
+    suspend fun getProviderModels(profileId: String): List<NightProviderModelEntity> =
+        dao.getProviderModels(profileId)
+
     suspend fun upsertProviderProfile(profile: NightProviderProfileEntity) = dao.upsertProviderProfile(profile)
     suspend fun deleteProviderProfile(id: String) = dao.deleteProviderProfile(id)
     suspend fun upsertProviderModel(model: NightProviderModelEntity) = dao.upsertProviderModel(model)

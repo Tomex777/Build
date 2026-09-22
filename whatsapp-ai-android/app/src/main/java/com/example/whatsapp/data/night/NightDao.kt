@@ -159,6 +159,9 @@ interface NightDao {
     @Query("SELECT * FROM night_provider_models WHERE profileId = :profileId AND isEnabled = 1 ORDER BY isDefault DESC, updatedAt DESC")
     suspend fun getEnabledProviderModels(profileId: String): List<NightProviderModelEntity>
 
+    @Query("SELECT * FROM night_provider_models WHERE profileId = :profileId ORDER BY isDefault DESC, updatedAt DESC")
+    suspend fun getProviderModels(profileId: String): List<NightProviderModelEntity>
+
     @Query("SELECT * FROM night_provider_models ORDER BY providerType, displayName")
     fun observeAllProviderModels(): Flow<List<NightProviderModelEntity>>
 
