@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -518,13 +519,48 @@ fun NightMediaComposerScreen(
                 }
             }
 
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .background(Color.Black),
                 contentAlignment = Alignment.Center,
             ) {
+                val sourceAspect = remember(workingPath) {
+                    readEditorImageAspectRatio(workingPath)
+                }
+                val quarterTurns =
+                    ((imageRotation / 90f).toInt() % 4 + 4) % 4
+                val displayAspect =
+                    if (!isVideo && quarterTurns % 2 == 1) {
+                        1f / sourceAspect
+                    } else {
+                        sourceAspect
+                    }
+                val availableAspect =
+                    if (maxHeight.value > 0f) {
+                        maxWidth.value / maxHeight.value
+                    } else {
+                        displayAspect
+                    }
+                val editorWidth =
+                    if (displayAspect >= availableAspect) {
+                        maxWidth
+                    } else {
+                        maxHeight * displayAspect
+                    }
+                val editorHeight =
+                    if (displayAspect >= availableAspect) {
+                        maxWidth / displayAspect
+                    } else {
+                        maxHeight
+                    }
+                val editorModifier =
+                    Modifier.size(
+                        width = editorWidth,
+                        height = editorHeight,
+                    )
+
                 when {
                     isVideo -> {
                         NightVlcVideoSurface(
@@ -546,7 +582,7 @@ fun NightMediaComposerScreen(
                                         cropView = view
                                     }
                                 },
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = editorModifier,
                             )
                         }
                     }
@@ -556,6 +592,9 @@ fun NightMediaComposerScreen(
                             AndroidView(
                                 factory = { ctx ->
                                     PhotoEditorView(ctx).also { editorView ->
+                                        editorView.source.scaleType =
+                                            android.widget.ImageView.ScaleType.FIT_CENTER
+                                        editorView.source.adjustViewBounds = false
                                         editorView.source.setImageURI(Uri.fromFile(File(workingPath)))
                                         photoEditorView = editorView
                                         photoEditor = PhotoEditor.Builder(ctx, editorView)
@@ -567,7 +606,7 @@ fun NightMediaComposerScreen(
                                         }
                                     }
                                 },
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = editorModifier,
                             )
                         }
                     }
@@ -858,6 +897,21 @@ fun NightMediaComposerScreen(
                 }
             },
         )
+    }
+}
+
+private fun readEditorImageAspectRatio(path: String): Float {
+    val options = BitmapFactory.Options().apply {
+        inJustDecodeBounds = true
+    }
+    BitmapFactory.decodeFile(path, options)
+
+    val width = options.outWidth
+    val height = options.outHeight
+    return if (width > 0 && height > 0) {
+        (width.toFloat() / height.toFloat()).coerceIn(0.08f, 12f)
+    } else {
+        1f
     }
 }
 
