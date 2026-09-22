@@ -37,6 +37,7 @@ data class NightInstalledExtensionSummary(
     val toolCount: Int,
     val messageTypeCount: Int,
     val enabled: Boolean,
+    val capabilities: Set<NightIntegrationCapability> = emptySet(),
     val error: String? = null,
     val signingDigest: String = "",
 )
@@ -61,6 +62,7 @@ class NightExternalExtensionManager private constructor(
         val displayName: String,
         val toolCount: Int,
         val messageTypeCount: Int,
+        val capabilities: Set<NightIntegrationCapability>,
         val signingDigest: String,
     )
 
@@ -240,6 +242,14 @@ class NightExternalExtensionManager private constructor(
             toolCount = minOf(tools?.length() ?: 0, MAX_TOOLS),
             messageTypeCount =
                 minOf(messageTypes?.length() ?: 0, MAX_MESSAGE_TYPES),
+            capabilities =
+                NightIntegrationManifest
+                    .fromJson(
+                        json = descriptor,
+                        legacyExtensionId = extensionId,
+                        legacyExtensionName = descriptor.optString("name"),
+                    )
+                    .capabilities,
             signingDigest = requireNotNull(signingDigest(component.packageName)) {
                 "Could not verify the extension APK signing certificate."
             },
@@ -422,6 +432,7 @@ class NightExternalExtensionManager private constructor(
             toolCount = toolCount,
             messageTypeCount = messageTypeCount,
             enabled = enabled,
+            capabilities = capabilities,
             error = error,
             signingDigest = signingDigest,
         )
