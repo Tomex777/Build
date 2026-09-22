@@ -15,6 +15,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -26,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class SystemLabActivity extends Activity {
+    private static final String TAG = "SecureRenderingLabSys";
     private static final String CAPTURE_SECURE_VIDEO_OUTPUT =
             "android.permission.CAPTURE_SECURE_VIDEO_OUTPUT";
     private static final String CAPTURE_VIDEO_OUTPUT =
@@ -69,6 +71,10 @@ public final class SystemLabActivity extends Activity {
 
         setContentView(scroll);
         refreshCapabilities();
+
+        if (getIntent().getBooleanExtra("autorun", false)) {
+            mainHandler.postDelayed(this::runSecureDisplaySelfTest, 600L);
+        }
     }
 
     private LinearLayout capabilityCard() {
@@ -114,15 +120,29 @@ public final class SystemLabActivity extends Activity {
         boolean platformSigned = getPackageManager().checkSignatures(getPackageName(), "android")
                 == PackageManager.SIGNATURE_MATCH;
 
+        String secureVideo = permissionState(CAPTURE_SECURE_VIDEO_OUTPUT);
+        String video = permissionState(CAPTURE_VIDEO_OUTPUT);
+        String blackout = permissionState(CAPTURE_BLACKOUT_CONTENT);
+        String framebuffer = permissionState(READ_FRAME_BUFFER);
+
         capabilityText.setText(
                 "Build type: " + Build.TYPE
                         + "\nSystem app: " + yesNo(systemApp)
                         + "\nUpdated system app: " + yesNo(updatedSystem)
                         + "\nPlatform signature match: " + yesNo(platformSigned)
-                        + "\n\nCAPTURE_SECURE_VIDEO_OUTPUT: " + permissionState(CAPTURE_SECURE_VIDEO_OUTPUT)
-                        + "\nCAPTURE_VIDEO_OUTPUT: " + permissionState(CAPTURE_VIDEO_OUTPUT)
-                        + "\nCAPTURE_BLACKOUT_CONTENT: " + permissionState(CAPTURE_BLACKOUT_CONTENT)
-                        + "\nREAD_FRAME_BUFFER: " + permissionState(READ_FRAME_BUFFER));
+                        + "\n\nCAPTURE_SECURE_VIDEO_OUTPUT: " + secureVideo
+                        + "\nCAPTURE_VIDEO_OUTPUT: " + video
+                        + "\nCAPTURE_BLACKOUT_CONTENT: " + blackout
+                        + "\nREAD_FRAME_BUFFER: " + framebuffer);
+
+        Log.i(TAG,
+                "CAPABILITIES|buildType=" + Build.TYPE
+                        + "|systemApp=" + systemApp
+                        + "|platformSigned=" + platformSigned
+                        + "|secureVideo=" + secureVideo
+                        + "|video=" + video
+                        + "|blackout=" + blackout
+                        + "|framebuffer=" + framebuffer);
     }
 
     private void runSecureDisplaySelfTest() {
@@ -148,9 +168,14 @@ public final class SystemLabActivity extends Activity {
 
             if (activeDisplay == null) {
                 secureDisplayText.setText("Secure virtual display returned null.");
+                Log.i(TAG, "CREATE|NULL");
                 cleanupSelfTest();
                 return;
             }
+
+            Log.i(TAG,
+                    "CREATE|SUCCESS|displayId=" + activeDisplay.getDisplay().getDisplayId()
+                            + "|flags=0x" + Integer.toHexString(activeDisplay.getDisplay().getFlags()));
 
             activeReader.setOnImageAvailableListener(reader -> {
                 Image image = reader.acquireLatestImage();
@@ -173,6 +198,9 @@ public final class SystemLabActivity extends Activity {
                                         + "\nFrame checksum: " + resultChecksum
                                         + "\n\nThis proves privileged secure-output capability for lab-owned content; "
                                         + "it is not a global screenshot bypass.");
+                        Log.i(TAG,
+                                "RESULT|FRAME|sampleBytes=" + resultSampleCount
+                                        + "|checksum=" + resultChecksum);
                         cleanupSelfTest();
                     });
                 } finally {
@@ -194,14 +222,19 @@ public final class SystemLabActivity extends Activity {
                 if (finished.compareAndSet(false, true)) {
                     secureDisplayText.setText(
                             "Secure virtual display was created, but no ImageReader frame arrived before timeout.");
+                    Log.i(TAG, "RESULT|FRAME_TIMEOUT");
                     cleanupSelfTest();
                 }
             }, 2500L);
         } catch (SecurityException e) {
             secureDisplayText.setText("SECURITY EXCEPTION\n" + e.getMessage());
+            Log.i(TAG, "CREATE|SECURITY_EXCEPTION|" + String.valueOf(e.getMessage()));
             cleanupSelfTest();
         } catch (Throwable t) {
             secureDisplayText.setText(t.getClass().getSimpleName() + ": " + t.getMessage());
+            Log.i(TAG,
+                    "CREATE|ERROR|" + t.getClass().getSimpleName()
+                            + "|" + String.valueOf(t.getMessage()));
             cleanupSelfTest();
         }
     }
