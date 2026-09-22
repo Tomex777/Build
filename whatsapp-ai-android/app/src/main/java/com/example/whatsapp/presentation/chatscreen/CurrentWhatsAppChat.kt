@@ -1983,42 +1983,98 @@ private fun WhatsAppInlineMessageText(
     read: Boolean,
     appearance: NightChatAppearance,
 ) {
+    val context = LocalContext.current
+    val emojiLoader = rememberNightFluentEmojiLoader(context)
     val metaId = "night_message_meta"
+    val annotatedAndEmoji =
+        remember(text) {
+            val used = linkedSetOf<String>()
+            val annotated =
+                buildAnnotatedString {
+                    var index = 0
+                    while (index < text.length) {
+                        val emoji =
+                            NightFluentEmoji.mappedEmoji
+                                .firstOrNull { candidate ->
+                                    text.startsWith(candidate, index)
+                                }
+                        if (emoji != null) {
+                            val inlineId =
+                                "night_fluent_" +
+                                    emoji.codePoints()
+                                        .toArray()
+                                        .joinToString("_")
+                            appendInlineContent(inlineId, emoji)
+                            used += emoji
+                            index += emoji.length
+                        } else {
+                            append(text[index])
+                            index += 1
+                        }
+                    }
+                }
+            annotated to used.toList()
+        }
     val annotated =
-        remember(text, time, mine, read) {
+        remember(annotatedAndEmoji.first, time, mine, read) {
             buildAnnotatedString {
-                append(text)
-                // A real inline placeholder reserves the trailing space on the
-                // final line, instead of laying timestamp metadata in a
-                // separate column that can sit visually above short text.
+                append(annotatedAndEmoji.first)
                 append(" ")
                 appendInlineContent(metaId, "\uFFFC")
             }
         }
     val inline =
-        remember(time, mine, read) {
-            mapOf(
-                metaId to
+        buildMap<String, InlineTextContent> {
+            annotatedAndEmoji.second.forEach { emoji ->
+                val inlineId =
+                    "night_fluent_" +
+                        emoji.codePoints()
+                            .toArray()
+                            .joinToString("_")
+                val asset = NightFluentEmoji.assetUri(emoji) ?: return@forEach
+                put(
+                    inlineId,
                     InlineTextContent(
                         placeholder =
                             Placeholder(
-                                width = if (mine) 3.7.em else 2.35.em,
-                                height = 1.25.em,
+                                width = 1.15.em,
+                                height = 1.15.em,
                                 placeholderVerticalAlign =
-                                    PlaceholderVerticalAlign.TextBottom,
+                                    PlaceholderVerticalAlign.TextCenter,
                             )
                     ) {
-                        Box(
+                        AsyncImage(
+                            model = asset,
+                            imageLoader = emojiLoader,
+                            contentDescription = emoji,
                             modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.BottomEnd,
-                        ) {
-                            MessageMeta(
-                                time = time,
-                                mine = mine,
-                                read = read,
-                            )
-                        }
+                        )
                     }
+                )
+            }
+
+            put(
+                metaId,
+                InlineTextContent(
+                    placeholder =
+                        Placeholder(
+                            width = if (mine) 3.7.em else 2.35.em,
+                            height = 1.25.em,
+                            placeholderVerticalAlign =
+                                PlaceholderVerticalAlign.TextBottom,
+                        )
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.BottomEnd,
+                    ) {
+                        MessageMeta(
+                            time = time,
+                            mine = mine,
+                            read = read,
+                        )
+                    }
+                }
             )
         }
 
@@ -2503,28 +2559,9 @@ fun EmojiPicker(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val emojiImageLoader = remember(context) {
-        ImageLoader.Builder(context)
-            .components {
-                add(SvgDecoder.Factory())
-            }
-            .build()
-    }
     var recentEmojis by remember(context) {
         mutableStateOf(NightEmojiRecents.load(context))
     }
-    val fluentAssets = mapOf(
-        "😀" to "file:///android_asset/fluent_emoji/grinning.svg",
-        "😂" to "file:///android_asset/fluent_emoji/joy.svg",
-        "🥹" to "file:///android_asset/fluent_emoji/holding_tears.svg",
-        "😍" to "file:///android_asset/fluent_emoji/heart_eyes.svg",
-        "😭" to "file:///android_asset/fluent_emoji/crying.svg",
-        "😎" to "file:///android_asset/fluent_emoji/sunglasses.svg",
-        "👍" to "file:///android_asset/fluent_emoji/thumbs_up.svg",
-        "❤️" to "file:///android_asset/fluent_emoji/red_heart.svg",
-        "🙏" to "file:///android_asset/fluent_emoji/folded_hands.svg",
-        "🔥" to "file:///android_asset/fluent_emoji/fire.svg",
-    )
     val categories = listOf(
         "Recent" to recentEmojis,
         "Smileys" to listOf("😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇","🙂","🙃","😉","😌","😍","🥰","😘","😗","😙","😚","😋","😛","😝","😜","🤪","🤨","🧐","🤓","😎","🥸","🤩","🥳","🙂‍↕️","😏","😒","😞","😔","😟","😕","🙁","☹️","😣","😖","😫","😩","🥺","🥹","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🤗","🤔","🤭","🤫","🤥","😶","😶‍🌫️","😐","😑","😬"),
@@ -2573,8 +2610,8 @@ fun EmojiPicker(
                             modifier = Modifier.padding(vertical = 7.dp),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text(
-                                text = when (label) {
+                            val categoryEmoji =
+                                when (label) {
                                     "Recent" -> "🕘"
                                     "Smileys" -> "😀"
                                     "People" -> "👋"
@@ -2585,8 +2622,11 @@ fun EmojiPicker(
                                     "Travel" -> "✈️"
                                     "Objects" -> "💡"
                                     else -> "🔣"
-                                },
-                                fontSize = 17.sp,
+                                }
+                            NightFluentEmojiGlyph(
+                                emoji = categoryEmoji,
+                                size = 22.dp,
+                                fallbackFontSize = 17.sp,
                             )
                         }
                     }
@@ -2616,7 +2656,6 @@ fun EmojiPicker(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         rowItems.forEach { emoji ->
-                            val asset = fluentAssets[emoji]
                             Box(
                                 modifier = Modifier
                                     .size(42.dp)
@@ -2631,21 +2670,11 @@ fun EmojiPicker(
                                     },
                                 contentAlignment = Alignment.Center,
                             ) {
-                                if (asset != null) {
-                                    AsyncImage(
-                                        model = asset,
-                                        imageLoader = emojiImageLoader,
-                                        contentDescription = emoji,
-                                        modifier = Modifier
-                                            .size(34.dp)
-                                            .padding(2.dp),
-                                    )
-                                } else {
-                                    Text(
-                                        text = emoji,
-                                        fontSize = 28.sp,
-                                    )
-                                }
+                                NightFluentEmojiGlyph(
+                                    emoji = emoji,
+                                    size = 34.dp,
+                                    fallbackFontSize = 28.sp,
+                                )
                             }
                         }
                         repeat(8 - rowItems.size) {
