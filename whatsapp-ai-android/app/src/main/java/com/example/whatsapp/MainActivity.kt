@@ -96,6 +96,7 @@ import com.example.whatsapp.presentation.profile.NightChatMemoryScreen
 import com.example.whatsapp.presentation.profile.NightChatFilesScreen
 import com.example.whatsapp.presentation.profile.NightChatSearchScreen
 import com.example.whatsapp.presentation.profile.NightMemoryScreen
+import com.example.whatsapp.presentation.profile.NightMediaLibraryScreen
 import com.example.whatsapp.presentation.profile.NightExtensionsScreen
 import com.example.whatsapp.presentation.profile.NightIntegrationsScreen
 import com.example.whatsapp.presentation.profile.NightMcpServersScreen
@@ -1160,6 +1161,10 @@ private fun NightApp(initialChatId: String? = null) {
             onUpdate = { updated ->
                 scope.launch { repository.setAppearance(updated) }
             },
+        )
+
+        "media_library" -> NightMediaLibraryScreen(
+            onBack = { screen = "tabs" },
         )
 
         "integrations" -> NightIntegrationsScreen(
@@ -2329,6 +2334,9 @@ private fun NightApp(initialChatId: String? = null) {
                 onLibraryStorageClick = {
                     selectedTabName = MainTab.Updates.name
                     screen = "tabs"
+                },
+                onMediaLibraryClick = {
+                    screen = "media_library"
                 },
                 onBrowserClick = {
                     context.startActivity(
