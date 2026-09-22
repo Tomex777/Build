@@ -287,14 +287,25 @@ before_volume_progress="$(read_saved_progress)"
 test -n "$before_volume_progress"
 adb logcat -c
 
-adb shell input keyevent KEYCODE_VOLUME_DOWN
-sleep 2
-assert_no_crash
-after_volume_down_progress="$(read_saved_progress)"
-test -n "$after_volume_down_progress"
+after_volume_down_progress="$before_volume_progress"
+
+# Long strip consumes a volume press as a viewport scroll, not as an immediate
+# page jump. Depending on page aspect ratio, more than one 3/4-screen scroll
+# can be required before the first visible page (and therefore saved progress)
+# changes. Exercise repeated real key events before declaring navigation dead.
+for attempt in 1 2 3 4 5 6; do
+  adb shell input keyevent KEYCODE_VOLUME_DOWN
+  sleep 1
+  assert_no_crash
+  after_volume_down_progress="$(read_saved_progress)"
+  test -n "$after_volume_down_progress"
+  if [ "$after_volume_down_progress" != "$before_volume_progress" ]; then
+    break
+  fi
+done
 
 if [ "$after_volume_down_progress" = "$before_volume_progress" ]; then
-  echo "Volume Down was not consumed as Mihon reader navigation." >&2
+  echo "Volume Down did not move Long strip far enough to update Mihon reader progress." >&2
   adb exec-out screencap -p > mihon-interaction-artifacts/failure-volume-down.png
   exit 1
 fi
