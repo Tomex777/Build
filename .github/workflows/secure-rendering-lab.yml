@@ -43,7 +43,7 @@ jobs:
 
       - name: Build debug APK
         working-directory: secure-rendering-lab
-        run: gradle :app:assembleDebug :systemlab:assembleDebug --stacktrace
+        run: gradle :app:assembleDebug :systemlab:assembleDebug :systemlab:assembleRelease --stacktrace
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -57,6 +57,45 @@ jobs:
         with:
           name: secure-rendering-system-lab-sanity
           path: secure-rendering-lab/systemlab/build/outputs/apk/debug/systemlab-debug.apk
+          if-no-files-found: error
+
+      - name: Build platform-signed Cuttlefish bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          KEY_URL="https://android.googlesource.com/platform/build/+/refs/heads/android16-release/target/product/security"
+          mkdir -p /tmp/aosp-platform-key
+          curl -fsSL "$KEY_URL/platform.pk8?format=TEXT" | base64 -d > /tmp/aosp-platform-key/platform.pk8
+          curl -fsSL "$KEY_URL/platform.x509.pem?format=TEXT" | base64 -d > /tmp/aosp-platform-key/platform.x509.pem
+
+          BUNDLE="$GITHUB_WORKSPACE/secure-rendering-system-lab-fast-cuttlefish"
+          mkdir -p "$BUNDLE"
+
+          APKSIGNER="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}/build-tools/35.0.0/apksigner"
+          UNSIGNED="$GITHUB_WORKSPACE/secure-rendering-lab/systemlab/build/outputs/apk/release/systemlab-release-unsigned.apk"
+
+          "$APKSIGNER" sign \
+            --key /tmp/aosp-platform-key/platform.pk8 \
+            --cert /tmp/aosp-platform-key/platform.x509.pem \
+            --out "$BUNDLE/SecureRenderingSystemLab-platform.apk" \
+            "$UNSIGNED"
+
+          "$APKSIGNER" verify --verbose --print-certs "$BUNDLE/SecureRenderingSystemLab-platform.apk"
+
+          cp secure-rendering-lab/aosp-system-lab/privapp-permissions-com.tomex.securerenderlab.system.xml "$BUNDLE/"
+          cp secure-rendering-lab/aosp-system-lab/fast-cuttlefish/install.sh "$BUNDLE/"
+          cp secure-rendering-lab/aosp-system-lab/fast-cuttlefish/verify.sh "$BUNDLE/"
+          cp secure-rendering-lab/aosp-system-lab/fast-cuttlefish/README.md "$BUNDLE/"
+          chmod +x "$BUNDLE/install.sh" "$BUNDLE/verify.sh"
+
+          zip -qr secure-rendering-system-lab-fast-cuttlefish.zip secure-rendering-system-lab-fast-cuttlefish
+
+      - name: Upload fast Cuttlefish bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: secure-rendering-system-lab-fast-cuttlefish
+          path: secure-rendering-system-lab-fast-cuttlefish.zip
           if-no-files-found: error
 
       - name: Package AOSP System Lab source
