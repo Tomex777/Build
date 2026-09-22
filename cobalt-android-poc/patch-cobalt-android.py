@@ -342,6 +342,62 @@ for path in modules.rglob("*.java"):
         leftovers = [line.strip() for line in text.splitlines() if ".getFirst()" in line or ".getLast()" in line]
         raise SystemExit(f"Java 21 list accessor remains in {path.relative_to(root)}: {leftovers[:8]}")
 
+# Fix the small number of SequencedCollection call sites where indexed List
+# access is not valid. Keep source semantics using an Android-safe helper.
+android_collections_path = modules / "lib/src/main/java/com/github/auties00/cobalt/util/AndroidCollections.java"
+android_collections_path.write_text(r'''package com.github.auties00.cobalt.util;
+
+import java.util.Collection;
+import java.util.NoSuchElementException;
+
+public final class AndroidCollections {
+    private AndroidCollections() {
+        throw new AssertionError("No instances");
+    }
+
+    public static <T> T first(Collection<T> values) {
+        var iterator = values.iterator();
+        if (!iterator.hasNext()) {
+            throw new NoSuchElementException("empty collection");
+        }
+        return iterator.next();
+    }
+
+    public static <T> T last(Collection<T> values) {
+        if (values.isEmpty()) {
+            throw new NoSuchElementException("empty collection");
+        }
+        T last = null;
+        for (var value : values) {
+            last = value;
+        }
+        return last;
+    }
+}
+''', encoding="utf-8")
+
+sequenced_specific_patches = {
+    modules / "lib/src/main/java/com/github/auties00/cobalt/client/linked/LiveLinkedWhatsAppClient.java": (
+        ("store.signalStore().preKeys().get(store.signalStore().preKeys().size() - 1).id()",
+         "com.github.auties00.cobalt.util.AndroidCollections.last(store.signalStore().preKeys()).id()"),
+    ),
+    modules / "lib/src/main/java/com/github/auties00/cobalt/message/receipt/MessageReceiptHandler.java": (
+        ("store.signalStore().preKeys().get(0)",
+         "com.github.auties00.cobalt.util.AndroidCollections.first(store.signalStore().preKeys())"),
+    ),
+    modules / "lib/src/main/java/com/github/auties00/cobalt/wam/LiveWamService.java": (
+        ("children.get(0)",
+         "com.github.auties00.cobalt.util.AndroidCollections.first(children)"),
+    ),
+}
+
+for path, patches in sequenced_specific_patches.items():
+    text = path.read_text(encoding="utf-8")
+    for old, new in patches:
+        if old in text:
+            text = text.replace(old, new)
+    path.write_text(text, encoding="utf-8")
+
 print(f"Backported Java 21 list accessors in {sequenced_changed} source files")
 
 logger_path = modules / "telemetry-core/src/main/java/com/github/auties00/cobalt/telemetry/log/Logger.java"
