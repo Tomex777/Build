@@ -159,8 +159,18 @@ jobs:
           SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
           nohup "$SDK_ROOT/emulator/emulator" @securelab             -no-window             -no-audio             -no-snapshot             -no-boot-anim             -gpu swiftshader_indirect             -writable-system             > emulator.log 2>&1 &
 
-          adb wait-for-device
-          timeout 420 bash -c 'until [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" == "1" ]]; do sleep 5; done'
+          if ! timeout 120 adb wait-for-device; then
+            echo "ADB device did not appear. Emulator log:"
+            cat emulator.log || true
+            exit 11
+          fi
+
+          if ! timeout 420 bash -c 'until [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" == "1" ]]; do sleep 5; done'; then
+            echo "Android did not finish booting. Emulator log:"
+            tail -300 emulator.log || true
+            adb shell getprop || true
+            exit 12
+          fi
 
           echo "Build type: $(adb shell getprop ro.build.type | tr -d "\r")"
           echo "Debuggable: $(adb shell getprop ro.debuggable | tr -d "\r")"
