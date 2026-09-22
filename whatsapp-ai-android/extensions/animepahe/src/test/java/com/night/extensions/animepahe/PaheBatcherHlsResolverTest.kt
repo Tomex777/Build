@@ -59,7 +59,6 @@ class PaheBatcherHlsResolverTest {
                 source =
                     AnimePaheSource(
                         kwikUrl = kwikUrl,
-                        downloadPageUrl = null,
                         resolution = 1080,
                         audio = "jpn",
                         fansub = "SubsPlease",
