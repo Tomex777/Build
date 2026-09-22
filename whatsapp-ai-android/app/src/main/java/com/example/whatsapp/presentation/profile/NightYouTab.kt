@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,7 +44,6 @@ private val YouBg = Color(0xFF0B0F11)
 private val YouSurface = Color(0xFF171C1F)
 private val YouText = Color(0xFFE7EAEC)
 private val YouMuted = Color(0xFF9CA5A9)
-private val YouAccent = Color(0xFF21C063)
 
 private data class YouRow(
     val id: String,
@@ -111,7 +111,7 @@ fun NightYouTab(
                             Icon(
                                 imageVector = Icons.Default.Person,
                                 contentDescription = null,
-                                tint = YouAccent,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(46.dp),
                             )
                         }
