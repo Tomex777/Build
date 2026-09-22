@@ -293,6 +293,22 @@ class NightAiGateway private constructor(
                     ?.let { append(" — ").append(it) }
             }
 
+            "lyrics" -> buildString {
+                append("[Lyrics] ")
+                append(
+                    payload.optString("title")
+                        .ifBlank { text.ifBlank { "lyrics" } }
+                )
+                payload.optString("artist")
+                    .takeIf { it.isNotBlank() }
+                    ?.let { append(" — ").append(it) }
+                val lyricText = payload.optString("lyrics").trim()
+                if (lyricText.isNotBlank()) {
+                    append(": ")
+                    append(lyricText.take(800))
+                }
+            }
+
             "link", "rich_link" -> buildString {
                 append("[Link] ")
                 append(
