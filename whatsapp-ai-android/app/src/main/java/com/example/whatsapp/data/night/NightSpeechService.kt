@@ -41,7 +41,7 @@ class NightSpeechService private constructor(
                 .url(url)
                 .post(
                     file.asRequestBody(
-                        "audio/wav; codecs=audio/pcm; samplerate=16000".toMediaType()
+                        "audio/wav; codecs=\"audio/pcm\"; samplerate=16000".toMediaType()
                     )
                 )
                 .header("Ocp-Apim-Subscription-Key", key)

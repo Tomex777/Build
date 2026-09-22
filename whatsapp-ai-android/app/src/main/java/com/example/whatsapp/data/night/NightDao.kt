@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -20,6 +21,9 @@ interface NightDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertChat(chat: NightChatEntity)
+
+    @Update
+    suspend fun updateChat(chat: NightChatEntity)
 
     @Query("DELETE FROM night_chats WHERE id = :chatId")
     suspend fun deleteChat(chatId: String)
@@ -258,7 +262,7 @@ interface NightDao {
             updatedAt = maxOf(chat.updatedAt, orderedMessage.createdAt),
             lastMessagePreview = orderedMessage.text.take(120),
         )
-        upsertChat(orderedChat)
+        updateChat(orderedChat)
         upsertMessage(orderedMessage)
         markSummaryDirty(chat.id, orderedChat.updatedAt, orderedMessage.text.take(120))
         return orderedMessage
@@ -281,7 +285,7 @@ interface NightDao {
             updatedAt = maxOf(chat.updatedAt, orderedMessage.createdAt),
             lastMessagePreview = orderedMessage.text.take(120),
         )
-        upsertChat(orderedChat)
+        updateChat(orderedChat)
         upsertMessage(orderedMessage)
         markSummaryDirty(chat.id, orderedChat.updatedAt, orderedMessage.text.take(120))
         return orderedMessage

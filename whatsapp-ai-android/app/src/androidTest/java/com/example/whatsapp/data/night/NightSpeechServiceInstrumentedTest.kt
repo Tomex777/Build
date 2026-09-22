@@ -79,7 +79,7 @@ class NightSpeechServiceInstrumentedTest {
                 request.requestUrl?.encodedPath,
             )
             assertEquals("en-US", request.requestUrl?.queryParameter("language"))
-            assertEquals("audio/wav; codecs=audio/pcm; samplerate=16000", request.getHeader("Content-Type"))
+            assertEquals("audio/wav; codecs=\"audio/pcm\"; samplerate=16000", request.getHeader("Content-Type"))
             assertEquals("speech-test-key", request.getHeader("Ocp-Apim-Subscription-Key"))
             assertEquals(wavBytes.size.toLong(), request.body.size)
 

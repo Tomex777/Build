@@ -23,6 +23,12 @@ class NightChatHistoryInstrumentedTest {
 
         try {
             repository.ensureChat(chatId, "History regression", now)
+            repository.commitSummary(
+                chatId = chatId,
+                summary = "checkpoint marker",
+                fromMessageAt = now,
+                toMessageAt = now,
+            )
             repeat(count) { index ->
                 repository.appendText(
                     chatId = chatId,
@@ -37,6 +43,8 @@ class NightChatHistoryInstrumentedTest {
             assertEquals(count, visibleHistory.size)
             assertEquals((0 until count).map { "history-marker-$it" }, visibleHistory.map { it.text })
             assertEquals(visibleHistory.map { it.id }, observedHistory.map { it.id })
+            assertEquals("checkpoint marker", repository.latestSummary(chatId))
+            assertEquals(1, repository.summaryCheckpoints(chatId).size)
             assertTrue(visibleHistory.zipWithNext().all { (before, after) ->
                 before.createdAt < after.createdAt
             })
