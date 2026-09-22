@@ -1,3 +1,4 @@
+// Night media compile-fix validation
 package com.example.whatsapp
 
 import android.Manifest
