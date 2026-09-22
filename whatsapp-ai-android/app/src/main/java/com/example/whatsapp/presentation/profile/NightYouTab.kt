@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Person
@@ -60,6 +61,7 @@ fun NightYouTab(
     onMemoryClick: () -> Unit,
     onSchedulesClick: () -> Unit,
     onLibraryStorageClick: () -> Unit,
+    onMediaLibraryClick: () -> Unit,
     onBrowserClick: () -> Unit,
     onAppearanceClick: () -> Unit,
     onPrivacyClick: () -> Unit,
@@ -70,6 +72,7 @@ fun NightYouTab(
         YouRow("memory", Icons.Default.Memory, "Memory", "Chat summaries and cross-chat references"),
         YouRow("scheduled", Icons.Default.Schedule, "Scheduled", "Tasks Night will run later"),
         YouRow("storage", Icons.Default.Storage, "Library & storage", "Manage Night-owned files"),
+        YouRow("media_library", Icons.Default.Movie, "Media library", "Anime, manga and music saved by extensions"),
         YouRow("browser", Icons.Default.Language, "Browser", "Open Night's full browser"),
         YouRow("appearance", Icons.Default.Palette, "Appearance", "Bubbles, wallpaper, font and text size"),
         YouRow("privacy", Icons.Default.Security, "Privacy", "Local data, permissions and retention"),
@@ -140,6 +143,7 @@ fun NightYouTab(
                                 "memory" -> onMemoryClick()
                                 "scheduled" -> onSchedulesClick()
                                 "storage" -> onLibraryStorageClick()
+                                "media_library" -> onMediaLibraryClick()
                                 "browser" -> onBrowserClick()
                                 "appearance" -> onAppearanceClick()
                                 "privacy" -> onPrivacyClick()
