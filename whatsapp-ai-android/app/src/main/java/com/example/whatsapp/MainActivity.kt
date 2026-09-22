@@ -209,7 +209,11 @@ private fun NightApp(initialChatId: String? = null) {
 
     val preferredExtensionIds =
         remember(extensions, integrationPreferenceRevision) {
-            NightIntegrationCapability.entries
+            extensions
+                .asSequence()
+                .filter { it.enabled }
+                .flatMap { it.capabilities.asSequence() }
+                .distinct()
                 .mapNotNull { capability ->
                     extensionManager.preferredProvider(capability)
                         ?.extensionId
