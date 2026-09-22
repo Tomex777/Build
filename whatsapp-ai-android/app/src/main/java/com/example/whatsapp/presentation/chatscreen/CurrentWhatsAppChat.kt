@@ -593,6 +593,7 @@ private fun CurrentChatHeader(
                         "Search chat",
                         "Memory & summary",
                         "Files in chat",
+                        "Browser",
                         "Rename chat",
                         "Export chat",
                         "Clear chat",
