@@ -325,6 +325,15 @@ for path in modules.rglob("*.java"):
         text = text.replace(".getFirst()", ".get(0)")
         path.write_text(text, encoding="utf-8")
 
+# Stanza.children() is a SequencedCollection, not necessarily a List, so the
+# generic getFirst -> get(0) rewrite is invalid here. Iterator order preserves
+# SequencedCollection's first-element semantics on Android-compatible APIs.
+stanza_path = modules / "stanza-core/src/main/java/com/github/auties00/cobalt/stanza/model/Stanza.java"
+stanza_text = stanza_path.read_text(encoding="utf-8")
+stanza_text = stanza_text.replace("Optional.ofNullable(children.get(0))", "Optional.ofNullable(children.iterator().next())")
+stanza_text = stanza_text.replace("Stream.of(children.get(0))", "Stream.of(children.iterator().next())")
+stanza_path.write_text(stanza_text, encoding="utf-8")
+
 for path in modules.rglob("*.java"):
     if "src/main/java" not in path.as_posix():
         continue
