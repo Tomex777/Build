@@ -39,18 +39,14 @@ android {
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.19.0")
+    implementation("androidx.core:core-ktx:1.18.0")
     implementation("androidx.activity:activity-compose:1.13.0")
 
-    val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
-    implementation(composeBom)
-    androidTestImplementation(composeBom)
-
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    debugImplementation("androidx.compose.ui:ui-tooling")
+    implementation("androidx.compose.ui:ui:1.10.5")
+    implementation("androidx.compose.foundation:foundation:1.10.5")
+    implementation("androidx.compose.material3:material3:1.3.2")
+    implementation("androidx.compose.ui:ui-tooling-preview:1.10.5")
+    debugImplementation("androidx.compose.ui:ui-tooling:1.10.5")
 
     implementation("com.github.auties00:cobalt-lib:0.1.0")
 }
