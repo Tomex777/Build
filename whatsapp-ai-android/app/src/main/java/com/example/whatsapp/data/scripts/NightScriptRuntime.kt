@@ -19,6 +19,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import org.mozilla.javascript.ClassShutter
 import org.mozilla.javascript.Context as RhinoContext
 import org.mozilla.javascript.ContextAction
 import org.mozilla.javascript.ContextFactory
@@ -1126,6 +1127,9 @@ private class NightSandboxContextFactory : ContextFactory() {
             languageVersion = RhinoContext.VERSION_ES6
             instructionObserverThreshold = 10_000
             maximumInterpreterStackDepth = 256
+            setClassShutter(
+                ClassShutter { false }
+            )
         }
 
     override fun observeInstructionCount(
