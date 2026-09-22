@@ -38,13 +38,13 @@ class NightExtensionConfigurationMessageTest {
                         ),
                     ),
                     ExtensionConfigurationField(
-                        id = "sources",
-                        label = "Sources",
+                        id = "formats",
+                        label = "Formats",
                         type = ExtensionConfigurationFieldType.MultiChoice,
-                        values = listOf("primary", "fallback"),
+                        values = listOf("lossless", "aac"),
                         options = listOf(
-                            ExtensionConfigurationOption("primary", "Primary"),
-                            ExtensionConfigurationOption("fallback", "Fallback"),
+                            ExtensionConfigurationOption("lossless", "Lossless"),
+                            ExtensionConfigurationOption("aac", "AAC"),
                         ),
                     ),
                     ExtensionConfigurationField(
@@ -110,7 +110,7 @@ class NightExtensionConfigurationMessageTest {
             .put("resolution", "1080p")
             .put("parallel", 3)
             .put("quality", 85.0)
-            .put("sources", org.json.JSONArray().put("primary").put("fallback"))
+            .put("formats", org.json.JSONArray().put("lossless").put("aac"))
 
         val encoded = ExtensionConfigurationActionCodec.encode(
             configurationId = "download",
@@ -128,7 +128,7 @@ class NightExtensionConfigurationMessageTest {
         assertEquals("1080p", decodedValues.getString("resolution"))
         assertEquals(3, decodedValues.getInt("parallel"))
         assertEquals(85.0, decodedValues.getDouble("quality"), 0.0)
-        assertEquals(2, decodedValues.getJSONArray("sources").length())
+        assertEquals(2, decodedValues.getJSONArray("formats").length())
     }
 
     @Test
@@ -173,6 +173,150 @@ class NightExtensionConfigurationMessageTest {
         assertEquals(
             listOf("pages", "databases"),
             updated.configuration?.fields?.first { it.id == "areas" }?.values,
+        )
+    }
+
+    @Test
+    fun parallelDownloadsIsOnlyAGenericNumberField() {
+        val snapshot =
+            ExtensionMessageSnapshot(
+                extensionId = "video_provider",
+                messageType = "video_provider.settings",
+                template = ExtensionCardTemplate.Configuration,
+                extensionName = "Video Provider",
+                title = "Settings",
+                configuration =
+                    ExtensionConfiguration(
+                        id = "downloads",
+                        fields =
+                            listOf(
+                                ExtensionConfigurationField(
+                                    id = "parallel_downloads",
+                                    label = "Parallel downloads",
+                                    type = ExtensionConfigurationFieldType.Number,
+                                    value = "2",
+                                    min = 1.0,
+                                    max = 8.0,
+                                    suffix = "downloads",
+                                )
+                            ),
+                    ),
+            )
+
+        val decoded =
+            requireNotNull(
+                ExtensionMessageCodec.decode(
+                    ExtensionMessageCodec.encode(snapshot)
+                )
+            )
+        val field =
+            requireNotNull(
+                decoded.configuration
+                    ?.fields
+                    ?.singleOrNull()
+            )
+
+        assertEquals("parallel_downloads", field.id)
+        assertEquals(ExtensionConfigurationFieldType.Number, field.type)
+        assertEquals("2", field.value)
+        assertEquals("downloads", field.suffix)
+    }
+
+    @Test
+    fun musicStyleConfigurationUsesSameGenericSectionsAndFields() {
+        val snapshot =
+            ExtensionMessageSnapshot(
+                extensionId = "music_provider",
+                messageType = "music_provider.settings",
+                template = ExtensionCardTemplate.Configuration,
+                extensionName = "Music Provider",
+                title = "Music settings",
+                configuration =
+                    ExtensionConfiguration(
+                        id = "music",
+                        sections =
+                            listOf(
+                                ExtensionConfigurationSection(
+                                    id = "playback",
+                                    title = "Playback",
+                                    description = "Audio behaviour.",
+                                ),
+                                ExtensionConfigurationSection(
+                                    id = "lyrics",
+                                    title = "Lyrics",
+                                    description = "Lyrics behaviour.",
+                                ),
+                            ),
+                        fields =
+                            listOf(
+                                ExtensionConfigurationField(
+                                    id = "quality",
+                                    label = "Audio quality",
+                                    type = ExtensionConfigurationFieldType.SingleChoice,
+                                    value = "lossless",
+                                    sectionId = "playback",
+                                    options =
+                                        listOf(
+                                            ExtensionConfigurationOption(
+                                                "lossless",
+                                                "Lossless",
+                                            ),
+                                            ExtensionConfigurationOption(
+                                                "high",
+                                                "High",
+                                            ),
+                                        ),
+                                ),
+                                ExtensionConfigurationField(
+                                    id = "normalize",
+                                    label = "Normalize volume",
+                                    type = ExtensionConfigurationFieldType.Toggle,
+                                    value = "true",
+                                    sectionId = "playback",
+                                ),
+                                ExtensionConfigurationField(
+                                    id = "lyrics_provider",
+                                    label = "Lyrics provider",
+                                    type = ExtensionConfigurationFieldType.Text,
+                                    value = "auto",
+                                    sectionId = "lyrics",
+                                ),
+                                ExtensionConfigurationField(
+                                    id = "notes",
+                                    label = "Custom lyrics notes",
+                                    type = ExtensionConfigurationFieldType.MultilineText,
+                                    sectionId = "lyrics",
+                                ),
+                                ExtensionConfigurationField(
+                                    id = "api_token",
+                                    label = "Provider token",
+                                    type = ExtensionConfigurationFieldType.Secret,
+                                    sectionId = "lyrics",
+                                    required = true,
+                                ),
+                            ),
+                    ),
+            )
+
+        val decoded =
+            requireNotNull(
+                ExtensionMessageCodec.decode(
+                    ExtensionMessageCodec.encode(snapshot)
+                )
+            )
+        val configuration = requireNotNull(decoded.configuration)
+
+        assertEquals(listOf("playback", "lyrics"), configuration.sections.map { it.id })
+        assertEquals(
+            ExtensionConfigurationFieldType.MultilineText,
+            configuration.fields.first { it.id == "notes" }.type,
+        )
+        assertEquals(
+            ExtensionConfigurationFieldType.Secret,
+            configuration.fields.first { it.id == "api_token" }.type,
+        )
+        assertTrue(
+            configuration.fields.first { it.id == "api_token" }.required
         )
     }
 
