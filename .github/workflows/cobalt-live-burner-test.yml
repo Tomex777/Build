@@ -1,0 +1,194 @@
+name: Cobalt Live Burner Test
+
+on:
+  push:
+    branches:
+      - cobalt-android-poc
+    paths:
+      - "live-test/start-trigger.txt"
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  live-burner-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TEST_BRANCH: cobalt-android-poc
+
+    steps:
+      - name: Checkout test branch
+        uses: actions/checkout@v4
+        with:
+          ref: cobalt-android-poc
+          fetch-depth: 0
+
+      - name: Read session id
+        shell: bash
+        run: |
+          SESSION_ID="$(tr -cd 'A-Za-z0-9_-' < live-test/start-trigger.txt | head -c 64)"
+          test -n "$SESSION_ID"
+          echo "SESSION_ID=$SESSION_ID" >> "$GITHUB_ENV"
+          mkdir -p "live-test/live/$SESSION_ID"
+
+      - name: Generate runner command key
+        shell: bash
+        run: |
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/runner_private.pem >/dev/null 2>&1
+          openssl rsa -pubout -in /tmp/runner_private.pem -out "live-test/live/$SESSION_ID.runner-public.pem" >/dev/null 2>&1
+
+          git config user.name "cobalt-live-test"
+          git config user.email "cobalt-live-test@users.noreply.github.com"
+          git pull --rebase origin "$TEST_BRANCH"
+          git add "live-test/live/$SESSION_ID.runner-public.pem"
+          git commit -m "Publish encrypted live test runner key $SESSION_ID"
+          git push origin HEAD:"$TEST_BRANCH"
+
+      - name: Download latest successful Android harness APK
+        shell: bash
+        run: |
+          RUN_ID="$(gh run list             --workflow "Cobalt Android POC"             --branch "$TEST_BRANCH"             --status success             --limit 10             --json databaseId             --jq '.[0].databaseId')"
+          test -n "$RUN_ID"
+          mkdir -p downloaded-apk
+          gh run download "$RUN_ID" --name cobalt-android-baseline --dir downloaded-apk
+          APK="$(find downloaded-apk -type f -name '*.apk' | head -n 1)"
+          test -n "$APK"
+          echo "COBALT_APK=$APK" >> "$GITHUB_ENV"
+
+      - name: Enable KVM
+        shell: bash
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm || true
+
+      - name: Run encrypted real-account receive/reply test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            set -euo pipefail
+
+            publish_file() {
+              local path="$1"
+              local message="$2"
+              for attempt in 1 2 3 4 5; do
+                git fetch origin "$TEST_BRANCH"
+                git rebase "origin/$TEST_BRANCH" || {
+                  git rebase --abort || true
+                  sleep 2
+                  continue
+                }
+                git add "$path"
+                if git diff --cached --quiet; then
+                  return 0
+                fi
+                git commit -m "$message"
+                if git push origin HEAD:"$TEST_BRANCH"; then
+                  return 0
+                fi
+                sleep 2
+              done
+              echo "Failed to publish $path" >&2
+              exit 1
+            }
+
+            COMMAND_PATH="live-test/live/$SESSION_ID.phone.enc.b64"
+            echo "Waiting for encrypted burner-number command for session $SESSION_ID"
+
+            FOUND=0
+            for _ in $(seq 1 300); do
+              git fetch origin "$TEST_BRANCH" >/dev/null 2>&1 || true
+              if git show "origin/$TEST_BRANCH:$COMMAND_PATH" > /tmp/phone.enc.b64 2>/dev/null; then
+                FOUND=1
+                break
+              fi
+              sleep 2
+            done
+            test "$FOUND" = "1"
+
+            base64 -d /tmp/phone.enc.b64 > /tmp/phone.enc
+            openssl pkeyutl -decrypt               -inkey /tmp/runner_private.pem               -pkeyopt rsa_padding_mode:oaep               -pkeyopt rsa_oaep_md:sha256               -in /tmp/phone.enc               -out /tmp/phone.txt
+
+            PHONE="$(tr -cd '0-9' < /tmp/phone.txt)"
+            if [[ ! "$PHONE" =~ ^[0-9]{8,15}$ ]]; then
+              echo "Encrypted phone command did not decode to a valid international number" >&2
+              exit 1
+            fi
+            rm -f /tmp/phone.txt /tmp/phone.enc /tmp/phone.enc.b64
+
+            adb install -r "$COBALT_APK" >/dev/null
+            adb logcat -c || true
+            adb shell am start -W               -n com.tomex.cobaltandroid/.MainActivity               --es live_phone "$PHONE"               --es live_reply "Got your message - Cobalt Android receive/reply test passed." >/dev/null
+
+            CODE=""
+            for _ in $(seq 1 90); do
+              adb shell uiautomator dump /sdcard/cobalt-live.xml >/dev/null 2>&1 || true
+              adb pull /sdcard/cobalt-live.xml /tmp/cobalt-live.xml >/dev/null 2>&1 || true
+              if [[ -s /tmp/cobalt-live.xml ]]; then
+                CODE="$(python3 - <<'PY'
+import re, xml.etree.ElementTree as ET
+try:
+    root = ET.parse('/tmp/cobalt-live.xml').getroot()
+except Exception:
+    print('')
+    raise SystemExit
+for node in root.iter('node'):
+    value = (node.attrib.get('text') or '').strip().replace(' ', '').replace('-', '')
+    if re.fullmatch(r'[A-Za-z0-9]{8}', value) and value not in {'LINKED'}:
+        print(value)
+        break
+else:
+    print('')
+PY
+)"
+              fi
+              if [[ -n "$CODE" ]]; then
+                break
+              fi
+              sleep 2
+            done
+
+            if [[ -z "$CODE" ]]; then
+              echo "Pairing code was not generated" >&2
+              exit 1
+            fi
+
+            printf '%s' "$CODE" | openssl pkeyutl -encrypt               -pubin               -inkey live-test/assistant_public.pem               -pkeyopt rsa_padding_mode:oaep               -pkeyopt rsa_oaep_md:sha256               -out /tmp/code.enc
+            base64 -w0 /tmp/code.enc > "live-test/live/$SESSION_ID.code.enc.b64"
+            unset CODE
+            rm -f /tmp/code.enc /tmp/cobalt-live.xml
+            publish_file "live-test/live/$SESSION_ID.code.enc.b64" "Publish encrypted pairing response $SESSION_ID"
+
+            echo "Encrypted pairing response published. Waiting for real inbound message and auto-reply."
+
+            DONE=0
+            for _ in $(seq 1 360); do
+              if adb logcat -d -s CobaltPOC:I 2>/dev/null | grep -q 'LIVE_TEST_DONE'; then
+                DONE=1
+                break
+              fi
+              if adb logcat -d -s CobaltPOC:E 2>/dev/null | grep -q 'LIVE_TEST_REPLY_FAILED'; then
+                break
+              fi
+              sleep 2
+            done
+
+            if [[ "$DONE" = "1" ]]; then
+              printf 'passed\n' > "live-test/live/$SESSION_ID.status.txt"
+              publish_file "live-test/live/$SESSION_ID.status.txt" "Record successful live Cobalt test $SESSION_ID"
+              adb shell am force-stop com.tomex.cobaltandroid || true
+              exit 0
+            fi
+
+            printf 'failed\n' > "live-test/live/$SESSION_ID.status.txt"
+            publish_file "live-test/live/$SESSION_ID.status.txt" "Record failed live Cobalt test $SESSION_ID"
+            adb shell am force-stop com.tomex.cobaltandroid || true
+            exit 1
