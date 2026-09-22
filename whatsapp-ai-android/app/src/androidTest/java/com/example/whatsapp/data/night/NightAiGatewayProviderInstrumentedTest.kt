@@ -491,6 +491,97 @@ class NightAiGatewayProviderInstrumentedTest {
     }
 
     @Test
+    fun streamingReplyEmitsIncrementalSseTextDeltas() = runBlocking {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "text/event-stream")
+                .setBody(
+                    "data: {\"choices\":[{\"delta\":{\"content\":\"Hello\"}}]}\n\n" +
+                        "data: {\"choices\":[{\"delta\":{\"content\":\" world\"}}]}\n\n" +
+                        "data: [DONE]\n\n"
+                )
+        )
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val repository = NightRepository.get(context)
+        val gateway = NightAiGateway.createForTesting(
+            context = context,
+            http = OkHttpClient.Builder().build(),
+        )
+        val suffix = UUID.randomUUID().toString()
+        val chatId = "agent-stream-" + suffix
+        val profileId = "stream-profile-" + suffix
+        val modelId = "stream-model-" + suffix
+        val now = System.currentTimeMillis()
+
+        val profile = NightProviderProfileEntity(
+            id = profileId,
+            providerType = "groq",
+            serviceKind = "chat",
+            displayName = "Streaming test",
+            secretAlias = secretAlias,
+            endpoint = server.url("/openai/v1").toString().trimEnd('/'),
+            isEnabled = true,
+            isDefault = false,
+            createdAt = now,
+            updatedAt = now,
+        )
+        val model = NightProviderModelEntity(
+            id = modelId,
+            profileId = profileId,
+            providerType = "groq",
+            modelId = "stream-test-model",
+            displayName = "Streaming test model",
+            capabilities = "text",
+            isEnabled = true,
+            isDefault = true,
+            createdAt = now,
+            updatedAt = now,
+        )
+
+        try {
+            repository.ensureChat(chatId, "Streaming test", now)
+            repository.upsertProviderProfile(profile)
+            repository.upsertProviderModel(model)
+            repository.setChatModel(
+                chatId = chatId,
+                provider = "groq",
+                profileId = profileId,
+                model = modelId,
+            )
+            repository.appendText(
+                chatId = chatId,
+                role = "user",
+                text = "Stream a short greeting.",
+                now = now + 1,
+            )
+
+            val updates = mutableListOf<String>()
+            val result = gateway.replyStreaming(
+                chatId = chatId,
+                displayName = "Tester",
+            ) { updates += it }
+
+            assertTrue(result.isSuccess)
+            assertEquals("Hello world", result.getOrThrow())
+            assertTrue(updates.contains("Hello"))
+            assertTrue(updates.contains("Hello world"))
+            assertTrue(updates.indexOf("Hello") < updates.indexOf("Hello world"))
+            assertEquals(1, server.requestCount)
+
+            val request = server.takeRequest()
+            assertEquals("text/event-stream", request.getHeader("Accept"))
+            val body = JSONObject(request.body.readUtf8())
+            assertTrue(body.optBoolean("stream", false))
+        } finally {
+            repository.deleteChat(chatId)
+            repository.deleteProviderModel(modelId)
+            repository.deleteProviderProfile(profileId)
+        }
+    }
+
+    @Test
     fun azureChatUsesApiKeyHeaderAndDeploymentName() = runBlocking {
         server.enqueue(
             MockResponse()
