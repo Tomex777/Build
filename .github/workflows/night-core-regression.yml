@@ -78,6 +78,8 @@ jobs:
       - name: Guard Night invariants
         run: |
           grep -q 'minSdk = 26' whatsapp-ai-android/app/build.gradle.kts
+          grep -q 'compileSdk = 36' whatsapp-ai-android/app/build.gradle.kts
+          grep -q 'targetSdk = 36' whatsapp-ai-android/app/build.gradle.kts
           PDF="whatsapp-ai-android/app/src/main/java/com/example/whatsapp/presentation/chatscreen/NightPdfViewerScreen.kt"
           ! grep -q "ModalBottomSheet" "$PDF"
           grep -q 'contentDescription = "PDF full screen viewer"' "$PDF"
@@ -130,6 +132,10 @@ jobs:
           cd whatsapp-ai-android
           chmod +x gradlew
           ./gradlew :app:testDebugUnitTest :app:assembleDebug --stacktrace
+          UNIVERSAL_APK="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*universal*.apk' -print -quit)"
+          test -n "$UNIVERSAL_APK"
+          cp "$UNIVERSAL_APK" app/build/outputs/apk/debug/app-debug.apk
+          ls -lh app/build/outputs/apk/debug/
 
       - name: Upload integrated APK
         uses: actions/upload-artifact@v4
