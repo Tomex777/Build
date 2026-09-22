@@ -723,7 +723,7 @@ class NightScriptRuntime private constructor(
         session: Session,
         name: String,
         arguments: JSONObject,
-    ): Any {
+    ): Any? {
         val raw = runBlocking {
             agentTools.execute(
                 chatId = session.chatId,
