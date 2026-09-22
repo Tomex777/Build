@@ -23,6 +23,18 @@ data class AnimePaheSearchItem(
     val poster: String?,
 )
 
+data class AnimePaheDetails(
+    val session: String,
+    val title: String,
+    val poster: String?,
+    val summary: String,
+    val type: String,
+    val status: String,
+    val studios: String,
+    val season: String,
+    val genres: List<String>,
+)
+
 data class AnimePaheEpisode(
     val session: String,
     val number: String,
@@ -290,6 +302,101 @@ class AnimePaheClient(
                 )
             }
         }
+    }
+
+    fun details(
+        animeSession: String,
+        titleHint: String,
+    ): AnimePaheDetails {
+        val safeSession = animeSession.trim()
+        require(safeSession.isNotBlank()) {
+            "Anime session is required."
+        }
+
+        val url =
+            session.baseUrl() +
+                "/anime/" +
+                safeSession
+        val html =
+            getText(
+                url = url,
+                referer = session.baseUrl() + "/",
+            )
+        val document =
+            org.jsoup.Jsoup.parse(
+                html,
+                session.baseUrl() + "/",
+            )
+
+        fun infoValue(label: String): String {
+            val row =
+                document.selectFirst(
+                    "div.col-sm-4.anime-info p:contains(" +
+                        label +
+                        ":)"
+                ) ?: return ""
+            val linkText =
+                row.select("a")
+                    .joinToString(", ") {
+                        it.text().trim()
+                    }
+                    .trim()
+            if (linkText.isNotBlank()) {
+                return linkText
+            }
+            return row.text()
+                .substringAfter(label + ":", "")
+                .trim()
+        }
+
+        val parsedTitle =
+            document.selectFirst(
+                "div.title-wrapper > h1 > span"
+            )?.text()
+                ?.trim()
+                .orEmpty()
+                .ifBlank {
+                    titleHint.trim()
+                        .ifBlank { "Anime" }
+                }
+
+        val poster =
+            document.selectFirst(
+                "div.anime-poster a"
+            )?.absUrl("href")
+                ?.trim()
+                ?.takeIf { it.startsWith("http") }
+
+        val summary =
+            document.selectFirst(
+                "div.anime-summary"
+            )?.text()
+                ?.trim()
+                .orEmpty()
+
+        val genres =
+            document.select(
+                "div.anime-genre ul li"
+            )
+                .map {
+                    it.text().trim()
+                }
+                .filter {
+                    it.isNotBlank()
+                }
+                .distinct()
+
+        return AnimePaheDetails(
+            session = safeSession,
+            title = parsedTitle,
+            poster = poster,
+            summary = summary,
+            type = infoValue("Type"),
+            status = infoValue("Status"),
+            studios = infoValue("Studios"),
+            season = infoValue("Season"),
+            genres = genres,
+        )
     }
 
     fun episodes(

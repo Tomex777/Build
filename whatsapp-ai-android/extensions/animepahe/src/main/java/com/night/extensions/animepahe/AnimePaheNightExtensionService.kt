@@ -59,6 +59,21 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                         readOnly = true,
                     ),
                     NightToolDescriptor(
+                        name = TOOL_DETAILS,
+                        description =
+                            "Load AnimePahe title details and render a detailed anime card.",
+                        parameters =
+                            objectParameters(
+                                "animeSession" to stringProperty(
+                                    "AnimePahe anime session id."
+                                ),
+                                "title" to stringProperty(
+                                    "Anime title shown to the user."
+                                ),
+                            ),
+                        readOnly = true,
+                    ),
+                    NightToolDescriptor(
                         name = TOOL_EPISODES,
                         description =
                             "List an anime's AnimePahe episodes for a page and render episode cards.",
@@ -72,6 +87,9 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                                 ),
                                 "page" to integerProperty(
                                     "Episode result page, starting at 1."
+                                ),
+                                "offset" to integerProperty(
+                                    "Zero-based card offset within the AnimePahe page."
                                 ),
                             ),
                         readOnly = true,
@@ -112,6 +130,13 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                         description = "AnimePahe anime search result.",
                         whenToUse =
                             "Use for one AnimePahe anime title returned from search.",
+                    ),
+                    NightMessageTypeDescriptor(
+                        messageType = TYPE_DETAILS,
+                        template = "media_card",
+                        description = "Detailed AnimePahe anime card.",
+                        whenToUse =
+                            "Use after the user opens an AnimePahe search result.",
                     ),
                     NightMessageTypeDescriptor(
                         messageType = TYPE_EPISODE,
@@ -172,6 +197,28 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                 .getOrElse { JSONObject() }
 
         return when (request.actionId) {
+            ACTION_DETAILS ->
+                runWithVerification(
+                    retryTool = TOOL_DETAILS,
+                    retryArguments =
+                        JSONObject()
+                            .put(
+                                "animeSession",
+                                payload.optString("animeSession"),
+                            )
+                            .put(
+                                "title",
+                                payload.optString("title"),
+                            ),
+                ) {
+                    detailsResult(
+                        animeSession =
+                            payload.optString("animeSession"),
+                        title =
+                            payload.optString("title"),
+                    )
+                }
+
             ACTION_EPISODES ->
                 runWithVerification(
                     retryTool = TOOL_EPISODES,
@@ -191,8 +238,21 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                         animeSession = payload.optString("animeSession"),
                         title = payload.optString("title"),
                         page = 1,
+                        offset = 0,
                     )
                 }
+
+            ACTION_EPISODES_NEXT ->
+                episodeNavigationResult(
+                    payload = payload,
+                    direction = 1,
+                )
+
+            ACTION_EPISODES_PREVIOUS ->
+                episodeNavigationResult(
+                    payload = payload,
+                    direction = -1,
+                )
 
             ACTION_RESOLVE ->
                 runWithVerification(
@@ -274,6 +334,31 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                 }
             }
 
+            TOOL_DETAILS -> {
+                val animeSession =
+                    arguments.optString("animeSession")
+                        .trim()
+                val title =
+                    arguments.optString("title")
+                        .trim()
+                        .ifBlank { "Anime" }
+                runWithVerification(
+                    retryTool = TOOL_DETAILS,
+                    retryArguments =
+                        JSONObject()
+                            .put(
+                                "animeSession",
+                                animeSession,
+                            )
+                            .put("title", title),
+                ) {
+                    detailsResult(
+                        animeSession = animeSession,
+                        title = title,
+                    )
+                }
+            }
+
             TOOL_EPISODES -> {
                 val animeSession =
                     arguments.optString("animeSession").trim()
@@ -284,18 +369,23 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                 val page =
                     arguments.optInt("page", 1)
                         .coerceAtLeast(1)
+                val offset =
+                    arguments.optInt("offset", 0)
+                        .coerceAtLeast(0)
                 runWithVerification(
                     retryTool = TOOL_EPISODES,
                     retryArguments =
                         JSONObject()
                             .put("animeSession", animeSession)
                             .put("title", title)
-                            .put("page", page),
+                            .put("page", page)
+                            .put("offset", offset),
                 ) {
                     episodeResult(
                         animeSession = animeSession,
                         title = title,
                         page = page,
+                        offset = offset,
                     )
                 }
             }
@@ -361,36 +451,176 @@ class AnimePaheNightExtensionService : NightExtensionService() {
             )
     }
 
+    private fun detailsResult(
+        animeSession: String,
+        title: String,
+    ): JSONObject {
+        val details =
+            client.details(
+                animeSession = animeSession,
+                titleHint = title,
+            )
+
+        return JSONObject()
+            .put("ok", true)
+            .put(
+                "night_message",
+                detailsCard(details),
+            )
+    }
+
     private fun episodeResult(
         animeSession: String,
         title: String,
         page: Int,
+        offset: Int = 0,
     ): JSONObject {
         val result =
             client.episodes(
                 animeSession = animeSession,
                 page = page,
             )
-        val messages =
+
+        val safeOffset =
+            offset.coerceIn(
+                0,
+                result.items.size.coerceAtLeast(0),
+            )
+        val chunk =
             result.items
+                .drop(safeOffset)
                 .take(MAX_MESSAGES_PER_RESULT)
-                .map { episode ->
-                    episodeCard(
-                        animeSession = animeSession,
-                        animeTitle = title,
-                        episode = episode,
-                    )
-                }
+
+        val messages =
+            chunk.map { episode ->
+                episodeCard(
+                    animeSession = animeSession,
+                    animeTitle = title,
+                    episode = episode,
+                )
+            }.toMutableList()
+
+        val hasPrevious =
+            safeOffset > 0 ||
+                result.currentPage > 1
+        val hasNext =
+            safeOffset + chunk.size <
+                result.items.size ||
+                result.currentPage <
+                    result.lastPage
+
+        if (hasPrevious || hasNext) {
+            messages +=
+                episodeNavigationCard(
+                    animeSession = animeSession,
+                    title = title,
+                    page = result.currentPage,
+                    offset = safeOffset,
+                    pageItemCount =
+                        result.items.size,
+                    lastPage = result.lastPage,
+                    hasPrevious = hasPrevious,
+                    hasNext = hasNext,
+                )
+        }
 
         return JSONObject()
             .put("ok", true)
-            .put("currentPage", result.currentPage)
-            .put("lastPage", result.lastPage)
             .put(
-                "hasNextPage",
-                result.currentPage < result.lastPage,
+                "currentPage",
+                result.currentPage,
             )
-            .put("night_messages", JSONArray(messages))
+            .put("lastPage", result.lastPage)
+            .put("offset", safeOffset)
+            .put("pageItemCount", result.items.size)
+            .put("hasPrevious", hasPrevious)
+            .put("hasNext", hasNext)
+            .put(
+                "night_messages",
+                JSONArray(messages),
+            )
+    }
+
+    private fun episodeNavigationResult(
+        payload: JSONObject,
+        direction: Int,
+    ): JSONObject {
+        val animeSession =
+            payload.optString("animeSession")
+                .trim()
+        val title =
+            payload.optString("title")
+                .trim()
+                .ifBlank { "Anime" }
+        val page =
+            payload.optInt("page", 1)
+                .coerceAtLeast(1)
+        val offset =
+            payload.optInt("offset", 0)
+                .coerceAtLeast(0)
+        val pageItemCount =
+            payload.optInt(
+                "pageItemCount",
+                0,
+            ).coerceAtLeast(0)
+        val lastPage =
+            payload.optInt(
+                "lastPage",
+                page,
+            ).coerceAtLeast(page)
+
+        val nextPage: Int
+        val nextOffset: Int
+
+        if (direction > 0) {
+            if (
+                offset + MAX_MESSAGES_PER_RESULT <
+                    pageItemCount
+            ) {
+                nextPage = page
+                nextOffset =
+                    offset +
+                        MAX_MESSAGES_PER_RESULT
+            } else {
+                nextPage =
+                    (page + 1)
+                        .coerceAtMost(lastPage)
+                nextOffset = 0
+            }
+        } else {
+            if (offset > 0) {
+                nextPage = page
+                nextOffset =
+                    (offset -
+                        MAX_MESSAGES_PER_RESULT)
+                        .coerceAtLeast(0)
+            } else {
+                nextPage =
+                    (page - 1)
+                        .coerceAtLeast(1)
+                nextOffset = 0
+            }
+        }
+
+        return runWithVerification(
+            retryTool = TOOL_EPISODES,
+            retryArguments =
+                JSONObject()
+                    .put(
+                        "animeSession",
+                        animeSession,
+                    )
+                    .put("title", title)
+                    .put("page", nextPage)
+                    .put("offset", nextOffset),
+        ) {
+            episodeResult(
+                animeSession = animeSession,
+                title = title,
+                page = nextPage,
+                offset = nextOffset,
+            )
+        }
     }
 
     private fun resolveResult(
@@ -684,6 +914,126 @@ class AnimePaheNightExtensionService : NightExtensionService() {
             actions =
                 listOf(
                     nightAction(
+                        id = ACTION_DETAILS,
+                        label = "Details",
+                        style = "primary",
+                    ),
+                    nightAction(
+                        id = ACTION_EPISODES,
+                        label = "Episodes",
+                    ),
+                    nightAction(
+                        id =
+                            NightExtensionStandardActions
+                                .ADD_TO_LIBRARY,
+                        label = "Add to Library",
+                        requiresExtension = false,
+                    ),
+                    nightAction(
+                        id =
+                            NightExtensionStandardActions
+                                .ADD_TO_PLAYLIST,
+                        label = "Add to Playlist",
+                        requiresExtension = false,
+                    ),
+                ),
+            extensionPayload = payload,
+        )
+    }
+
+    private fun detailsCard(
+        details: AnimePaheDetails,
+    ): JSONObject {
+        val payload =
+            JSONObject()
+                .put(
+                    "mediaId",
+                    details.session,
+                )
+                .put(
+                    "mediaKind",
+                    "anime",
+                )
+                .put(
+                    "animeSession",
+                    details.session,
+                )
+                .put("title", details.title)
+
+        val metadata =
+            buildList {
+                details.type
+                    .takeIf { it.isNotBlank() }
+                    ?.let {
+                        add(
+                            nightMetadata(
+                                "Type",
+                                it,
+                            )
+                        )
+                    }
+                details.status
+                    .takeIf { it.isNotBlank() }
+                    ?.let {
+                        add(
+                            nightMetadata(
+                                "Status",
+                                it,
+                            )
+                        )
+                    }
+                details.studios
+                    .takeIf { it.isNotBlank() }
+                    ?.let {
+                        add(
+                            nightMetadata(
+                                "Studios",
+                                it,
+                            )
+                        )
+                    }
+                details.season
+                    .takeIf { it.isNotBlank() }
+                    ?.let {
+                        add(
+                            nightMetadata(
+                                "Season",
+                                it,
+                            )
+                        )
+                    }
+                details.genres
+                    .takeIf { it.isNotEmpty() }
+                    ?.let {
+                        add(
+                            nightMetadata(
+                                "Genres",
+                                it.joinToString(", "),
+                            )
+                        )
+                    }
+            }
+
+        return nightExtensionMessage(
+            extensionId = EXTENSION_ID,
+            messageType = TYPE_DETAILS,
+            template = "media_card",
+            extensionName = EXTENSION_NAME,
+            title = details.title,
+            subtitle =
+                listOf(
+                    details.type,
+                    details.season,
+                )
+                    .filter { it.isNotBlank() }
+                    .joinToString(" • "),
+            body = details.summary,
+            artworkPath = details.poster,
+            badge = details.status,
+            metadata = metadata,
+            actions =
+                listOf(
+                    nightAction(
                         id = ACTION_EPISODES,
                         label = "Episodes",
                         style = "primary",
@@ -703,6 +1053,91 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                         requiresExtension = false,
                     ),
                 ),
+            extensionPayload = payload,
+        )
+    }
+
+    private fun episodeNavigationCard(
+        animeSession: String,
+        title: String,
+        page: Int,
+        offset: Int,
+        pageItemCount: Int,
+        lastPage: Int,
+        hasPrevious: Boolean,
+        hasNext: Boolean,
+    ): JSONObject {
+        val start =
+            if (pageItemCount == 0) {
+                0
+            } else {
+                offset + 1
+            }
+        val end =
+            (offset + MAX_MESSAGES_PER_RESULT)
+                .coerceAtMost(pageItemCount)
+
+        val payload =
+            JSONObject()
+                .put(
+                    "animeSession",
+                    animeSession,
+                )
+                .put("title", title)
+                .put("page", page)
+                .put("offset", offset)
+                .put(
+                    "pageItemCount",
+                    pageItemCount,
+                )
+                .put("lastPage", lastPage)
+
+        val actions =
+            buildList {
+                if (hasPrevious) {
+                    add(
+                        nightAction(
+                            id =
+                                ACTION_EPISODES_PREVIOUS,
+                            label = "Previous",
+                        )
+                    )
+                }
+                if (hasNext) {
+                    add(
+                        nightAction(
+                            id =
+                                ACTION_EPISODES_NEXT,
+                            label = "Next",
+                            style = "primary",
+                        )
+                    )
+                }
+            }
+
+        return nightExtensionMessage(
+            extensionId = EXTENSION_ID,
+            messageType = TYPE_EPISODE_PAGE,
+            template = "media_card",
+            extensionName = EXTENSION_NAME,
+            title = title + " episodes",
+            subtitle =
+                "Page " +
+                    page +
+                    " of " +
+                    lastPage,
+            body =
+                if (pageItemCount == 0) {
+                    "No episodes on this page."
+                } else {
+                    "Showing " +
+                        start +
+                        "–" +
+                        end +
+                        " on this AnimePahe page."
+                },
+            badge = "Episodes",
+            actions = actions,
             extensionPayload = payload,
         )
     }
@@ -1016,6 +1451,7 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                     properties
                         .filterNot {
                             it.first == "page" ||
+                                it.first == "offset" ||
                                 it.first == "title"
                         }
                         .map { it.first }
@@ -1043,17 +1479,23 @@ class AnimePaheNightExtensionService : NightExtensionService() {
         const val EXTENSION_NAME = "AnimePahe"
 
         const val TOOL_SEARCH = "search_anime"
+        const val TOOL_DETAILS = "get_details"
         const val TOOL_EPISODES = "get_episodes"
         const val TOOL_RESOLVE = "resolve_episode"
         const val TOOL_SETTINGS = "show_settings"
 
+        const val ACTION_DETAILS = "details"
         const val ACTION_EPISODES = "episodes"
+        const val ACTION_EPISODES_NEXT = "episodes_next"
+        const val ACTION_EPISODES_PREVIOUS = "episodes_previous"
         const val ACTION_RESOLVE = "resolve_episode"
         const val ACTION_VERIFY = "verify_session"
         const val ACTION_DOWNLOAD = "download_episode"
         const val ACTION_SAVE_CONFIG = "save_config"
 
         const val TYPE_ANIME = "animepahe.anime"
+        const val TYPE_DETAILS = "animepahe.details"
+        const val TYPE_EPISODE_PAGE = "animepahe.episode_page"
         const val TYPE_EPISODE = "animepahe.episode"
         const val TYPE_SOURCE = "animepahe.source"
         const val TYPE_DOWNLOAD = "animepahe.download_status"

@@ -72,6 +72,84 @@ class AnimePaheClientTest {
     }
 
     @Test
+    fun detailsParsesAnimePageMetadata() {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody(
+                    """
+                    <html>
+                      <body>
+                        <div class="title-wrapper">
+                          <h1><span>Bleach</span></h1>
+                        </div>
+                        <div class="anime-poster">
+                          <a href="/posters/bleach.jpg">Poster</a>
+                        </div>
+                        <div class="anime-summary">
+                          Soul Reapers defend the living world.
+                        </div>
+                        <div class="col-sm-4 anime-info">
+                          <p>Type: <a>TV</a></p>
+                          <p>Status: <a>Finished Airing</a></p>
+                          <p>Studios: Pierrot</p>
+                          <p>Season: <a>Fall 2004</a></p>
+                        </div>
+                        <div class="anime-genre">
+                          <ul>
+                            <li>Action</li>
+                            <li>Supernatural</li>
+                          </ul>
+                        </div>
+                      </body>
+                    </html>
+                    """.trimIndent()
+                )
+        )
+
+        val details =
+            client.details(
+                animeSession = "bleach-session",
+                titleHint = "Bleach",
+            )
+
+        assertEquals("Bleach", details.title)
+        assertEquals("TV", details.type)
+        assertEquals(
+            "Finished Airing",
+            details.status,
+        )
+        assertEquals(
+            "Pierrot",
+            details.studios,
+        )
+        assertEquals(
+            "Fall 2004",
+            details.season,
+        )
+        assertEquals(
+            listOf(
+                "Action",
+                "Supernatural",
+            ),
+            details.genres,
+        )
+        assertTrue(
+            details.poster.orEmpty()
+                .endsWith(
+                    "/posters/bleach.jpg"
+                )
+        )
+
+        val request =
+            server.takeRequest()
+        assertEquals(
+            "/anime/bleach-session",
+            request.path,
+        )
+    }
+
+    @Test
     fun releasesParseEpisodePageAndPagination() {
         server.enqueue(
             MockResponse()
