@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.night.mirrorchess"
-        minSdk = 36
+        minSdk = 26
         targetSdk = 36
         versionCode = 5
         versionName = "1.2.0"
