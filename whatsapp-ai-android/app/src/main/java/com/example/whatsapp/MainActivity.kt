@@ -1,6 +1,7 @@
 package com.example.whatsapp
 
 import android.Manifest
+import android.app.DownloadManager
 import android.content.BroadcastReceiver
 import android.content.Intent
 import android.content.IntentFilter
@@ -9,7 +10,9 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -204,6 +207,7 @@ private fun NightApp(initialChatId: String? = null) {
     var replyingToId by rememberSaveable { mutableStateOf<String?>(null) }
     var choiceOpen by remember { mutableStateOf(false) }
     var mediaViewerPath by rememberSaveable { mutableStateOf<String?>(null) }
+    var remoteMediaItem by remember { mutableStateOf<NightChatMediaItem?>(null) }
     var pdfSheetPath by rememberSaveable { mutableStateOf<String?>(null) }
     var pdfViewerName by rememberSaveable { mutableStateOf<String?>(null) }
     var mediaDraft by remember { mutableStateOf<NightMediaDraft?>(null) }
@@ -1003,6 +1007,7 @@ private fun NightApp(initialChatId: String? = null) {
             }
             "media_viewer" -> {
                 mediaViewerPath = null
+                remoteMediaItem = null
                 screen = "chat"
             }
             "media_compose" -> cancelMediaDraft()
@@ -1061,18 +1066,36 @@ private fun NightApp(initialChatId: String? = null) {
 
         "media_viewer" -> {
             val pathToShow = mediaViewerPath
-            if (pathToShow != null && chatMediaItems.isNotEmpty()) {
-                val initialIndex = chatMediaItems.indexOfFirst { it.localPath == pathToShow }
+            val remoteItem = remoteMediaItem
+            val viewerItems =
+                if (remoteItem != null) {
+                    listOf(remoteItem)
+                } else {
+                    chatMediaItems
+                }
+            if (pathToShow != null && viewerItems.isNotEmpty()) {
+                val initialIndex = viewerItems.indexOfFirst { it.localPath == pathToShow }
                     .takeIf { it >= 0 }
                     ?: 0
                 NightMediaViewerScreen(
-                    items = chatMediaItems,
+                    items = viewerItems,
                     initialIndex = initialIndex,
                     onBack = {
                         mediaViewerPath = null
+                        remoteMediaItem = null
                         screen = "chat"
                     },
                     onEdit = { item ->
+                        if (
+                            item.localPath.startsWith("http://") ||
+                            item.localPath.startsWith("https://")
+                        ) {
+                            Toast.makeText(
+                                context,
+                                "Download remote media before editing it.",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        } else {
                         val source = File(item.localPath)
                         if (!source.exists()) {
                             Toast.makeText(context, "This media is not available locally.", Toast.LENGTH_SHORT).show()
@@ -1124,10 +1147,12 @@ private fun NightApp(initialChatId: String? = null) {
                                 }
                             }
                         }
+                        }
                     },
                 )
             } else {
                 mediaViewerPath = null
+                remoteMediaItem = null
                 screen = "chat"
             }
         }
@@ -1978,6 +2003,116 @@ private fun NightApp(initialChatId: String? = null) {
                         screen = "tabs"
                     }
                     actionId.contains("summary") -> screen = "chat_memory"
+
+                    NightExtensionStandardActions
+                        .isPlaybackAction(actionId) -> {
+                        scope.launch {
+                            val existing =
+                                repository.getMessage(messageId) ?: return@launch
+                            if (existing.type != "extension") return@launch
+                            val snapshot =
+                                ExtensionMessageCodec.decode(existing.payloadJson)
+                                    ?: return@launch
+                            val payload =
+                                runCatching {
+                                    JSONObject(snapshot.extensionPayloadJson)
+                                }.getOrElse { JSONObject() }
+                            val url =
+                                payload.optString("mediaUrl")
+                                    .trim()
+                                    .takeIf {
+                                        it.startsWith("https://") ||
+                                            it.startsWith("http://")
+                                    }
+                            if (url == null) {
+                                Toast.makeText(
+                                    context,
+                                    "This extension did not provide a playable media URL.",
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                                return@launch
+                            }
+
+                            val headers =
+                                buildMap<String, String> {
+                                    payload.optJSONObject("headers")
+                                        ?.let { raw ->
+                                            raw.keys().forEach { key ->
+                                                val value =
+                                                    raw.optString(key).trim()
+                                                if (
+                                                    key.isNotBlank() &&
+                                                    value.isNotBlank()
+                                                ) {
+                                                    put(key, value)
+                                                }
+                                            }
+                                        }
+                                }
+                            val title =
+                                payload.optString("title")
+                                    .trim()
+                                    .ifBlank { snapshot.title }
+                            val mimeType =
+                                payload.optString("mimeType")
+                                    .trim()
+                                    .ifBlank { "video/mp4" }
+
+                            if (
+                                actionId ==
+                                    NightExtensionStandardActions.PLAY_MEDIA
+                            ) {
+                                remoteMediaItem =
+                                    NightChatMediaItem(
+                                        id = "remote:" + messageId,
+                                        localPath = url,
+                                        mimeType = mimeType,
+                                        caption = title,
+                                        sender = snapshot.extensionName,
+                                        requestHeaders = headers,
+                                    )
+                                mediaViewerPath = url
+                                screen = "media_viewer"
+                            } else {
+                                val safeName =
+                                    payload.optString("fileName")
+                                        .trim()
+                                        .ifBlank { title + ".mp4" }
+                                        .replace(
+                                            Regex("[^A-Za-z0-9._ -]+"),
+                                            "_",
+                                        )
+                                        .take(160)
+                                        .ifBlank { "Night download.mp4" }
+                                val request =
+                                    DownloadManager.Request(Uri.parse(url))
+                                        .setTitle(title)
+                                        .setMimeType(mimeType)
+                                        .setNotificationVisibility(
+                                            DownloadManager.Request
+                                                .VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                                        )
+                                        .setDestinationInExternalFilesDir(
+                                            context,
+                                            Environment.DIRECTORY_DOWNLOADS,
+                                            safeName,
+                                        )
+                                headers.forEach { (key, value) ->
+                                    request.addRequestHeader(key, value)
+                                }
+                                val manager =
+                                    context.getSystemService(
+                                        android.content.Context.DOWNLOAD_SERVICE
+                                    ) as DownloadManager
+                                manager.enqueue(request)
+                                Toast.makeText(
+                                    context,
+                                    "Download started.",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        }
+                    }
 
                     NightExtensionStandardActions
                         .isMediaCollectionAction(actionId) -> {
