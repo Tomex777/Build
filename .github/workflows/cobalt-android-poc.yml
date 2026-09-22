@@ -186,12 +186,21 @@ jobs:
             adb logcat -c
             adb shell am start -W -n com.tomex.cobaltandroid/.MainActivity
             sleep 8
-            adb logcat -d -v threadtime > cobalt-android-poc/full-logcat.txt
-            grep -E 'CobaltPOC|AndroidRuntime|System\\$Logger|ClassNotFoundException|NoClassDefFoundError' cobalt-android-poc/full-logcat.txt > cobalt-android-poc/runtime-log.txt || true
+
+            # Capture the app's visible probe result first. Some API 36 emulator
+            # runs occasionally make `adb logcat -d` exit 255 even though the
+            # device and app are healthy, so logcat must not be able to hide the
+            # actual runtime result.
             adb shell uiautomator dump /sdcard/cobalt-window.xml || true
             adb pull /sdcard/cobalt-window.xml cobalt-android-poc/window.xml || true
-            cat cobalt-android-poc/runtime-log.txt
+
+            adb logcat -d -v threadtime > cobalt-android-poc/full-logcat.txt || true
+            grep -E 'CobaltPOC|AndroidRuntime|System\\$Logger|ClassNotFoundException|NoClassDefFoundError|NoSuchMethodError|UnsatisfiedLinkError' cobalt-android-poc/full-logcat.txt > cobalt-android-poc/runtime-log.txt || true
+
+            echo "=== Visible probe ==="
             cat cobalt-android-poc/window.xml || true
+            echo "=== Filtered log ==="
+            cat cobalt-android-poc/runtime-log.txt || true
 
       - name: Summarize runtime probe
         if: always()
