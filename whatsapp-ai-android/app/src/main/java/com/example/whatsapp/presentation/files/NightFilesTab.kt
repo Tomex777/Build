@@ -4,6 +4,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AudioFile
@@ -44,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -69,6 +73,7 @@ fun NightFilesTab(
     onTabSelected: (MainTab) -> Unit,
     onSettingsClick: () -> Unit,
     onScriptsClick: () -> Unit,
+    onFileOpen: (NightLibraryItemEntity) -> Unit = {},
     accentColor: Color = Color(0xFFD44368),
 ) {
     val context = LocalContext.current
@@ -77,6 +82,23 @@ fun NightFilesTab(
     val scope = rememberCoroutineScope()
     val files by repository.observeLibrary().collectAsState(initial = emptyList())
     var libraryReady by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    var typeFilter by remember { mutableStateOf("All") }
+
+    val filteredFiles = remember(files, query, typeFilter) {
+        val needle = query.trim().lowercase()
+        files
+            .filter { file ->
+                val matchesQuery =
+                    needle.isBlank() ||
+                        file.name.lowercase().contains(needle) ||
+                        file.mimeType.lowercase().contains(needle)
+                val matchesType =
+                    typeFilter == "All" || libraryCategory(file) == typeFilter
+                matchesQuery && matchesType
+            }
+            .sortedByDescending { it.createdAt }
+    }
 
     LaunchedEffect(Unit) {
         libraryStore.migrateLegacy()
@@ -99,6 +121,7 @@ fun NightFilesTab(
         title = "Library",
         onSettingsClick = onSettingsClick,
         showCamera = false,
+        showSearch = false,
         accentColor = accentColor,
         floatingAction = {
             FloatingActionButton(
@@ -126,6 +149,14 @@ fun NightFilesTab(
                 onClick = onScriptsClick,
             )
 
+            LibrarySearchAndFilters(
+                query = query,
+                onQueryChange = { query = it },
+                selectedType = typeFilter,
+                onTypeSelected = { typeFilter = it },
+                accentColor = accentColor,
+            )
+
             when {
                 !libraryReady -> {
                     Box(
@@ -147,7 +178,23 @@ fun NightFilesTab(
                     )
                 }
 
+                filteredFiles.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "No Library files match this view",
+                            color = Secondary,
+                            fontSize = 12.sp,
+                        )
+                    }
+                }
+
                 else -> {
+                    val datedFiles = filteredFiles.groupBy {
+                        DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(it.createdAt))
+                    }
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
@@ -158,32 +205,105 @@ fun NightFilesTab(
                         ),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        items(files, key = { it.id }) { file ->
-                            val readableManga = NightMihonArchiveLoader.isSupportedArchive(
-                                fileName = file.name,
-                                mimeType = file.mimeType,
-                            )
-                            LibraryFileRow(
-                                file = file,
-                                readableManga = readableManga,
-                                accentColor = accentColor,
-                                onClick = {
-                                    if (readableManga) {
-                                        context.startActivity(
-                                            NightMihonReaderActivity.archiveIntent(
-                                                context = context,
-                                                localPath = file.localPath,
-                                                displayName = file.name,
+                        datedFiles.forEach { (dateLabel, datedGroup) ->
+                            item(key = "date_" + dateLabel) {
+                                Text(
+                                    text = dateLabel,
+                                    color = Secondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 2.dp),
+                                )
+                            }
+                            items(datedGroup, key = { it.id }) { file ->
+                                val readableManga = NightMihonArchiveLoader.isSupportedArchive(
+                                    fileName = file.name,
+                                    mimeType = file.mimeType,
+                                )
+                                LibraryFileRow(
+                                    file = file,
+                                    readableManga = readableManga,
+                                    accentColor = accentColor,
+                                    onClick = {
+                                        if (readableManga) {
+                                            context.startActivity(
+                                                NightMihonReaderActivity.archiveIntent(
+                                                    context = context,
+                                                    localPath = file.localPath,
+                                                    displayName = file.name,
+                                                )
                                             )
-                                        )
-                                    }
-                                },
-                            )
+                                        } else {
+                                            onFileOpen(file)
+                                        }
+                                    },
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LibrarySearchAndFilters(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    selectedType: String,
+    onTypeSelected: (String) -> Unit,
+    accentColor: Color,
+) {
+    Row(
+        modifier = Modifier
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .fillMaxWidth()
+            .height(44.dp)
+            .background(SurfaceDark, RoundedCornerShape(22.dp))
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BasicTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            singleLine = true,
+            textStyle = TextStyle(color = Primary, fontSize = 13.sp),
+            modifier = Modifier.weight(1f),
+            decorationBox = { inner ->
+                if (query.isEmpty()) {
+                    Text("Search Library", color = Secondary, fontSize = 13.sp)
+                }
+                inner()
+            },
+        )
+    }
+
+    Row(
+        modifier = Modifier
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 12.dp, vertical = 3.dp),
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        listOf("All", "Images", "Video", "Audio", "PDF", "Text", "Manga", "Other")
+            .forEach { type ->
+                Surface(
+                    color = if (selectedType == type) {
+                        accentColor.copy(alpha = 0.18f)
+                    } else {
+                        SurfaceDark
+                    },
+                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.clickable { onTypeSelected(type) },
+                ) {
+                    Text(
+                        text = type,
+                        color = if (selectedType == type) accentColor else Secondary,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                    )
+                }
+            }
     }
 }
 
@@ -318,7 +438,7 @@ private fun LibraryFileRow(
         shape = RoundedCornerShape(15.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = readableManga, onClick = onClick),
+            .clickable(onClick = onClick),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
@@ -374,6 +494,36 @@ private fun LibraryFileRow(
                 )
             }
         }
+    }
+}
+
+private fun libraryCategory(file: NightLibraryItemEntity): String {
+    if (
+        NightMihonArchiveLoader.isSupportedArchive(
+            fileName = file.name,
+            mimeType = file.mimeType,
+        )
+    ) {
+        return "Manga"
+    }
+    val mime = file.mimeType.lowercase()
+    val name = file.name.lowercase()
+    return when {
+        mime.startsWith("image/") -> "Images"
+        mime.startsWith("video/") -> "Video"
+        mime.startsWith("audio/") -> "Audio"
+        mime.contains("pdf") || name.endsWith(".pdf") -> "PDF"
+        mime.startsWith("text/") ||
+            name.endsWith(".txt") ||
+            name.endsWith(".md") ||
+            name.endsWith(".js") ||
+            name.endsWith(".jsx") ||
+            name.endsWith(".css") ||
+            name.endsWith(".html") ||
+            name.endsWith(".json") ||
+            name.endsWith(".kt") ||
+            name.endsWith(".java") -> "Text"
+        else -> "Other"
     }
 }
 

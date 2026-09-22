@@ -92,6 +92,8 @@ import com.example.whatsapp.presentation.chatscreen.ReplyKind
 import com.example.whatsapp.presentation.chatscreen.ReplyPreview
 import com.example.whatsapp.presentation.chatscreen.WhatsAppVisualMessage
 import com.example.whatsapp.presentation.files.NightFilesTab
+import com.example.whatsapp.presentation.files.NightLibraryAudioScreen
+import com.example.whatsapp.presentation.files.NightLibraryTextEditorScreen
 import com.example.whatsapp.presentation.profile.NightAiSelectorScreen
 import com.example.whatsapp.presentation.profile.NightAppearanceScreen
 import com.example.whatsapp.presentation.profile.NightCapabilityRoutesScreen
@@ -212,6 +214,9 @@ private fun NightApp(initialChatId: String? = null) {
     var remoteMediaItem by remember { mutableStateOf<NightChatMediaItem?>(null) }
     var pdfSheetPath by rememberSaveable { mutableStateOf<String?>(null) }
     var pdfViewerName by rememberSaveable { mutableStateOf<String?>(null) }
+    var libraryTextFile by remember { mutableStateOf<NightLibraryItemEntity?>(null) }
+    var libraryAudioFile by remember { mutableStateOf<NightLibraryItemEntity?>(null) }
+    var mediaViewerReturnScreen by rememberSaveable { mutableStateOf("chat") }
     var mediaDraft by remember { mutableStateOf<NightMediaDraft?>(null) }
     var mediaCaption by rememberSaveable { mutableStateOf("") }
     var pdfDraft by remember { mutableStateOf<NightPdfDraft?>(null) }
@@ -1029,7 +1034,17 @@ private fun NightApp(initialChatId: String? = null) {
             "media_viewer" -> {
                 mediaViewerPath = null
                 remoteMediaItem = null
-                screen = "chat"
+                screen = mediaViewerReturnScreen
+            }
+            "library_text" -> {
+                libraryTextFile = null
+                screen = "tabs"
+            }
+            "library_audio" -> {
+                libraryAudioFile = null
+                activePlayer?.pause()
+                audioIsPlaying = false
+                screen = "tabs"
             }
             "media_compose" -> cancelMediaDraft()
             "pdf_compose" -> cancelPdfDraft()
@@ -1041,6 +1056,48 @@ private fun NightApp(initialChatId: String? = null) {
     }
 
     when (screen) {
+        "library_text" -> {
+            val file = libraryTextFile
+            if (file != null) {
+                NightLibraryTextEditorScreen(
+                    localPath = file.localPath,
+                    displayName = file.name,
+                    onBack = {
+                        libraryTextFile = null
+                        screen = "tabs"
+                    },
+                )
+            } else {
+                screen = "tabs"
+            }
+        }
+
+        "library_audio" -> {
+            val file = libraryAudioFile
+            if (file != null) {
+                NightLibraryAudioScreen(
+                    displayName = file.name,
+                    isPlaying = activeAudioPath == file.localPath && audioIsPlaying,
+                    progress = if (activeAudioPath == file.localPath) audioProgress else 0f,
+                    positionLabel = if (activeAudioPath == file.localPath) {
+                        audioPositionLabel
+                    } else {
+                        "0:00"
+                    },
+                    onToggle = { playAudio(file.localPath) },
+                    onSeek = { seekAudio(file.localPath, it) },
+                    onBack = {
+                        libraryAudioFile = null
+                        activePlayer?.pause()
+                        audioIsPlaying = false
+                        screen = "tabs"
+                    },
+                )
+            } else {
+                screen = "tabs"
+            }
+        }
+
         "pdf_compose" -> {
             val draft = pdfDraft
             if (draft != null) {
@@ -1105,7 +1162,7 @@ private fun NightApp(initialChatId: String? = null) {
                     onBack = {
                         mediaViewerPath = null
                         remoteMediaItem = null
-                        screen = "chat"
+                        screen = mediaViewerReturnScreen
                     },
                     onEdit = { item ->
                         if (
@@ -2114,6 +2171,7 @@ private fun NightApp(initialChatId: String? = null) {
                                         requestHeaders = headers,
                                     )
                                 mediaViewerPath = url
+                                mediaViewerReturnScreen = "chat"
                                 screen = "media_viewer"
                             } else {
                                 val safeName =
@@ -2353,10 +2411,12 @@ private fun NightApp(initialChatId: String? = null) {
             onCancelReply = { replyingToId = null },
             onImageClick = { path ->
                 mediaViewerPath = path
+                mediaViewerReturnScreen = "chat"
                 screen = "media_viewer"
             },
             onVideoClick = { path ->
                 mediaViewerPath = path
+                mediaViewerReturnScreen = "chat"
                 screen = "media_viewer"
             },
             onLinkClick = { url ->
@@ -2522,6 +2582,66 @@ private fun NightApp(initialChatId: String? = null) {
                 },
                 onSettingsClick = { screen = "settings" },
                 onScriptsClick = { screen = "scripts" },
+                onFileOpen = { file ->
+                    val mime = file.mimeType.lowercase()
+                    val name = file.name.lowercase()
+                    when {
+                        mime.startsWith("image/") || mime.startsWith("video/") -> {
+                            remoteMediaItem = NightChatMediaItem(
+                                id = "library:" + file.id,
+                                localPath = file.localPath,
+                                mimeType = file.mimeType,
+                                caption = file.name,
+                                sender = "Library",
+                            )
+                            mediaViewerPath = file.localPath
+                            mediaViewerReturnScreen = "tabs"
+                            screen = "media_viewer"
+                        }
+                        mime.contains("pdf") || name.endsWith(".pdf") -> {
+                            pdfSheetPath = file.localPath
+                            pdfViewerName = file.name
+                        }
+                        mime.startsWith("audio/") -> {
+                            libraryAudioFile = file
+                            screen = "library_audio"
+                        }
+                        mime.startsWith("text/") ||
+                            name.endsWith(".txt") ||
+                            name.endsWith(".md") ||
+                            name.endsWith(".js") ||
+                            name.endsWith(".jsx") ||
+                            name.endsWith(".css") ||
+                            name.endsWith(".html") ||
+                            name.endsWith(".json") ||
+                            name.endsWith(".kt") ||
+                            name.endsWith(".java") -> {
+                            libraryTextFile = file
+                            screen = "library_text"
+                        }
+                        else -> {
+                            val source = File(file.localPath)
+                            runCatching {
+                                val uri = FileProvider.getUriForFile(
+                                    context,
+                                    context.packageName + ".files",
+                                    source,
+                                )
+                                context.startActivity(
+                                    Intent(Intent.ACTION_VIEW)
+                                        .setDataAndType(uri, file.mimeType)
+                                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                )
+                            }.onFailure {
+                                Toast.makeText(
+                                    context,
+                                    "No viewer is available for this file type.",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        }
+                    }
+                },
             )
 
             MainTab.You -> NightYouTab(
