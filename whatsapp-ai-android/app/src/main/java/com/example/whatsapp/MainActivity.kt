@@ -91,6 +91,7 @@ import com.example.whatsapp.presentation.profile.NightChatFilesScreen
 import com.example.whatsapp.presentation.profile.NightChatSearchScreen
 import com.example.whatsapp.presentation.profile.NightMemoryScreen
 import com.example.whatsapp.presentation.profile.NightExtensionsScreen
+import com.example.whatsapp.presentation.profile.NightIntegrationsScreen
 import com.example.whatsapp.presentation.profile.NightMcpServersScreen
 import com.example.whatsapp.presentation.profile.NightLiveVoiceScreen
 import com.example.whatsapp.presentation.profile.NightProfileScreen
@@ -1138,6 +1139,118 @@ private fun NightApp(initialChatId: String? = null) {
             },
         )
 
+        "integrations" -> NightIntegrationsScreen(
+            extensions = extensions,
+            servers = mcpServers,
+            onBack = { screen = "providers" },
+            onRefresh = {
+                scope.launch {
+                    runCatching {
+                        extensionManager.refreshInstalledExtensions()
+                        mcpManager.refresh()
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not refresh integrations.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onSetExtensionEnabled = { extension, enabled ->
+                scope.launch {
+                    runCatching {
+                        extensionManager.setEnabled(
+                            extension = extension,
+                            enabled = enabled,
+                        )
+                    }.onSuccess {
+                        Toast.makeText(
+                            context,
+                            extension.displayName +
+                                if (enabled) " enabled." else " disabled.",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not update integration.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onSaveMcp = { existingId, name, endpoint, token, clearToken, enabled ->
+                scope.launch {
+                    runCatching {
+                        mcpManager.save(
+                            existingId = existingId,
+                            displayName = name,
+                            endpoint = endpoint,
+                            bearerToken = token,
+                            clearBearerToken = clearToken,
+                            enabled = enabled,
+                        )
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not save MCP integration.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onSetMcpEnabled = { state, enabled ->
+                scope.launch {
+                    runCatching {
+                        mcpManager.setEnabled(
+                            state.config.id,
+                            enabled,
+                        )
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not update integration.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+            onReconnectMcp = { state ->
+                scope.launch {
+                    mcpManager.reconnect(state.config.id)
+                        .onSuccess { count ->
+                            Toast.makeText(
+                                context,
+                                state.config.displayName + " connected • " +
+                                    count + if (count == 1) " tool" else " tools",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                        .onFailure { error ->
+                            Toast.makeText(
+                                context,
+                                error.message ?: "Could not connect MCP integration.",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                }
+            },
+            onDeleteMcp = { state ->
+                scope.launch {
+                    runCatching {
+                        mcpManager.delete(state.config.id)
+                    }.onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "Could not delete integration.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            },
+        )
+
         "extensions" -> NightExtensionsScreen(
             extensions = extensions,
             onBack = { screen = "providers" },
@@ -1270,8 +1383,8 @@ private fun NightApp(initialChatId: String? = null) {
             models = providerModels,
             onBack = { screen = "tabs" },
             onCapabilityRoutingClick = { screen = "capability_routes" },
-            onMcpServersClick = { screen = "mcp_servers" },
-            onExtensionsClick = { screen = "extensions" },
+            onMcpServersClick = { screen = "integrations" },
+            onExtensionsClick = { screen = "integrations" },
             onAddProfile = { provider, service, name, key, endpoint, region, language, voiceName, makeDefault ->
                 scope.launch {
                     runCatching {
