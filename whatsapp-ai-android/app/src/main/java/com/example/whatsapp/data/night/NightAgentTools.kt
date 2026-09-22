@@ -320,10 +320,13 @@ class NightAgentToolExecutor private constructor(
                 val value = source.optString(index).trim()
                 if (value.isNotBlank()) add(value)
             }
-        }.distinct().take(6)
+        }.distinct().take(8)
         require(values.size >= 2) { "At least two options are required." }
 
-        val payload = JSONObject().put("options", JSONArray(values))
+        val multiple = args.optBoolean("multiple", false)
+        val payload = JSONObject()
+            .put("options", JSONArray(values))
+            .put("multiple", multiple)
         val message = NightMessageEntity(
             id = UUID.randomUUID().toString(),
             chatId = chatId,
@@ -340,6 +343,7 @@ class NightAgentToolExecutor private constructor(
             .put("message_id", message.id)
             .put("title", title)
             .put("options", JSONArray(values))
+            .put("multiple", multiple)
             .toString()
     }
 
@@ -523,7 +527,8 @@ object NightAgentToolSchemas {
             description = "Create Night's interactive single-user Options card when the user needs to choose from a compact set.",
             properties = JSONObject()
                 .put("title", string("Question or choice title."))
-                .put("options", arrayOfStrings("Two to six concise options.")),
+                .put("options", arrayOfStrings("Two to eight concise options."))
+                .put("multiple", boolean("Allow selecting more than one option.")),
             required = listOf("title", "options"),
         ))
         .put(function(
@@ -572,6 +577,11 @@ object NightAgentToolSchemas {
     private fun integer(description: String): JSONObject =
         JSONObject()
             .put("type", "integer")
+            .put("description", description)
+
+    private fun boolean(description: String): JSONObject =
+        JSONObject()
+            .put("type", "boolean")
             .put("description", description)
 
     private fun arrayOfStrings(description: String): JSONObject =

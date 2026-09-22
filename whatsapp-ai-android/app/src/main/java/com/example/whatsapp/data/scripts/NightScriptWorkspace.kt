@@ -371,10 +371,18 @@ class NightScriptWorkspace private constructor(
 
         private val DEFAULT_SCRIPT =
             """
-            // Night script
+            // Night script — plain JavaScript, no Node required.
             //
-            // Command registration/execution is wired into Night's command runtime
-            // separately. This file lives in Night's private Scripts workspace.
+            // Night exposes only its sandboxed APIs. Scripts do not receive Android,
+            // Java or unrestricted filesystem access.
+            night.command({
+              name: "hello",
+              aliases: ["hi"],
+              description: "Say hello from a local Night command",
+              run(ctx) {
+                night.reply("Hey from Night Scripts 👋");
+              }
+            });
 
             """.trimIndent()
 

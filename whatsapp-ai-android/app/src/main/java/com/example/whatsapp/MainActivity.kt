@@ -39,6 +39,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.example.whatsapp.data.NightFileLibrary
 import com.example.whatsapp.data.browser.NightBrowserVerification
+import com.example.whatsapp.data.scripts.NightScriptRuntime
 import com.example.whatsapp.presentation.browser.NightBrowserActivity
 import com.example.whatsapp.data.night.NightAgentToolExecutor
 import com.example.whatsapp.data.night.NightAiGateway
@@ -174,6 +175,7 @@ private fun NightApp(initialChatId: String? = null) {
     val providerManager = remember { NightProviderManager.get(context) }
     val aiGateway = remember { NightAiGateway.get(context) }
     val agentTools = remember { NightAgentToolExecutor.get(context) }
+    val scriptRuntime = remember { NightScriptRuntime.get(context) }
     val extensionManager = remember { NightExternalExtensionManager.get(context) }
     val mcpManager = remember { NightMcpManager.get(context) }
     val appearanceController = remember { NightAppearanceController(repository) }
@@ -1863,15 +1865,47 @@ private fun NightApp(initialChatId: String? = null) {
                 messageText = ""
 
                 scope.launch {
-                    appendTextWithLinkPreview(
-                        repository = repository,
-                        linkPreviewService = linkPreviewService,
-                        chatId = activeChatId,
-                        role = "user",
-                        text = text,
-                        replyToMessageId = replyingToId,
-                    )
+                    val replyId = replyingToId
+                    val userMessage =
+                        if (text.trimStart().startsWith("/")) {
+                            repository.appendText(
+                                chatId = activeChatId,
+                                role = "user",
+                                text = text,
+                                replyToMessageId = replyId,
+                            )
+                        } else {
+                            appendTextWithLinkPreview(
+                                repository = repository,
+                                linkPreviewService = linkPreviewService,
+                                chatId = activeChatId,
+                                role = "user",
+                                text = text,
+                                replyToMessageId = replyId,
+                            )
+                        }
                     replyingToId = null
+
+                    val commandExecution =
+                        scriptRuntime.executeSlashCommand(
+                            chatId = activeChatId,
+                            rawText = text,
+                            invokingMessageId = userMessage.id,
+                        )
+                    if (commandExecution != null) {
+                        directImageMode = false
+                        commandExecution.response
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { response ->
+                                repository.appendText(
+                                    chatId = activeChatId,
+                                    role = "assistant",
+                                    text = response,
+                                    replyToMessageId = userMessage.id,
+                                )
+                            }
+                        return@launch
+                    }
 
                     if (directImageMode) {
                         directImageMode = false
@@ -1976,6 +2010,41 @@ private fun NightApp(initialChatId: String? = null) {
                     ExtensionConfigurationActionCodec.decode(actionId)
 
                 when {
+                    actionId.startsWith("script_command_") -> {
+                        scope.launch {
+                            val existing =
+                                repository.getMessage(messageId)
+                                    ?: return@launch
+                            val payload =
+                                runCatching {
+                                    JSONObject(existing.payloadJson)
+                                }.getOrElse { JSONObject() }
+                            val command =
+                                payload.optJSONObject("scriptCommands")
+                                    ?.optString(actionId)
+                                    ?.trim()
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?: return@launch
+
+                            val execution =
+                                scriptRuntime.executeSlashCommand(
+                                    chatId = activeChatId,
+                                    rawText = command,
+                                    invokingMessageId = existing.id,
+                                )
+                            execution?.response
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let { response ->
+                                    repository.appendText(
+                                        chatId = activeChatId,
+                                        role = "assistant",
+                                        text = response,
+                                        replyToMessageId = existing.id,
+                                    )
+                                }
+                        }
+                    }
+
                     configurationSubmission != null -> {
                         scope.launch {
                             val existing =
@@ -3424,7 +3493,7 @@ private suspend fun appendTextWithLinkPreview(
     role: String,
     text: String,
     replyToMessageId: String? = null,
-) {
+): NightMessageEntity {
     val persisted = repository.appendText(
         chatId = chatId,
         role = role,
@@ -3434,26 +3503,26 @@ private suspend fun appendTextWithLinkPreview(
 
     val preview = runCatching {
         linkPreviewService.resolveFromText(text)
-    }.getOrNull() ?: return
+    }.getOrNull() ?: return persisted
 
     val body = text
         .replace(preview.url, "")
         .replace(Regex("\\s+"), " ")
         .trim()
 
-    repository.replaceMessage(
-        persisted.copy(
-            type = "link",
-            text = body,
-            payloadJson = JSONObject()
-                .put("url", preview.url)
-                .put("title", preview.title)
-                .put("description", preview.description)
-                .put("site", preview.site)
-                .put("imageUrl", preview.imageUrl ?: "")
-                .toString(),
-        )
+    val enriched = persisted.copy(
+        type = "link",
+        text = body,
+        payloadJson = JSONObject()
+            .put("url", preview.url)
+            .put("title", preview.title)
+            .put("description", preview.description)
+            .put("site", preview.site)
+            .put("imageUrl", preview.imageUrl ?: "")
+            .toString(),
     )
+    repository.replaceMessage(enriched)
+    return enriched
 }
 
 private suspend fun streamNightAssistantReply(

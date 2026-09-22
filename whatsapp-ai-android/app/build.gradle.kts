@@ -133,7 +133,7 @@ dependencies {
     // MIT, minSdk 21: embedded PDF rendering/zoom/scroll for Night documents.
     implementation("io.github.afreakyelf:Pdf-Viewer:2.4.0")
 
-    // Night local persistence
+    // Night sandboxed JavaScript command runtime. Rhino runs in interpreter mode on Android.\n    implementation("org.mozilla:rhino:1.9.1")\n\n    // Night local persistence
     implementation("androidx.room:room-runtime:2.7.2")
     implementation("androidx.room:room-ktx:2.7.2")
     kapt("androidx.room:room-compiler:2.7.2")

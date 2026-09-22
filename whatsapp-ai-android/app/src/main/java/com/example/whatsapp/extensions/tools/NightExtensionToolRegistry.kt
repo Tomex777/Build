@@ -108,6 +108,18 @@ object NightExtensionToolRegistry {
     fun extensionIdFor(qualifiedName: String): String? =
         tools[qualifiedName]?.definition?.extensionId
 
+    fun qualifiedNameFor(
+        extensionId: String,
+        toolName: String,
+    ): String? =
+        tools.values
+            .firstOrNull {
+                it.definition.extensionId == extensionId &&
+                    it.definition.name == toolName
+            }
+            ?.definition
+            ?.qualifiedName
+
     fun definition(qualifiedName: String): NightExtensionToolDefinition? =
         tools[qualifiedName]?.definition
 
