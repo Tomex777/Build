@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.whatsapp.extensions.runtime.NightInstalledExtensionSummary
+import com.example.whatsapp.extensions.runtime.asNightIntegration
 
 private val ExtensionBg = Color(0xFF0B0F11)
 private val ExtensionText = Color(0xFFE7EAEC)
@@ -214,102 +215,21 @@ private fun ExtensionRow(
     extension: NightInstalledExtensionSummary,
     onToggle: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(5.dp),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(
-                    text = extension.displayName,
-                    color =
-                        if (extension.enabled) {
-                            ExtensionText
-                        } else {
-                            ExtensionMuted
-                        },
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-                Text(
-                    text = extension.packageName,
-                    color = ExtensionMuted,
-                    fontSize = 10.sp,
-                    maxLines = 1,
-                )
-            }
+    val toolLabel =
+        extension.toolCount.toString() +
+            if (extension.toolCount == 1) " tool" else " tools"
+    val messageLabel =
+        extension.messageTypeCount.toString() +
+            if (extension.messageTypeCount == 1) " message type" else " message types"
 
-            TextButton(
-                onClick = onToggle,
-                enabled =
-                    extension.enabled ||
-                        extension.error == null,
-            ) {
-                Text(
-                    text =
-                        if (extension.enabled) {
-                            "Disable"
-                        } else {
-                            "Enable"
-                        },
-                    color =
-                        if (
-                            extension.enabled ||
-                            extension.error == null
-                        ) {
-                            ExtensionAccent
-                        } else {
-                            ExtensionMuted.copy(
-                                alpha = 0.45f,
-                            )
-                        },
-                    fontSize = 11.sp,
-                )
-            }
-        }
-
-        Text(
-            text =
-                extension.toolCount.toString() +
-                    if (extension.toolCount == 1) {
-                        " tool"
-                    } else {
-                        " tools"
-                    } +
-                    " • " +
-                    extension.messageTypeCount +
-                    if (extension.messageTypeCount == 1) {
-                        " message type"
-                    } else {
-                        " message types"
-                    } +
-                    if (extension.enabled) {
-                        " • enabled"
-                    } else {
-                        " • disabled"
-                    },
-            color =
-                if (extension.enabled) {
-                    ExtensionAccent
-                } else {
-                    ExtensionMuted
-                },
-            fontSize = 11.sp,
-        )
-
-        extension.error
-            ?.takeIf { it.isNotBlank() }
-            ?.let { error ->
-                Text(
-                    text = error,
-                    color = Color(0xFFFF8A92),
-                    fontSize = 10.sp,
-                    lineHeight = 14.sp,
-                )
-            }
-    }
+    NightIntegrationRow(
+        integration = extension.asNightIntegration(),
+        secondaryText = extension.packageName,
+        statusText =
+            toolLabel + " • " + messageLabel +
+                if (extension.enabled) " • enabled" else " • disabled",
+        onToggle = onToggle,
+        toggleEnabled = extension.enabled || extension.error == null,
+        statusAccent = extension.enabled,
+    )
 }
