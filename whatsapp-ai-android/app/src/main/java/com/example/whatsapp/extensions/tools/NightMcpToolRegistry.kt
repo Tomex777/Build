@@ -86,6 +86,9 @@ object NightMcpToolRegistry {
     fun contains(qualifiedName: String): Boolean =
         tools.containsKey(qualifiedName)
 
+    fun definition(qualifiedName: String): NightMcpToolDefinition? =
+        tools[qualifiedName]?.definition
+
     fun isSideEffect(qualifiedName: String): Boolean =
         tools[qualifiedName]?.definition?.readOnly == false
 
