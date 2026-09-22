@@ -53,19 +53,7 @@ data class NightIntegrationManifest(
                 }
 
             val capabilities =
-                buildSet {
-                    json.optJSONArray("capabilities")?.let { array ->
-                        for (index in 0 until array.length()) {
-                            NightIntegrationCapability
-                                .fromWireName(array.optString(index))
-                                ?.let(::add)
-                        }
-                    }
-                    json.optString("category")
-                        .takeIf { it.isNotBlank() }
-                        ?.let(NightIntegrationCapability::fromWireName)
-                        ?.let(::add)
-                }
+                NightIntegrationCapability.fromDescriptor(json)
 
             return NightIntegrationManifest(
                 id = id,
