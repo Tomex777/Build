@@ -348,9 +348,18 @@ class NightMediaDownloader(
                     "HTTP " + response.code + " from " + response.request.url.host
                 )
             }
-            val source = response.body?.source() ?: return ""
-            val bytes = source.readByteArray(maxBytes.toLong())
-            return bytes.toString(Charsets.UTF_8)
+            val input = response.body?.byteStream() ?: return ""
+            input.use { stream ->
+                val buffer = ByteArray(maxBytes)
+                var total = 0
+                while (total < maxBytes) {
+                    val read = stream.read(buffer, total, maxBytes - total)
+                    if (read < 0) break
+                    if (read == 0) continue
+                    total += read
+                }
+                return String(buffer, 0, total, Charsets.UTF_8)
+            }
         }
     }
 
