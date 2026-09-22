@@ -71,6 +71,33 @@ class NightBrowserSpecTest {
     }
 
     @Test
+    fun generalBrowserAllowsAnyHttpHostButStillRejectsUnsafeSchemes() {
+        val spec = NightBrowserSpec.general(
+            initialUrl = "https://example.com/",
+        )
+
+        assertFalse(spec.restrictedToAllowedHosts)
+        assertTrue(spec.isAllowedUrl("https://openai.com/"))
+        assertTrue(spec.isAllowedUrl("http://example.org/path"))
+        assertFalse(spec.isAllowedUrl("javascript:alert(1)"))
+        assertFalse(spec.isAllowedUrl("file:///sdcard/test.html"))
+        assertFalse(spec.isAllowedUrl("https://user@example.com/private"))
+    }
+
+    @Test
+    fun verificationBrowserRemainsRestrictedByDefault() {
+        val spec = NightBrowserSpec(
+            sessionId = "verification",
+            initialUrl = "https://anime.example.com/",
+            allowedHosts = listOf("anime.example.com"),
+        )
+
+        assertTrue(spec.restrictedToAllowedHosts)
+        assertTrue(spec.isAllowedUrl("https://anime.example.com/login"))
+        assertFalse(spec.isAllowedUrl("https://example.org/"))
+    }
+
+    @Test
     fun invalidInitialUrlCannotBeSanitized() {
         val invalid = NightBrowserSpec(
             sessionId = "bad",
