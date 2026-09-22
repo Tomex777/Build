@@ -89,7 +89,16 @@ echo
 echo "--- reboot ---"
 adb reboot
 adb wait-for-device
-sleep 10
+
+echo "Waiting for Android boot completion..."
+for i in $(seq 1 120); do
+  BOOTED="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
+  if [[ "$BOOTED" == "1" ]]; then
+    break
+  fi
+  sleep 1
+done
+adb shell cmd package wait-for-handler 60000 >/dev/null 2>&1 || true
 
 echo
 echo "--- package path ---"
@@ -100,8 +109,22 @@ echo "--- package grants ---"
 adb shell dumpsys package "$PKG" | grep -E   "userId=|pkgFlags=|privateFlags=|CAPTURE_SECURE_VIDEO_OUTPUT|CAPTURE_VIDEO_OUTPUT|CAPTURE_BLACKOUT_CONTENT|READ_FRAME_BUFFER" || true
 
 echo
-echo "--- launch ---"
-adb shell am start -n "$PKG/.SystemLabActivity" || true
+echo "--- launcher resolution ---"
+adb shell cmd package resolve-activity --brief \
+  -a android.intent.action.MAIN \
+  -c android.intent.category.LAUNCHER \
+  "$PKG" || true
 
 echo
-echo "RESULT: completed privileged install probe."
+echo "--- launch + autorun secure-display self-test ---"
+adb logcat -c || true
+adb shell am start -W -n "$PKG/com.tomex.securerenderlab.system.SystemLabActivity" \
+  --ez autorun true || true
+sleep 6
+
+echo
+echo "--- Secure Rendering System Lab logs ---"
+adb logcat -d -s SecureRenderingLabSys:I '*:S' || true
+
+echo
+echo "RESULT: completed privileged install + secure-display self-test probe."

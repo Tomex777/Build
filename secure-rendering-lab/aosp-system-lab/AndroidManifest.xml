@@ -16,7 +16,7 @@
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
         <activity
-            android:name=".SystemLabActivity"
+            android:name="com.tomex.securerenderlab.system.SystemLabActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
