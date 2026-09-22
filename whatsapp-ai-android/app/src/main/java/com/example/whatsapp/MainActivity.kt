@@ -201,6 +201,9 @@ private fun NightApp(initialChatId: String? = null) {
     var renameOpen by remember { mutableStateOf(false) }
     var renameValue by rememberSaveable { mutableStateOf("") }
     var isRecording by remember { mutableStateOf(false) }
+    var recordingLevels by remember { mutableStateOf<List<Float>>(emptyList()) }
+    var recordingStartedAt by remember { mutableStateOf(0L) }
+    var recordingElapsedMs by remember { mutableStateOf(0L) }
     var activePlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     var activeAudioPath by remember { mutableStateOf<String?>(null) }
     var audioIsPlaying by remember { mutableStateOf(false) }
@@ -261,6 +264,15 @@ private fun NightApp(initialChatId: String? = null) {
 
     LaunchedEffect(activeChatId) {
         directImageMode = false
+    }
+
+    LaunchedEffect(isRecording, recordingStartedAt) {
+        if (!isRecording || recordingStartedAt <= 0L) return@LaunchedEffect
+        while (isRecording) {
+            recordingElapsedMs =
+                (System.currentTimeMillis() - recordingStartedAt).coerceAtLeast(0L)
+            delay(100L)
+        }
     }
 
     val displayName = profile?.displayName ?: "Dawson"
@@ -425,6 +437,9 @@ private fun NightApp(initialChatId: String? = null) {
     suspend fun persistVoiceRecording() {
         val recorded = voiceRecorder.stop()
         isRecording = false
+        recordingStartedAt = 0L
+        recordingElapsedMs = 0L
+        recordingLevels = emptyList()
         if (recorded == null) {
             Toast.makeText(context, "Voice recording was too short.", Toast.LENGTH_SHORT).show()
             return
@@ -453,10 +468,14 @@ private fun NightApp(initialChatId: String? = null) {
                 sourceMessageId = messageId,
             )
         )
+        val waveformJson = JSONArray().apply {
+            recorded.waveform.forEach { put(it.toDouble()) }
+        }
         val initialPayload = JSONObject()
             .put("localPath", saved.localPath)
             .put("duration", formatDuration(recorded.durationMs))
             .put("durationMs", recorded.durationMs)
+            .put("waveform", waveformJson)
 
         val voiceMessage = NightMessageEntity(
             id = messageId,
@@ -497,9 +516,21 @@ private fun NightApp(initialChatId: String? = null) {
 
     fun startVoiceRecording() {
         runCatching {
-            voiceRecorder.start()
+            recordingLevels = emptyList()
+            recordingElapsedMs = 0L
+            recordingStartedAt = System.currentTimeMillis()
+            voiceRecorder.start { level ->
+                scope.launch(Dispatchers.Main) {
+                    if (isRecording) {
+                        recordingLevels = (recordingLevels + level).takeLast(48)
+                    }
+                }
+            }
             isRecording = true
         }.onFailure {
+            recordingStartedAt = 0L
+            recordingElapsedMs = 0L
+            recordingLevels = emptyList()
             isRecording = false
             Toast.makeText(
                 context,
@@ -2580,6 +2611,8 @@ private fun NightApp(initialChatId: String? = null) {
             },
             onCameraClick = { cameraLauncher.launch(null) },
             isRecording = isRecording,
+            recordingLevels = recordingLevels,
+            recordingDuration = formatDuration(recordingElapsedMs),
             onMicClick = {
                 if (isRecording) {
                     scope.launch { persistVoiceRecording() }
@@ -3022,16 +3055,26 @@ private fun NightMessageEntity.toVisualMessage(
             reply = reply,
         )
 
-        "voice" -> WhatsAppVisualMessage.VoiceMessage(
-            id = id,
-            duration = payload?.optString("duration").orEmpty().ifBlank { "0:00" },
-            time = time,
-            mine = mine,
-            read = mine,
-            localPath = payload?.optString("localPath")?.takeIf { it.isNotBlank() },
-            transcript = payload?.optString("transcript")?.takeIf { it.isNotBlank() },
-            reply = reply,
-        )
+        "voice" -> {
+            val waveform = buildList {
+                payload?.optJSONArray("waveform")?.let { raw ->
+                    for (index in 0 until raw.length()) {
+                        add(raw.optDouble(index, 0.03).toFloat().coerceIn(0.03f, 1f))
+                    }
+                }
+            }
+            WhatsAppVisualMessage.VoiceMessage(
+                id = id,
+                duration = payload?.optString("duration").orEmpty().ifBlank { "0:00" },
+                time = time,
+                mine = mine,
+                read = mine,
+                localPath = payload?.optString("localPath")?.takeIf { it.isNotBlank() },
+                transcript = payload?.optString("transcript")?.takeIf { it.isNotBlank() },
+                waveform = waveform,
+                reply = reply,
+            )
+        }
 
         "choice" -> {
             val optionsArray = payload?.optJSONArray("options")
