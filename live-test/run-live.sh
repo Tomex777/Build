@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
+
+STAGE="startup"
+trap 'rc=$?; echo "LIVE_HARNESS_ERROR stage=$STAGE line=$LINENO rc=$rc"; exit $rc' ERR
+
+stage() {
+  STAGE="$1"
+  echo "LIVE_HARNESS_STAGE:$STAGE"
+}
 
 publish_one() {
   local path="$1"
@@ -20,6 +28,7 @@ publish_one() {
   return 1
 }
 
+stage "wait-for-encrypted-phone"
 PHONE_PATH="live-test/${SESSION_ID}.phone.enc.b64"
 rm -f /tmp/phone.b64
 for _ in $(seq 1 300); do
@@ -31,6 +40,7 @@ for _ in $(seq 1 300); do
 done
 test -s /tmp/phone.b64
 
+stage "decrypt-phone"
 base64 -d /tmp/phone.b64 > /tmp/phone.enc
 openssl pkeyutl -decrypt \
   -inkey /tmp/runner_private.pem \
@@ -43,7 +53,10 @@ PHONE="$(tr -cd '0-9' < /tmp/phone.txt)"
 [[ "$PHONE" =~ ^[0-9]{8,15}$ ]]
 rm -f /tmp/phone.b64 /tmp/phone.enc /tmp/phone.txt
 
+stage "install-apk"
 adb install -r "$COBALT_APK" >/dev/null
+
+stage "launch-live-activity"
 adb logcat -c || true
 adb shell am start -W \
   -n com.tomex.cobaltandroid/.MainActivity \
@@ -51,6 +64,7 @@ adb shell am start -W \
   --es live_reply "Got your message - Cobalt Android receive/reply test passed." >/dev/null
 unset PHONE
 
+stage "wait-for-pairing-code"
 CODE=""
 for _ in $(seq 1 120); do
   CODE="$(adb logcat -d -s CobaltPOC:I 2>/dev/null | sed -n 's/.*PAIRING_CODE_READY://p' | tail -n 1 | tr -d '\r\n' || true)"
@@ -85,8 +99,10 @@ printf '%s' "$CODE" | openssl pkeyutl -encrypt \
 base64 -w0 /tmp/code.enc > "live-test/${SESSION_ID}.code.enc.b64"
 unset CODE
 rm -f /tmp/code.enc /tmp/cobalt-live.xml
+stage "publish-encrypted-pairing-code"
 publish_one "live-test/${SESSION_ID}.code.enc.b64" "Publish encrypted pairing code ${SESSION_ID}"
 
+stage "wait-for-linked-message-and-reply"
 DONE=0
 for _ in $(seq 1 450); do
   LOG="$(adb logcat -d -s CobaltPOC:I CobaltPOC:E 2>/dev/null || true)"
@@ -101,12 +117,14 @@ for _ in $(seq 1 450); do
 done
 
 if [[ "$DONE" = "1" ]]; then
+  stage "live-test-passed"
   printf 'passed\n' > "live-test/${SESSION_ID}.status.txt"
   publish_one "live-test/${SESSION_ID}.status.txt" "Record successful live test ${SESSION_ID}"
   adb shell am force-stop com.tomex.cobaltandroid || true
   exit 0
 fi
 
+stage "live-test-failed"
 printf 'failed\n' > "live-test/${SESSION_ID}.status.txt"
 publish_one "live-test/${SESSION_ID}.status.txt" "Record failed live test ${SESSION_ID}"
 adb shell am force-stop com.tomex.cobaltandroid || true
