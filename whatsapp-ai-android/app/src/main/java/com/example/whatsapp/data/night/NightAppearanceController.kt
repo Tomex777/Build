@@ -12,6 +12,21 @@ class NightAppearanceController(
         val parsedColor = parseColor(q)
 
         return when {
+            (
+                "theme" in q ||
+                    "accent" in q ||
+                    "app color" in q ||
+                    "app colour" in q
+                ) &&
+                parsedColor != null -> {
+                repository.setAppearance(
+                    current.copy(
+                        accentColor = parsedColor,
+                    )
+                )
+                "Changed Night's app accent."
+            }
+
             ("my bubble" in q || "my bubbles" in q || "user bubble" in q) && parsedColor != null -> {
                 repository.setAppearance(current.copy(userBubbleColor = parsedColor))
                 "Changed your message bubble color."
