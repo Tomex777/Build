@@ -43,6 +43,13 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
           "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
 
+      - name: Guard extensions from launcher
+        run: |
+          if grep -R -n -E 'android.intent.action.MAIN|android.intent.category.LAUNCHER' whatsapp-ai-android/extensions/*/src/main/AndroidManifest.xml; then
+            echo "Night extensions must not expose launcher activities."
+            exit 1
+          fi
+
       - name: Test SDK and AnimePahe extension
         run: |
           cd whatsapp-ai-android
