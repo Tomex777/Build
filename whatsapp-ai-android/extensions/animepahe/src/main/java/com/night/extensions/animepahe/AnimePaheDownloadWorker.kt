@@ -71,6 +71,16 @@ class AnimePaheDownloadQueue(
                         },
                 )
                 .putString(
+                    AnimePaheDownloadWorker.INPUT_ANIME_SESSION,
+                    payload.optString("animeSession")
+                        .trim(),
+                )
+                .putString(
+                    AnimePaheDownloadWorker.INPUT_EPISODE_SESSION,
+                    payload.optString("episodeSession")
+                        .trim(),
+                )
+                .putString(
                     AnimePaheDownloadWorker.INPUT_WORK_KEY,
                     workKey,
                 )
@@ -148,6 +158,18 @@ class AnimePaheDownloadWorker(
                 emptyMap()
             }
 
+        val animeSession =
+            inputData.getString(
+                INPUT_ANIME_SESSION
+            ).orEmpty()
+                .trim()
+
+        val episodeSession =
+            inputData.getString(
+                INPUT_EPISODE_SESSION
+            ).orEmpty()
+                .trim()
+
         val fileName =
             inputData.getString(
                 INPUT_FILE_NAME
@@ -180,18 +202,23 @@ class AnimePaheDownloadWorker(
         )
 
         return try {
-            val result =
+            var downloadRequest =
+                AnimePaheDownloadRequest(
+                    manifestUrl = url,
+                    headers = headers,
+                    fileName = fileName,
+                    workKey = workKey,
+                    parallelism = parallelism,
+                )
+
+            val downloader =
                 AnimePaheHlsDownloader(
                     applicationContext
-                ).download(
-                    request =
-                        AnimePaheDownloadRequest(
-                            manifestUrl = url,
-                            headers = headers,
-                            fileName = fileName,
-                            workKey = workKey,
-                            parallelism = parallelism,
-                        ),
+                )
+
+            suspend fun runDownload(): AnimePaheDownloadResult =
+                downloader.download(
+                    request = downloadRequest,
                 ) { progress ->
                     setProgress(
                         Data.Builder()
@@ -215,6 +242,41 @@ class AnimePaheDownloadWorker(
                             done = false,
                         )
                     )
+                }
+
+            val result =
+                try {
+                    runDownload()
+                } catch (error: java.io.IOException) {
+                    if (
+                        animeSession.isBlank() ||
+                        episodeSession.isBlank() ||
+                        !looksLikeExpiredStream(error)
+                    ) {
+                        throw error
+                    }
+
+                    setForeground(
+                        foregroundInfo(
+                            title =
+                                "Refreshing " +
+                                    title,
+                            progress = 0f,
+                            done = false,
+                        )
+                    )
+
+                    downloadRequest =
+                        refreshResolvedRequest(
+                            current =
+                                downloadRequest,
+                            animeSession =
+                                animeSession,
+                            episodeSession =
+                                episodeSession,
+                        )
+
+                    runDownload()
                 }
 
             notify(
@@ -263,6 +325,69 @@ class AnimePaheDownloadWorker(
             )
             Result.retry()
         }
+    }
+
+    private fun refreshResolvedRequest(
+        current: AnimePaheDownloadRequest,
+        animeSession: String,
+        episodeSession: String,
+    ): AnimePaheDownloadRequest {
+        val store =
+            AnimePaheSessionStore(
+                applicationContext
+            )
+        val client =
+            AnimePaheClient(store)
+        val sources =
+            client.sources(
+                animeSession = animeSession,
+                episodeSession =
+                    episodeSession,
+            )
+        val selected =
+            client.selectPreferredSource(
+                sources
+            )
+        val resolved =
+            PaheBatcherHlsResolver(
+                store
+            ).resolve(
+                source = selected,
+                playUrl =
+                    store.baseUrl() +
+                        "/play/" +
+                        animeSession +
+                        "/" +
+                        episodeSession,
+            )
+
+        return current.copy(
+            manifestUrl = resolved.url,
+            headers = resolved.headers,
+        )
+    }
+
+    private fun looksLikeExpiredStream(
+        error: java.io.IOException,
+    ): Boolean {
+        val message =
+            error.message.orEmpty()
+        return message.contains(
+            "HTTP 403",
+            true,
+        ) ||
+            message.contains(
+                "HTTP 404",
+                true,
+            ) ||
+            message.contains(
+                "HTTP 410",
+                true,
+            ) ||
+            message.contains(
+                "playlist",
+                true,
+            )
     }
 
     private fun foregroundInfo(
@@ -403,6 +528,10 @@ class AnimePaheDownloadWorker(
             "animepahe_download_file_name"
         const val INPUT_TITLE =
             "animepahe_download_title"
+        const val INPUT_ANIME_SESSION =
+            "animepahe_download_anime_session"
+        const val INPUT_EPISODE_SESSION =
+            "animepahe_download_episode_session"
         const val INPUT_WORK_KEY =
             "animepahe_download_work_key"
         const val INPUT_PARALLELISM =
