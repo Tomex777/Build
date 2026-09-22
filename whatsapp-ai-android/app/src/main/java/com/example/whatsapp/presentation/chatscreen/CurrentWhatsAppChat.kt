@@ -78,6 +78,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -107,6 +108,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -298,6 +300,23 @@ fun CurrentWhatsAppConversation(
         }
     }
 
+    val baseDensity = LocalDensity.current
+    val baseTextStyle = LocalTextStyle.current
+    val scaledDensity = remember(
+        baseDensity.density,
+        baseDensity.fontScale,
+        appearance.messageFontScale,
+    ) {
+        Density(
+            density = baseDensity.density,
+            fontScale = baseDensity.fontScale * appearance.messageFontScale,
+        )
+    }
+
+    CompositionLocalProvider(
+        LocalDensity provides scaledDensity,
+        LocalTextStyle provides baseTextStyle.copy(fontFamily = appearance.fontFamily),
+    ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -469,6 +488,7 @@ fun CurrentWhatsAppConversation(
                 )
             }
         }
+    }
     }
 }
 
@@ -1203,7 +1223,7 @@ private fun CurrentFileBubble(
                     Text(
                         text = item.name,
                         color = PrimaryText,
-                        fontSize = (14f * appearance.messageFontScale).sp,
+                        fontSize = 14.sp,
                         fontFamily = appearance.fontFamily,
                         fontWeight = FontWeight.Medium,
                         maxLines = 2,
@@ -1394,8 +1414,8 @@ private fun CurrentLinkPreviewBubble(
                 Text(
                     text = item.body,
                     color = PrimaryText,
-                    fontSize = (14f * appearance.messageFontScale).sp,
-                    lineHeight = (18f * appearance.messageFontScale).sp,
+                    fontSize = 14.sp,
+                    lineHeight = 18.sp,
                     fontFamily = appearance.fontFamily,
                     modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 7.dp),
                 )
@@ -1572,7 +1592,7 @@ private fun CurrentAudioBubble(
                         Text(
                             text = item.title,
                             color = PrimaryText,
-                            fontSize = (15f * appearance.messageFontScale).sp,
+                            fontSize = 15.sp,
                             fontFamily = appearance.fontFamily,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
@@ -2078,7 +2098,7 @@ private fun WhatsAppInlineMessageText(
                         } else {
                             Text(
                                 text = emoji,
-                                fontSize = (14f * appearance.messageFontScale).sp,
+                                fontSize = 14.sp,
                             )
                         }
                     }
@@ -2114,8 +2134,8 @@ private fun WhatsAppInlineMessageText(
         text = annotated,
         inlineContent = inline,
         color = PrimaryText,
-        fontSize = (14f * appearance.messageFontScale).sp,
-        lineHeight = (19f * appearance.messageFontScale).sp,
+        fontSize = 14.sp,
+        lineHeight = 19.sp,
         fontFamily = appearance.fontFamily,
     )
 }
@@ -2237,7 +2257,7 @@ private fun CurrentComposer(
                         Text(
                             text = "Message",
                             color = Color(0xFF8F999E),
-                            fontSize = (16f * appearance.messageFontScale).sp,
+                            fontSize = 16.sp,
                         fontFamily = appearance.fontFamily,
                         )
                     },
@@ -2254,8 +2274,8 @@ private fun CurrentComposer(
                         cursorColor = appearance.accentColor,
                     ),
                     textStyle = LocalTextStyle.current.copy(
-                        fontSize = (16f * appearance.messageFontScale).sp,
-                        lineHeight = (20f * appearance.messageFontScale).sp,
+                        fontSize = 16.sp,
+                        lineHeight = 20.sp,
                         fontFamily = appearance.fontFamily,
                     ),
                 )
