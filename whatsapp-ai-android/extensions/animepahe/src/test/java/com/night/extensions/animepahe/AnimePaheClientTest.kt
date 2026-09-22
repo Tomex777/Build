@@ -231,10 +231,6 @@ class AnimePaheClientTest {
         assertEquals(1080, sources.single().resolution)
         assertEquals("jpn", sources.single().audio)
         assertEquals("SubsPlease", sources.single().fansub)
-        assertEquals(
-            "https://pahe.win/a1",
-            sources.single().downloadPageUrl,
-        )
 
         val request = server.takeRequest()
         assertEquals(
@@ -275,21 +271,18 @@ class AnimePaheClientTest {
                 listOf(
                     AnimePaheSource(
                         kwikUrl = "https://kwik.example/1080",
-                        downloadPageUrl = "https://pahe.win/1080",
                         resolution = 1080,
                         audio = "jpn",
                         fansub = "A",
                     ),
                     AnimePaheSource(
                         kwikUrl = "https://kwik.example/720",
-                        downloadPageUrl = "https://pahe.win/720",
                         resolution = 720,
                         audio = "jpn",
                         fansub = "B",
                     ),
                     AnimePaheSource(
                         kwikUrl = "https://kwik.example/dub",
-                        downloadPageUrl = "https://pahe.win/dub",
                         resolution = 720,
                         audio = "eng",
                         fansub = "C",
@@ -312,14 +305,12 @@ class AnimePaheClientTest {
                 listOf(
                     AnimePaheSource(
                         kwikUrl = "https://kwik.example/1080",
-                        downloadPageUrl = null,
                         resolution = 1080,
                         audio = "jpn",
                         fansub = "A",
                     ),
                     AnimePaheSource(
                         kwikUrl = "https://kwik.example/720",
-                        downloadPageUrl = null,
                         resolution = 720,
                         audio = "jpn",
                         fansub = "B",
