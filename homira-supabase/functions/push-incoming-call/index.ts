@@ -404,10 +404,92 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  let wakeRetries = 0;
+
+  // FCM accepting a zero-TTL call wake-up only means it was accepted for
+  // immediate delivery; it does not prove the device received it. Give the
+  // callee a short window to write its receipt, then make one bounded retry
+  // for devices that have not acknowledged the call yet.
+  if (eventType === "incoming_call" && delivered > 0) {
+    await new Promise((resolve) => setTimeout(resolve, 1250));
+
+    const { data: latestCall } = await admin
+      .from("call_sessions")
+      .select("state,expires_at")
+      .eq("id", call.id)
+      .maybeSingle();
+
+    const stillRingable =
+      latestCall?.state === "ringing" &&
+      new Date(latestCall.expires_at).getTime() > Date.now();
+
+    if (stillRingable) {
+      const { data: receipts } = await admin
+        .from("incoming_call_push_receipts")
+        .select("device_id")
+        .eq("call_id", call.id)
+        .eq("user_id", call.callee_id);
+
+      const acknowledgedDevices = new Set(
+        (receipts ?? []).map((row) => row.device_id),
+      );
+
+      for (const row of tokens) {
+        if (acknowledgedDevices.has(row.device_id)) {
+          continue;
+        }
+
+        const retryResult = await sendToFcmWithRetry(
+          projectId,
+          accessToken,
+          row.token,
+          payload,
+          ttl,
+        );
+
+        wakeRetries += 1;
+        attempts += retryResult.attempts;
+
+        if (retryResult.ok) {
+          delivered += 1;
+        } else {
+          failed += 1;
+
+          if (
+            retryResult.errorText.includes("UNREGISTERED") ||
+            retryResult.errorText.includes("NOT_FOUND") ||
+            retryResult.errorText.includes(
+              "registration-token-not-registered",
+            )
+          ) {
+            await admin
+              .from("device_push_tokens")
+              .delete()
+              .eq("token", row.token);
+          }
+        }
+
+        try {
+          await logPushAttempt(
+            admin,
+            call.id,
+            call.callee_id,
+            row.device_id,
+            eventType,
+            retryResult,
+          );
+        } catch {
+          // Delivery must not fail because telemetry logging failed.
+        }
+      }
+    }
+  }
+
   return json({
     configured: true,
     delivered,
     failed,
     attempts,
+    wake_retries: wakeRetries,
   });
 });
