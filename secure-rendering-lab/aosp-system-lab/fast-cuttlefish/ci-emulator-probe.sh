@@ -48,6 +48,23 @@ if [[ "$REMOUNT_STATUS" -ne 0 ]]; then
 fi
 
 echo
+echo "--- reboot to activate disabled verity + overlayfs ---"
+adb reboot
+adb wait-for-device
+adb root || true
+adb wait-for-device
+
+echo
+echo "--- adb remount after reboot ---"
+REMOUNT2_OUT="$(adb remount 2>&1)"
+REMOUNT2_STATUS=$?
+printf '%s\n' "$REMOUNT2_OUT"
+if [[ "$REMOUNT2_STATUS" -ne 0 ]]; then
+  echo "RESULT: second remount failed after reboot."
+  exit 0
+fi
+
+echo
 echo "--- verify system_ext is writable ---"
 TEST_FILE="/system_ext/.secure_rendering_lab_write_test"
 if ! adb shell "echo ok > $TEST_FILE" 2>/dev/null; then
