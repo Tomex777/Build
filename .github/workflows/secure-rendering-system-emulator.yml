@@ -6,6 +6,9 @@ on:
       - secure-rendering-lab
     paths:
       - "secure-rendering-lab/aosp-system-lab/fast-cuttlefish/ci-emulator-probe.sh"
+      - "secure-rendering-lab/aosp-system-lab/src/**"
+      - "secure-rendering-lab/aosp-system-lab/AndroidManifest.xml"
+      - "secure-rendering-lab/systemlab/**"
       - ".github/workflows/secure-rendering-system-emulator.yml"
   workflow_dispatch:
 
