@@ -126,6 +126,158 @@ for path in main_java_root.rglob("*.java"):
     if "Files.writeString(" in text or "Files.readString(" in text:
         raise SystemExit(f"Unsupported Files.readString/writeString remains in {path.relative_to(root)}")
 
+
+# Android does not implement Project Loom virtual-thread APIs. Preserve
+# Cobalt's call-site shape by redirecting those factories to a tiny
+# compatibility layer backed by ordinary named platform threads and a cached
+# executor. This changes scheduling, not protocol behaviour.
+lib_main = modules / "lib/src/main/java"
+virtual_replacements = (
+    ("Thread.ofVirtual()", "com.github.auties00.cobalt.util.AndroidThreads.ofPlatform()"),
+    ("Thread.startVirtualThread(", "com.github.auties00.cobalt.util.AndroidThreads.startVirtualThread("),
+    ("Executors.newVirtualThreadPerTaskExecutor()", "com.github.auties00.cobalt.util.AndroidThreads.newPerTaskExecutor()"),
+)
+
+virtual_changed_files = 0
+virtual_changed_refs = 0
+for path in lib_main.rglob("*.java"):
+    text = path.read_text(encoding="utf-8")
+    original = text
+    for old, new in virtual_replacements:
+        count = text.count(old)
+        if count:
+            virtual_changed_refs += count
+            text = text.replace(old, new)
+    if text != original:
+        path.write_text(text, encoding="utf-8")
+        virtual_changed_files += 1
+
+android_threads_path = modules / "lib/src/main/java/com/github/auties00/cobalt/util/AndroidThreads.java"
+android_threads_path.write_text(r'''package com.github.auties00.cobalt.util;
+
+import java.util.List;
+import java.util.Collection;
+import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Android compatibility layer for Cobalt's Loom call sites.
+ *
+ * Android does not expose JVM virtual threads, so the Android build maps them
+ * to ordinary platform threads. The public surface intentionally mirrors only
+ * the tiny subset Cobalt uses: named start/unstarted threads, startVirtualThread,
+ * and a per-task executor.
+ */
+public final class AndroidThreads {
+    private AndroidThreads() {
+        throw new AssertionError("No instances");
+    }
+
+    public static Builder ofPlatform() {
+        return new Builder();
+    }
+
+    public static Thread startVirtualThread(Runnable task) {
+        return ofPlatform().start(task);
+    }
+
+    public static PerTaskExecutor newPerTaskExecutor() {
+        return new PerTaskExecutor();
+    }
+
+    public static final class Builder {
+        private String name;
+
+        public Builder name(String value) {
+            this.name = value;
+            return this;
+        }
+
+        public Thread unstarted(Runnable task) {
+            var thread = new Thread(task);
+            if (name != null) {
+                thread.setName(name);
+            }
+            return thread;
+        }
+
+        public Thread start(Runnable task) {
+            var thread = unstarted(task);
+            thread.start();
+            return thread;
+        }
+    }
+
+    /**
+     * Executor with an explicit close() method so Java-25 try-with-resources
+     * call sites don't dispatch to ExecutorService.close(), which is absent
+     * from Android's older java.util.concurrent surface.
+     */
+    public static final class PerTaskExecutor extends AbstractExecutorService implements AutoCloseable {
+        private final ExecutorService delegate;
+
+        private PerTaskExecutor() {
+            var sequence = new java.util.concurrent.atomic.AtomicInteger();
+            ThreadFactory factory = runnable -> {
+                var thread = new Thread(runnable);
+                thread.setName("cobalt-worker-" + sequence.incrementAndGet());
+                return thread;
+            };
+            this.delegate = Executors.newCachedThreadPool(factory);
+        }
+
+        @Override
+        public void shutdown() {
+            delegate.shutdown();
+        }
+
+        @Override
+        public List<Runnable> shutdownNow() {
+            return delegate.shutdownNow();
+        }
+
+        @Override
+        public boolean isShutdown() {
+            return delegate.isShutdown();
+        }
+
+        @Override
+        public boolean isTerminated() {
+            return delegate.isTerminated();
+        }
+
+        @Override
+        public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+            return delegate.awaitTermination(timeout, unit);
+        }
+
+        @Override
+        public void execute(Runnable command) {
+            delegate.execute(command);
+        }
+
+        @Override
+        public void close() {
+            delegate.shutdown();
+        }
+    }
+}
+''', encoding="utf-8")
+
+for path in lib_main.rglob("*.java"):
+    if path == android_threads_path:
+        continue
+    text = path.read_text(encoding="utf-8")
+    if "Thread.ofVirtual()" in text or "Thread.startVirtualThread(" in text or "newVirtualThreadPerTaskExecutor()" in text:
+        raise SystemExit(f"Virtual-thread API remains in {path.relative_to(root)}")
+
+print(f"Patched {virtual_changed_refs} virtual-thread references across {virtual_changed_files} Java files")
+
 logger_path = modules / "telemetry-core/src/main/java/com/github/auties00/cobalt/telemetry/log/Logger.java"
 logger_path.write_text(r'''package com.github.auties00.cobalt.telemetry.log;
 
