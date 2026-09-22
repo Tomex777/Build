@@ -88,7 +88,7 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                                 "page" to integerProperty(
                                     "Episode result page, starting at 1."
                                 ),
-                                "offset" to integerProperty(
+                                "offset" to nonNegativeIntegerProperty(
                                     "Zero-based card offset within the AnimePahe page."
                                 ),
                             ),
@@ -169,7 +169,7 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                     NightMessageTypeDescriptor(
                         messageType = TYPE_VERIFY,
                         template = "browser_card",
-                        description = "Manual browser verification for AnimePahe or its file host.",
+                        description = "Manual browser verification for AnimePahe.",
                         whenToUse =
                             "Use only when a provider request is blocked by browser verification.",
                     ),
@@ -1472,6 +1472,14 @@ class AnimePaheNightExtensionService : NightExtensionService() {
         JSONObject()
             .put("type", "integer")
             .put("minimum", 1)
+            .put("description", description)
+
+    private fun nonNegativeIntegerProperty(
+        description: String,
+    ): JSONObject =
+        JSONObject()
+            .put("type", "integer")
+            .put("minimum", 0)
             .put("description", description)
 
     companion object {

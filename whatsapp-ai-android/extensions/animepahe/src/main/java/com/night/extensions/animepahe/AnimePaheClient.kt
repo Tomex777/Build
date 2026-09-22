@@ -5,7 +5,6 @@ import android.content.SharedPreferences
 import java.io.IOException
 import java.net.URI
 import java.util.Locale
-import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -175,12 +174,24 @@ class AnimePaheSessionStore(
     ) {
         val normalized = normalizeHost(host)
         if (normalized.isBlank()) return
-        prefs.edit()
-            .putString(
-                cookieKey(normalized),
-                cookieHeader.trim().take(16_000),
+        val editor =
+            prefs.edit()
+                .putString(
+                    cookieKey(normalized),
+                    cookieHeader.trim().take(16_000),
+                )
+
+        if (
+            normalized.startsWith("animepahe.") ||
+            normalized.contains(".animepahe.")
+        ) {
+            editor.putString(
+                KEY_BASE_URL,
+                "https://" + normalized,
             )
-            .apply()
+        }
+
+        editor.apply()
     }
 
     override fun cookieForUrl(url: String): String {
@@ -257,12 +268,6 @@ class AnimePaheClient(
             .followSslRedirects(true)
             .build(),
 ) {
-    private val noRedirectClient =
-        client.newBuilder()
-            .followRedirects(false)
-            .followSslRedirects(false)
-            .build()
-
     fun search(query: String): List<AnimePaheSearchItem> {
         val safeQuery = query.trim().take(180)
         require(safeQuery.isNotBlank()) { "Search query is required." }
@@ -561,166 +566,6 @@ class AnimePaheClient(
         }
     }
 
-    fun resolveDirectMp4(
-        source: AnimePaheSource,
-    ): AnimePaheResolvedMedia {
-        val paheUrl =
-            source.downloadPageUrl
-                ?.trim()
-                ?.takeIf { it.startsWith("http") }
-                ?: throw IOException(
-                    "This AnimePahe source does not expose a direct download route."
-                )
-
-        val redirectUrl = paheUrl.trimEnd('/') + "/i"
-        execute(
-            requestFor(
-                url = redirectUrl,
-                referer = session.baseUrl() + "/",
-            ),
-            client = noRedirectClient,
-        ).use { response ->
-            if (requiresVerification(response.code, null)) {
-                throw verification(
-                    redirectUrl,
-                    "AnimePahe download verification is required.",
-                )
-            }
-            val location =
-                response.header("Location")
-                    ?.trim()
-                    ?.takeIf { it.isNotBlank() }
-                    ?: throw IOException(
-                        "AnimePahe download redirect did not return a Kwik URL."
-                    )
-
-            val kwikUrl =
-                if (location.startsWith("http")) {
-                    location.substringAfterLast("https://")
-                        .let { "https://$it" }
-                } else {
-                    URI(redirectUrl).resolve(location).toString()
-                }
-            return resolveKwikDownload(kwikUrl)
-        }
-    }
-
-    private fun resolveKwikDownload(
-        kwikUrl: String,
-    ): AnimePaheResolvedMedia {
-        val kwikHtml: String
-        val finalUrl: String
-        execute(
-            requestFor(
-                url = kwikUrl,
-                referer = session.baseUrl() + "/",
-            ),
-        ).use { response ->
-            kwikHtml = response.body?.string().orEmpty()
-            finalUrl = response.request.url.toString()
-            if (requiresVerification(response.code, kwikHtml)) {
-                throw verification(
-                    kwikUrl,
-                    "Kwik verification is required before this episode can be resolved.",
-                )
-            }
-            if (!response.isSuccessful) {
-                throw IOException(
-                    "Kwik returned HTTP ${response.code}."
-                )
-            }
-        }
-
-        val params =
-            KWIK_PARAMS_REGEX.find(kwikHtml)
-                ?: throw IOException(
-                    "Kwik download parameters were not found."
-                )
-        val decrypted =
-            decryptKwik(
-                fullString = params.groupValues[1],
-                key = params.groupValues[2],
-                offset = params.groupValues[3].toIntOrNull() ?: 0,
-                radix = params.groupValues[4].toIntOrNull() ?: 0,
-            )
-
-        val action =
-            KWIK_ACTION_REGEX.find(decrypted)
-                ?.groupValues
-                ?.get(1)
-                ?.let(::htmlDecode)
-                ?.replace("\\/", "/")
-                ?: throw IOException("Kwik download action was not found.")
-        val token =
-            KWIK_TOKEN_REGEX.find(decrypted)
-                ?.groupValues
-                ?.get(1)
-                ?.let(::htmlDecode)
-                ?: throw IOException("Kwik download token was not found.")
-
-        val postUrl =
-            if (action.startsWith("http")) {
-                action
-            } else {
-                URI(finalUrl).resolve(action).toString()
-            }
-        val origin =
-            runCatching {
-                val uri = URI(finalUrl)
-                uri.scheme + "://" + uri.host
-            }.getOrDefault("https://kwik.cx")
-
-        val requestBuilder =
-            Request.Builder()
-                .url(postUrl)
-                .post(
-                    FormBody.Builder()
-                        .add("_token", token)
-                        .build()
-                )
-                .header("User-Agent", session.userAgent())
-                .header("Referer", finalUrl)
-                .header("Origin", origin)
-        session.cookieForUrl(finalUrl)
-            .takeIf { it.isNotBlank() }
-            ?.let { requestBuilder.header("Cookie", it) }
-
-        execute(
-            requestBuilder.build(),
-            client = noRedirectClient,
-        ).use { response ->
-            if (
-                response.code == 403 ||
-                response.code == 419 ||
-                requiresVerification(response.code, null)
-            ) {
-                throw verification(
-                    finalUrl,
-                    "Kwik verification expired. Open the verification card and try again.",
-                )
-            }
-            val mediaUrl =
-                response.header("Location")
-                    ?.trim()
-                    ?.takeIf { it.startsWith("http") }
-                    ?: throw IOException(
-                        "Kwik did not return a direct media URL."
-                    )
-
-            return AnimePaheResolvedMedia(
-                url = mediaUrl,
-                headers =
-                    buildMap {
-                        put("Referer", origin + "/")
-                        put("User-Agent", session.userAgent())
-                        session.cookieForUrl(finalUrl)
-                            .takeIf { it.isNotBlank() }
-                            ?.let { put("Cookie", it) }
-                    },
-            )
-        }
-    }
-
     private fun getText(
         url: String,
         referer: String,
@@ -820,48 +665,6 @@ class AnimePaheClient(
         return challengeTitle || (cloudflareShell && challengeText)
     }
 
-    internal fun decryptKwik(
-        fullString: String,
-        key: String,
-        offset: Int,
-        radix: Int,
-    ): String {
-        require(key.isNotEmpty() && radix in 2..36) {
-            "Invalid Kwik decryption parameters."
-        }
-        val indexByChar =
-            key.withIndex().associate { it.value to it.index }
-        val separator =
-            key.getOrNull(radix)
-                ?: throw IOException(
-                    "Invalid Kwik separator index."
-                )
-
-        val result = StringBuilder()
-        var cursor = 0
-        while (cursor < fullString.length) {
-            val next = fullString.indexOf(separator, cursor)
-            if (next < 0) break
-            val digits =
-                buildString {
-                    for (index in cursor until next) {
-                        val value =
-                            indexByChar[fullString[index]]
-                                ?: throw IOException(
-                                    "Unexpected Kwik encoded character."
-                                )
-                        append(value)
-                    }
-                }
-            cursor = next + 1
-            val decoded =
-                digits.toIntOrNull(radix)
-                    ?: break
-            result.append((decoded - offset).toChar())
-        }
-        return result.toString()
-    }
-
     companion object {
         private val BUTTON_REGEX =
             Regex("""(?is)<button\b[^>]*data-src\s*=\s*"[^"]+"[^>]*>""")
@@ -871,13 +674,6 @@ class AnimePaheClient(
             Regex(
                 """(?i)href\s*=\s*"(https?://(?:pahe\.win|kwik\.[^/"]+)[^"]*)""""
             )
-
-        private val KWIK_PARAMS_REGEX =
-            Regex("""\("(\w+)",\d+,"(\w+)",(\d+),(\d+),\d+\)""")
-        private val KWIK_ACTION_REGEX =
-            Regex("""action\s*=\s*"([^"]+)"""")
-        private val KWIK_TOKEN_REGEX =
-            Regex("""value\s*=\s*"([^"]+)"""")
 
         private fun htmlDecode(value: String): String =
             value
