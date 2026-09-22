@@ -1,8 +1,6 @@
 package com.example.whatsapp.presentation.chatscreen
 
-import coil.ImageLoader
 import coil.compose.AsyncImage
-import coil.decode.SvgDecoder
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -751,7 +749,7 @@ internal fun CurrentReplyBlock(
                     overflow = TextOverflow.Ellipsis,
                 )
 
-                Text(
+                NightFluentEmojiText(
                     text = reply.text,
                     color = Color(0xFFC4C9CB),
                     fontSize = 12.sp,
