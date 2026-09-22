@@ -111,14 +111,6 @@ class FlagSecureActivity : BaseCaptureActivity() {
         }
     }
 
-    override fun onStop() {
-        if (restoreProtectionAfterCapture && protectionEnabled) {
-            restoreProtectionAfterCapture = false
-            applyProtection(true)
-        }
-        super.onStop()
-    }
-
     private fun applyProtection(enabled: Boolean) {
         if (enabled) {
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
