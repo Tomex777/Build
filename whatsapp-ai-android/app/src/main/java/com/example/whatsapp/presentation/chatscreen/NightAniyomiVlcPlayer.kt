@@ -619,7 +619,11 @@ internal fun NightAniyomiVlcPlayer(
                         if (attachedPlayer !== player) {
                             runCatching { attachedPlayer?.detachViews() }
                             val attached = runCatching {
-                                player.attachViews(layout, null, true, false)
+                                // SurfaceView can advance playback while remaining visually
+                                // black when embedded under Compose on some Android devices.
+                                // TextureView keeps VLC's frames in the same view/composition
+                                // hierarchy as the player controls.
+                                player.attachViews(layout, null, true, true)
                             }.isSuccess
                             if (attached) {
                                 attachedPlayer = player
