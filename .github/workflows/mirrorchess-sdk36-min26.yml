@@ -108,10 +108,7 @@ jobs:
             adb shell pidof com.night.mirrorchess | tee pid.txt
             test -s pid.txt
             adb logcat -d > logcat.txt
-            if grep -A 50 'FATAL EXCEPTION' logcat.txt | grep -q 'com.night.mirrorchess'; then
-              echo "MirrorChess crashed on API ${{ matrix.api-level }}" >&2
-              exit 1
-            fi
+            if grep -A 50 'FATAL EXCEPTION' logcat.txt | grep -q 'com.night.mirrorchess'; then echo "MirrorChess crashed on API ${{ matrix.api-level }}" >&2; exit 1; fi
             adb exec-out screencap -p > mirrorchess-api-${{ matrix.api-level }}.png
 
       - name: Upload runtime evidence
