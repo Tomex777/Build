@@ -33,7 +33,6 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                 listOf(
                     "anime",
                     "video_streaming",
-                    "downloads",
                     "media_library",
                 ),
             tags =
@@ -41,7 +40,7 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                     "episodes",
                     "subtitles",
                     "streaming",
-                    "downloads",
+                    "source_resolution",
                 ),
             tools =
                 listOf(
@@ -96,7 +95,7 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                     NightToolDescriptor(
                         name = TOOL_RESOLVE,
                         description =
-                            "Resolve an AnimePahe episode into a playable/downloadable source card.",
+                            "Resolve an AnimePahe episode into a provider source card for Night core playback/download.",
                         parameters =
                             objectParameters(
                                 "animeSession" to stringProperty(
@@ -150,13 +149,6 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                         description = "Resolved playable/downloadable AnimePahe episode.",
                         whenToUse =
                             "Use after resolving the user's chosen episode.",
-                    ),
-                    NightMessageTypeDescriptor(
-                        messageType = TYPE_DOWNLOAD,
-                        template = "media_card",
-                        description = "AnimePahe background download status.",
-                        whenToUse =
-                            "Use after the user starts an AnimePahe episode download.",
                     ),
                     NightMessageTypeDescriptor(
                         messageType = TYPE_SETTINGS,
@@ -1290,7 +1282,7 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                     .filter { it.isNotBlank() }
                     .joinToString(" • "),
             body =
-                "Resolved through the proven PaheBATCHER path. Night core handles playback, resume, AES-128, remux and downloads.",
+                "Resolved through the proven PaheBATCHER path. This extension only resolves/refreshes the provider source; Night core owns playback and downloading.",
             badge =
                 quality.ifBlank { "Ready" },
             status = "Ready",
@@ -1330,12 +1322,10 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                         ),
                         nightConfigurationSection(
                             id = "downloads",
-                            title = "Downloads",
+                            title = "Advanced",
                             description =
-                                "Provider-owned download defaults.",
+                                "Connection settings for this extension only.",
                         ),
-                        nightConfigurationSection(
-                            id = "advanced",
                             title = "Advanced",
                             description =
                                 "Connection settings for this extension only.",
@@ -1394,19 +1384,6 @@ class AnimePaheNightExtensionService : NightExtensionService() {
                                         "Chinese",
                                     ),
                                 ),
-                        ),
-                        nightConfigurationField(
-                            id = "parallel_downloads",
-                            label = "Parallel downloads",
-                            type = "number",
-                            value =
-                                store.parallelDownloads()
-                                    .toString(),
-                            sectionId = "downloads",
-                            suffix = "downloads",
-                            min = 1.0,
-                            max = 6.0,
-                            step = 1.0,
                         ),
                         nightConfigurationField(
                             id = "base_url",
@@ -1515,7 +1492,6 @@ class AnimePaheNightExtensionService : NightExtensionService() {
         const val TYPE_EPISODE_PAGE = "animepahe.episode_page"
         const val TYPE_EPISODE = "animepahe.episode"
         const val TYPE_SOURCE = "animepahe.source"
-        const val TYPE_DOWNLOAD = "animepahe.download_status"
         const val TYPE_SETTINGS = "animepahe.settings"
         const val TYPE_VERIFY = "animepahe.verify"
 
