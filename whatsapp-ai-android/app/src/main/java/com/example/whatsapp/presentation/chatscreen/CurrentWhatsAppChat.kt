@@ -690,12 +690,13 @@ private fun CurrentTextBubble(
                     modifier = Modifier.weight(1f, fill = false),
                 )
 
-                Spacer(modifier = Modifier.width(10.dp))
-
                 MessageMeta(
                     time = item.time,
                     mine = item.mine,
                     read = item.read,
+                    modifier = Modifier
+                        .align(Alignment.Bottom)
+                        .padding(start = 7.dp, bottom = 1.dp),
                 )
             }
         }
@@ -819,7 +820,9 @@ private fun ReplyTypePreview(reply: ReplyPreview) {
                                     imageVector = Icons.Default.PlayArrow,
                                     contentDescription = null,
                                     tint = Color.White,
-                                    modifier = Modifier.size(17.dp),
+                                    modifier = Modifier
+                    .size(14.dp)
+                    .padding(bottom = 1.dp),
                                 )
                             }
                         }
@@ -1985,18 +1988,21 @@ private fun MessageMeta(
     time: String,
     mine: Boolean,
     read: Boolean,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier,
+        verticalAlignment = Alignment.Bottom,
     ) {
         Text(
             text = time,
             color = SecondaryText,
-            fontSize = 10.sp,
+            fontSize = 9.5.sp,
+            lineHeight = 11.sp,
         )
 
         if (mine) {
-            Spacer(modifier = Modifier.width(3.dp))
+            Spacer(modifier = Modifier.width(2.dp))
             Icon(
                 imageVector = Icons.Default.DoneAll,
                 contentDescription = if (read) "Read" else "Delivered",
