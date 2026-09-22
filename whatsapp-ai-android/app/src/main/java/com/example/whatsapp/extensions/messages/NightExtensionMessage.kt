@@ -72,6 +72,8 @@ enum class ExtensionConfigurationFieldType(val wireName: String) {
     Number("number"),
     Range("range"),
     Text("text"),
+    MultilineText("multiline_text"),
+    Secret("secret"),
     Action("action");
 
     companion object {
@@ -83,6 +85,12 @@ enum class ExtensionConfigurationFieldType(val wireName: String) {
 data class ExtensionConfigurationOption(
     val id: String,
     val label: String,
+    val description: String = "",
+)
+
+data class ExtensionConfigurationSection(
+    val id: String,
+    val title: String,
     val description: String = "",
 )
 
@@ -101,11 +109,15 @@ data class ExtensionConfigurationField(
     val advanced: Boolean = false,
     val actionLabel: String = "",
     val taskOverride: Boolean = false,
+    val sectionId: String = "",
+    val suffix: String = "",
+    val required: Boolean = false,
 )
 
 data class ExtensionConfiguration(
     val id: String,
     val fields: List<ExtensionConfigurationField>,
+    val sections: List<ExtensionConfigurationSection> = emptyList(),
     val submitActionId: String = "save_config",
     val submitLabel: String = "Save",
     val advancedLabel: String = "Advanced",
@@ -214,6 +226,21 @@ object ExtensionMessageCodec {
                     .put("submitLabel", configuration.submitLabel)
                     .put("advancedLabel", configuration.advancedLabel)
                     .put(
+                        "sections",
+                        JSONArray().apply {
+                            configuration.sections
+                                .take(12)
+                                .forEach { section ->
+                                    put(
+                                        JSONObject()
+                                            .put("id", section.id)
+                                            .put("title", section.title)
+                                            .put("description", section.description)
+                                    )
+                                }
+                        }
+                    )
+                    .put(
                         "fields",
                         JSONArray().apply {
                             configuration.fields
@@ -231,6 +258,9 @@ object ExtensionMessageCodec {
                                             .put("advanced", field.advanced)
                                             .put("actionLabel", field.actionLabel)
                                             .put("taskOverride", field.taskOverride)
+                                            .put("sectionId", field.sectionId)
+                                            .put("suffix", field.suffix)
+                                            .put("required", field.required)
                                             .apply {
                                                 field.min?.let { put("min", it) }
                                                 field.max?.let { put("max", it) }
@@ -338,6 +368,42 @@ object ExtensionMessageCodec {
             if (configurationId.isBlank()) {
                 null
             } else {
+                val sections =
+                    buildList {
+                        val sectionsJson =
+                            configurationJson.optJSONArray("sections")
+                        if (sectionsJson != null) {
+                            for (
+                                sectionIndex in 0 until minOf(
+                                    sectionsJson.length(),
+                                    12,
+                                )
+                            ) {
+                                val section =
+                                    sectionsJson.optJSONObject(sectionIndex)
+                                        ?: continue
+                                val sectionId =
+                                    section.optString("id").trim()
+                                val sectionTitle =
+                                    section.optString("title").trim()
+                                if (
+                                    sectionId.isNotBlank() &&
+                                    sectionTitle.isNotBlank()
+                                ) {
+                                    add(
+                                        ExtensionConfigurationSection(
+                                            id = sectionId,
+                                            title = sectionTitle,
+                                            description =
+                                                section.optString("description")
+                                                    .trim(),
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                 val fields = mutableListOf<ExtensionConfigurationField>()
                 val fieldsJson = configurationJson.optJSONArray("fields")
                 if (fieldsJson != null) {
@@ -404,6 +470,9 @@ object ExtensionMessageCodec {
                             advanced = item.optBoolean("advanced", false),
                             actionLabel = item.optString("actionLabel").trim(),
                             taskOverride = item.optBoolean("taskOverride", false),
+                            sectionId = item.optString("sectionId").trim(),
+                            suffix = item.optString("suffix").trim(),
+                            required = item.optBoolean("required", false),
                         )
                     }
                 }
@@ -411,6 +480,7 @@ object ExtensionMessageCodec {
                 ExtensionConfiguration(
                     id = configurationId,
                     fields = fields,
+                    sections = sections,
                     submitActionId = configurationJson.optString(
                         "submitActionId",
                         "save_config",
