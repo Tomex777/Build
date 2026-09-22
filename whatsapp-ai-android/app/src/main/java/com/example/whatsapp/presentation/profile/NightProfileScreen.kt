@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -42,7 +43,7 @@ fun NightProfileScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF0B0F11))
-            .statusBarsPadding(),
+            .statusBarsPadding().navigationBarsPadding(),
     ) {
         Row(
             modifier = Modifier
