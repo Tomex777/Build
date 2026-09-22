@@ -146,6 +146,8 @@ dependencies {
 
     // Night video engine (VLC/libVLC)
     implementation("org.videolan.android:libvlc-all:3.7.6")
+    // Shared Night HLS/direct downloader and lossless remux engine.
+    implementation("com.github.jmir1:ffmpeg-kit:1.18")
 
     // Night full-screen media editor
     implementation("com.burhanrashid52:photoeditor:3.1.1")
