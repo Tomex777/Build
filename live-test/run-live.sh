@@ -28,6 +28,12 @@ publish_one() {
   return 1
 }
 
+publish_status() {
+  local value="$1"
+  printf '%s\n' "$value" > "live-test/${SESSION_ID}.status.txt"
+  publish_one "live-test/${SESSION_ID}.status.txt" "Update live test status ${SESSION_ID}: $value"
+}
+
 stage "wait-for-encrypted-phone"
 PHONE_PATH="live-test/${SESSION_ID}.phone.enc.b64"
 rm -f /tmp/phone.b64
@@ -101,11 +107,25 @@ unset CODE
 rm -f /tmp/code.enc /tmp/cobalt-live.xml
 stage "publish-encrypted-pairing-code"
 publish_one "live-test/${SESSION_ID}.code.enc.b64" "Publish encrypted pairing code ${SESSION_ID}"
+publish_status "code-ready"
 
 stage "wait-for-linked-message-and-reply"
 DONE=0
+LINKED_REPORTED=0
+REPLY_REPORTED=0
 for _ in $(seq 1 450); do
   LOG="$(adb logcat -d -s CobaltPOC:I CobaltPOC:E 2>/dev/null || true)"
+
+  if [[ "$LINKED_REPORTED" = "0" ]] && grep -q 'LIVE_TEST_LINKED' <<<"$LOG"; then
+    publish_status "linked"
+    LINKED_REPORTED=1
+  fi
+
+  if [[ "$REPLY_REPORTED" = "0" ]] && grep -q 'LIVE_TEST_REPLY_SENT' <<<"$LOG"; then
+    publish_status "reply-sent"
+    REPLY_REPORTED=1
+  fi
+
   if grep -q 'LIVE_TEST_DONE' <<<"$LOG"; then
     DONE=1
     break
@@ -118,14 +138,12 @@ done
 
 if [[ "$DONE" = "1" ]]; then
   stage "live-test-passed"
-  printf 'passed\n' > "live-test/${SESSION_ID}.status.txt"
-  publish_one "live-test/${SESSION_ID}.status.txt" "Record successful live test ${SESSION_ID}"
+  publish_status "passed"
   adb shell am force-stop com.tomex.cobaltandroid || true
   exit 0
 fi
 
 stage "live-test-failed"
-printf 'failed\n' > "live-test/${SESSION_ID}.status.txt"
-publish_one "live-test/${SESSION_ID}.status.txt" "Record failed live test ${SESSION_ID}"
+publish_status "failed"
 adb shell am force-stop com.tomex.cobaltandroid || true
 exit 1
