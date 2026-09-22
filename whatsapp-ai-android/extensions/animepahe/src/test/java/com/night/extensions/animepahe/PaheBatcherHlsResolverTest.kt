@@ -99,7 +99,6 @@ class PaheBatcherHlsResolverTest {
         override fun baseUrl(): String = "https://animepahe.pw"
         override fun quality(): String = "1080"
         override fun audio(): String = "sub"
-        override fun parallelDownloads(): Int = 2
         override fun userAgent(): String = "Night PaheBatcher Test"
         override fun cookieForUrl(url: String): String = ""
         override fun saveBrowserSession(host: String, cookieHeader: String) = Unit
