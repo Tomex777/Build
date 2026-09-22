@@ -591,7 +591,10 @@ internal fun NightVlcVideoSurface(
                         if (attachedPlayer !== player) {
                             runCatching { attachedPlayer?.detachViews() }
                             val attached = runCatching {
-                                player.attachViews(layout, null, false, false)
+                                // The editor lives inside Compose. A SurfaceView may keep
+                                // decoding and advancing time while its separate surface stays
+                                // black; TextureView makes preview frames part of this view tree.
+                                player.attachViews(layout, null, false, true)
                             }.isSuccess
                             if (attached) {
                                 attachedPlayer = player
