@@ -110,6 +110,8 @@ data class ChoiceResultMessage(
     val title: String,
     val options: List<String>,
     val selectedIndex: Int? = null,
+    val selectedIndices: Set<Int> = emptySet(),
+    val multiple: Boolean = false,
     val selectedBy: String? = null,
     val mine: Boolean = false,
     val time: String,
@@ -646,51 +648,44 @@ private fun ChoiceResultBubble(
             fontWeight = FontWeight.SemiBold,
         )
 
-        if (item.options.size in 2..3 && item.options.all { it.length <= 18 }) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 9.dp),
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-            ) {
-                item.options.forEachIndexed { index, option ->
-                    ChoiceOption(
-                        text = option,
-                        selected = item.selectedIndex == index,
-                        enabled = item.selectedIndex == null,
-                        modifier = Modifier.weight(1f),
-                        onClick = { onAction(item.id, "option_" + index) },
-                    )
-                }
-            }
-        } else {
-            Column(
-                modifier = Modifier.padding(top = 9.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                item.options.forEachIndexed { index, option ->
-                    ChoiceOption(
-                        text = option,
-                        selected = item.selectedIndex == index,
-                        enabled = item.selectedIndex == null,
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = { onAction(item.id, "option_" + index) },
-                    )
-                }
+        Column(
+            modifier = Modifier.padding(top = 9.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            item.options.forEachIndexed { index, option ->
+                val selected =
+                    if (item.multiple) {
+                        index in item.selectedIndices
+                    } else {
+                        item.selectedIndex == index
+                    }
+                ChoiceOption(
+                    text = option,
+                    selected = selected,
+                    enabled = item.multiple || item.selectedIndex == null,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { onAction(item.id, "option_" + index) },
+                )
             }
         }
+
+        Text(
+            text = if (item.multiple) "Choose one or more" else "Choose one",
+            color = RichMuted,
+            fontSize = 9.sp,
+            modifier = Modifier.padding(top = 5.dp, start = 2.dp),
+        )
 
         item.selectedBy?.takeIf { it.isNotBlank() }?.let {
             Text(
                 text = "Chosen by " + it,
                 color = RichMuted,
                 fontSize = 10.sp,
-                modifier = Modifier.padding(top = 6.dp, start = 2.dp),
+                modifier = Modifier.padding(top = 4.dp, start = 2.dp),
             )
         }
     }
 }
-
 
 @Composable
 private fun LinkPreviewBubble(item: LinkPreviewMessage) {

@@ -2043,8 +2043,25 @@ private fun NightApp(initialChatId: String? = null) {
                                 if (existing.type == "choice") {
                                     val payload = runCatching { JSONObject(existing.payloadJson) }
                                         .getOrElse { JSONObject() }
-                                        .put("selectedIndex", index)
-                                        .put("selectedBy", "You")
+                                    if (payload.optBoolean("multiple", false)) {
+                                        val selected = linkedSetOf<Int>()
+                                        payload.optJSONArray("selectedIndices")?.let { raw ->
+                                            for (position in 0 until raw.length()) {
+                                                selected += raw.optInt(position)
+                                            }
+                                        }
+                                        if (!selected.add(index)) {
+                                            selected.remove(index)
+                                        }
+                                        val encoded = JSONArray()
+                                        selected.sorted().forEach { encoded.put(it) }
+                                        payload
+                                            .put("selectedIndices", encoded)
+                                            .remove("selectedIndex")
+                                    } else {
+                                        payload.put("selectedIndex", index)
+                                    }
+                                    payload.put("selectedBy", "You")
                                     repository.appendMessage(existing.copy(payloadJson = payload.toString()))
                                 }
                             }
@@ -2744,11 +2761,12 @@ private fun NightApp(initialChatId: String? = null) {
     if (choiceOpen) {
         NightChoiceDialog(
             onDismiss = { choiceOpen = false },
-            onCreate = { title, options ->
+            onCreate = { title, options, multiple ->
                 scope.launch {
                     val messageId = java.util.UUID.randomUUID().toString()
                     val payload = JSONObject()
                         .put("options", JSONArray(options))
+                        .put("multiple", multiple)
                     repository.appendMessage(
                         NightMessageEntity(
                             id = messageId,
@@ -2956,6 +2974,15 @@ private fun NightMessageEntity.toVisualMessage(
                 }
             }
 
+            val selectedIndices = buildSet {
+                payload?.optJSONArray("selectedIndices")?.let { raw ->
+                    for (position in 0 until raw.length()) {
+                        val selected = raw.optInt(position, -1)
+                        if (selected >= 0) add(selected)
+                    }
+                }
+            }
+
             ChoiceResultMessage(
                 id = id,
                 title = text,
@@ -2963,6 +2990,8 @@ private fun NightMessageEntity.toVisualMessage(
                 selectedIndex = payload
                     ?.takeIf { it.has("selectedIndex") && !it.isNull("selectedIndex") }
                     ?.optInt("selectedIndex"),
+                selectedIndices = selectedIndices,
+                multiple = payload?.optBoolean("multiple", false) ?: false,
                 selectedBy = payload?.optString("selectedBy")?.takeIf { it.isNotBlank() },
                 mine = mine,
                 time = time,
