@@ -22,6 +22,7 @@ data class NightBrowserSpec(
     val sessionId: String,
     val initialUrl: String,
     val allowedHosts: List<String> = emptyList(),
+    val restrictedToAllowedHosts: Boolean = true,
     val title: String = "Browser",
     val verifyActionId: String? = null,
     val verifyLabel: String = "Verify",
@@ -58,6 +59,8 @@ data class NightBrowserSpec(
         if (!uri.userInfo.isNullOrBlank()) return false
 
         val host = normalizeHost(uri.host ?: return false)
+        if (!restrictedToAllowedHosts) return host.isNotBlank()
+
         val allowed = normalizedAllowedHosts()
         if (allowed.isEmpty()) return false
 
@@ -81,7 +84,12 @@ data class NightBrowserSpec(
             schemaVersion = schemaVersion.coerceAtLeast(1),
             sessionId = safeSession,
             initialUrl = safeUrl,
-            allowedHosts = normalizedAllowedHosts().take(16),
+            allowedHosts =
+                if (restrictedToAllowedHosts) {
+                    normalizedAllowedHosts().take(16)
+                } else {
+                    emptyList()
+                },
             title = title.trim().take(120).ifBlank { "Browser" },
             verifyActionId = verifyActionId
                 ?.trim()
@@ -98,6 +106,22 @@ data class NightBrowserSpec(
     }
 
     companion object {
+        fun general(
+            initialUrl: String = "https://www.google.com/",
+            sessionId: String = "night.general",
+        ): NightBrowserSpec =
+            NightBrowserSpec(
+                sessionId = sessionId,
+                initialUrl = initialUrl,
+                allowedHosts = emptyList(),
+                restrictedToAllowedHosts = false,
+                title = "Night Browser",
+                verifyActionId = null,
+                verifyLabel = "Verify",
+                javaScriptEnabled = true,
+                thirdPartyCookies = true,
+            ).sanitized()
+
         private fun safeUri(raw: String): URI? =
             runCatching { URI(raw.trim()) }
                 .getOrNull()
@@ -118,6 +142,7 @@ object NightBrowserSpecCodec {
             .put("sessionId", safe.sessionId)
             .put("initialUrl", safe.initialUrl)
             .put("allowedHosts", JSONArray(safe.allowedHosts))
+            .put("restrictedToAllowedHosts", safe.restrictedToAllowedHosts)
             .put("title", safe.title)
             .put("verifyActionId", safe.verifyActionId ?: "")
             .put("verifyLabel", safe.verifyLabel)
@@ -148,6 +173,8 @@ object NightBrowserSpecCodec {
                 sessionId = json.optString("sessionId"),
                 initialUrl = json.optString("initialUrl"),
                 allowedHosts = allowedHosts,
+                restrictedToAllowedHosts =
+                    json.optBoolean("restrictedToAllowedHosts", true),
                 title = json.optString("title").ifBlank { "Browser" },
                 verifyActionId = json.optString("verifyActionId")
                     .trim()
