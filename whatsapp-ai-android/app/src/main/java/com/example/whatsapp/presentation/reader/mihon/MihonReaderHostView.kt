@@ -570,16 +570,20 @@ internal class MihonReaderHostView(
                     dx: Int,
                     dy: Int,
                 ) {
-                    val first =
+                    // Match Mihon's webtoon viewer: treat the last item
+                    // whose end is visible as the active reading page. Using
+                    // the first visible row leaves progress stuck on a page
+                    // that may only have a few pixels remaining on screen.
+                    val active =
                         manager
-                            .findFirstVisibleItemPosition()
+                            .findLastEndVisibleItemPosition()
                     if (
-                        first !=
+                        active !=
                         RecyclerView.NO_POSITION &&
-                        first != currentPage
+                        active != currentPage
                     ) {
-                        currentPage = first
-                        onPageChanged?.invoke(first)
+                        currentPage = active
+                        onPageChanged?.invoke(active)
                     }
                 }
             },
