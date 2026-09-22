@@ -177,7 +177,7 @@ fun NightMihonReaderScreen(
         mutableStateOf(
             preferences.getBoolean(
                 "fullscreen",
-                false,
+                true,
             ),
         )
     }
@@ -422,10 +422,7 @@ fun NightMihonReaderScreen(
             controller.systemBarsBehavior =
                 WindowInsetsControllerCompat
                     .BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            // Reader is a full dedicated Night screen without forcing
-            // Android immersive mode on entry. This avoids the system
-            // "swipe to exit fullscreen" tutorial consuming manga gestures.
-            controller.show(
+            controller.hide(
                 WindowInsetsCompat.Type.systemBars(),
             )
         }
@@ -1704,7 +1701,7 @@ private fun MihonReaderSettingsSheet(
             )
 
             ReaderSettingSwitch(
-                label = "Hide system bars",
+                label = "Immersive fullscreen",
                 checked = fullscreen,
                 onCheckedChange = onFullscreenChanged,
             )
