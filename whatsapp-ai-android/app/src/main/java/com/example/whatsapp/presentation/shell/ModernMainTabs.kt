@@ -130,7 +130,7 @@ fun ModernAppScaffold(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 18.dp, bottom = 88.dp),
+                    .padding(end = 18.dp, bottom = 116.dp),
             ) {
                 floatingAction()
             }
