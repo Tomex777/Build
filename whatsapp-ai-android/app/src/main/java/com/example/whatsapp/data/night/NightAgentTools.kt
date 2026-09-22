@@ -513,9 +513,9 @@ object NightAgentToolSchemas {
         ))
         .put(function(
             name = "set_appearance",
-            description = "Change Night chat appearance: user/AI bubble color, wallpaper color, font family or font size.",
+            description = "Change Night appearance: app accent/theme color, user/AI bubble color, wallpaper color, font family or font size.",
             properties = JSONObject()
-                .put("instruction", string("Natural-language appearance change, e.g. 'make my bubbles purple'.")),
+                .put("instruction", string("Natural-language appearance change, e.g. 'make the app accent purple', 'use a serif font', or 'make my bubbles blue'.")),
             required = listOf("instruction"),
         ))
         .put(function(
