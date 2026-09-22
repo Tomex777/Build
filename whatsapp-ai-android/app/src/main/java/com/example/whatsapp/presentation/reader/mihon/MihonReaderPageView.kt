@@ -332,6 +332,12 @@ internal data class ResolvedMihonPage(
 internal object MihonPageResolver {
     private val client = OkHttpClient()
 
+    // A recycled webtoon holder can request the same remote page while an
+    // earlier blocking OkHttp read is still finishing. Keep one writer per
+    // cache key so no holder can observe a partially written image.
+    private val networkCacheLocks =
+        java.util.concurrent.ConcurrentHashMap<String, Any>()
+
     fun resolve(
         context: Context,
         page: MihonPageSpec,
@@ -394,32 +400,80 @@ internal object MihonPageResolver {
             )
 
         val target = File(directory, key)
-        if (!target.exists() || target.length() == 0L) {
-            val request =
-                Request.Builder()
-                    .url(page.source)
-                    .apply {
-                        page.headers.forEach { (name, value) ->
-                            header(name, value)
+        val lock =
+            networkCacheLocks.computeIfAbsent(key) { Any() }
+
+        synchronized(lock) {
+            if (!isUsableImageFile(target)) {
+                // Never stream into the final cache path. RecyclerView may
+                // recycle and rebind a holder while this blocking request is
+                // still running; publishing only a complete temp file keeps a
+                // second holder from decoding half an image.
+                target.delete()
+                val partial = File(directory, key + ".part")
+                partial.delete()
+
+                try {
+                    val request =
+                        Request.Builder()
+                            .url(page.source)
+                            .apply {
+                                page.headers.forEach { (name, value) ->
+                                    header(name, value)
+                                }
+                            }
+                            .build()
+
+                    client.newCall(request).execute().use { response ->
+                        check(response.isSuccessful) {
+                            "Image request failed: HTTP " +
+                                response.code
+                        }
+                        val body = requireNotNull(response.body)
+                        partial.outputStream().use { output ->
+                            body.byteStream().use { input ->
+                                input.copyTo(output)
+                            }
                         }
                     }
-                    .build()
 
-            client.newCall(request).execute().use { response ->
-                check(response.isSuccessful) {
-                    "Image request failed: HTTP " +
-                        response.code
-                }
-                val body = requireNotNull(response.body)
-                target.outputStream().use { output ->
-                    body.byteStream().use { input ->
-                        input.copyTo(output)
+                    check(isUsableImageFile(partial)) {
+                        "Downloaded reader page is not a decodable image."
                     }
+
+                    check(
+                        partial.renameTo(target) ||
+                            runCatching {
+                                partial.copyTo(
+                                    target,
+                                    overwrite = true,
+                                )
+                                partial.delete()
+                                true
+                            }.getOrDefault(false),
+                    ) {
+                        "Could not publish downloaded reader page."
+                    }
+                } finally {
+                    partial.delete()
                 }
             }
         }
 
         return Uri.fromFile(target)
+    }
+
+    private fun isUsableImageFile(file: File): Boolean {
+        if (!file.exists() || file.length() <= 0L) return false
+
+        val options =
+            BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+        return runCatching {
+            BitmapFactory.decodeFile(file.absolutePath, options)
+            options.outWidth > 0 && options.outHeight > 0
+        }.getOrDefault(false)
     }
 
     private fun sha256(value: String): String =
