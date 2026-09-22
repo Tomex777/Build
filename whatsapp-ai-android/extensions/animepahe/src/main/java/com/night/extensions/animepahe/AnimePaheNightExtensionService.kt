@@ -721,6 +721,8 @@ class AnimePaheNightExtensionService : NightExtensionService() {
         val host = browserSession.optString("host").trim()
         val cookieHeader =
             browserSession.optString("cookieHeader").trim()
+        val userAgent =
+            browserSession.optString("userAgent").trim()
 
         if (host.isBlank() || cookieHeader.isBlank()) {
             return JSONObject()
@@ -734,6 +736,9 @@ class AnimePaheNightExtensionService : NightExtensionService() {
         store.saveBrowserSession(
             host = host,
             cookieHeader = cookieHeader,
+        )
+        store.saveBrowserUserAgent(
+            userAgent = userAgent,
         )
 
         val extensionPayload =

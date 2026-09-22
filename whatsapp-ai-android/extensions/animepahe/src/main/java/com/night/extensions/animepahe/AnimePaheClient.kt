@@ -194,6 +194,24 @@ class AnimePaheSessionStore(
         editor.apply()
     }
 
+    fun saveBrowserUserAgent(
+        userAgent: String,
+    ) {
+        val normalized =
+            userAgent.trim()
+                .takeIf {
+                    it.length in 8..512
+                }
+                ?: return
+
+        prefs.edit()
+            .putString(
+                KEY_USER_AGENT,
+                normalized,
+            )
+            .apply()
+    }
+
     override fun cookieForUrl(url: String): String {
         val host = hostOf(url)
         if (host.isBlank()) return ""
