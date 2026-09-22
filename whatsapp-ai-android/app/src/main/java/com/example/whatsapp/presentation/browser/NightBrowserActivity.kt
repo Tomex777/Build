@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -46,7 +47,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -62,6 +62,7 @@ import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -506,30 +507,55 @@ fun NightBrowserFullScreen(
                 }
             }
 
-            OutlinedTextField(
-                value = addressText,
-                onValueChange = { addressText = it.take(4096) },
-                singleLine = true,
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Public,
-                        contentDescription = null,
-                    )
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Uri,
-                    imeAction = ImeAction.Go,
-                ),
-                keyboardActions = KeyboardActions(
-                    onGo = { navigate(addressText) },
-                ),
+            Surface(
+                color = BrowserPanel,
+                shape = RoundedCornerShape(24.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .height(44.dp)
                     .semantics {
                         contentDescription = "Browser address"
                     },
-            )
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 13.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Public,
+                        contentDescription = null,
+                        tint = BrowserMuted,
+                        modifier = Modifier.size(19.dp),
+                    )
+                    Spacer(Modifier.width(9.dp))
+                    BasicTextField(
+                        value = addressText,
+                        onValueChange = { addressText = it.take(4096) },
+                        singleLine = true,
+                        textStyle = TextStyle(
+                            color = BrowserText,
+                            fontSize = 13.sp,
+                        ),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Uri,
+                            imeAction = ImeAction.Go,
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onGo = { navigate(addressText) },
+                        ),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = currentHost(controller.currentUrl).ifBlank { "Web" },
+                        color = BrowserMuted,
+                        fontSize = 9.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+            }
 
             if (showFind) {
                 Row(
@@ -538,27 +564,45 @@ fun NightBrowserFullScreen(
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    OutlinedTextField(
-                        value = findText,
-                        onValueChange = {
-                            findText = it.take(160)
-                            controller.findInPage(it)
-                        },
-                        singleLine = true,
-                        leadingIcon = {
+                    Surface(
+                        color = BrowserPanel,
+                        shape = RoundedCornerShape(22.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Icon(
                                 Icons.Default.Search,
                                 contentDescription = null,
+                                tint = BrowserMuted,
+                                modifier = Modifier.size(18.dp),
                             )
-                        },
-                        keyboardOptions = KeyboardOptions(
-                            imeAction = ImeAction.Search,
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onSearch = { controller.findInPage(findText) },
-                        ),
-                        modifier = Modifier.weight(1f),
-                    )
+                            Spacer(Modifier.width(8.dp))
+                            BasicTextField(
+                                value = findText,
+                                onValueChange = {
+                                    findText = it.take(160)
+                                    controller.findInPage(it)
+                                },
+                                singleLine = true,
+                                textStyle = TextStyle(
+                                    color = BrowserText,
+                                    fontSize = 13.sp,
+                                ),
+                                keyboardOptions = KeyboardOptions(
+                                    imeAction = ImeAction.Search,
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onSearch = { controller.findInPage(findText) },
+                                ),
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
                     IconButton(
                         onClick = {
                             showFind = false
