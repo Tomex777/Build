@@ -35,6 +35,26 @@ object NightMediaCollectionStore {
                 .orEmpty()
         )
 
+    fun playlistNames(context: Context): List<String> {
+        val playlists =
+            runCatching {
+                JSONObject(
+                    context.applicationContext
+                        .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                        .getString(KEY_PLAYLISTS, "{}")
+                        .orEmpty()
+                )
+            }.getOrElse { JSONObject() }
+
+        val names = mutableListOf<String>()
+        val keys = playlists.keys()
+        while (keys.hasNext()) {
+            val name = keys.next().trim()
+            if (name.isNotBlank()) names += name
+        }
+        return names.sortedBy { it.lowercase() }
+    }
+
     fun playlist(
         context: Context,
         name: String = DEFAULT_PLAYLIST,
