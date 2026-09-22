@@ -2454,6 +2454,9 @@ fun EmojiPicker(
             }
             .build()
     }
+    var recentEmojis by remember(context) {
+        mutableStateOf(NightEmojiRecents.load(context))
+    }
     val fluentAssets = mapOf(
         "😀" to "file:///android_asset/fluent_emoji/grinning.svg",
         "😂" to "file:///android_asset/fluent_emoji/joy.svg",
@@ -2467,7 +2470,7 @@ fun EmojiPicker(
         "🔥" to "file:///android_asset/fluent_emoji/fire.svg",
     )
     val categories = listOf(
-        "Recent" to listOf("😀","😂","🥹","😍","😭","😎","👍","❤️","🙏","🔥","✨","💀","🤝","🥲","🤣","😅"),
+        "Recent" to recentEmojis,
         "Smileys" to listOf("😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇","🙂","🙃","😉","😌","😍","🥰","😘","😗","😙","😚","😋","😛","😝","😜","🤪","🤨","🧐","🤓","😎","🥸","🤩","🥳","🙂‍↕️","😏","😒","😞","😔","😟","😕","🙁","☹️","😣","😖","😫","😩","🥺","🥹","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🤗","🤔","🤭","🤫","🤥","😶","😶‍🌫️","😐","😑","😬"),
         "People" to listOf("👋","🤚","🖐️","✋","🖖","👌","🤌","🤏","✌️","🤞","🤟","🤘","🤙","👈","👉","👆","👇","☝️","👍","👎","✊","👊","🤛","🤜","👏","🙌","👐","🤲","🤝","🙏","✍️","💅","🤳","💪","🦾","🦵","🦶","👂","👃","🧠","🫀","🫁","👀","👁️","👄"),
         "Hearts" to listOf("❤️","🧡","💛","💚","💙","💜","🤎","🖤","🤍","💔","❤️‍🔥","❤️‍🩹","❣️","💕","💞","💓","💗","💖","💘","💝","💟","♥️","💋","✨","⭐","🌟","💫","🔥"),
@@ -2562,7 +2565,14 @@ fun EmojiPicker(
                                 modifier = Modifier
                                     .size(42.dp)
                                     .clip(RoundedCornerShape(9.dp))
-                                    .clickable { onEmojiSelected(emoji) },
+                                    .clickable {
+                                        recentEmojis =
+                                            NightEmojiRecents.record(
+                                                context = context,
+                                                emoji = emoji,
+                                            )
+                                        onEmojiSelected(emoji)
+                                    },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 if (asset != null) {
