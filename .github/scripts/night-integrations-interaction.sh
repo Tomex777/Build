@@ -37,10 +37,25 @@ refresh_ui() {
   adb exec-out cat /sdcard/night-integrations.xml > /tmp/window.xml
 }
 
+dismiss_quickstep_anr() {
+  if grep -qi "Quickstep isn't responding" /tmp/window.xml 2>/dev/null; then
+    local coords
+    if coords="$(python3 /tmp/night_integrations_uia.py text_click "Close app" 2>/dev/null)"; then
+      adb shell input tap "${coords% *}" "${coords#* }" || true
+      sleep 2
+    fi
+    return 0
+  fi
+  return 1
+}
+
 assert_text() {
   local wanted="$1"
   for _ in $(seq 1 10); do
     refresh_ui
+    if dismiss_quickstep_anr; then
+      continue
+    fi
     if python3 /tmp/night_integrations_uia.py text "$wanted" >/dev/null 2>&1; then
       return 0
     fi
@@ -57,6 +72,9 @@ tap_desc() {
   local coords
   for _ in $(seq 1 10); do
     refresh_ui
+    if dismiss_quickstep_anr; then
+      continue
+    fi
     if coords="$(python3 /tmp/night_integrations_uia.py desc_click "$wanted" 2>/dev/null)"; then
       adb shell input tap "${coords% *}" "${coords#* }"
       sleep 1
