@@ -104,6 +104,21 @@ jobs:
           agent_tools = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/data/night/NightAgentTools.kt").read_text()
           assert "NightIntegrationToolRegistry" in agent_tools, "Agent tools must use the shared integration facade"
           assert 'name.startsWith("ext__")' not in agent_tools, "Agent side-effect policy must not special-case extension name prefixes"
+
+          emoji_recents = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/presentation/chatscreen/NightEmojiRecents.kt").read_text()
+          assert "MAX_RECENTS = 30" in emoji_recents, "Night emoji Recent must stay capped at the last 30 used emoji"
+
+          chat = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/presentation/chatscreen/CurrentWhatsAppChat.kt").read_text()
+          assert "WhatsAppInlineMessageText" in chat and "appendInlineContent(metaId" in chat, "Text-message timestamps must stay inline with WhatsApp-style trailing metadata"
+          assert "NightFluentEmojiGlyph" in chat and "NightFluentEmoji.mappedEmoji" in chat, "Chat and picker must share the Fluent emoji renderer"
+
+          theme = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/ui/theme/Theme.kt").read_text()
+          assert "accentColor: Color? = null" in theme, "Night Material theme must accept the saved accent"
+          assert "primary = effectiveAccent" in theme, "Night Material primary color must come from the active appearance accent"
+          assert 'accentColor = ComposeColor(current.accentColor.toInt())' in main, "Night root must apply the persisted accent"
+
+          assert '.padding(end = 18.dp, bottom = 116.dp)' in shell, "Night FAB must keep clearance above the bottom bar"
+          assert 'contentDescription = "New chat FAB"' in shell, "Night FAB bounds must remain testable on Android 16"
           PY
 
       - name: Run unit tests and build integrated APK
