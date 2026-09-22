@@ -9,6 +9,7 @@ object NightRichMessageCodec {
     const val TYPE_FILE_RESULT = "file_result"
     const val TYPE_ANIME = "anime"
     const val TYPE_RICH_LINK = "rich_link"
+    const val TYPE_LYRICS = "lyrics"
     const val TYPE_GENERATED_IMAGE = "generated_image"
     const val TYPE_CREATION = "creation"
     const val TYPE_IMAGE_SEARCH = "image_search"
@@ -64,6 +65,15 @@ object NightRichMessageCodec {
                 domain = payload.optString("domain"),
                 thumbnailPath = payload.optString("thumbnailPath").takeIf { it.isNotBlank() },
                 mine = mine,
+                time = time,
+            )
+
+            TYPE_LYRICS -> LyricsResultMessage(
+                id = id,
+                title = payload.optString("title").ifBlank { text.ifBlank { "Lyrics" } },
+                artist = payload.optString("artist"),
+                lyrics = payload.optString("lyrics").ifBlank { text },
+                source = payload.optString("source"),
                 time = time,
             )
 
@@ -142,6 +152,7 @@ object NightRichMessageCodec {
             is FileResultMessage -> TYPE_FILE_RESULT
             is AnimeResultMessage -> TYPE_ANIME
             is LinkPreviewMessage -> TYPE_RICH_LINK
+            is LyricsResultMessage -> TYPE_LYRICS
             is GeneratedImageResultMessage -> TYPE_GENERATED_IMAGE
             is CreationResultMessage -> TYPE_CREATION
             is ImageSearchResultMessage -> TYPE_IMAGE_SEARCH
@@ -180,6 +191,12 @@ object NightRichMessageCodec {
                 .put("description", message.description)
                 .put("domain", message.domain)
                 .put("thumbnailPath", message.thumbnailPath ?: "")
+
+            is LyricsResultMessage -> JSONObject()
+                .put("title", message.title)
+                .put("artist", message.artist)
+                .put("lyrics", message.lyrics)
+                .put("source", message.source)
 
             is GeneratedImageResultMessage -> JSONObject()
                 .put("title", message.title)
@@ -228,6 +245,7 @@ object NightRichMessageCodec {
             is MangaResultMessage -> message.title
             is ChoiceResultMessage -> message.title
             is LinkPreviewMessage -> message.title
+            is LyricsResultMessage -> message.title
             is GeneratedImageResultMessage -> message.title
             is CreationResultMessage -> message.title
             is ImageSearchResultMessage -> message.source + " images"
