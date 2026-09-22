@@ -87,7 +87,7 @@ jobs:
           from pathlib import Path
 
           shell = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/presentation/shell/ModernMainTabs.kt").read_text()
-          bottom = shell.split("private fun ModernBottomBar", 1)[1].split("private fun BottomItem", 1)[0]
+          bottom = shell.split("private fun ModernBottomBar", 1)[1].split("private fun RowScope.BottomItem", 1)[0]
           expected_tabs = ['MainTab.Chats', 'MainTab.Updates', 'MainTab.Scripts', 'MainTab.You']
           positions = [bottom.index(tab) for tab in expected_tabs]
           assert positions == sorted(positions), "Night bottom navigation must be Chat, Library, Scripts/Projects, U"
