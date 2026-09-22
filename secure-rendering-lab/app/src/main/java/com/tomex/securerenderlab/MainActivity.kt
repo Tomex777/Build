@@ -43,7 +43,16 @@ class MainActivity : Activity() {
         )
         root.addCard(
             labCard(
-                "3 · DRM + protected-path inspector",
+                "3 · System capability detector",
+                "Check platform/system privileges, signature-only screen-capture permissions, secure virtual display creation, root/custom-ROM indicators, and optional su access.",
+                "Open capability detector"
+            ) {
+                startActivity(Intent(this, SystemCapabilityActivity::class.java))
+            }
+        )
+        root.addCard(
+            labCard(
+                "4 · DRM + protected-path inspector",
                 "Inspect Widevine/ClearKey support and play a public ClearKey DASH test vector. This demonstrates real MediaDrm negotiation without pretending ClearKey is equivalent to hardware-secure Widevine.",
                 "Open DRM lab"
             ) {
