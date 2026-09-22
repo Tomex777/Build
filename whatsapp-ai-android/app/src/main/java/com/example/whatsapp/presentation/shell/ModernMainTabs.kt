@@ -30,6 +30,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddComment
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CameraAlt
@@ -1152,15 +1158,26 @@ private fun CallRow(item: CallPreview) {
 @Composable
 fun ModernSettingsScreen(
     onBack: () -> Unit,
+    displayName: String = "Dawson",
+    onProfileClick: () -> Unit = {},
+    onProvidersClick: () -> Unit = {},
+    onAppearanceClick: () -> Unit = {},
+    onMemoryClick: () -> Unit = {},
+    onSchedulesClick: () -> Unit = {},
+    onScriptsClick: () -> Unit = {},
+    onMediaLibraryClick: () -> Unit = {},
+    onBrowserClick: () -> Unit = {},
+    onPrivacyClick: () -> Unit = {},
 ) {
     val rows = listOf(
-        SettingsRow(Icons.Default.Settings, "Account", "Security notifications, change number"),
-        SettingsRow(Icons.Default.Lock, "Privacy", "Block contacts, disappearing messages"),
-        SettingsRow(Icons.Default.Chat, "Chats", "Theme, wallpapers, chat history"),
-        SettingsRow(Icons.Default.Notifications, "Notifications", "Message, group & call tones"),
-        SettingsRow(Icons.Default.Storage, "Storage and data", "Network usage, auto-download"),
-        SettingsRow(Icons.Default.Palette, "Appearance", "Dark theme"),
-        SettingsRow(Icons.Default.HelpOutline, "Help", "Help center, contact us, privacy policy"),
+        SettingsRow("providers", Icons.Default.AutoAwesome, "AI & providers", "Models, API keys and capability routing"),
+        SettingsRow("appearance", Icons.Default.Palette, "Appearance", "Theme, accent, wallpaper and chat text"),
+        SettingsRow("memory", Icons.Default.Memory, "Memory", "Summaries, checkpoints and cross-chat context"),
+        SettingsRow("scheduled", Icons.Default.Schedule, "Scheduled", "Tasks Night can run later"),
+        SettingsRow("scripts", Icons.Default.Code, "Scripts & projects", "JavaScript commands, utilities and web projects"),
+        SettingsRow("media", Icons.Default.Movie, "Media library", "Anime, manga, music and saved extension media"),
+        SettingsRow("browser", Icons.Default.Language, "Browser", "Night browser sessions and verification"),
+        SettingsRow("privacy", Icons.Default.Lock, "Privacy", "Local data, permissions and provider credentials"),
     )
 
     Column(
@@ -1185,7 +1202,7 @@ fun ModernSettingsScreen(
                 )
             }
             Text(
-                text = "Settings",
+                text = "Night settings",
                 color = Primary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Medium,
@@ -1195,28 +1212,34 @@ fun ModernSettingsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable {}
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .clickable(onClick = onProfileClick)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Image(
-                painter = painterResource(R.drawable.bilal),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(58.dp)
-                    .clip(CircleShape),
-                contentScale = ContentScale.Crop,
-            )
+            Surface(
+                color = SurfaceDark,
+                shape = CircleShape,
+                modifier = Modifier.size(58.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = Primary,
+                        modifier = Modifier.size(30.dp),
+                    )
+                }
+            }
             Spacer(modifier = Modifier.width(13.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Dawson",
+                    text = displayName,
                     color = Primary,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Medium,
                 )
                 Text(
-                    text = "Hey there! I am using WhatsApp.",
+                    text = "Night profile • tap to edit",
                     color = Secondary,
                     fontSize = 11.sp,
                     modifier = Modifier.padding(top = 2.dp),
@@ -1236,13 +1259,24 @@ fun ModernSettingsScreen(
                 .background(Color(0xFF111618))
         )
 
-        LazyColumn {
-            items(rows) { row ->
+        LazyColumn(contentPadding = PaddingValues(bottom = 28.dp)) {
+            items(rows, key = { it.id }) { row ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable {}
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .clickable {
+                            when (row.id) {
+                                "providers" -> onProvidersClick()
+                                "appearance" -> onAppearanceClick()
+                                "memory" -> onMemoryClick()
+                                "scheduled" -> onSchedulesClick()
+                                "scripts" -> onScriptsClick()
+                                "media" -> onMediaLibraryClick()
+                                "browser" -> onBrowserClick()
+                                "privacy" -> onPrivacyClick()
+                            }
+                        }
+                        .padding(horizontal = 16.dp, vertical = 13.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
@@ -1266,6 +1300,12 @@ fun ModernSettingsScreen(
                             modifier = Modifier.padding(top = 2.dp),
                         )
                     }
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = Secondary,
+                        modifier = Modifier.size(18.dp),
+                    )
                 }
             }
         }
@@ -1273,6 +1313,7 @@ fun ModernSettingsScreen(
 }
 
 data class SettingsRow(
+    val id: String,
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
     val title: String,
     val subtitle: String,

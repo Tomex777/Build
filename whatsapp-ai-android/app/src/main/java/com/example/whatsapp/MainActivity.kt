@@ -105,6 +105,7 @@ import com.example.whatsapp.presentation.profile.NightIntegrationsScreen
 import com.example.whatsapp.presentation.profile.NightMcpServersScreen
 import com.example.whatsapp.presentation.profile.NightLiveVoiceScreen
 import com.example.whatsapp.presentation.profile.NightProfileScreen
+import com.example.whatsapp.presentation.profile.NightPrivacyScreen
 import com.example.whatsapp.presentation.profile.NightProvidersScreen
 import com.example.whatsapp.presentation.profile.NightScheduleDialog
 import com.example.whatsapp.presentation.profile.NightScheduledTasksScreen
@@ -1758,6 +1759,22 @@ private fun NightApp(initialChatId: String? = null) {
 
         "settings" -> ModernSettingsScreen(
             onBack = { screen = "tabs" },
+            displayName = displayName,
+            onProfileClick = { screen = "profile" },
+            onProvidersClick = { screen = "providers" },
+            onAppearanceClick = { screen = "appearance" },
+            onMemoryClick = { screen = "memory" },
+            onSchedulesClick = { screen = "scheduled_tasks" },
+            onScriptsClick = { screen = "scripts" },
+            onMediaLibraryClick = { screen = "media_library" },
+            onBrowserClick = {
+                context.startActivity(NightBrowserActivity.createGeneralIntent(context))
+            },
+            onPrivacyClick = { screen = "privacy" },
+        )
+
+        "privacy" -> NightPrivacyScreen(
+            onBack = { screen = "settings" },
         )
 
         "chat" -> CurrentWhatsAppConversation(
@@ -2521,7 +2538,7 @@ private fun NightApp(initialChatId: String? = null) {
                     )
                 },
                 onAppearanceClick = { screen = "appearance" },
-                onPrivacyClick = { screen = "settings" },
+                onPrivacyClick = { screen = "privacy" },
                 onSettingsClick = { screen = "settings" },
             )
 
