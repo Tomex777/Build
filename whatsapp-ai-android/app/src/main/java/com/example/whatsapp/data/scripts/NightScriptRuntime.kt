@@ -1118,7 +1118,7 @@ class NightScriptRuntime private constructor(
 private class NightScriptTimeoutError :
     Error("Night script execution timed out.")
 
-private class NightSandboxContextFactory : ContextFactory() {
+internal class NightSandboxContextFactory : ContextFactory() {
     private val deadlineNanos = ThreadLocal<Long>()
 
     override fun makeContext(): RhinoContext =
