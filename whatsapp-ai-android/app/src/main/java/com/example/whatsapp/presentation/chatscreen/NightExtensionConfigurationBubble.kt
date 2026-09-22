@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Checkbox
@@ -37,12 +38,15 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.whatsapp.extensions.messages.ExtensionConfigurationActionCodec
 import com.example.whatsapp.extensions.messages.ExtensionConfigurationField
 import com.example.whatsapp.extensions.messages.ExtensionConfigurationFieldType
+import com.example.whatsapp.extensions.messages.ExtensionConfigurationSection
 import com.example.whatsapp.extensions.messages.NightExtensionConfigurationStore
 import org.json.JSONArray
 import org.json.JSONObject
@@ -204,18 +208,15 @@ fun NightExtensionConfigurationBubble(
                 modifier = Modifier.padding(top = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                configuration.fields
-                    .filter { !it.advanced }
-                    .forEach { field ->
-                        ExtensionConfigurationFieldContent(
-                            field = field,
-                            scalarValue = values[field.id].orEmpty(),
-                            multiValue = multiValues[field.id].orEmpty(),
-                            onScalarChange = { values[field.id] = it },
-                            onMultiChange = { multiValues[field.id] = it },
-                            onAction = { send(field.id) },
-                        )
-                    }
+                ExtensionConfigurationFieldList(
+                    fields = configuration.fields.filter { !it.advanced },
+                    sections = configuration.sections,
+                    values = values,
+                    multiValues = multiValues,
+                    onScalarChange = { id, value -> values[id] = value },
+                    onMultiChange = { id, value -> multiValues[id] = value },
+                    onAction = { field -> send(field.id) },
+                )
 
                 val advanced = configuration.fields.filter { it.advanced }
                 if (advanced.isNotEmpty()) {
@@ -243,16 +244,15 @@ fun NightExtensionConfigurationBubble(
                     }
 
                     if (advancedVisible) {
-                        advanced.forEach { field ->
-                            ExtensionConfigurationFieldContent(
-                                field = field,
-                                scalarValue = values[field.id].orEmpty(),
-                                multiValue = multiValues[field.id].orEmpty(),
-                                onScalarChange = { values[field.id] = it },
-                                onMultiChange = { multiValues[field.id] = it },
-                                onAction = { send(field.id) },
-                            )
-                        }
+                        ExtensionConfigurationFieldList(
+                            fields = advanced,
+                            sections = configuration.sections,
+                            values = values,
+                            multiValues = multiValues,
+                            onScalarChange = { id, value -> values[id] = value },
+                            onMultiChange = { id, value -> multiValues[id] = value },
+                            onAction = { field -> send(field.id) },
+                        )
                     }
                 }
             }
@@ -284,6 +284,69 @@ fun NightExtensionConfigurationBubble(
                 modifier = Modifier
                     .align(Alignment.End)
                     .padding(top = 5.dp, end = 2.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExtensionConfigurationFieldList(
+    fields: List<ExtensionConfigurationField>,
+    sections: List<ExtensionConfigurationSection>,
+    values: Map<String, String>,
+    multiValues: Map<String, Set<String>>,
+    onScalarChange: (String, String) -> Unit,
+    onMultiChange: (String, Set<String>) -> Unit,
+    onAction: (ExtensionConfigurationField) -> Unit,
+) {
+    val sectionById = sections.associateBy { it.id }
+    var renderedSectionId: String? = null
+
+    fields.forEach { field ->
+        val section =
+            field.sectionId
+                .takeIf { it.isNotBlank() }
+                ?.let(sectionById::get)
+
+        if (section != null && renderedSectionId != section.id) {
+            ExtensionConfigurationSectionHeader(section)
+            renderedSectionId = section.id
+        } else if (field.sectionId.isBlank()) {
+            renderedSectionId = null
+        }
+
+        ExtensionConfigurationFieldContent(
+            field = field,
+            scalarValue = values[field.id].orEmpty(),
+            multiValue = multiValues[field.id].orEmpty(),
+            onScalarChange = { onScalarChange(field.id, it) },
+            onMultiChange = { onMultiChange(field.id, it) },
+            onAction = { onAction(field) },
+        )
+    }
+}
+
+@Composable
+private fun ExtensionConfigurationSectionHeader(
+    section: ExtensionConfigurationSection,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp, start = 2.dp, end = 2.dp),
+    ) {
+        Text(
+            text = section.title,
+            color = ExtensionConfigText,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        if (section.description.isNotBlank()) {
+            Text(
+                text = section.description,
+                color = ExtensionConfigMuted,
+                fontSize = 9.sp,
+                modifier = Modifier.padding(top = 2.dp),
             )
         }
     }
@@ -429,7 +492,11 @@ private fun ExtensionConfigurationFieldContent(
                 val raw = scalarValue.toDoubleOrNull() ?: min
                 val current = raw.coerceIn(min, safeMax)
                 Text(
-                    text = prettyNumber(current),
+                    text =
+                        prettyNumber(current) +
+                            field.suffix.takeIf { it.isNotBlank() }
+                                ?.let { " " + it }
+                                .orEmpty(),
                     color = ExtensionConfigAccent,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -452,14 +519,25 @@ private fun ExtensionConfigurationFieldContent(
             }
 
             ExtensionConfigurationFieldType.Number,
-            ExtensionConfigurationFieldType.Text -> {
+            ExtensionConfigurationFieldType.Text,
+            ExtensionConfigurationFieldType.MultilineText,
+            ExtensionConfigurationFieldType.Secret -> {
                 FieldLabels(field)
+                val isNumber =
+                    field.type == ExtensionConfigurationFieldType.Number
+                val isMultiline =
+                    field.type == ExtensionConfigurationFieldType.MultilineText
+                val isSecret =
+                    field.type == ExtensionConfigurationFieldType.Secret
+
                 OutlinedTextField(
                     value = scalarValue,
                     onValueChange = { value ->
                         onScalarChange(
-                            if (field.type == ExtensionConfigurationFieldType.Number) {
-                                value.filter { it.isDigit() || it == '.' || it == '-' }
+                            if (isNumber) {
+                                value.filter {
+                                    it.isDigit() || it == '.' || it == '-'
+                                }
                             } else {
                                 value
                             }
@@ -473,7 +551,27 @@ private fun ExtensionConfigurationFieldContent(
                             Text(field.placeholder)
                         }
                     },
-                    singleLine = field.type == ExtensionConfigurationFieldType.Number,
+                    suffix = {
+                        if (field.suffix.isNotBlank()) {
+                            Text(field.suffix)
+                        }
+                    },
+                    singleLine = !isMultiline,
+                    minLines = if (isMultiline) 3 else 1,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType =
+                            when {
+                                isNumber -> KeyboardType.Decimal
+                                isSecret -> KeyboardType.Password
+                                else -> KeyboardType.Text
+                            },
+                    ),
+                    visualTransformation =
+                        if (isSecret) {
+                            PasswordVisualTransformation()
+                        } else {
+                            androidx.compose.ui.text.input.VisualTransformation.None
+                        },
                 )
             }
 
@@ -507,7 +605,9 @@ private fun FieldLabels(
 ) {
     Column(modifier = modifier) {
         Text(
-            text = field.label,
+            text =
+                field.label +
+                    if (field.required) " *" else "",
             color = ExtensionConfigText,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
