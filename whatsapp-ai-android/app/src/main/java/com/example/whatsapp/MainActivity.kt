@@ -65,6 +65,7 @@ import com.example.whatsapp.extensions.messages.NightExtensionMessageActionRegis
 import com.example.whatsapp.extensions.messages.NightExtensionStandardActions
 import com.example.whatsapp.extensions.messages.withConfigurationValues
 import com.example.whatsapp.extensions.runtime.NightExternalExtensionManager
+import com.example.whatsapp.extensions.runtime.NightIntegrationCapability
 import com.example.whatsapp.extensions.tools.NightMcpManager
 import com.example.whatsapp.presentation.chat_box.ChatListModel
 import com.example.whatsapp.presentation.chatscreen.AudioPlaybackUiState
@@ -194,6 +195,8 @@ private fun NightApp(initialChatId: String? = null) {
     }
     var summaryRefreshing by remember { mutableStateOf(false) }
 
+    var integrationPreferenceRevision by remember { mutableStateOf(0) }
+
     val chats by repository.observeChats().collectAsState(initial = emptyList())
     val profiles by repository.observeProviderProfiles().collectAsState(initial = emptyList())
     val providerModels by repository.observeAllProviderModels().collectAsState(initial = emptyList())
@@ -203,6 +206,17 @@ private fun NightApp(initialChatId: String? = null) {
     val capabilityRoutes by repository.observeCapabilityRoutes().collectAsState(initial = emptyList())
     val mcpServers by mcpManager.states.collectAsState()
     val extensions by extensionManager.extensions.collectAsState()
+
+    val preferredExtensionIds =
+        remember(extensions, integrationPreferenceRevision) {
+            NightIntegrationCapability.entries
+                .mapNotNull { capability ->
+                    extensionManager.preferredProvider(capability)
+                        ?.extensionId
+                        ?.let { capability to it }
+                }
+                .toMap()
+        }
 
     val messageFlow = remember(activeChatId) { repository.observeMessages(activeChatId) }
     val messageEntities by messageFlow.collectAsState(initial = emptyList())
@@ -1160,6 +1174,29 @@ private fun NightApp(initialChatId: String? = null) {
                             Toast.LENGTH_LONG,
                         ).show()
                     }
+                }
+            },
+            preferredExtensionIds = preferredExtensionIds,
+            onSetPreferredExtension = { capability, extension ->
+                runCatching {
+                    extensionManager.setPreferredProvider(
+                        capability = capability,
+                        extensionId = extension.extensionId,
+                    )
+                }.onSuccess {
+                    integrationPreferenceRevision += 1
+                    Toast.makeText(
+                        context,
+                        extension.displayName + " is preferred for " +
+                            capability.wireName + ".",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }.onFailure { error ->
+                    Toast.makeText(
+                        context,
+                        error.message ?: "Could not change preferred provider.",
+                        Toast.LENGTH_LONG,
+                    ).show()
                 }
             },
             onSetExtensionEnabled = { extension, enabled ->
