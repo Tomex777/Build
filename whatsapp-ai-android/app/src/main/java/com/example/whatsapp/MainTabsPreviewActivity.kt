@@ -28,6 +28,7 @@ class MainTabsPreviewActivity : ComponentActivity() {
                     "updates", "files", "library" -> NightFilesTab(
                         onTabSelected = {},
                         onSettingsClick = {},
+                        onScriptsClick = {},
                     )
                     "communities" -> ModernCommunitiesTab(
                         onTabSelected = {},
@@ -44,7 +45,6 @@ class MainTabsPreviewActivity : ComponentActivity() {
                         onProvidersClick = {},
                         onMemoryClick = {},
                         onSchedulesClick = {},
-                        onLibraryStorageClick = {},
                         onMediaLibraryClick = {},
                         onBrowserClick = {},
                         onAppearanceClick = {},
