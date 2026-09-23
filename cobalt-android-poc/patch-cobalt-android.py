@@ -742,8 +742,13 @@ public final class AndroidHttpResponse<T> {
             return new BodyHandler<>() {
                 @Override public String handle(int status, InputStream input) throws IOException {
                     try (input; var output = new ByteArrayOutputStream()) {
-                        input.transferTo(output);
-                        return output.toString(charset.name());
+                        var buffer = new byte[8192];
+                        while (true) {
+                            int count = input.read(buffer);
+                            if (count < 0) break;
+                            output.write(buffer, 0, count);
+                        }
+                        return new String(output.toByteArray(), charset);
                     }
                 }
                 @Override public boolean closesInput() { return true; }
