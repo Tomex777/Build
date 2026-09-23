@@ -22,7 +22,10 @@ jobs:
       - name: Start Cortex Agent
         shell: bash
         run: |
-          mkdir -p /tmp/night
+          mkdir -p /tmp/night/node_modules
+          printf 'secret=must-stay-server-side\n' >/tmp/night/.env.production
+          printf 'private-key' >/tmp/night/server.pem
+          printf 'server-only' >/tmp/night/node_modules/server-only.js
           CORTEX_AGENT_TOKEN='test-token-12345678901234567890' \
           NIGHT_ROOT=/tmp/night \
           NIGHT_SERVICE=night.service \
@@ -49,6 +52,25 @@ jobs:
           curl -fsS -H "$AUTH" 'http://127.0.0.1:47831/api/cortex/host/files?path=/' >/tmp/list.json
           grep -q 'console.log' /tmp/read.json
           grep -q 'index.js' /tmp/list.json
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"path":"asset.bin","contentBase64":"AAEC/w=="}' \
+            http://127.0.0.1:47831/api/cortex/host/files/binary >/tmp/binary.json
+          grep -q 'asset.bin' /tmp/list.json || curl -fsS -H "$AUTH" 'http://127.0.0.1:47831/api/cortex/host/files?path=/' | grep -q 'asset.bin'
+      - name: Keep server dependencies off the device workspace
+        shell: bash
+        run: |
+          AUTH='Authorization: Bearer test-token-12345678901234567890'
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"path":"node_modules/should-not-transfer.js","content":"no"}' \
+            http://127.0.0.1:47831/api/cortex/host/files/content)
+          test "$code" = '403'
+          for protected_path in .env.production server.pem; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' \
+              -d "{\"path\":\"$protected_path\",\"content\":\"no\"}" \
+              http://127.0.0.1:47831/api/cortex/host/files/content)
+            test "$code" = '403'
+          done
+          ! curl -fsS -H "$AUTH" 'http://127.0.0.1:47831/api/cortex/host/files?path=/' | grep -Eq 'node_modules|.env.production|server.pem'
       - name: Reject unauthenticated requests
         shell: bash
         run: |

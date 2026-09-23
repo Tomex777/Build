@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -40,9 +41,20 @@ enum class CortexTab { HOME, SERVER, INBOX, LIBRARY, SETTINGS }
 fun CortexApp(vm: CortexViewModel = viewModel()) {
     val state by vm.state.collectAsState()
     var tab by rememberSaveable { mutableStateOf(CortexTab.HOME) }
-    var connect by rememberSaveable { mutableStateOf(!state.connection.configured) }
+    var connect by rememberSaveable { mutableStateOf(false) }
     var hostingConnect by rememberSaveable { mutableStateOf(false) }
+    var blobConnect by rememberSaveable { mutableStateOf(false) }
     val provider = providerFor(state.provider)
+
+    BackHandler(enabled = connect || hostingConnect || blobConnect || state.selectedLocalFile != null || state.activeChat != null) {
+        when {
+            state.selectedLocalFile != null -> vm.closeEditor()
+            blobConnect -> blobConnect = false
+            hostingConnect -> hostingConnect = false
+            connect -> connect = false
+            else -> vm.closeChat()
+        }
+    }
 
     LaunchedEffect(state.provider) {
         if (tab == CortexTab.SERVER && !provider.capabilities.serverManagement) tab = CortexTab.HOME
@@ -51,7 +63,7 @@ fun CortexApp(vm: CortexViewModel = viewModel()) {
     Scaffold(
         containerColor = CortexBackground,
         bottomBar = {
-            if (!connect && !hostingConnect && state.activeChat == null) {
+            if (!connect && !hostingConnect && !blobConnect && state.activeChat == null && state.selectedLocalFile == null) {
                 NavigationBar(containerColor = Color(0xFF0F1114)) {
                     val tabs = buildList {
                         add(CortexTab.HOME)
@@ -81,17 +93,26 @@ fun CortexApp(vm: CortexViewModel = viewModel()) {
     ) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
             when {
-                connect -> ConnectionScreen(state.connection.baseUrl) { url, token ->
+                connect -> ConnectionScreen(state.connection.baseUrl, state.connection.token.isNotBlank()) { url, token ->
                     vm.saveConnection(url, token)
                     connect = false
                 }
                 hostingConnect -> HostingConnectionScreen(
                     provider = state.provider,
                     initialIdentifier = state.hostingIdentifier,
+                    hasStoredSecret = state.hostingHasSecret,
                     onBack = { hostingConnect = false },
                     onSave = { identifier, secret ->
                         vm.saveHostingConnection(identifier, secret)
                         hostingConnect = false
+                    },
+                )
+                blobConnect -> BlobStorageScreen(
+                    initialUrl = state.blobSasUrl,
+                    onBack = { blobConnect = false },
+                    onSave = { url ->
+                        vm.saveBlobSas(url)
+                        blobConnect = false
                     },
                 )
                 state.activeChat != null -> ThreadScreen(state.activeChat!!, state.messages, vm::closeChat, vm::send)
@@ -103,12 +124,29 @@ fun CortexApp(vm: CortexViewModel = viewModel()) {
                     configure = { hostingConnect = true },
                 )
                 tab == CortexTab.INBOX -> InboxScreen(state.chats, vm::openChat, vm::refresh)
-                tab == CortexTab.LIBRARY -> LibraryScreen(state.localFileCount)
+                tab == CortexTab.LIBRARY -> CortexLibraryScreen(
+                    state = state,
+                    provider = state.provider,
+                    refresh = vm::refreshLocalFiles,
+                    openFile = vm::openLocalFile,
+                    saveFile = vm::saveLocalFile,
+                    updateEditor = vm::updateEditor,
+                    closeEditor = vm::closeEditor,
+                    createFile = vm::createLocalFile,
+                    importFile = vm::importDocument,
+                    deleteFile = vm::deleteLocalFile,
+                    syncBlob = vm::syncBlobBackup,
+                    restoreBlob = vm::restoreBlobBackup,
+                    deploy = vm::deployWorkspace,
+                    configureBlob = { blobConnect = true },
+                    configureHosting = { hostingConnect = true },
+                )
                 else -> SettingsScreen(
                     state = state,
                     provider = vm::setProvider,
                     connection = { connect = true },
                     hosting = { hostingConnect = true },
+                    storage = { blobConnect = true },
                 )
             }
         }
@@ -124,17 +162,17 @@ private fun tabIcon(tab: CortexTab) = when (tab) {
 }
 
 @Composable
-private fun ConnectionScreen(initialUrl: String, onConnect: (String, String) -> Unit) {
+private fun ConnectionScreen(initialUrl: String, hasSavedToken: Boolean, onConnect: (String, String) -> Unit) {
     var url by rememberSaveable { mutableStateOf(initialUrl) }
-    var token by rememberSaveable { mutableStateOf("") }
+    var token by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Spacer(Modifier.height(18.dp))
         Text("Connect Cortex", fontSize = 28.sp, fontWeight = FontWeight.Bold)
         Text("Cortex reads the live Night Core API. It does not replace unavailable data with demo values.", color = CortexMuted, fontSize = 12.sp)
         OutlinedTextField(url, { url = it }, Modifier.fillMaxWidth(), label = { Text("Night Core URL") }, placeholder = { Text("https://…") }, singleLine = true)
         OutlinedTextField(token, { token = it }, Modifier.fillMaxWidth(), label = { Text("Cortex API token") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
-        Button({ onConnect(url, token) }, enabled = url.startsWith("https://") && token.isNotBlank(), modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("Connect") }
-        Text("The token stays in memory for this session and is not written to disk yet.", color = CortexMuted, fontSize = 10.sp)
+        Button({ onConnect(url, token) }, enabled = url.startsWith("https://") && (token.isNotBlank() || hasSavedToken), modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("Connect") }
+        Text("The token is encrypted with Android Keystore on this phone.", color = CortexMuted, fontSize = 10.sp)
     }
 }
 
@@ -142,11 +180,12 @@ private fun ConnectionScreen(initialUrl: String, onConnect: (String, String) -> 
 private fun HostingConnectionScreen(
     provider: HostingProviderId,
     initialIdentifier: String,
+    hasStoredSecret: Boolean,
     onBack: () -> Unit,
     onSave: (String, String) -> Unit,
 ) {
     var identifier by rememberSaveable(provider.name) { mutableStateOf(initialIdentifier) }
-    var secret by rememberSaveable(provider.name + "-secret") { mutableStateOf("") }
+    var secret by remember(provider) { mutableStateOf("") }
     val azure = provider == HostingProviderId.AZURE
     Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -173,16 +212,16 @@ private fun HostingConnectionScreen(
             onValueChange = { secret = it },
             modifier = Modifier.fillMaxWidth(),
             label = { Text(if (azure) "Agent token" else "Bot-Hosting API key") },
-            placeholder = { Text(if (azure) "Agent bearer token" else "bhk_…") },
+            placeholder = { Text(if (hasStoredSecret) "Saved securely — leave blank to keep it" else if (azure) "Agent bearer token" else "bhk_…") },
             visualTransformation = PasswordVisualTransformation(),
             singleLine = true,
         )
         Button(
             onClick = { onSave(identifier, secret) },
-            enabled = identifier.isNotBlank() && secret.isNotBlank() && (!azure || identifier.startsWith("https://")),
+            enabled = identifier.isNotBlank() && (secret.isNotBlank() || hasStoredSecret) && (!azure || identifier.startsWith("https://")),
             modifier = Modifier.fillMaxWidth().height(50.dp),
         ) { Text("Connect") }
-        Text("The endpoint is remembered locally. Credentials remain in memory for this session for now.", color = CortexMuted, fontSize = 9.sp)
+        Text("The endpoint is remembered locally. Credentials are encrypted with Android Keystore.", color = CortexMuted, fontSize = 9.sp)
     }
 }
 
@@ -481,6 +520,7 @@ private fun SettingsScreen(
     provider: (HostingProviderId) -> Unit,
     connection: () -> Unit,
     hosting: () -> Unit,
+    storage: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().padding(18.dp).verticalScroll(rememberScrollState())) {
         Text("Settings", fontSize = 28.sp, fontWeight = FontWeight.Bold)
@@ -501,6 +541,18 @@ private fun SettingsScreen(
                 Column(Modifier.weight(1f)) {
                     Text("${providerFor(state.provider).displayName} connection", fontWeight = FontWeight.SemiBold)
                     Text(state.hostingIdentifier.ifBlank { "Not configured" }, color = CortexMuted, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Icon(Icons.Rounded.ChevronRight, null)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Surface(shape = RoundedCornerShape(18.dp), color = CortexSurface, modifier = Modifier.fillMaxWidth().clickable(onClick = storage)) {
+            Row(Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.CloudUpload, null)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Azure Blob backup", fontWeight = FontWeight.SemiBold)
+                    Text(if (state.blobConfigured) "Container SAS saved on this phone" else "Not configured", color = CortexMuted, fontSize = 9.sp)
                 }
                 Icon(Icons.Rounded.ChevronRight, null)
             }

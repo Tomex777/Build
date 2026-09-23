@@ -34,4 +34,6 @@ interface HostingControlClient {
     fun listFiles(path: String = "/"): List<HostingFileEntry>
     fun readText(path: String): String
     fun writeText(path: String, content: String)
+    fun writeBytes(path: String, content: ByteArray)
+    fun installDependencies(): String
 }

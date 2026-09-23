@@ -78,6 +78,12 @@ class BotHostingClient(
         post("/files/content", JSONObject().put("path", path).put("content", content).put("mode", "overwrite"))
     }
 
+    override fun writeBytes(path: String, content: ByteArray) {
+        error("Binary workspace uploads are supported only for Azure")
+    }
+
+    override fun installDependencies(): String = error("Package installation is available for Azure deployments")
+
     private fun get(path: String): JSONObject = request("GET", path)
     private fun post(path: String, body: JSONObject): JSONObject = request("POST", path, body)
 

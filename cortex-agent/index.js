@@ -14,9 +14,16 @@ const PROJECT_ROOT = path.resolve(process.env.NIGHT_ROOT || '/opt/night');
 const NIGHT_SERVICE = process.env.NIGHT_SERVICE || 'night.service';
 const NIGHT_ENTRY = process.env.NIGHT_ENTRY || 'index.js';
 const NIGHT_START_COMMAND = process.env.NIGHT_START_COMMAND || 'node index.js';
-const MAX_BODY = 1024 * 1024 * 2;
-const PROTECTED_NAMES = new Set(['.git', '.ssh']);
-const PROTECTED_FILES = new Set(['.env', 'id_rsa', 'id_ed25519']);
+const MAX_BODY = 16 * 1024 * 1024;
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const PROTECTED_NAMES = new Set(['.git', '.ssh', 'node_modules', '.gradle']);
+const PROTECTED_FILES = new Set(['id_rsa', 'id_ed25519', 'id_ecdsa', 'id_dsa']);
+
+function isProtectedName(name) {
+  const lower = name.toLowerCase();
+  return PROTECTED_NAMES.has(name) || PROTECTED_FILES.has(name) || lower.startsWith('.env') ||
+    ['.pem', '.p12', '.pfx', '.key', '.keystore'].some((extension) => lower.endsWith(extension));
+}
 
 if (!TOKEN || TOKEN.length < 24) {
   console.error('CORTEX_AGENT_TOKEN must be set to a strong token (24+ characters).');
@@ -64,7 +71,7 @@ function safeProjectPath(input = '/') {
     throw Object.assign(new Error('Path escapes Night project'), { statusCode: 400 });
   }
   const segments = path.relative(PROJECT_ROOT, target).split(path.sep).filter(Boolean);
-  if (segments.some((part) => PROTECTED_NAMES.has(part)) || PROTECTED_FILES.has(path.basename(target))) {
+  if (segments.some(isProtectedName)) {
     throw Object.assign(new Error('Protected path'), { statusCode: 403 });
   }
   return target;
@@ -158,7 +165,7 @@ async function listFiles(inputPath) {
   const entries = await fs.readdir(target, { withFileTypes: true });
   const result = [];
   for (const entry of entries) {
-    if (PROTECTED_NAMES.has(entry.name) || PROTECTED_FILES.has(entry.name)) continue;
+    if (isProtectedName(entry.name)) continue;
     const full = path.join(target, entry.name);
     const stat = await fs.lstat(full);
     result.push({
@@ -178,6 +185,7 @@ async function listFiles(inputPath) {
 
 async function readText(inputPath) {
   const target = safeProjectPath(inputPath);
+  await assertNoSymlink(target);
   const stat = await fs.stat(target);
   if (!stat.isFile()) throw Object.assign(new Error('Not a file'), { statusCode: 400 });
   if (stat.size > 2 * 1024 * 1024) throw Object.assign(new Error('File too large for text editor'), { statusCode: 413 });
@@ -187,10 +195,61 @@ async function readText(inputPath) {
 async function writeText(inputPath, content) {
   if (typeof content !== 'string') throw Object.assign(new Error('content must be text'), { statusCode: 400 });
   const target = safeProjectPath(inputPath);
+  await assertNoSymlink(target);
   await fs.mkdir(path.dirname(target), { recursive: true });
   const temp = `${target}.cortex-${crypto.randomUUID()}.tmp`;
   await fs.writeFile(temp, content, 'utf8');
   await fs.rename(temp, target);
+}
+
+async function writeBinary(inputPath, contentBase64) {
+  if (typeof contentBase64 !== 'string') throw Object.assign(new Error('contentBase64 must be text'), { statusCode: 400 });
+  const bytes = Buffer.from(contentBase64, 'base64');
+  if (bytes.length > MAX_FILE_BYTES) throw Object.assign(new Error('File exceeds 10 MB limit'), { statusCode: 413 });
+  const target = safeProjectPath(inputPath);
+  await assertNoSymlink(target);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  const temp = `${target}.cortex-${crypto.randomUUID()}.tmp`;
+  await fs.writeFile(temp, bytes, { flag: 'wx' });
+  await fs.rename(temp, target);
+}
+
+async function installDependencies() {
+  const packagePath = path.join(PROJECT_ROOT, 'package.json');
+  try {
+    await fs.access(packagePath);
+  } catch {
+    throw Object.assign(new Error('package.json is missing'), { statusCode: 400 });
+  }
+  let hasLock = false;
+  try {
+    await fs.access(path.join(PROJECT_ROOT, 'package-lock.json'));
+    hasLock = true;
+  } catch {
+    // A package-lock is optional for legacy projects.
+  }
+  const args = hasLock ? ['ci', '--omit=dev'] : ['install', '--omit=dev'];
+  const { stdout, stderr } = await exec('npm', args, {
+    cwd: PROJECT_ROOT,
+    timeout: 5 * 60_000,
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  return { message: (stdout || stderr || 'Dependencies installed').trim().slice(-1200) };
+}
+
+async function assertNoSymlink(target) {
+  let cursor = PROJECT_ROOT;
+  const parts = path.relative(PROJECT_ROOT, target).split(path.sep).filter(Boolean);
+  for (const part of parts) {
+    cursor = path.join(cursor, part);
+    try {
+      const stat = await fs.lstat(cursor);
+      if (stat.isSymbolicLink()) throw Object.assign(new Error('Symlinks are not supported'), { statusCode: 403 });
+    } catch (error) {
+      if (error?.code === 'ENOENT') return;
+      throw error;
+    }
+  }
 }
 
 async function handler(req, res) {
@@ -218,6 +277,14 @@ async function handler(req, res) {
       const body = await readJson(req);
       await writeText(String(body.path || ''), body.content);
       return json(res, 200, { ok: true });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/files/binary') {
+      const body = await readJson(req);
+      await writeBinary(String(body.path || ''), body.contentBase64);
+      return json(res, 200, { ok: true });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/dependencies/install') {
+      return json(res, 200, await installDependencies());
     }
 
     return json(res, 404, { error: 'Not found' });

@@ -6,6 +6,7 @@ import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import android.util.Base64
 
 /**
  * Talks to the small Cortex Agent running on the Azure VM.
@@ -79,6 +80,18 @@ class AzureAgentClient(
     override fun writeText(path: String, content: String) {
         post("/api/cortex/host/files/content", JSONObject().put("path", path).put("content", content))
     }
+
+    override fun writeBytes(path: String, content: ByteArray) {
+        post(
+            "/api/cortex/host/files/binary",
+            JSONObject()
+                .put("path", path)
+                .put("contentBase64", Base64.encodeToString(content, Base64.NO_WRAP)),
+        )
+    }
+
+    override fun installDependencies(): String =
+        post("/api/cortex/host/dependencies/install", JSONObject()).optString("message", "Dependencies installed")
 
     private fun get(path: String): JSONObject = request("GET", path)
     private fun post(path: String, body: JSONObject): JSONObject = request("POST", path, body)
