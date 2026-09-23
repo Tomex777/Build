@@ -229,7 +229,7 @@ jobs:
                            if node.attrib.get("text") == "Continue to WhatsApp"), None)
             if button is None:
                 raise SystemExit("Pairing CTA was not present in emulator UI")
-            match = re.fullmatch(r"\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]", button.attrib["bounds"])
+            match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", button.attrib["bounds"])
             if match is None:
                 raise SystemExit("Could not read pairing CTA bounds")
             x1, y1, x2, y2 = map(int, match.groups())
