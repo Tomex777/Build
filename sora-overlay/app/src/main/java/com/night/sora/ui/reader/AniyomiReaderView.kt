@@ -317,7 +317,10 @@ private class AniyomiReaderPageView(
         boundKey = key
         progress.visibility = View.VISIBLE
         error.visibility = View.GONE
-        image.visibility = View.INVISIBLE
+        // SubsamplingScaleImageView starts tiled decoding from onDraw. Keep it visible while
+        // the spinner overlays the page; INVISIBLE prevents onDraw and leaves Webtoon pages
+        // permanently at the loading state after their dimensions are initialized.
+        image.visibility = View.VISIBLE
         image.contentDescription = "Reader page $pageNumber loading"
         error.contentDescription = "Reader page $pageNumber failed to load"
         image.recycle()
@@ -338,10 +341,11 @@ private class AniyomiReaderPageView(
                 }
 
                 override fun onImageLoadError(e: Exception) {
-                    if (boundKey != key) return
-                    Log.e(TAG, "Reader page $pageNumber image decode failed", e)
-                    progress.visibility = View.GONE
-                    error.visibility = View.VISIBLE
+                    showDecodeError(key, pageNumber, "image", e)
+                }
+
+                override fun onTileLoadError(e: Exception) {
+                    showDecodeError(key, pageNumber, "tile", e)
                 }
             },
         )
@@ -364,6 +368,13 @@ private class AniyomiReaderPageView(
                     }
                 }
         }
+    }
+
+    private fun showDecodeError(key: String, pageNumber: Int, stage: String, failure: Exception) {
+        if (boundKey != key) return
+        Log.e(TAG, "Reader page $pageNumber $stage decode failed", failure)
+        progress.visibility = View.GONE
+        error.visibility = View.VISIBLE
     }
 
     fun recycle() {
