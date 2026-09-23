@@ -175,7 +175,7 @@ tap "AI & models"
 wait_for "AI provider not connected"
 shot ai-provider-state
 adb shell input keyevent 4
-tap "About & help"
+tap_scrolling "About & help"
 wait_for "About Sora"
 wait_for "Version"
 shot about
