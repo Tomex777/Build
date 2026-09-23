@@ -122,6 +122,7 @@ private enum class SheetMode {
     FILE_ACTIONS,
     RENAME,
     BACKUP,
+    NEW_COMMAND,
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -244,6 +245,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                             onConnection = { sheet = SheetMode.CONNECTION },
                             onToggle = vm::setCommandSetting,
                             onRefresh = vm::refreshSettings,
+                            onNewCommand = { sheet = SheetMode.NEW_COMMAND },
                             onReloadCommands = vm::reloadCommands,
                         )
                         ServerTab.ACTIVITY -> ActivityPage(state, vm::refreshActivity)
@@ -344,6 +346,16 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
             onDismiss = { sheet = null },
             onCreate = { privateBackup ->
                 vm.createBackup(privateBackup)
+                sheet = null
+            },
+        )
+        SheetMode.NEW_COMMAND -> NameSheet(
+            title = "New Command",
+            label = "Command name",
+            action = "Create & edit",
+            onDismiss = { sheet = null },
+            onSubmit = {
+                vm.createCommand(it)
                 sheet = null
             },
         )
@@ -847,6 +859,7 @@ private fun SettingsPage(
     onConnection: () -> Unit,
     onToggle: (String, Boolean) -> Unit,
     onRefresh: () -> Unit,
+    onNewCommand: () -> Unit,
     onReloadCommands: () -> Unit,
 ) {
     LazyColumn(
@@ -865,6 +878,29 @@ private fun SettingsPage(
                     )
                 }
                 IconButton(onClick = onRefresh) { Icon(Icons.Rounded.Refresh, "Refresh settings") }
+            }
+        }
+        item {
+            Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onNewCommand)
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Rounded.NoteAdd, null)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("New command", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text(
+                            "Create a drop-in command file and open it directly in the editor.",
+                            color = CortexMuted,
+                            fontSize = 9.sp,
+                        )
+                    }
+                    Text("CREATE", color = CortexAccent, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
         item {

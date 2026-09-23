@@ -326,6 +326,37 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         _state.value = _state.value.copy(pendingDownload = null)
     }
 
+    fun createCommand(name: String) {
+        val clean = name.trim().lowercase()
+        if (!Regex("^[a-z0-9][a-z0-9_-]{0,31}$").matches(clean)) {
+            _state.value = _state.value.copy(error = "Use 1-32 lowercase letters, numbers, _ or - for command names.")
+            return
+        }
+        val path = "/commands/$clean.js"
+        val source = """
+            export default {
+              name: '$clean',
+              description: 'Custom MSCC command.',
+              ownerOnly: true,
+
+              async run(ctx) {
+                await ctx.reply('Hello from .$clean 👋')
+              },
+            }
+        """.trimIndent() + "\n"
+
+        viewModelScope.launch {
+            busy("Command file created. Edit it, save it, then reload command files.") {
+                withContext(Dispatchers.IO) { api().writeText(path, source) }
+                _state.value = _state.value.copy(
+                    selectedFile = path,
+                    editorContent = source,
+                    editorDirty = false,
+                )
+            }
+        }
+    }
+
     fun refreshSettings() {
         if (!_state.value.configured) return
         viewModelScope.launch {
