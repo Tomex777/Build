@@ -25,7 +25,9 @@ class AnimePaheNightExtensionService : NightExtensionService() {
     private val client by lazy { AnimePaheClient(store) }
     private val hlsResolver by lazy { PaheBatcherHlsResolver(store) }
 
-    override fun descriptor(): JSONObject =
+    override fun descriptor(): JSONObject = buildDescriptor()
+
+    internal fun buildDescriptor(): JSONObject =
         nightExtensionDescriptor(
             extensionId = EXTENSION_ID,
             name = EXTENSION_NAME,

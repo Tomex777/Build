@@ -83,6 +83,12 @@ class NightIntegrationToolRegistryTest {
             assertTrue(extension.qualifiedName in names)
             assertTrue(mcp.qualifiedName in names)
 
+            val prompt = NightIntegrationToolRegistry.promptSummary()
+            assertTrue(prompt.contains("Enabled Night integrations"))
+            assertTrue(prompt.contains(extension.qualifiedName))
+            assertTrue(prompt.contains("Search anime."))
+            assertTrue(prompt.contains("Do not claim an integration is missing or disabled"))
+
             val extensionPrompt = NightExtensionToolRegistry.promptSummary()
             assertTrue(extensionPrompt.contains("anime / search"))
             assertTrue(extensionPrompt.contains(extension.qualifiedName))

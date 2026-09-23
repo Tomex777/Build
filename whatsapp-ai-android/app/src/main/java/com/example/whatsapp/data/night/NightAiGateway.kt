@@ -7,6 +7,7 @@ import com.example.whatsapp.extensions.messages.ExtensionMessageCodec
 import com.example.whatsapp.extensions.messages.NightExtensionMessageTypeRegistry
 import com.example.whatsapp.extensions.runtime.NightExternalExtensionManager
 import com.example.whatsapp.extensions.tools.NightExtensionToolRegistry
+import com.example.whatsapp.extensions.tools.NightIntegrationToolRegistry
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -492,9 +493,11 @@ class NightAiGateway private constructor(
         val hasTools = supports(selected.model, "tools")
         val extensionMessageTypes =
             NightExtensionMessageTypeRegistry.promptSummary()
-        val extensionInventory =
-            NightExternalExtensionManager.get(context).modelContextSummary()
+        val extensionManager = NightExternalExtensionManager.get(context)
+        runCatching { extensionManager.refreshInstalledExtensions() }
+        val extensionInventory = extensionManager.modelContextSummary()
         val extensionTools = NightExtensionToolRegistry.promptSummary()
+        val integrationTools = NightIntegrationToolRegistry.promptSummary()
         val system = buildString {
             append("You are Night, the user's private AI assistant. ")
             append("The user's preferred name is ")
@@ -518,6 +521,10 @@ class NightAiGateway private constructor(
                 append("\n\n")
                 append(extensionMessageTypes)
                 append(" Use only registered Night message types and the integration action that creates them; do not invent type names or recreate interactive cards as plain text. ")
+            }
+            if (integrationTools.isNotBlank()) {
+                append("\n\n")
+                append(integrationTools)
             }
 
             if (hasTools) {
@@ -902,6 +909,7 @@ class NightAiGateway private constructor(
         val definitions = if (useTools) NightAgentToolSchemas.all() else null
         val executedToolResults = mutableMapOf<String, String>()
         val createdOptionCards = mutableListOf<Pair<String, List<String>>>()
+        val createdOptionCardKeys = mutableSetOf<String>()
         var sideEffectSucceeded = false
 
         repeat(MAX_TOOL_ROUNDS) {
@@ -955,12 +963,15 @@ class NightAiGateway private constructor(
                 )
             )
             step.toolCalls.forEach { call ->
-                val dedupeKey =
-                    if (call.id.startsWith("night_tool_")) {
-                        call.name + "\u0000" + call.argumentsJson
-                    } else {
-                        call.id
-                    }
+                // A provider may repeat an identical side-effect call in another tool round
+                // with a fresh call id. Reuse its result to avoid duplicate interactive cards.
+                val dedupeKey = when {
+                    NightAgentToolSchemas.isSideEffect(call.name) ->
+                        call.name + "\u0000" + canonicalToolArguments(call.argumentsJson)
+                    call.id.startsWith("night_tool_") ->
+                        call.name + "\u0000" + canonicalToolArguments(call.argumentsJson)
+                    else -> call.id
+                }
                 val result = executedToolResults[dedupeKey]
                     ?: tools.execute(chatId, call).also {
                         executedToolResults[dedupeKey] = it
@@ -981,7 +992,10 @@ class NightAiGateway private constructor(
                             }
                         }
                         if (title.isNotBlank() && options.size >= 2) {
-                            createdOptionCards += title to options
+                            val cardKey = title + "\u0000" + options.joinToString("\u0000")
+                            if (createdOptionCardKeys.add(cardKey)) {
+                                createdOptionCards += title to options
+                            }
                         }
                     }
                 }
@@ -1005,6 +1019,10 @@ class NightAiGateway private constructor(
 
         error("Night stopped after too many consecutive tool calls.")
     }
+
+    private fun canonicalToolArguments(argumentsJson: String): String =
+        runCatching { JSONObject(argumentsJson).toString() }
+            .getOrElse { argumentsJson.trim() }
 
     private data class ChatStep(
         val content: String,

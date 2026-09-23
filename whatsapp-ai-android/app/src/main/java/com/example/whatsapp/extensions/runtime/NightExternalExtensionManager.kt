@@ -27,6 +27,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
@@ -107,6 +109,8 @@ class NightExternalExtensionManager private constructor(
     val extensions: StateFlow<List<NightInstalledExtensionSummary>> =
         _extensions
 
+    private val refreshMutex = Mutex()
+
     fun modelContextSummary(): String {
         val current = _extensions.value
         if (current.isEmpty()) {
@@ -121,6 +125,12 @@ class NightExternalExtensionManager private constructor(
                 append(extension.extensionId)
                 append("): ")
                 append(if (extension.enabled) "enabled in Night" else "installed but disabled")
+                append("; ")
+                append(extension.toolCount)
+                append(if (extension.toolCount == 1) " tool" else " tools")
+                append(", ")
+                append(extension.messageTypeCount)
+                append(if (extension.messageTypeCount == 1) " message type" else " message types")
                 if (extension.capabilities.isNotEmpty()) {
                     append("; capabilities: ")
                     append(extension.capabilities.map { it.wireName }.sorted().joinToString(", "))
@@ -199,7 +209,10 @@ class NightExternalExtensionManager private constructor(
         syncPreferenceRouter()
     }
 
-    suspend fun refreshInstalledExtensions(): List<String> {
+    suspend fun refreshInstalledExtensions(): List<String> =
+        refreshMutex.withLock { refreshInstalledExtensionsLocked() }
+
+    private suspend fun refreshInstalledExtensionsLocked(): List<String> {
         val components = withContext(Dispatchers.IO) {
             @Suppress("DEPRECATION")
             app.packageManager.queryIntentServices(
@@ -346,6 +359,12 @@ class NightExternalExtensionManager private constructor(
 
         val tools = descriptor.optJSONArray("tools")
         val messageTypes = descriptor.optJSONArray("messageTypes")
+        val toolCount = minOf(tools?.length() ?: 0, MAX_TOOLS)
+        val messageTypeCount = minOf(messageTypes?.length() ?: 0, MAX_MESSAGE_TYPES)
+        require(toolCount > 0 || messageTypeCount > 0) {
+            "This extension APK does not expose any Night tools or message types. " +
+                "Update or reinstall the extension APK."
+        }
 
         return Discovered(
             component = component,
@@ -358,9 +377,8 @@ class NightExternalExtensionManager private constructor(
                         .trim()
                         .ifBlank { extensionId }
                 },
-            toolCount = minOf(tools?.length() ?: 0, MAX_TOOLS),
-            messageTypeCount =
-                minOf(messageTypes?.length() ?: 0, MAX_MESSAGE_TYPES),
+            toolCount = toolCount,
+            messageTypeCount = messageTypeCount,
             capabilities =
                 NightIntegrationManifest
                     .fromJson(

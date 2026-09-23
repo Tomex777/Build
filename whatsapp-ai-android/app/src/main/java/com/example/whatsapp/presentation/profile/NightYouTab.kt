@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Movie
@@ -64,6 +65,7 @@ fun NightYouTab(
     onTabSelected: (MainTab) -> Unit,
     onProfileClick: () -> Unit,
     onProvidersClick: () -> Unit,
+    onIntegrationsClick: () -> Unit,
     onMemoryClick: () -> Unit,
     onSchedulesClick: () -> Unit,
     onMediaLibraryClick: () -> Unit,
@@ -81,6 +83,7 @@ fun NightYouTab(
 
     val rows = listOf(
         YouRow("providers", Icons.Default.AutoAwesome, "AI & providers", "DeepSeek, Groq, Azure, models and keys"),
+        YouRow("integrations", Icons.Default.Extension, "Integrations", "Extensions, MCP servers and connected services"),
         YouRow("memory", Icons.Default.Memory, "Memory", "Chat summaries and cross-chat references"),
         YouRow("scheduled", Icons.Default.Schedule, "Scheduled", "Tasks Night will run later"),
         YouRow("media_library", Icons.Default.Movie, "Media library", "Anime, manga and music saved by extensions"),
@@ -161,6 +164,7 @@ fun NightYouTab(
                         .clickable {
                             when (row.id) {
                                 "providers" -> onProvidersClick()
+                                "integrations" -> onIntegrationsClick()
                                 "memory" -> onMemoryClick()
                                 "scheduled" -> onSchedulesClick()
                                 "media_library" -> onMediaLibraryClick()

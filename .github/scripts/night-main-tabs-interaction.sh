@@ -151,6 +151,7 @@ assert_desc "Chat"
 assert_desc "Library"
 assert_desc "Scripts/Projects"
 assert_desc "U"
+assert_text "Integrations"
 adb exec-out screencap -p >"$OUT/04-you.png"
 
 adb logcat -d -v threadtime >"$OUT/logcat.txt"

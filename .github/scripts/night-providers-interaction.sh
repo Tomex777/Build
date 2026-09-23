@@ -148,6 +148,11 @@ assert_text "AI & providers"
 assert_text "Groq"
 assert_text "Groq Chat"
 assert_text "Llama 3.3 70B"
+refresh_ui
+if grep -q "Integrations" /tmp/window.xml; then
+  echo "Integrations must be opened from You, not AI & providers." >&2
+  exit 1
+fi
 adb exec-out screencap -p > "$OUT/01-provider-phone-width.png"
 
 echo "STEP: provider configuration opens in a bottom sheet"

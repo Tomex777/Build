@@ -1527,7 +1527,7 @@ private fun NightApp(initialChatId: String? = null) {
         "integrations" -> NightIntegrationsScreen(
             extensions = extensions,
             servers = mcpServers,
-            onBack = { screen = "providers" },
+            onBack = { screen = "tabs" },
             onRefresh = {
                 scope.launch {
                     runCatching {
@@ -1791,8 +1791,6 @@ private fun NightApp(initialChatId: String? = null) {
             models = providerModels,
             onBack = { screen = "tabs" },
             onCapabilityRoutingClick = { screen = "capability_routes" },
-            onMcpServersClick = { screen = "integrations" },
-            onExtensionsClick = { screen = "integrations" },
             onAddProfile = { provider, service, name, key, endpoint, region, language, voiceName, makeDefault ->
                 scope.launch {
                     runCatching {
@@ -3067,6 +3065,7 @@ private fun NightApp(initialChatId: String? = null) {
                 },
                 onProfileClick = { screen = "profile" },
                 onProvidersClick = { screen = "providers" },
+                onIntegrationsClick = { screen = "integrations" },
                 onMemoryClick = { screen = "memory" },
                 onSchedulesClick = { screen = "scheduled_tasks" },
                 onMediaLibraryClick = {

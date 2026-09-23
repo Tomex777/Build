@@ -72,8 +72,6 @@ fun NightProvidersScreen(
     models: List<NightProviderModelEntity>,
     onBack: () -> Unit,
     onCapabilityRoutingClick: () -> Unit,
-    onMcpServersClick: () -> Unit,
-    onExtensionsClick: () -> Unit,
     onAddProfile: (
         providerType: String,
         serviceKind: String,
@@ -180,35 +178,6 @@ fun NightProvidersScreen(
                     fontSize = 12.sp,
                     lineHeight = 17.sp,
                 )
-            }
-
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onExtensionsClick)
-                        .padding(vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Integrations",
-                            color = ProviderText,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium,
-                        )
-                        Text(
-                            "Manage Night extensions and MCP connections in one place",
-                            color = ProviderMuted,
-                            fontSize = 11.sp,
-                        )
-                    }
-                    Text(
-                        "Manage",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 12.sp,
-                    )
-                }
             }
 
             listOf("deepseek", "groq", "azure").forEach { provider ->

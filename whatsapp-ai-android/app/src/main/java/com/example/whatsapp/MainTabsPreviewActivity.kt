@@ -56,6 +56,7 @@ class MainTabsPreviewActivity : ComponentActivity() {
                         onTabSelected = {},
                         onProfileClick = {},
                         onProvidersClick = {},
+                        onIntegrationsClick = {},
                         onMemoryClick = {},
                         onSchedulesClick = {},
                         onMediaLibraryClick = {},

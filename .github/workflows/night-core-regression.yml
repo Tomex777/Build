@@ -97,6 +97,7 @@ jobs:
           you = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/presentation/profile/NightYouTab.kt").read_text()
           assert "Scripts & Projects" not in files, "Scripts/Projects must have a dedicated tab, not a Library shortcut"
           assert '"Settings"' not in you, "U must not duplicate a separate Settings row"
+          assert 'YouRow("integrations"' in you, "Integrations must have its own You destination"
           assert "rememberSaveable { mutableStateOf(\"\") }" in files, "Library search must survive tab recomposition"
 
           main = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/MainActivity.kt").read_text()
@@ -109,7 +110,7 @@ jobs:
 
           providers = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/presentation/profile/NightProvidersScreen.kt").read_text()
           assert "private fun ProviderBottomSheet" in providers and providers.count("ProviderBottomSheet(") >= 5, "Provider, key and model editing must use compact bottom sheets"
-          assert '"Integrations"' in providers, "Providers settings must expose one Integrations entry"
+          assert '"Integrations"' not in providers, "Integrations belongs in You, separate from AI & providers"
           assert '"MCP servers"' not in providers and '"Extensions"' not in providers, "Providers settings must not split MCP and Extensions into separate entries"
 
           agent_tools = Path("whatsapp-ai-android/app/src/main/java/com/example/whatsapp/data/night/NightAgentTools.kt").read_text()
@@ -141,7 +142,7 @@ jobs:
         run: |
           cd whatsapp-ai-android
           chmod +x gradlew
-          ./gradlew :app:testDebugUnitTest :app:assembleDebug --stacktrace
+          ./gradlew :app:testDebugUnitTest :extensions:animepahe:testDebugUnitTest :app:assembleDebug :extensions:animepahe:assembleDebug --stacktrace
           UNIVERSAL_APK="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*universal*.apk' -print -quit)"
           test -n "$UNIVERSAL_APK"
           cp "$UNIVERSAL_APK" app/build/outputs/apk/debug/app-debug.apk
@@ -152,6 +153,13 @@ jobs:
         with:
           name: night-integrated-apk
           path: whatsapp-ai-android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Upload AnimePahe extension APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-animepahe-extension-apk
+          path: whatsapp-ai-android/extensions/animepahe/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
   android-16-provider:

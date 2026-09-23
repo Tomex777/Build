@@ -49,6 +49,39 @@ object NightIntegrationToolRegistry {
             appendSchemas(NightMcpToolRegistry.schemas())
         }
 
+    /** Describes integrations actually registered and available to this request. */
+    fun promptSummary(): String {
+        val registeredSchemas = schemas()
+        if (registeredSchemas.length() == 0) return ""
+
+        return buildString {
+            append("Enabled Night integrations available in this conversation:\n")
+            for (index in 0 until registeredSchemas.length()) {
+                val function = registeredSchemas.optJSONObject(index)
+                    ?.optJSONObject("function") ?: continue
+                val name = function.optString("name").trim()
+                val description = function.optString("description").trim()
+                if (name.isBlank() || description.isBlank()) continue
+
+                val integration = metadata(name)
+                append("- [")
+                append(integration?.kind?.wireName ?: "integration")
+                append(" ")
+                append(integration?.integrationId ?: "")
+                append("] ")
+                append(name)
+                append(": ")
+                append(description)
+                append("\n")
+            }
+            append(
+                "When the user refers to an extension, match their request to these installed " +
+                    "integration tools and call the relevant tool. Do not claim an integration is " +
+                    "missing or disabled when its tool is listed here."
+            )
+        }.trim()
+    }
+
     suspend fun execute(
         qualifiedName: String,
         chatId: String,
