@@ -128,9 +128,12 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -2353,6 +2356,31 @@ private fun NightApp(initialChatId: String? = null) {
                         }
                     }
 
+                    actionId == "option_submit" -> {
+                        scope.launch {
+                            val existing = repository.getMessage(messageId) ?: return@launch
+                            if (existing.type != "choice") {
+                                return@launch
+                            }
+                            val payload = runCatching { JSONObject(existing.payloadJson) }
+                                .getOrElse { JSONObject() }
+                            if (!payload.optBoolean("multiple", false)) return@launch
+                            val selected = buildSet {
+                                payload.optJSONArray("selectedIndices")?.let { raw ->
+                                    for (position in 0 until raw.length()) {
+                                        add(raw.optInt(position, -1))
+                                    }
+                                }
+                            }
+                            submitChoiceSelection(
+                                repository = repository,
+                                aiGateway = aiGateway,
+                                existing = existing,
+                                selectedIndices = selected,
+                                displayName = displayName,
+                            )
+                        }
+                    }
                     actionId.startsWith("option_") -> {
                         val index = actionId.removePrefix("option_").toIntOrNull()
                         if (index != null) {
@@ -2361,6 +2389,22 @@ private fun NightApp(initialChatId: String? = null) {
                                 if (existing.type == "choice") {
                                     val payload = runCatching { JSONObject(existing.payloadJson) }
                                         .getOrElse { JSONObject() }
+                                    if (payload.optBoolean("selectionSubmitted", false)) {
+                                        return@launch
+                                    }
+                                    val options = payload.optJSONArray("options")
+                                        ?: return@launch
+                                    if (index !in 0 until options.length()) return@launch
+                                    if (!payload.optBoolean("multiple", false)) {
+                                        submitChoiceSelection(
+                                            repository = repository,
+                                            aiGateway = aiGateway,
+                                            existing = existing,
+                                            selectedIndices = setOf(index),
+                                            displayName = displayName,
+                                        )
+                                        return@launch
+                                    }
                                     if (payload.optBoolean("multiple", false)) {
                                         val selected = linkedSetOf<Int>()
                                         payload.optJSONArray("selectedIndices")?.let { raw ->
@@ -3361,6 +3405,7 @@ private fun NightMessageEntity.toVisualMessage(
                     ?.optInt("selectedIndex"),
                 selectedIndices = selectedIndices,
                 multiple = payload?.optBoolean("multiple", false) ?: false,
+                selectionSubmitted = payload?.optBoolean("selectionSubmitted", false) ?: false,
                 selectedBy = payload?.optString("selectedBy")?.takeIf { it.isNotBlank() },
                 mine = mine,
                 time = time,
@@ -3901,6 +3946,7 @@ private suspend fun streamNightAssistantReply(
                 payload
                     .put("selectedIndex", selection.index)
                     .put("selectedBy", "Night")
+                    .put("selectionSubmitted", true)
                 repository.appendMessage(existing.copy(payloadJson = payload.toString()))
             }
         }
@@ -3928,8 +3974,66 @@ private suspend fun streamNightAssistantReply(
                 createdAt = System.currentTimeMillis(),
                 payloadJson = JSONObject()
                     .put("options", JSONArray(choice.options))
+                    .put("multiple", choice.multiple)
                     .toString(),
             )
+        )
+    }
+}
+
+private val choiceSubmissionLocks = ConcurrentHashMap<String, Mutex>()
+
+private suspend fun submitChoiceSelection(
+    repository: NightRepository,
+    aiGateway: NightAiGateway,
+    existing: NightMessageEntity,
+    selectedIndices: Set<Int>,
+    displayName: String,
+) {
+    val lock = choiceSubmissionLocks.getOrPut(existing.id) { Mutex() }
+    lock.withLock {
+        val latest = repository.getMessage(existing.id) ?: return@withLock
+        val payload = runCatching { JSONObject(latest.payloadJson) }
+            .getOrElse { JSONObject() }
+        if (payload.optBoolean("selectionSubmitted", false)) return@withLock
+        val options = payload.optJSONArray("options") ?: return@withLock
+        val validIndices = selectedIndices
+            .filter { it in 0 until options.length() }
+            .distinct()
+            .sorted()
+        if (validIndices.isEmpty()) return@withLock
+
+        val selectedLabels = validIndices.map { options.optString(it).trim() }
+            .filter { it.isNotBlank() }
+        if (selectedLabels.isEmpty()) return@withLock
+
+        if (payload.optBoolean("multiple", false)) {
+            payload.put("selectedIndices", JSONArray(validIndices))
+                .remove("selectedIndex")
+        } else {
+            payload.put("selectedIndex", validIndices.first())
+                .remove("selectedIndices")
+        }
+        payload
+            .put("selectedBy", "You")
+            .put("selectionSubmitted", true)
+        repository.appendMessage(latest.copy(payloadJson = payload.toString()))
+
+        // Persist the tapped label as a normal user turn before asking the
+        // provider to respond; the reply reference carries the question context.
+        repository.appendText(
+            chatId = latest.chatId,
+            role = "user",
+            text = selectedLabels.joinToString(", "),
+            replyToMessageId = latest.id,
+        )
+        streamNightAssistantReply(
+            repository = repository,
+            aiGateway = aiGateway,
+            chatId = latest.chatId,
+            displayName = displayName,
+            noAiMessage = "No AI is selected for this chat yet. Tap Choose AI to pick a configured model.",
+            failurePrefix = "I couldn't reach an available AI. ",
         )
     }
 }
@@ -3953,6 +4057,7 @@ private suspend fun appendParsedAssistantReply(
                 payload
                     .put("selectedIndex", selection.index)
                     .put("selectedBy", "Night")
+                    .put("selectionSubmitted", true)
                 repository.appendMessage(
                     existing.copy(payloadJson = payload.toString())
                 )
@@ -3981,6 +4086,7 @@ private suspend fun appendParsedAssistantReply(
                 createdAt = System.currentTimeMillis(),
                 payloadJson = JSONObject()
                     .put("options", JSONArray(choice.options))
+                    .put("multiple", choice.multiple)
                     .toString(),
             )
         )

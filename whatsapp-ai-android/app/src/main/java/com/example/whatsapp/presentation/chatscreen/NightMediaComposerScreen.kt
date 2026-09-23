@@ -259,6 +259,15 @@ fun NightMediaComposerScreen(
     }
 
     fun exportImageAndSend() {
+        // Do not flatten/re-encode the image just because the user opened the
+        // composer. The PhotoEditor canvas is a phone-sized preview, so exporting
+        // that canvas for an untouched image would unnecessarily lower its
+        // resolution and recompress the original attachment.
+        if (!imageEdited && workingPath == localPath) {
+            onPreparedSend(localPath, mimeType, fileName)
+            return
+        }
+
         val editor = photoEditor
         if (editor == null) {
             onPreparedSend(workingPath, mimeType, fileName)
@@ -526,40 +535,10 @@ fun NightMediaComposerScreen(
                     .background(Color.Black),
                 contentAlignment = Alignment.Center,
             ) {
-                val sourceAspect = remember(workingPath) {
-                    readEditorImageAspectRatio(workingPath)
-                }
-                val quarterTurns =
-                    ((imageRotation / 90f).toInt() % 4 + 4) % 4
-                val displayAspect =
-                    if (!isVideo && quarterTurns % 2 == 1) {
-                        1f / sourceAspect
-                    } else {
-                        sourceAspect
-                    }
-                val availableAspect =
-                    if (maxHeight.value > 0f) {
-                        maxWidth.value / maxHeight.value
-                    } else {
-                        displayAspect
-                    }
-                val editorWidth =
-                    if (displayAspect >= availableAspect) {
-                        maxWidth
-                    } else {
-                        maxHeight * displayAspect
-                    }
-                val editorHeight =
-                    if (displayAspect >= availableAspect) {
-                        maxWidth / displayAspect
-                    } else {
-                        maxHeight
-                    }
-                val editorModifier =
-                    Modifier.size(
-                        width = editorWidth,
-                        height = editorHeight,
-                    )
+                // Keep the editor canvas as large as the available preview area.
+                // The image view itself uses FIT_CENTER, so unusual portrait or
+                // panorama ratios no longer shrink the whole editor surface.
+                val editorModifier = Modifier.fillMaxSize()
 
                 when {
                     isVideo -> {
@@ -897,21 +876,6 @@ fun NightMediaComposerScreen(
                 }
             },
         )
-    }
-}
-
-private fun readEditorImageAspectRatio(path: String): Float {
-    val options = BitmapFactory.Options().apply {
-        inJustDecodeBounds = true
-    }
-    BitmapFactory.decodeFile(path, options)
-
-    val width = options.outWidth
-    val height = options.outHeight
-    return if (width > 0 && height > 0) {
-        (width.toFloat() / height.toFloat()).coerceIn(0.08f, 12f)
-    } else {
-        1f
     }
 }
 

@@ -81,6 +81,27 @@ object NightExtensionToolRegistry {
         return array
     }
 
+    fun promptSummary(): String {
+        val registered = tools.values
+            .map { it.definition }
+            .sortedWith(compareBy<NightExtensionToolDefinition> { it.extensionId }.thenBy { it.name })
+        if (registered.isEmpty()) return ""
+        return buildString {
+            append("Currently enabled Night extension tools on this device:\n")
+            registered.forEach { definition ->
+                append("- ")
+                append(definition.extensionId)
+                append(" / ")
+                append(definition.name)
+                append(" (provider tool ")
+                append(definition.qualifiedName)
+                append("): ")
+                append(definition.description.take(400))
+                append("\n")
+            }
+        }.trim()
+    }
+
     private fun shouldExposeToModel(
         definition: NightExtensionToolDefinition,
         all: List<Registered>,

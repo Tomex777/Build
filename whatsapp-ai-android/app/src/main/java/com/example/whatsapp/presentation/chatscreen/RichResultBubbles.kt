@@ -113,6 +113,7 @@ data class ChoiceResultMessage(
     val selectedIndex: Int? = null,
     val selectedIndices: Set<Int> = emptySet(),
     val multiple: Boolean = false,
+    val selectionSubmitted: Boolean = false,
     val selectedBy: String? = null,
     val mine: Boolean = false,
     val time: String,
@@ -663,19 +664,46 @@ private fun ChoiceResultBubble(
                 ChoiceOption(
                     text = option,
                     selected = selected,
-                    enabled = item.multiple || item.selectedIndex == null,
+                    enabled = if (item.multiple) {
+                        !item.selectionSubmitted
+                    } else {
+                        item.selectedIndex == null && !item.selectionSubmitted
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { onAction(item.id, "option_" + index) },
                 )
             }
         }
 
-        Text(
-            text = if (item.multiple) "Choose one or more" else "Choose one",
-            color = RichMuted,
-            fontSize = 9.sp,
-            modifier = Modifier.padding(top = 5.dp, start = 2.dp),
-        )
+        if (item.multiple && !item.selectionSubmitted) {
+            Surface(
+                color = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+                    .clickable { onAction(item.id, "option_submit") },
+            ) {
+                Text(
+                    text = if (item.selectedIndices.isEmpty()) {
+                        "Choose one or more"
+                    } else {
+                        "Send selection"
+                    },
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                )
+            }
+        } else if (!item.selectionSubmitted) {
+            Text(
+                text = "Tap an option to send it to Night",
+                color = RichMuted,
+                fontSize = 9.sp,
+                modifier = Modifier.padding(top = 5.dp, start = 2.dp),
+            )
+        }
 
         item.selectedBy?.takeIf { it.isNotBlank() }?.let {
             Text(

@@ -5,6 +5,7 @@ import org.json.JSONObject
 data class NightChoicePayload(
     val title: String,
     val options: List<String>,
+    val multiple: Boolean = false,
 )
 
 data class NightChoiceSelection(
@@ -57,8 +58,15 @@ object NightStructuredReplyParser {
             }
         }
 
+        val visibleText = visibleLines.joinToString("\n").trim()
         return NightParsedReply(
-            text = visibleLines.joinToString("\n").trim(),
+            text = choice?.let {
+                NightChoiceResponsePolicy.suppressDuplicateOptionList(
+                    visibleText,
+                    it.title,
+                    it.options,
+                )
+            } ?: visibleText,
             choice = choice,
             choiceSelection = selection,
         )
@@ -75,7 +83,7 @@ object NightStructuredReplyParser {
                     val value = array.optString(index).trim()
                     if (value.isNotBlank()) add(value)
                 }
-            }.take(6)
+            }.take(8)
 
             if (title.isBlank() || options.size < 2) {
                 null
@@ -83,6 +91,7 @@ object NightStructuredReplyParser {
                 NightChoicePayload(
                     title = title,
                     options = options,
+                    multiple = json.optBoolean("multiple", false),
                 )
             }
         }.getOrNull()
@@ -103,4 +112,40 @@ object NightStructuredReplyParser {
                 )
             }
         }.getOrNull()
+}
+
+internal object NightChoiceResponsePolicy {
+    fun suppressDuplicateOptionList(
+        text: String,
+        title: String,
+        options: List<String>,
+    ): String {
+        if (text.isBlank() || options.size < 2) return text
+        val normalizedTitle = normalize(title)
+        val normalizedOptions = options.map(::normalize).filter { it.isNotBlank() }.toSet()
+        val lines = text.lines()
+        val normalizedLines = lines.map { normalize(it) }
+        if (normalizedTitle !in normalizedLines) return text
+        if (!normalizedOptions.all { it in normalizedLines }) return text
+
+        val remaining = lines.filterNot { line ->
+            val normalized = normalize(line)
+            normalized.isBlank() || normalized == normalizedTitle || normalized in normalizedOptions
+        }.joinToString("\n").trim()
+        if (remaining.isBlank()) return ""
+        val onlySelectionNudge = remaining.lines().all { line ->
+            line.length <= 220 && Regex("(?i)\\b(choose|pick|option|select|let me know|which one)\\b")
+                .containsMatchIn(line)
+        }
+        return if (onlySelectionNudge) "" else remaining
+    }
+
+    private fun normalize(raw: String): String = raw
+        .replace(Regex("^\\s*\\d+\\s*[\\p{Punct}\\p{M}]*\\s*"), "")
+        .replace("**", "")
+        .replace("`", "")
+        .lowercase()
+        .filter { it.isLetterOrDigit() || it == '/' || it.isWhitespace() }
+        .replace(Regex("\\s+"), " ")
+        .trim()
 }

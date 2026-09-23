@@ -684,6 +684,8 @@ class NightAiGatewayProviderInstrumentedTest {
             assertTrue(submittedContext.contains("finish Cloudflare verification"))
             assertTrue(submittedContext.contains("Reply context"))
             assertTrue(submittedContext.contains("Can the extension open it automatically?"))
+            assertTrue(submittedContext.contains("Night Extensions are integrations installed in the Night app"))
+            assertTrue(submittedContext.contains("not Chrome, Firefox"))
             assertTrue(!body.contains("groq-key-a"))
         } finally {
             repository.deleteChat(chatId)
@@ -944,7 +946,7 @@ class NightAiGatewayProviderInstrumentedTest {
                 .setResponseCode(200)
                 .setHeader("Content-Type", "text/event-stream")
                 .setBody(
-                    "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_options\",\"function\":{\"name\":\"create_options\",\"arguments\":\"{\\\"title\\\":\\\"Pick one\\\",\\\"options\\\":[\\\"A\\\",\\\"B\\\"]}\"}}]}}]}\n\n" +
+                        "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_options\",\"function\":{\"name\":\"create_options\",\"arguments\":\"{\\\"title\\\":\\\"Pick one\\\",\\\"options\\\":[\\\"A\\\",\\\"B\\\"],\\\"multiple\\\":true}\"}}]}}]}\n\n" +
                         "data: [DONE]\n\n"
                 )
         )
@@ -1064,6 +1066,7 @@ class NightAiGatewayProviderInstrumentedTest {
                 .filter { it.type == "choice" }
             assertEquals(1, choiceMessages.size)
             assertEquals("Pick one", choiceMessages.single().text)
+            assertTrue(JSONObject(choiceMessages.single().metadata).optBoolean("multiple"))
         } finally {
             repository.deleteChat(chatId)
             repository.deleteProviderModel(primaryModelId)

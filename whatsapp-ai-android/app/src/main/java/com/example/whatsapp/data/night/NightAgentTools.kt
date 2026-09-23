@@ -549,7 +549,7 @@ object NightAgentToolSchemas {
         ))
         .put(function(
             name = "create_options",
-            description = "Create Night's interactive single-user Options card when the user needs to choose from a compact set.",
+            description = "Create Night's interactive single- or multi-select Options card when the user needs to choose from a compact set.",
             properties = JSONObject()
                 .put("title", string("Question or choice title."))
                 .put("options", arrayOfStrings("Two to eight concise options."))

@@ -82,6 +82,11 @@ class NightIntegrationToolRegistryTest {
                     .toSet()
             assertTrue(extension.qualifiedName in names)
             assertTrue(mcp.qualifiedName in names)
+
+            val extensionPrompt = NightExtensionToolRegistry.promptSummary()
+            assertTrue(extensionPrompt.contains("anime / search"))
+            assertTrue(extensionPrompt.contains(extension.qualifiedName))
+            assertTrue(extensionPrompt.contains("Search anime."))
         } finally {
             NightExtensionToolRegistry.unregisterExtension("anime")
             NightMcpToolRegistry.unregisterServer("github")

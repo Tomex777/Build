@@ -386,10 +386,10 @@ internal fun NightVlcVideoSurface(
 ) {
     val context = LocalContext.current.applicationContext
     val virtualVideoDevice = remember { isNightEditorVirtualVideoDevice() }
-    // Match the full-screen player: hardware first everywhere. In particular,
-    // do not force avcodec from frame zero on Goldfish/ranchu, because that
-    // path has already produced a permanent black 0:00 preview in CI.
-    var softwareDecode by remember(path) { mutableStateOf(false) }
+    // This editor preview is embedded in a Compose surface; on real devices
+    // MediaCodec can advance the timeline while failing to render any frames.
+    // Start with VLC's software decoder so the preview is visible immediately.
+    var softwareDecode by remember(path) { mutableStateOf(true) }
     var hardwareRetryGeneration by remember(path) { mutableStateOf(0) }
     var hardwareRetryCount by remember(path) { mutableStateOf(0) }
     var userPaused by remember(path) { mutableStateOf(false) }

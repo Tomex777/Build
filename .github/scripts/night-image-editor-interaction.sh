@@ -170,6 +170,33 @@ original_hash="$(adb shell run-as "$PACKAGE" sha256sum cache/night-editor-previe
 test -n "$original_hash"
 printf '%s\n' "$original_hash" > "$OUT/original-sha256.txt"
 
+echo "STEP: untouched image send preserves original bytes and resolution"
+tap_desc "Send media"
+untouched_path=""
+for _ in $(seq 1 30); do
+  prefs="$(adb shell run-as "$PACKAGE" cat shared_prefs/night_media_preview.xml 2>/dev/null || true)"
+  untouched_path="$(printf '%s\n' "$prefs" | sed -n 's/.*<string name="exportPath">\([^<]*\)<\/string>.*/\1/p' | head -n 1)"
+  if [ -n "$untouched_path" ]; then break; fi
+  sleep 1
+done
+test -n "$untouched_path"
+adb exec-out run-as "$PACKAGE" cat "$untouched_path" > "$OUT/untouched-export.jpg"
+untouched_hash="$(sha256sum "$OUT/untouched-export.jpg" | awk '{print $1}')"
+if [ "$untouched_hash" != "$original_hash" ]; then
+  echo "Opening and sending an untouched image changed its original bytes." >&2
+  exit 1
+fi
+
+# The preview activity clears its export marker on launch; relaunch to continue
+# the existing edited-copy workflow independently.
+adb shell am force-stop "$PACKAGE"
+adb shell am start -W -n "$ACTIVITY"
+sleep 3
+assert_alive
+assert_desc "Send media"
+original_hash="$(adb shell run-as "$PACKAGE" sha256sum cache/night-editor-preview.jpg | awk '{print $1}')"
+test -n "$original_hash"
+
 echo "STEP: edited back requires confirmation"
 tap_desc "Rotate"
 adb shell input keyevent 4
@@ -293,6 +320,7 @@ printf '%s\n' \
   "emojiOverlay=true" \
   "undoRedo=true" \
   "discardConfirmation=true" \
+  "untouchedImagePreservedByteForByte=true" \
   "exportedCopy=true" \
   "originalPreserved=true" \
   "noStickers=true" > "$OUT/summary.txt"

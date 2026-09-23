@@ -44,6 +44,34 @@ data class NightInstalledExtensionSummary(
     val signingDigest: String = "",
 )
 
+internal fun parseNightExtensionId(
+    descriptor: JSONObject,
+    packageName: String,
+): String {
+    val candidates = listOf(
+        descriptor.optString("extensionId"),
+        descriptor.optString("id"),
+        packageName,
+    ).map { it.trim().lowercase() }
+    return candidates.firstOrNull(::isValidNightExtensionId)
+        ?: throw IllegalArgumentException("Invalid Night extension id.")
+}
+
+internal fun isValidNightExtensionId(id: String): Boolean {
+    if (id.length !in 2..64) return false
+    return id.split('.').all { segment ->
+        segment.isNotEmpty() &&
+            isAsciiAlphaNumeric(segment.first()) &&
+            isAsciiAlphaNumeric(segment.last()) &&
+            segment.all {
+                isAsciiAlphaNumeric(it) || it == '_' || it == '-'
+            }
+    }
+}
+
+private fun isAsciiAlphaNumeric(value: Char): Boolean =
+    value in 'a'..'z' || value in '0'..'9'
+
 /**
  * Runtime bridge for independently installed Night extension APKs.
  *
@@ -78,6 +106,33 @@ class NightExternalExtensionManager private constructor(
         MutableStateFlow<List<NightInstalledExtensionSummary>>(emptyList())
     val extensions: StateFlow<List<NightInstalledExtensionSummary>> =
         _extensions
+
+    fun modelContextSummary(): String {
+        val current = _extensions.value
+        if (current.isEmpty()) {
+            return "No Night extension services are currently detected by the installed-extension registry."
+        }
+        return buildString {
+            append("Night extension inventory detected on this device (separate from browser add-ons):\n")
+            current.forEach { extension ->
+                append("- ")
+                append(extension.displayName)
+                append(" (id ")
+                append(extension.extensionId)
+                append("): ")
+                append(if (extension.enabled) "enabled in Night" else "installed but disabled")
+                if (extension.capabilities.isNotEmpty()) {
+                    append("; capabilities: ")
+                    append(extension.capabilities.map { it.wireName }.sorted().joinToString(", "))
+                }
+                if (extension.error?.isNotBlank() == true) {
+                    append("; registry status: ")
+                    append(extension.error.take(240))
+                }
+                append("\n")
+            }
+        }.trim()
+    }
 
 
     fun providersFor(
@@ -287,11 +342,7 @@ class NightExternalExtensionManager private constructor(
             "Unsupported Night extension schema version: " + schemaVersion
         }
 
-        val extensionId =
-            descriptor.optString("extensionId").trim().lowercase()
-        require(EXTENSION_ID.matches(extensionId)) {
-            "Invalid Night extension id."
-        }
+        val extensionId = parseNightExtensionId(descriptor, component.packageName)
 
         val tools = descriptor.optJSONArray("tools")
         val messageTypes = descriptor.optJSONArray("messageTypes")
@@ -761,9 +812,6 @@ class NightExternalExtensionManager private constructor(
         private const val MAX_MESSAGE_TYPES = 64
         private const val REQUEST_TIMEOUT_MS = 15_000L
         private const val PREFS_NAME = "night_external_extensions"
-
-        private val EXTENSION_ID =
-            Regex("[a-z0-9][a-z0-9_.-]{1,63}")
 
         @Volatile
         private var instance: NightExternalExtensionManager? = null
