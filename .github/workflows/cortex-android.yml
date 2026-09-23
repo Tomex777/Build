@@ -65,15 +65,23 @@ jobs:
           disable-spellchecker: true
           disable-animations: true
           script: |
-            gradle -p cortex-android :app:connectedDebugAndroidTest --stacktrace
+            set +e
+            gradle -p cortex-android :app:connectedDebugAndroidTest --info --stacktrace
+            test_status=$?
+            adb logcat -d > "$GITHUB_WORKSPACE/cortex-android-logcat.txt" || true
             adb shell am force-stop com.night.cortex || true
             adb shell am start -n com.night.cortex/.MainActivity
             sleep 3
             adb exec-out screencap -p > "$GITHUB_WORKSPACE/cortex-home-emulator.png"
+            exit "$test_status"
       - name: Upload emulator screenshot
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: cortex-android35-emulator-screen
-          path: cortex-home-emulator.png
+          path: |
+            cortex-home-emulator.png
+            cortex-android-logcat.txt
+            cortex-android/app/build/reports/androidTests/connected/debug/
+            cortex-android/app/build/outputs/androidTest-results/connected/debug/
           if-no-files-found: ignore
