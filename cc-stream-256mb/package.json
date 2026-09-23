@@ -6,8 +6,8 @@
   "type": "module",
   "main": "cc-stream-256mb/index.js",
   "scripts": {
-    "start": "node cc-stream-256mb/index.js",
-    "check": "node --check cc-stream-256mb/index.js"
+    "check": "node --check cc-stream-256mb/index.js",
+    "start": "node --max-old-space-size=128 cc-stream-256mb/index.js"
   },
   "engines": {
     "node": ">=24"
