@@ -284,6 +284,17 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun prepareFileDownload(entry: HostingFileEntry) {
+        if (entry.type != "file") return
+        val path = join(_state.value.currentPath, entry.name)
+        viewModelScope.launch {
+            busy("File ready to save.") {
+                val bytes = withContext(Dispatchers.IO) { api().downloadFile(path) }
+                _state.value = _state.value.copy(pendingDownload = PendingDownload(entry.name, bytes))
+            }
+        }
+    }
+
     fun prepareBackupDownload(entry: BackupEntry) {
         viewModelScope.launch {
             busy("Backup ready to save.") {
