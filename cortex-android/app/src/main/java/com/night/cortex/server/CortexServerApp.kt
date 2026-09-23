@@ -234,6 +234,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                         ServerTab.BACKUPS -> BackupsPage(
                             state = state,
                             onRefresh = vm::refreshBackups,
+                            onDownloadProject = vm::downloadProjectBackup,
                             onCreate = { sheet = SheetMode.BACKUP },
                             onDownload = vm::prepareBackupDownload,
                         )
@@ -711,6 +712,7 @@ private fun FileRow(entry: HostingFileEntry, onOpen: () -> Unit, onMore: () -> U
 private fun BackupsPage(
     state: ServerPanelState,
     onRefresh: () -> Unit,
+    onDownloadProject: () -> Unit,
     onCreate: () -> Unit,
     onDownload: (BackupEntry) -> Unit,
 ) {
@@ -720,8 +722,24 @@ private fun BackupsPage(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Backups", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            TextButton(onClick = onRefresh) { Text("Refresh") }
-            Button(onClick = onCreate, shape = RoundedCornerShape(4.dp)) { Text("Create") }
+            IconButton(onClick = onRefresh) { Icon(Icons.Rounded.Refresh, "Refresh backups") }
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Button(
+                onClick = onDownloadProject,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(4.dp),
+            ) {
+                Icon(Icons.Rounded.Download, null, Modifier.size(15.dp))
+                Spacer(Modifier.width(5.dp))
+                Text("Download Project ZIP", fontSize = 10.sp)
+            }
+            OutlinedButton(onClick = onCreate, shape = RoundedCornerShape(4.dp)) {
+                Text("More", fontSize = 10.sp)
+            }
         }
         HorizontalDivider(color = CortexLine)
         if (state.backups.isEmpty()) {

@@ -287,6 +287,21 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun downloadProjectBackup() {
+        viewModelScope.launch {
+            busy("Project ZIP ready to save.") {
+                val api = api()
+                val backup = withContext(Dispatchers.IO) { api.createBackup(false) }
+                val bytes = withContext(Dispatchers.IO) { api.downloadBackup(backup.name) }
+                val backups = withContext(Dispatchers.IO) { api.backups() }
+                _state.value = _state.value.copy(
+                    backups = backups,
+                    pendingDownload = PendingDownload(backup.name, bytes),
+                )
+            }
+        }
+    }
+
     fun prepareFileDownload(entry: HostingFileEntry) {
         if (entry.type != "file") return
         val path = join(_state.value.currentPath, entry.name)
