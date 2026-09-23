@@ -414,6 +414,30 @@ class MainActivity : Activity() {
             }
         }
 
+        val statusListenerClass = Class.forName(
+            "com.github.auties00.cobalt.listener.MessageStatusListener",
+            true,
+            classLoader
+        )
+        val statusListener = java.lang.reflect.Proxy.newProxyInstance(
+            statusListenerClass.classLoader,
+            arrayOf(statusListenerClass)
+        ) { proxy, method, args ->
+            when (method.name) {
+                "onMessageStatus" -> {
+                    runOnUiThread {
+                        refreshChats()
+                        refreshConversation()
+                    }
+                    null
+                }
+                "toString" -> "CobaltMessageStatusListener"
+                "hashCode" -> System.identityHashCode(proxy)
+                "equals" -> proxy === args?.firstOrNull()
+                else -> null
+            }
+        }
+
         val whatsappClientClass = Class.forName(
             "com.github.auties00.cobalt.client.WhatsAppClient",
             true,
@@ -423,6 +447,8 @@ class MainActivity : Activity() {
             .invoke(client, loggedInListener)
         whatsappClientClass.getMethod("addNewMessageListener", newMessageClass)
             .invoke(client, newMessageListener)
+        whatsappClientClass.getMethod("addMessageStatusListener", statusListenerClass)
+            .invoke(client, statusListener)
     }
 
     private fun verifyMessageSurface() {
@@ -611,7 +637,8 @@ class MainActivity : Activity() {
                                 setPadding(dp(4), dp(3), dp(4), dp(3))
                             }
                             val bubble = TextView(this).apply {
-                                text = renderMessage(info)
+                                val delivery = if (isFromMe(info)) firstValue(info, "status")?.toString()?.lowercase() else null
+                                text = if (delivery.isNullOrBlank()) renderMessage(info) else "${renderMessage(info)}\n$delivery"
                                 textSize = 15f
                                 setTextColor(Color.rgb(26, 39, 47))
                                 setPadding(dp(12), dp(8), dp(12), dp(8))
