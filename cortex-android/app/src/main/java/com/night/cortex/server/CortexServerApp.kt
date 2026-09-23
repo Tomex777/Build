@@ -143,7 +143,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
     }
 
     val saveBackupLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/zip")
+        ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { uri ->
         val pending = state.pendingDownload
         if (uri != null && pending != null) {
@@ -295,6 +295,10 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                     vm.openFile(entry.name)
                 },
                 onRename = { sheet = SheetMode.RENAME },
+                onDownload = {
+                    sheet = null
+                    vm.prepareFileDownload(entry)
+                },
                 onCompress = {
                     sheet = null
                     vm.compress(entry)
@@ -1053,6 +1057,7 @@ private fun FileActionsSheet(
     onDismiss: () -> Unit,
     onEdit: () -> Unit,
     onRename: () -> Unit,
+    onDownload: () -> Unit,
     onCompress: () -> Unit,
     onExtract: () -> Unit,
     onDelete: () -> Unit,
@@ -1065,6 +1070,7 @@ private fun FileActionsSheet(
             }
             if (entry.type == "file") SheetAction(Icons.Rounded.Edit, "Edit", onEdit)
             SheetAction(Icons.Rounded.Edit, "Rename", onRename)
+            if (entry.type == "file") SheetAction(Icons.Rounded.Download, "Download", onDownload)
             SheetAction(Icons.Rounded.Archive, "Compress to ZIP", onCompress)
             if (entry.type == "file" && entry.name.endsWith(".zip", true)) {
                 SheetAction(Icons.Rounded.Unarchive, "Extract here", onExtract)
