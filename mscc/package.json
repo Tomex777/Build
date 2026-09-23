@@ -1,13 +1,13 @@
 {
-  "name": "cc-stream-256mb",
-  "version": "1.5.3",
+  "name": "mscc",
+  "version": "1.6.0",
   "private": true,
-  "description": "Low-memory dual-account MSCC with private web pairing panel, persistent V1 CC and anti-delete recovery",
+  "description": "Dual-account private WhatsApp companion with Azure-ready web control panel",
   "type": "module",
   "main": "index.js",
   "scripts": {
     "check": "node --check index.js && node --check web-panel.js",
-    "start": "node --env-file-if-exists=.env --max-old-space-size=128 index.js"
+    "start": "node --max-old-space-size=192 index.js"
   },
   "engines": {
     "node": ">=24"
