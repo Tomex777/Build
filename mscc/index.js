@@ -14,6 +14,9 @@ import makeWASocket, {
 import pino from 'pino'
 import QRCode from 'qrcode'
 import { startWebPanel } from './web-panel.js'
+import { dispatchCommand, loadCommands } from './commands/registry.js'
+
+const commandRegistry = await loadCommands(new URL('./commands/', import.meta.url))
 
 const digits = value => String(value || '').replace(/\D/g, '')
 const num = (name, fallback, min, max) => {
@@ -412,25 +415,19 @@ async function onMessages(account, { messages, type }) {
     try {
       if (!msg?.message || !msg?.key?.id) continue
       const chat = normalizeJid(msg.key.remoteJid)
-      const text = commandText(msg.message).toLowerCase()
+      const text = commandText(msg.message)
       const controller = await isController(account, msg)
 
-      if (controller) {
-        const m = text.match(/^\.(autocc|replycc|antidelete)\s+(on|off)$/)
-        if (m) {
-          const enabled = m[2] === 'on'
-          if (m[1] === 'autocc') settings.autoCc = enabled
-          if (m[1] === 'replycc') settings.replyCc = enabled
-          if (m[1] === 'antidelete') settings.antiDelete = enabled
-          await saveSettings()
-          await sendInbox(account, { text: `✅ ${m[1]}: ${enabled ? 'ON' : 'OFF'}` })
-          continue
-        }
-        if (text === '.status' || text === '.ping') {
-          await sendInbox(account, { text: await statusText(text === '.ping') })
-          continue
-        }
-      }
+      const commandHandled = await dispatchCommand(commandRegistry, text, {
+        account,
+        message: msg,
+        controller,
+        settings,
+        reply: async value => sendInbox(account, { text: String(value) }),
+        setSetting,
+        statusText,
+      })
+      if (commandHandled) continue
 
       remember(account, msg)
       const vo = !msg.key.fromMe && futureproof(msg.message)
