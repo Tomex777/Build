@@ -16,7 +16,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
-ReadWritePaths=/opt /var/lib/cortex /var/backups
+ReadWritePaths=/opt /var/lib/cortex /var/lib/mscc /var/backups
 
 [Install]
 WantedBy=multi-user.target
