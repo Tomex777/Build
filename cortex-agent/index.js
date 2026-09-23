@@ -10,10 +10,10 @@ const exec = promisify(execFile);
 const PORT = Number(process.env.PORT || 47831);
 const HOST = process.env.HOST || '127.0.0.1';
 const TOKEN = process.env.CORTEX_AGENT_TOKEN || '';
-const PROJECT_ROOT = path.resolve(process.env.NIGHT_ROOT || '/opt/night');
-const NIGHT_SERVICE = process.env.NIGHT_SERVICE || 'night.service';
-const NIGHT_ENTRY = process.env.NIGHT_ENTRY || 'index.js';
-const NIGHT_START_COMMAND = process.env.NIGHT_START_COMMAND || 'node index.js';
+const PROJECT_ROOT = path.resolve(process.env.CORTEX_PROJECT_ROOT || process.env.NIGHT_ROOT || '/opt/night');
+const MANAGED_SERVICE = process.env.CORTEX_SERVICE || process.env.MANAGED_SERVICE || 'night.service';
+const ENTRY_FILE = process.env.CORTEX_ENTRY || process.env.ENTRY_FILE || 'index.js';
+const START_COMMAND = process.env.CORTEX_START_COMMAND || process.env.START_COMMAND || 'node index.js';
 const STATE_DIR = path.resolve(process.env.CORTEX_STATE_DIR || path.join(PROJECT_ROOT, '.cortex'));
 const ACTIVITY_FILE = path.join(STATE_DIR, 'activity.jsonl');
 const BACKUP_DIR = path.join(STATE_DIR, 'backups');
@@ -276,10 +276,10 @@ async function startupInfo() {
   return {
     runtime: 'Node.js',
     version: process.version.replace(/^v/, ''),
-    entryFile: NIGHT_ENTRY,
-    startCommand: NIGHT_START_COMMAND,
+    entryFile: ENTRY_FILE,
+    startCommand: START_COMMAND,
     projectRoot: PROJECT_ROOT,
-    service: NIGHT_SERVICE,
+    service: MANAGED_SERVICE,
   };
 }
 
@@ -332,7 +332,7 @@ async function setCommandSetting(key, enabled) {
 
 async function serviceState() {
   try {
-    const { stdout } = await exec('systemctl', ['is-active', NIGHT_SERVICE]);
+    const { stdout } = await exec('systemctl', ['is-active', MANAGED_SERVICE]);
     return stdout.trim() || 'unknown';
   } catch (error) {
     return String(error?.stdout || '').trim() || 'inactive';
@@ -384,15 +384,15 @@ async function hostStatus() {
     runtime: {
       runtime: 'Node.js',
       version: process.version.replace(/^v/, ''),
-      entryFile: NIGHT_ENTRY,
-      startCommand: NIGHT_START_COMMAND,
+      entryFile: ENTRY_FILE,
+      startCommand: START_COMMAND,
     },
   };
 }
 
 async function logs(limit) {
   const safeLimit = Math.max(20, Math.min(1000, Number(limit) || 200));
-  const { stdout } = await exec('journalctl', ['-u', NIGHT_SERVICE, '-n', String(safeLimit), '--no-pager', '-o', 'cat'], {
+  const { stdout } = await exec('journalctl', ['-u', MANAGED_SERVICE, '-n', String(safeLimit), '--no-pager', '-o', 'cat'], {
     maxBuffer: 4 * 1024 * 1024,
   });
   return stdout.split(/\r?\n/).filter(Boolean);
@@ -402,8 +402,8 @@ async function power(action) {
   if (!['start', 'stop', 'restart'].includes(action)) {
     throw Object.assign(new Error('Invalid power action'), { statusCode: 400 });
   }
-  await exec('systemctl', [action, NIGHT_SERVICE], { timeout: 30_000 });
-  await recordActivity('server:power.' + action, { service: NIGHT_SERVICE });
+  await exec('systemctl', [action, MANAGED_SERVICE], { timeout: 30_000 });
+  await recordActivity('server:power.' + action, { service: MANAGED_SERVICE });
   return hostStatus();
 }
 
@@ -626,5 +626,5 @@ const server = http.createServer(handler);
 server.listen(PORT, HOST, () => {
   console.log(`Cortex Agent listening on http://${HOST}:${PORT}`);
   console.log(`Night root: ${PROJECT_ROOT}`);
-  console.log(`Night service: ${NIGHT_SERVICE}`);
+  console.log(`Night service: ${MANAGED_SERVICE}`);
 });
