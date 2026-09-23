@@ -23,20 +23,24 @@ jobs:
       - name: Checkout build overlay
         uses: actions/checkout@v4
 
-      - name: Checkout Mihon v0.20.4 base
+      - name: Checkout Mihon v0.19.9 SDK 36 base
         uses: actions/checkout@v4
         with:
           repository: mihonapp/mihon
-          ref: df6507256acce8e7f3660783a3db6dbd1a31b6b5
+          ref: 7a917968e3bf71c4a665e6655a550877d81ead1d
           path: torri-src
           fetch-depth: 0
 
       - name: Apply Torri overlay
         run: |
-          cp -a torri-overlay/. torri-src/
-          rm -f torri-src/app/google-services.json
-          rm -f torri-src/app/src/main/res/drawable/ic_mihon.xml
-          rm -f torri-src/app/src/main/res/drawable/ic_mihon_splash.xml
+          cp torri-overlay/gradle/libs.versions.toml torri-src/gradle/libs.versions.toml
+          cp torri-overlay/gradle/mihon.versions.toml torri-src/gradle/mihon.versions.toml
+          cp torri-overlay/app/build.gradle.kts torri-src/app/build.gradle.kts
+          cp -a torri-overlay/app/src/main/res/drawable/. torri-src/app/src/main/res/drawable/
+          cp torri-overlay/app/src/main/res/values/colors.xml torri-src/app/src/main/res/values/colors.xml
+          cp torri-overlay/app/src/main/res/values/torri_strings.xml torri-src/app/src/main/res/values/torri_strings.xml
+          cp -a torri-overlay/app/src/debug/res/drawable/. torri-src/app/src/debug/res/drawable/
+          cp torri-overlay/app/src/debug/res/values/colors.xml torri-src/app/src/debug/res/values/colors.xml
 
           echo "Requested SDK configuration:"
           grep 'android-sdk-' torri-src/gradle/mihon.versions.toml
