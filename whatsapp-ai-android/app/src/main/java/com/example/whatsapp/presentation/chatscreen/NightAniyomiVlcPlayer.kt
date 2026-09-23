@@ -414,6 +414,11 @@ internal fun NightAniyomiVlcPlayer(
     LaunchedEffect(active, player, softwareDecode, hardwareRetryGeneration) {
         if (!active) {
             runCatching { player.pause() }
+            if (attachedPlayer === player) {
+                attachedPlayer = null
+                attachInFlight.set(false)
+                runCatching { player.detachViews() }
+            }
             playing = false
             if (landscape) {
                 landscape = false
@@ -650,7 +655,7 @@ internal fun NightAniyomiVlcPlayer(
             },
         contentAlignment = Alignment.Center,
     ) {
-        AndroidView(
+        if (active) AndroidView(
             factory = { viewContext ->
                 VLCVideoLayout(viewContext).also { layout ->
                     layout.installNightVideoTapHandler {
@@ -663,6 +668,7 @@ internal fun NightAniyomiVlcPlayer(
                     controlsVisible = !controlsVisible
                 }
                 if (
+                    active &&
                     attachedPlayer !== player &&
                     attachInFlight.compareAndSet(false, true)
                 ) {
@@ -674,9 +680,9 @@ internal fun NightAniyomiVlcPlayer(
                             if (attachedPlayer !== player) {
                                 runCatching { attachedPlayer?.detachViews() }
                                 val attached = runCatching {
-                                    // VLC's TextureView path can report playback without ever
-                                    // creating a video output in embedded Compose previews.
-                                    // SurfaceView gives VLC a native video surface to target.
+                                    // Only the active pager page owns a SurfaceView. Offscreen
+                                    // SurfaceViews can cover the visible page because Android
+                                    // composites their surfaces outside Compose's clipping.
                                     player.attachViews(layout, null, true, false)
                                 }.isSuccess
                                 if (attached) {
@@ -687,7 +693,8 @@ internal fun NightAniyomiVlcPlayer(
                                             "(generation=$hardwareRetryGeneration, software=$softwareDecode, " +
                                             "player=${System.identityHashCode(player)}, " +
                                             "layout=${System.identityHashCode(layout)}, " +
-                                            "surface=SurfaceView, size=${layout.width}x${layout.height}).",
+                                            "surface=SurfaceView, active=$active, " +
+                                                "size=${layout.width}x${layout.height}).",
                                     )
                                     layout.installNightVideoTapHandler {
                                         controlsVisible = !controlsVisible
