@@ -1,6 +1,4 @@
 import { readdir } from 'node:fs/promises'
-import { pathToFileURL } from 'node:url'
-
 export async function loadCommands(directoryUrl) {
   const directory = directoryUrl instanceof URL ? directoryUrl : new URL(directoryUrl, import.meta.url)
   const names = (await readdir(directory, { withFileTypes: true }))
@@ -11,7 +9,7 @@ export async function loadCommands(directoryUrl) {
   const commands = new Map()
   for (const name of names) {
     const url = new URL(name, directory)
-    const module = await import(pathToFileURL(url.pathname).href)
+    const module = await import(url.href)
     const command = module.default
     if (!command?.name || typeof command.run !== 'function') {
       throw new Error(`Invalid command module: ${name}`)
