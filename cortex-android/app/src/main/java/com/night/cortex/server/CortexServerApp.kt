@@ -486,39 +486,6 @@ private fun ConsolePage(
         }
 
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MetricCard(
-                        label = "CPU Load",
-                        value = snapshot?.cpuPercent?.let { "${it.roundToInt()}%" } ?: "—",
-                        sub = "/ 100%",
-                        modifier = Modifier.weight(1f),
-                    )
-                    MetricCard(
-                        label = "Memory",
-                        value = bytes(snapshot?.memoryUsedBytes),
-                        sub = snapshot?.memoryLimitBytes?.let { "/ ${bytes(it)}" }.orEmpty(),
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MetricCard(
-                        label = "Disk",
-                        value = bytes(snapshot?.diskUsedBytes),
-                        sub = snapshot?.diskLimitBytes?.let { "/ ${bytes(it)}" }.orEmpty(),
-                        modifier = Modifier.weight(1f),
-                    )
-                    MetricCard(
-                        label = "Uptime",
-                        value = uptime(snapshot?.uptimeMs),
-                        sub = "",
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-        }
-
-        item {
             Surface(color = Color(0xFF131A20), shape = RoundedCornerShape(4.dp)) {
                 Column(Modifier.fillMaxWidth()) {
                     Row(
@@ -557,6 +524,39 @@ private fun ConsolePage(
                             }
                         }
                     }
+                }
+            }
+        }
+
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MetricCard(
+                        label = "CPU Load",
+                        value = snapshot?.cpuPercent?.let { "${it.roundToInt()}%" } ?: "—",
+                        sub = "/ 100%",
+                        modifier = Modifier.weight(1f),
+                    )
+                    MetricCard(
+                        label = "Memory",
+                        value = bytes(snapshot?.memoryUsedBytes),
+                        sub = snapshot?.memoryLimitBytes?.let { "/ ${bytes(it)}" }.orEmpty(),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MetricCard(
+                        label = "Disk",
+                        value = bytes(snapshot?.diskUsedBytes),
+                        sub = snapshot?.diskLimitBytes?.let { "/ ${bytes(it)}" }.orEmpty(),
+                        modifier = Modifier.weight(1f),
+                    )
+                    MetricCard(
+                        label = "Uptime",
+                        value = uptime(snapshot?.uptimeMs),
+                        sub = "",
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
         }
