@@ -154,6 +154,17 @@ shot library-memes-empty
 
 # Check every working More destination without mutating user data.
 tap More
+tap Extensions
+wait_for "Extensions"
+wait_for "Reddit Memes"
+tap "Reddit Memes"
+wait_for "Reddit · r/memes"
+shot extension-detail
+adb shell input keyevent 4
+wait_for "Extensions"
+adb shell input keyevent 4
+wait_for "Downloads"
+
 tap Downloads
 wait_for "Active transfers"
 shot downloads-empty
@@ -173,7 +184,24 @@ shot player-reader-settings
 adb shell input keyevent 4
 tap "AI & models"
 wait_for "AI provider not connected"
+wait_for "Message Sora"
 shot ai-provider-state
+tap "Open menu"
+tap "Generated images"
+wait_for "Images you create with Sora stay here, beside your AI history."
+shot ai-generated-images-empty
+tap "Open menu"
+tap Files
+wait_for "Documents you attach to a chat will appear here."
+shot ai-files-empty
+tap "Open menu"
+tap "New chat"
+tap "Message Sora"
+adb shell input text "sora-smoke-qa"
+tap "Save message"
+wait_for "sora-smoke-qa"
+wait_for "Messages are stored locally until an AI provider is connected"
+shot ai-local-message
 adb shell input keyevent 4
 tap_scrolling "About & help"
 wait_for "About Sora"
