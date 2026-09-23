@@ -199,3 +199,17 @@ I visually inspected the #423 Image Editor screenshot: the preview spans the ava
 The provider regression suite completed 31 tests; the only failure was AnimePahe descriptor discovery. The repeated `create_options` side-effect regression remains covered and passed, but #423 did not provide a screenshot/interaction artifact proving whether identical option cards repeat visually. Keep Groq 429 TPM output classified as provider quota failure.
 
 On #423, Integrations, Extensions, Extension Config, Providers, Browser, Memory, Image Editor, PDF Editor, Mihon Reader, and the other completed UI suites passed; Main Tabs failed. Do not push another commit until the relevant Actions jobs for the current source SHA finish.
+
+
+## 2026-09-23 validation follow-up: Integrated Regression #424
+
+The branch was verified at `73c70b22ec5e18e6b8633425152af13cc3776b69` before this run. [Integrated Regression #424](https://github.com/Tomex777/Build/actions/runs/35918645955) built both APKs successfully. Night ARM64 Test APK #105 and Night Groq Key Pool #383 passed.
+
+- Provider instrumentation ran 31 tests; only `installedAnimePaheIsRefreshedIntoTheEnabledModelInventory` failed. The bound component was the installed AnimePahe service. Its Messenger reply was `ok=true`, keys `[resultJson, ok, requestId]`, `resultJson={}` (length 2), and no service error. The persisted failure includes these fields.
+- The #424 AnimePahe APK artifact contains `AnimePaheNightExtensionService`, its `buildDescriptor` implementation, and the Night SDK `NightExtensionService` Messenger serializer. Source inspection confirms the extension calls `buildDescriptor()`, the SDK serializes the returned JSONObject with `toString()`, and sends that string under `resultJson`. The captured provider failure log still has no extension-side descriptor log lines, so the point where the runtime descriptor becomes empty remains unresolved. Do not infer model visibility from the enabled UI state.
+- All other provider tests passed, including the repeated `create_options` side-effect regression. Visual repeated-card behavior remains unverified; the #424 provider artifact is a Providers settings UI suite, not a chat-options interaction screenshot. Groq 429 TPM remains a separate provider quota failure.
+- The #424 Android 16 video check again showed the TextureView attached and shown at 709×1536, Android surface ready, and libVLC `onSurfacesCreated` / `areViewsAttached()` readiness true before playback. VLC opened the synthetic MP4 and initialized software H.264 decode at 640×368, but emitted no Vout event and the screenshot still had 0 colored viewport pixels. Surface timing and view type alone do not resolve the black preview.
+- I reviewed the #424 Image Editor screenshot directly: the preview occupies the available 709-pixel screen width and is clear at emulator scale. The exported JPEG is 4,089×4,087 pixels and the artifact reports the original was preserved byte-for-byte. This closes the emulator screenshot review only; physical-device comparison remains open.
+- Main Tabs, Browser, Integrations, Live Voice, Mihon Reader, MCP Servers, Memory, Message Blocks, Providers, Extension Config, and Image Editor UI suites passed. PDF Editor timed out waiting for its composer content description. Extensions UI failed during SDK/emulator setup with an unknown-archive error before exercising the app.
+
+No further commit was pushed while a #424 job was running. The video, runtime descriptor, and visual repeated-card questions remain open for focused follow-up.
