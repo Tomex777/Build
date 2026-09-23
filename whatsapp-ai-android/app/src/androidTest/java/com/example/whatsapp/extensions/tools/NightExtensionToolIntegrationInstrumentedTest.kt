@@ -143,7 +143,7 @@ class NightExtensionToolIntegrationInstrumentedTest {
                                     NightExtensionProtocol.KEY_RESULT_JSON,
                                 ).orEmpty()
                                 val descriptor = JSONObject(json.ifBlank { "{}" })
-                                if (descriptor.length() == 0) {
+                                if (descriptor.length == 0) {
                                     continuation.resumeWithException(
                                         IllegalStateException(
                                             "Night extension returned an empty descriptor. " +

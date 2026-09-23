@@ -674,11 +674,10 @@ internal fun NightAniyomiVlcPlayer(
                             if (attachedPlayer !== player) {
                                 runCatching { attachedPlayer?.detachViews() }
                                 val attached = runCatching {
-                                    // SurfaceView can advance playback while remaining visually
-                                    // black when embedded under Compose on some Android devices.
-                                    // TextureView keeps VLC's frames in the same view/composition
-                                    // hierarchy as the player controls.
-                                    player.attachViews(layout, null, true, true)
+                                    // VLC's TextureView path can report playback without ever
+                                    // creating a video output in embedded Compose previews.
+                                    // SurfaceView gives VLC a native video surface to target.
+                                    player.attachViews(layout, null, true, false)
                                 }.isSuccess
                                 if (attached) {
                                     attachedPlayer = player
@@ -688,7 +687,7 @@ internal fun NightAniyomiVlcPlayer(
                                             "(generation=$hardwareRetryGeneration, software=$softwareDecode, " +
                                             "player=${System.identityHashCode(player)}, " +
                                             "layout=${System.identityHashCode(layout)}, " +
-                                            "size=${layout.width}x${layout.height}).",
+                                            "surface=SurfaceView, size=${layout.width}x${layout.height}).",
                                     )
                                     layout.installNightVideoTapHandler {
                                         controlsVisible = !controlsVisible
