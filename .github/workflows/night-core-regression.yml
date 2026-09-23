@@ -254,7 +254,6 @@ jobs:
           path: |
             whatsapp-ai-android/app/build/reports/androidTests/
             whatsapp-ai-android/app/build/outputs/androidTest-results/
-            night-provider-diagnostics/
           if-no-files-found: warn
 
   android-16-ui:
@@ -384,7 +383,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: night-integrated-${{ matrix.suite }}-evidence
+          name: night-integrated-ui-${{ matrix.suite }}-evidence
           path: |
             night-message-blocks-artifacts/
             night-live-voice-artifacts/

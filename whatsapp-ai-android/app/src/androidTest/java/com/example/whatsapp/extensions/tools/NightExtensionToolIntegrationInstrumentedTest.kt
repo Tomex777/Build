@@ -142,7 +142,21 @@ class NightExtensionToolIntegrationInstrumentedTest {
                                 val json = reply.data.getString(
                                     NightExtensionProtocol.KEY_RESULT_JSON,
                                 ).orEmpty()
-                                continuation.resume(JSONObject(json.ifBlank { "{}" }))
+                                val descriptor = JSONObject(json.ifBlank { "{}" })
+                                if (descriptor.length() == 0) {
+                                    continuation.resumeWithException(
+                                        IllegalStateException(
+                                            "Night extension returned an empty descriptor. " +
+                                                "component=$component, " +
+                                                "replyOk=${reply.data.getBoolean(NightExtensionProtocol.KEY_OK, false)}, " +
+                                                "replyKeys=${reply.data.keySet()}, " +
+                                                "resultLength=${json.length()}, " +
+                                                "serviceError=${reply.data.getString(NightExtensionProtocol.KEY_ERROR)}.",
+                                        ),
+                                    )
+                                } else {
+                                    continuation.resume(descriptor)
+                                }
                             }
                             if (bound) runCatching { context.unbindService(connection) }
                             true

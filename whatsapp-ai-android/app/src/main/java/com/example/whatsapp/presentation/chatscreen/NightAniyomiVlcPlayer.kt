@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -306,6 +307,7 @@ internal fun NightAniyomiVlcPlayer(
         mutableStateOf<MediaPlayer?>(null)
     }
     val attachRequest = remember(player) { AtomicInteger(0) }
+    val attachInFlight = remember(player) { AtomicBoolean(false) }
 
     var controlsVisible by remember(item.localPath) { mutableStateOf(true) }
     var controlsLocked by remember(item.localPath) { mutableStateOf(false) }
@@ -388,6 +390,7 @@ internal fun NightAniyomiVlcPlayer(
 
         onDispose {
             attachRequest.incrementAndGet()
+            attachInFlight.set(false)
             // VLC stop/release can block while MediaCodec is flushing. Doing
             // that synchronously from Compose disposal freezes the UI exactly
             // when decoder recovery swaps player generations. Detach the old
@@ -659,7 +662,10 @@ internal fun NightAniyomiVlcPlayer(
                 layout.installNightVideoTapHandler {
                     controlsVisible = !controlsVisible
                 }
-                if (attachedPlayer !== player) {
+                if (
+                    attachedPlayer !== player &&
+                    attachInFlight.compareAndSet(false, true)
+                ) {
                     // Avoid starting VLC against a zero-sized or stale surface. The
                     // same VLCVideoLayout stays mounted while the player/engine swaps.
                     val attachRequestId = attachRequest.incrementAndGet()
@@ -679,16 +685,24 @@ internal fun NightAniyomiVlcPlayer(
                                     Log.i(
                                         "NightVideo",
                                         "Attached VLC surface " +
-                                            "(generation=$hardwareRetryGeneration, software=$softwareDecode).",
+                                            "(generation=$hardwareRetryGeneration, software=$softwareDecode, " +
+                                            "player=${System.identityHashCode(player)}, " +
+                                            "layout=${System.identityHashCode(layout)}, " +
+                                            "size=${layout.width}x${layout.height}).",
                                     )
                                     layout.installNightVideoTapHandler {
                                         controlsVisible = !controlsVisible
                                     }
                                     runCatching { player.setVideoScale(aspect.scale) }
                                 } else {
+                                    attachInFlight.set(false)
                                     Log.e("NightVideo", "Could not attach VLC player to video surface.")
                                 }
+                            } else {
+                                attachInFlight.set(false)
                             }
+                        } else {
+                            attachInFlight.set(false)
                         }
                     }
                 } else {
