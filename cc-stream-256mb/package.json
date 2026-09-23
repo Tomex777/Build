@@ -1,13 +1,13 @@
 {
   "name": "cc-stream-256mb",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "Minimal Baileys Android-companion view-once forwarder for low-memory hosting",
+  "description": "Minimal owner-only Baileys Android-companion view-once forwarder for low-memory hosting",
   "type": "module",
-  "main": "cc-stream-256mb/index.js",
+  "main": "index.js",
   "scripts": {
-    "check": "node --check cc-stream-256mb/index.js",
-    "start": "node --max-old-space-size=128 cc-stream-256mb/index.js"
+    "check": "node --check index.js",
+    "start": "node --max-old-space-size=128 index.js"
   },
   "engines": {
     "node": ">=24"
