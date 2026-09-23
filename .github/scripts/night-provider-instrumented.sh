@@ -11,6 +11,7 @@ fi
 adb install --no-streaming -r "$extension_apk"
 cd whatsapp-ai-android
 chmod +x gradlew
+adb logcat -c || true
 if ./gradlew :app:connectedDebugAndroidTest \
   -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8" \
   --max-workers=1 \
@@ -19,7 +20,7 @@ if ./gradlew :app:connectedDebugAndroidTest \
   exit 0
 else
   mkdir -p ../night-provider-diagnostics
-  adb logcat -d -v time -s NightExtension:I NightAnimePahe:I AndroidRuntime:E \
+  adb logcat -d -v time -s NightExtensionIPC:V NightExtension:I NightAnimePahe:I AndroidRuntime:E \
     > ../night-provider-diagnostics/provider-failure-logcat.txt || true
   cat ../night-provider-diagnostics/provider-failure-logcat.txt
   exit 1

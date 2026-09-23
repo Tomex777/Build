@@ -65,11 +65,26 @@ abstract class NightExtensionService : Service() {
         val requestId =
             data.getString(NightExtensionProtocol.KEY_REQUEST_ID).orEmpty()
 
+        if (message.what == NightExtensionProtocol.MSG_DESCRIBE) {
+            Log.i(
+                "NightExtensionIPC",
+                "Received DESCRIBE in ${javaClass.name} (what=${message.what}, requestId=$requestId).",
+            )
+        }
+
         executor.execute {
             runCatching {
                 when (message.what) {
                     NightExtensionProtocol.MSG_DESCRIBE ->
                         descriptor().also { result ->
+                            Log.i(
+                                "NightExtensionIPC",
+                                "Built descriptor in ${javaClass.name}: " +
+                                    "id=${result.optString("extensionId")}, " +
+                                    "tools=${result.optJSONArray("tools")?.length() ?: 0}, " +
+                                    "messageTypes=${result.optJSONArray("messageTypes")?.length() ?: 0}, " +
+                                    "jsonChars=${result.toString().length}.",
+                            )
                             Log.i(
                                 "NightExtension",
                                 "Descriptor from ${javaClass.name}: " +
@@ -137,6 +152,10 @@ abstract class NightExtensionService : Service() {
                 val resultJson = result.toString()
                 if (message.what == NightExtensionProtocol.MSG_DESCRIBE) {
                     Log.i(
+                        "NightExtensionIPC",
+                        "Serialized DESCRIBE reply: chars=${resultJson.length}, requestId=$requestId.",
+                    )
+                    Log.i(
                         "NightExtension",
                         "Sending descriptor reply (${resultJson.length} chars, " +
                             "requestId=$requestId).",
@@ -202,6 +221,20 @@ abstract class NightExtensionService : Service() {
 
         runCatching {
             replyTo.send(reply)
+        }.onSuccess {
+            if (resultJson.length <= 2) {
+                Log.w(
+                    "NightExtensionIPC",
+                    "Sent empty-looking descriptor reply: ok=$ok, chars=${resultJson.length}, " +
+                        "requestId=$requestId, errorPresent=${!error.isNullOrBlank()}.",
+                )
+            }
+        }.onFailure { sendError ->
+            Log.e(
+                "NightExtensionIPC",
+                "Could not send extension reply: requestId=$requestId.",
+                sendError,
+            )
         }
     }
 }
