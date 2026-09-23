@@ -41,9 +41,10 @@ const WEB_PORT = process.env.SERVER_PORT
   : num('MSCC_WEB_PORT', num('PORT', 8787, 1, 65535), 1, 65535)
 const WEB_PASSWORD = process.env.WEB_PASSWORD || ''
 const WEB_SESSION_SECRET = process.env.WEB_SESSION_SECRET || ''
+const LOCAL_CONTROL_PORT = 8788
 const logger = pino({ level: process.env.LOG_LEVEL || 'silent' })
 const startedAt = Date.now()
-const APP_VERSION = '1.8.0'
+const APP_VERSION = '1.8.1'
 
 if (!/^\d{7,15}$/.test(ACCOUNT_A_NUMBER)) {
   console.error('ACCOUNT_A_NUMBER (or BOT_NUMBER) is required.')
@@ -659,14 +660,14 @@ async function reconnectAccount(id) {
   })
 }
 
-async function repairAccount(id) {
+async function repairAccount(id, mode = 'code') {
   const a = requireAccount(id)
   return runOp(a, async () => {
     await closeAccount(a)
     await backupAuth(a)
     a.invalid = false
     a.registered = false
-    a.pairingMode = 'code'
+    a.pairingMode = mode === 'qr' ? 'qr' : 'code'
     a.pairingCode = ''
     a.pairingQr = ''
     a.pairingError = ''
@@ -745,6 +746,7 @@ async function init() {
     port: WEB_PORT,
     password: WEB_PASSWORD,
     sessionSecret: WEB_SESSION_SECRET,
+    localControlPort: LOCAL_CONTROL_PORT,
     getState: webState,
     pairAccount,
     reconnectAccount,

@@ -72,7 +72,7 @@ function ip(req) {
   return String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown'
 }
 
-export function startWebPanel({ port, password, sessionSecret, getState, pairAccount, reconnectAccount, repairAccount, setSetting }) {
+export function startWebPanel({ port, password, sessionSecret, localControlPort = 8788, getState, pairAccount, reconnectAccount, repairAccount, setSetting }) {
   const configured = Boolean(password && password !== 'change-this-password' && password !== 'change-me')
   const secret = createHash('sha256').update(`${sessionSecret || ''}\0${password || ''}\0mscc`).digest()
   const token = createHmac('sha256', secret).update('admin').digest('base64url')
@@ -140,7 +140,7 @@ export function startWebPanel({ port, password, sessionSecret, getState, pairAcc
         }
         if (action === 'reconnect') return sendJson(res, 200, await reconnectAccount(id))
         if (body.confirm !== true) return sendJson(res, 400, { error: 'Re-pair requires confirmation' })
-        return sendJson(res, 200, await repairAccount(id))
+        return sendJson(res, 200, await repairAccount(id, body.mode === 'qr' ? 'qr' : 'code'))
       }
 
       return sendJson(res, 404, { error: 'Not found' })
@@ -150,11 +150,47 @@ export function startWebPanel({ port, password, sessionSecret, getState, pairAcc
     }
   })
 
+  const localServer = createServer(async (req, res) => {
+    const url = new URL(req.url || '/', 'http://mscc.local')
+    try {
+      if (req.method === 'GET' && url.pathname === '/state') {
+        return sendJson(res, 200, await getState())
+      }
+      const m = url.pathname.match(/^\/accounts\/(A|B)\/(pair|reconnect|repair)$/)
+      if (req.method === 'POST' && m) {
+        const [, id, action] = m
+        const body = await readJson(req)
+        if (action === 'pair') {
+          const mode = body.mode === 'qr' ? 'qr' : 'code'
+          return sendJson(res, 200, await pairAccount(id, mode))
+        }
+        if (action === 'reconnect') return sendJson(res, 200, await reconnectAccount(id))
+        return sendJson(res, 200, await repairAccount(id, body.mode === 'qr' ? 'qr' : 'code'))
+      }
+      return sendJson(res, 404, { error: 'Not found' })
+    } catch (error) {
+      console.error('Local control request failed:', error?.message || error)
+      return sendJson(res, 500, { error: error?.message || 'Internal error' })
+    }
+  })
+
+  localServer.on('error', error => {
+    console.error(`MSCC local control listen error on 127.0.0.1:${localControlPort}:`, error?.message || error)
+  })
+  localServer.listen(localControlPort, '127.0.0.1', () => {
+    console.log(`MSCC local control listening on 127.0.0.1:${localControlPort}`)
+  })
+
   server.on('error', error => {
     console.error(`MSCC panel listen error on 0.0.0.0:${port}:`, error?.message || error)
   })
   server.listen(port, '0.0.0.0', () => {
     console.log(`MSCC panel listening on 0.0.0.0:${port}`)
   })
-  return server
+  return {
+    close() {
+      server.close()
+      localServer.close()
+    }
+  }
 }

@@ -27,6 +27,50 @@ jobs:
       - name: Syntax check all MSCC modules
         working-directory: mscc
         run: npm run check
+      - name: Verify local pairing control stays on loopback
+        working-directory: mscc
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE' >/tmp/mscc-local-control.log 2>&1 &
+          import { startWebPanel } from './web-panel.js'
+          const accounts = [
+            { id:'A', enabled:true, connected:false, status:'offline', numberMasked:'234••••0001', indexCount:0, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
+            { id:'B', enabled:true, connected:false, status:'offline', numberMasked:'234••••0002', indexCount:0, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
+          ]
+          startWebPanel({
+            port: 18787,
+            localControlPort: 18788,
+            password: 'test-password',
+            sessionSecret: 'test-secret',
+            getState: async () => ({ version:'test', destination:'A', settings:{}, accounts, system:{} }),
+            pairAccount: async (id, mode) => {
+              const row = accounts.find(x => x.id === id)
+              row.pairingMode = mode
+              row.pairingCode = mode === 'code' ? 'ABCD-EFGH' : ''
+              row.pairingQr = mode === 'qr' ? 'data:image/png;base64,AA==' : ''
+              return { ok:true }
+            },
+            reconnectAccount: async () => ({ ok:true }),
+            repairAccount: async (id, mode) => {
+              const row = accounts.find(x => x.id === id)
+              row.pairingMode = mode
+              return { ok:true }
+            },
+            setSetting: async () => {},
+          })
+          setInterval(() => {}, 1000)
+          NODE
+          echo $! >/tmp/mscc-local-control.pid
+          for i in {1..20}; do
+            curl -fsS http://127.0.0.1:18788/state >/tmp/mscc-pair-state.json && break
+            sleep .25
+          done
+          grep -q '"id":"A"' /tmp/mscc-pair-state.json
+          curl -fsS -H 'Content-Type: application/json' -d '{"mode":"code"}' http://127.0.0.1:18788/accounts/B/pair
+          curl -fsS http://127.0.0.1:18788/state | grep -q 'ABCD-EFGH'
+          curl -fsS -H 'Content-Type: application/json' -d '{"mode":"qr"}' http://127.0.0.1:18788/accounts/B/repair
+          curl -fsS http://127.0.0.1:18788/state | grep -q '"pairingMode":"qr"'
+          kill "$(cat /tmp/mscc-local-control.pid)" 2>/dev/null || true
       - name: Validate drop-in command registry
         working-directory: mscc
         shell: bash
