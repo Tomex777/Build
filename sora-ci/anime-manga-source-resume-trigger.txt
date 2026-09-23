@@ -1,1 +1,1 @@
-run 9 - preserve Manga tab and finish exact reader resume validation
+run 10 - rerun current Aniyomi source and exact resume validation
