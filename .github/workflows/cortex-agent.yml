@@ -55,8 +55,10 @@ jobs:
             -d '{"path":"index.js","content":"console.log(\"night\")\n"}' \
             http://127.0.0.1:47831/api/cortex/host/files/content >/tmp/write.json
           curl -fsS -H "$AUTH" 'http://127.0.0.1:47831/api/cortex/host/files/content?path=index.js' >/tmp/read.json
+          curl -fsS -H "$AUTH" 'http://127.0.0.1:47831/api/cortex/host/files/raw?path=index.js' >/tmp/index-download.js
           curl -fsS -H "$AUTH" 'http://127.0.0.1:47831/api/cortex/host/files?path=/' >/tmp/list.json
           grep -q 'console.log' /tmp/read.json
+          grep -q 'console.log' /tmp/index-download.js
           grep -q 'index.js' /tmp/list.json
           curl -fsS -H "$AUTH" -H 'Content-Type: application/json' \
             -d '{"path":"asset.bin","contentBase64":"AAEC/w=="}' \
