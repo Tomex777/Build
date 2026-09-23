@@ -23,5 +23,5 @@ export function registerMediaServices(manager: ExternalModuleManager, engine: En
     const destinationPath = join(directory, `${Date.now()}-${safeFileName(input.fileName)}`);
     const result = await engine.downloadMedia(messageId, destinationPath);
     return { messageId, path: result.path, size: result.size };
-  }, "media.download");
+  }, "media.download", "media");
 }

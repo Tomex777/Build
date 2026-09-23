@@ -83,7 +83,7 @@
           <div>
             <p class="eyebrow">WHATSAPP</p>
             <h1>Engine</h1>
-            <p>The WhatsApp engine is installed separately from Bailey Host, so it can update or roll back without reinstalling this app.</p>
+            <p>Choose a replaceable WhatsApp engine. Bailey Host keeps the connection, auth and module boundary; modules use the same Protocol 1 API with either provider.</p>
           </div>
           <button class="secondary-button" id="engine-check">Check for update</button>
         </header>
@@ -97,6 +97,7 @@
               </div>
               <span class="pill" id="engine-api">Managed engine</span>
             </div>
+            <label class="field"><span>Engine provider</span><select id="engine-provider"><option value="lia">Lia Baileys · recommended</option><option value="baileys">Mainstream Baileys · WhiskeySockets</option></select><small>Provider sessions are stored separately. Switching providers does not expose session files to modules.</small></label>
             <div class="engine-version-row">
               <div><span>Installed</span><strong id="engine-current">Not installed</strong></div>
               <div><span>Latest</span><strong id="engine-latest">Unknown</strong></div>

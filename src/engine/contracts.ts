@@ -1,20 +1,28 @@
 export type EngineRuntimeState = "stopped" | "installing" | "starting" | "running" | "error";
 export type WhatsAppConnectionState = "not-connected" | "connecting" | "paired" | "connected" | "disconnected";
+export type EngineProvider = "lia" | "baileys";
+
+export interface EngineInstallState {
+  activeVersion?: string;
+  previousVersion?: string;
+  installedVersions: string[];
+}
 
 export interface EngineManifest {
-  provider: "lia";
-  packageName: "@itsliaaa/baileys";
+  provider: EngineProvider;
+  packageName: string;
   apiVersion: 1;
   activeVersion?: string;
   previousVersion?: string;
   installedVersions: string[];
   autoUpdate: boolean;
   channel: "stable";
+  providers?: Partial<Record<EngineProvider, EngineInstallState>>;
 }
 
 export interface EngineStatus {
-  provider: "lia";
-  packageName: "@itsliaaa/baileys";
+  provider: EngineProvider;
+  packageName: string;
   apiVersion: 1;
   activeVersion?: string;
   previousVersion?: string;

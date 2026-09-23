@@ -3,19 +3,24 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import type { EngineHostEvent, EngineManifest, EngineSendMedia, EngineStatus, EngineWorkerCommand, EngineWorkerEvent, IncomingEngineMessage, WhatsAppConnectionState } from "./contracts";
+import type { EngineHostEvent, EngineInstallState, EngineManifest, EngineProvider, EngineSendMedia, EngineStatus, EngineWorkerCommand, EngineWorkerEvent, IncomingEngineMessage, WhatsAppConnectionState } from "./contracts";
 
-const PACKAGE_NAME = "@itsliaaa/baileys" as const;
-const DEFAULT_VERSION = "0.3.18-final";
+const PACKAGE_NAMES: Record<EngineProvider, string> = { lia: "@itsliaaa/baileys", baileys: "@whiskeysockets/baileys" };
+const LIA_DEFAULT_VERSION = "0.3.18-final";
+
+function emptyInstallState(): EngineInstallState {
+  return { installedVersions: [] };
+}
 
 function defaultManifest(): EngineManifest {
   return {
     provider: "lia",
-    packageName: PACKAGE_NAME,
+    packageName: PACKAGE_NAMES.lia,
     apiVersion: 1,
     installedVersions: [],
     autoUpdate: false,
     channel: "stable",
+    providers: { lia: emptyInstallState(), baileys: emptyInstallState() },
   };
 }
 
@@ -46,30 +51,65 @@ export class EngineManager extends EventEmitter {
   }
 
   private engineDir(version: string): string {
-    return join(this.rootDir, "lia", version);
+    return join(this.rootDir, this.manifest.provider, version);
   }
 
   private get sessionDir(): string {
-    return join(this.rootDir, "..", "sessions", "default");
+    return this.manifest.provider === "lia"
+      ? join(this.rootDir, "..", "sessions", "default")
+      : join(this.rootDir, "..", "sessions", this.manifest.provider, "default");
+  }
+
+  private selectedState(): EngineInstallState {
+    return this.manifest.providers?.[this.manifest.provider] ?? emptyInstallState();
+  }
+
+  private syncSelectedState(): void {
+    const selected = this.selectedState();
+    this.manifest.activeVersion = selected.activeVersion;
+    this.manifest.previousVersion = selected.previousVersion;
+    this.manifest.installedVersions = [...selected.installedVersions];
+    this.manifest.packageName = PACKAGE_NAMES[this.manifest.provider];
+  }
+
+  private saveSelectedState(): void {
+    this.manifest.providers ??= {};
+    this.manifest.providers[this.manifest.provider] = {
+      activeVersion: this.manifest.activeVersion,
+      previousVersion: this.manifest.previousVersion,
+      installedVersions: [...new Set(this.manifest.installedVersions)],
+    };
   }
 
   async initialize(): Promise<void> {
-    await mkdir(join(this.rootDir, "lia"), { recursive: true });
-    await mkdir(this.sessionDir, { recursive: true });
+    await Promise.all((Object.keys(PACKAGE_NAMES) as EngineProvider[]).map((provider) => mkdir(join(this.rootDir, provider), { recursive: true })));
     try {
       const parsed = JSON.parse(await readFile(this.manifestPath, "utf8")) as EngineManifest;
-      if (parsed.provider === "lia" && parsed.packageName === PACKAGE_NAME && parsed.apiVersion === 1) {
-        this.manifest = { ...defaultManifest(), ...parsed, installedVersions: [...new Set(parsed.installedVersions ?? [])] };
+      if ((parsed.provider === "lia" || parsed.provider === "baileys") && parsed.packageName === PACKAGE_NAMES[parsed.provider] && parsed.apiVersion === 1) {
+        const providers = { ...defaultManifest().providers, ...(parsed.providers ?? {}) };
+        if (!parsed.providers) providers.lia = {
+          activeVersion: parsed.activeVersion,
+          previousVersion: parsed.previousVersion,
+          installedVersions: [...new Set(parsed.installedVersions ?? [])],
+        };
+        for (const provider of Object.keys(PACKAGE_NAMES) as EngineProvider[]) {
+          const state = providers[provider] ?? emptyInstallState();
+          providers[provider] = { ...emptyInstallState(), ...state, installedVersions: [...new Set(state.installedVersions ?? [])] };
+        }
+        this.manifest = { ...defaultManifest(), ...parsed, providers };
+        this.syncSelectedState();
       }
     } catch {
-      await this.saveManifest();
+      // A missing or invalid manifest starts with the safe Lia default.
     }
+    await mkdir(this.sessionDir, { recursive: true });
+    await this.saveManifest();
   }
 
   status(): EngineStatus {
     return {
-      provider: "lia",
-      packageName: PACKAGE_NAME,
+      provider: this.manifest.provider,
+      packageName: this.manifest.packageName,
       apiVersion: 1,
       activeVersion: this.manifest.activeVersion,
       previousVersion: this.manifest.previousVersion,
@@ -84,19 +124,40 @@ export class EngineManager extends EventEmitter {
   }
 
   async checkLatest(): Promise<EngineStatus> {
-    const response = await fetch("https://registry.npmjs.org/%40itsliaaa%2Fbaileys/latest", {
+    const packageName = encodeURIComponent(this.manifest.packageName);
+    const response = await fetch(`https://registry.npmjs.org/${packageName}/latest`, {
       headers: { accept: "application/json" },
     });
-    if (!response.ok) throw new Error(`Could not check Lia Baileys: HTTP ${response.status}`);
+    if (!response.ok) throw new Error(`Could not check ${this.manifest.packageName}: HTTP ${response.status}`);
     const body = await response.json() as { version?: string };
-    if (!body.version || !validVersion(body.version)) throw new Error("Registry returned an invalid Lia Baileys version.");
+    if (!body.version || !validVersion(body.version)) throw new Error(`Registry returned an invalid version for ${this.manifest.packageName}.`);
     this.latestVersion = body.version;
     this.emitStatus();
     return this.status();
   }
 
   async installDefault(): Promise<EngineStatus> {
-    return this.installVersion(DEFAULT_VERSION);
+    if (this.manifest.provider === "lia") return this.installVersion(LIA_DEFAULT_VERSION);
+    const status = await this.checkLatest();
+    if (!status.latestVersion) throw new Error("Latest engine version is unknown.");
+    return this.installVersion(status.latestVersion);
+  }
+
+  async setProvider(providerValue: unknown): Promise<EngineStatus> {
+    const provider = String(providerValue ?? "") as EngineProvider;
+    if (!(provider in PACKAGE_NAMES)) throw new Error("Unsupported WhatsApp engine provider.");
+    if (provider === this.manifest.provider) return this.status();
+    const wasRunning = Boolean(this.child);
+    if (wasRunning) await this.stop();
+    this.saveSelectedState();
+    this.manifest.provider = provider;
+    this.syncSelectedState();
+    this.latestVersion = undefined;
+    await mkdir(join(this.rootDir, provider), { recursive: true });
+    await mkdir(this.sessionDir, { recursive: true });
+    await this.saveManifest();
+    this.emitStatus();
+    return this.status();
   }
 
   async installVersion(version: string): Promise<EngineStatus> {
@@ -111,7 +172,7 @@ export class EngineManager extends EventEmitter {
     const temp = `${target}.installing`;
     await rm(temp, { recursive: true, force: true });
     await mkdir(temp, { recursive: true });
-    await writeFile(join(temp, "package.json"), JSON.stringify({ private: true, dependencies: { [PACKAGE_NAME]: version } }, null, 2));
+    await writeFile(join(temp, "package.json"), JSON.stringify({ private: true, dependencies: { [this.manifest.packageName]: version } }, null, 2));
 
     try {
       await this.runBundledNpm(temp, ["install", "--omit=optional", "--no-audit", "--no-fund", "--save-exact"]);
@@ -122,6 +183,7 @@ export class EngineManager extends EventEmitter {
       if (oldActive && oldActive !== version) this.manifest.previousVersion = oldActive;
       this.manifest.activeVersion = version;
       this.manifest.installedVersions = [...new Set([...this.manifest.installedVersions, version])];
+      this.saveSelectedState();
       await this.saveManifest();
       this.runtime = "stopped";
       this.emitStatus();
@@ -152,6 +214,7 @@ export class EngineManager extends EventEmitter {
     if (wasRunning) await this.stop();
     this.manifest.activeVersion = previous;
     this.manifest.previousVersion = current;
+    this.saveSelectedState();
     await this.saveManifest();
     this.emitStatus();
     if (wasRunning) await this.start();
@@ -173,6 +236,8 @@ export class EngineManager extends EventEmitter {
       "--engine-dir", this.engineDir(version),
       "--session-dir", this.sessionDir,
       "--engine-version", version,
+      "--provider", this.manifest.provider,
+      "--package-name", this.manifest.packageName,
     ], {
       env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
       stdio: ["ignore", "pipe", "pipe", "ipc"],
@@ -300,6 +365,7 @@ export class EngineManager extends EventEmitter {
 
   private async saveManifest(): Promise<void> {
     await mkdir(this.rootDir, { recursive: true });
+    this.saveSelectedState();
     await writeFile(this.manifestPath, JSON.stringify(this.manifest, null, 2), "utf8");
   }
 

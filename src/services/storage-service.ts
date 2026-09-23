@@ -98,6 +98,8 @@ export class StorageHostService {
   private readonly profiles = new Map<string, StorageProvider>();
   private defaultProfile = "default";
 
+  constructor(private readonly onPayloadBytes: (bytes: number) => void = () => {}) {}
+
   addProfile(name: string, provider: StorageProvider, makeDefault = false): void {
     const normalized = String(name ?? "").trim().toLowerCase();
     if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(normalized)) throw new Error("Storage profile name is invalid.");
@@ -117,7 +119,7 @@ export class StorageHostService {
     manager.registerService("storage", "info", async (raw) => {
       const { name, provider } = this.provider(raw);
       return { profile: name, provider: provider.kind, temporaryLinks: typeof provider.createTemporaryLink === "function" };
-    }, "storage.read");
+    }, "storage.read", "storage");
 
     manager.registerService("storage", "put", async (raw) => {
       const params = objectParams(raw);
@@ -127,17 +129,20 @@ export class StorageHostService {
       const hasBase64 = typeof params.base64 === "string";
       if (hasText === hasBase64) throw new Error("storage.put requires exactly one of text or base64.");
       const data = hasText ? Buffer.from(String(params.text), "utf8") : Buffer.from(String(params.base64), "base64");
-      return { profile: name, ...(await provider.put(key, data)) };
-    }, "storage.write");
+      const result = await provider.put(key, data);
+      this.onPayloadBytes(data.byteLength);
+      return { profile: name, ...result };
+    }, "storage.write", "storage");
 
     manager.registerService("storage", "get", async (raw) => {
       const params = objectParams(raw);
       const { name, provider } = this.provider(params);
       const key = safeKey(params.key);
       const data = await provider.get(key);
+      this.onPayloadBytes(data.byteLength);
       if (params.encoding === "text") return { profile: name, key, encoding: "text", text: data.toString("utf8"), size: data.length };
       return { profile: name, key, encoding: "base64", base64: data.toString("base64"), size: data.length };
-    }, "storage.read");
+    }, "storage.read", "storage");
 
     manager.registerService("storage", "delete", async (raw) => {
       const params = objectParams(raw);
@@ -145,21 +150,21 @@ export class StorageHostService {
       const key = safeKey(params.key);
       await provider.delete(key);
       return { profile: name, key, deleted: true };
-    }, "storage.delete");
+    }, "storage.delete", "storage");
 
     manager.registerService("storage", "exists", async (raw) => {
       const params = objectParams(raw);
       const { name, provider } = this.provider(params);
       const key = safeKey(params.key);
       return { profile: name, key, exists: await provider.exists(key) };
-    }, "storage.read");
+    }, "storage.read", "storage");
 
     manager.registerService("storage", "list", async (raw) => {
       const params = objectParams(raw);
       const { name, provider } = this.provider(params);
       const prefix = typeof params.prefix === "string" && params.prefix.trim() ? safeKey(params.prefix) : "";
       return { profile: name, objects: await provider.list(prefix) };
-    }, "storage.list");
+    }, "storage.list", "storage");
 
     manager.registerService("storage", "temporary-link", async (raw) => {
       const params = objectParams(raw);
@@ -169,6 +174,6 @@ export class StorageHostService {
       const expiresSeconds = Number(params.expiresSeconds ?? 900);
       if (!Number.isInteger(expiresSeconds) || expiresSeconds < 30 || expiresSeconds > 604800) throw new Error("expiresSeconds must be between 30 seconds and 7 days.");
       return { profile: name, key, url: await provider.createTemporaryLink(key, expiresSeconds) };
-    }, "storage.link");
+    }, "storage.link", "storage");
   }
 }

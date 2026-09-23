@@ -3,7 +3,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createModuleScaffold } from "../core/module-scaffold";
 import { ExternalModuleManager } from "../external/external-module-manager";
-import "./main";
+import { getExternalModuleManager, withProgramNetworkAccess } from "./main";
 import { ModuleStudioController } from "./module-studio-controller";
 
 async function runModuleSmoke(): Promise<void> {
@@ -16,7 +16,7 @@ async function runModuleSmoke(): Promise<void> {
     firstSection: "CI",
   });
   const directory = join(root, scaffold.manifest.id);
-  const manager = new ExternalModuleManager(root, () => ({}));
+  const manager = new ExternalModuleManager(root, () => ({}), () => true, join(root, ".data"), () => ["whatsapp.send"]);
 
   try {
     await rm(root, { recursive: true, force: true });
@@ -51,7 +51,7 @@ async function runModuleSmoke(): Promise<void> {
 
 app.whenReady().then(() => {
   const modulesRoot = join(app.getPath("userData"), "modules");
-  new ModuleStudioController(modulesRoot).registerIpc();
+  new ModuleStudioController(modulesRoot, getExternalModuleManager, withProgramNetworkAccess).registerIpc();
 
   if (process.argv.includes("--ci-module-smoke")) {
     setTimeout(() => {

@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExternalModuleManager } from "../src/external/external-module-manager";
 import { parseExternalModuleManifest } from "../src/external/protocol";
 
@@ -72,6 +72,7 @@ describe("Bailey external module protocol", () => {
       commands: [
         { id: "echo", name: "echo", section: "Utility", description: "Echo command arguments." },
       ],
+      permissions: ["whatsapp.send", "whatsapp.react"],
       settings: [
         { key: "label", label: "Label", type: "text", defaultValue: "Echo", env: "ECHO_LABEL" },
       ],
@@ -94,7 +95,7 @@ input.on("line", (line) => {
 });
 `);
 
-    const manager = new ExternalModuleManager(root, () => ({ ECHO_LABEL: "Worker" }));
+    const manager = new ExternalModuleManager(root, () => ({ ECHO_LABEL: "Worker" }), () => true, join(root, ".data"), () => ["whatsapp.send", "whatsapp.react"]);
     const loaded = await manager.load();
     expect(loaded.errors).toEqual([]);
     expect(loaded.definitions).toHaveLength(1);
@@ -132,6 +133,7 @@ input.on("line", (line) => {
       version: "1.0.0",
       runtime: { command: process.execPath, args: ["worker.mjs"] },
       capabilities: ["events"],
+      permissions: ["whatsapp.send", "whatsapp.react"],
     }, null, 2));
 
     await writeFile(join(moduleDir, "worker.mjs"), `
@@ -152,7 +154,7 @@ input.on("line", (line) => {
 });
 `);
 
-    const manager = new ExternalModuleManager(root, () => ({}));
+    const manager = new ExternalModuleManager(root, () => ({}), () => true, join(root, ".data"), () => ["whatsapp.send", "whatsapp.react"]);
     const loaded = await manager.load();
     expect(loaded.errors).toEqual([]);
     expect(loaded.definitions[0].onMessage).toBeTypeOf("function");
@@ -208,7 +210,7 @@ input.on("line", (line) => {
 });
 `);
 
-    const manager = new ExternalModuleManager(root, () => ({}));
+    const manager = new ExternalModuleManager(root, () => ({}), () => true, join(root, ".data"), () => ["whatsapp.send"]);
     const loaded = await manager.load();
     expect(loaded.errors).toEqual([]);
 
@@ -245,6 +247,48 @@ input.on("line", (line) => {
     await manager.stopAll();
   });
 
+  it("restores persisted one-time and interval job schedules after a manager restart", async () => {
+    const root = await mkdtemp(join(tmpdir(), "bailey-persisted-jobs-"));
+    tempDirs.push(root);
+    const moduleDir = join(root, "persisted");
+    const dataRoot = join(root, ".data");
+    const nextRunAt = Date.now() + 60_000;
+    await mkdir(moduleDir, { recursive: true });
+    await mkdir(dataRoot, { recursive: true });
+    await writeFile(join(moduleDir, "bailey.module.json"), JSON.stringify({
+      protocol: 1,
+      id: "persisted",
+      name: "Persisted Jobs",
+      version: "1.0.0",
+      runtime: { command: process.execPath, args: ["worker.mjs"] },
+      capabilities: ["jobs"],
+      jobs: [
+        { id: "interval", intervalSeconds: 60 },
+        { id: "one-time", runAt: nextRunAt },
+      ],
+    }));
+    await writeFile(join(moduleDir, "worker.mjs"), "process.stdin.resume();\n");
+
+    const first = new ExternalModuleManager(root, () => ({}), () => true, dataRoot);
+    expect((await first.load()).errors).toEqual([]);
+    first.startJobs();
+    await vi.waitFor(async () => {
+      const saved = JSON.parse(await readFile(join(dataRoot, ".scheduler.json"), "utf8"));
+      expect(saved.jobs["persisted:interval"].nextRunAt).toBeTypeOf("number");
+      expect(saved.jobs["persisted:one-time"].nextRunAt).toBe(nextRunAt);
+    });
+    const savedBeforeRestart = JSON.parse(await readFile(join(dataRoot, ".scheduler.json"), "utf8"));
+    await first.stopAll();
+
+    const restarted = new ExternalModuleManager(root, () => ({}), () => true, dataRoot);
+    expect((await restarted.load()).errors).toEqual([]);
+    restarted.startJobs();
+    const savedAfterRestart = (restarted as any).schedulerState;
+    expect(savedAfterRestart.jobs["persisted:interval"].nextRunAt).toBe(savedBeforeRestart.jobs["persisted:interval"].nextRunAt);
+    expect(savedAfterRestart.jobs["persisted:one-time"].nextRunAt).toBe(nextRunAt);
+    await restarted.stopAll();
+  });
+
   it("gives storage-enabled modules a persistent data directory across process restarts", async () => {
     const root = await mkdtemp(join(tmpdir(), "bailey-external-storage-"));
     tempDirs.push(root);
@@ -259,6 +303,7 @@ input.on("line", (line) => {
       version: "1.0.0",
       runtime: { command: process.execPath, args: ["worker.mjs"] },
       capabilities: ["commands", "storage"],
+      permissions: ["whatsapp.send"],
       commands: [
         { id: "count", name: "count", section: "Storage", description: "Increment a persistent counter." },
       ],
@@ -288,7 +333,7 @@ input.on("line", (line) => {
 `);
 
     const runCount = async () => {
-      const manager = new ExternalModuleManager(root, () => ({}), () => true, dataRoot);
+      const manager = new ExternalModuleManager(root, () => ({}), () => true, dataRoot, () => ["whatsapp.send"]);
       const loaded = await manager.load();
       expect(loaded.errors).toEqual([]);
       const replies: string[] = [];
@@ -322,7 +367,7 @@ input.on("line", (line) => {
       version: "1.0.0",
       runtime: { command: process.execPath, args: ["worker.mjs"] },
       capabilities: ["commands", "services"],
-      permissions: ["text.upper"],
+      permissions: ["text.upper", "whatsapp.send"],
       commands: [
         { id: "service", name: "service", section: "Services", description: "Call a Bailey host service." },
       ],
@@ -358,7 +403,7 @@ input.on("line", (line) => {
 });
 `);
 
-    const manager = new ExternalModuleManager(root, () => ({}));
+    const manager = new ExternalModuleManager(root, () => ({}), () => true, join(root, ".data"), () => ["text.upper", "whatsapp.send"]);
     manager.registerService("text", "upper", (params, context) => {
       const value = params && typeof params === "object" && "text" in params
         ? String((params as { text: unknown }).text)
@@ -428,7 +473,7 @@ describe("Bailey host platform extensions", () => {
       version: "1.0.0",
       runtime: { command: process.execPath, args: ["worker.mjs"] },
       capabilities: ["commands", "services"],
-      permissions: [],
+      permissions: ["whatsapp.send"],
       commands: [{ id: "go", name: "go", description: "Try a service." }],
     }, null, 2));
 
@@ -452,7 +497,7 @@ input.on("line", (line) => {
 });
 `);
 
-    const manager = new ExternalModuleManager(root, () => ({}));
+    const manager = new ExternalModuleManager(root, () => ({}), () => true, join(root, ".data"), () => ["whatsapp.send"]);
     manager.registerService("secret", "read", () => ({ secret: true }), "secret.read");
     const loaded = await manager.load();
     const replies: string[] = [];

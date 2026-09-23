@@ -17,6 +17,19 @@ interface ModuleReloadResult {
   errors: Array<{ folder: string; error: string }>;
 }
 
+interface NetworkLockStatus {
+  mode: "normal" | "metered" | "bailey-only" | "temporary-unlock";
+  baileyInternetAvailable: boolean;
+  unlockUntil?: number;
+  events: Array<{ at: number; action: string; detail?: string }>;
+  dataUsage: { note: string; whatsappBytes: null; moduleServicesBytes: number; storageBytes: number; dependencyAndUpdateBytes: null; totalBytes: null };
+}
+
+interface NetworkPoliciesPayload {
+  modules: Array<{ id: string; name: string }>;
+  policies: Array<{ moduleId: string; allow: string[]; deny: string[] }>;
+}
+
 const bailey = (window as unknown as {
   bailey: {
     openModulesFolder(): Promise<{ ok: boolean; path: string }>;
@@ -50,6 +63,11 @@ const bailey = (window as unknown as {
     saveStorageProfile(input: { name: string; provider: string; config: Record<string, string | boolean>; secrets: Record<string, string> }): Promise<unknown>;
     setDefaultStorageProfile(name: string): Promise<unknown>;
     deleteStorageProfile(name: string): Promise<unknown>;
+    getNetworkLockStatus(): Promise<NetworkLockStatus>;
+    setNetworkLockMode(mode: "normal" | "metered" | "bailey-only"): Promise<NetworkLockStatus>;
+    temporaryNetworkUnlock(minutes: number): Promise<NetworkLockStatus>;
+    getNetworkPolicies(): Promise<NetworkPoliciesPayload>;
+    setNetworkPolicy(moduleId: string, allow: string[], deny: string[]): Promise<unknown>;
   };
 }).bailey;
 
@@ -447,8 +465,12 @@ function installHostTools(): void {
           permissionWrap.className = "stack";
           if (module.permissions.length) {
             const permissionTitle = document.createElement("strong");
-            permissionTitle.textContent = "Requested permissions";
+            permissionTitle.textContent = "Requested permissions · checked means granted";
             permissionWrap.append(permissionTitle);
+            const permissionNote = document.createElement("p");
+            permissionNote.className = "muted";
+            permissionNote.textContent = "Manifest entries only ask. Bailey grants only the entries you check here. WhatsApp actions and host services require both a request and your grant.";
+            permissionWrap.append(permissionNote);
             for (const permission of module.permissions) {
               const label = document.createElement("label");
               label.className = "field";
@@ -474,7 +496,7 @@ function installHostTools(): void {
           } else {
             const none = document.createElement("span");
             none.className = "muted";
-            none.textContent = "This module requests no privileged host permissions.";
+            none.textContent = "This module currently requests no Bailey host permissions. Module workers are trusted local processes; use network.direct only when needed, or keep Bailey Only active to block direct outbound connections.";
             permissionWrap.append(none);
           }
           details.append(summary, permissionWrap, pre);
@@ -543,6 +565,194 @@ function installHostTools(): void {
 }
 
 installHostTools();
+
+
+function installNetworkLockUi(): void {
+  const configRoot = document.querySelector<HTMLElement>("#view-configuration .stack");
+  if (!configRoot || document.querySelector("#network-lock-card")) return;
+  const card = document.createElement("article");
+  card.id = "network-lock-card";
+  card.className = "panel";
+  card.innerHTML = `
+    <div class="panel-heading">
+      <div>
+        <h2>Network / Data Saver</h2>
+        <p>Choose how Bailey behaves on a limited hotspot or mobile connection.</p>
+      </div>
+      <span id="network-lock-mode" class="pill">Checking…</span>
+    </div>
+    <div id="network-lock-summary" class="stack"></div>
+    <div class="action-row" style="flex-wrap:wrap">
+      <button class="secondary-button" id="network-mode-normal" type="button">Normal</button>
+      <button class="secondary-button" id="network-mode-metered" type="button">Metered / Data Saver</button>
+      <button class="primary-button" id="network-mode-bailey" type="button">Bailey Only</button>
+      <button class="danger-quiet-button" id="network-emergency-disable" type="button">Emergency Disable</button>
+    </div>
+    <div class="action-row" style="margin-top:12px">
+      <label class="field"><span>Temporary unlock</span><select id="network-unlock-duration"><option value="5">5 minutes</option><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option></select></label>
+      <button class="secondary-button" id="network-unlock" type="button">Unlock laptop internet</button>
+    </div>
+    <details style="margin-top:16px">
+      <summary>Recent Network Lock actions</summary>
+      <pre id="network-lock-events" class="manifest-example"></pre>
+    </details>
+  `;
+  configRoot.prepend(card);
+  const modeLabel = card.querySelector<HTMLElement>("#network-lock-mode")!;
+  const summary = card.querySelector<HTMLElement>("#network-lock-summary")!;
+  const events = card.querySelector<HTMLElement>("#network-lock-events")!;
+  const buttons = [...card.querySelectorAll<HTMLButtonElement>("button")];
+  const modeText: Record<NetworkLockStatus["mode"], string> = {
+    normal: "Normal",
+    metered: "Metered / Data Saver",
+    "bailey-only": "Bailey Only · laptop internet restricted",
+    "temporary-unlock": "Temporary Unlock",
+  };
+  const dataLabel = (bytes: number | null) => bytes === null ? "Not measured" : `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+
+  const render = (state: NetworkLockStatus) => {
+    modeLabel.textContent = modeText[state.mode];
+    const locked = state.mode === "bailey-only";
+    card.style.borderColor = locked ? "#92763b" : "";
+    card.style.boxShadow = locked ? "0 0 0 1px rgba(235,190,75,.18)" : "";
+    const connectivity = state.baileyInternetAvailable
+      ? "Bailey internet: available"
+      : "Bailey is allowed through Windows Firewall; other apps are restricted.";
+    let unlock = "";
+    if (state.mode === "temporary-unlock" && state.unlockUntil) {
+      const seconds = Math.max(0, Math.ceil((state.unlockUntil - Date.now()) / 1000));
+      unlock = `<div class="setting-row"><div class="setting-copy"><div class="setting-title"><strong>Temporary unlock remaining</strong></div><p>${Math.floor(seconds / 60)}m ${seconds % 60}s · will return to Bailey Only automatically</p></div></div>`;
+    }
+    const meterNote = state.mode === "metered"
+      ? "Windows networking is unchanged. For Windows metered behavior, open Settings → Network & Internet and enable Metered connection on the active Wi-Fi or mobile profile. Bailey avoids background update checks unless you start them."
+      : locked
+        ? "Bailey Host and its WhatsApp engine can connect; Windows DNS and DHCP are allowed. Dependency installation, engine updates and cloud actions run through Bailey Host. Use Temporary Unlock for ordinary laptop browsing."
+        : "Windows networking is unchanged in Normal mode.";
+    summary.innerHTML = `
+      <div class="setting-row"><div class="setting-copy"><div class="setting-title"><strong>Current mode</strong></div><p>${connectivity}</p></div></div>
+      ${unlock}
+      <div class="setting-row"><div class="setting-copy"><div class="setting-title"><strong>Today · Bailey payloads observed</strong></div><p>WhatsApp: ${dataLabel(state.dataUsage.whatsappBytes)} · Storage: ${dataLabel(state.dataUsage.storageBytes)} · Modules/services: ${dataLabel(state.dataUsage.moduleServicesBytes)} · Dependency/update: ${dataLabel(state.dataUsage.dependencyAndUpdateBytes)} · Total Bailey traffic: Not measured</p><small>${state.dataUsage.note}</small></div></div>
+      <p class="muted">${meterNote}</p>
+    `;
+    events.textContent = state.events.length
+      ? state.events.slice().reverse().map((item) => `${new Date(item.at).toLocaleString()}  ${item.action}${item.detail ? ` · ${item.detail}` : ""}`).join("\n")
+      : "No recent Network Lock actions.";
+  };
+
+  const refresh = async () => {
+    try { render(await bailey.getNetworkLockStatus()); }
+    catch (error) { modeLabel.textContent = "Status unavailable"; summary.textContent = error instanceof Error ? error.message : String(error); }
+  };
+  const act = async (button: HTMLButtonElement, work: () => Promise<NetworkLockStatus>) => {
+    buttons.forEach((item) => { item.disabled = true; });
+    button.textContent = "Applying…";
+    try { render(await work()); }
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await refresh();
+      summary.insertAdjacentHTML("afterbegin", "<p class='save-status error'></p>");
+      summary.querySelector<HTMLElement>(".save-status.error")!.textContent = message;
+    } finally {
+      button.textContent = button.id === "network-mode-normal" ? "Normal"
+        : button.id === "network-mode-metered" ? "Metered / Data Saver"
+          : button.id === "network-mode-bailey" ? "Bailey Only"
+            : button.id === "network-unlock" ? "Unlock laptop internet" : "Emergency Disable";
+      buttons.forEach((item) => { item.disabled = false; });
+    }
+  };
+  card.querySelector<HTMLButtonElement>("#network-mode-normal")!.addEventListener("click", (event) => {
+    const button = event.currentTarget as HTMLButtonElement;
+    void act(button, () => bailey.setNetworkLockMode("normal"));
+  });
+  card.querySelector<HTMLButtonElement>("#network-emergency-disable")!.addEventListener("click", (event) => {
+    const button = event.currentTarget as HTMLButtonElement;
+    void act(button, () => bailey.setNetworkLockMode("normal"));
+  });
+  card.querySelector<HTMLButtonElement>("#network-mode-metered")!.addEventListener("click", (event) => {
+    const button = event.currentTarget as HTMLButtonElement;
+    void act(button, () => bailey.setNetworkLockMode("metered"));
+  });
+  card.querySelector<HTMLButtonElement>("#network-mode-bailey")!.addEventListener("click", (event) => {
+    const button = event.currentTarget as HTMLButtonElement;
+    void act(button, () => bailey.setNetworkLockMode("bailey-only"));
+  });
+  card.querySelector<HTMLButtonElement>("#network-unlock")!.addEventListener("click", (event) => {
+    const button = event.currentTarget as HTMLButtonElement;
+    const minutes = Number(card.querySelector<HTMLSelectElement>("#network-unlock-duration")!.value);
+    void act(button, () => bailey.temporaryNetworkUnlock(minutes));
+  });
+  void refresh();
+  window.setInterval(() => { void bailey.getNetworkLockStatus().then(render).catch(() => {}); }, 15_000);
+}
+
+installNetworkLockUi();
+
+
+function installNetworkPoliciesUi(): void {
+  const configRoot = document.querySelector<HTMLElement>("#view-configuration .stack");
+  if (!configRoot || document.querySelector("#network-policies-card")) return;
+  const card = document.createElement("article");
+  card.id = "network-policies-card";
+  card.className = "panel";
+  card.innerHTML = `
+    <div class="panel-heading"><div><h2>Module network access</h2><p>Network service calls stay inside Bailey and use this module's HTTPS domain allowlist. Direct module networking is a separate permission request.</p></div></div>
+    <div class="editor-grid">
+      <label class="field"><span>Module</span><select id="network-policy-module"></select></label>
+      <span class="muted">Saving applies immediately; no module restart is needed.</span>
+      <label class="field editor-span-2"><span>Allowed domains</span><textarea id="network-policy-allow" rows="3" placeholder="api.example.com, cdn.example.com"></textarea><small>Domain entries also match subdomains. The host network.http service only supports HTTPS public domains.</small></label>
+      <label class="field editor-span-2"><span>Denied domains</span><textarea id="network-policy-deny" rows="2" placeholder="private.example.com"></textarea><small>Denies override allowed entries.</small></label>
+    </div>
+    <p id="network-policy-status" class="save-status"></p>
+    <button class="primary-button" id="network-policy-save" type="button">Save domain policy</button>
+  `;
+  configRoot.append(card);
+  const moduleSelect = card.querySelector<HTMLSelectElement>("#network-policy-module")!;
+  const allowInput = card.querySelector<HTMLTextAreaElement>("#network-policy-allow")!;
+  const denyInput = card.querySelector<HTMLTextAreaElement>("#network-policy-deny")!;
+  const status = card.querySelector<HTMLElement>("#network-policy-status")!;
+  const split = (value: string) => value.split(/[\s,;]+/).map((item) => item.trim()).filter(Boolean);
+  let payload: NetworkPoliciesPayload = { modules: [], policies: [] };
+  const render = () => {
+    const policy = payload.policies.find((item) => item.moduleId === moduleSelect.value);
+    allowInput.value = policy?.allow.join("\n") ?? "";
+    denyInput.value = policy?.deny.join("\n") ?? "";
+  };
+  const refresh = async () => {
+    payload = await bailey.getNetworkPolicies();
+    const current = moduleSelect.value;
+    moduleSelect.replaceChildren(...payload.modules.map((module) => {
+      const option = document.createElement("option");
+      option.value = module.id;
+      option.textContent = module.name;
+      return option;
+    }));
+    if (payload.modules.some((module) => module.id === current)) moduleSelect.value = current;
+    render();
+  };
+  moduleSelect.addEventListener("change", render);
+  card.querySelector<HTMLButtonElement>("#network-policy-save")!.addEventListener("click", async (event) => {
+    const button = event.currentTarget as HTMLButtonElement;
+    if (!moduleSelect.value) { status.textContent = "Load a module first."; status.className = "save-status error"; return; }
+    button.disabled = true;
+    status.textContent = "Saving…";
+    status.className = "save-status saving";
+    try {
+      const allow = split(allowInput.value);
+      const deny = split(denyInput.value);
+      await bailey.setNetworkPolicy(moduleSelect.value, allow, deny);
+      payload.policies = payload.policies.filter((item) => item.moduleId !== moduleSelect.value);
+      payload.policies.push({ moduleId: moduleSelect.value, allow, deny });
+      status.textContent = "Saved.";
+      status.className = "save-status";
+    } catch (error) {
+      status.textContent = error instanceof Error ? error.message : String(error);
+      status.className = "save-status error";
+    } finally { button.disabled = false; }
+  });
+  void refresh().catch((error) => { status.textContent = error instanceof Error ? error.message : String(error); });
+}
+
+installNetworkPoliciesUi();
 
 
 function installStorageProfilesUi(): void {

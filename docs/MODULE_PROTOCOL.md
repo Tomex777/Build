@@ -1,24 +1,23 @@
 # Bailey Module Protocol 1
 
-Bailey Host owns the WhatsApp connection. Code-backed modules run as separate processes and communicate with Bailey over newline-delimited JSON (JSONL) on stdin/stdout.
+Protocol 1 connects Bailey Host to independently developed module processes using newline-delimited JSON (JSONL) on stdin/stdout. Bailey owns the WhatsApp connection, engine selection, pairing/session data and all host services. Modules never receive the WhatsApp socket or auth/session directory, and must not import Lia Baileys or mainstream Baileys.
 
-This keeps modules independent of Lia Baileys internals and allows modules to be written in Python, JavaScript, Java, Go, Rust, or any runtime that can read and write JSON lines.
+Modules may use JavaScript, Python, Java, Go, Rust or another executable runtime. Bailey launches the configured process without a shell. JavaScript can use Bailey's embedded Node runtime; Python can use a per-module `.bailey-venv`.
 
-## Module folder
+## Module folder and manifest
 
-Each module lives in its own directory under Bailey Host's Modules folder:
+Each module lives in its own folder under Bailey Host's Modules directory:
 
 ```text
 modules/
 └── economy/
     ├── bailey.module.json
     ├── main.py
-    └── ...
+    ├── requirements.txt
+    └── package.json       # JavaScript modules
 ```
 
-Bailey Host → Studio → **Open modules folder** opens this location. Studio can also create a starter module for you, including its manifest, worker file and README.
-
-## Manifest
+Studio can create a starter module, browse/edit files in multiple tabs, install dependencies, reload modules and import/export `.baileypkg` packages.
 
 ```json
 {
@@ -26,260 +25,181 @@ Bailey Host → Studio → **Open modules folder** opens this location. Studio c
   "id": "economy",
   "name": "Economy",
   "version": "1.0.0",
-  "description": "Economy commands and services.",
-  "runtime": {
-    "command": "python",
-    "args": ["main.py"]
-  },
-  "capabilities": ["commands", "settings", "events", "jobs", "storage", "services"],
-  "settings": [
-    {
-      "key": "currency",
-      "label": "Currency",
-      "type": "text",
-      "defaultValue": "₦",
-      "env": "ECONOMY_CURRENCY"
-    }
-  ],
+  "description": "Economy commands and storage.",
+  "runtime": { "command": "python", "args": ["main.py"], "restart": "on-failure" },
+  "capabilities": ["commands", "settings", "events", "jobs", "storage", "services", "lifecycle"],
+  "permissions": ["whatsapp.send", "whatsapp.react", "kv.read", "kv.write", "database.read", "database.write"],
+  "events": ["message.received", "reaction.received", "group.participant", "call.received"],
   "commands": [
-    {
-      "id": "balance",
-      "name": "balance",
-      "section": "Economy",
-      "description": "Show your balance.",
-      "aliases": ["bal"]
-    }
+    { "id": "balance", "name": "balance", "section": "Economy", "description": "Show your balance." }
   ],
   "jobs": [
-    {
-      "id": "interest",
-      "intervalSeconds": 3600,
-      "runOnStart": true
-    }
+    { "id": "interest", "cron": "0 0 * * *", "retry": { "maxAttempts": 3, "backoffSeconds": 10 } }
   ]
 }
 ```
 
-`runtime.command` is launched directly without a shell.
+`capabilities` opt into Protocol 1 features; `permissions` ask Bailey for specific authority. A manifest permission does not grant itself. Users grant or revoke only manifest-requested entries under Studio → Module runtimes & health. A privileged action requires both a matching request and a saved user grant. Missing permission storage means no grants.
 
-Supported capability names are currently `commands`, `settings`, `events`, `jobs`, `storage`, and `services`. `events`, `jobs`, `storage`, and `services` are active in Protocol 1.
+Permission matching supports exact entries and parent wildcards, such as `storage.*`. The UI grants a requested wildcard as a single entry. Current privileged actions include:
 
-### Runtime choices
+| Action/service | Permission |
+| --- | --- |
+| Reply or send text | `whatsapp.send` |
+| React | `whatsapp.react` |
+| Send media | `whatsapp.send-media` |
+| `media.download` | `media.download` |
+| `storage.info`, `storage.get`, `storage.exists` | `storage.read` |
+| `storage.put`, `storage.delete`, `storage.list` | `storage.write`, `storage.delete`, `storage.list` respectively |
+| `storage.temporary-link` | `storage.link` |
+| `kv.get` / `kv.list` | `kv.read` |
+| `kv.set` / `kv.delete` | `kv.write` |
+| `database.all` / `database.get` | `database.read` |
+| `database.run` / `database.exec` | `database.write` |
+| `network.request` | `network.http` |
+| `host.info` | `host.info` |
+| Proactive `send` action | `whatsapp.send` |
 
-For Python, use:
+Permission grants control Bailey's host-mediated operations. Module workers are ordinary trusted local processes rather than OS sandboxes. Use Bailey Only to block direct outbound connections at the Windows Firewall; in Normal mode, a worker that uses its runtime's raw networking APIs is not OS-isolated.
 
-```json
-{"command":"python","args":["main.py"]}
-```
+### Runtime choices and dependencies
 
-Bailey does not bundle Python, so `python` must be available on the computer.
-
-For JavaScript, Bailey Studio uses the reserved runtime command `bailey-node`:
-
-```json
-{"command":"bailey-node","args":["main.mjs"]}
-```
-
-`bailey-node` runs the module with the Node runtime embedded in Bailey Host/Electron. The user does not need a separate Node.js installation. Do not create an executable named `bailey-node`; it is a Bailey Host runtime alias.
-
-Other runtimes can point `runtime.command` at an installed command such as `java`, or at a compiled executable shipped inside the module folder.
-
-Settings declared in the manifest automatically appear under **Configuration**. If a setting declares `env`, Bailey injects its current value into the module process environment when it starts. Secret settings use Bailey's secure-storage path and are not displayed back in plain text.
-
-## Command request
-
-When a module command runs, Bailey writes one JSON line to stdin:
+For Python:
 
 ```json
-{"protocol":1,"id":"request-id","type":"command.execute","commandId":"balance","context":{"remoteJid":"...","senderJid":"...","text":".balance","args":[]}}
+{ "command": "python", "args": ["main.py"] }
 ```
 
-The process may stay alive and handle many requests. Bailey currently waits up to 30 seconds for each response.
+Python must be installed on the computer. Add packages to `requirements.txt`; Studio installs them into that module's `.bailey-venv` and restarts a running worker after a successful install.
 
-## Incoming-message event
-
-A module that declares the `events` capability receives ordinary incoming WhatsApp messages, not only command messages.
-
-Bailey sends:
+For JavaScript:
 
 ```json
-{"protocol":1,"id":"request-id","type":"event.dispatch","event":"message.received","context":{"remoteJid":"...","senderJid":"...","text":"hello","pushName":"Ada","timestamp":1789674000}}
+{ "command": "bailey-node", "args": ["main.mjs"] }
 ```
 
-Important behavior:
+`bailey-node` uses Node embedded in Bailey Host. Add dependencies to the module's `package.json`; Studio installs them into that module's own `node_modules` with Bailey's bundled npm/Node, then restarts the worker after a successful install. Other runtimes can name an installed executable directly, such as `java`, or ship a compiled executable in the module folder.
 
-- Events are opt-in. A module without `"events"` in `capabilities` does not receive them.
-- Messages sent by the bot itself are not dispatched as `message.received` events.
-- Event delivery is independent of command parsing, so a command message may also be seen as an ordinary message event by an event-enabled module.
-- The module must send a response for every event request, even when it wants to do nothing. Use an empty `actions` array in that case.
-- A disabled Bailey module receives neither commands nor passive message events.
+Settings declared in the manifest automatically appear under Configuration. ENV-backed settings are injected when a worker starts. Secret settings and cloud credentials stay in Bailey's encrypted host configuration.
 
-Example no-op event response:
+## Request and response envelope
+
+Bailey writes one JSON object per line. A module response references the request `id` in `replyTo`:
 
 ```json
-{"protocol":1,"replyTo":"request-id","ok":true,"actions":[]}
+{"protocol":1,"replyTo":"request-1","ok":true,"actions":[]}
 ```
 
-## Scheduled jobs
-
-A module that declares the `jobs` capability may add fixed-interval jobs to its manifest. `intervalSeconds` must be an integer from 5 seconds through 30 days.
-
-Bailey sends a job request like this:
+Failures use `ok:false` and an error string:
 
 ```json
-{"protocol":1,"id":"request-id","type":"job.execute","jobId":"interest","scheduledAt":1789674000000}
+{"protocol":1,"replyTo":"request-1","ok":false,"error":"Database unavailable"}
 ```
 
-`scheduledAt` is a Unix timestamp in milliseconds. Set `runOnStart` to `true` when a job should also run once as Bailey starts the scheduler.
+Keep stdout for protocol JSONL only. Use stderr or a `log` action for diagnostics. Bailey waits up to 30 seconds for a command/event/job response and 5 seconds for lifecycle start/stop.
 
-Job behavior:
+## Commands and actions
 
-- Bailey owns the timers; the module does not need its own background scheduler.
-- Disabled modules do not execute jobs.
-- Bailey skips a new run when the same module/job pair is still running from its previous interval.
-- Reloading modules stops old timers before new module definitions are loaded.
-- Jobs begin only after Bailey's WhatsApp host is initialized, so outbound sends remain host-controlled.
-
-A job has no triggering chat, so it should not return `reply` or `react`. To send a proactive WhatsApp message, return a `send` action with the target JID:
+For a command, Bailey sends:
 
 ```json
-{"protocol":1,"replyTo":"request-id","ok":true,"actions":[{"type":"send","remoteJid":"1203630...@g.us","text":"Daily update is ready."}]}
+{"protocol":1,"id":"request-1","type":"command.execute","commandId":"balance","context":{"remoteJid":"...","senderJid":"...","text":".balance","args":[]}}
 ```
 
-This is useful for episode checks, scheduled economy processing, cleanup/sync tasks, reminders, and notification modules.
-
-## Persistent module storage
-
-A module that declares the `storage` capability receives a persistent folder path in the `BAILEY_MODULE_DATA_DIR` environment variable before its worker starts.
-
-Use that directory for module-owned data such as:
-
-- SQLite databases and economy state
-- anime/manga tracking state and caches
-- downloaded metadata or generated indexes
-- temporary or durable media-processing files
-- JSON or other local application data
-
-The data directory is separate from the module's code directory and from Bailey's WhatsApp auth/session data. It survives module process restarts and Bailey module reloads, so replacing or editing module code does not reset the module's state.
-
-JavaScript example:
-
-```js
-import { join } from "node:path";
-
-const databasePath = join(process.env.BAILEY_MODULE_DATA_DIR, "economy.sqlite");
-```
-
-Python example:
-
-```python
-import os
-from pathlib import Path
-
-data_dir = Path(os.environ["BAILEY_MODULE_DATA_DIR"])
-database_path = data_dir / "economy.sqlite"
-```
-
-A module that does not declare `storage` does not receive `BAILEY_MODULE_DATA_DIR`.
-
-This dedicated folder is an ownership convention, not an operating-system sandbox. External modules are ordinary local processes and should still be treated as trusted code. The important boundary is that Bailey does not hand them its Lia socket or WhatsApp authentication state.
-
-## Host services
-
-A module that declares `services` can make a request back into Bailey while it is processing a command, event, or job. This is the shared-service boundary for capabilities that should be owned by Bailey or reused by many modules.
-
-The module writes a `host.call` line to stdout:
+`context` contains the triggering JID and parsed arguments. Return the action sequence as one JSON line:
 
 ```json
-{"protocol":1,"id":"call-42","type":"host.call","service":"host","method":"info","params":{}}
+{"protocol":1,"replyTo":"request-1","ok":true,"actions":[{"type":"reply","text":"Balance: ₦500"},{"type":"react","emoji":"✅"}]}
 ```
 
-Bailey answers on the module's stdin:
+Supported actions are `reply`, `react`, proactive `send`, `send-media`, and `log`. Reply/send actions require `whatsapp.send`; reaction requires `whatsapp.react`; media sends require `whatsapp.send-media`. Bailey applies actions through its current engine adapter.
+
+## Events
+
+Declare the `events` capability and optionally choose subscriptions. If `events` is enabled and `events` is omitted, the default subscription is `message.received`.
 
 ```json
-{"protocol":1,"type":"host.result","replyTo":"call-42","ok":true,"result":{"protocol":1,"moduleId":"economy","moduleName":"Economy","capabilities":["commands","services"]}}
+{"protocol":1,"id":"request-2","type":"event.dispatch","event":"message.received","context":{"id":"ABCD","remoteJid":"...","senderJid":"...","text":"hello","pushName":"Ada","timestamp":1789674000000}}
 ```
 
-A service failure is returned to the module rather than crashing the host:
+Protocol 1 event names currently include:
+
+- `message.received`
+- `message.updated`
+- `reaction.received`
+- `group.participant`
+- `call.received`
+
+Engine support determines which richer event payloads are available. Events are opt-in; the bot's own messages are not sent as `message.received`. A message may be dispatched to commands and passive events independently. Respond with an empty `actions` array to ignore an event. Disabled modules receive no event dispatch.
+
+For incoming media, the `message.received` context can include media metadata and a message `id`. A module with the `media` capability, `storage` capability and `media.download` grant may request the downloaded payload through Bailey's media service. Modules receive a path under their data directory, never the WhatsApp socket.
+
+## Scheduled jobs and lifecycle
+
+Declare the `jobs` capability and define exactly one schedule per job: interval, five-field cron, or one-time `runAt` timestamp in milliseconds.
 
 ```json
-{"protocol":1,"type":"host.result","replyTo":"call-42","ok":false,"error":"Unknown host service: blob.put"}
+{"id":"hourly-report","intervalSeconds":3600,"runOnStart":false,"retry":{"maxAttempts":3,"backoffSeconds":10}}
 ```
 
-Protocol rules for services:
+Bailey owns timers and persists next-run and completion state across host restarts. Intervals must be 5 seconds to 30 days; retry attempts are 1–5. Disabled modules do not execute jobs. Bailey prevents overlapping runs of the same module/job pair. Reloading stops the old scheduler before creating the new one.
 
-- The module must declare `services` before Bailey accepts `host.call` messages from it.
-- A `host.call` has its own `id`; do not reuse the outer command/event/job request id.
-- The module may issue a host call while the original Bailey request is still pending. It should keep enough local state to resume the original request after `host.result` arrives.
-- Module workers must distinguish normal Bailey inputs such as `command.execute` from `host.result` messages on stdin.
-- Bailey's built-in `host.info` service exposes basic module/protocol metadata and the storage path when the module also has `storage`.
-- Additional services are registered by Bailey under explicit service + method names. This is where shared cloud/blob, media, indexing, or other host-owned adapters can be added without exposing the WhatsApp engine internals.
-
-Minimal Python shape:
-
-```python
-# inside your JSONL loop, after receiving a Bailey command request
-call_id = "my-service-call"
-send({
-    "protocol": 1,
-    "id": call_id,
-    "type": "host.call",
-    "service": "host",
-    "method": "info",
-    "params": {}
-})
-
-# later, another stdin line arrives:
-# {"type":"host.result","replyTo":"my-service-call", ...}
-```
-
-Minimal JavaScript shape:
-
-```js
-process.stdout.write(JSON.stringify({
-  protocol: 1,
-  id: "my-service-call",
-  type: "host.call",
-  service: "host",
-  method: "info",
-  params: {}
-}) + "\n");
-```
-
-Cloud/blob providers are not implicitly exposed just because `services` is enabled. A concrete adapter must be registered by Bailey first, which keeps provider credentials and behavior behind an intentional host boundary.
-
-## Response
-
-Write one JSON object followed by a newline to stdout:
+Job request:
 
 ```json
-{"protocol":1,"replyTo":"request-id","ok":true,"actions":[{"type":"reply","text":"Balance: ₦500"}]}
+{"protocol":1,"id":"request-3","type":"job.execute","jobId":"hourly-report","scheduledAt":1789674000000}
 ```
 
-Supported actions in Protocol 1 today:
+A job has no triggering chat, so it cannot use `reply` or `react`. It may return a permitted `send` action for a proactive notification or return log actions.
 
-- `{"type":"reply","text":"..."}` — reply to the triggering chat.
-- `{"type":"react","emoji":"✅"}` — react to the triggering message.
-- `{"type":"send","remoteJid":"...","text":"..."}` — ask Bailey to send a new text message to a specific WhatsApp JID.
-- `{"type":"log","level":"info","message":"..."}` — write a module log line. `level` may be `debug`, `info`, `warn`, or `error`.
+With the `lifecycle` capability, Bailey sends `lifecycle.start` before the module's first regular request and `lifecycle.stop` during an intentional worker shutdown/reload. Return an ordinary empty success response when no work is needed. Unexpected worker exits are reported in diagnostics and restarted according to `runtime.restart`.
 
-Bailey remains the only layer that performs WhatsApp actions. External modules never receive the Lia socket or auth state.
+## Persistent data and shared services
 
-For failures:
+With the `storage` capability, the worker receives `BAILEY_MODULE_DATA_DIR`. This per-module data directory is separate from source, engine files and WhatsApp auth. It survives worker restarts/reloads and is included in Bailey backups. Use it for module-owned state and media results.
+
+Bailey registers these shared services:
+
+| Service | Methods | Purpose |
+| --- | --- | --- |
+| `host` | `info` | Protocol/module metadata |
+| `kv` | `get`, `set`, `delete`, `list` | Small JSON values persisted per module |
+| `database` | `all`, `get`, `run`, `exec` | SQLite database in the module data directory |
+| `storage` | `info`, `put`, `get`, `delete`, `exists`, `list`, `temporary-link` | Provider-neutral object storage |
+| `media` | `download` | Download recent incoming media into module data |
+| `network` | `request` | Allowlisted host-mediated HTTPS request |
+
+A module must declare `services` before it may send `host.call`. Example request:
 
 ```json
-{"protocol":1,"replyTo":"request-id","ok":false,"error":"Database unavailable"}
+{"protocol":1,"id":"call-1","type":"host.call","service":"kv","method":"get","params":{"key":"balance:123"}}
 ```
 
-## Rules
+Bailey replies on stdin, without completing the original request:
 
-- Do not import or manipulate Lia Baileys from an external module.
-- Do not read Bailey's WhatsApp auth/session directory.
-- Treat request context as data and return actions for Bailey to perform.
-- Keep protocol messages on stdout. Use stderr for diagnostic output; Bailey records it as module diagnostics.
-- One line on stdout must contain one complete JSON protocol message.
-- Event handlers should return quickly. Use jobs for scheduled/background work instead of blocking message events.
-- Put persistent module-owned files inside `BAILEY_MODULE_DATA_DIR` when the module declares `storage`.
-- Use `host.call` for registered shared services instead of reaching into Bailey's internal engine objects.
+```json
+{"protocol":1,"type":"host.result","replyTo":"call-1","ok":true,"result":{"key":"balance:123","found":true,"value":500}}
+```
 
-The protocol stays intentionally small. Concrete cloud/blob adapters and richer media services can now be layered on the host-service RPC without tying module code to a specific WhatsApp-engine fork.
+Each host call has its own id. A worker may make service calls while a command/event/job request is pending. It must continue reading stdin, match `host.result.replyTo`, and then answer the original request. Service failures return `ok:false` with an error. `services` capability alone is not authorization; each method has its own permission. Storage provider credentials never appear in manifests, host results or module environment variables.
+
+The `network.request` service accepts `url`, optional `method`, `headers`, `text` or `base64`, and optional `responseEncoding:"base64"`. It accepts HTTPS public-domain URLs only, caps request bodies at 256 KB and response bodies at 2 MB, and times out at 15 seconds. The module must request and receive `network.http`, and its hostname must match the module's allowlist in Settings → Module network access. Deny rules override allow rules; an empty allowlist denies all host-mediated network requests. Bailey does not forward redirects automatically.
+
+When Bailey Only is active, Python dependency installation creates a temporary outbound allow rule for that module's virtual-environment Python executable, then removes the rule when pip exits. Engine installs, JavaScript dependency installs and host-mediated requests use Bailey Host's already allowed executable. The remaining laptop stays locked during these operations.
+
+## Storage profiles
+
+The user creates named/default storage profiles in Configuration. Protocol 1 modules select `profile` by name or omit it to use the default. Providers include local disk, S3-compatible endpoints, Azure Blob, GCS and Supabase Storage. Storage is permission-gated by operation. Profile credentials remain encrypted in Bailey Host. Bailey tracks known storage payload byte counts; it does not report TLS overhead or pretend to measure WhatsApp protocol traffic.
+
+## Package and backup behavior
+
+Module exports and imports use `.baileypkg`. Bailey excludes `node_modules`, `.venv`/`.bailey-venv`, `.bailey-runtime`, caches, `.data`, common `.env` files, and common auth/session/token file and folder names. Reinstall runtime dependencies after import.
+
+Ordinary `.baileybackup` files include local host configuration, chats, commands, module source/data and storage objects. They deliberately exclude WhatsApp auth/session directories and installed engine binaries, and reject unsupported/sensitive paths on restore. Permission grants are user authority and are not included in backup import/export. Settings protected by OS `safeStorage` may need to be re-entered on another computer.
+
+## Runtime and trust notes
+
+- `bailey-node` uses embedded Node; Python and other executable runtimes are local installations.
+- Workers may use only Bailey-managed interfaces for guaranteed host policy checks. A worker is not sandboxed from the local filesystem or raw sockets while Windows is in Normal mode.
+- Network Lock Bailey Only changes Windows Firewall outbound defaults and is Windows-specific. It adds only namespaced rules and uses an elevated scheduled watchdog to restore captured profile values after Bailey stops heartbeating.
+- The first real-account/phone test is a separate phase after CI validation.

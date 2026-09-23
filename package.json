@@ -11,6 +11,7 @@
     "start": "npm run build && electron .",
     "smoke": "npm run build && electron . --ci-smoke",
     "engine:smoke": "npm run build && electron . --ci-engine-smoke",
+    "engine:baileys-smoke": "npm run build && electron . --ci-baileys-engine-smoke",
     "dist:win": "npm run build && electron-builder --win portable --x64 --publish never"
   },
   "dependencies": {

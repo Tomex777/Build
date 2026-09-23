@@ -64,7 +64,7 @@ interface StudioFile {
 }
 
 interface EngineStatus {
-  provider: "lia";
+  provider: "lia" | "baileys";
   packageName: string;
   apiVersion: number;
   activeVersion?: string;
@@ -91,6 +91,7 @@ interface BaileyApi {
   openStudioFile(): Promise<StudioFile | null>;
   saveStudioFile(path: string, content: string): Promise<{ ok: boolean }>;
   getEngineStatus(): Promise<EngineStatus>;
+  setEngineProvider(provider: "lia" | "baileys"): Promise<EngineStatus>;
   checkEngineLatest(): Promise<EngineStatus>;
   installDefaultEngine(): Promise<EngineStatus>;
   installEngineVersion(version: string): Promise<EngineStatus>;
@@ -541,6 +542,8 @@ function prettyState(value: string): string {
 function renderEngineStatus(status: EngineStatus): void {
   document.querySelector<HTMLElement>("#engine-package")!.textContent = status.packageName;
   document.querySelector<HTMLElement>("#engine-api")!.textContent = "Managed engine";
+  const providerPicker = document.querySelector<HTMLSelectElement>("#engine-provider");
+  if (providerPicker) providerPicker.value = status.provider;
   document.querySelector<HTMLElement>("#engine-current")!.textContent = status.activeVersion ?? "Not installed";
   document.querySelector<HTMLElement>("#engine-latest")!.textContent = status.latestVersion ?? "Unknown";
   document.querySelector<HTMLElement>("#engine-previous")!.textContent = status.previousVersion ?? "None";
@@ -609,6 +612,10 @@ document.querySelector<HTMLButtonElement>("#engine-stop")!.addEventListener("cli
 document.querySelector<HTMLButtonElement>("#pair-button")!.addEventListener("click", () => {
   const input = document.querySelector<HTMLInputElement>("#pair-phone")!;
   void engineAction("Requesting pairing code…", () => window.bailey.pairEngine(input.value));
+});
+document.querySelector<HTMLSelectElement>("#engine-provider")!.addEventListener("change", (event) => {
+  const picker = event.currentTarget as HTMLSelectElement;
+  void engineAction("Switching engine provider…", () => window.bailey.setEngineProvider(picker.value as "lia" | "baileys"));
 });
 
 window.bailey.onEngineStatus((status) => renderEngineStatus(status));

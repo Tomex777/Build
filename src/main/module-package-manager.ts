@@ -2,9 +2,8 @@ import { dialog } from "electron";
 import { mkdir, readFile, rm } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { collectArchiveFiles, decodePortableArchive, encodePortableArchive, writeArchiveFiles, type PortableArchive } from "../core/portable-archive";
+import { MODULE_PACKAGE_EXCLUDES, validateModulePackageEntries } from "../core/module-package-policy";
 import { parseExternalModuleManifest } from "../external/protocol";
-
-const PACKAGE_EXCLUDES = new Set(["node_modules", ".venv", "venv", ".bailey-venv", ".bailey-runtime", "__pycache__", ".git", ".data"]);
 
 function safeModuleId(value: unknown): string {
   const id = String(value ?? "").trim().toLowerCase();
@@ -35,7 +34,7 @@ export class ModulePackageManager {
       kind: "module",
       createdAt: Date.now(),
       metadata: { moduleId, name: manifest.name, version: manifest.version },
-      files: await collectArchiveFiles(directory, { excludeNames: PACKAGE_EXCLUDES }),
+      files: await collectArchiveFiles(directory, { excludeNames: MODULE_PACKAGE_EXCLUDES }),
     };
     await import("node:fs/promises").then(({ writeFile }) => writeFile(result.filePath!, encodePortableArchive(archive)));
     return { ok: true, path: result.filePath };
@@ -50,6 +49,7 @@ export class ModulePackageManager {
     if (result.canceled || !result.filePaths[0]) return { ok: false, canceled: true };
 
     const archive = decodePortableArchive(await readFile(result.filePaths[0]), "module");
+    validateModulePackageEntries(archive.files);
     const manifestEntry = archive.files.find((entry) => entry.path === "bailey.module.json");
     if (!manifestEntry) throw new Error("Module package is missing bailey.module.json.");
     const manifest = parseExternalModuleManifest(JSON.parse(Buffer.from(manifestEntry.data, "base64").toString("utf8")));

@@ -44,6 +44,9 @@ jobs:
       - name: Install real Lia Baileys engine
         run: npm run engine:smoke
 
+      - name: Install mainstream WhiskeySockets Baileys engine
+        run: npm run engine:baileys-smoke
+
       - name: Build portable Windows executable
         run: npm run dist:win
 

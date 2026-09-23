@@ -5,6 +5,7 @@ import { createModuleScaffold, type ModuleScaffoldInput } from "../core/module-s
 import { detectModuleRuntimes } from "../core/runtime-detector";
 import { ModulePackageManager } from "./module-package-manager";
 import { ModuleRuntimeManager } from "./module-runtime-manager";
+import type { ExternalModuleManager } from "../external/external-module-manager";
 
 const WORKSPACE_EXCLUDES = new Set(["node_modules", ".bailey-venv", ".bailey-runtime", ".git", "__pycache__"]);
 const EDITABLE_EXTENSIONS = new Set([
@@ -48,16 +49,39 @@ export class ModuleStudioController {
   private readonly packages: ModulePackageManager;
   private readonly runtimes: ModuleRuntimeManager;
 
-  constructor(private readonly modulesRoot: string) {
+  constructor(
+    private readonly modulesRoot: string,
+    private readonly getExternalManager: () => ExternalModuleManager | undefined = () => undefined,
+    withProgramNetworkAccess: <T>(program: string, operation: () => Promise<T>) => Promise<T> = (_program, operation) => operation(),
+  ) {
     this.packages = new ModulePackageManager(modulesRoot);
-    this.runtimes = new ModuleRuntimeManager(modulesRoot);
+    this.runtimes = new ModuleRuntimeManager(modulesRoot, process.execPath, withProgramNetworkAccess);
   }
 
   registerIpc(): void {
     ipcMain.handle("bailey:studio-detect-runtimes", () => detectModuleRuntimes());
     ipcMain.handle("bailey:studio-export-module", (_event, moduleId: string) => this.packages.exportModule(moduleId));
     ipcMain.handle("bailey:studio-install-module", () => this.packages.installModule());
-    ipcMain.handle("bailey:studio-install-dependencies", (_event, moduleId: string) => this.runtimes.installDependencies(moduleId));
+    ipcMain.handle("bailey:studio-install-dependencies", async (_event, moduleIdValue: string) => {
+      const moduleId = safeModuleId(moduleIdValue);
+      const manager = this.getExternalManager();
+      const wasRunning = manager?.isRunning(moduleId) ?? false;
+      if (wasRunning) await manager!.stopModule(moduleId);
+      try {
+        const result = await this.runtimes.installDependencies(moduleId);
+        if (wasRunning) await manager!.restartModule(moduleId);
+        return { ...result, restarted: wasRunning };
+      } catch (error) {
+        if (wasRunning) {
+          try { await manager!.restartModule(moduleId); }
+          catch (restartError) {
+            const detail = restartError instanceof Error ? restartError.message : String(restartError);
+            throw new Error(`${error instanceof Error ? error.message : String(error)}\nModule restart also failed: ${detail}`);
+          }
+        }
+        throw error;
+      }
+    });
 
     ipcMain.handle("bailey:studio-workspace-list", async (_event, moduleIdValue: string) => {
       const { directory } = modulePath(this.modulesRoot, moduleIdValue);

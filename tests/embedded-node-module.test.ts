@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -27,8 +27,12 @@ describe("Bailey embedded Node runtime", () => {
     for (const [name, content] of Object.entries(scaffold.files)) {
       await writeFile(join(directory, name), content, "utf8");
     }
+    const manifestPath = join(directory, "bailey.module.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as Record<string, unknown>;
+    manifest.permissions = ["whatsapp.send"];
+    await writeFile(manifestPath, JSON.stringify(manifest), "utf8");
 
-    const manager = new ExternalModuleManager(root, () => ({}));
+    const manager = new ExternalModuleManager(root, () => ({}), () => true, join(root, ".data"), () => ["whatsapp.send"]);
     const loaded = await manager.load();
     expect(loaded.errors).toEqual([]);
     const command = loaded.definitions[0]?.commands?.[0];

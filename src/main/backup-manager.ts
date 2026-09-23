@@ -2,8 +2,7 @@ import { dialog } from "electron";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { collectArchiveFiles, decodePortableArchive, encodePortableArchive, writeArchiveFiles, type PortableArchive, type PortableArchiveEntry } from "../core/portable-archive";
-
-const RUNTIME_EXCLUDES = new Set(["node_modules", ".venv", "venv", "__pycache__", ".git"]);
+import { BACKUP_EXCLUDES, validateBackupEntries } from "../core/backup-policy";
 const ROOT_FILES = ["config.json", "commands.json", "chats.json"];
 
 export class BaileyBackupManager {
@@ -26,8 +25,8 @@ export class BaileyBackupManager {
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       }
     }
-    files.push(...await collectArchiveFiles(join(this.userDataRoot, "modules"), { prefix: "modules", excludeNames: RUNTIME_EXCLUDES }));
-    files.push(...await collectArchiveFiles(join(this.userDataRoot, "storage"), { prefix: "storage", excludeNames: RUNTIME_EXCLUDES }));
+    files.push(...await collectArchiveFiles(join(this.userDataRoot, "modules"), { prefix: "modules", excludeNames: BACKUP_EXCLUDES }));
+    files.push(...await collectArchiveFiles(join(this.userDataRoot, "storage"), { prefix: "storage", excludeNames: BACKUP_EXCLUDES }));
 
     const archive: PortableArchive = {
       format: "bailey-portable-archive",
@@ -52,9 +51,7 @@ export class BaileyBackupManager {
     });
     if (result.canceled || !result.filePaths[0]) return { ok: false, canceled: true };
     const archive = decodePortableArchive(await readFile(result.filePaths[0]), "backup");
-    if (archive.files.some((entry) => entry.path.startsWith("sessions/") || entry.path.startsWith("engines/"))) {
-      throw new Error("Backup contains forbidden WhatsApp session or engine files.");
-    }
+    validateBackupEntries(archive.files);
     await writeArchiveFiles(this.userDataRoot, archive.files);
     return { ok: true, fileCount: archive.files.length };
   }

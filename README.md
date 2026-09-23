@@ -1,124 +1,93 @@
 # Bailey Host
 
-Bailey Host turns a normal Windows laptop into a local host for a WhatsApp bot. The WhatsApp engine, desktop UI, configuration, chat history, and feature modules are kept as separate layers so the bot can grow without turning into one monolithic codebase.
+Bailey Host is a Windows desktop platform for running a WhatsApp bot and independently developed modules on a laptop. Bailey owns the connection, authentication, engine lifecycle, configuration, permissions, jobs, media, storage and desktop UI. Baileys is an engine underneath the host.
 
-## Current foundation
-
-- Electron desktop shell that stays alive in the system tray.
-- Windows auto-start support.
-- Replaceable Lia Baileys engine management with install, update, rollback, pairing, and runtime status.
-- Local Chats view with persisted conversations, search, incoming/outgoing text, timestamps, and deduplication.
-- Typed module registry with module-level and command-level enable/disable controls.
-- Automatic settings UI generated from module schemas.
-- Optional ENV mapping for compatibility with existing bot code.
-- Secret settings stored through Electron `safeStorage`; Bailey Host refuses to silently save secrets as plaintext when secure storage is unavailable.
-- Generated `.menu` output based on the current prefix, sections, renamed commands, aliases, and enabled state.
-- Visual command editing for declarative reply/react actions.
-- Bailey Studio file editing, JavaScript/Python module scaffolding, modules-folder access, and live module reload.
-- Language-neutral external module protocol over JSONL. Modules can be written in Python, JavaScript, Java, Go, Rust, or another process runtime.
-- External module commands, passive incoming-message events, Bailey-managed fixed-interval background jobs, and opt-in persistent module storage.
-- Host-controlled outbound actions so external modules do not receive the Lia socket or WhatsApp auth state.
-- Windows CI that typechecks, tests, smoke-launches Electron, installs a real Lia engine, exercises a packaged JavaScript module, and builds a portable EXE artifact.
-
-## External modules
-
-External modules live in Bailey Host's Modules folder and declare a `bailey.module.json` manifest. Bailey owns the WhatsApp connection and launches the module as a child process. Requests and responses are newline-delimited JSON.
-
-Protocol 1 currently supports:
-
-- `commands` — commands such as `.balance` or `.anime`.
-- `settings` — typed settings that automatically appear in Configuration and can map to environment variables.
-- `events` — passive `message.received` delivery for ordinary incoming WhatsApp messages.
-- `jobs` — Bailey-managed fixed-interval background work with overlap protection and optional run-on-start behavior.
-- `storage` — a persistent module-owned data directory exposed as `BAILEY_MODULE_DATA_DIR`, suitable for SQLite, JSON state, caches, indexes, and media-processing files.
-
-External modules return actions for Bailey to perform, including reply, react, proactive text send, and logging. They do not import Lia Baileys or receive Bailey's WhatsApp socket/auth state.
-
-See [`docs/MODULE_PROTOCOL.md`](docs/MODULE_PROTOCOL.md) for the wire protocol and the Python example under [`examples/python-module`](examples/python-module).
-
-## Module configuration
-
-A built-in module describes its own settings:
-
-```ts
-import { defineCommand, defineModule } from "../../core/module";
-import { setting } from "../../shared/config-schema";
-
-export default defineModule({
-  id: "weather",
-  name: "Weather",
-  version: "1.0.0",
-  settings: [
-    setting.toggle("enabled", "Weather enabled", true, {
-      env: "WEATHER_ENABLED",
-    }),
-    setting.secret("apiKey", "API key", {
-      env: "WEATHER_API_KEY",
-    }),
-    setting.number("timeout", "Timeout", 10, {
-      env: "WEATHER_TIMEOUT",
-      min: 1,
-      max: 60,
-    }),
-    setting.select("units", "Units", "metric", [
-      { label: "Metric", value: "metric" },
-      { label: "Imperial", value: "imperial" },
-    ], {
-      env: "WEATHER_UNITS",
-    }),
-  ],
-  commands: [
-    defineCommand({
-      name: "weather",
-      section: "Utility",
-      description: "Show weather for a location.",
-      execute: async ({ reply }) => {
-        await reply("Weather module ready.");
-      },
-    }),
-  ],
-});
+```text
+WhatsApp
+  ↕
+Replaceable engine adapter (Lia Baileys or mainstream Baileys)
+  ↕
+Bailey Host
+  ↕ JSONL Protocol 1
+Independent module processes
 ```
 
-Bailey Host turns those declarations into UI controls automatically:
+Modules do not import either Baileys package and never receive the socket or WhatsApp auth/session directory. Module processes are trusted local programs; Protocol 1 is an integration boundary, not an operating-system sandbox.
 
-- `toggle` → on/off switch
-- `text` → text field
-- `secret` → masked secret field
-- `number` → numeric field with optional limits
-- `select` → dropdown
+## Current platform
 
-Every command automatically receives its own enable/disable toggle. A module also automatically receives a master enable/disable toggle.
+- Electron desktop host with system-tray behavior, automatic startup option and a portable Windows build.
+- Replaceable WhatsApp engine providers: Lia Baileys is the default and remains supported; mainstream `@whiskeysockets/baileys` is installed and managed separately. Each provider has its own version directory and auth folder. The provider adapter normalizes events and actions for the host.
+- Persisted chats, declarative built-in modules, module configuration and automatic settings saving. Secret configuration and cloud credentials use Electron `safeStorage`.
+- Bailey Studio visual command editor, code/text editor, module scaffolds, module folder reload, and a tabbed multi-file module workspace.
+- JavaScript modules use Bailey's embedded Node and isolated `node_modules`; Python modules can use an isolated `.bailey-venv` when requirements are installed. Other process runtimes can be launched when present on the laptop.
+- Protocol 1 commands, passive and richer events, interval/cron/one-time jobs, retry and backoff, persisted scheduler state, lifecycle hooks, module KV/SQLite data, media download/send and proactive messages.
+- Module package import/export and Bailey backup/restore. Packages and ordinary backups filter runtime folders, caches, secrets and auth/session material. Backups deliberately omit WhatsApp pairing/session data and engine binaries.
+- Provider-neutral storage profiles: local disk, AWS S3 / Cloudflare R2 / Backblaze B2 / MinIO, Azure Blob, Google Cloud Storage and Supabase Storage. Credentials stay encrypted in Bailey Host.
+- Host-mediated HTTPS service calls with a per-module domain allowlist and denylist. The `network.http` permission is separate from `network.direct`.
+- Network / Data Saver modes: Normal, Metered guidance, Windows Bailey Only, temporary unlocks (5/15/30/60 minutes), emergency disable and a scheduled recovery watchdog.
+- Windows CI typechecks, runs unit tests, builds Electron, smoke-launches the host, installs both real engine packages, exercises a packaged module and builds the portable executable.
 
-## ENV compatibility
+## Module permissions
 
-ENV is an adapter, not the UI model. A setting may declare `env: "SOME_NAME"`. Bailey Host stores and validates the typed value locally, then can materialize a runtime environment map for existing Node/Python/bot code.
+Every manifest permission is a request. New modules start with no grants. The user can grant only permissions present in the manifest, and Bailey checks both the request and the stored grant before running privileged host actions.
 
-This lets older modules keep reading environment variables while the desktop application presents proper switches, number fields, selections, and secret inputs.
+Common permission names include:
 
-## Persistent module data
+| Permission | Allows |
+| --- | --- |
+| `whatsapp.send` | Replies and new text sends |
+| `whatsapp.react` | Reactions |
+| `whatsapp.send-media` | Media sends |
+| `media.download` | Downloading recent message media through Bailey |
+| `storage.read`, `storage.write`, `storage.delete`, `storage.list`, `storage.link` | Operations on the configured storage profile |
+| `kv.read`, `kv.write` | Bailey-managed module key/value data |
+| `database.read`, `database.write` | Bailey-managed SQLite data |
+| `network.http` | Host-mediated HTTPS requests to domains allowed for that module |
+| `network.direct` | Explicitly records that a module asks for direct internet access |
 
-Modules that declare the `storage` capability receive `BAILEY_MODULE_DATA_DIR` when their worker starts. Bailey creates the directory before launch and reuses it after worker restarts and module reloads.
+Workers run as child processes and are not OS-sandboxed. The host-mediated HTTP service is default-deny and enforces HTTPS domain policies. Direct networking is not isolated by the OS while Network Lock is Normal; Bailey Only blocks outbound traffic by default at the Windows Firewall and allows Bailey's executable plus DNS and DHCP. Keep modules trusted and use Bailey Only when laptop-wide blocking is required.
 
-That lets a Python economy module keep a SQLite database, an anime module keep tracking state and indexes, or a media module keep generated files without storing runtime state beside the module source code. The storage folder is also separate from Bailey's WhatsApp authentication/session data.
+## Network / Data Saver
 
-The storage directory is a persistence boundary, not an OS sandbox. External modules are still trusted local processes.
+- **Normal** leaves Windows networking unchanged.
+- **Metered / Data Saver** avoids Bailey background update checks, leaves system networking unchanged and links to Windows' active-network metered setting.
+- **Bailey Only** saves the current Windows Firewall outbound profile actions, adds rules in the `Bailey Host Network Lock` group, then blocks normal outbound traffic from other programs. Bailey itself, DNS and DHCP receive explicit allow rules. Windows prompts for administrator approval only when a firewall change requires it.
+- **Temporary Unlock** restores the prior profile state for the selected duration. The watchdog returns to Bailey Only within one minute after expiry if Bailey has stopped. If Bailey stops responding in Bailey Only, it restores the saved Windows state after a 15-minute missed-heartbeat window.
+- **Emergency Disable** removes only Bailey-namespaced rules and restores the captured outbound profile actions.
+
+Today’s Network / Data Saver view reports measured storage and host-mediated service payload bytes. WhatsApp protocol traffic, TLS/network overhead, and dependency/update traffic are not currently measured reliably, so Bailey labels them as unmeasured and does not invent a total.
+
+The recovery code and the original firewall profile snapshot are stored with the Windows scheduled task, so the lock can be restored after Bailey crashes or is uninstalled. Deleting the scheduled task manually removes that recovery path.
+
+## Module packages and backups
+
+Module packages include source/config files but exclude `node_modules`, Python virtual environments, `.bailey-runtime`, caches, `.data`, common `.env` files, and auth/session/token files. Reinstall dependencies after import. Bailey backups contain module source/data, chats, commands and configuration; they do not export permissions, the engine install or WhatsApp auth/session files. Secret settings encrypted by Windows may need to be entered again on a different computer.
 
 ## Development
 
+Node.js 24 is used by CI. Install dependencies and run the local checks:
+
 ```bash
-npm install
+npm install --no-audit --no-fund
 npm run typecheck
 npm test
-npm start
+npm run build
+npm run smoke
 ```
 
-Build Windows artifacts:
+The Windows workflow additionally runs:
 
 ```bash
+npm run engine:smoke
+npm run engine:baileys-smoke
 npm run dist:win
 ```
 
-## Next host layers
+Real-account pairing and physical-phone testing are a later validation phase. CI installs engine packages but does not connect to WhatsApp or change a runner’s firewall.
 
-The next protocol work is aimed at richer host services: controlled reusable capabilities that large modules can call without each one reinventing the same infrastructure. Cloud/blob adapters can then sit behind that service boundary while Bailey continues to own the WhatsApp engine and authentication state.
+## Protocol and examples
+
+- [Bailey Module Protocol 1](docs/MODULE_PROTOCOL.md)
+- [Python example module](examples/python-module)
+- [JavaScript example module](examples/javascript-module)

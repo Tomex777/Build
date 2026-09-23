@@ -3,12 +3,21 @@
   "id": "python-example",
   "name": "Python Example",
   "version": "1.0.0",
-  "description": "Minimal external Bailey module written in Python.",
+  "description": "Protocol 1 Python example: commands, events, a scheduled job, lifecycle and host services.",
   "runtime": {
     "command": "python",
     "args": ["main.py"]
   },
-  "capabilities": ["commands", "settings", "events"],
+  "capabilities": ["commands", "settings", "events", "jobs", "services", "storage", "lifecycle"],
+  "permissions": ["whatsapp.send", "whatsapp.react", "storage.read", "storage.write", "network.http"],
+  "events": ["message.received"],
+  "jobs": [
+    {
+      "id": "daily-summary",
+      "intervalSeconds": 86400,
+      "retry": { "maxAttempts": 3, "backoffSeconds": 30 }
+    }
+  ],
   "settings": [
     {
       "key": "greeting",

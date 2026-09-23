@@ -17,6 +17,9 @@ import { registerMediaServices } from "../services/media-service";
 import { registerDatabaseServices } from "../services/sqlite-service";
 import { createStorageHostService } from "../services/storage-profile-manager";
 import { StorageProfileStore, type StorageProfileInput } from "../services/storage-profile-store";
+import { NetworkLockManager, PowerShellNetworkLockAdapter } from "../services/network-lock";
+import { NetworkAccessPolicyStore, registerNetworkHttpService } from "../services/network-access";
+import { NetworkTrafficLedger } from "../services/network-traffic-ledger";
 import { coreModule } from "../modules/core";
 import { myCommandsModule } from "../modules/my-commands";
 import type { ConfigDefinition } from "../shared/config-schema";
@@ -39,11 +42,22 @@ let externalModuleManager: ExternalModuleManager | undefined;
 let backupManager: BaileyBackupManager;
 let storageProfileStore: StorageProfileStore;
 let modulePermissionStore: JsonModulePermissionStore;
+let networkLockManager: NetworkLockManager;
+let networkAccessPolicyStore: NetworkAccessPolicyStore;
+let networkTrafficLedger: NetworkTrafficLedger;
 let externalModuleErrors: Array<{ folder: string; error: string }> = [];
 const externalModuleIds = new Set<string>();
 const openedEditorFiles = new Set<string>();
 const EDITABLE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs", ".json", ".py", ".md", ".txt", ".yaml", ".yml", ".toml"]);
 const MAX_EDITOR_BYTES = 2 * 1024 * 1024;
+
+export function getExternalModuleManager(): ExternalModuleManager | undefined {
+  return externalModuleManager;
+}
+
+export function withProgramNetworkAccess<T>(program: string, operation: () => Promise<T>): Promise<T> {
+  return networkLockManager?.withProgramNetworkAccess(program, operation) ?? operation();
+}
 
 function createSecretCodec(): SecretCodec {
   return {
@@ -317,8 +331,9 @@ async function reloadExternalModules() {
     join(modulesRoot(), ".data"),
     (moduleId) => modulePermissionStore.get(moduleId),
   );
-  const storageService = createStorageHostService(storageProfileStore, app.getPath("userData"));
+  const storageService = createStorageHostService(storageProfileStore, app.getPath("userData"), (bytes) => networkTrafficLedger?.record("storage", bytes));
   storageService.register(manager);
+  registerNetworkHttpService(manager, networkAccessPolicyStore, (_moduleId, bytes) => networkTrafficLedger?.record("module-services", bytes));
   registerKvServices(manager);
   registerDatabaseServices(manager);
 
@@ -543,7 +558,25 @@ function registerIpc(): void {
     return result;
   });
 
+  ipcMain.handle("bailey:network-status", () => networkLockManager.status());
+  ipcMain.handle("bailey:network-set-mode", async (_event, mode: "normal" | "metered" | "bailey-only") => {
+    if (!networkLockManager) throw new Error("Network Lock is not ready.");
+    if (mode === "bailey-only" && process.platform !== "win32") throw new Error("Bailey Only is supported on Windows only.");
+    return networkLockManager.setMode(mode);
+  });
+  ipcMain.handle("bailey:network-temporary-unlock", (_event, minutes: number) => networkLockManager.temporaryUnlock(minutes));
+  ipcMain.handle("bailey:network-policies", () => ({
+    modules: externalModuleManager?.statuses().map(({ id, name }) => ({ id, name })) ?? [],
+    policies: networkAccessPolicyStore.list(),
+  }));
+  ipcMain.handle("bailey:network-policy-set", async (_event, moduleIdValue: string, allow: unknown, deny: unknown) => {
+    const moduleId = String(moduleIdValue ?? "").trim().toLowerCase();
+    if (!externalModuleManager?.statuses().some((module) => module.id === moduleId)) throw new Error("External module not found.");
+    return networkAccessPolicyStore.set(moduleId, allow, deny);
+  });
+
   ipcMain.handle("bailey:engine-status", () => engineManager.status());
+  ipcMain.handle("bailey:engine-set-provider", (_event, provider: string) => engineManager.setProvider(provider));
   ipcMain.handle("bailey:engine-check-latest", () => engineManager.checkLatest());
   ipcMain.handle("bailey:engine-install-default", () => engineManager.installDefault());
   ipcMain.handle("bailey:engine-install-version", (_event, version: string) => engineManager.installVersion(version));
@@ -559,6 +592,7 @@ function registerIpc(): void {
 
 app.on("before-quit", () => {
   isQuitting = true;
+  void networkLockManager?.dispose();
   void engineManager?.stop();
   void externalModuleManager?.stopAll();
 });
@@ -577,6 +611,14 @@ app.whenReady().then(async () => {
     join(app.getPath("userData"), "storage-profiles.json"),
     createSecretCodec(),
   );
+  networkLockManager = new NetworkLockManager(
+    join(app.getPath("userData"), "network-lock.json"),
+    new PowerShellNetworkLockAdapter(join(app.getPath("userData"), "network-lock.json")),
+    process.execPath,
+    () => networkTrafficLedger?.today() ?? { moduleServicesBytes: 0, storageBytes: 0 },
+  );
+  networkAccessPolicyStore = new NetworkAccessPolicyStore(join(app.getPath("userData"), "network-access-policies.json"));
+  networkTrafficLedger = new NetworkTrafficLedger(join(app.getPath("userData"), "network-traffic.json"));
   modulePermissionStore = new JsonModulePermissionStore(join(app.getPath("userData"), "module-permissions.json"));
   await Promise.all([
     configStore.load(),
@@ -584,6 +626,9 @@ app.whenReady().then(async () => {
     chatStore.load(),
     storageProfileStore.load(),
     modulePermissionStore.load(),
+    networkLockManager.initialize(),
+    networkAccessPolicyStore.load(),
+    networkTrafficLedger.load(),
   ]);
   await reloadExternalModules();
 
@@ -619,10 +664,12 @@ app.whenReady().then(async () => {
 
   const ciSmoke = process.argv.includes("--ci-smoke");
   const ciEngineSmoke = process.argv.includes("--ci-engine-smoke");
-  mainWindow = createWindow(!ciSmoke && !ciEngineSmoke);
+  const ciBaileysEngineSmoke = process.argv.includes("--ci-baileys-engine-smoke");
+  mainWindow = createWindow(!ciSmoke && !ciEngineSmoke && !ciBaileysEngineSmoke);
 
-  if (ciEngineSmoke) {
+  if (ciEngineSmoke || ciBaileysEngineSmoke) {
     try {
+      await engineManager.setProvider(ciBaileysEngineSmoke ? "baileys" : "lia");
       await engineManager.installDefault();
       console.log(`ENGINE_SMOKE_OK:${engineManager.status().activeVersion}`);
       isQuitting = true;

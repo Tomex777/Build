@@ -65,6 +65,6 @@ describe("module scaffold optional host features", () => {
     expect(scaffold.manifest.capabilities).toEqual(expect.arrayContaining(["events", "storage", "services", "lifecycle"]));
     expect(scaffold.manifest.events).toEqual(["message.received"]);
     expect(scaffold.files["main.mjs"]).toContain("lifecycle.start");
-    expect(scaffold.manifest.permissions).toEqual([]);
+    expect(scaffold.manifest.permissions).toEqual(["whatsapp.send"]);
   });
 });

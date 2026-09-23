@@ -13,6 +13,7 @@ import {
   type ExternalHostResult,
   type ExternalMediaSend,
   type ExternalModuleAction,
+  type ExternalModuleCapability,
   type ExternalModuleEventName,
   type ExternalModuleJobManifest,
   type ExternalModuleManifest,
@@ -51,6 +52,7 @@ interface LoadedModule {
 interface RegisteredService {
   handler: ExternalHostServiceHandler;
   permission?: string;
+  capability?: ExternalModuleCapability;
 }
 
 export interface ExternalModuleLoadResult {
@@ -178,12 +180,12 @@ export class ExternalModuleManager {
     this.hostSendMedia = handler;
   }
 
-  registerService(service: string, method: string, handler: ExternalHostServiceHandler, permission?: string): void {
+  registerService(service: string, method: string, handler: ExternalHostServiceHandler, permission?: string, capability?: ExternalModuleCapability): void {
     if (!SERVICE_NAME.test(service)) throw new Error(`Invalid host service name: ${service}`);
     if (!SERVICE_METHOD.test(method)) throw new Error(`Invalid host service method: ${method}`);
     const key = `${service}:${method}`;
     if (this.services.has(key)) throw new Error(`Host service already registered: ${service}.${method}`);
-    this.services.set(key, { handler, permission });
+    this.services.set(key, { handler, permission, capability });
   }
 
   statuses(): ExternalModuleRuntimeStatus[] {
@@ -201,7 +203,11 @@ export class ExternalModuleManager {
       lastError: loaded.diagnostics.lastError,
       capabilities: loaded.manifest.capabilities ?? [],
       permissions: loaded.manifest.permissions ?? [],
-      grantedPermissions: this.getPermissionGrants ? [...this.getPermissionGrants(loaded.manifest.id)] : [...(loaded.manifest.permissions ?? [])],
+      // A manifest is a request. Missing grants always means deny, including in
+      // tests, portable imports, and partially initialized host state.
+      grantedPermissions: this.getPermissionGrants
+        ? (loaded.manifest.permissions ?? []).filter((permission) => this.permissionMatches(this.getPermissionGrants!(loaded.manifest.id), permission))
+        : [],
       logs: loaded.diagnostics.logs,
     }));
   }
@@ -221,10 +227,9 @@ export class ExternalModuleManager {
   }
 
   private hasPermission(loaded: LoadedModule, permission: string): boolean {
-    if (permission === "host.info") return true;
     const requested = loaded.manifest.permissions ?? [];
     if (!this.permissionMatches(requested, permission)) return false;
-    const granted = this.getPermissionGrants ? this.getPermissionGrants(loaded.manifest.id) : requested;
+    const granted = this.getPermissionGrants?.(loaded.manifest.id) ?? [];
     return this.permissionMatches(granted, permission);
   }
 
@@ -457,6 +462,14 @@ export class ExternalModuleManager {
       return;
     }
 
+    if (registered.capability && !(loaded.manifest.capabilities?.includes(registered.capability) ?? false)) {
+      await this.writeHostResult(child, {
+        protocol: BAILEY_MODULE_PROTOCOL, type: "host.result", replyTo: callId, ok: false,
+        error: `${loaded.manifest.id} must declare the ${registered.capability} capability before calling ${service}.${method}.`,
+      });
+      return;
+    }
+
     const permission = registered.permission ?? `${service}.${method}`;
     if (!this.hasPermission(loaded, permission)) {
       await this.writeHostResult(child, {
@@ -529,10 +542,12 @@ export class ExternalModuleManager {
     for (const action of actions) {
       switch (action.type) {
         case "reply":
+          if (!this.hasPermission(loaded, "whatsapp.send")) throw new Error("Permission denied: whatsapp.send");
           if (!context) throw new Error(`${moduleId} returned reply from a request without a triggering message.`);
           await context.reply(action.text);
           break;
         case "react":
+          if (!this.hasPermission(loaded, "whatsapp.react")) throw new Error("Permission denied: whatsapp.react");
           if (!context) throw new Error(`${moduleId} returned react from a request without a triggering message.`);
           await context.react(action.emoji);
           break;
@@ -771,6 +786,18 @@ export class ExternalModuleManager {
     loaded.intentionalStop = false;
     loaded.diagnostics.restartCount += 1;
     this.ensureProcess(moduleId);
+    return this.statuses().find((status) => status.id === moduleId)!;
+  }
+
+  isRunning(moduleId: string): boolean {
+    const loaded = this.modules.get(moduleId);
+    return Boolean(loaded?.process && loaded.process.exitCode === null && !loaded.process.killed);
+  }
+
+  async stopModule(moduleId: string): Promise<ExternalModuleRuntimeStatus> {
+    const loaded = this.modules.get(moduleId);
+    if (!loaded) throw new Error(`External module is not loaded: ${moduleId}`);
+    await this.stopLoaded(loaded);
     return this.statuses().find((status) => status.id === moduleId)!;
   }
 

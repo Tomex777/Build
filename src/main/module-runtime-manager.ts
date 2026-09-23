@@ -84,6 +84,7 @@ export class ModuleRuntimeManager {
   constructor(
     private readonly modulesRoot: string,
     private readonly appExecutable = process.execPath,
+    private readonly withProgramNetworkAccess: <T>(program: string, operation: () => Promise<T>) => Promise<T> = (_program, operation) => operation(),
   ) {}
 
   private async manifest(moduleId: string) {
@@ -135,11 +136,11 @@ export class ModuleRuntimeManager {
     const python = process.platform === "win32"
       ? join(venv, "Scripts", "python.exe")
       : join(venv, "bin", "python");
-    const installOutput = await run(
+    const installOutput = await this.withProgramNetworkAccess(python, () => run(
       python,
       ["-m", "pip", "install", "--disable-pip-version-check", "-r", requirements],
       directory,
-    );
+    ));
     return [...createOutput, ...installOutput];
   }
 

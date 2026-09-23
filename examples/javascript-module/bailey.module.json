@@ -1,0 +1,17 @@
+{
+  "protocol": 1,
+  "id": "javascript-example",
+  "name": "JavaScript Example",
+  "version": "1.0.0",
+  "description": "Protocol 1 JavaScript example with commands, events, scheduled work, storage, networking and lifecycle hooks.",
+  "runtime": { "command": "node", "args": ["main.mjs"], "restart": "on-failure" },
+  "capabilities": ["commands", "events", "jobs", "services", "storage", "lifecycle"],
+  "permissions": ["whatsapp.send", "whatsapp.react", "storage.read", "storage.write", "network.http"],
+  "events": ["message.received"],
+  "commands": [
+    { "id": "jshello", "name": "jshello", "description": "Store and report a greeting." }
+  ],
+  "jobs": [
+    { "id": "daily-summary", "intervalSeconds": 86400, "retry": { "maxAttempts": 3, "backoffSeconds": 30 } }
+  ]
+}

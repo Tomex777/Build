@@ -55,8 +55,8 @@ export function storageProviderFromProfile(profile: ResolvedStorageProfile, user
   });
 }
 
-export function createStorageHostService(store: StorageProfileStore, userDataRoot: string): StorageHostService {
-  const service = new StorageHostService();
+export function createStorageHostService(store: StorageProfileStore, userDataRoot: string, onPayloadBytes?: (bytes: number) => void): StorageHostService {
+  const service = new StorageHostService(onPayloadBytes);
   for (const profile of store.resolved()) {
     try {
       service.addProfile(profile.name, storageProviderFromProfile(profile, userDataRoot), profile.isDefault);

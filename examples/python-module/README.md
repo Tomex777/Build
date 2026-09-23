@@ -1,33 +1,11 @@
 # Python Bailey module example
 
-This is a minimal code-backed Bailey Host module written in Python.
+This module runs as an independent process and uses Bailey Module Protocol 1: newline-delimited JSON on stdin/stdout. Bailey Host owns WhatsApp, engine selection, pairing and session files. The Python process never imports Baileys or receives the WhatsApp socket or credentials.
 
-## How it connects
+The example demonstrates a command (`pyhello`), a passive `message.received` event, a persisted daily job, start/stop lifecycle hooks, and provider-neutral storage through `host.call`. The manifest lists requested permissions. A user must grant them in Studio before Bailey performs the corresponding WhatsApp or storage action.
 
-Bailey Host owns WhatsApp and Lia Baileys. The Python process does not import or access the WhatsApp engine directly.
+Copy this folder into the Bailey Host modules folder and reload modules in Studio. Run `pyhello` to write a file with `storage.put`; the daily job checks it with `storage.get`. `PYTHON_EXAMPLE_GREETING` is generated from the settings schema and can be changed in Bailey Host.
 
-Bailey launches the command declared in `bailey.module.json` and communicates with the process using newline-delimited JSON over stdin/stdout (Bailey Module Protocol 1).
+To try the optional HTTP call from your own extension, request `network.http`, send a `network.request` host call, and add the exact public domain to **Settings → Module network access**. The example deliberately makes no external request by default.
 
-For a command invocation Bailey sends a request shaped like:
-
-```json
-{"protocol":1,"id":"request-id","type":"command.execute","commandId":"pyhello","context":{"remoteJid":"...","senderJid":"...","text":".pyhello","args":[]}}
-```
-
-The module replies with actions:
-
-```json
-{"protocol":1,"replyTo":"request-id","ok":true,"actions":[{"type":"reply","text":"Hello"},{"type":"react","emoji":"🐍"}]}
-```
-
-Bailey performs those WhatsApp actions on the module's behalf.
-
-## Install locally
-
-1. Open **Bailey Host → Studio → Open modules folder**.
-2. Copy this whole `python-module` folder into that directory.
-3. Make sure `python` is available on the laptop's PATH.
-4. Restart Bailey Host.
-5. The module and its configuration will appear in **Modules** and **Configuration**.
-
-The `PYTHON_EXAMPLE_GREETING` ENV value is generated automatically from the module's settings schema. Users edit the value through Bailey Host; the Python worker simply reads the environment variable.
+Keep stdout reserved for Protocol 1 messages. Write local diagnostics to stderr or return `log` actions. Bailey manages scheduling, persistence, worker restarts and module data directories.

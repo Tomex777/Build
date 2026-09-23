@@ -99,7 +99,9 @@ export function createModuleScaffold(input: ModuleScaffoldInput): ModuleScaffold
     settings: [],
     capabilities,
     ...(features.includes("events") ? { events: ["message.received" as const] } : {}),
-    permissions: [],
+    // The generated starter command replies to the triggering WhatsApp message.
+    // This is a request only; Bailey waits for a user grant before sending.
+    permissions: ["whatsapp.send"],
   };
 
   const files: Record<string, string> = {

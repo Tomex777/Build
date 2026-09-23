@@ -14,6 +14,10 @@ function arg(name: string): string {
 const engineDir = arg("--engine-dir");
 const sessionDir = arg("--session-dir");
 const engineVersion = arg("--engine-version");
+const engineProvider = process.argv.includes("--provider") ? arg("--provider") : "lia";
+const packageName = process.argv.includes("--package-name")
+  ? arg("--package-name")
+  : "@itsliaaa/baileys";
 
 function emit(event: EngineWorkerEvent): void {
   if (process.send) process.send(event);
@@ -32,6 +36,7 @@ const silentLogger: any = {
 
 let socket: any;
 let baileysApi: any;
+let authState: any;
 let shuttingDown = false;
 let pendingPairPhone: string | undefined;
 let pairingRequested = false;
@@ -154,7 +159,7 @@ async function downloadMedia(requestId: string, messageId: string, destinationPa
   try {
     const message = recentMessages.get(messageId);
     if (!message) throw new Error("Message is no longer in Bailey's recent-media cache.");
-    if (!baileysApi?.downloadMediaMessage) throw new Error("Installed Lia engine does not expose downloadMediaMessage.");
+    if (!baileysApi?.downloadMediaMessage) throw new Error(`Installed ${engineProvider} engine does not expose downloadMediaMessage.`);
     const buffer = await baileysApi.downloadMediaMessage(
       message,
       "buffer",
@@ -171,12 +176,17 @@ async function downloadMedia(requestId: string, messageId: string, destinationPa
 
 async function connect(): Promise<void> {
   try {
-    const modulePath = pathToFileURL(join(engineDir, "node_modules", "@itsliaaa", "baileys", "lib", "index.js")).href;
+    const resolvedModulePath = createRequire(join(engineDir, "package.json")).resolve(packageName);
+    const modulePath = pathToFileURL(resolvedModulePath).href;
     const baileys: any = await import(modulePath);
-    baileysApi = baileys;
-    const { state, saveCreds } = await baileys.useMultiFileAuthState(sessionDir);
+    const api = baileys.default?.useMultiFileAuthState ? { ...baileys.default, ...baileys } : baileys;
+    baileysApi = api;
+    const { state, saveCreds } = await api.useMultiFileAuthState(sessionDir);
+    authState = state;
 
-    socket = baileys.makeWASocket({
+    const makeSocket = api.makeWASocket ?? api.default;
+    if (typeof makeSocket !== "function") throw new Error(`${packageName} does not expose a compatible makeWASocket function.`);
+    socket = makeSocket({
       auth: state,
       logger: silentLogger,
       printQRInTerminal: false,
@@ -191,10 +201,10 @@ async function connect(): Promise<void> {
       const { connection } = update;
       if (connection === "connecting") {
         emit({ type: "connection", state: "connecting" });
-        if (pendingPairPhone && !socket.authState.creds.registered && !pairingRequested) {
+        if (pendingPairPhone && !authState.creds.registered && !pairingRequested) {
           pairingRequested = true;
           try {
-            await baileys.delay(1200);
+            await new Promise((resolve) => setTimeout(resolve, 1200));
             const code = await socket.requestPairingCode(pendingPairPhone);
             emit({ type: "pairing-code", code });
           } catch (error) {
@@ -311,7 +321,7 @@ process.on("message", async (raw: EngineWorkerCommand) => {
     if (raw.type === "pair") {
       pendingPairPhone = raw.phoneNumber.replace(/\D/g, "");
       pairingRequested = false;
-      if (socket && !socket.authState?.creds?.registered) {
+      if (socket && !authState?.creds?.registered) {
         const localRequire = createRequire(join(engineDir, "package.json"));
         try {
           const code = await socket.requestPairingCode(pendingPairPhone);
