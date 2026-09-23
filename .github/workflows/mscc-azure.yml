@@ -1,5 +1,9 @@
 name: MSCC Azure
 
+concurrency:
+  group: mscc-azure
+  cancel-in-progress: true
+
 on:
   push:
     branches: [mscc-azure]
