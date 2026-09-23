@@ -432,6 +432,7 @@ class MainActivity : Activity() {
                                 Log.i(tag, "LIVE_TEST_LINKED")
                             } else {
                                 setStatus("Temporary link succeeded. Session is RAM-only and will not be saved.")
+                                scheduleTemporaryDisconnect()
                             }
                         } else {
                             hasSavedSession = true
