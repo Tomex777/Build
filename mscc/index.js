@@ -43,6 +43,7 @@ const WEB_PASSWORD = process.env.WEB_PASSWORD || ''
 const WEB_SESSION_SECRET = process.env.WEB_SESSION_SECRET || ''
 const logger = pino({ level: process.env.LOG_LEVEL || 'silent' })
 const startedAt = Date.now()
+const APP_VERSION = '1.8.0'
 
 if (!/^\d{7,15}$/.test(ACCOUNT_A_NUMBER)) {
   console.error('ACCOUNT_A_NUMBER (or BOT_NUMBER) is required.')
@@ -468,6 +469,7 @@ async function onMessages(account, { messages, type }) {
         reply: async value => sendInbox(account, { text: String(value) }),
         setSetting,
         statusText,
+        diagnostics: commandDiagnostics,
       })
       if (commandHandled) continue
 
@@ -684,6 +686,24 @@ function uptime(ms) {
   return [d&&`${d}d`,(d||h)&&`${h}h`,(d||h||m)&&`${m}m`,`${s%60}s`].filter(Boolean).join(' ')
 }
 
+function commandDiagnostics() {
+  return {
+    version: APP_VERSION,
+    destination: DESTINATION,
+    indexLimit: MAX_CACHE,
+    retentionHours: Math.round(TTL_MS / 3600000),
+    waVersion: Array.isArray(waVersion) ? waVersion.join('.') : '',
+    accounts: [...accounts.values()].map(a => ({
+      id: a.id,
+      enabled: a.enabled,
+      connected: a.connected,
+      status: statusOf(a),
+      numberMasked: masked(a.number),
+      indexCount: countFor(a.id),
+    })),
+  }
+}
+
 async function statusText(ping = false) {
   const mem = process.memoryUsage()
   return `${ping ? '🏓 MSCC\n' : ''}Uptime: ${uptime(Date.now()-startedAt)}\nDestination: Account ${DESTINATION}\nA: ${statusOf(accounts.get('A'))} • ${countFor('A')}/${MAX_CACHE}\nB: ${statusOf(accounts.get('B'))} • ${countFor('B')}/${MAX_CACHE}\nRAM RSS: ${(mem.rss/1048576).toFixed(1)} MB\nAuto CC: ${settings.autoCc?'ON':'OFF'}\nReply CC: ${settings.replyCc?'ON':'OFF'}\nAnti-delete: ${settings.antiDelete?'ON':'OFF'}`
@@ -692,7 +712,7 @@ async function statusText(ping = false) {
 async function webState() {
   const mem = process.memoryUsage()
   return {
-    version: '1.7.0',
+    version: APP_VERSION,
     destination: DESTINATION,
     settings: { ...settings },
     accounts: [...accounts.values()].map(a => ({

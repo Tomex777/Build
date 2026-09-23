@@ -35,7 +35,7 @@ jobs:
           import { loadCommands, dispatchCommand } from './commands/registry.js'
 
           const registry = await loadCommands(new URL('./commands/', import.meta.url))
-          const required = ['autocc', 'replycc', 'antidelete', 'status', 'ping', 'help', 'ram', 'settings', 'uptime']
+          const required = ['autocc', 'replycc', 'antidelete', 'status', 'ping', 'help', 'ram', 'settings', 'uptime', 'accounts', 'index', 'disk', 'version']
           for (const name of required) {
             if (!registry.commands.has(name)) throw new Error('Missing command: ' + name)
           }
@@ -48,12 +48,27 @@ jobs:
             reply: async text => replies.push(String(text)),
             setSetting: async (key, value) => { settings[key] = value },
             statusText: async ping => ping ? 'pong-status' : 'status',
+            diagnostics: () => ({
+              version: '1.8.0',
+              destination: 'A',
+              indexLimit: 5000,
+              retentionHours: 24,
+              waVersion: '2.3000.0',
+              accounts: [
+                { id: 'A', enabled: true, connected: true, status: 'connected', numberMasked: '234••••0001', indexCount: 12 },
+                { id: 'B', enabled: true, connected: false, status: 'offline', numberMasked: '234••••0002', indexCount: 4 },
+              ],
+            }),
           }
 
           if (!(await dispatchCommand(registry, '.autocc on', ctx))) throw new Error('autocc not dispatched')
           if (!settings.autoCc) throw new Error('autocc did not toggle')
           if (!(await dispatchCommand(registry, '.ram', ctx))) throw new Error('ram not dispatched')
           if (!(await dispatchCommand(registry, '.help', ctx))) throw new Error('help not dispatched')
+          if (!(await dispatchCommand(registry, '.accounts', ctx))) throw new Error('accounts not dispatched')
+          if (!(await dispatchCommand(registry, '.index', ctx))) throw new Error('index not dispatched')
+          if (!(await dispatchCommand(registry, '.version', ctx))) throw new Error('version not dispatched')
+          if (!(await dispatchCommand(registry, '.disk', ctx))) throw new Error('disk not dispatched')
           if (!replies.some(x => x.includes('.autocc'))) throw new Error('help did not list commands')
           const toggleKeys = registry.canonical.map(c => c.setting?.key).filter(Boolean).sort()
           if (toggleKeys.join(',') !== 'antiDelete,autoCc,replyCc') throw new Error('Unexpected Cortex toggle schema: ' + toggleKeys.join(','))
