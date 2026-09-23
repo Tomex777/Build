@@ -32,7 +32,7 @@ jobs:
           gradle-version: '9.6.0'
       - name: Build debug APK
         working-directory: cortex-android
-        run: gradle :app:assembleDebug --stacktrace
+        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -58,7 +58,11 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          cores: 4
+          ram-size: 4096M
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect
+          emulator-boot-timeout: 1200
+          disable-spellchecker: true
           disable-animations: true
           script: |
             gradle -p cortex-android :app:connectedDebugAndroidTest --stacktrace
