@@ -221,7 +221,7 @@ jobs:
 
             # Exercise the real pairing CTA without submitting a phone number.
             # The expected validation proves the tap reached the app safely.
-            BOUNDS="$(python3 - <<'PY'
+            python3 - <<'PY'
             import re
             import xml.etree.ElementTree as ET
 
@@ -234,10 +234,11 @@ jobs:
             if match is None:
                 raise SystemExit("Could not read pairing CTA bounds")
             x1, y1, x2, y2 = map(int, match.groups())
-            print((x1 + x2) // 2, (y1 + y2) // 2)
+            with open("cobalt-android-poc/cta-bounds.txt", "w") as output:
+                output.write(f"{(x1 + x2) // 2} {(y1 + y2) // 2}")
             PY
-            )"
-            adb shell input tap $BOUNDS
+            read X Y < cobalt-android-poc/cta-bounds.txt
+            adb shell input tap "$X" "$Y"
             sleep 1
             adb shell uiautomator dump /sdcard/cobalt-window.xml
             adb pull /sdcard/cobalt-window.xml cobalt-android-poc/window.xml
