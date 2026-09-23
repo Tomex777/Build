@@ -1,0 +1,28 @@
+// Rename this file to something ending in .js when you are ready to enable it.
+// Then run .reloadcommands in WhatsApp or use Reload command files in Cortex Settings.
+
+export default {
+  name: 'hello',
+  aliases: ['hi'],
+  description: 'Example owner command.',
+  ownerOnly: true,
+
+  // Optional boolean setting metadata. Remove this block if the command is command-only.
+  // setting: {
+  //   key: 'helloEnabled',
+  //   label: 'Hello command',
+  //   description: 'Example toggle exposed to Cortex Settings.',
+  // },
+
+  async run(ctx) {
+    // ctx.args        -> words after the command
+    // ctx.account     -> Account A or B runtime object
+    // ctx.message     -> incoming WhatsApp message
+    // ctx.settings    -> current MSCC settings
+    // ctx.reply(text) -> reply into the private MSCC destination
+    // ctx.setSetting(key, value) -> persist a supported boolean setting
+
+    const who = ctx.args.join(' ').trim() || 'there'
+    await ctx.reply(`Hello ${who} 👋`)
+  },
+}

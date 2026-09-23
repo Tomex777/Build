@@ -45,7 +45,7 @@ const WEB_SESSION_SECRET = process.env.WEB_SESSION_SECRET || ''
 const LOCAL_CONTROL_PORT = 8788
 const logger = pino({ level: process.env.LOG_LEVEL || 'silent' })
 const startedAt = Date.now()
-const APP_VERSION = '1.8.5'
+const APP_VERSION = '1.8.6'
 
 if (!/^\d{7,15}$/.test(ACCOUNT_A_NUMBER)) {
   console.error('ACCOUNT_A_NUMBER (or BOT_NUMBER) is required.')
