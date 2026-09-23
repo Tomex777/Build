@@ -191,7 +191,8 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                     ServerTab.FILES -> vm.refreshFiles()
                     ServerTab.BACKUPS -> vm.refreshBackups()
                     ServerTab.ACTIVITY -> vm.refreshActivity()
-                    ServerTab.STARTUP, ServerTab.SETTINGS -> Unit
+                    ServerTab.SETTINGS -> vm.refreshSettings()
+                    ServerTab.STARTUP -> Unit
                 }
             })
             HorizontalDivider(color = CortexLine)
@@ -228,6 +229,8 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                         ServerTab.SETTINGS -> SettingsPage(
                             state = state,
                             onConnection = { sheet = SheetMode.CONNECTION },
+                            onToggle = vm::setCommandSetting,
+                            onRefresh = vm::refreshSettings,
                         )
                         ServerTab.ACTIVITY -> ActivityPage(state, vm::refreshActivity)
                     }
@@ -785,19 +788,76 @@ private fun SettingBlock(label: String, value: String, mono: Boolean = false) {
 }
 
 @Composable
-private fun SettingsPage(state: ServerPanelState, onConnection: () -> Unit) {
+private fun SettingsPage(
+    state: ServerPanelState,
+    onConnection: () -> Unit,
+    onToggle: (String, Boolean) -> Unit,
+    onRefresh: () -> Unit,
+) {
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item {
-            Text("Bot Settings", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            Text(
-                "Command toggles will live here. Cortex will use the bot's own command settings instead of keeping a second copy.",
-                color = CortexMuted,
-                fontSize = 10.sp,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Bot Settings", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "These switches come from the bot's installed command modules.",
+                        color = CortexMuted,
+                        fontSize = 10.sp,
+                    )
+                }
+                IconButton(onClick = onRefresh) { Icon(Icons.Rounded.Refresh, "Refresh settings") }
+            }
+        }
+
+        if (state.commandSettings.isEmpty()) {
+            item {
+                Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                        Text("No command toggles advertised", fontWeight = FontWeight.Medium)
+                        Text(
+                            "Commands without a boolean setting stay command-only. Toggle-capable commands appear here automatically.",
+                            color = CortexMuted,
+                            fontSize = 9.sp,
+                        )
+                    }
+                }
+            }
+        } else {
+            items(state.commandSettings, key = { it.key }) { setting ->
+                Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onToggle(setting.key, !setting.enabled) }
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(setting.label, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            if (setting.description.isNotBlank()) {
+                                Text(setting.description, color = CortexMuted, fontSize = 9.sp)
+                            }
+                            if (setting.command.isNotBlank()) {
+                                Text("." + setting.command, color = CortexAccent, fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                            }
+                        }
+                        Switch(
+                            checked = setting.enabled,
+                            onCheckedChange = { onToggle(setting.key, it) },
+                            enabled = !state.loading,
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Spacer(Modifier.height(4.dp))
+            Text("Cortex", color = CortexMuted, fontSize = 9.sp)
         }
         item {
             Surface(
@@ -813,17 +873,6 @@ private fun SettingsPage(state: ServerPanelState, onConnection: () -> Unit) {
                         Text(state.baseUrl.ifBlank { "Not configured" }, color = CortexMuted, fontSize = 9.sp)
                     }
                     Text("Edit", color = CortexAccent, fontSize = 10.sp)
-                }
-            }
-        }
-        item {
-            Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
-                Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Command settings")
-                        Text("Waiting for the selected bot to advertise its command controls.", color = CortexMuted, fontSize = 9.sp)
-                    }
-                    Switch(checked = false, onCheckedChange = null, enabled = false)
                 }
             }
         }
