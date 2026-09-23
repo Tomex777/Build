@@ -606,8 +606,19 @@ public final class AndroidHttpClient implements AutoCloseable {
         }
     }
 }
+''', encoding="utf-8")
 
-final class AndroidHttpRequest {
+http_request_path = modules / "lib/src/main/java/com/github/auties00/cobalt/util/AndroidHttpRequest.java"
+http_request_path.write_text(r'''package com.github.auties00.cobalt.util;
+
+import java.net.URI;
+import java.time.Duration;
+import java.nio.charset.Charset;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+
+public final class AndroidHttpRequest {
     private final URI uri;
     private final int timeoutMillis;
     private final String method;
@@ -690,8 +701,17 @@ final class AndroidHttpRequest {
         }
     }
 }
+''', encoding="utf-8")
 
-final class AndroidHttpResponse<T> {
+http_response_path = modules / "lib/src/main/java/com/github/auties00/cobalt/util/AndroidHttpResponse.java"
+http_response_path.write_text(r'''package com.github.auties00.cobalt.util;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Objects;
+
+public final class AndroidHttpResponse<T> {
     private final int statusCode;
     private final T body;
 
@@ -703,7 +723,7 @@ final class AndroidHttpResponse<T> {
     public int statusCode() { return statusCode; }
     public T body() { return body; }
 
-    interface BodyHandler<T> {
+    public interface BodyHandler<T> {
         T handle(int statusCode, InputStream input) throws IOException;
         boolean closesInput();
     }
@@ -752,12 +772,12 @@ for relative in [
 ]:
     path = modules / relative
     source = path.read_text(encoding="utf-8")
-    source = source.replace("import java.net.http.HttpClient;", "import com.github.auties00.cobalt.util.AndroidHttpClient;")
-    source = source.replace("import java.net.http.HttpRequest;", "import com.github.auties00.cobalt.util.AndroidHttpRequest;")
-    source = source.replace("import java.net.http.HttpResponse;", "import com.github.auties00.cobalt.util.AndroidHttpResponse;")
     source = source.replace("HttpClient", "AndroidHttpClient")
     source = source.replace("HttpRequest", "AndroidHttpRequest")
     source = source.replace("HttpResponse", "AndroidHttpResponse")
+    source = source.replace("import java.net.http.AndroidHttpClient;", "import com.github.auties00.cobalt.util.AndroidHttpClient;")
+    source = source.replace("import java.net.http.AndroidHttpRequest;", "import com.github.auties00.cobalt.util.AndroidHttpRequest;")
+    source = source.replace("import java.net.http.AndroidHttpResponse;", "import com.github.auties00.cobalt.util.AndroidHttpResponse;")
     path.write_text(source, encoding="utf-8")
 
 for relative in [
@@ -765,6 +785,7 @@ for relative in [
     "lib/src/main/java/com/github/auties00/cobalt/client/linked/info/WhatsAppWebClientInfo.java",
 ]:
     source = (modules / relative).read_text(encoding="utf-8")
-    if "java.net.http" in source or "HttpClient" in source or "HttpRequest" in source or "HttpResponse" in source:
+    import re
+    if "java.net.http" in source or re.search(r"\bHttp(?:Client|Request|Response)\b", source):
         raise SystemExit(f"java.net.http reference remains in {relative}")
 print("Replaced linked-client HttpClient bootstrap paths with Android HttpURLConnection.")
