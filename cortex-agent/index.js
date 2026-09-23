@@ -11,9 +11,9 @@ const PORT = Number(process.env.PORT || 47831);
 const HOST = process.env.HOST || '127.0.0.1';
 const TOKEN = process.env.CORTEX_AGENT_TOKEN || '';
 const PROJECT_ROOT = path.resolve(process.env.CORTEX_PROJECT_ROOT || process.env.NIGHT_ROOT || '/opt/night');
-const MANAGED_SERVICE = process.env.CORTEX_SERVICE || process.env.MANAGED_SERVICE || 'night.service';
-const ENTRY_FILE = process.env.CORTEX_ENTRY || process.env.ENTRY_FILE || 'index.js';
-const START_COMMAND = process.env.CORTEX_START_COMMAND || process.env.START_COMMAND || 'node index.js';
+const MANAGED_SERVICE = process.env.CORTEX_SERVICE || process.env.NIGHT_SERVICE || 'night.service';
+const ENTRY_FILE = process.env.CORTEX_ENTRY || process.env.NIGHT_ENTRY || 'index.js';
+const START_COMMAND = process.env.CORTEX_START_COMMAND || process.env.NIGHT_START_COMMAND || 'node index.js';
 const STATE_DIR = path.resolve(process.env.CORTEX_STATE_DIR || path.join(PROJECT_ROOT, '.cortex'));
 const ACTIVITY_FILE = path.join(STATE_DIR, 'activity.jsonl');
 const BACKUP_DIR = path.join(STATE_DIR, 'backups');
@@ -73,7 +73,7 @@ function safeProjectPath(input = '/') {
   const relative = decoded.replace(/^\/+/, '');
   const target = path.resolve(PROJECT_ROOT, relative);
   if (target !== PROJECT_ROOT && !target.startsWith(PROJECT_ROOT + path.sep)) {
-    throw Object.assign(new Error('Path escapes Night project'), { statusCode: 400 });
+    throw Object.assign(new Error('Path escapes managed project'), { statusCode: 400 });
   }
   const segments = path.relative(PROJECT_ROOT, target).split(path.sep).filter(Boolean);
   if (segments.some(isProtectedName)) {
@@ -625,6 +625,6 @@ await ensureState();
 const server = http.createServer(handler);
 server.listen(PORT, HOST, () => {
   console.log(`Cortex Agent listening on http://${HOST}:${PORT}`);
-  console.log(`Night root: ${PROJECT_ROOT}`);
-  console.log(`Night service: ${MANAGED_SERVICE}`);
+  console.log(`Project root: ${PROJECT_ROOT}`);
+  console.log(`Managed service: ${MANAGED_SERVICE}`);
 });
