@@ -94,6 +94,7 @@ import com.night.cortex.ui.theme.CortexAccent
 import com.night.cortex.ui.theme.CortexBackground
 import com.night.cortex.ui.theme.CortexDanger
 import com.night.cortex.ui.theme.CortexGood
+import com.night.cortex.ui.theme.CortexHeader
 import com.night.cortex.ui.theme.CortexLine
 import com.night.cortex.ui.theme.CortexMuted
 import com.night.cortex.ui.theme.CortexSurface
@@ -347,7 +348,7 @@ private fun Header(
     Row(
         Modifier
             .fillMaxWidth()
-            .background(CortexBackground)
+            .background(CortexHeader)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -385,7 +386,7 @@ private fun ServerTabs(tab: ServerTab, onTab: (ServerTab) -> Unit) {
         Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .background(CortexBackground)
+            .background(CortexHeader)
             .padding(horizontal = 8.dp),
     ) {
         ServerTab.entries.forEach { item ->
