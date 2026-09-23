@@ -65,16 +65,7 @@ jobs:
           disable-spellchecker: true
           disable-animations: true
           script: |
-            set +e
-            gradle -p cortex-android :app:connectedDebugAndroidTest --info --stacktrace
-            test_status=$?
-            adb logcat -d > "$GITHUB_WORKSPACE/cortex-android-logcat.txt" || true
-            adb install -r -g cortex-android/app/build/outputs/apk/debug/app-debug.apk || true
-            adb shell am force-stop com.night.cortex || true
-            adb shell am start -n com.night.cortex/.MainActivity || true
-            sleep 3
-            adb exec-out screencap -p > "$GITHUB_WORKSPACE/cortex-home-emulator.png" || true
-            exit "$test_status"
+            bash -c 'adb shell settings put global package_verifier_enable 0 || true; adb shell settings put global verifier_verify_adb_installs 0 || true; gradle -p cortex-android :app:connectedDebugAndroidTest --info --stacktrace; test_status=$?; adb logcat -d > "$GITHUB_WORKSPACE/cortex-android-logcat.txt" || true; adb install -r -g cortex-android/app/build/outputs/apk/debug/app-debug.apk || true; adb shell am force-stop com.night.cortex || true; adb shell am start -n com.night.cortex/.MainActivity || true; sleep 3; adb exec-out screencap -p > "$GITHUB_WORKSPACE/cortex-home-emulator.png" || true; exit "$test_status"'
       - name: Upload emulator screenshot
         if: always()
         uses: actions/upload-artifact@v4
