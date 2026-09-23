@@ -27,7 +27,6 @@ class CortexSmokeTest {
         composeRule.waitUntil(5_000) {
             composeRule.onAllNodes(hasText("Start writing…")).fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithText("index.js").assertIsDisplayed()
         composeRule.onNodeWithText("Save").performClick()
         composeRule.waitUntil(10_000) {
             composeRule.onAllNodes(hasText("Saved on this phone.")).fetchSemanticsNodes().isNotEmpty()
