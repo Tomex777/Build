@@ -1,0 +1,202 @@
+name: Anime sources map
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/anime-sources-map.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe Erai Shana TokyoTosho Nyaa
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          python3 - <<'PY'
+          import urllib.request, urllib.error, urllib.parse, json, re, html, xml.etree.ElementTree as ET
+          from urllib.parse import urljoin, quote
+
+          UA='Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
+
+          def fetch(url, headers=None, maxbytes=2500000):
+              h={'User-Agent':UA,'Accept':'*/*'}
+              if headers: h.update(headers)
+              req=urllib.request.Request(url,headers=h)
+              try:
+                  with urllib.request.urlopen(req,timeout=35) as r:
+                      body=r.read(maxbytes)
+                      return {'status':r.status,'url':r.geturl(),'headers':dict(r.headers),'body':body.decode('utf-8','ignore')}
+              except urllib.error.HTTPError as e:
+                  try:b=e.read(maxbytes)
+                  except:b=b''
+                  return {'status':e.code,'url':url,'headers':dict(e.headers),'body':b.decode('utf-8','ignore'),'error':'HTTPError'}
+              except Exception as e:
+                  return {'status':None,'url':url,'headers':{},'body':'','error':repr(e)}
+
+          def parse_links(base, body, limit=120):
+              out=[]
+              for m in re.finditer(r'<a\b([^>]*)>([\s\S]*?)</a>',body,re.I):
+                  hm=re.search(r'\bhref\s*=\s*["\']([^"\']+)',m.group(1),re.I)
+                  if not hm: continue
+                  href=html.unescape(hm.group(1)).strip()
+                  txt=re.sub(r'\s+',' ',html.unescape(re.sub(r'<[^>]+>',' ',m.group(2)))).strip()
+                  out.append({'text':txt[:250],'href':urljoin(base,href)})
+                  if len(out)>=limit: break
+              return out
+
+          def parse_rss(body):
+              items=[]
+              try:
+                  root=ET.fromstring(body)
+                  for item in root.findall('.//item')[:12]:
+                      rec={}
+                      for ch in list(item):
+                          tag=ch.tag.split('}')[-1]
+                          if tag in ('title','link','guid','pubDate','category','description','seeders','leechers','downloads','infoHash','size'):
+                              rec[tag]=ch.text
+                      for enc in item.findall('.//enclosure'):
+                          rec['enclosure']=dict(enc.attrib)
+                      items.append(rec)
+              except Exception as e:
+                  return {'error':repr(e),'preview':body[:3000]}
+              return {'items':items}
+
+          def page_summary(r):
+              body=r.get('body','')
+              title=None
+              m=re.search(r'<title[^>]*>([\s\S]*?)</title>',body,re.I)
+              if m:title=re.sub(r'\s+',' ',html.unescape(re.sub(r'<[^>]+>',' ',m.group(1)))).strip()
+              return {
+                  'status':r.get('status'),'finalUrl':r.get('url'),
+                  'contentType':r.get('headers',{}).get('Content-Type'),
+                  'server':r.get('headers',{}).get('Server'),
+                  'title':title,
+                  'links':parse_links(r.get('url') or '',body,80),
+                  'preview':re.sub(r'\s+',' ',body)[:7000]
+              }
+
+          out={}
+
+          # ERAI-RAWS
+          erai={}
+          for u in [
+              'https://www.erai-raws.info/',
+              'https://www.erai-raws.info/raws/',
+              'https://www.erai-raws.info/wp-json/',
+              'https://www.erai-raws.info/wp-json/wp/v2/search?search=One%20Piece&per_page=10',
+              'https://www.erai-raws.info/feed/',
+              'https://erai-raws.org/',
+          ]:
+              r=fetch(u)
+              rec=page_summary(r)
+              if '/wp-json/' in u:
+                  try:
+                      j=json.loads(r['body'])
+                      rec['jsonType']=type(j).__name__
+                      if isinstance(j,dict): rec['jsonKeys']=list(j.keys())[:80]
+                      if isinstance(j,list): rec['jsonSample']=j[:3]
+                  except: pass
+              if '/feed' in u: rec['rss']=parse_rss(r['body'])
+              erai[u]=rec
+          # inspect scripts on main page
+          home=fetch('https://www.erai-raws.info/')
+          scripts=[]
+          for m in re.finditer(r'<script\b[^>]*\bsrc\s*=\s*["\']([^"\']+)',home['body'],re.I):
+              su=urljoin(home['url'],html.unescape(m.group(1)))
+              sr=fetch(su,maxbytes=1200000)
+              snippets=[]
+              for mm in re.finditer(r'.{0,250}(?:api|ajax|torrent|magnet|search|release).{0,500}',sr['body'],re.I|re.S):
+                  snippets.append(re.sub(r'\s+',' ',mm.group(0))[:900])
+                  if len(snippets)>=20:break
+              scripts.append({'url':su,'status':sr['status'],'snippets':snippets})
+          erai['scripts']=scripts
+          out['erai']=erai
+
+          # SHANA PROJECT
+          shana={}
+          shana_urls=[
+              'https://www.shanaproject.com/',
+              'https://www.shanaproject.com/search/?search=One%20Piece',
+              'https://www.shanaproject.com/search/?search=Frieren',
+              'https://www.shanaproject.com/feed/',
+              'https://www.shanaproject.com/rss/',
+              'https://www.shanaproject.com/help/',
+          ]
+          for u in shana_urls:
+              r=fetch(u)
+              rec=page_summary(r)
+              if 'feed' in u or '/rss' in u:rec['rss']=parse_rss(r['body'])
+              shana[u]=rec
+          # discover rss/api-looking links
+          base=fetch('https://www.shanaproject.com/')
+          shana['interestingLinks']=[x for x in parse_links(base['url'],base['body'],300) if re.search(r'rss|feed|api|torrent|download|search|release',x['text']+' '+x['href'],re.I)][:120]
+          out['shana']=shana
+
+          # TOKYO TOSHOKAN
+          tt={}
+          tt_urls=[
+              'https://www.tokyotosho.info/',
+              'https://www.tokyotosho.info/search.php?terms=One+Piece&type=1&size_min=&size_max=&username=',
+              'https://www.tokyotosho.info/rss.php',
+              'https://www.tokyotosho.info/rss.php?filter=1',
+              'https://www.tokyotosho.info/rss.php?terms=One+Piece&type=1',
+          ]
+          for u in tt_urls:
+              r=fetch(u)
+              rec=page_summary(r)
+              if 'rss.php' in u: rec['rss']=parse_rss(r['body'])
+              tt[u]=rec
+          out['tokyotosho']=tt
+
+          # NYAA
+          nyaa={}
+          nyaa_urls=[
+              'https://nyaa.si/',
+              'https://nyaa.si/?f=0&c=1_2&q=One+Piece',
+              'https://nyaa.si/?page=rss',
+              'https://nyaa.si/?page=rss&f=0&c=1_2&q=One+Piece',
+              'https://nyaa.si/?page=rss&f=0&c=1_2&q=SubsPlease',
+          ]
+          for u in nyaa_urls:
+              r=fetch(u)
+              rec=page_summary(r)
+              if 'page=rss' in u:rec['rss']=parse_rss(r['body'])
+              nyaa[u]=rec
+          out['nyaa']=nyaa
+
+          # compact conclusions
+          conc={}
+          conc['erai']={'home':erai['https://www.erai-raws.info/']['status'],
+                        'raws':erai['https://www.erai-raws.info/raws/']['status'],
+                        'wpJson':erai['https://www.erai-raws.info/wp-json/']['status']}
+          conc['shana']={'home':shana['https://www.shanaproject.com/']['status'],
+                         'search':shana['https://www.shanaproject.com/search/?search=One%20Piece']['status']}
+          conc['tokyotosho']={'home':tt['https://www.tokyotosho.info/']['status'],
+                              'search':tt['https://www.tokyotosho.info/search.php?terms=One+Piece&type=1&size_min=&size_max=&username=']['status'],
+                              'rss':tt['https://www.tokyotosho.info/rss.php']['status']}
+          conc['nyaa']={'home':nyaa['https://nyaa.si/']['status'],
+                        'search':nyaa['https://nyaa.si/?f=0&c=1_2&q=One+Piece']['status'],
+                        'rss':nyaa['https://nyaa.si/?page=rss']['status']}
+          out['conclusions']=conc
+
+          json.dump(out,open('diagnostics/anime-sources-map.json','w'),indent=2)
+          print(json.dumps(conc,indent=2))
+          PY
+
+      - name: Commit result
+        if: always()
+        run: |
+          test -f diagnostics/anime-sources-map.json || echo '{"error":"no result"}' > diagnostics/anime-sources-map.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/anime-sources-map.json
+          git commit -m "record anime source maps" || true
+          git push || true
