@@ -1,6 +1,14 @@
 package com.example.whatsapp.extensions.tools
 
+import android.content.ComponentName
 import android.content.Intent
+import android.content.ServiceConnection
+import android.os.Bundle
+import android.os.Handler
+import android.os.IBinder
+import android.os.Looper
+import android.os.Message
+import android.os.Messenger
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.whatsapp.data.night.NightAgentToolExecutor
@@ -15,11 +23,15 @@ import com.example.whatsapp.extensions.runtime.NightExternalExtensionManager
 import com.night.extension.sdk.NightExtensionProtocol
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 @RunWith(AndroidJUnit4::class)
 class NightExtensionToolIntegrationInstrumentedTest {
@@ -29,19 +41,27 @@ class NightExtensionToolIntegrationInstrumentedTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val manager = NightExternalExtensionManager.get(context)
 
-        manager.refreshInstalledExtensions()
         val visibleServices = context.packageManager
             .queryIntentServices(
                 Intent(NightExtensionProtocol.ACTION_EXTENSION_SERVICE),
                 0,
             )
             .mapNotNull { it.serviceInfo }
-            .joinToString { "${it.packageName}/${it.name}" }
+        val animePaheService = visibleServices
+            .singleOrNull { it.packageName == "com.night.extensions.animepahe" }
+        val rawDescriptor = animePaheService?.let {
+            describeExtensionService(
+                context = context,
+                component = ComponentName(it.packageName, it.name),
+            ).toString()
+        }
+        manager.refreshInstalledExtensions()
         val discovered = manager.extensions.value
             .singleOrNull { it.extensionId == "animepahe" }
             ?: error(
                 "The separately installed AnimePahe APK was not discovered. " +
-                    "Visible extension services=[$visibleServices]; " +
+                    "Visible extension services=${visibleServices.map { "${it.packageName}/${it.name}" }}; " +
+                    "raw service descriptor=$rawDescriptor; " +
                     "manager summaries=${manager.extensions.value}.",
             )
 
@@ -88,6 +108,71 @@ class NightExtensionToolIntegrationInstrumentedTest {
             manager.extensions.value
                 .singleOrNull { it.extensionId == "animepahe" }
                 ?.let { manager.setEnabled(it, false) }
+        }
+    }
+
+    private suspend fun describeExtensionService(
+        context: android.content.Context,
+        component: ComponentName,
+    ): JSONObject = withTimeout(10_000L) {
+        suspendCancellableCoroutine { continuation ->
+            val requestId = UUID.randomUUID().toString()
+            var bound = false
+            val connection = object : ServiceConnection {
+                override fun onServiceConnected(name: ComponentName, binder: IBinder) {
+                    val replyTo = Messenger(
+                        Handler(Looper.getMainLooper()) { reply ->
+                            if (
+                                reply.what != NightExtensionProtocol.MSG_RESULT ||
+                                reply.data.getString(NightExtensionProtocol.KEY_REQUEST_ID) != requestId
+                            ) {
+                                return@Handler false
+                            }
+                            if (!continuation.isActive) return@Handler true
+
+                            if (!reply.data.getBoolean(NightExtensionProtocol.KEY_OK, false)) {
+                                continuation.resumeWithException(
+                                    IllegalStateException(
+                                        reply.data.getString(NightExtensionProtocol.KEY_ERROR)
+                                            ?: "Night extension descriptor request failed.",
+                                    ),
+                                )
+                            } else {
+                                val json = reply.data.getString(
+                                    NightExtensionProtocol.KEY_RESULT_JSON,
+                                ).orEmpty()
+                                continuation.resume(JSONObject(json.ifBlank { "{}" }))
+                            }
+                            if (bound) runCatching { context.unbindService(connection) }
+                            true
+                        },
+                    )
+                    val request = Message.obtain(null, NightExtensionProtocol.MSG_DESCRIBE).apply {
+                        data = Bundle().apply {
+                            putString(NightExtensionProtocol.KEY_REQUEST_ID, requestId)
+                        }
+                        this.replyTo = replyTo
+                    }
+                    runCatching { Messenger(binder).send(request) }
+                        .onFailure { if (continuation.isActive) continuation.resumeWithException(it) }
+                }
+
+                override fun onServiceDisconnected(name: ComponentName) = Unit
+            }
+
+            bound = context.bindService(
+                Intent(NightExtensionProtocol.ACTION_EXTENSION_SERVICE).setComponent(component),
+                connection,
+                android.content.Context.BIND_AUTO_CREATE,
+            )
+            if (!bound && continuation.isActive) {
+                continuation.resumeWithException(
+                    IllegalStateException("Could not bind extension service $component."),
+                )
+            }
+            continuation.invokeOnCancellation {
+                if (bound) runCatching { context.unbindService(connection) }
+            }
         }
     }
 
