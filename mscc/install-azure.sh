@@ -2,8 +2,7 @@
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
-REPO_RAW="https://raw.githubusercontent.com/Tomex777/Build/mscc-azure/mscc"
-VERSION="1.6.0"
+VERSION="1.7.0"
 BASE="/opt/mscc"
 RELEASE="$BASE/releases/$VERSION"
 STATE="/var/lib/mscc"
@@ -11,6 +10,8 @@ BACKUPS="/var/backups/mscc"
 ENV_FILE="/etc/mscc.env"
 ENV_EXAMPLE="/etc/mscc.env.example"
 SERVICE="/etc/systemd/system/mscc.service"
+ARCHIVE="/tmp/mscc-azure.tar.gz"
+UNPACK="/tmp/mscc-azure-src"
 
 echo "=== MSCC Azure install v$VERSION ==="
 
@@ -18,10 +19,15 @@ sudo mkdir -p "$RELEASE" "$STATE/auth" "$STATE/auth-b" "$STATE/data" "$BACKUPS"
 sudo chown -R "$USER:$USER" "$BASE" "$STATE" "$BACKUPS"
 chmod 700 "$STATE" "$STATE/auth" "$STATE/auth-b" "$STATE/data"
 
-echo ">>> Downloading MSCC source from GitHub..."
-for file in index.js web-panel.js panel.html package.json .env.example; do
-  curl -fsSL "$REPO_RAW/$file" -o "$RELEASE/$file"
-done
+echo ">>> Downloading complete MSCC source from GitHub..."
+rm -rf "$UNPACK" "$ARCHIVE"
+curl -fsSL "https://github.com/Tomex777/Build/archive/refs/heads/mscc-azure.tar.gz" -o "$ARCHIVE"
+mkdir -p "$UNPACK"
+tar -xzf "$ARCHIVE" -C "$UNPACK"
+rm -rf "$RELEASE"
+mkdir -p "$RELEASE"
+cp -a "$UNPACK/Build-mscc-azure/mscc/." "$RELEASE/"
+rm -rf "$UNPACK" "$ARCHIVE" "$RELEASE/dist"
 
 echo ">>> Installing Node dependencies..."
 cd "$RELEASE"
@@ -93,6 +99,7 @@ echo
 echo "=== MSCC INSTALL COMPLETE ==="
 echo "Release: $RELEASE"
 echo "Current: $BASE/current"
+echo "Commands: $BASE/current/commands"
 echo "State A: $STATE/auth"
 echo "State B: $STATE/auth-b"
 echo "Data: $STATE/data"
