@@ -374,6 +374,7 @@ class MainActivity : Activity() {
                 "onLoggedIn" -> {
                     runOnUiThread {
                         hasSavedSession = true
+                        setBusy(false)
                         showWorkspace()
                         setStatus("WhatsApp connected. Your chats are ready.")
                         refreshChats()
@@ -681,7 +682,7 @@ class MainActivity : Activity() {
         }
         val participantsInput = EditText(this).apply {
             hint = "Participant numbers with country codes, separated by commas"
-            inputType = InputType.TYPE_CLASS_PHONE or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
             minLines = 2
             maxLines = 4
         }
@@ -884,6 +885,7 @@ class MainActivity : Activity() {
                 disconnectCurrentInternal()
                 runOnUiThread {
                     currentClient = null
+                    setBusy(false)
                     showPairing()
                     setStatus("Disconnected. Your linked session remains saved on this phone.")
                 }
