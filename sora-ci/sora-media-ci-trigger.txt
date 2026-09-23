@@ -5,3 +5,5 @@ rerun 31 - accept live Anime library content and verify honest empty state when 
 rerun 32 - quote multiword More destinations in hub walkthrough
 rerun 33 - recover Pixel Launcher ANR dialog during emulator walk
 rerun 34 - scroll to About & help in More menu walkthrough
+
+full-app-qa: build and walkthrough extension surfaces
