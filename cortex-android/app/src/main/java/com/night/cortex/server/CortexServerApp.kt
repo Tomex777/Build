@@ -1092,14 +1092,14 @@ private fun BackupSheet(
                 Text("Create Backup", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                 Text("node_modules is excluded from both backup types.", color = CortexMuted, fontSize = 10.sp)
             }
-            SheetAction(Icons.Rounded.Archive, "Project ZIP") { onCreate(false) }
+            SheetAction(Icons.Rounded.Archive, "Project ZIP", click = { onCreate(false) })
             Text(
                 "Source files only. Secrets, sessions and auth are excluded.",
                 Modifier.padding(horizontal = 58.dp, vertical = 2.dp),
                 color = CortexMuted,
                 fontSize = 9.sp,
             )
-            SheetAction(Icons.Rounded.Warning, "Full private backup") { onCreate(true) }
+            SheetAction(Icons.Rounded.Warning, "Full private backup", click = { onCreate(true) })
             Text(
                 "Includes private project state such as environment/session files. Keep it private.",
                 Modifier.padding(horizontal = 58.dp, vertical = 2.dp),
