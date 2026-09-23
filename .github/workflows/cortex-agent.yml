@@ -26,10 +26,15 @@ jobs:
           printf 'secret=must-stay-server-side\n' >/tmp/night/.env.production
           printf 'private-key' >/tmp/night/server.pem
           printf 'server-only' >/tmp/night/node_modules/server-only.js
+          mkdir -p /tmp/cortex-settings
+          printf '{"version":1,"autoCc":false,"replyCc":true,"antiDelete":true}\n' >/tmp/cortex-settings/settings.json
+          printf '{"version":1,"service":"mscc","entries":[{"key":"autoCc","label":"Auto CC","description":"Copy V1 automatically","command":"autocc","type":"boolean"}]}\n' >/tmp/cortex-settings/schema.json
           CORTEX_AGENT_TOKEN='test-token-12345678901234567890' \
           NIGHT_ROOT=/tmp/night \
           NIGHT_SERVICE=night.service \
           CORTEX_STATE_DIR=/tmp/cortex-state \
+          CORTEX_COMMAND_SETTINGS_FILE=/tmp/cortex-settings/settings.json \
+          CORTEX_COMMAND_SETTINGS_SCHEMA_FILE=/tmp/cortex-settings/schema.json \
           HOST=127.0.0.1 \
           PORT=47831 \
           node cortex-agent/index.js >/tmp/cortex-agent.log 2>&1 &
@@ -99,6 +104,13 @@ jobs:
           ! grep -q '.env.production' /tmp/project-list.txt
           ! grep -q 'server.pem' /tmp/project-list.txt
           curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/backups | grep -q "$BACKUP"
+      - name: Verify command-driven settings contract
+        shell: bash
+        run: |
+          AUTH='Authorization: Bearer test-token-12345678901234567890'
+          curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/settings | grep -q '"key":"autoCc"'
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"key":"autoCc","enabled":true}'             http://127.0.0.1:47831/api/cortex/host/settings | grep -q '"enabled":true'
+          grep -q '"autoCc": true' /tmp/cortex-settings/settings.json
       - name: Reject unauthenticated requests
         shell: bash
         run: |
