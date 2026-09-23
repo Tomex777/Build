@@ -75,6 +75,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                         startup = runCatching { api.startup() }.getOrNull(),
                         activity = runCatching { api.activity() }.getOrDefault(emptyList()),
                         backups = runCatching { api.backups() }.getOrDefault(emptyList()),
+                        commandSettings = runCatching { api.commandSettings() }.getOrDefault(emptyList()),
                     )
                 }
                 _state.value = _state.value.copy(
@@ -84,6 +85,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     startup = result.startup,
                     activity = result.activity,
                     backups = result.backups,
+                    commandSettings = result.commandSettings,
                 )
             }
         }
@@ -295,6 +297,26 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         _state.value = _state.value.copy(pendingDownload = null)
     }
 
+    fun refreshSettings() {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy {
+                val rows = withContext(Dispatchers.IO) { api().commandSettings() }
+                _state.value = _state.value.copy(commandSettings = rows)
+            }
+        }
+    }
+
+    fun setCommandSetting(key: String, enabled: Boolean) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy("Setting saved.") {
+                val rows = withContext(Dispatchers.IO) { api().setCommandSetting(key, enabled) }
+                _state.value = _state.value.copy(commandSettings = rows)
+            }
+        }
+    }
+
     fun refreshActivity() {
         if (!_state.value.configured) return
         viewModelScope.launch {
@@ -366,5 +388,6 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         val startup: StartupInfo?,
         val activity: List<ActivityEntry>,
         val backups: List<BackupEntry>,
+        val commandSettings: List<CommandSetting>,
     )
 }
