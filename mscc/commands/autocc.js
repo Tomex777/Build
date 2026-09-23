@@ -1,0 +1,19 @@
+export default {
+  name: 'autocc',
+  description: 'Automatically copy incoming view-once media to the private inbox.',
+  ownerOnly: true,
+  setting: {
+    key: 'autoCc',
+    label: 'Auto CC',
+    description: 'Copy incoming view-once media immediately.',
+  },
+  async run(ctx) {
+    const mode = String(ctx.args[0] || '').toLowerCase()
+    if (!['on', 'off'].includes(mode)) {
+      return ctx.reply(`Usage: .autocc on|off\nCurrent: ${ctx.settings.autoCc ? 'ON' : 'OFF'}`)
+    }
+    const enabled = mode === 'on'
+    await ctx.setSetting('autoCc', enabled)
+    await ctx.reply(`✅ autocc: ${enabled ? 'ON' : 'OFF'}`)
+  },
+}
