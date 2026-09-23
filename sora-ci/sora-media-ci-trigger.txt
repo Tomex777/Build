@@ -1,1 +1,1 @@
-run 24 - rerun full live AniList Anime Manga flow and phone emulator checks
+run 25 - verify AniList Anime Manga live flow at rendered reader head
