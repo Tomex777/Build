@@ -524,7 +524,49 @@ class MainActivity : Activity() {
         conversationScreen.visibility = View.VISIBLE
         messageInput.isEnabled = true
         sendButton.isEnabled = true
+        markChatRead(jid)
         refreshConversation()
+    }
+
+    private fun markChatRead(jid: String) {
+        val client = currentClient ?: return
+        worker.execute {
+            try {
+                val jidClass = Class.forName("com.github.auties00.cobalt.wire.core.jid.Jid", true, classLoader)
+                val jidProviderClass = Class.forName("com.github.auties00.cobalt.wire.core.jid.JidProvider", true, classLoader)
+                val clientClass = Class.forName("com.github.auties00.cobalt.client.WhatsAppClient", true, classLoader)
+                val chat = jidClass.getMethod("of", String::class.java).invoke(null, jid)
+                clientClass.getMethod("markChatAsRead", jidProviderClass).invoke(client, chat)
+            } catch (error: Throwable) {
+                Log.w(tag, "Could not mark chat as read", error)
+            }
+        }
+    }
+
+    private fun showReactionMenu(info: Any) {
+        val key = firstValue(info, "key") ?: return
+        val reactions = arrayOf("👍", "❤️", "😂", "😮", "😢", "🙏", "Remove reaction")
+        AlertDialog.Builder(this)
+            .setTitle("React to message")
+            .setItems(reactions) { _, index ->
+                worker.execute {
+                    try {
+                        val keyClass = Class.forName("com.github.auties00.cobalt.wire.core.message.MessageKey", true, classLoader)
+                        val clientClass = Class.forName("com.github.auties00.cobalt.client.WhatsAppClient", true, classLoader)
+                        if (index == reactions.lastIndex) {
+                            clientClass.getMethod("removeReaction", keyClass).invoke(currentClient, key)
+                        } else {
+                            clientClass.getMethod("addReaction", keyClass, String::class.java)
+                                .invoke(currentClient, key, reactions[index])
+                        }
+                        runOnUiThread { setStatus(if (index == reactions.lastIndex) "Reaction removed." else "Reaction sent.") }
+                    } catch (error: Throwable) {
+                        Log.w(tag, "Could not react to message", error)
+                        runOnUiThread { setStatus("Could not send reaction: ${error.cause?.message ?: error.message ?: "unknown error"}") }
+                    }
+                }
+            }
+            .show()
     }
 
     private fun showChatList() {
@@ -573,6 +615,10 @@ class MainActivity : Activity() {
                                 setTextColor(Color.rgb(26, 39, 47))
                                 setPadding(dp(12), dp(8), dp(12), dp(8))
                                 setBackgroundColor(if (isFromMe(info)) Color.rgb(214, 242, 223) else Color.WHITE)
+                                setOnLongClickListener {
+                                    showReactionMenu(info)
+                                    true
+                                }
                             }
                             row.addView(bubble, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.88f))
                             messageFeed.addView(row, matchWrap())
