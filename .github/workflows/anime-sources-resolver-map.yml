@@ -1,0 +1,127 @@
+name: Anime source resolver map
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/anime-sources-resolver-map.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe resolver details
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          python3 - <<'PY'
+          import urllib.request, urllib.error, urllib.parse, json, re, html, xml.etree.ElementTree as ET
+          from urllib.parse import urljoin
+
+          UA='Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
+          def fetch(url, method='GET', maxbytes=1200000):
+              req=urllib.request.Request(url,headers={'User-Agent':UA,'Accept':'*/*'},method=method)
+              try:
+                  with urllib.request.urlopen(req,timeout=35) as r:
+                      body=b'' if method=='HEAD' else r.read(maxbytes)
+                      return {'status':r.status,'url':r.geturl(),'headers':dict(r.headers),'body':body.decode('utf-8','ignore')}
+              except urllib.error.HTTPError as e:
+                  try:b=e.read(maxbytes)
+                  except:b=b''
+                  return {'status':e.code,'url':url,'headers':dict(e.headers),'body':b.decode('utf-8','ignore'),'error':'HTTPError'}
+              except Exception as e:return {'status':None,'url':url,'headers':{},'body':'','error':repr(e)}
+
+          def rss(body):
+              out=[]
+              try:
+                  root=ET.fromstring(body)
+                  for item in root.findall('.//item')[:10]:
+                      rec={}
+                      for ch in list(item):
+                          tag=ch.tag.split('}')[-1]
+                          if tag in ('title','link','guid','pubDate','category','description','size','seeders','leechers','downloads','infoHash'):
+                              rec[tag]=ch.text
+                      for enc in item.findall('.//enclosure'):rec['enclosure']=dict(enc.attrib)
+                      out.append(rec)
+              except Exception as e:return {'error':repr(e),'preview':body[:2000]}
+              return {'items':out}
+
+          out={}
+
+          # Shana form + public feed + one download endpoint metadata
+          sh=fetch('https://www.shanaproject.com/search/')
+          forms=[]
+          for fm in re.finditer(r'<form\b([^>]*)>([\s\S]*?)</form>',sh['body'],re.I):
+              attrs=fm.group(1); inner=fm.group(2)
+              action=re.search(r'\baction\s*=\s*["\']([^"\']*)',attrs,re.I)
+              method=re.search(r'\bmethod\s*=\s*["\']([^"\']*)',attrs,re.I)
+              fields=[]
+              for im in re.finditer(r'<(?:input|select|textarea)\b([^>]*)>',inner,re.I):
+                  nm=re.search(r'\bname\s*=\s*["\']([^"\']+)',im.group(1),re.I)
+                  tp=re.search(r'\btype\s*=\s*["\']([^"\']+)',im.group(1),re.I)
+                  if nm: fields.append({'name':nm.group(1),'type':tp.group(1) if tp else None})
+              forms.append({'action':urljoin(sh['url'],action.group(1) if action else ''),'method':method.group(1) if method else None,'fields':fields})
+          sf=fetch('https://www.shanaproject.com/feeds/site/')
+          dl=fetch('https://www.shanaproject.com/download/352193/',method='HEAD')
+          if dl.get('status') in (405,403) or not dl.get('headers',{}).get('Content-Type'):
+              dl=fetch('https://www.shanaproject.com/download/352193/',maxbytes=10000)
+          out['shana']={
+              'searchStatus':sh['status'],'searchForms':forms,
+              'publicFeed':{'status':sf['status'],'finalUrl':sf['url'],'contentType':sf['headers'].get('Content-Type'),'parsed':rss(sf['body'])},
+              'downloadProbe':{'status':dl['status'],'finalUrl':dl['url'],'contentType':dl['headers'].get('Content-Type'),'location':dl['headers'].get('Location'),'length':dl['headers'].get('Content-Length'),'preview':dl['body'][:500]}
+          }
+
+          # Tokyo RSS with filters/search, including anime category.
+          toks=[
+              'https://www.tokyotosho.info/rss.php?filter=1',
+              'https://www.tokyotosho.info/rss.php?terms=One+Piece&type=1',
+              'https://www.tokyotosho.info/rss.php?terms=Erai-raws&type=1',
+              'https://www.tokyotosho.info/rss.php?terms=SubsPlease&type=1',
+          ]
+          out['tokyotosho']=[]
+          for u in toks:
+              r=fetch(u)
+              out['tokyotosho'].append({'url':u,'status':r['status'],'finalUrl':r['url'],'contentType':r['headers'].get('Content-Type'),'parsed':rss(r['body']),'preview':r['body'][:1200]})
+
+          # Erai login wall details and public HTML characteristics
+          out['erai']={}
+          for u in ['https://www.erai-raws.info/','https://www.erai-raws.info/raws/','https://www.erai-raws.info/wp-json/']:
+              r=fetch(u)
+              body=r['body']
+              forms=[]
+              for fm in re.finditer(r'<form\b([^>]*)>([\s\S]*?)</form>',body,re.I):
+                  attrs=fm.group(1);inner=fm.group(2)
+                  action=re.search(r'\baction\s*=\s*["\']([^"\']*)',attrs,re.I)
+                  fields=[]
+                  for im in re.finditer(r'<input\b([^>]*)>',inner,re.I):
+                      nm=re.search(r'\bname\s*=\s*["\']([^"\']+)',im.group(1),re.I)
+                      tp=re.search(r'\btype\s*=\s*["\']([^"\']+)',im.group(1),re.I)
+                      if nm:fields.append({'name':nm.group(1),'type':tp.group(1) if tp else None})
+                  forms.append({'action':urljoin(r['url'],action.group(1) if action else ''),'fields':fields})
+              rec={'status':r['status'],'finalUrl':r['url'],'contentType':r['headers'].get('Content-Type'),'forms':forms,'preview':re.sub(r'\s+',' ',body)[:4000]}
+              try:rec['json']=json.loads(body)
+              except:pass
+              out['erai'][u]=rec
+
+          # Nyaa filtered RSS fields
+          nr=fetch('https://nyaa.si/?page=rss&f=0&c=1_2&q=Erai-raws')
+          out['nyaa']={'status':nr['status'],'finalUrl':nr['url'],'contentType':nr['headers'].get('Content-Type'),'parsed':rss(nr['body'])}
+
+          json.dump(out,open('diagnostics/anime-sources-resolver-map.json','w'),indent=2)
+          print(json.dumps(out,indent=2)[:90000])
+          PY
+
+      - name: Commit result
+        if: always()
+        run: |
+          test -f diagnostics/anime-sources-resolver-map.json || echo '{"error":"no result"}' > diagnostics/anime-sources-resolver-map.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/anime-sources-resolver-map.json
+          git commit -m "record anime source resolver maps" || true
+          git push || true
