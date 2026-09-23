@@ -17,8 +17,12 @@ if [ "$NODE_MAJOR" -lt 24 ]; then
   exit 1
 fi
 
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get install -y zip unzip
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-install -d -m 0755 /opt/cortex-agent /opt/night
+install -d -m 0755 /opt/cortex-agent /opt/night /var/lib/cortex /var/lib/cortex/backups
 install -m 0644 "$SCRIPT_DIR/index.js" /opt/cortex-agent/index.js
 install -m 0644 "$SCRIPT_DIR/package.json" /opt/cortex-agent/package.json
 install -m 0644 "$SCRIPT_DIR/cortex-agent.service" /etc/systemd/system/cortex-agent.service
@@ -32,6 +36,7 @@ NIGHT_ROOT=/opt/night
 NIGHT_SERVICE=night.service
 NIGHT_ENTRY=index.js
 NIGHT_START_COMMAND=node index.js
+CORTEX_STATE_DIR=/var/lib/cortex
 HOST=127.0.0.1
 PORT=47831
 EOF
@@ -41,6 +46,7 @@ EOF
   echo "$TOKEN"
   echo
 else
+  grep -q '^CORTEX_STATE_DIR=' /etc/cortex-agent.env || echo 'CORTEX_STATE_DIR=/var/lib/cortex' >>/etc/cortex-agent.env
   echo "Keeping existing /etc/cortex-agent.env"
 fi
 
