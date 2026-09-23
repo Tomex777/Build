@@ -1,1 +1,2 @@
 rerun 36 - validate Anime Manga source resume after Games compile fix
+confirm exact source resume on current hub-tabs and Bible progress changes

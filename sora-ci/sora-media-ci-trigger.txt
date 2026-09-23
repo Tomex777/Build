@@ -1,1 +1,2 @@
 rerun 29 - validate hub tabs after Games compile fix
+verify other hub tabs after follow-up wiring, Bible reading resume, and source-state coverage

@@ -50,8 +50,9 @@ for label in ('Wait', 'OK'):
         subprocess.call(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)])
         raise SystemExit(0)
 PY
-  adb shell am start -W -n com.night.sora/.MainActivity >/dev/null 2>&1 || true
-  sleep 1
+  # Dismissing a system dialog should leave the current Sora activity in place.
+  # Relaunching on every polling iteration can recreate the screen between a
+  # successful wait_for_node() and tap_text(), making the smoke test race itself.
 }
 
 node_exists() {

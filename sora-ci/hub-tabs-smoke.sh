@@ -87,7 +87,7 @@ shot games-empty-library
 
 # Library's Meme filter exists, and active-only no longer invents progress.
 tap Library
-wait_for "items"
+wait_for "item"
 adb shell input swipe 950 190 160 190 350
 sleep 1
 tap Memes
@@ -208,7 +208,9 @@ if wait_for "Less like this" 40; then
   tap "Anime & Manga"
   tap Memes
 else
-  wait_for "No compatible memes catalog source is installed"
+  # An installed extension may exist while its feed is unavailable. The honest
+  # error message is provider-specific; Retry and Manage sources are stable UI.
+  wait_for "Retry"
   wait_for "Manage sources"
   shot memes-source-state
 fi

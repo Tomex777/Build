@@ -336,7 +336,8 @@ private fun BibleReader(
         loading = false
         passage?.let {
             val index = it.verses.indexOfFirst { verse -> verse.number >= initialVerse }.coerceAtLeast(0)
-            if (index > 0) listState.scrollToItem(index)
+            // LazyColumn item 0 is the chapter header; verse rows start at 1.
+            if (index > 0) listState.scrollToItem(index + 1)
         }
     }
 
@@ -345,7 +346,8 @@ private fun BibleReader(
         snapshotFlow { listState.firstVisibleItemIndex }
             .distinctUntilChanged()
             .collect { index ->
-                val verse = passage?.verses?.getOrNull(index)?.number ?: 1
+                // Ignore the header row and translate list indices back to verse indices.
+                val verse = passage?.verses?.getOrNull((index - 1).coerceAtLeast(0))?.number ?: 1
                 repository.saveLastReading(BibleReadingPosition(book.name, chapter, verse))
             }
     }
