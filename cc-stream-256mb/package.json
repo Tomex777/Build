@@ -1,0 +1,19 @@
+{
+  "name": "cc-stream-256mb",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal Baileys Android-companion view-once forwarder for low-memory hosting",
+  "type": "module",
+  "main": "cc-stream-256mb/index.js",
+  "scripts": {
+    "start": "node cc-stream-256mb/index.js",
+    "check": "node --check cc-stream-256mb/index.js"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "github:WhiskeySockets/Baileys",
+    "pino": "^9.9.5"
+  }
+}
