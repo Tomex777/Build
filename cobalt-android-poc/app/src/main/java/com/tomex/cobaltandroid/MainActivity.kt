@@ -1,312 +1,296 @@
 package com.tomex.cobaltandroid
 
 import android.app.Activity
-import android.content.ClipboardManager
+import android.app.AlertDialog
 import android.content.ClipData
+import android.content.ClipboardManager
+import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.text.InputType
-import android.util.Log
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import java.lang.reflect.Proxy
 import java.nio.file.Path
 import java.util.Optional
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : Activity() {
-    private val tag = "CobaltPOC"
+    private val tag = "Cobalt"
     private val worker = Executors.newSingleThreadExecutor()
 
-    @Volatile
-    private var currentClient: Any? = null
+    @Volatile private var currentClient: Any? = null
+    @Volatile private var hasSavedSession = false
+    @Volatile private var selectedChatJid: String? = null
+    @Volatile private var selectedChatLabel = ""
 
-    @Volatile
-    private var hasSavedSession = false
-
-    @Volatile
-    private var temporaryMode = false
-
-    @Volatile
-    private var liveHarnessMode = false
-
-    @Volatile
-    private var liveAutoReplyText: String? = null
-
-    private val liveReplySent = AtomicBoolean(false)
-
-    private lateinit var phoneInput: EditText
     private lateinit var statusText: TextView
+    private lateinit var phoneInput: EditText
     private lateinit var pairingCodeText: TextView
     private lateinit var copyButton: Button
     private lateinit var linkButton: Button
-    private lateinit var temporaryLinkButton: Button
-    private lateinit var liveBurnerButton: Button
-    private lateinit var reconnectButton: Button
-    private lateinit var disconnectButton: Button
-    private lateinit var destinationInput: EditText
+    private lateinit var connectionPanel: LinearLayout
+    private lateinit var chatListScreen: LinearLayout
+    private lateinit var conversationScreen: LinearLayout
+    private lateinit var chatListContainer: LinearLayout
+    private lateinit var conversationTitle: TextView
+    private lateinit var messageFeed: LinearLayout
     private lateinit var messageInput: EditText
     private lateinit var sendButton: Button
-    private lateinit var incomingText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         buildUi()
-
-        val livePhone = intent.getStringExtra("live_phone")?.filter(Char::isDigit).orEmpty()
-        val liveReply = intent.getStringExtra("live_reply")?.trim().orEmpty()
-        if (livePhone.length in 8..15) {
-            liveHarnessMode = true
-            liveAutoReplyText = liveReply.ifBlank {
-                "Got your message — Cobalt Android receive/reply test passed."
-            }
-            phoneInput.setText(livePhone)
-            setStatus("Live burner-account harness armed. Starting RAM-only pairing…")
-            phoneInput.post { startPairing(true) }
-        } else {
-            probeSavedSession()
-        }
+        probeSavedSession()
     }
 
-    private fun buildUi() {
-        val density = resources.displayMetrics.density
-        fun dp(value: Int) = (value * density).toInt()
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
-        val root = LinearLayout(this).apply {
+    private fun buildUi() {
+        val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), dp(40), dp(24), dp(28))
+            setBackgroundColor(Color.rgb(244, 246, 248))
+            setPadding(dp(18), dp(20), dp(18), dp(12))
         }
 
-        root.addView(TextView(this).apply {
-            text = "WhatsApp client"
+        page.addView(TextView(this).apply {
+            text = "Cobalt"
             textSize = 30f
+            setTextColor(Color.rgb(20, 30, 38))
             setTypeface(typeface, Typeface.BOLD)
         })
-
-        root.addView(TextView(this).apply {
-            text = "Cobalt Android proof of concept · linked-device mode"
-            textSize = 15f
-            alpha = 0.70f
-            setPadding(0, dp(8), 0, dp(28))
-        })
-
-        root.addView(TextView(this).apply {
-            text = "Phone number"
+        page.addView(TextView(this).apply {
+            text = "Your WhatsApp chats, linked on this phone"
             textSize = 14f
-            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(Color.rgb(91, 103, 112))
+            setPadding(0, dp(2), 0, dp(14))
         })
 
+        statusText = TextView(this).apply {
+            text = "Checking for a saved WhatsApp link…"
+            textSize = 14f
+            setTextColor(Color.rgb(55, 72, 82))
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            setBackgroundColor(Color.WHITE)
+        }
+        page.addView(statusText)
+
+        connectionPanel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(18), 0, 0)
+        }
+        connectionPanel.addView(TextView(this).apply {
+            text = "Link your WhatsApp"
+            textSize = 20f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(Color.rgb(20, 30, 38))
+        })
+        connectionPanel.addView(TextView(this).apply {
+            text = "Enter your number, then approve the pairing code in WhatsApp → Linked devices. Your linked session is saved on this phone."
+            textSize = 14f
+            setTextColor(Color.rgb(75, 88, 98))
+            setPadding(0, dp(6), 0, dp(10))
+        })
         phoneInput = EditText(this).apply {
-            hint = "Country code + number, e.g. 234…"
+            hint = "Country code and number, e.g. 234…"
             inputType = InputType.TYPE_CLASS_PHONE
             setSingleLine(true)
         }
-        root.addView(
-            phoneInput,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        )
-
+        connectionPanel.addView(phoneInput, matchWrap())
         linkButton = Button(this).apply {
-            text = "Link with code"
-            setOnClickListener { startPairing(false) }
+            text = "Link WhatsApp"
+            setOnClickListener { startPairing() }
         }
-        root.addView(linkButton)
-
-        temporaryLinkButton = Button(this).apply {
-            text = "Temporary link"
-            setOnClickListener {
-                liveHarnessMode = false
-                liveAutoReplyText = null
-                liveReplySent.set(false)
-                startPairing(true)
-            }
-        }
-        root.addView(temporaryLinkButton)
-
-        liveBurnerButton = Button(this).apply {
-            text = "Live burner test"
-            setOnClickListener {
-                liveHarnessMode = true
-                liveAutoReplyText = "Got your message - Cobalt Android receive/reply test passed."
-                liveReplySent.set(false)
-                startPairing(true)
-            }
-        }
-        root.addView(liveBurnerButton)
-
-        reconnectButton = Button(this).apply {
-            text = "Reconnect saved session"
-            setOnClickListener { reconnectSavedSession() }
-        }
-        root.addView(reconnectButton)
-
-        root.addView(TextView(this).apply {
-            text = "PAIRING CODE"
-            textSize = 12f
-            alpha = 0.60f
-            setPadding(0, dp(30), 0, dp(8))
-        })
+        connectionPanel.addView(linkButton, matchWrap())
 
         pairingCodeText = TextView(this).apply {
-            text = "— — — —"
-            textSize = 34f
+            text = "Pairing code will appear here"
+            textSize = 23f
             gravity = Gravity.CENTER
             setTypeface(Typeface.MONOSPACE, Typeface.BOLD)
-            setPadding(dp(12), dp(18), dp(12), dp(18))
-            setTextIsSelectable(true)
+            setTextColor(Color.rgb(23, 51, 45))
+            setPadding(dp(12), dp(20), dp(12), dp(20))
+            setBackgroundColor(Color.WHITE)
+            visibility = View.GONE
         }
-        root.addView(
-            pairingCodeText,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        )
-
+        connectionPanel.addView(pairingCodeText, matchWrap())
         copyButton = Button(this).apply {
-            text = "Copy code"
+            text = "Copy pairing code"
             isEnabled = false
+            visibility = View.GONE
             setOnClickListener {
                 val code = pairingCodeText.text.toString().replace(" ", "")
                 val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                 clipboard.setPrimaryClip(ClipData.newPlainText("WhatsApp pairing code", code))
-                setStatus("Pairing code copied. Open WhatsApp → Linked devices → Link with phone number.")
+                setStatus("Code copied. Open WhatsApp → Linked devices → Link with phone number.")
             }
         }
-        root.addView(copyButton)
+        connectionPanel.addView(copyButton, matchWrap())
+        page.addView(connectionPanel, matchWrap())
 
-        statusText = TextView(this).apply {
-            text = "Preparing local Cobalt store…"
-            textSize = 15f
-            setPadding(0, dp(28), 0, dp(20))
+        chatListScreen = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(0, dp(16), 0, 0)
         }
-        root.addView(statusText)
-
-        disconnectButton = Button(this).apply {
+        val chatHeader = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        chatHeader.addView(TextView(this).apply {
+            text = "Chats"
+            textSize = 22f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(Color.rgb(20, 30, 38))
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        chatHeader.addView(Button(this).apply {
+            text = "New chat"
+            setOnClickListener { promptNewChat() }
+        })
+        chatHeader.addView(Button(this).apply {
             text = "Disconnect"
-            isEnabled = false
             setOnClickListener { disconnectCurrent() }
-        }
-        root.addView(disconnectButton)
-
-        root.addView(TextView(this).apply {
-            text = "END-TO-END MESSAGE TEST"
-            textSize = 12f
-            alpha = 0.60f
-            setPadding(0, dp(30), 0, dp(8))
         })
+        chatListScreen.addView(chatHeader, matchWrap())
 
-        destinationInput = EditText(this).apply {
-            hint = "Recipient number with country code"
-            inputType = InputType.TYPE_CLASS_PHONE
-            setSingleLine(true)
-            isEnabled = false
+        val chatScroll = ScrollView(this)
+        chatListContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(8), 0, dp(12))
         }
-        root.addView(
-            destinationInput,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
+        chatScroll.addView(chatListContainer)
+        chatListScreen.addView(
+            chatScroll,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
+        )
+        page.addView(
+            chatListScreen,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
         )
 
+        conversationScreen = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(0, dp(12), 0, 0)
+        }
+        val conversationHeader = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        conversationHeader.addView(Button(this).apply {
+            text = "‹ Chats"
+            setOnClickListener { showChatList() }
+        })
+        conversationTitle = TextView(this).apply {
+            textSize = 18f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(Color.rgb(20, 30, 38))
+            setPadding(dp(8), 0, 0, 0)
+        }
+        conversationHeader.addView(
+            conversationTitle,
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        )
+        conversationScreen.addView(conversationHeader, matchWrap())
+
+        val messageScroll = ScrollView(this)
+        messageFeed = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(2), dp(8), dp(2), dp(10))
+        }
+        messageScroll.addView(messageFeed)
+        conversationScreen.addView(
+            messageScroll,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
+        )
+
+        val composer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
         messageInput = EditText(this).apply {
-            hint = "Test message"
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
-            minLines = 2
-            maxLines = 5
+            hint = "Message"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            minLines = 1
+            maxLines = 4
             isEnabled = false
         }
-        root.addView(
+        composer.addView(
             messageInput,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        )
+        sendButton = Button(this).apply {
+            text = "Send"
+            isEnabled = false
+            setOnClickListener { sendMessage() }
+        }
+        composer.addView(sendButton)
+        conversationScreen.addView(composer, matchWrap())
+        page.addView(
+            conversationScreen,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
         )
 
-        sendButton = Button(this).apply {
-            text = "Send test message"
-            isEnabled = false
-            setOnClickListener { sendTestMessage() }
-        }
-        root.addView(sendButton)
-
-        incomingText = TextView(this).apply {
-            text = "Incoming messages will appear here after linking."
-            textSize = 14f
-            setTextIsSelectable(true)
-            setPadding(0, dp(16), 0, dp(8))
-        }
-        root.addView(incomingText)
-
-        root.addView(TextView(this).apply {
-            text = "The WhatsApp protocol runs inside this APK. No Termux, VPS, or separate web server is required."
-            textSize = 13f
-            alpha = 0.65f
-            setPadding(0, dp(24), 0, 0)
-        })
-
-        setContentView(ScrollView(this).apply { addView(root) })
+        setContentView(page)
     }
+
+    private fun matchWrap() = LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT
+    )
 
     private fun probeSavedSession() {
         worker.execute {
             try {
                 verifyMessageSurface()
                 val options = loadLatestOptions()
-                runOnUiThread {
-                    hasSavedSession = options != null
-                    reconnectButton.isEnabled = hasSavedSession
-                    if (!hasSavedSession) {
-                        setStatus("Ready. Enter your WhatsApp number to create a linked-device pairing code.")
-                    } else {
-                        setStatus("A saved Cobalt session exists. Reconnect it after pairing, or start a new link.")
+                val registered = options?.let { registeredClient(it) }
+                if (registered != null) {
+                    currentClient = registered
+                    attachSessionListeners(registered)
+                    runOnUiThread { setStatus("Saved WhatsApp link found. Reconnecting…") }
+                    invokeLinkedClient(registered, "connect")
+                } else {
+                    runOnUiThread {
+                        hasSavedSession = options != null
+                        showPairing()
+                        setStatus(if (options == null) "Ready to link your WhatsApp account." else "A saved link needs pairing to finish. Enter your number to continue.")
                     }
                 }
             } catch (error: Throwable) {
-                reportError("Checking saved session", error)
+                reportError("Opening Cobalt", error)
             }
         }
     }
 
-    private fun startPairing(temporary: Boolean) {
+    private fun registeredClient(options: Any): Any? {
+        val result = options.javaClass.getMethod("registered").invoke(options) as Optional<*>
+        return result.orElse(null)
+    }
+
+    private fun startPairing() {
         val digits = phoneInput.text.toString().filter(Char::isDigit)
         if (digits.length !in 8..15) {
-            setStatus("Enter the full international number with country code, without the + sign.")
+            setStatus("Enter the full international phone number, including its country code.")
             return
         }
 
-        temporaryMode = temporary
         setBusy(true)
-        pairingCodeText.text = "…"
+        pairingCodeText.visibility = View.VISIBLE
+        pairingCodeText.text = "Requesting pairing code…"
         copyButton.isEnabled = false
-        setStatus(
-            if (temporary) {
-                if (liveHarnessMode) {
-                    "Creating RAM-only live burner test session…"
-                } else {
-                    "Creating RAM-only linked-device session…"
-                }
-            } else {
-                "Creating persistent linked-device session…"
-            }
-        )
+        copyButton.visibility = View.VISIBLE
+        setStatus("Connecting to WhatsApp…")
 
         worker.execute {
             try {
                 disconnectCurrentInternal()
-
-                val options = if (temporary) createTemporaryOptions() else createFreshOptions()
+                val options = createFreshOptions()
                 val pairingClass = Class.forName(
                     "com.github.auties00.cobalt.client.linked.LinkedWhatsAppClientVerificationHandler\$Web\$PairingCode",
                     true,
@@ -317,22 +301,21 @@ class MainActivity : Activity() {
                     true,
                     classLoader
                 )
-                val authenticator = Proxy.newProxyInstance(
+                val authenticator = java.lang.reflect.Proxy.newProxyInstance(
                     authenticatorClass.classLoader,
                     arrayOf(authenticatorClass)
                 ) { proxy, method, args ->
                     when (method.name) {
                         "assertCredential" -> throw UnsupportedOperationException(
-                            "WhatsApp requested a passkey integrity challenge. Android passkey relay is not wired yet."
+                            "WhatsApp requested a passkey challenge that this build does not yet support."
                         )
-                        "toString" -> "AndroidDeferredPasskeyAuthenticator"
+                        "toString" -> "CobaltPasskeyAuthenticator"
                         "hashCode" -> System.identityHashCode(proxy)
                         "equals" -> proxy === args?.firstOrNull()
                         else -> null
                     }
                 }
-
-                val pairingHandler = Proxy.newProxyInstance(
+                val pairingHandler = java.lang.reflect.Proxy.newProxyInstance(
                     pairingClass.classLoader,
                     arrayOf(pairingClass)
                 ) { proxy, method, args ->
@@ -343,63 +326,21 @@ class MainActivity : Activity() {
                             null
                         }
                         "passkeyAuthenticator" -> authenticator
-                        "toString" -> "AndroidPairingCodeHandler"
+                        "toString" -> "CobaltPairingCodeHandler"
                         "hashCode" -> System.identityHashCode(proxy)
                         "equals" -> proxy === args?.firstOrNull()
                         else -> null
                     }
                 }
-
                 val client = options.javaClass
                     .getMethod("unregistered", java.lang.Long.TYPE, pairingClass)
                     .invoke(options, digits.toLong(), pairingHandler)
-
                 attachSessionListeners(client)
                 currentClient = client
-
-                runOnUiThread {
-                    disconnectButton.isEnabled = true
-                    setStatus("Connecting to WhatsApp and requesting a pairing code…")
-                }
-
+                runOnUiThread { setStatus("Requesting your WhatsApp linked-device code…") }
                 invokeLinkedClient(client, "connect")
             } catch (error: Throwable) {
-                reportError("Starting pairing", error)
-            } finally {
-                runOnUiThread { setBusy(false) }
-            }
-        }
-    }
-
-    private fun reconnectSavedSession() {
-        setBusy(true)
-        setStatus("Loading saved linked-device credentials…")
-
-        worker.execute {
-            try {
-                disconnectCurrentInternal()
-
-                val options = loadLatestOptions()
-                    ?: error("No saved Cobalt session was found.")
-
-                val registered = options.javaClass
-                    .getMethod("registered")
-                    .invoke(options) as Optional<*>
-
-                val client = registered.orElse(null)
-                    ?: error("The saved session has not completed WhatsApp pairing yet.")
-
-                attachSessionListeners(client)
-                currentClient = client
-
-                runOnUiThread {
-                    disconnectButton.isEnabled = true
-                    setStatus("Reconnecting saved WhatsApp session…")
-                }
-
-                invokeLinkedClient(client, "connect")
-            } catch (error: Throwable) {
-                reportError("Reconnecting saved session", error)
+                reportError("Linking WhatsApp", error)
             } finally {
                 runOnUiThread { setBusy(false) }
             }
@@ -412,37 +353,21 @@ class MainActivity : Activity() {
             true,
             classLoader
         )
-        val loggedInListener = Proxy.newProxyInstance(
+        val loggedInListener = java.lang.reflect.Proxy.newProxyInstance(
             loggedInClass.classLoader,
             arrayOf(loggedInClass)
         ) { proxy, method, args ->
             when (method.name) {
                 "onLoggedIn" -> {
                     runOnUiThread {
-                        pairingCodeText.text = "LINKED"
-                        copyButton.isEnabled = false
-                        disconnectButton.isEnabled = true
-                        setChatEnabled(true)
-
-                        if (temporaryMode) {
-                            hasSavedSession = false
-                            reconnectButton.isEnabled = false
-                            if (liveHarnessMode) {
-                                setStatus("LIVE TEST LINKED. Send one WhatsApp message to this burner account now.")
-                                Log.i(tag, "LIVE_TEST_LINKED")
-                            } else {
-                                setStatus("Temporary link succeeded. Session is RAM-only and will not be saved.")
-                                scheduleTemporaryDisconnect()
-                            }
-                        } else {
-                            hasSavedSession = true
-                            reconnectButton.isEnabled = true
-                            setStatus("Linked successfully. Credentials are stored locally on this phone.")
-                        }
+                        hasSavedSession = true
+                        showWorkspace()
+                        setStatus("WhatsApp connected. Your chats are ready.")
+                        refreshChats()
                     }
                     null
                 }
-                "toString" -> "AndroidLoggedInListener"
+                "toString" -> "CobaltLoggedInListener"
                 "hashCode" -> System.identityHashCode(proxy)
                 "equals" -> proxy === args?.firstOrNull()
                 else -> null
@@ -454,44 +379,21 @@ class MainActivity : Activity() {
             true,
             classLoader
         )
-        val newMessageListener = Proxy.newProxyInstance(
+        val newMessageListener = java.lang.reflect.Proxy.newProxyInstance(
             newMessageClass.classLoader,
             arrayOf(newMessageClass)
         ) { proxy, method, args ->
             when (method.name) {
                 "onNewMessage" -> {
                     val info = args?.getOrNull(1)
-                    val rendered = renderMessage(info)
+                    val jid = info?.let { messageChatJid(it) }
                     runOnUiThread {
-                        appendEvent("RECEIVED  $rendered")
-                    }
-
-                    if (liveHarnessMode && info != null && !isFromMe(info) && liveReplySent.compareAndSet(false, true)) {
-                        Thread {
-                            try {
-                                sendLiveHarnessReply(client, info)
-                                Log.i(tag, "LIVE_TEST_REPLY_SENT")
-                                Thread.sleep(1500)
-                                disconnectCurrentInternal()
-                                temporaryMode = false
-                                liveHarnessMode = false
-                                runOnUiThread {
-                                    pairingCodeText.text = "LIVE TEST PASSED"
-                                    copyButton.isEnabled = false
-                                    disconnectButton.isEnabled = false
-                                    setChatEnabled(false)
-                                    setStatus("Live burner-account receive/reply test passed. RAM-only session disconnected.")
-                                }
-                                Log.i(tag, "LIVE_TEST_DONE")
-                            } catch (error: Throwable) {
-                                Log.e(tag, "LIVE_TEST_REPLY_FAILED", error)
-                                reportError("Live test reply", error)
-                            }
-                        }.start()
+                        if (jid != null && jid == selectedChatJid) refreshConversation()
+                        refreshChats()
                     }
                     null
                 }
-                "toString" -> "AndroidNewMessageListener"
+                "toString" -> "CobaltNewMessageListener"
                 "hashCode" -> System.identityHashCode(proxy)
                 "equals" -> proxy === args?.firstOrNull()
                 else -> null
@@ -503,234 +405,310 @@ class MainActivity : Activity() {
             true,
             classLoader
         )
-        whatsappClientClass
-            .getMethod("addLoggedInListener", loggedInClass)
+        whatsappClientClass.getMethod("addLoggedInListener", loggedInClass)
             .invoke(client, loggedInListener)
-        whatsappClientClass
-            .getMethod("addNewMessageListener", newMessageClass)
+        whatsappClientClass.getMethod("addNewMessageListener", newMessageClass)
             .invoke(client, newMessageListener)
     }
 
     private fun verifyMessageSurface() {
-        val jidClass = Class.forName(
-            "com.github.auties00.cobalt.wire.core.jid.Jid",
-            true,
-            classLoader
-        )
-        val jidProviderClass = Class.forName(
-            "com.github.auties00.cobalt.wire.core.jid.JidProvider",
-            true,
-            classLoader
-        )
-        val containerClass = Class.forName(
-            "com.github.auties00.cobalt.wire.linked.message.LinkedMessageContainer",
-            true,
-            classLoader
-        )
-        val newMessageClass = Class.forName(
-            "com.github.auties00.cobalt.listener.NewMessageListener",
-            true,
-            classLoader
-        )
-        val whatsappClientClass = Class.forName(
-            "com.github.auties00.cobalt.client.WhatsAppClient",
-            true,
-            classLoader
-        )
-
+        val jidClass = Class.forName("com.github.auties00.cobalt.wire.core.jid.Jid", true, classLoader)
+        val jidProviderClass = Class.forName("com.github.auties00.cobalt.wire.core.jid.JidProvider", true, classLoader)
+        val containerClass = Class.forName("com.github.auties00.cobalt.wire.linked.message.LinkedMessageContainer", true, classLoader)
+        val newMessageClass = Class.forName("com.github.auties00.cobalt.listener.NewMessageListener", true, classLoader)
+        val whatsappClientClass = Class.forName("com.github.auties00.cobalt.client.WhatsAppClient", true, classLoader)
         jidClass.getMethod("of", String::class.java)
         containerClass.getMethod("of", String::class.java)
         whatsappClientClass.getMethod("sendMessage", jidProviderClass, containerClass)
         whatsappClientClass.getMethod("addNewMessageListener", newMessageClass)
-        Log.i(tag, "Cobalt send/receive reflection surface verified.")
+        Log.i(tag, "Cobalt linked-device messaging surface is ready.")
     }
 
-    private fun sendTestMessage() {
-        val client = currentClient
-        if (client == null) {
-            setStatus("Link or reconnect WhatsApp before sending.")
-            return
-        }
-
-        val digits = destinationInput.text.toString().filter(Char::isDigit)
-        val body = messageInput.text.toString().trim()
-        if (digits.length !in 8..15) {
-            setStatus("Enter the recipient's full international number with country code.")
-            return
-        }
-        if (body.isBlank()) {
-            setStatus("Enter a message to send.")
-            return
-        }
-
-        sendButton.isEnabled = false
-        setStatus("Sending test message…")
-
+    private fun refreshChats() {
+        val client = currentClient ?: return
         worker.execute {
             try {
-                val jidClass = Class.forName(
-                    "com.github.auties00.cobalt.wire.core.jid.Jid",
-                    true,
-                    classLoader
-                )
-                val jidProviderClass = Class.forName(
-                    "com.github.auties00.cobalt.wire.core.jid.JidProvider",
-                    true,
-                    classLoader
-                )
-                val containerClass = Class.forName(
-                    "com.github.auties00.cobalt.wire.linked.message.LinkedMessageContainer",
-                    true,
-                    classLoader
-                )
-                val whatsappClientClass = Class.forName(
-                    "com.github.auties00.cobalt.client.WhatsAppClient",
-                    true,
-                    classLoader
-                )
-
-                val recipient = jidClass
-                    .getMethod("of", String::class.java)
-                    .invoke(null, digits)
-                val container = containerClass
-                    .getMethod("of", String::class.java)
-                    .invoke(null, body)
-                val key = whatsappClientClass
-                    .getMethod("sendMessage", jidProviderClass, containerClass)
-                    .invoke(client, recipient, container)
+                val store = client.javaClass.getMethod("store").invoke(client)
+                val chatStore = store.javaClass.getMethod("chatStore").invoke(store)
+                val chats = chatStore.javaClass.getMethod("chats").invoke(chatStore) as? Collection<*>
+                    ?: emptyList<Any>()
+                val models = chats.filterNotNull().mapNotNull { chat ->
+                    val jid = chatJid(chat) ?: return@mapNotNull null
+                    Triple(chat, jid, chatLabel(chat, jid))
+                }.sortedByDescending { chatTimestamp(it.first) }
 
                 runOnUiThread {
-                    appendEvent("SENT  $digits: $body")
-                    messageInput.text.clear()
-                    sendButton.isEnabled = true
-                    setStatus("Message handed to Cobalt successfully. Key: ${key ?: "created"}")
+                    chatListContainer.removeAllViews()
+                    if (models.isEmpty()) {
+                        chatListContainer.addView(TextView(this).apply {
+                            text = "Your WhatsApp chats will appear here after history sync or when a message arrives."
+                            textSize = 15f
+                            setTextColor(Color.rgb(84, 96, 105))
+                            setPadding(dp(12), dp(18), dp(12), dp(18))
+                        })
+                    } else {
+                        models.forEach { (chat, jid, label) ->
+                            val preview = chatPreview(chat)
+                            val item = LinearLayout(this).apply {
+                                orientation = LinearLayout.VERTICAL
+                                setPadding(dp(14), dp(12), dp(14), dp(12))
+                                setBackgroundColor(Color.WHITE)
+                                setOnClickListener { openConversation(jid, label) }
+                            }
+                            item.addView(TextView(this).apply {
+                                text = label
+                                textSize = 17f
+                                setTypeface(typeface, Typeface.BOLD)
+                                setTextColor(Color.rgb(26, 39, 47))
+                            })
+                            item.addView(TextView(this).apply {
+                                text = preview
+                                textSize = 14f
+                                setTextColor(Color.rgb(93, 104, 112))
+                                maxLines = 2
+                            })
+                            val lp = matchWrap()
+                            lp.bottomMargin = dp(6)
+                            chatListContainer.addView(item, lp)
+                        }
+                    }
                 }
             } catch (error: Throwable) {
-                runOnUiThread { sendButton.isEnabled = true }
-                reportError("Sending test message", error)
+                Log.w(tag, "Could not load saved chats", error)
             }
+        }
+    }
+
+    private fun chatJid(chat: Any): String? {
+        val value = firstValue(chat, "jid", "toJid")
+        return value?.toString()?.takeIf { it.isNotBlank() }
+    }
+
+    private fun chatLabel(chat: Any, jid: String): String {
+        return firstValue(chat, "displayName", "name", "subject")?.toString()
+            ?.takeIf { it.isNotBlank() } ?: jid
+    }
+
+    private fun chatTimestamp(chat: Any): Long {
+        val value = firstValue(chat, "lastMsgTimestamp", "conversationTimestamp", "timestamp")
+        return when (value) {
+            is java.time.Instant -> value.toEpochMilli()
+            is Number -> value.toLong()
+            else -> 0L
+        }
+    }
+
+    private fun chatPreview(chat: Any): String {
+        val newest = firstValue(chat, "newestMessage")
+        return if (newest != null) renderMessage(newest) else "Open conversation"
+    }
+
+    private fun openConversation(jid: String, label: String) {
+        selectedChatJid = jid
+        selectedChatLabel = label
+        conversationTitle.text = label
+        chatListScreen.visibility = View.GONE
+        conversationScreen.visibility = View.VISIBLE
+        messageInput.isEnabled = true
+        sendButton.isEnabled = true
+        refreshConversation()
+    }
+
+    private fun showChatList() {
+        selectedChatJid = null
+        conversationScreen.visibility = View.GONE
+        chatListScreen.visibility = View.VISIBLE
+        refreshChats()
+    }
+
+    private fun refreshConversation() {
+        val jid = selectedChatJid ?: return
+        val client = currentClient ?: return
+        worker.execute {
+            try {
+                val store = client.javaClass.getMethod("store").invoke(client)
+                val chatStore = store.javaClass.getMethod("chatStore").invoke(store)
+                val jidClass = Class.forName("com.github.auties00.cobalt.wire.core.jid.Jid", true, classLoader)
+                val provider = jidClass.getMethod("of", String::class.java).invoke(null, jid)
+                val chat = chatStore.javaClass.getMethod(
+                    "findChatByJid",
+                    Class.forName("com.github.auties00.cobalt.wire.core.jid.JidProvider", true, classLoader)
+                ).invoke(chatStore, provider) as Optional<*>
+                val model = chat.orElse(null)
+                val messages = model?.let { firstValue(it, "messages") as? Collection<*> }.orEmpty()
+                val sorted = messages.filterNotNull().sortedBy { messageTimestamp(it) }
+                runOnUiThread {
+                    if (selectedChatJid != jid) return@runOnUiThread
+                    messageFeed.removeAllViews()
+                    if (sorted.isEmpty()) {
+                        messageFeed.addView(TextView(this).apply {
+                            text = "No messages loaded for this chat yet. Send a message to start here."
+                            textSize = 14f
+                            setTextColor(Color.rgb(88, 100, 108))
+                            setPadding(dp(10), dp(12), dp(10), dp(12))
+                        })
+                    } else {
+                        sorted.forEach { info ->
+                            val row = LinearLayout(this).apply {
+                                orientation = LinearLayout.HORIZONTAL
+                                gravity = if (isFromMe(info)) Gravity.END else Gravity.START
+                                setPadding(dp(4), dp(3), dp(4), dp(3))
+                            }
+                            val bubble = TextView(this).apply {
+                                text = renderMessage(info)
+                                textSize = 15f
+                                setTextColor(Color.rgb(26, 39, 47))
+                                setPadding(dp(12), dp(8), dp(12), dp(8))
+                                setBackgroundColor(if (isFromMe(info)) Color.rgb(214, 242, 223) else Color.WHITE)
+                            }
+                            row.addView(bubble, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.88f))
+                            messageFeed.addView(row, matchWrap())
+                        }
+                    }
+                }
+            } catch (error: Throwable) {
+                Log.w(tag, "Could not load conversation", error)
+                runOnUiThread { setStatus("Could not load this conversation: ${error.message ?: "unknown error"}") }
+            }
+        }
+    }
+
+    private fun promptNewChat() {
+        val input = EditText(this).apply {
+            hint = "International phone number"
+            inputType = InputType.TYPE_CLASS_PHONE
+            setSingleLine(true)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("New chat")
+            .setMessage("Enter a WhatsApp number with country code.")
+            .setView(input)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Open") { _, _ ->
+                val digits = input.text.toString().filter(Char::isDigit)
+                if (digits.length !in 8..15) {
+                    setStatus("Enter a valid international phone number.")
+                    return@setPositiveButton
+                }
+                val jid = try {
+                    val jidClass = Class.forName("com.github.auties00.cobalt.wire.core.jid.Jid", true, classLoader)
+                    jidClass.getMethod("of", String::class.java).invoke(null, digits).toString()
+                } catch (error: Throwable) {
+                    reportError("Opening chat", error)
+                    return@setPositiveButton
+                }
+                openConversation(jid, digits)
+            }
+            .show()
+    }
+
+    private fun sendMessage() {
+        val client = currentClient
+        val jidValue = selectedChatJid
+        val body = messageInput.text.toString().trim()
+        if (client == null || jidValue.isNullOrBlank()) {
+            setStatus("Open a chat before sending.")
+            return
+        }
+        if (body.isBlank()) return
+
+        sendButton.isEnabled = false
+        worker.execute {
+            try {
+                val jidClass = Class.forName("com.github.auties00.cobalt.wire.core.jid.Jid", true, classLoader)
+                val jidProviderClass = Class.forName("com.github.auties00.cobalt.wire.core.jid.JidProvider", true, classLoader)
+                val containerClass = Class.forName("com.github.auties00.cobalt.wire.linked.message.LinkedMessageContainer", true, classLoader)
+                val whatsappClientClass = Class.forName("com.github.auties00.cobalt.client.WhatsAppClient", true, classLoader)
+                val recipient = jidClass.getMethod("of", String::class.java).invoke(null, jidValue)
+                val container = containerClass.getMethod("of", String::class.java).invoke(null, body)
+                whatsappClientClass.getMethod("sendMessage", jidProviderClass, containerClass)
+                    .invoke(client, recipient, container)
+                runOnUiThread {
+                    messageInput.text.clear()
+                    sendButton.isEnabled = true
+                    refreshConversation()
+                    refreshChats()
+                    setStatus("Message sent.")
+                }
+            } catch (error: Throwable) {
+                runOnUiThread {
+                    sendButton.isEnabled = true
+                    setStatus("Message could not be sent: ${error.message ?: "unknown error"}")
+                }
+            }
+        }
+    }
+
+    private fun messageChatJid(info: Any): String? {
+        val key = firstValue(info, "key") ?: return null
+        return firstValue(key, "parentJid", "senderJid")?.toString()
+    }
+
+    private fun messageTimestamp(info: Any): Long {
+        val value = firstValue(info, "timestamp")
+        return when (value) {
+            is Optional<*> -> (value.orElse(null) as? java.time.Instant)?.toEpochMilli() ?: 0L
+            is java.time.Instant -> value.toEpochMilli()
+            is Number -> value.toLong()
+            else -> 0L
         }
     }
 
     private fun isFromMe(info: Any): Boolean {
-        return try {
-            val key = info.javaClass.getMethod("key").invoke(info)
-            key.javaClass.getMethod("fromMe").invoke(key) as? Boolean ?: false
-        } catch (_: Throwable) {
-            false
-        }
+        val key = firstValue(info, "key") ?: return false
+        return firstValue(key, "fromMe") as? Boolean ?: false
     }
 
-    private fun sendLiveHarnessReply(client: Any, info: Any) {
-        val key = info.javaClass.getMethod("key").invoke(info)
-        val parentOptional = key.javaClass.getMethod("parentJid").invoke(key) as Optional<*>
-        val senderOptional = key.javaClass.getMethod("senderJid").invoke(key) as Optional<*>
-        val recipient = parentOptional.orElse(null) ?: senderOptional.orElse(null)
-            ?: error("Inbound message has no replyable chat JID")
-
-        val reply = liveAutoReplyText
-            ?.takeIf { it.isNotBlank() }
-            ?: "Got your message — Cobalt Android receive/reply test passed."
-
-        val jidProviderClass = Class.forName(
-            "com.github.auties00.cobalt.wire.core.jid.JidProvider",
-            true,
-            classLoader
-        )
-        val containerClass = Class.forName(
-            "com.github.auties00.cobalt.wire.linked.message.LinkedMessageContainer",
-            true,
-            classLoader
-        )
-        val whatsappClientClass = Class.forName(
-            "com.github.auties00.cobalt.client.WhatsAppClient",
-            true,
-            classLoader
-        )
-
-        val container = containerClass
-            .getMethod("of", String::class.java)
-            .invoke(null, reply)
-
-        whatsappClientClass
-            .getMethod("sendMessage", jidProviderClass, containerClass)
-            .invoke(client, recipient, container)
-
-        runOnUiThread {
-            appendEvent("SENT  automatic live-test reply")
-            setStatus("Inbound message received; reply sent. Disconnecting RAM-only session…")
-        }
-    }
-
-    private fun renderMessage(info: Any?): String {
-        if (info == null) {
-            return "[message payload unavailable]"
-        }
-
+    private fun renderMessage(info: Any): String {
         return try {
-            val key = info.javaClass.getMethod("key").invoke(info)
-            val senderOptional = key.javaClass.getMethod("senderJid").invoke(key) as Optional<*>
-            val sender = senderOptional.orElse(null)?.toString() ?: "unknown"
-            val fromMe = key.javaClass.getMethod("fromMe").invoke(key) as? Boolean ?: false
-
-            val container = info.javaClass.getMethod("message").invoke(info)
-            val content = container.javaClass.getMethod("content").invoke(container)
-            val textMethod = content.javaClass.methods.firstOrNull {
-                it.name == "text" && it.parameterCount == 0
-            }
-            val textValue = textMethod?.invoke(content)
-            val text = when (textValue) {
+            val container = firstValue(info, "message") ?: return "[message unavailable]"
+            val content = firstValue(container, "content") ?: return "[message]"
+            val textValue = firstValue(content, "text")
+            val body = when (textValue) {
                 is Optional<*> -> textValue.orElse(null)?.toString()
                 null -> null
                 else -> textValue.toString()
+            }?.takeIf { it.isNotBlank() } ?: "[${content.javaClass.simpleName}]"
+            body
+        } catch (_: Throwable) {
+            "[message]"
+        }
+    }
+
+    private fun firstValue(target: Any, vararg methods: String): Any? {
+        methods.forEach { name ->
+            try {
+                val result = target.javaClass.methods.firstOrNull {
+                    it.name == name && it.parameterCount == 0
+                }?.invoke(target) ?: return@forEach
+                return if (result is Optional<*>) result.orElse(null) else result
+            } catch (_: Throwable) {
+                // Try the next public accessor name.
             }
-            val body = text?.takeIf { it.isNotBlank() } ?: "[${content.javaClass.simpleName}]"
-            "${if (fromMe) "me" else sender}: $body"
-        } catch (error: Throwable) {
-            Log.w(tag, "Could not render incoming message", error)
-            "[${info.javaClass.simpleName}]"
         }
+        return null
     }
 
-    private fun appendEvent(value: String) {
-        val previous = incomingText.text?.toString().orEmpty()
-        incomingText.text = if (previous == "Incoming messages will appear here after linking." || previous.isBlank()) {
-            value
-        } else {
-            "$value\n$previous"
-        }
-        Log.i(tag, value)
+    private fun showPairing() {
+        connectionPanel.visibility = View.VISIBLE
+        chatListScreen.visibility = View.GONE
+        conversationScreen.visibility = View.GONE
     }
 
-    private fun setChatEnabled(enabled: Boolean) {
-        destinationInput.isEnabled = enabled
-        messageInput.isEnabled = enabled
-        sendButton.isEnabled = enabled
+    private fun showWorkspace() {
+        connectionPanel.visibility = View.GONE
+        conversationScreen.visibility = View.GONE
+        chatListScreen.visibility = View.VISIBLE
+        refreshChats()
     }
 
-    private fun createTemporaryOptions(): Any {
-        val clientClass = Class.forName(
-            "com.github.auties00.cobalt.client.WhatsAppClient",
-            true,
-            classLoader
-        )
-        val builder = clientClass.getMethod("builder").invoke(null)
-        val linked = builder.javaClass.getMethod("linkedApi").invoke(builder)
-
-        val factoryClass = Class.forName(
-            "com.github.auties00.cobalt.store.linked.LinkedWhatsAppStoreFactory",
-            true,
-            classLoader
-        )
-        val temporaryFactory = factoryClass
-            .getMethod("temporary")
-            .invoke(null)
-
-        val web = linked.javaClass
-            .getMethod("webClient", factoryClass)
-            .invoke(linked, temporaryFactory)
-
-        return web.javaClass.getMethod("createConnection").invoke(web)
+    private fun showPairingCode(raw: String) {
+        val code = raw.trim()
+        pairingCodeText.text = code.chunked(4).joinToString(" ")
+        pairingCodeText.visibility = View.VISIBLE
+        copyButton.visibility = View.VISIBLE
+        copyButton.isEnabled = code.isNotBlank()
+        setStatus("Pairing code ready. Approve it in WhatsApp → Linked devices → Link with phone number.")
     }
 
     private fun createFreshOptions(): Any {
@@ -740,42 +718,22 @@ class MainActivity : Activity() {
 
     private fun loadLatestOptions(): Any? {
         val web = createPersistentWebBuilder()
-        val result = web.javaClass
-            .getMethod("loadLatestConnection")
-            .invoke(web) as Optional<*>
+        val result = web.javaClass.getMethod("loadLatestConnection").invoke(web) as Optional<*>
         return result.orElse(null)
     }
 
     private fun createPersistentWebBuilder(): Any {
-        val clientClass = Class.forName(
-            "com.github.auties00.cobalt.client.WhatsAppClient",
-            true,
-            classLoader
-        )
+        val clientClass = Class.forName("com.github.auties00.cobalt.client.WhatsAppClient", true, classLoader)
         val builder = clientClass.getMethod("builder").invoke(null)
         val linked = builder.javaClass.getMethod("linkedApi").invoke(builder)
-
-        val factoryClass = Class.forName(
-            "com.github.auties00.cobalt.store.linked.LinkedWhatsAppStoreFactory",
-            true,
-            classLoader
-        )
+        val factoryClass = Class.forName("com.github.auties00.cobalt.store.linked.LinkedWhatsAppStoreFactory", true, classLoader)
         val storeDir: Path = filesDir.toPath().resolve("cobalt-client")
-        val persistentFactory = factoryClass
-            .getMethod("persistent", Path::class.java)
-            .invoke(null, storeDir)
-
-        return linked.javaClass
-            .getMethod("webClient", factoryClass)
-            .invoke(linked, persistentFactory)
+        val factory = factoryClass.getMethod("persistent", Path::class.java).invoke(null, storeDir)
+        return linked.javaClass.getMethod("webClient", factoryClass).invoke(linked, factory)
     }
 
     private fun invokeLinkedClient(client: Any, method: String): Any? {
-        val linkedClientClass = Class.forName(
-            "com.github.auties00.cobalt.client.linked.LinkedWhatsAppClient",
-            true,
-            classLoader
-        )
+        val linkedClientClass = Class.forName("com.github.auties00.cobalt.client.linked.LinkedWhatsAppClient", true, classLoader)
         return linkedClientClass.getMethod(method).invoke(client)
     }
 
@@ -784,9 +742,9 @@ class MainActivity : Activity() {
             try {
                 disconnectCurrentInternal()
                 runOnUiThread {
-                    disconnectButton.isEnabled = false
-                    setChatEnabled(false)
-                    setStatus("Disconnected. Your linked credentials remain stored locally.")
+                    currentClient = null
+                    showPairing()
+                    setStatus("Disconnected. Your linked session remains saved on this phone.")
                 }
             } catch (error: Throwable) {
                 reportError("Disconnecting", error)
@@ -803,57 +761,13 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun showPairingCode(raw: String) {
-        val code = raw.trim()
-        pairingCodeText.text = code.chunked(4).joinToString(" ")
-        copyButton.isEnabled = code.isNotBlank()
-        if (code.isNotBlank()) {
-            Log.i(tag, "PAIRING_CODE_READY:$code")
-        }
-        setStatus("Pairing code ready. In WhatsApp open Linked devices → Link a device → Link with phone number, then enter this code.")
-    }
-
-    private fun scheduleTemporaryDisconnect() {
-        Thread {
-            try {
-                repeat(10) { elapsed ->
-                    Thread.sleep(1_000)
-                    val remaining = 9 - elapsed
-                    runOnUiThread {
-                        if (temporaryMode && currentClient != null) {
-                            setStatus("Temporary link succeeded. Disconnecting in ${remaining.coerceAtLeast(0)} seconds…")
-                        }
-                    }
-                }
-
-                if (temporaryMode) {
-                    disconnectCurrentInternal()
-                    temporaryMode = false
-                    runOnUiThread {
-                        pairingCodeText.text = "TEMP TEST PASSED"
-                        copyButton.isEnabled = false
-                        disconnectButton.isEnabled = false
-                        setChatEnabled(false)
-                        setStatus("10-second temporary WhatsApp link test passed and disconnected. No session was saved.")
-                    }
-                }
-            } catch (error: Throwable) {
-                reportError("Temporary disconnect", error)
-            }
-        }.start()
-    }
-
     private fun setBusy(value: Boolean) {
         linkButton.isEnabled = !value
-        temporaryLinkButton.isEnabled = !value
-        liveBurnerButton.isEnabled = !value
-        reconnectButton.isEnabled = !value && hasSavedSession
         phoneInput.isEnabled = !value
     }
 
     private fun setStatus(value: String) {
         statusText.text = value
-        Log.i(tag, value)
     }
 
     private fun reportError(stage: String, error: Throwable) {
@@ -861,11 +775,27 @@ class MainActivity : Activity() {
         Log.e(tag, "$stage failed", error)
         runOnUiThread {
             setBusy(false)
+            showPairing()
             setStatus("$stage failed: ${root::class.java.simpleName}: ${root.message ?: "no message"}")
         }
     }
 
+    private fun onConnected() {
+        hasSavedSession = true
+        runOnUiThread {
+            pairingCodeText.visibility = View.GONE
+            copyButton.visibility = View.GONE
+            showWorkspace()
+            setStatus("WhatsApp connected. Your chats are ready.")
+        }
+    }
+
     override fun onDestroy() {
+        try {
+            disconnectCurrentInternal()
+        } catch (error: Throwable) {
+            Log.w(tag, "Disconnect during close failed", error)
+        }
         worker.shutdownNow()
         super.onDestroy()
     }
