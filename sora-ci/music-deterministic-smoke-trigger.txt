@@ -1,1 +1,1 @@
-run current sora-media-ci head - verify Music catalog and playback runtime
+rerun current head - verify Music after Games compile fix

@@ -1,1 +1,1 @@
-run 35 - guard exact source resume after hub tab navigation changes
+rerun 36 - validate Anime Manga source resume after Games compile fix
