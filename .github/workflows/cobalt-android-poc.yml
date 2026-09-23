@@ -210,6 +210,7 @@ jobs:
             adb logcat -c
             adb shell am start -W -n com.tomex.cobaltandroid/.MainActivity
             sleep 8
+            adb exec-out screencap -p > cobalt-android-poc/emulator-screen.png
 
             # Capture the app's visible probe result first. Some API 36 emulator
             # runs occasionally make `adb logcat -d` exit 255 even though the
@@ -277,5 +278,6 @@ jobs:
             cobalt-android-poc/runtime-log.txt
             cobalt-android-poc/window.xml
             cobalt-android-poc/full-logcat.txt
+            cobalt-android-poc/emulator-screen.png
             cobalt-android-poc/logger-bytecode-report.txt
             cobalt-runtime/**/*.apk
