@@ -10,6 +10,9 @@ data class StartupInfo(
     val startCommand: String = "node index.js",
     val projectRoot: String = "",
     val service: String = "",
+    val gitRepository: String = "",
+    val gitBranch: String = "",
+    val additionalNodePackages: List<String> = emptyList(),
 )
 
 data class ActivityEntry(

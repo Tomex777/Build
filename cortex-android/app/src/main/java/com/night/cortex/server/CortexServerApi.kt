@@ -127,6 +127,9 @@ class CortexServerApi(
             startCommand = json.optString("startCommand", "node index.js"),
             projectRoot = json.optString("projectRoot"),
             service = json.optString("service"),
+            gitRepository = json.optString("gitRepository"),
+            gitBranch = json.optString("gitBranch"),
+            additionalNodePackages = json.optJSONArray("additionalNodePackages").strings(),
         )
     }
 

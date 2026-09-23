@@ -771,12 +771,31 @@ private fun StartupPage(state: ServerPanelState, installDependencies: () -> Unit
         item { SettingBlock("Runtime", startup?.let { "${it.runtime} ${it.version}" } ?: "Not reported") }
         item { SettingBlock("Startup Command", startup?.startCommand ?: "Not reported", mono = true) }
         item { SettingBlock("Bot js file", startup?.entryFile ?: "Not reported", mono = true) }
+        if (startup != null) {
+            item { SettingBlock("Git Repo Address", startup.gitRepository.ifBlank { "Not configured" }, mono = true) }
+            item { SettingBlock("Install Branch", startup.gitBranch.ifBlank { "Not configured" }, mono = true) }
+        }
         item {
             Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
                 Column(Modifier.fillMaxWidth().padding(14.dp)) {
                     Text("Additional Node packages", color = CortexMuted, fontSize = 10.sp)
                     Spacer(Modifier.height(7.dp))
-                    Text("Dependencies are installed on the server from package.json. node_modules is never synced to your phone.", fontSize = 11.sp)
+                    if (startup?.additionalNodePackages.isNullOrEmpty()) {
+                        Text("No runtime packages reported.", fontSize = 11.sp)
+                    } else {
+                        Text(
+                            startup!!.additionalNodePackages.joinToString("  "),
+                            fontSize = 10.sp,
+                            lineHeight = 15.sp,
+                            fontFamily = FontFamily.Monospace,
+                        )
+                    }
+                    Spacer(Modifier.height(7.dp))
+                    Text(
+                        "node_modules stays on the server and is never copied to your phone or normal project ZIP.",
+                        color = CortexMuted,
+                        fontSize = 9.sp,
+                    )
                     Spacer(Modifier.height(10.dp))
                     Button(onClick = installDependencies, shape = RoundedCornerShape(4.dp)) {
                         Text("Install dependencies")
