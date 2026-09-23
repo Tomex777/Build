@@ -32,7 +32,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p diagnostics
-          cat > /tmp/animeonsen-probe.mjs <<'NODE'
+          cat > animeonsen-probe.mjs <<'NODE'
           import { chromium } from 'playwright';
           import { spawnSync } from 'node:child_process';
           import fs from 'node:fs';
@@ -270,7 +270,7 @@ jobs:
           await browser.close();
           NODE
 
-          node /tmp/animeonsen-probe.mjs
+          node animeonsen-probe.mjs
 
       - name: Commit result
         if: always()
