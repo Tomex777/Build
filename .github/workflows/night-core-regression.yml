@@ -241,13 +241,7 @@ jobs:
           emulator-boot-timeout: 420
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -accel on -wipe-data
-          script: |
-            extension_apk="$(find night-animepahe-extension-apk -type f -name '*.apk' -print -quit)"
-            test -n "$extension_apk"
-            adb install --no-streaming -r "$extension_apk"
-            cd whatsapp-ai-android
-            chmod +x gradlew
-            ./gradlew :app:connectedDebugAndroidTest -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8" --max-workers=1 -Pandroid.testInstrumentationRunnerArguments.class=com.example.whatsapp.data.night.NightAiGatewayProviderInstrumentedTest,com.example.whatsapp.data.night.NightChatHistoryInstrumentedTest,com.example.whatsapp.data.night.NightSpeechServiceInstrumentedTest,com.example.whatsapp.data.night.NightAppearanceControllerInstrumentedTest,com.example.whatsapp.data.night.NightLibraryIntegrationInstrumentedTest,com.example.whatsapp.data.night.NightProviderAdminInstrumentedTest,com.example.whatsapp.extensions.tools.NightMcpHttpBridgeInstrumentedTest,com.example.whatsapp.extensions.tools.NightExtensionToolIntegrationInstrumentedTest --stacktrace
+          script: bash .github/scripts/night-provider-instrumented.sh
 
       - name: Upload provider test reports
         if: always()
