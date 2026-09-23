@@ -19,7 +19,8 @@ if ./gradlew :app:connectedDebugAndroidTest \
   exit 0
 else
   mkdir -p ../night-provider-diagnostics
-  adb logcat -d -v time -s NightExtension:I AndroidRuntime:E \
+  adb logcat -d -v time -s NightExtension:I NightAnimePahe:I AndroidRuntime:E \
     > ../night-provider-diagnostics/provider-failure-logcat.txt || true
+  cat ../night-provider-diagnostics/provider-failure-logcat.txt
   exit 1
 fi

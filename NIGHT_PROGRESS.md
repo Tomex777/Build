@@ -172,3 +172,15 @@ The verified remote branch tip was `27c0bef6dc378e771de5ef9c05d5b0e55ab61bba`; t
 - Image Editor passed its UI suite, but the screenshot artifact still needs a deliberate preview-size and export-quality review. Do not close that concern from a passing UI test alone.
 
 The focused service change now calls AnimePahe's descriptor builder explicitly and logs runtime id/tool/message counts plus serialized length. Verify through the matching APK IPC test on Actions; do not infer success from the source descriptor unit test. The video attachment gate also needs confirmation on the synthetic fixture before calling playback fixed.
+
+## 2026-09-23 validation follow-up: Integrated Regression #422
+
+Patched source was built and tested from `0bffe7b0bd23a18c0e55bd06589863240e4612f4`.
+
+- Integrated APK build passed; ARM64 APK #103 passed; AnimePahe extension regression #42 passed.
+- Provider instrumentation still received a successful Messenger reply containing `resultJson={}` (2 characters), `ok=true`, and no service error. Calling `AnimePaheNightExtensionService.buildDescriptor()` explicitly did not change the runtime response. Source unit tests and extension packaging alone therefore do not explain the issue.
+- Video instrumentation now proved the SurfaceView's `surfaceCreated` callback ran and its native surface was valid before VLC playback started. VLC opened the fixture and initialized its H.264 decoder at 640×368, but the screenshot remained black and no Vout event appeared. Surface creation timing was a real race but not the remaining rendering failure.
+- The emulator Extensions UI shard failed during ADB/emulator setup before a useful UI assertion; Extensions UI had passed on #421. Other #422 UI shards, including Providers, Integrations, Browser, Memory, and Image Editor, passed.
+- Repeated option-card instrumentation remains green. The visual card-repetition question and Image Editor preview/export-quality review remain open; the test screenshots have not been visually confirmed.
+
+Next diagnostic pass: print extension-process descriptor logs in the provider job log so the runtime descriptor count/serialized length is visible without opening the ZIP artifact. Try TextureView only on virtual Android devices while physical devices keep SurfaceView, and log the actual native-view dimensions/visibility to determine why the valid-surface SurfaceView path produces no visible frame.
