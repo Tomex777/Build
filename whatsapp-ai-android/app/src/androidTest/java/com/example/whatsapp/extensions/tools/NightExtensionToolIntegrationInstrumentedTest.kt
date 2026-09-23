@@ -1,5 +1,6 @@
 package com.example.whatsapp.extensions.tools
 
+import android.content.Intent
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.whatsapp.data.night.NightAgentToolExecutor
@@ -11,6 +12,7 @@ import com.example.whatsapp.extensions.messages.ExtensionMessageSnapshot
 import com.example.whatsapp.extensions.messages.NightExtensionMessageTypeDefinition
 import com.example.whatsapp.extensions.messages.NightExtensionMessageTypeRegistry
 import com.example.whatsapp.extensions.runtime.NightExternalExtensionManager
+import com.night.extension.sdk.NightExtensionProtocol
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -28,9 +30,20 @@ class NightExtensionToolIntegrationInstrumentedTest {
         val manager = NightExternalExtensionManager.get(context)
 
         manager.refreshInstalledExtensions()
+        val visibleServices = context.packageManager
+            .queryIntentServices(
+                Intent(NightExtensionProtocol.ACTION_EXTENSION_SERVICE),
+                0,
+            )
+            .mapNotNull { it.serviceInfo }
+            .joinToString { "${it.packageName}/${it.name}" }
         val discovered = manager.extensions.value
             .singleOrNull { it.extensionId == "animepahe" }
-            ?: error("The separately installed AnimePahe APK was not discovered.")
+            ?: error(
+                "The separately installed AnimePahe APK was not discovered. " +
+                    "Visible extension services=[$visibleServices]; " +
+                    "manager summaries=${manager.extensions.value}.",
+            )
 
         assertEquals(5, discovered.toolCount)
         assertEquals(6, discovered.messageTypeCount)

@@ -492,6 +492,14 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -accel on -wipe-data
           script: bash .github/scripts/night-video-interaction.sh
 
+      - name: Print VLC diagnostics on failure
+        if: failure()
+        run: |
+          grep -E 'NightVideo|libvlc|VLC|MediaCodec|CCodec|Codec2|BufferQueue|FATAL EXCEPTION|ANR in|Fatal signal|SIGSEGV|SIGABRT' \
+            night-video-interaction-artifacts/logcat-exit.txt \
+            night-video-interaction-artifacts/logcat-00-cold-launch-media.txt \
+            2>/dev/null || true
+
       - name: Upload integrated video evidence
         if: always()
         uses: actions/upload-artifact@v4
