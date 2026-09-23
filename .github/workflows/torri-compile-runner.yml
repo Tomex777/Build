@@ -41,6 +41,7 @@ jobs:
           cp torri-overlay/app/src/main/res/values/colors.xml torri-src/app/src/main/res/values/colors.xml
           cp torri-overlay/app/src/main/res/values/torri_strings.xml torri-src/app/src/main/res/values/torri_strings.xml
           cp -a torri-overlay/app/src/debug/res/drawable/. torri-src/app/src/debug/res/drawable/
+          mkdir -p torri-src/app/src/debug/res/values
           cp torri-overlay/app/src/debug/res/values/colors.xml torri-src/app/src/debug/res/values/colors.xml
 
           echo "Requested SDK configuration:"
