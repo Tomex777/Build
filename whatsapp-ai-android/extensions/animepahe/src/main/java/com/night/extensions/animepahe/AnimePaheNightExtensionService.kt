@@ -27,147 +27,7 @@ class AnimePaheNightExtensionService : NightExtensionService() {
 
     override fun descriptor(): JSONObject = buildDescriptor()
 
-    internal fun buildDescriptor(): JSONObject =
-        nightExtensionDescriptor(
-            extensionId = EXTENSION_ID,
-            name = EXTENSION_NAME,
-            capabilities =
-                listOf(
-                    "anime",
-                    "video_streaming",
-                    "media_library",
-                ),
-            tags =
-                listOf(
-                    "episodes",
-                    "subtitles",
-                    "streaming",
-                    "source_resolution",
-                ),
-            tools =
-                listOf(
-                    NightToolDescriptor(
-                        name = TOOL_SEARCH,
-                        description =
-                            "Search AnimePahe for anime titles and render matching anime cards.",
-                        parameters =
-                            objectParameters(
-                                "query" to stringProperty(
-                                    "Anime title to search for."
-                                )
-                            ),
-                        readOnly = true,
-                    ),
-                    NightToolDescriptor(
-                        name = TOOL_DETAILS,
-                        description =
-                            "Load AnimePahe title details and render a detailed anime card.",
-                        parameters =
-                            objectParameters(
-                                "animeSession" to stringProperty(
-                                    "AnimePahe anime session id."
-                                ),
-                                "title" to stringProperty(
-                                    "Anime title shown to the user."
-                                ),
-                            ),
-                        readOnly = true,
-                    ),
-                    NightToolDescriptor(
-                        name = TOOL_EPISODES,
-                        description =
-                            "List an anime's AnimePahe episodes for a page and render episode cards.",
-                        parameters =
-                            objectParameters(
-                                "animeSession" to stringProperty(
-                                    "AnimePahe anime session id."
-                                ),
-                                "title" to stringProperty(
-                                    "Anime title shown to the user."
-                                ),
-                                "page" to integerProperty(
-                                    "Episode result page, starting at 1."
-                                ),
-                                "offset" to nonNegativeIntegerProperty(
-                                    "Zero-based card offset within the AnimePahe page."
-                                ),
-                            ),
-                        readOnly = true,
-                    ),
-                    NightToolDescriptor(
-                        name = TOOL_RESOLVE,
-                        description =
-                            "Resolve an AnimePahe episode into a provider source card for Night core playback/download.",
-                        parameters =
-                            objectParameters(
-                                "animeSession" to stringProperty(
-                                    "AnimePahe anime session id."
-                                ),
-                                "episodeSession" to stringProperty(
-                                    "AnimePahe episode session id."
-                                ),
-                                "title" to stringProperty(
-                                    "Anime title."
-                                ),
-                                "episode" to stringProperty(
-                                    "Episode number or label."
-                                ),
-                            ),
-                        readOnly = true,
-                    ),
-                    NightToolDescriptor(
-                        name = TOOL_SETTINGS,
-                        description =
-                            "Show this extension's provider-owned settings card.",
-                        readOnly = true,
-                    ),
-                ),
-            messageTypes =
-                listOf(
-                    NightMessageTypeDescriptor(
-                        messageType = TYPE_ANIME,
-                        template = "media_card",
-                        description = "AnimePahe anime search result.",
-                        whenToUse =
-                            "Use for one AnimePahe anime title returned from search.",
-                    ),
-                    NightMessageTypeDescriptor(
-                        messageType = TYPE_DETAILS,
-                        template = "media_card",
-                        description = "Detailed AnimePahe anime card.",
-                        whenToUse =
-                            "Use after the user opens an AnimePahe search result.",
-                    ),
-                    NightMessageTypeDescriptor(
-                        messageType = TYPE_EPISODE,
-                        template = "media_card",
-                        description = "AnimePahe episode result.",
-                        whenToUse =
-                            "Use for an episode that can be resolved to a media source.",
-                    ),
-                    NightMessageTypeDescriptor(
-                        messageType = TYPE_SOURCE,
-                        template = "media_card",
-                        description = "Resolved AnimePahe provider source for Night core media handling.",
-                        whenToUse =
-                            "Use after resolving the user's chosen episode.",
-                    ),
-                    NightMessageTypeDescriptor(
-                        messageType = TYPE_SETTINGS,
-                        template = "configuration_card",
-                        description = "AnimePahe extension settings.",
-                        whenToUse =
-                            "Use when the user asks to configure this provider.",
-                    ),
-                    NightMessageTypeDescriptor(
-                        messageType = TYPE_VERIFY,
-                        template = "browser_card",
-                        description = "Manual browser verification for AnimePahe.",
-                        whenToUse =
-                            "Use only when a provider request is blocked by browser verification.",
-                    ),
-                ),
-        )
+
 
     override fun executeTool(
         request: NightToolRequest,
@@ -1468,6 +1328,200 @@ class AnimePaheNightExtensionService : NightExtensionService() {
             .put("description", description)
 
     companion object {
+        private fun objectParameters(
+            vararg properties: Pair<String, JSONObject>,
+        ): JSONObject =
+            JSONObject()
+                .put("type", "object")
+                .put(
+                    "properties",
+                    JSONObject().apply {
+                        properties.forEach {
+                                (name, schema),
+                            ->
+                            put(name, schema)
+                        }
+                    },
+                )
+                .put(
+                    "required",
+                    JSONArray(
+                        properties
+                            .filterNot {
+                                it.first == "page" ||
+                                    it.first == "offset" ||
+                                    it.first == "title"
+                            }
+                            .map { it.first }
+                    ),
+                )
+                .put("additionalProperties", false)
+    
+        private fun stringProperty(
+            description: String,
+        ): JSONObject =
+            JSONObject()
+                .put("type", "string")
+                .put("description", description)
+    
+        private fun integerProperty(
+            description: String,
+        ): JSONObject =
+            JSONObject()
+                .put("type", "integer")
+                .put("minimum", 1)
+                .put("description", description)
+    
+        private fun nonNegativeIntegerProperty(
+            description: String,
+        ): JSONObject =
+            JSONObject()
+                .put("type", "integer")
+                .put("minimum", 0)
+                .put("description", description)
+
+        internal fun buildDescriptor(): JSONObject =
+            nightExtensionDescriptor(
+                extensionId = EXTENSION_ID,
+                name = EXTENSION_NAME,
+                capabilities =
+                    listOf(
+                        "anime",
+                        "video_streaming",
+                        "media_library",
+                    ),
+                tags =
+                    listOf(
+                        "episodes",
+                        "subtitles",
+                        "streaming",
+                        "source_resolution",
+                    ),
+                tools =
+                    listOf(
+                        NightToolDescriptor(
+                            name = TOOL_SEARCH,
+                            description =
+                                "Search AnimePahe for anime titles and render matching anime cards.",
+                            parameters =
+                                objectParameters(
+                                    "query" to stringProperty(
+                                        "Anime title to search for."
+                                    )
+                                ),
+                            readOnly = true,
+                        ),
+                        NightToolDescriptor(
+                            name = TOOL_DETAILS,
+                            description =
+                                "Load AnimePahe title details and render a detailed anime card.",
+                            parameters =
+                                objectParameters(
+                                    "animeSession" to stringProperty(
+                                        "AnimePahe anime session id."
+                                    ),
+                                    "title" to stringProperty(
+                                        "Anime title shown to the user."
+                                    ),
+                                ),
+                            readOnly = true,
+                        ),
+                        NightToolDescriptor(
+                            name = TOOL_EPISODES,
+                            description =
+                                "List an anime's AnimePahe episodes for a page and render episode cards.",
+                            parameters =
+                                objectParameters(
+                                    "animeSession" to stringProperty(
+                                        "AnimePahe anime session id."
+                                    ),
+                                    "title" to stringProperty(
+                                        "Anime title shown to the user."
+                                    ),
+                                    "page" to integerProperty(
+                                        "Episode result page, starting at 1."
+                                    ),
+                                    "offset" to nonNegativeIntegerProperty(
+                                        "Zero-based card offset within the AnimePahe page."
+                                    ),
+                                ),
+                            readOnly = true,
+                        ),
+                        NightToolDescriptor(
+                            name = TOOL_RESOLVE,
+                            description =
+                                "Resolve an AnimePahe episode into a provider source card for Night core playback/download.",
+                            parameters =
+                                objectParameters(
+                                    "animeSession" to stringProperty(
+                                        "AnimePahe anime session id."
+                                    ),
+                                    "episodeSession" to stringProperty(
+                                        "AnimePahe episode session id."
+                                    ),
+                                    "title" to stringProperty(
+                                        "Anime title."
+                                    ),
+                                    "episode" to stringProperty(
+                                        "Episode number or label."
+                                    ),
+                                ),
+                            readOnly = true,
+                        ),
+                        NightToolDescriptor(
+                            name = TOOL_SETTINGS,
+                            description =
+                                "Show this extension's provider-owned settings card.",
+                            readOnly = true,
+                        ),
+                    ),
+                messageTypes =
+                    listOf(
+                        NightMessageTypeDescriptor(
+                            messageType = TYPE_ANIME,
+                            template = "media_card",
+                            description = "AnimePahe anime search result.",
+                            whenToUse =
+                                "Use for one AnimePahe anime title returned from search.",
+                        ),
+                        NightMessageTypeDescriptor(
+                            messageType = TYPE_DETAILS,
+                            template = "media_card",
+                            description = "Detailed AnimePahe anime card.",
+                            whenToUse =
+                                "Use after the user opens an AnimePahe search result.",
+                        ),
+                        NightMessageTypeDescriptor(
+                            messageType = TYPE_EPISODE,
+                            template = "media_card",
+                            description = "AnimePahe episode result.",
+                            whenToUse =
+                                "Use for an episode that can be resolved to a media source.",
+                        ),
+                        NightMessageTypeDescriptor(
+                            messageType = TYPE_SOURCE,
+                            template = "media_card",
+                            description = "Resolved AnimePahe provider source for Night core media handling.",
+                            whenToUse =
+                                "Use after resolving the user's chosen episode.",
+                        ),
+                        NightMessageTypeDescriptor(
+                            messageType = TYPE_SETTINGS,
+                            template = "configuration_card",
+                            description = "AnimePahe extension settings.",
+                            whenToUse =
+                                "Use when the user asks to configure this provider.",
+                        ),
+                        NightMessageTypeDescriptor(
+                            messageType = TYPE_VERIFY,
+                            template = "browser_card",
+                            description = "Manual browser verification for AnimePahe.",
+                            whenToUse =
+                                "Use only when a provider request is blocked by browser verification.",
+                        ),
+                    ),
+            )
+
         const val EXTENSION_ID = "animepahe"
         const val EXTENSION_NAME = "AnimePahe"
 

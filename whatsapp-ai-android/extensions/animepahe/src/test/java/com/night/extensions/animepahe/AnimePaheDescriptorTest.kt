@@ -9,7 +9,7 @@ import org.junit.Test
 class AnimePaheDescriptorTest {
     @Test
     fun publishedDescriptorExposesSearchToolsAndMessageTypes() {
-        val descriptor = AnimePaheNightExtensionService().buildDescriptor()
+        val descriptor = AnimePaheNightExtensionService.buildDescriptor()
 
         assertEquals("animepahe", descriptor.getString("extensionId"))
         assertEquals(5, descriptor.getJSONArray("tools").length())
