@@ -76,6 +76,9 @@ class CortexServerApi(
     fun readText(path: String): String =
         getJson("/api/cortex/host/files/content?path=${encode(path)}").optString("content")
 
+    fun downloadFile(path: String): ByteArray =
+        requestBytes("GET", "/api/cortex/host/files/raw?path=${encode(path)}")
+
     fun writeText(path: String, content: String) {
         postJson("/api/cortex/host/files/content", JSONObject().put("path", path).put("content", content))
     }
