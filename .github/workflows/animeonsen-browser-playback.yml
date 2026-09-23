@@ -169,21 +169,53 @@ jobs:
             queryKeys: [...su.searchParams.keys()].sort()
           };
 
-          // Actual Chromium playback, same AnimeOnsen page/origin.
+          // Actual MPEG-DASH playback from the AnimeOnsen origin using dash.js.
+          // Chromium does not natively understand .mpd when assigned directly to <video>.
+          const cdnResponses = [];
+          const cdnFailures = [];
+          const onResponse = async (res) => {
+            if (!res.url().includes('cdn.animeonsen.xyz/')) return;
+            const u = new URL(res.url());
+            cdnResponses.push({
+              status: res.status(),
+              resourceType: res.request().resourceType(),
+              path: u.pathname,
+              contentType: (await res.allHeaders())['content-type'] || null
+            });
+          };
+          const onFailed = (req) => {
+            if (!req.url().includes('cdn.animeonsen.xyz/')) return;
+            const u = new URL(req.url());
+            cdnFailures.push({
+              resourceType: req.resourceType(),
+              path: u.pathname,
+              failure: req.failure()?.errorText || null
+            });
+          };
+          page.on('response', onResponse);
+          page.on('requestfailed', onFailed);
+
+          await page.addScriptTag({ url: 'https://cdn.dashjs.org/latest/modern/umd/dash.all.min.js' });
+
           const playback = await page.evaluate(async (src) => {
             const metrics = {
               events: [],
+              dashEvents: [],
               samples: [],
               error: null,
               started: false,
               ended: false
             };
+
             const v = document.createElement('video');
             v.muted = true;
             v.autoplay = true;
             v.playsInline = true;
             v.preload = 'auto';
-            v.style.cssText='position:fixed;width:320px;height:180px;left:0;top:0;z-index:999999;background:black';
+            v.controls = false;
+            v.style.cssText='position:fixed;width:640px;height:360px;left:0;top:0;z-index:999999;background:black';
+            document.body.appendChild(v);
+
             const mark = (name) => metrics.events.push({
               name,
               at: performance.now(),
@@ -194,17 +226,47 @@ jobs:
             for (const e of ['loadstart','loadedmetadata','loadeddata','canplay','playing','waiting','stalled','suspend','seeking','seeked','ended','error']) {
               v.addEventListener(e, () => mark(e));
             }
-            document.body.appendChild(v);
-            v.src = src;
-            try { await v.play(); metrics.started = true; } catch(e) { metrics.error = 'play(): ' + String(e); }
+
+            const player = window.dashjs.MediaPlayer().create();
+            const de = window.dashjs.MediaPlayer.events;
+            for (const ev of [
+              de.ERROR, de.PLAYBACK_STALLED, de.PLAYBACK_WAITING,
+              de.BUFFER_EMPTY, de.BUFFER_LOADED, de.FRAGMENT_LOADING_ABANDONED,
+              de.FRAGMENT_LOADING_COMPLETED, de.MANIFEST_LOADED,
+              de.STREAM_INITIALIZED, de.QUALITY_CHANGE_RENDERED
+            ].filter(Boolean)) {
+              player.on(ev, e => {
+                const clean = { event: ev, at: performance.now() };
+                if (e?.error) clean.error = String(e.error);
+                if (e?.event?.message) clean.message = String(e.event.message);
+                if (e?.mediaType) clean.mediaType = e.mediaType;
+                if (e?.newQuality != null) clean.newQuality = e.newQuality;
+                metrics.dashEvents.push(clean);
+              });
+            }
+
+            player.updateSettings({
+              streaming: {
+                buffer: {
+                  stableBufferTime: 20,
+                  bufferTimeAtTopQuality: 20
+                }
+              }
+            });
+
+            player.initialize(v, src, true);
 
             const start = performance.now();
-            for (let i=0;i<24;i++) {
+            for (let i=0;i<30;i++) {
               await new Promise(r => setTimeout(r, 2000));
               let quality = null;
               try {
                 const q=v.getVideoPlaybackQuality?.();
-                if (q) quality={totalVideoFrames:q.totalVideoFrames,droppedVideoFrames:q.droppedVideoFrames,corruptedVideoFrames:q.corruptedVideoFrames};
+                if (q) quality={
+                  totalVideoFrames:q.totalVideoFrames,
+                  droppedVideoFrames:q.droppedVideoFrames,
+                  corruptedVideoFrames:q.corruptedVideoFrames
+                };
               } catch {}
               metrics.samples.push({
                 wallSeconds:(performance.now()-start)/1000,
@@ -222,16 +284,64 @@ jobs:
                 break;
               }
               if (v.ended) { metrics.ended=true; break; }
+              if (!metrics.started && !v.paused && v.currentTime > 0) metrics.started=true;
             }
-            metrics.duration=v.duration;
+
+            metrics.duration=Number.isFinite(v.duration) ? v.duration : null;
             metrics.finalCurrentTime=v.currentTime;
             metrics.waitingCount=metrics.events.filter(x=>x.name==='waiting').length;
             metrics.stalledCount=metrics.events.filter(x=>x.name==='stalled').length;
             metrics.seekCount=metrics.events.filter(x=>x.name==='seeking').length;
+            try {
+              metrics.dashQuality = {
+                video: player.getQualityFor('video'),
+                audio: player.getQualityFor('audio')
+              };
+            } catch {}
+            player.destroy();
             return metrics;
           }, stream);
 
+          page.off('response', onResponse);
+          page.off('requestfailed', onFailed);
+
+          const summarizeCdn = (rows) => {
+            const map = new Map();
+            for (const x of rows) {
+              const key = [x.status ?? 'FAIL', x.resourceType, x.contentType ?? '', x.path.split('/').slice(-1)[0]].join('|');
+              const old = map.get(key) || {...x, count:0};
+              old.count++;
+              map.set(key, old);
+            }
+            return [...map.values()].slice(0,100);
+          };
+
           out.chromiumPlayback = playback;
+          out.stream.cdnResponses = summarizeCdn(cdnResponses);
+          out.stream.cdnFailures = cdnFailures.slice(0,100);
+
+          // Fetch the MPD inside the real site origin to inspect offered representations.
+          const manifestSummary = await page.evaluate(async (src) => {
+            try {
+              const r=await fetch(src);
+              const text=await r.text();
+              const doc=new DOMParser().parseFromString(text,'application/xml');
+              const reps=[...doc.querySelectorAll('Representation')].map(x=>({
+                id:x.getAttribute('id'),
+                mimeType:x.getAttribute('mimeType') || x.parentElement?.getAttribute('mimeType'),
+                codecs:x.getAttribute('codecs') || x.parentElement?.getAttribute('codecs'),
+                bandwidth:x.getAttribute('bandwidth'),
+                width:x.getAttribute('width'),
+                height:x.getAttribute('height'),
+                frameRate:x.getAttribute('frameRate') || x.parentElement?.getAttribute('frameRate'),
+                audioSamplingRate:x.getAttribute('audioSamplingRate')
+              }));
+              return {status:r.status,contentType:r.headers.get('content-type'),representations:reps};
+            } catch(e) {
+              return {error:String(e)};
+            }
+          }, stream);
+          out.stream.manifestSummary = manifestSummary;
 
           // ffprobe/ffmpeg use only the temporary signed stream in-memory; URL is never saved.
           const headers = 'Referer: ' + BASE + '/\\r\\nOrigin: ' + BASE + '\\r\\n';
