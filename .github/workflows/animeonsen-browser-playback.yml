@@ -1,0 +1,283 @@
+name: AnimeOnsen browser playback
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/animeonsen-browser-playback.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install browser and media tools
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Test AnimeOnsen real playback path
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          cat > /tmp/animeonsen-probe.mjs <<'NODE'
+          import { chromium } from 'playwright';
+          import { spawnSync } from 'node:child_process';
+          import fs from 'node:fs';
+
+          const BASE = 'https://www.animeonsen.xyz';
+          const API = 'https://api.animeonsen.xyz/v4';
+          const out = {
+            page: {},
+            api: {},
+            chosen: {},
+            stream: {},
+            chromiumPlayback: {},
+            ffprobe: {},
+            ffmpegDecode: {}
+          };
+
+          const browser = await chromium.launch({
+            headless: true,
+            args: ['--autoplay-policy=no-user-gesture-required']
+          });
+          const context = await browser.newContext({
+            viewport: { width: 1280, height: 720 },
+            userAgent: 'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
+          });
+          const page = await context.newPage();
+
+          let apiHeader = null;
+          let indexResponse = null;
+
+          page.on('response', async (res) => {
+            const u = res.url();
+            if (!u.includes('api.animeonsen.xyz/v4/content/index')) return;
+            try {
+              const reqHeaders = await res.request().allHeaders();
+              const auth = reqHeaders['authorization'];
+              if (auth && !apiHeader) apiHeader = auth;
+              if (!indexResponse && res.ok()) indexResponse = await res.json();
+            } catch {}
+          });
+
+          const pageErrors = [];
+          const consoleErrors = [];
+          page.on('pageerror', e => pageErrors.push(String(e)));
+          page.on('console', msg => {
+            if (msg.type() === 'error') consoleErrors.push(msg.text());
+          });
+
+          const nav = await page.goto(BASE + '/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+          await page.waitForTimeout(12000);
+
+          out.page = {
+            status: nav?.status() ?? null,
+            title: await page.title(),
+            url: page.url(),
+            pageErrors: pageErrors.slice(-20),
+            consoleErrors: consoleErrors.slice(-30),
+            detailsLinks: await page.locator('a[href*="/details/"]').count()
+          };
+
+          if (!apiHeader || !indexResponse?.content?.length) {
+            out.api.failure = 'Browser did not obtain AnimeOnsen content API session';
+            fs.writeFileSync('diagnostics/animeonsen-browser-playback.json', JSON.stringify(out,null,2));
+            await browser.close();
+            process.exit(2);
+          }
+
+          out.api.indexCount = indexResponse.content.length;
+          out.api.indexSample = indexResponse.content.slice(0,8).map(x => ({
+            content_id: x.content_id,
+            title: x.content_title_en || x.content_title || x.content_title_jp
+          }));
+
+          const apiGet = async (path) => {
+            return await page.evaluate(async ({ url, token }) => {
+              const r = await fetch(url, {
+                headers: {
+                  'Authorization': token,
+                  'Accept': 'application/json, text/plain, */*'
+                }
+              });
+              return {
+                status: r.status,
+                contentType: r.headers.get('content-type'),
+                text: await r.text()
+              };
+            }, { url: API + path, token: apiHeader });
+          };
+
+          let selected = null;
+          for (const item of indexResponse.content.slice(0,20)) {
+            const er = await apiGet('/content/' + encodeURIComponent(item.content_id) + '/episodes');
+            if (er.status !== 200) continue;
+            let eps;
+            try { eps = JSON.parse(er.text); } catch { continue; }
+            if (!eps || typeof eps !== 'object') continue;
+            const keys = Object.keys(eps).sort((a,b) => {
+              const aa = Number(a), bb = Number(b);
+              if (Number.isFinite(aa) && Number.isFinite(bb)) return aa-bb;
+              return a.localeCompare(b);
+            });
+            for (const ep of keys.slice(0,5)) {
+              const vr = await apiGet('/content/' + encodeURIComponent(item.content_id) + '/video/' + encodeURIComponent(ep));
+              if (vr.status !== 200) continue;
+              let video;
+              try { video = JSON.parse(vr.text); } catch { continue; }
+              const stream = video?.uri?.stream;
+              if (stream) {
+                selected = { item, ep, episodeMeta: eps[ep], video, stream };
+                break;
+              }
+            }
+            if (selected) break;
+          }
+
+          if (!selected) {
+            out.api.failure = 'No playable stream returned by current API';
+            fs.writeFileSync('diagnostics/animeonsen-browser-playback.json', JSON.stringify(out,null,2));
+            await browser.close();
+            process.exit(3);
+          }
+
+          const { item, ep, episodeMeta, video, stream } = selected;
+          const su = new URL(stream);
+          out.chosen = {
+            contentId: item.content_id,
+            title: item.content_title_en || item.content_title || item.content_title_jp,
+            episode: ep,
+            episodeMeta,
+            subtitleLanguages: Object.values(video?.metadata?.subtitles || {})
+          };
+          out.stream = {
+            host: su.host,
+            pathname: su.pathname,
+            queryKeys: [...su.searchParams.keys()].sort()
+          };
+
+          // Actual Chromium playback, same AnimeOnsen page/origin.
+          const playback = await page.evaluate(async (src) => {
+            const metrics = {
+              events: [],
+              samples: [],
+              error: null,
+              started: false,
+              ended: false
+            };
+            const v = document.createElement('video');
+            v.muted = true;
+            v.autoplay = true;
+            v.playsInline = true;
+            v.preload = 'auto';
+            v.style.cssText='position:fixed;width:320px;height:180px;left:0;top:0;z-index:999999;background:black';
+            const mark = (name) => metrics.events.push({
+              name,
+              at: performance.now(),
+              currentTime: v.currentTime,
+              readyState: v.readyState,
+              networkState: v.networkState
+            });
+            for (const e of ['loadstart','loadedmetadata','loadeddata','canplay','playing','waiting','stalled','suspend','seeking','seeked','ended','error']) {
+              v.addEventListener(e, () => mark(e));
+            }
+            document.body.appendChild(v);
+            v.src = src;
+            try { await v.play(); metrics.started = true; } catch(e) { metrics.error = 'play(): ' + String(e); }
+
+            const start = performance.now();
+            for (let i=0;i<24;i++) {
+              await new Promise(r => setTimeout(r, 2000));
+              let quality = null;
+              try {
+                const q=v.getVideoPlaybackQuality?.();
+                if (q) quality={totalVideoFrames:q.totalVideoFrames,droppedVideoFrames:q.droppedVideoFrames,corruptedVideoFrames:q.corruptedVideoFrames};
+              } catch {}
+              metrics.samples.push({
+                wallSeconds:(performance.now()-start)/1000,
+                currentTime:v.currentTime,
+                paused:v.paused,
+                readyState:v.readyState,
+                networkState:v.networkState,
+                buffered:Array.from({length:v.buffered.length},(_,i)=>[v.buffered.start(i),v.buffered.end(i)]),
+                width:v.videoWidth,
+                height:v.videoHeight,
+                quality
+              });
+              if (v.error) {
+                metrics.error = {code:v.error.code,message:v.error.message};
+                break;
+              }
+              if (v.ended) { metrics.ended=true; break; }
+            }
+            metrics.duration=v.duration;
+            metrics.finalCurrentTime=v.currentTime;
+            metrics.waitingCount=metrics.events.filter(x=>x.name==='waiting').length;
+            metrics.stalledCount=metrics.events.filter(x=>x.name==='stalled').length;
+            metrics.seekCount=metrics.events.filter(x=>x.name==='seeking').length;
+            return metrics;
+          }, stream);
+
+          out.chromiumPlayback = playback;
+
+          // ffprobe/ffmpeg use only the temporary signed stream in-memory; URL is never saved.
+          const headers = 'Referer: ' + BASE + '/\\r\\nOrigin: ' + BASE + '\\r\\n';
+          const probe = spawnSync('ffprobe', [
+            '-v','error','-headers',headers,
+            '-show_streams','-show_format','-of','json',stream
+          ], { encoding:'utf8', timeout:120000, maxBuffer:10*1024*1024 });
+
+          out.ffprobe.exitCode = probe.status;
+          out.ffprobe.stderr = (probe.stderr || '').slice(-5000);
+          try {
+            const p=JSON.parse(probe.stdout || '{}');
+            out.ffprobe.format = Object.fromEntries(
+              ['format_name','duration','size','bit_rate','start_time'].map(k=>[k,p.format?.[k] ?? null])
+            );
+            out.ffprobe.streams=(p.streams||[]).map(s=>({
+              index:s.index,codec_name:s.codec_name,codec_type:s.codec_type,profile:s.profile,
+              width:s.width,height:s.height,r_frame_rate:s.r_frame_rate,avg_frame_rate:s.avg_frame_rate,
+              time_base:s.time_base,start_time:s.start_time,duration:s.duration,bit_rate:s.bit_rate
+            }));
+          } catch {}
+
+          const dec = spawnSync('ffmpeg', [
+            '-nostdin','-hide_banner','-loglevel','warning','-headers',headers,
+            '-i',stream,'-t','90','-map','0:v:0?','-map','0:a:0?','-f','null','-'
+          ], { encoding:'utf8', timeout:180000, maxBuffer:20*1024*1024 });
+          out.ffmpegDecode = {
+            secondsRequested:90,
+            exitCode:dec.status,
+            signal:dec.signal,
+            warnings:(dec.stderr || '').slice(-12000)
+          };
+
+          fs.writeFileSync('diagnostics/animeonsen-browser-playback.json', JSON.stringify(out,null,2));
+          console.log(JSON.stringify(out,null,2).slice(0,90000));
+          await browser.close();
+          NODE
+
+          node /tmp/animeonsen-probe.mjs
+
+      - name: Commit result
+        if: always()
+        run: |
+          test -f diagnostics/animeonsen-browser-playback.json || echo '{"error":"probe did not produce result"}' > diagnostics/animeonsen-browser-playback.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/animeonsen-browser-playback.json
+          git commit -m "record AnimeOnsen browser playback diagnostics" || true
+          git push || true
