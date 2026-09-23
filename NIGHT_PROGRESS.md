@@ -282,3 +282,6 @@ Integrated Regression #430 ran on `15417a829f370e07c0b214bab344b30e6c63d9e1`. Th
 - #430 video tested libVLC's default renderer selection on the virtual device, with verbosity 3 and the native-surface readiness gate retained. This also yielded 0 colored viewport pixels. The screenshot is black; the 709×1536 TextureView is attached/shown and surface-ready, software H.264 decode starts, and no Vout event follows. Default negotiation does not resolve the output failure; prior forced Android display and GLES selections also failed.
 
 Next diagnostic should compare a non-libVLC Android renderer with the same generated H.264/AAC fixture. That will determine whether the failure is isolated to Night's libVLC output path or also affects the emulator's app-window video surfaces before selecting another production playback change. Do not call the video issue fixed. The physical device remains unverified in this CI pass.
+
+
+The next diagnostic source pass adds a controlled Android `VideoView` baseline to the video Actions job. It plays the same generated local MP4 before launching Night's VLC viewer and records its screenshot/pixel result and platform decoder logs. This is a diagnostic route in the existing preview Activity only, selected by a test intent extra; the normal Night viewer remains on its current code path. The #431 Actions result is pending.

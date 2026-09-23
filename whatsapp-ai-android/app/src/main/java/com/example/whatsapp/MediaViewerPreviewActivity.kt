@@ -4,10 +4,16 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
+import android.util.Log
+import android.widget.VideoView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.viewinterop.AndroidView
 import com.example.whatsapp.presentation.chatscreen.NightChatMediaItem
 import com.example.whatsapp.presentation.chatscreen.NightMediaViewerScreen
 import com.example.whatsapp.ui.theme.WhatsappTheme
@@ -15,6 +21,7 @@ import java.io.File
 import java.io.FileOutputStream
 
 private const val NIGHT_PREVIEW_VIDEO_PATH = "night.preview.videoPath"
+private const val NIGHT_PREVIEW_RENDERER = "night.preview.renderer"
 
 class MediaViewerPreviewActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -77,24 +84,51 @@ class MediaViewerPreviewActivity : ComponentActivity() {
                 )
             }
 
+        val usePlatformRenderer =
+            requestedVideo != null &&
+                intent.getStringExtra(NIGHT_PREVIEW_RENDERER) == "platform"
+
         setContent {
             WhatsappTheme(darkTheme = true) {
-                NightMediaViewerScreen(
-                    items = items,
-                    initialIndex = 0,
-                    onBack = { finish() },
-                    onEdit = { item ->
-                        startActivity(
-                            Intent(
-                                this@MediaViewerPreviewActivity,
-                                MediaEditorPreviewActivity::class.java,
-                            ).putExtra(
-                                NIGHT_PREVIEW_VIDEO_PATH,
-                                item.localPath,
-                            ),
-                        )
-                    },
-                )
+                if (usePlatformRenderer) {
+                    AndroidView(
+                        factory = { viewContext ->
+                            VideoView(viewContext).apply {
+                                setOnPreparedListener { mediaPlayer ->
+                                    mediaPlayer.isLooping = true
+                                    Log.i("NightVideoProbe", "Android VideoView prepared fixture.")
+                                    start()
+                                }
+                                setOnErrorListener { _, what, extra ->
+                                    Log.e(
+                                        "NightVideoProbe",
+                                        "Android VideoView failed (what=$what, extra=$extra).",
+                                    )
+                                    true
+                                }
+                                setVideoURI(Uri.fromFile(requestedVideo))
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    NightMediaViewerScreen(
+                        items = items,
+                        initialIndex = 0,
+                        onBack = { finish() },
+                        onEdit = { item ->
+                            startActivity(
+                                Intent(
+                                    this@MediaViewerPreviewActivity,
+                                    MediaEditorPreviewActivity::class.java,
+                                ).putExtra(
+                                    NIGHT_PREVIEW_VIDEO_PATH,
+                                    item.localPath,
+                                ),
+                            )
+                        },
+                    )
+                }
             }
         }
     }

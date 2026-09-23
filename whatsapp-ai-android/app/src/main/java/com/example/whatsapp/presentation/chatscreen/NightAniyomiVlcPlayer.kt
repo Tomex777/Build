@@ -321,12 +321,6 @@ internal fun NightAniyomiVlcPlayer(
             "--network-caching=1500",
             "--no-video-title-show",
         )
-        if (virtualVideoDevice) {
-            // Earlier emulator runs could attach a valid surface and start decoding but did not
-            // create a Vout with either forced android_display or GLES. Keep diagnostics enabled
-            // while allowing libVLC to select its default compatible video output.
-            options += "--verbose=3"
-        }
         LibVLC(appContext, options)
     }
     val player = remember(item.localPath, softwareDecode, hardwareRetryGeneration) { MediaPlayer(libVlc) }

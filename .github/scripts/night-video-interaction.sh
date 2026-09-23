@@ -428,7 +428,23 @@ if colored < 1200 or ratio < 0.003:
 PY
 }
 
-echo "STEP: open and play real H.264/AAC MP4"
+echo "STEP: compare Android platform VideoView with the same fixture"
+adb shell am force-stop "$PACKAGE"
+adb shell am start -W -n "$PACKAGE/.MediaViewerPreviewActivity" \
+  --es night.preview.videoPath "$APP_VIDEO" \
+  --es night.preview.renderer platform
+sleep 5
+assert_alive
+adb exec-out screencap -p > "$ARTIFACTS/platform-renderer.png" || true
+if assert_video_frames_rendered "$ARTIFACTS/platform-renderer.png"; then
+  echo "platformRendererColoredPixels=true" > "$ARTIFACTS/platform-renderer-result.txt"
+else
+  echo "platformRendererColoredPixels=false" > "$ARTIFACTS/platform-renderer-result.txt"
+fi
+capture_media_logcat "platform-renderer"
+assert_no_crash
+
+echo "STEP: open and play real H.264/AAC MP4 through Night VLC"
 adb shell am force-stop "$PACKAGE"
 adb shell settings put secure immersive_mode_confirmations confirmed >/dev/null 2>&1 || true
 adb shell am start -W -n "$PACKAGE/.MediaViewerPreviewActivity" \
