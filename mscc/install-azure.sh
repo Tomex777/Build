@@ -2,7 +2,7 @@
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
-VERSION="1.8.3"
+VERSION="1.8.4"
 BASE="/opt/mscc"
 RELEASE="$BASE/releases/$VERSION"
 STATE="/var/lib/mscc"

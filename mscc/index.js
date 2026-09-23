@@ -16,7 +16,8 @@ import QRCode from 'qrcode'
 import { startWebPanel } from './web-panel.js'
 import { dispatchCommand, loadCommands } from './commands/registry.js'
 
-const commandRegistry = await loadCommands(new URL('./commands/', import.meta.url))
+const COMMANDS_URL = new URL('./commands/', import.meta.url)
+let commandRegistry = await loadCommands(COMMANDS_URL)
 
 const digits = value => String(value || '').replace(/\D/g, '')
 const num = (name, fallback, min, max) => {
@@ -44,7 +45,7 @@ const WEB_SESSION_SECRET = process.env.WEB_SESSION_SECRET || ''
 const LOCAL_CONTROL_PORT = 8788
 const logger = pino({ level: process.env.LOG_LEVEL || 'silent' })
 const startedAt = Date.now()
-const APP_VERSION = '1.8.3'
+const APP_VERSION = '1.8.4'
 
 if (!/^\d{7,15}$/.test(ACCOUNT_A_NUMBER)) {
   console.error('ACCOUNT_A_NUMBER (or BOT_NUMBER) is required.')
@@ -472,6 +473,7 @@ async function onMessages(account, { messages, type }) {
         reply: async value => sendInbox(account, { text: String(value) }),
         setSetting,
         setDestination,
+        reloadCommands,
         statusText,
         diagnostics: commandDiagnostics,
       })
@@ -683,6 +685,13 @@ async function repairAccount(id, mode = 'code') {
 async function setSetting(key, value) {
   settings[key] = Boolean(value)
   await saveSettings()
+}
+
+async function reloadCommands() {
+  const next = await loadCommands(COMMANDS_URL, { cacheBust: Date.now() })
+  commandRegistry = next
+  await writeCommandSettingsSchema()
+  return next.canonical.map(command => command.name).sort()
 }
 
 async function setDestination(value) {

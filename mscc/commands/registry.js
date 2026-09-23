@@ -1,5 +1,5 @@
 import { readdir } from 'node:fs/promises'
-export async function loadCommands(directoryUrl) {
+export async function loadCommands(directoryUrl, { cacheBust = '' } = {}) {
   const directory = directoryUrl instanceof URL ? directoryUrl : new URL(directoryUrl, import.meta.url)
   const names = (await readdir(directory, { withFileTypes: true }))
     .filter(entry => entry.isFile() && entry.name.endsWith('.js') && entry.name !== 'registry.js')
@@ -9,6 +9,7 @@ export async function loadCommands(directoryUrl) {
   const commands = new Map()
   for (const name of names) {
     const url = new URL(name, directory)
+    if (cacheBust) url.searchParams.set('v', String(cacheBust))
     const module = await import(url.href)
     const command = module.default
     if (!command?.name || typeof command.run !== 'function') {
