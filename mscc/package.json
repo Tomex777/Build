@@ -1,0 +1,20 @@
+{
+  "name": "cc-stream-256mb",
+  "version": "1.5.3",
+  "private": true,
+  "description": "Low-memory dual-account MSCC with private web pairing panel, persistent V1 CC and anti-delete recovery",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "check": "node --check index.js && node --check web-panel.js",
+    "start": "node --env-file-if-exists=.env --max-old-space-size=128 index.js"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "pino": "^9.9.5",
+    "qrcode": "^1.5.4"
+  }
+}
