@@ -9,7 +9,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
-import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.TextureView
 import android.view.View
@@ -84,6 +83,7 @@ import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.interfaces.IMedia
+import org.videolan.libvlc.interfaces.IVLCVout
 import org.videolan.libvlc.util.VLCVideoLayout
 
 private fun View.findNightSurfaceView(): SurfaceView? {
@@ -328,11 +328,8 @@ internal fun NightAniyomiVlcPlayer(
     var attachedPlayer by remember(item.localPath) {
         mutableStateOf<MediaPlayer?>(null)
     }
-    var attachedSurfaceHolder by remember(player) {
-        mutableStateOf<SurfaceHolder?>(null)
-    }
-    var attachedSurfaceCallback by remember(player) {
-        mutableStateOf<SurfaceHolder.Callback?>(null)
+    var attachedVlcVoutCallback by remember(player) {
+        mutableStateOf<IVLCVout.Callback?>(null)
     }
     val attachRequest = remember(player) { AtomicInteger(0) }
     val attachInFlight = remember(player) { AtomicBoolean(false) }
@@ -423,11 +420,10 @@ internal fun NightAniyomiVlcPlayer(
             // that synchronously from Compose disposal freezes the UI exactly
             // when decoder recovery swaps player generations. Detach the old
             // surface immediately, then let native teardown finish off-main.
-            attachedSurfaceHolder?.let { holder ->
-                attachedSurfaceCallback?.let(holder::removeCallback)
+            attachedVlcVoutCallback?.let { callback ->
+                runCatching { player.vlcVout.removeCallback(callback) }
             }
-            attachedSurfaceHolder = null
-            attachedSurfaceCallback = null
+            attachedVlcVoutCallback = null
             if (attachedPlayer === player) {
                 attachedPlayer = null
             }
@@ -448,11 +444,10 @@ internal fun NightAniyomiVlcPlayer(
     LaunchedEffect(active, player, softwareDecode, hardwareRetryGeneration) {
         if (!active) {
             runCatching { player.pause() }
-            attachedSurfaceHolder?.let { holder ->
-                attachedSurfaceCallback?.let(holder::removeCallback)
+            attachedVlcVoutCallback?.let { callback ->
+                runCatching { player.vlcVout.removeCallback(callback) }
             }
-            attachedSurfaceHolder = null
-            attachedSurfaceCallback = null
+            attachedVlcVoutCallback = null
             if (attachedPlayer === player) {
                 attachedPlayer = null
             }
@@ -718,78 +713,101 @@ internal fun NightAniyomiVlcPlayer(
                         if (attachRequest.get() == attachRequestId) {
                             if (attachedPlayer !== player) {
                                 runCatching { attachedPlayer?.detachViews() }
+                                val vlcVout = player.vlcVout
+                                val voutCallback = object : IVLCVout.Callback {
+                                    override fun onSurfacesCreated(vout: IVLCVout) {
+                                        val surfaceView =
+                                            if (useTextureView) null else layout.findNightSurfaceView()
+                                        val textureView =
+                                            if (useTextureView) layout.findNightTextureView() else null
+                                        val view = textureView ?: surfaceView
+                                        val holder = surfaceView?.holder
+                                        val nativeSurfaceReady =
+                                            textureView?.isAvailable ?: (holder?.surface?.isValid == true)
+                                        val viewReady =
+                                            view != null &&
+                                                view.width > 0 &&
+                                                view.height > 0 &&
+                                                view.isAttachedToWindow &&
+                                                view.isShown
+                                        if (
+                                            active &&
+                                            vout.areViewsAttached() &&
+                                            nativeSurfaceReady &&
+                                            viewReady &&
+                                            attachRequest.get() == attachRequestId
+                                        ) {
+                                            attachedPlayer = player
+                                            attachInFlight.set(false)
+                                            Log.i(
+                                                "NightVideo",
+                                                "VLC native surfaces created " +
+                                                    "(generation=" + hardwareRetryGeneration +
+                                                    ", software=" + softwareDecode +
+                                                    ", view=" + (if (useTextureView) "TextureView" else "SurfaceView") +
+                                                    ", viewSize=" + view.width + "x" + view.height +
+                                                    ", attached=" + view.isAttachedToWindow +
+                                                    ", shown=" + view.isShown +
+                                                    ", nativeSurfaceReady=" + nativeSurfaceReady +
+                                                    ", voutAttached=" + vout.areViewsAttached() + ").",
+                                            )
+                                            layout.installNightVideoTapHandler {
+                                                controlsVisible = !controlsVisible
+                                            }
+                                            runCatching { player.setVideoScale(aspect.scale) }
+                                        } else {
+                                            Log.w(
+                                                "NightVideo",
+                                                "VLC surfaces-created callback did not pass readiness checks " +
+                                                    "(active=" + active +
+                                                    ", nativeSurfaceReady=" + nativeSurfaceReady +
+                                                    ", viewReady=" + viewReady +
+                                                    ", voutAttached=" + vout.areViewsAttached() +
+                                                    ", view=" + (if (useTextureView) "TextureView" else "SurfaceView") + ").",
+                                            )
+                                        }
+                                    }
+
+                                    override fun onSurfacesDestroyed(vout: IVLCVout) {
+                                        if (attachedPlayer === player) {
+                                            attachedPlayer = null
+                                            Log.i(
+                                                "NightVideo",
+                                                "VLC native surfaces destroyed (generation=" +
+                                                    hardwareRetryGeneration + ").",
+                                            )
+                                        }
+                                    }
+                                }
+                                attachedVlcVoutCallback = voutCallback
+                                vlcVout.addCallback(voutCallback)
+
                                 val attached = runCatching {
                                     // Only the active pager page owns a native video view.
                                     // Emulators use TextureView inside the app window; physical
                                     // devices retain SurfaceView for the native video path.
                                     player.attachViews(layout, null, true, useTextureView)
                                 }.isSuccess
-                                if (attached) {
-                                    val surfaceView =
-                                        if (useTextureView) null else layout.findNightSurfaceView()
-                                    val textureView =
-                                        if (useTextureView) layout.findNightTextureView() else null
-                                    if (surfaceView == null && textureView == null) {
-                                        attachInFlight.set(false)
-                                        Log.e("NightVideo", "VLC layout did not expose a video view.")
-                                    } else {
-                                        val holder = surfaceView?.holder
-                                        val markSurfaceReady = {
-                                            val ready = textureView?.isAvailable ?: (holder?.surface?.isValid == true)
-                                            if (active && ready && attachRequest.get() == attachRequestId) {
-                                                attachedPlayer = player
-                                                attachInFlight.set(false)
-                                                Log.i(
-                                                    "NightVideo",
-                                                    "VLC native surface ready " +
-                                                        "(generation=$hardwareRetryGeneration, software=$softwareDecode, " +
-                                                        "view=${if (useTextureView) "TextureView" else "SurfaceView"}, " +
-                                                        "viewSize=${textureView?.width ?: surfaceView?.width}x" +
-                                                        "${textureView?.height ?: surfaceView?.height}, " +
-                                                        "attached=${textureView?.isAttachedToWindow ?: surfaceView?.isAttachedToWindow}, " +
-                                                        "shown=${textureView?.isShown ?: surfaceView?.isShown}, " +
-                                                        "surfaceFrame=${holder?.surfaceFrame?.width() ?: 0}x" +
-                                                        "${holder?.surfaceFrame?.height() ?: 0}).",
-                                                )
-                                                layout.installNightVideoTapHandler { controlsVisible = !controlsVisible }
-                                                runCatching { player.setVideoScale(aspect.scale) }
-                                            }
-                                        }
-                                        if (textureView != null) {
-                                            var surfaceChecks = 0
-                                            val waitForTextureSurface = object : Runnable {
-                                                override fun run() {
-                                                    if (!active || attachRequest.get() != attachRequestId) return
-                                                    if (textureView.isAvailable) markSurfaceReady()
-                                                    else if (surfaceChecks++ < 120) layout.postDelayed(this, 50L)
-                                                    else {
-                                                        attachInFlight.set(false)
-                                                        Log.e("NightVideo", "Timed out waiting for VLC TextureView.")
-                                                    }
-                                                }
-                                            }
-                                            layout.post(waitForTextureSurface)
-                                        } else {
-                                            val expectedHolder = requireNotNull(holder)
-                                            val callback = object : SurfaceHolder.Callback {
-                                                override fun surfaceCreated(createdHolder: SurfaceHolder) {
-                                                    if (createdHolder === expectedHolder) markSurfaceReady()
-                                                }
-                                                override fun surfaceChanged(changedHolder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
-                                                override fun surfaceDestroyed(destroyedHolder: SurfaceHolder) {
-                                                    if (destroyedHolder === expectedHolder && attachedPlayer === player) attachedPlayer = null
-                                                }
-                                            }
-                                            attachedSurfaceHolder = expectedHolder
-                                            attachedSurfaceCallback = callback
-                                            expectedHolder.addCallback(callback)
-                                            if (expectedHolder.surface.isValid) markSurfaceReady()
-                                            else Log.i("NightVideo", "Waiting for VLC SurfaceView surfaceCreated.")
-                                        }
-                                    }
-                                } else {
+                                if (!attached) {
+                                    runCatching { vlcVout.removeCallback(voutCallback) }
+                                    attachedVlcVoutCallback = null
                                     attachInFlight.set(false)
                                     Log.e("NightVideo", "Could not attach VLC player to video surface.")
+                                } else if (
+                                    (useTextureView && layout.findNightTextureView() == null) ||
+                                    (!useTextureView && layout.findNightSurfaceView() == null)
+                                ) {
+                                    runCatching { vlcVout.removeCallback(voutCallback) }
+                                    attachedVlcVoutCallback = null
+                                    attachInFlight.set(false)
+                                    Log.e("NightVideo", "VLC layout did not expose a video view.")
+                                } else {
+                                    Log.i(
+                                        "NightVideo",
+                                        "Waiting for libVLC surfaces-created callback " +
+                                            "(generation=" + hardwareRetryGeneration +
+                                            ", view=" + (if (useTextureView) "TextureView" else "SurfaceView") + ").",
+                                    )
                                 }
                             } else {
                                 attachInFlight.set(false)

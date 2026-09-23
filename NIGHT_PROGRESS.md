@@ -184,3 +184,18 @@ Patched source was built and tested from `0bffe7b0bd23a18c0e55bd06589863240e4612
 - Repeated option-card instrumentation remains green. The visual card-repetition question and Image Editor preview/export-quality review remain open; the test screenshots have not been visually confirmed.
 
 Next diagnostic pass: print extension-process descriptor logs in the provider job log so the runtime descriptor count/serialized length is visible without opening the ZIP artifact. Try TextureView only on virtual Android devices while physical devices keep SurfaceView, and log the actual native-view dimensions/visibility to determine why the valid-surface SurfaceView path produces no visible frame.
+
+
+## 2026-09-23 validation follow-up: Integrated Regression #423
+
+The branch started this pass at verified remote tip `e858de2ad9da893dc13ecb1de2c17376ac7eb64b`. Integrated Regression #423 built successfully; ARM64 APK #104 passed. Provider instrumentation ran 31 tests and again failed only the installed AnimePahe descriptor check: the matching APK service bound successfully, but Night received `resultJson={}` (2 characters), `ok=true`, and no service error. The extension-side descriptor log lines were not present in the provider job output or uploaded test report, so the runtime mismatch remains unresolved. The persisted failure message still includes the reply keys, result length, and service error.
+
+The live runtime path refreshes installed APK services before taking the model prompt snapshot. It parses the descriptor, registers extension tools/message types only for a valid enabled descriptor, builds provider schemas from the registered integration registry, and adds live extension inventory plus tool/message summaries to the system prompt. The #423 Integrations UI screenshot is from `NightIntegrationsPreviewActivity`, which hard-codes an enabled AnimePahe sample at 4 tools / 2 message types; it does not represent the installed APK registry. Do not treat that preview or enabled label as evidence the model can see the extension.
+
+For video, #423 used a TextureView on the Android 16 emulator. Logs show its Android view was available, attached, shown, and 709×1536 before playback; VLC opened the fixture and initialized software H.264 decode at 640×368, but no Vout event followed. The screenshot remains black, with a transient Quickstep system dialog over the player. The app previously gated start on Android surface availability alone. The current change waits for libVLC's own `IVLCVout.Callback.onSurfacesCreated` and logs its readiness state before playback. This must be verified with the synthetic MP4 on Actions; video remains open pending that run.
+
+I visually inspected the #423 Image Editor screenshot: the preview spans the available 709-pixel screen width and is clear at emulator scale. The exported JPEG is 4,089×4,087 pixels from a 4,121×4,116 source, and the artifact reports the original image remained byte-for-byte unchanged. The UI test passed. Keep this screenshot-based check separate from the automated UI pass; a physical-device preview check remains outstanding.
+
+The provider regression suite completed 31 tests; the only failure was AnimePahe descriptor discovery. The repeated `create_options` side-effect regression remains covered and passed, but #423 did not provide a screenshot/interaction artifact proving whether identical option cards repeat visually. Keep Groq 429 TPM output classified as provider quota failure.
+
+On #423, Integrations, Extensions, Extension Config, Providers, Browser, Memory, Image Editor, PDF Editor, Mihon Reader, and the other completed UI suites passed; Main Tabs failed. Do not push another commit until the relevant Actions jobs for the current source SHA finish.
