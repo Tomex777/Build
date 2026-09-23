@@ -34,7 +34,8 @@ jobs:
           mkdir -p diagnostics
           cat > animeonsen-probe.mjs <<'NODE'
           import { chromium } from 'playwright';
-          import { spawnSync } from 'node:child_process';
+          import { spawn } from 'node:child_process';
+          import http from 'node:http';
           import fs from 'node:fs';
 
           const BASE = 'https://www.animeonsen.xyz';
@@ -342,16 +343,85 @@ jobs:
             }
           }, stream);
           out.stream.manifestSummary = manifestSummary;
+          out.chromiumPlayback.codecSupport = await page.evaluate(() => ({
+            h264: MediaSource.isTypeSupported('video/mp4; codecs="avc1.4d401f"'),
+            aac: MediaSource.isTypeSupported('audio/mp4; codecs="mp4a.40.2"')
+          }));
 
-          // ffprobe/ffmpeg use only the temporary signed stream in-memory; URL is never saved.
-          const headers = 'Referer: ' + BASE + '/\\r\\nOrigin: ' + BASE + '\\r\\n';
-          const probe = spawnSync('ffprobe', [
-            '-v','error','-headers',headers,
-            '-show_streams','-show_format','-of','json',stream
-          ], { encoding:'utf8', timeout:120000, maxBuffer:10*1024*1024 });
+          // Proxy CDN requests through the live AnimeOnsen browser origin.
+          // This preserves the site's accepted request context while letting ffprobe/ffmpeg
+          // validate the actual DASH bytes and timestamp continuity.
+          const proxyStats = [];
+          const browserFetch = async (url, range) => {
+            return await page.evaluate(async ({url, range}) => {
+              const headers = {};
+              if (range) headers['Range'] = range;
+              const r = await fetch(url, { headers });
+              const arr = new Uint8Array(await r.arrayBuffer());
+              let binary = '';
+              const chunk = 0x8000;
+              for (let i=0;i<arr.length;i+=chunk) {
+                binary += String.fromCharCode(...arr.subarray(i, i+chunk));
+              }
+              return {
+                status:r.status,
+                contentType:r.headers.get('content-type'),
+                contentRange:r.headers.get('content-range'),
+                acceptRanges:r.headers.get('accept-ranges'),
+                cacheControl:r.headers.get('cache-control'),
+                body:btoa(binary)
+              };
+            }, {url, range});
+          };
 
-          out.ffprobe.exitCode = probe.status;
-          out.ffprobe.stderr = (probe.stderr || '').slice(-5000);
+          const proxy = http.createServer((req,res) => {
+            (async () => {
+              const target = 'https://cdn.animeonsen.xyz' + req.url;
+              const rr = await browserFetch(target, req.headers['range'] || null);
+              const body = Buffer.from(rr.body, 'base64');
+              res.statusCode = rr.status;
+              if (rr.contentType) res.setHeader('Content-Type', rr.contentType);
+              if (rr.contentRange) res.setHeader('Content-Range', rr.contentRange);
+              if (rr.acceptRanges) res.setHeader('Accept-Ranges', rr.acceptRanges);
+              res.setHeader('Content-Length', body.length);
+              res.end(body);
+              proxyStats.push({
+                status:rr.status,
+                path:new URL(target).pathname,
+                range:req.headers['range'] || null,
+                bytes:body.length,
+                contentType:rr.contentType
+              });
+            })().catch(err => {
+              res.statusCode=502;
+              res.end(String(err));
+              proxyStats.push({status:502,path:req.url,error:String(err)});
+            });
+          });
+          await new Promise(resolve => proxy.listen(0,'127.0.0.1',resolve));
+          const port = proxy.address().port;
+          const proxyUrl = 'http://127.0.0.1:' + port + su.pathname + su.search;
+
+          const runCmd = (cmd,args,timeoutMs) => new Promise(resolve => {
+            const child=spawn(cmd,args);
+            let stdout='',stderr='',timedOut=false;
+            child.stdout.on('data',d=>stdout+=d.toString());
+            child.stderr.on('data',d=>stderr+=d.toString());
+            const timer=setTimeout(()=>{timedOut=true;child.kill('SIGKILL');},timeoutMs);
+            child.on('close',(code,signal)=>{
+              clearTimeout(timer);
+              resolve({exitCode:code,signal,stdout,stderr,timedOut});
+            });
+          });
+
+          const probe = await runCmd('ffprobe',[
+            '-v','error',
+            '-show_streams','-show_format','-of','json',proxyUrl
+          ],120000);
+
+          out.ffprobe.exitCode = probe.exitCode;
+          out.ffprobe.timedOut = probe.timedOut;
+          out.ffprobe.stderr = (probe.stderr || '').slice(-6000);
           try {
             const p=JSON.parse(probe.stdout || '{}');
             out.ffprobe.format = Object.fromEntries(
@@ -364,16 +434,86 @@ jobs:
             }));
           } catch {}
 
-          const dec = spawnSync('ffmpeg', [
-            '-nostdin','-hide_banner','-loglevel','warning','-headers',headers,
-            '-i',stream,'-t','90','-map','0:v:0?','-map','0:a:0?','-f','null','-'
-          ], { encoding:'utf8', timeout:180000, maxBuffer:20*1024*1024 });
+          const dec = await runCmd('ffmpeg',[
+            '-nostdin','-hide_banner','-loglevel','warning',
+            '-i',proxyUrl,'-t','120',
+            '-map','0:v:0?','-map','0:a:0?','-f','null','-'
+          ],240000);
           out.ffmpegDecode = {
-            secondsRequested:90,
-            exitCode:dec.status,
+            firstWindowSeconds:120,
+            exitCode:dec.exitCode,
             signal:dec.signal,
-            warnings:(dec.stderr || '').slice(-12000)
+            timedOut:dec.timedOut,
+            warnings:(dec.stderr || '').slice(-14000)
           };
+
+          // Decode a later 60-second window too; this catches issues that only show after seeking.
+          const late = await runCmd('ffmpeg',[
+            '-nostdin','-hide_banner','-loglevel','warning',
+            '-ss','600','-i',proxyUrl,'-t','60',
+            '-map','0:v:0?','-map','0:a:0?','-f','null','-'
+          ],240000);
+          out.ffmpegDecode.lateWindow = {
+            seekSeconds:600,
+            seconds:60,
+            exitCode:late.exitCode,
+            signal:late.signal,
+            timedOut:late.timedOut,
+            warnings:(late.stderr || '').slice(-14000)
+          };
+
+          // Packet timing stats across the first two minutes.
+          const packets = await runCmd('ffprobe',[
+            '-v','error','-read_intervals','%+120',
+            '-show_packets',
+            '-show_entries','packet=stream_index,pts_time,dts_time,duration_time',
+            '-of','json',proxyUrl
+          ],180000);
+          out.ffmpegDecode.packetProbeExit = packets.exitCode;
+          if (packets.exitCode === 0) {
+            try {
+              const rows=JSON.parse(packets.stdout || '{}').packets || [];
+              const by={};
+              for (const row of rows) {
+                const raw=row.dts_time ?? row.pts_time;
+                const t=Number(raw);
+                if (!Number.isFinite(t)) continue;
+                const k=String(row.stream_index);
+                (by[k] ||= []).push(t);
+              }
+              const stats={};
+              for (const [k,ts] of Object.entries(by)) {
+                const fwd=[];
+                let backwards=0;
+                for (let i=1;i<ts.length;i++) {
+                  const d=ts[i]-ts[i-1];
+                  if (d < -0.0001) backwards++;
+                  else fwd.push(d);
+                }
+                stats[k]={
+                  packets:ts.length,
+                  backwardTimestampCount:backwards,
+                  maxForwardGapSeconds:fwd.length?Math.max(...fwd):null
+                };
+              }
+              out.ffmpegDecode.timestampStats=stats;
+            } catch(e) {
+              out.ffmpegDecode.packetParseError=String(e);
+            }
+          } else {
+            out.ffmpegDecode.packetProbeStderr=(packets.stderr || '').slice(-6000);
+          }
+
+          const grouped={};
+          for (const x of proxyStats) {
+            const file=(x.path||'').split('/').pop();
+            const key=[x.status,file,x.range?'range':'full',x.contentType||''].join('|');
+            if (!grouped[key]) grouped[key]={status:x.status,file,mode:x.range?'range':'full',contentType:x.contentType,count:0,totalBytes:0};
+            grouped[key].count++;
+            grouped[key].totalBytes += x.bytes || 0;
+          }
+          out.stream.proxyStats=Object.values(grouped).slice(0,150);
+          await new Promise(resolve => proxy.close(resolve));
 
           fs.writeFileSync('diagnostics/animeonsen-browser-playback.json', JSON.stringify(out,null,2));
           console.log(JSON.stringify(out,null,2).slice(0,90000));
