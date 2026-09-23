@@ -354,7 +354,7 @@ async function commandSettings() {
       label: String(entry.label || entry.key),
       description: String(entry.description || ''),
       command: String(entry.command || ''),
-      enabled: values?.[entry.key] === true,
+      enabled: typeof values?.[entry.key] === 'boolean' ? values[entry.key] : entry.default === true,
     }));
 }
 
