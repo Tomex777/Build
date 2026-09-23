@@ -1044,8 +1044,9 @@ class MainActivity : Activity() {
                 }
                 val bytes = output.toByteArray()
                 if (isVideo) {
-                    videoFile = java.io.File(cacheDir, "cobalt-view-once-${System.nanoTime()}.mp4")
-                    videoFile.writeBytes(bytes)
+                    val file = java.io.File(cacheDir, "cobalt-view-once-${System.nanoTime()}.mp4")
+                    videoFile = file
+                    file.writeBytes(bytes)
                 } else {
                     val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                         ?: throw IllegalArgumentException("Cobalt could not open this image.")
