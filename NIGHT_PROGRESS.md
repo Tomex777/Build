@@ -225,3 +225,14 @@ No further commit was pushed while a #424 job was running. The video, runtime de
 - Video evidence again showed a black synthetic-MP4 viewport despite an attached TextureView, valid native surface, and libVLC `onSurfacesCreated` callback. VLC opened the file, selected software H.264 decoding, and reported `playing`; no Vout event followed. This remains unresolved.
 - ARM64 APK #106, Groq Key Pool #384, and the AnimePahe extension regression passed. All 13 Android 16 UI shards passed on #425, including Extensions, PDF Editor, and Image Editor.
 
+
+
+## 2026-09-23 validation follow-up: Integrated Regression #426
+
+The branch tip was verified as `7de8094a6eba645cab94370077db74267ada5a7b` before this follow-up. Integrated Regression #426 built the matching Night and AnimePahe APKs successfully and completed 31 Android 16 provider instrumentation tests successfully. This includes installed AnimePahe service discovery after the SDK snapshots Messenger request code and Bundle data before asynchronous dispatch; the installed descriptor regression is now green. The same run's ARM64 APK #107, Groq Key Pool #385, and all 13 Android 16 UI shards passed, including Image Editor.
+
+The synthetic-MP4 video interaction test still failed with 0 colored viewport pixels. Logcat confirms the TextureView was 709×1536, attached/shown, and had a valid native surface; libVLC's surfaces-created callback ran and playback began. The H.264 software decoder initialized, but there was no VLC Vout event. This narrows the remaining failure to video-output selection/creation, after the native surface readiness gate.
+
+The provider suite's repeated `create_options` persistence regression remains green. The screen-level question about duplicate option cards still lacks screenshot/interaction evidence; do not classify it as visually verified. Groq 429 TPM remains a provider quota failure. The #426 Image Editor UI suite passed; the earlier #424 screenshot review showed a full-width clear preview and full-resolution export, while physical-device comparison remains outstanding.
+
+Next video experiment: on virtual devices only, explicitly select VLC's `android_display` vout and retain the synthetic-MP4 pixel assertion. Physical devices continue to use their existing native playback path. Verify this through GitHub Actions before calling video fixed.

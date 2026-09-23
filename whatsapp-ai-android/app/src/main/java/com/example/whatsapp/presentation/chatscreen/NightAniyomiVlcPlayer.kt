@@ -321,7 +321,12 @@ internal fun NightAniyomiVlcPlayer(
             "--network-caching=1500",
             "--no-video-title-show",
         )
-        if (virtualVideoDevice) options += "--verbose=2"
+        if (virtualVideoDevice) {
+            options += "--verbose=2"
+            // Force libVLC's Android Surface output on virtual devices. Surface attachment
+            // succeeds there, but automatic vout selection never produced a video frame.
+            options += "--vout=android_display,none"
+        }
         LibVLC(appContext, options)
     }
     val player = remember(item.localPath, softwareDecode, hardwareRetryGeneration) { MediaPlayer(libVlc) }
