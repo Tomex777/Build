@@ -1,1 +1,1 @@
-run 23 - corrected full Aniyomi player reader controls integration
+run 24 - rerun full live AniList Anime Manga flow and phone emulator checks
