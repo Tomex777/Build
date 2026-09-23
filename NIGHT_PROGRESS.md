@@ -271,3 +271,14 @@ Integrated Regression #429 ran on `1e8dfe996a4f6308e497e92dbc8438c64141cce1`. AP
 - The video screenshot remains entirely black (0 colored viewport pixels). Logcat confirms the TextureView was 709×1536, attached, shown, and surface-ready before VLC playback. Software H.264 decoding started and selected yuv420p, but no Vout event or video-output module selection appeared. Verbosity 3 exposed no useful output-creation error.
 
 Next experiment: keep the synthetic MP4 and surface-created gate, retain VLC verbosity 3, and remove the forced `gles2,none` option on virtual devices so libVLC can negotiate its default output. This tests default output selection after both forced `android_display,none` and `gles2,none` failed. The physical SurfaceView path is unchanged.
+
+
+## 2026-09-23 validation follow-up: Integrated Regression #430
+
+Integrated Regression #430 ran on `15417a829f370e07c0b214bab344b30e6c63d9e1`. The Gradle build succeeded; ARM64 APK #111 and Groq Key Pool #389 passed. Android 16 provider instrumentation passed all 31 tests, including `installedAnimePaheIsRefreshedIntoTheEnabledModelInventory`. The descriptor is visible to Night's enabled model inventory from the installed matching APK. Providers, Extensions, Integrations, Browser, Memory, PDF Editor, Image Editor, and the other completed UI suites passed. Main Tabs failed before app interaction after repeated ADB exit-code-1 failures during emulator setup.
+
+- The repeated `create_options` persistence regression remains green in the provider test coverage. The #430 Providers UI artifact covers provider settings and does not show chat option selection; whether identical option cards visibly repeat remains unverified. Keep Groq 429 TPM separate as provider quota failure.
+- The #429 Image Editor screenshot review remains valid: clear full-width preview; edited export 4089×4087 from 4121×4116 source; untouched export matches the source exactly. Physical-device comparison remains open.
+- #430 video tested libVLC's default renderer selection on the virtual device, with verbosity 3 and the native-surface readiness gate retained. This also yielded 0 colored viewport pixels. The screenshot is black; the 709×1536 TextureView is attached/shown and surface-ready, software H.264 decode starts, and no Vout event follows. Default negotiation does not resolve the output failure; prior forced Android display and GLES selections also failed.
+
+Next diagnostic should compare a non-libVLC Android renderer with the same generated H.264/AAC fixture. That will determine whether the failure is isolated to Night's libVLC output path or also affects the emulator's app-window video surfaces before selecting another production playback change. Do not call the video issue fixed. The physical device remains unverified in this CI pass.
