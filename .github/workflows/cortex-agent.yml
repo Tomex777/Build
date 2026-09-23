@@ -132,7 +132,9 @@ jobs:
           mkdir -p /tmp/night/extracted
           curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"path":"commands.zip","destination":"extracted"}'             http://127.0.0.1:47831/api/cortex/host/files/extract
           test -f /tmp/night/extracted/commands/renamed.js
-          curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/startup | grep -q '"runtime":"Node.js"'
+          STARTUP=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/startup)
+          echo "$STARTUP" | grep -q '"runtime":"Node.js"'
+          echo "$STARTUP" | grep -q '"additionalNodePackages"'
           curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/activity?limit=50 | grep -q 'server:file.rename'
       - name: Verify clean project backup excludes server dependencies and secrets
         shell: bash

@@ -14,6 +14,8 @@ const PROJECT_ROOT = path.resolve(process.env.CORTEX_PROJECT_ROOT || process.env
 const MANAGED_SERVICE = process.env.CORTEX_SERVICE || process.env.NIGHT_SERVICE || 'night.service';
 const ENTRY_FILE = process.env.CORTEX_ENTRY || process.env.NIGHT_ENTRY || 'index.js';
 const START_COMMAND = process.env.CORTEX_START_COMMAND || process.env.NIGHT_START_COMMAND || 'node index.js';
+const GIT_REPOSITORY = process.env.CORTEX_GIT_REPO || '';
+const GIT_BRANCH = process.env.CORTEX_GIT_BRANCH || '';
 const STATE_DIR = path.resolve(process.env.CORTEX_STATE_DIR || path.join(PROJECT_ROOT, '.cortex'));
 const ACTIVITY_FILE = path.join(STATE_DIR, 'activity.jsonl');
 const BACKUP_DIR = path.join(STATE_DIR, 'backups');
@@ -297,6 +299,25 @@ async function sendBackup(res, name) {
 }
 
 async function startupInfo() {
+  let gitRepository = GIT_REPOSITORY;
+  let gitBranch = GIT_BRANCH;
+  if (!gitRepository) {
+    try {
+      gitRepository = (await exec('git', ['-C', PROJECT_ROOT, 'config', '--get', 'remote.origin.url'], { timeout: 5000 })).stdout.trim();
+    } catch {}
+  }
+  if (!gitBranch) {
+    try {
+      gitBranch = (await exec('git', ['-C', PROJECT_ROOT, 'rev-parse', '--abbrev-ref', 'HEAD'], { timeout: 5000 })).stdout.trim();
+    } catch {}
+  }
+
+  let additionalNodePackages = [];
+  try {
+    const pkg = JSON.parse(await fs.readFile(path.join(PROJECT_ROOT, 'package.json'), 'utf8'));
+    additionalNodePackages = Object.keys(pkg?.dependencies || {}).sort();
+  } catch {}
+
   return {
     runtime: 'Node.js',
     version: process.version.replace(/^v/, ''),
@@ -304,6 +325,9 @@ async function startupInfo() {
     startCommand: START_COMMAND,
     projectRoot: PROJECT_ROOT,
     service: MANAGED_SERVICE,
+    gitRepository,
+    gitBranch,
+    additionalNodePackages,
   };
 }
 
