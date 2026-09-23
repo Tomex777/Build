@@ -18,4 +18,4 @@ The agent is not exposed on the public internet by the installer. Put it behind 
 
 ## Build and checks
 
-The **Cortex Android** GitHub Actions workflow builds a debug APK and runs a UI smoke test in an API 36 Android emulator. It publishes the APK and emulator screenshot as workflow artifacts.
+The **Cortex Android** GitHub Actions workflow builds the API 36 debug APK and instrumentation test, then runs a UI smoke test in an API 35 Android emulator. It publishes the APK and emulator screenshot as workflow artifacts.

@@ -51,10 +51,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.6.0'
-      - name: Run app flow in Android 36 emulator and capture screen
+      - name: Run app flow in Android 35 emulator and capture screen
         uses: ReactiveCircus/android-emulator-runner@v2
         with:
-          api-level: 36
+          api-level: 35
           target: google_apis
           arch: x86_64
           profile: pixel_6
@@ -74,6 +74,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cortex-android36-emulator-screen
+          name: cortex-android35-emulator-screen
           path: cortex-home-emulator.png
           if-no-files-found: ignore
