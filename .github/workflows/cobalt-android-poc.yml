@@ -221,9 +221,7 @@ jobs:
 
             # Exercise the real pairing CTA without submitting a phone number.
             # The expected validation proves the tap reached the app safely.
-            python3 -c 'import re,xml.etree.ElementTree as E; root=E.parse("cobalt-android-poc/window.xml").getroot(); button=next(n for n in root.iter() if n.attrib.get("text")=="Continue to WhatsApp"); coords=map(int,re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",button.attrib["bounds"]).groups()); x1,y1,x2,y2=coords; open("cobalt-android-poc/cta-bounds.txt","w").write(f"{(x1+x2)//2} {(y1+y2)//2}")'
-            read X Y < cobalt-android-poc/cta-bounds.txt
-            adb shell input tap "$X" "$Y"
+            set -- $(python3 -c 'import re,xml.etree.ElementTree as E; root=E.parse("cobalt-android-poc/window.xml").getroot(); button=next(n for n in root.iter() if n.attrib.get("text")=="Continue to WhatsApp"); x1,y1,x2,y2=map(int,re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",button.attrib["bounds"]).groups()); print((x1+x2)//2,(y1+y2)//2)'); adb shell input tap "$1" "$2"
             sleep 1
             adb shell uiautomator dump /sdcard/cobalt-window.xml
             adb pull /sdcard/cobalt-window.xml cobalt-android-poc/window.xml
