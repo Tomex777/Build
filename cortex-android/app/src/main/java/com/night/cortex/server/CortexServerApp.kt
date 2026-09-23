@@ -107,6 +107,7 @@ import kotlin.math.roundToInt
 
 private enum class ServerTab(val label: String) {
     CONSOLE("Console"),
+    PAIRING("Pairing"),
     FILES("Files"),
     BACKUPS("Backups"),
     STARTUP("Startup"),
@@ -189,6 +190,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                 tab = it
                 when (it) {
                     ServerTab.CONSOLE -> vm.refreshConsole()
+                    ServerTab.PAIRING -> vm.refreshPairing()
                     ServerTab.FILES -> vm.refreshFiles()
                     ServerTab.BACKUPS -> vm.refreshBackups()
                     ServerTab.ACTIVITY -> vm.refreshActivity()
@@ -204,6 +206,14 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                 Box(Modifier.fillMaxSize()) {
                     when (tab) {
                         ServerTab.CONSOLE -> ConsolePage(state, vm::power, vm::refreshConsole)
+                        ServerTab.PAIRING -> CortexPairingScreen(
+                            state = state.pairing,
+                            busy = state.loading,
+                            onRefresh = vm::refreshPairing,
+                            onPair = vm::pairAccount,
+                            onReconnect = vm::reconnectPairing,
+                            onRepair = vm::repairAccount,
+                        )
                         ServerTab.FILES -> FilesPage(
                             state = state,
                             onUp = vm::goUp,

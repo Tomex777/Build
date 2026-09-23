@@ -204,6 +204,54 @@ class CortexServerApi(
         }
     }
 
+    fun pairingState(): PairingState {
+        val json = getJson("/api/cortex/mscc/pairing")
+        val rows = json.optJSONArray("accounts") ?: JSONArray()
+        val accounts = buildList {
+            for (i in 0 until rows.length()) {
+                val row = rows.optJSONObject(i) ?: continue
+                add(
+                    PairingAccount(
+                        id = row.optString("id"),
+                        enabled = row.optBoolean("enabled", false),
+                        connected = row.optBoolean("connected", false),
+                        status = row.optString("status", "offline"),
+                        numberMasked = row.optString("numberMasked", "Not configured"),
+                        indexCount = row.optInt("indexCount", 0),
+                        indexLimit = row.optInt("indexLimit", 5000),
+                        pairingMode = row.optString("pairingMode"),
+                        pairingCode = row.optString("pairingCode"),
+                        pairingQr = row.optString("pairingQr"),
+                        pairingError = row.optString("pairingError"),
+                    )
+                )
+            }
+        }
+        return PairingState(
+            version = json.optString("version"),
+            destination = json.optString("destination", "A"),
+            accounts = accounts,
+        )
+    }
+
+    fun pairAccount(id: String, mode: String) {
+        postJson(
+            "/api/cortex/mscc/accounts/${encodeAccount(id)}/pair",
+            JSONObject().put("mode", if (mode == "qr") "qr" else "code"),
+        )
+    }
+
+    fun reconnectAccount(id: String) {
+        postJson("/api/cortex/mscc/accounts/${encodeAccount(id)}/reconnect", JSONObject())
+    }
+
+    fun repairAccount(id: String, mode: String) {
+        postJson(
+            "/api/cortex/mscc/accounts/${encodeAccount(id)}/repair",
+            JSONObject().put("mode", if (mode == "qr") "qr" else "code"),
+        )
+    }
+
     fun createBackup(privateBackup: Boolean): BackupEntry {
         val row = postJson("/api/cortex/host/backups", JSONObject().put("private", privateBackup))
         return BackupEntry(
@@ -265,6 +313,12 @@ class CortexServerApi(
 
     private fun encode(value: String): String =
         URLEncoder.encode(value, StandardCharsets.UTF_8.toString()).replace("+", "%20")
+
+    private fun encodeAccount(value: String): String {
+        val id = value.trim().uppercase()
+        require(id == "A" || id == "B") { "Unknown account" }
+        return id
+    }
 }
 
 private fun JSONArray?.strings(): List<String> {

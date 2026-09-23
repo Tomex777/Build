@@ -34,6 +34,26 @@ data class CommandSetting(
     val enabled: Boolean,
 )
 
+data class PairingAccount(
+    val id: String,
+    val enabled: Boolean,
+    val connected: Boolean,
+    val status: String,
+    val numberMasked: String,
+    val indexCount: Int,
+    val indexLimit: Int,
+    val pairingMode: String,
+    val pairingCode: String,
+    val pairingQr: String,
+    val pairingError: String,
+)
+
+data class PairingState(
+    val version: String,
+    val destination: String,
+    val accounts: List<PairingAccount>,
+)
+
 data class PendingDownload(
     val name: String,
     val bytes: ByteArray,
@@ -57,5 +77,6 @@ data class ServerPanelState(
     val activity: List<ActivityEntry> = emptyList(),
     val backups: List<BackupEntry> = emptyList(),
     val commandSettings: List<CommandSetting> = emptyList(),
+    val pairing: PairingState? = null,
     val pendingDownload: PendingDownload? = null,
 )

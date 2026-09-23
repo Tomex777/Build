@@ -10,6 +10,7 @@ import com.night.cortex.hosting.HostingFileEntry
 import com.night.cortex.hosting.HostingPowerAction
 import com.night.cortex.hosting.HostingProviderId
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -76,6 +77,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                         activity = runCatching { api.activity() }.getOrDefault(emptyList()),
                         backups = runCatching { api.backups() }.getOrDefault(emptyList()),
                         commandSettings = runCatching { api.commandSettings() }.getOrDefault(emptyList()),
+                        pairing = runCatching { api.pairingState() }.getOrNull(),
                     )
                 }
                 _state.value = _state.value.copy(
@@ -86,6 +88,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     activity = result.activity,
                     backups = result.backups,
                     commandSettings = result.commandSettings,
+                    pairing = result.pairing,
                 )
             }
         }
@@ -328,6 +331,61 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun refreshPairing() {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy {
+                val pairing = withContext(Dispatchers.IO) { api().pairingState() }
+                _state.value = _state.value.copy(pairing = pairing)
+            }
+        }
+    }
+
+    fun pairAccount(id: String, mode: String) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy("Pairing started.") {
+                withContext(Dispatchers.IO) { api().pairAccount(id, mode) }
+                pollPairing(id)
+            }
+        }
+    }
+
+    fun repairAccount(id: String, mode: String) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy("Re-pair started.") {
+                withContext(Dispatchers.IO) { api().repairAccount(id, mode) }
+                pollPairing(id)
+            }
+        }
+    }
+
+    fun reconnectPairing(id: String) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy("Reconnect requested.") {
+                withContext(Dispatchers.IO) { api().reconnectAccount(id) }
+                pollPairing(id)
+            }
+        }
+    }
+
+    private suspend fun pollPairing(id: String) {
+        repeat(10) { attempt ->
+            delay(if (attempt == 0) 300 else 650)
+            val pairing = withContext(Dispatchers.IO) { api().pairingState() }
+            _state.value = _state.value.copy(pairing = pairing)
+            val account = pairing.accounts.firstOrNull { it.id == id }
+            if (
+                account?.connected == true ||
+                !account?.pairingCode.isNullOrBlank() ||
+                !account?.pairingQr.isNullOrBlank() ||
+                !account?.pairingError.isNullOrBlank()
+            ) return
+        }
+    }
+
     fun refreshActivity() {
         if (!_state.value.configured) return
         viewModelScope.launch {
@@ -400,5 +458,6 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         val activity: List<ActivityEntry>,
         val backups: List<BackupEntry>,
         val commandSettings: List<CommandSetting>,
+        val pairing: PairingState?,
     )
 }
