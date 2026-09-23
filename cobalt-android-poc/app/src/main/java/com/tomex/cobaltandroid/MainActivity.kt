@@ -22,6 +22,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.VideoView
 import java.nio.file.Path
 import java.util.Optional
 import java.util.concurrent.Executors
@@ -699,7 +700,7 @@ class MainActivity : Activity() {
                             }
                             if (content?.javaClass?.simpleName?.contains("VideoMessage") == true) {
                                 bubble.setOnClickListener {
-                                    setStatus(if (isViewOnceContent(content)) "This is a view-once video. Video playback is not available yet." else "Video playback is not available yet.")
+                                    openMediaMessage(info, content)
                                 }
                             }
                             val delivery = if (isFromMe(info)) firstValue(info, "status")?.toString()?.lowercase() else null
@@ -991,8 +992,8 @@ class MainActivity : Activity() {
                 null -> null
                 else -> textValue.toString()
             }?.takeIf { it.isNotBlank() } ?: when {
-                type.contains("VideoMessage") && isViewOnceContent(content) -> "View once video · Tap to open"
-                type.contains("VideoMessage") -> "Video"
+                type.contains("VideoMessage") && isViewOnceContent(content) -> "View once video · Tap to play"
+                type.contains("VideoMessage") -> "Video · Tap to play"
                 type.contains("AudioMessage") -> "Voice message"
                 type.contains("DocumentMessage") -> "Document"
                 type.contains("StickerMessage") -> "Sticker"
@@ -1010,15 +1011,17 @@ class MainActivity : Activity() {
     private fun isViewOnceContent(content: Any): Boolean =
         firstValue(content, "viewOnce") as? Boolean ?: false
 
-    private fun openImageMessage(info: Any, content: Any) {
+    private fun openMediaMessage(info: Any, content: Any) {
         val id = firstValue(firstValue(info, "key") ?: info, "id")?.toString()
         val viewOnce = isViewOnceContent(content)
+        val isVideo = content.javaClass.simpleName.contains("VideoMessage")
         if (viewOnce && !id.isNullOrBlank() && !openedViewOnceIds.add(id)) {
-            setStatus("This view-once photo has already been opened in Cobalt.")
+            setStatus("This view-once message has already been opened in Cobalt.")
             return
         }
-        setStatus("Opening photo…")
+        setStatus(if (isVideo) "Opening video…" else "Opening photo…")
         worker.execute {
+            var videoFile: java.io.File? = null
             try {
                 val client = currentClient ?: throw IllegalStateException("WhatsApp is disconnected.")
                 val downloader = client.javaClass.methods.firstOrNull {
@@ -1026,7 +1029,7 @@ class MainActivity : Activity() {
                         it.parameterTypes[0].isAssignableFrom(content.javaClass)
                 } ?: throw NoSuchMethodException("Media download is unavailable.")
                 val input = downloader.invoke(client, content) as? java.io.InputStream
-                    ?: throw IllegalStateException("Photo download returned no data.")
+                    ?: throw IllegalStateException("Media download returned no data.")
                 val output = java.io.ByteArrayOutputStream()
                 input.use { stream ->
                     val buffer = ByteArray(8192)
@@ -1035,32 +1038,62 @@ class MainActivity : Activity() {
                         val count = stream.read(buffer)
                         if (count < 0) break
                         total += count
-                        if (total > MAX_IMAGE_BYTES) throw IllegalArgumentException("Photo is larger than 20 MB.")
+                        if (total > MAX_IMAGE_BYTES) throw IllegalArgumentException("Media is larger than 20 MB.")
                         output.write(buffer, 0, count)
                     }
                 }
                 val bytes = output.toByteArray()
-                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                    ?: throw IllegalArgumentException("Cobalt could not open this image.")
-                runOnUiThread {
-                    val viewer = ImageView(this).apply {
-                        setImageBitmap(bitmap)
-                        scaleType = ImageView.ScaleType.FIT_CENTER
-                        adjustViewBounds = true
-                        setBackgroundColor(Color.rgb(16, 22, 20))
-                        setPadding(dp(12), dp(12), dp(12), dp(12))
+                if (isVideo) {
+                    videoFile = java.io.File(cacheDir, "cobalt-view-once-${System.nanoTime()}.mp4")
+                    videoFile.writeBytes(bytes)
+                } else {
+                    val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                        ?: throw IllegalArgumentException("Cobalt could not open this image.")
+                    runOnUiThread {
+                        val viewer = ImageView(this).apply {
+                            setImageBitmap(bitmap)
+                            scaleType = ImageView.ScaleType.FIT_CENTER
+                            adjustViewBounds = true
+                            setBackgroundColor(Color.rgb(16, 22, 20))
+                            setPadding(dp(12), dp(12), dp(12), dp(12))
+                        }
+                        AlertDialog.Builder(this)
+                            .setTitle(if (viewOnce) "View once photo" else "Photo")
+                            .setView(viewer)
+                            .setPositiveButton("Close", null)
+                            .show()
+                        setStatus(if (viewOnce) "View-once photo opened. Close it when you’re done." else "Photo opened.")
                     }
-                    AlertDialog.Builder(this)
-                        .setTitle(if (viewOnce) "View once photo" else "Photo")
-                        .setView(viewer)
-                        .setPositiveButton("Close", null)
-                        .show()
-                    setStatus(if (viewOnce) "View-once photo opened. Close it when you’re done." else "Photo opened.")
+                }
+                if (isVideo) {
+                    val file = videoFile ?: throw IllegalStateException("Video file was not created.")
+                    runOnUiThread {
+                        val video = VideoView(this).apply {
+                            setBackgroundColor(Color.rgb(16, 22, 20))
+                            setVideoPath(file.absolutePath)
+                        }
+                        val dialog = AlertDialog.Builder(this)
+                            .setTitle(if (viewOnce) "View once video" else "Video")
+                            .setView(video)
+                            .setPositiveButton("Close", null)
+                            .create()
+                        dialog.setOnDismissListener {
+                            video.stopPlayback()
+                            file.delete()
+                        }
+                        dialog.show()
+                        video.setOnPreparedListener { player -> player.isLooping = false; video.start() }
+                        video.setOnCompletionListener {
+                            setStatus(if (viewOnce) "View-once video finished. Close it when you’re done." else "Video finished.")
+                        }
+                        setStatus(if (viewOnce) "View-once video opened." else "Video opened.")
+                    }
                 }
             } catch (error: Throwable) {
+                videoFile?.delete()
                 if (viewOnce && !id.isNullOrBlank()) openedViewOnceIds.remove(id)
-                Log.w(tag, "Could not open image", error)
-                runOnUiThread { setStatus("Could not open this photo. Check your connection and try again.") }
+                Log.w(tag, "Could not open media", error)
+                runOnUiThread { setStatus("Could not open this media. Check your connection and try again.") }
             }
         }
     }
