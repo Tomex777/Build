@@ -32,6 +32,7 @@ const ACCOUNT_B_AUTH_DIR = process.env.ACCOUNT_B_AUTH_DIR || '/var/lib/mscc/auth
 const DESTINATION = String(process.env.CC_DESTINATION_ACCOUNT || 'A').toUpperCase() === 'B' ? 'B' : 'A'
 const INDEX_FILE = process.env.MESSAGE_INDEX_FILE || '/var/lib/mscc/data/mscc-message-index.json'
 const SETTINGS_FILE = process.env.SETTINGS_FILE || '/var/lib/mscc/data/mscc-settings.json'
+const CORTEX_SETTINGS_SCHEMA_FILE = process.env.CORTEX_SETTINGS_SCHEMA_FILE || join(dirname(SETTINGS_FILE), 'cortex-settings-schema.json')
 const AUTH_BACKUP_DIR = process.env.AUTH_BACKUP_DIR || '/var/backups/mscc'
 const TTL_MS = num('MESSAGE_TTL_HOURS', 24, 1, 168) * 3600000
 const MAX_CACHE = num('MAX_MESSAGE_CACHE', 5000, 100, 20000)
@@ -76,6 +77,8 @@ let waVersion = null
 let webServer = null
 let saveTimer = null
 let saveChain = Promise.resolve()
+let settingsMtimeMs = 0
+let settingsPollTimer = null
 
 const cache = new Map()
 const byId = new Map()
@@ -284,16 +287,7 @@ async function loadState() {
   } catch (e) {
     if (e?.code !== 'ENOENT') console.warn('Index load failed:', e?.message || e)
   }
-  try {
-    const raw = JSON.parse(await readFile(SETTINGS_FILE, 'utf8'))
-    settings = {
-      autoCc: raw?.autoCc === true,
-      replyCc: raw?.replyCc !== false,
-      antiDelete: raw?.antiDelete !== false
-    }
-  } catch (e) {
-    if (e?.code !== 'ENOENT') console.warn('Settings load failed:', e?.message || e)
-  }
+  await reloadSettings(true)
   prune()
 }
 
@@ -317,10 +311,58 @@ function scheduleSave() {
   saveTimer.unref?.()
 }
 
+async function reloadSettings(silent = false) {
+  try {
+    const raw = JSON.parse(await readFile(SETTINGS_FILE, 'utf8'))
+    settings = {
+      autoCc: raw?.autoCc === true,
+      replyCc: raw?.replyCc !== false,
+      antiDelete: raw?.antiDelete !== false
+    }
+    settingsMtimeMs = (await stat(SETTINGS_FILE)).mtimeMs
+    if (!silent) console.log('MSCC settings reloaded from disk')
+  } catch (e) {
+    if (e?.code !== 'ENOENT') console.warn('Settings load failed:', e?.message || e)
+  }
+}
+
 async function saveSettings() {
   await mkdir(dirname(SETTINGS_FILE), { recursive: true })
   await writeFile(SETTINGS_FILE + '.tmp', JSON.stringify({ version: 1, ...settings, savedAt: Date.now() }, null, 2))
   await rename(SETTINGS_FILE + '.tmp', SETTINGS_FILE)
+  settingsMtimeMs = (await stat(SETTINGS_FILE)).mtimeMs
+}
+
+async function writeCommandSettingsSchema() {
+  const entries = commandRegistry.canonical
+    .filter(command => command.setting?.key)
+    .map(command => ({
+      key: command.setting.key,
+      label: command.setting.label || command.name,
+      description: command.setting.description || command.description || '',
+      command: command.name,
+      type: 'boolean',
+    }))
+  await mkdir(dirname(CORTEX_SETTINGS_SCHEMA_FILE), { recursive: true })
+  await writeFile(CORTEX_SETTINGS_SCHEMA_FILE + '.tmp', JSON.stringify({
+    version: 1,
+    service: 'mscc',
+    entries,
+  }, null, 2))
+  await rename(CORTEX_SETTINGS_SCHEMA_FILE + '.tmp', CORTEX_SETTINGS_SCHEMA_FILE)
+}
+
+function startSettingsWatcher() {
+  clearInterval(settingsPollTimer)
+  settingsPollTimer = setInterval(async () => {
+    try {
+      const info = await stat(SETTINGS_FILE)
+      if (info.mtimeMs > settingsMtimeMs + 1) await reloadSettings(false)
+    } catch (e) {
+      if (e?.code !== 'ENOENT') console.warn('Settings watch failed:', e?.message || e)
+    }
+  }, 1500)
+  settingsPollTimer.unref?.()
 }
 
 async function pathExists(path) {
@@ -677,6 +719,8 @@ async function webState() {
 
 async function init() {
   await loadState()
+  await writeCommandSettingsSchema()
+  startSettingsWatcher()
   webServer = startWebPanel({
     port: WEB_PORT,
     password: WEB_PASSWORD,
@@ -707,6 +751,7 @@ for (const signal of ['SIGINT','SIGTERM']) {
     try {
       webServer?.close?.()
       if (saveTimer) clearTimeout(saveTimer)
+      if (settingsPollTimer) clearInterval(settingsPollTimer)
       await writeState()
     } finally { process.exit(0) }
   })
