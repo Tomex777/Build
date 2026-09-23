@@ -1,11 +1,21 @@
 # Night Progress
 
 - Active branch: `night-groq-key-pool-ci`
-- Current source head: `ab3c4bec1f65e8ec56b80d469e96e9d16efcdbaa`
-- Original real-device handoff baseline: `04c78f69c01192022daaeadc5ea73f92e673f06a`
+- Handoff baseline: `c296e0fd9cfbffd2d70a2d94880e5237cdfe0d6a`
+- Current source head: `539a31d0ec406ee86fac899e6b98699de5a15730`
 - Latest validation:
-  - Night Groq Key Pool: PASS
-  - Night Integrated Regression at `ab3c4be`: GREEN
+  - `57d3cef`: Night ARM64 APK and Groq Key Pool passed.
+  - `57d3cef`: 31 provider tests ran; only AnimePahe service discovery failed. Android could see the installed service, but Night received a descriptor with zero tools and zero message types. All 13 UI suites passed, including Extensions, Integrations, Image Editor, and PDF Editor.
+  - `57d3cef`: Integrated video job stopped during Android Emulator package download (`unknown archive`), before playback ran.
+  - `539a31d`: Integrated build stopped at `:app:packageDebug` with Java heap exhaustion before emulator tests. Groq hit the same packaging OOM; its workflow now uses a 4 GB heap and one worker in `4051e61`.
+  - `539a31d`: ARM64 build and Groq rerun are in progress. The extension test captures the raw service descriptor over IPC, but needs another integrated run after increasing that workflow's heap too.
+
+## Current device issues
+
+- AnimePahe service registration vs. prompt inventory: raw descriptor IPC result pending; `539a31d` never reached the emulator because APK packaging ran out of heap.
+- Repeated identical options cards: provider regression asserted one persisted card after two identical `create_options` calls; passed among the 30 successful tests at `57d3cef`.
+- Black video viewport: reproduced on Android 16 emulator; VLC surface attached and playback started, but the frame assertion saw an all-black viewport. Need a successful emulator rerun with additional VLC logcat diagnostics.
+- Image editor preview/quality: editor interaction suite passed at `57d3cef`; user-provided MP4 sample remains useful if the generated fixture cannot reproduce the user's case.
 
 ## Completed Night platform phases
 
