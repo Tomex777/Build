@@ -168,6 +168,7 @@ cp /tmp/window.xml "$OUT/01-image-editor-open.xml"
 
 original_hash="$(adb shell run-as "$PACKAGE" sha256sum cache/night-editor-preview.jpg | awk '{print $1}')"
 test -n "$original_hash"
+adb exec-out run-as "$PACKAGE" cat cache/night-editor-preview.jpg > "$OUT/source-image.jpg"
 printf '%s\n' "$original_hash" > "$OUT/original-sha256.txt"
 
 echo "STEP: untouched image send preserves original bytes and resolution"
@@ -287,11 +288,36 @@ adb exec-out run-as "$PACKAGE" cat "$exported_path" > "$OUT/exported-image.jpg"
 test -s "$OUT/exported-image.jpg"
 python3 - <<'PY'
 from pathlib import Path
-p=Path("night-image-editor-artifacts/exported-image.jpg")
-data=p.read_bytes()
-assert len(data) > 1500, len(data)
-assert data[:2] == b"\xff\xd8", data[:8]
-assert data[-2:] == b"\xff\xd9", data[-8:]
+
+def jpeg_dimensions(path):
+    data = Path(path).read_bytes()
+    assert data[:2] == b"\xff\xd8", data[:8]
+    assert data[-2:] == b"\xff\xd9", data[-8:]
+    offset = 2
+    while offset + 9 < len(data):
+        if data[offset] != 0xFF:
+            offset += 1
+            continue
+        marker = data[offset + 1]
+        offset += 2
+        if marker in {0xD8, 0xD9} or 0xD0 <= marker <= 0xD7:
+            continue
+        length = int.from_bytes(data[offset:offset + 2], "big")
+        if marker in {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF}:
+            height = int.from_bytes(data[offset + 3:offset + 5], "big")
+            width = int.from_bytes(data[offset + 5:offset + 7], "big")
+            return width, height
+        offset += length
+    raise AssertionError(f"No JPEG frame dimensions found in {path}")
+
+export_path = "night-image-editor-artifacts/exported-image.jpg"
+source_path = "night-image-editor-artifacts/source-image.jpg"
+exported = jpeg_dimensions(export_path)
+source = jpeg_dimensions(source_path)
+print(f"image editor export dimensions={exported}, source={source}")
+assert Path(export_path).stat().st_size > 1500
+assert min(exported) >= 1200, f"Image export is too small: {exported}"
+assert max(exported) >= int(max(source) * 0.60), (exported, source)
 PY
 
 after_hash="$(adb shell run-as "$PACKAGE" sha256sum cache/night-editor-preview.jpg | awk '{print $1}')"

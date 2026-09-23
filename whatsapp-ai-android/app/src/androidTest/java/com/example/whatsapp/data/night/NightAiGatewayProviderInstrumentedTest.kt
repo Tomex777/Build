@@ -952,6 +952,15 @@ class NightAiGatewayProviderInstrumentedTest {
         )
         server.enqueue(
             MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "text/event-stream")
+                .setBody(
+                    "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_options_repeat\",\"function\":{\"name\":\"create_options\",\"arguments\":\"{\\\"title\\\":\\\"Pick one\\\",\\\"options\\\":[\\\"A\\\",\\\"B\\\"],\\\"multiple\\\":true}\"}}]}}]}\n\n" +
+                        "data: [DONE]\n\n"
+                )
+        )
+        server.enqueue(
+            MockResponse()
                 .setResponseCode(500)
                 .setHeader("Content-Type", "application/json")
                 .setBody("""{"error":{"message":"continuation failed"}}""")
@@ -1059,7 +1068,7 @@ class NightAiGatewayProviderInstrumentedTest {
                     ?.message
                     ?.contains("A Night action completed") == true
             )
-            assertEquals(2, server.requestCount)
+            assertEquals(3, server.requestCount)
             assertEquals(0, fallbackServer.requestCount)
 
             val choiceMessages = repository.getMessages(chatId)

@@ -3,6 +3,7 @@ package com.example.whatsapp.presentation.chatscreen
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color as AndroidColor
+import android.graphics.Point
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -59,7 +61,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -83,6 +87,20 @@ import kotlinx.coroutines.withContext
 
 private val EditorAccent = Color(0xFFE94B72)
 private val EditorBar = Color(0xFF111719)
+private const val MAX_EDITOR_CANVAS_EDGE_PX = 4096
+
+private fun readEditorCanvasSize(path: String): Point? {
+    val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(path, options)
+    if (options.outWidth <= 0 || options.outHeight <= 0) return null
+
+    val longestEdge = maxOf(options.outWidth, options.outHeight)
+    val scale = minOf(1f, MAX_EDITOR_CANVAS_EDGE_PX.toFloat() / longestEdge)
+    return Point(
+        (options.outWidth * scale).toInt().coerceAtLeast(1),
+        (options.outHeight * scale).toInt().coerceAtLeast(1),
+    )
+}
 
 private data class EditorColorOption(
     val name: String,
@@ -143,6 +161,9 @@ fun NightMediaComposerScreen(
 
     val durationMs = remember(localPath, isVideo) {
         if (isVideo) readEditorVideoDuration(localPath) else 0L
+    }
+    val editorCanvasSize = remember(workingPath, isVideo) {
+        if (isVideo) null else readEditorCanvasSize(workingPath)
     }
     val durationSeconds = (durationMs / 1000f).coerceAtLeast(1f)
     var trimRange by remember(localPath, durationSeconds) {
@@ -535,10 +556,35 @@ fun NightMediaComposerScreen(
                     .background(Color.Black),
                 contentAlignment = Alignment.Center,
             ) {
-                // Keep the editor canvas as large as the available preview area.
-                // The image view itself uses FIT_CENTER, so unusual portrait or
-                // panorama ratios no longer shrink the whole editor surface.
-                val editorModifier = Modifier.fillMaxSize()
+                // PhotoEditor saves its view canvas. Give that view source-pixel
+                // dimensions (capped for memory), then scale it down only for the
+                // on-screen preview. This keeps crop/markup exports from flattening
+                // a full-resolution image to the phone's display resolution.
+                val density = LocalDensity.current
+                val canvasSize = editorCanvasSize
+                val previewScale = if (canvasSize == null) {
+                    1f
+                } else {
+                    with(density) {
+                        minOf(
+                            maxWidth.toPx() / canvasSize.x,
+                            maxHeight.toPx() / canvasSize.y,
+                        )
+                    }
+                }
+                val editorModifier = if (canvasSize == null) {
+                    Modifier.fillMaxSize()
+                } else {
+                    Modifier
+                        .requiredSize(
+                            width = with(density) { canvasSize.x.toDp() },
+                            height = with(density) { canvasSize.y.toDp() },
+                        )
+                        .graphicsLayer {
+                            scaleX = previewScale
+                            scaleY = previewScale
+                        }
+                }
 
                 when {
                     isVideo -> {

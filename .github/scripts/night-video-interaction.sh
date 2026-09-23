@@ -400,6 +400,34 @@ print(width, height)
 PY
 }
 
+assert_video_frames_rendered() {
+  local screenshot="$1"
+  python3 - "$screenshot" <<'PY'
+import subprocess
+import sys
+
+path = sys.argv[1]
+# The generated fixture is a moving, colored test pattern. Check the central
+# video viewport (excluding the headers and toolbars) so playback progress
+# cannot pass while the Android video surface itself is black.
+raw = subprocess.check_output([
+    "ffmpeg", "-v", "error", "-i", path,
+    "-vf", "crop=iw-32:480:16:(ih-480)/2",
+    "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-",
+])
+pixels = len(raw) // 3
+colored = sum(
+    1 for offset in range(0, len(raw), 3)
+    if max(raw[offset:offset + 3]) > 72
+    and max(raw[offset:offset + 3]) - min(raw[offset:offset + 3]) > 36
+)
+ratio = colored / max(pixels, 1)
+print(f"{path}: coloredViewportPixels={colored}, ratio={ratio:.4f}")
+if colored < 1200 or ratio < 0.003:
+    raise SystemExit("Night video viewport is black or has no visible decoded frame.")
+PY
+}
+
 echo "STEP: open and play real H.264/AAC MP4"
 adb shell am force-stop "$PACKAGE"
 adb shell settings put secure immersive_mode_confirmations confirmed >/dev/null 2>&1 || true
@@ -413,6 +441,7 @@ assert_alive
 show_controls
 assert_no_crash
 capture_dims "$ARTIFACTS/01-real-video-open.png" > "$ARTIFACTS/01-dimensions.txt"
+assert_video_frames_rendered "$ARTIFACTS/01-real-video-open.png"
 capture_media_logcat "01-open"
 
 first_time="$(read_current_time)"
@@ -651,6 +680,7 @@ assert_desc "Send media"
 capture_media_logcat "09-editor-open"
 assert_no_crash
 adb exec-out screencap -p > "$ARTIFACTS/07-editor-real-video-open.png" || true
+assert_video_frames_rendered "$ARTIFACTS/07-editor-real-video-open.png"
 
 editor_first_time="$(read_current_time)"
 editor_first_seconds="$(to_seconds "$editor_first_time")"

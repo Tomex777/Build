@@ -10,6 +10,7 @@ import com.example.whatsapp.extensions.messages.ExtensionMessageCodec
 import com.example.whatsapp.extensions.messages.ExtensionMessageSnapshot
 import com.example.whatsapp.extensions.messages.NightExtensionMessageTypeDefinition
 import com.example.whatsapp.extensions.messages.NightExtensionMessageTypeRegistry
+import com.example.whatsapp.extensions.runtime.NightExternalExtensionManager
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -20,6 +21,62 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class NightExtensionToolIntegrationInstrumentedTest {
+
+    @Test
+    fun installedAnimePaheIsRefreshedIntoTheEnabledModelInventory() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val manager = NightExternalExtensionManager.get(context)
+
+        manager.refreshInstalledExtensions()
+        val discovered = manager.extensions.value
+            .singleOrNull { it.extensionId == "animepahe" }
+            ?: error("The separately installed AnimePahe APK was not discovered.")
+
+        assertEquals(5, discovered.toolCount)
+        assertEquals(6, discovered.messageTypeCount)
+
+        try {
+            manager.setEnabled(discovered, true)
+
+            val enabled = manager.extensions.value
+                .single { it.extensionId == "animepahe" }
+            assertTrue(enabled.enabled)
+            assertEquals(5, enabled.toolCount)
+            assertEquals(6, enabled.messageTypeCount)
+
+            val toolSchemas = NightExtensionToolRegistry.schemas()
+            assertEquals(5, toolSchemas.length())
+            val registeredToolNames = buildList {
+                for (index in 0 until toolSchemas.length()) {
+                    add(
+                        toolSchemas.getJSONObject(index)
+                            .getJSONObject("function")
+                            .getString("name")
+                    )
+                }
+            }
+            assertTrue(registeredToolNames.any { it.contains("search_anime") })
+
+            val inventory = manager.modelContextSummary()
+            assertTrue(inventory.contains("enabled in Night"))
+            assertTrue(inventory.contains("5 tools"))
+            assertTrue(inventory.contains("6 message types"))
+
+            val toolPrompt = NightExtensionToolRegistry.promptSummary()
+            registeredToolNames.forEach { toolName ->
+                assertTrue("Missing model tool $toolName", toolPrompt.contains(toolName))
+            }
+            val messageTypePrompt = NightExtensionMessageTypeRegistry.promptSummary()
+            assertTrue(messageTypePrompt.contains("animepahe."))
+
+            val integrationPrompt = NightIntegrationToolRegistry.promptSummary()
+            assertTrue(integrationPrompt.contains("search_anime"))
+        } finally {
+            manager.extensions.value
+                .singleOrNull { it.extensionId == "animepahe" }
+                ?.let { manager.setEnabled(it, false) }
+        }
+    }
 
     @Test
     fun extensionToolPersistsDeclaredRichMessage() = runBlocking {
