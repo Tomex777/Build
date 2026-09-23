@@ -100,8 +100,6 @@ class NightProvidersPreviewActivity : ComponentActivity() {
                     models = models,
                     onBack = {},
                     onCapabilityRoutingClick = {},
-                    onMcpServersClick = {},
-                    onExtensionsClick = {},
                     onAddProfile = { _, _, _, _, _, _, _, _, _ -> },
                     onAddModel = { _, _, _, _, _, _ -> },
                     onDeleteProfile = { _ -> },
