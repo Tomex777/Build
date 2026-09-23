@@ -37,6 +37,8 @@ NIGHT_SERVICE=night.service
 NIGHT_ENTRY=index.js
 NIGHT_START_COMMAND=node index.js
 CORTEX_STATE_DIR=/var/lib/cortex
+CORTEX_COMMAND_SETTINGS_FILE=/var/lib/mscc/data/mscc-settings.json
+CORTEX_COMMAND_SETTINGS_SCHEMA_FILE=/var/lib/mscc/data/cortex-settings-schema.json
 HOST=127.0.0.1
 PORT=47831
 EOF
@@ -47,6 +49,8 @@ EOF
   echo
 else
   grep -q '^CORTEX_STATE_DIR=' /etc/cortex-agent.env || echo 'CORTEX_STATE_DIR=/var/lib/cortex' >>/etc/cortex-agent.env
+  grep -q '^CORTEX_COMMAND_SETTINGS_FILE=' /etc/cortex-agent.env || echo 'CORTEX_COMMAND_SETTINGS_FILE=/var/lib/mscc/data/mscc-settings.json' >>/etc/cortex-agent.env
+  grep -q '^CORTEX_COMMAND_SETTINGS_SCHEMA_FILE=' /etc/cortex-agent.env || echo 'CORTEX_COMMAND_SETTINGS_SCHEMA_FILE=/var/lib/mscc/data/cortex-settings-schema.json' >>/etc/cortex-agent.env
   echo "Keeping existing /etc/cortex-agent.env"
 fi
 
