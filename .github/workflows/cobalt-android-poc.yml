@@ -220,7 +220,7 @@ jobs:
 
             # Exercise the real pairing CTA without submitting a phone number.
             # The expected validation proves the tap reached the app safely.
-            python3 - <<'PY'
+            BOUNDS="$(python3 - <<'PY'
             import re
             import xml.etree.ElementTree as ET
 
@@ -233,15 +233,6 @@ jobs:
             if match is None:
                 raise SystemExit("Could not read pairing CTA bounds")
             x1, y1, x2, y2 = map(int, match.groups())
-            print(f"PAIRING_CTA_CENTER={((x1 + x2) // 2)} {((y1 + y2) // 2)}")
-            PY
-            TAP="$(grep '^PAIRING_CTA_CENTER=' /dev/null || true)"
-            BOUNDS="$(python3 - <<'PY'
-            import re
-            import xml.etree.ElementTree as ET
-            root = ET.parse("cobalt-android-poc/window.xml").getroot()
-            button = next(node for node in root.iter() if node.attrib.get("text") == "Continue to WhatsApp")
-            x1, y1, x2, y2 = map(int, re.fullmatch(r"\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]", button.attrib["bounds"]).groups())
             print((x1 + x2) // 2, (y1 + y2) // 2)
             PY
             )"
