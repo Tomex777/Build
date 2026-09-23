@@ -29,7 +29,7 @@ jobs:
           mkdir -p /tmp/cortex-settings /tmp/cortex-private
           printf 'private-auth-state\n' >/tmp/cortex-private/auth.txt
           printf '{"version":1,"autoCc":false,"replyCc":true,"antiDelete":true}\n' >/tmp/cortex-settings/settings.json
-          printf '{"version":1,"service":"mscc","entries":[{"key":"autoCc","label":"Auto CC","description":"Copy V1 automatically","command":"autocc","type":"boolean"}]}\n' >/tmp/cortex-settings/schema.json
+          printf '{"version":1,"service":"mscc","entries":[{"key":"autoCc","label":"Auto CC","description":"Copy V1 automatically","command":"autocc","type":"boolean","default":false},{"key":"replyCc","label":"Reply CC","description":"Reply recovery","command":"replycc","type":"boolean","default":true}]}\n' >/tmp/cortex-settings/schema.json
           cat >/tmp/mock-mscc.mjs <<'NODE'
           import http from 'node:http'
           let destination = 'A'
@@ -174,7 +174,10 @@ jobs:
         shell: bash
         run: |
           AUTH='Authorization: Bearer test-token-12345678901234567890'
-          curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/settings | grep -q '"key":"autoCc"'
+          SETTINGS=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/settings)
+          echo "$SETTINGS" | grep -q '"key":"autoCc"'
+          echo "$SETTINGS" | grep -q '"key":"replyCc"'
+          echo "$SETTINGS" | grep -q '"command":"replycc","enabled":true'
           curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"key":"autoCc","enabled":true}'             http://127.0.0.1:47831/api/cortex/host/settings | grep -q '"enabled":true'
           grep -q '"autoCc": true' /tmp/cortex-settings/settings.json
       - name: Verify MSCC pairing bridge
