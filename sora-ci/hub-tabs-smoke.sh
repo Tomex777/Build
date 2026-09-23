@@ -54,8 +54,10 @@ tap() {
 import re,sys,xml.etree.ElementTree as ET
 needle=sys.argv[1].lower()
 root=ET.parse('/tmp/sora-hub-window.xml').getroot()
-for node in root.iter('node'):
-    if needle not in (node.attrib.get('text','')+' '+node.attrib.get('content-desc','')).lower(): continue
+nodes=list(root.iter('node'))
+exact=[node for node in nodes if needle in (node.attrib.get('text','').lower(), node.attrib.get('content-desc','').lower())]
+for node in exact or nodes:
+    if node not in exact and needle not in (node.attrib.get('text','')+' '+node.attrib.get('content-desc','')).lower(): continue
     m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
     if m:
         x1,y1,x2,y2=map(int,m.groups()); print((x1+x2)//2,(y1+y2)//2); break
@@ -85,12 +87,16 @@ wait_for "YOUR PLAY"
 wait_for "Save at least two Anime or Manga titles"
 shot games-empty-library
 
-# Library's Meme filter exists, and active-only no longer invents progress.
+# Library can be legitimately empty in a clean emulator. Verify the real empty
+# state on All and Memes instead of assuming an item was seeded by another flow.
 tap Library
-wait_for "item"
-adb shell input swipe 950 190 160 190 350
+wait_for "0 items"
+wait_for "No saved items in this filter"
+shot library-empty
+adb shell input swipe 950 350 160 350 350
 sleep 1
 tap Memes
+wait_for "0 items"
 wait_for "No saved items in this filter"
 shot library-memes-empty
 
@@ -199,7 +205,7 @@ if wait_for "Less like this" 40; then
   tap "Less like this"
   shot meme-hidden-from-feed
   tap Library
-  adb shell input swipe 950 190 160 190 350
+  adb shell input swipe 950 350 160 350 350
   sleep 1
   tap Memes
   wait_for "1 item"
