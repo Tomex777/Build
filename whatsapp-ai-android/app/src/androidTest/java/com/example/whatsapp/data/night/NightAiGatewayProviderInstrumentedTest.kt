@@ -1066,7 +1066,7 @@ class NightAiGatewayProviderInstrumentedTest {
                 .filter { it.type == "choice" }
             assertEquals(1, choiceMessages.size)
             assertEquals("Pick one", choiceMessages.single().text)
-            assertTrue(JSONObject(choiceMessages.single().metadata).optBoolean("multiple"))
+            assertTrue(JSONObject(choiceMessages.single().payloadJson).optBoolean("multiple"))
         } finally {
             repository.deleteChat(chatId)
             repository.deleteProviderModel(primaryModelId)
