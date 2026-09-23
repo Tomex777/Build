@@ -29,6 +29,7 @@ jobs:
           CORTEX_AGENT_TOKEN='test-token-12345678901234567890' \
           NIGHT_ROOT=/tmp/night \
           NIGHT_SERVICE=night.service \
+          CORTEX_STATE_DIR=/tmp/cortex-state \
           HOST=127.0.0.1 \
           PORT=47831 \
           node cortex-agent/index.js >/tmp/cortex-agent.log 2>&1 &
@@ -71,6 +72,33 @@ jobs:
             test "$code" = '403'
           done
           ! curl -fsS -H "$AUTH" 'http://127.0.0.1:47831/api/cortex/host/files?path=/' | grep -Eq 'node_modules|.env.production|server.pem'
+      - name: Verify Cortex management operations
+        shell: bash
+        run: |
+          AUTH='Authorization: Bearer test-token-12345678901234567890'
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"path":"commands"}'             http://127.0.0.1:47831/api/cortex/host/files/directory
+          printf 'hello\n' >/tmp/payload.txt
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"path":"commands/test.js","content":"export default 1\n"}'             http://127.0.0.1:47831/api/cortex/host/files/content
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"from":"commands/test.js","to":"commands/renamed.js"}'             http://127.0.0.1:47831/api/cortex/host/files/rename
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"paths":["commands"],"destination":"commands.zip"}'             http://127.0.0.1:47831/api/cortex/host/files/archive
+          mkdir -p /tmp/night/extracted
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"path":"commands.zip","destination":"extracted"}'             http://127.0.0.1:47831/api/cortex/host/files/extract
+          test -f /tmp/night/extracted/commands/renamed.js
+          curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/startup | grep -q '"runtime":"Node.js"'
+          curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/activity?limit=50 | grep -q 'server:file.rename'
+      - name: Verify clean project backup excludes server dependencies and secrets
+        shell: bash
+        run: |
+          AUTH='Authorization: Bearer test-token-12345678901234567890'
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"private":false}'             http://127.0.0.1:47831/api/cortex/host/backups >/tmp/backup.json
+          BACKUP=$(python -c 'import json; print(json.load(open("/tmp/backup.json"))["name"])')
+          curl -fsS -H "$AUTH" "http://127.0.0.1:47831/api/cortex/host/backups/content?name=$BACKUP" -o /tmp/project.zip
+          unzip -l /tmp/project.zip >/tmp/project-list.txt
+          grep -q 'index.js' /tmp/project-list.txt
+          ! grep -q 'node_modules' /tmp/project-list.txt
+          ! grep -q '.env.production' /tmp/project-list.txt
+          ! grep -q 'server.pem' /tmp/project-list.txt
+          curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/backups | grep -q "$BACKUP"
       - name: Reject unauthenticated requests
         shell: bash
         run: |
