@@ -9,6 +9,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.text.InputType
 import android.util.Log
@@ -54,6 +55,7 @@ class MainActivity : Activity() {
     private lateinit var messageInput: EditText
     private lateinit var attachButton: Button
     private lateinit var sendButton: Button
+    private val openedViewOnceIds = mutableSetOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,56 +68,70 @@ class MainActivity : Activity() {
     private fun buildUi() {
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.rgb(244, 246, 248))
-            setPadding(dp(18), dp(20), dp(18), dp(12))
+            setBackgroundColor(Color.rgb(242, 247, 245))
+            setPadding(dp(20), dp(28), dp(20), dp(18))
         }
 
         page.addView(TextView(this).apply {
             text = "Cobalt"
-            textSize = 30f
-            setTextColor(Color.rgb(20, 30, 38))
-            setTypeface(typeface, Typeface.BOLD)
+            textSize = 32f
+            letterSpacing = -0.025f
+            setTextColor(Color.rgb(18, 55, 48))
+            setTypeface(Typeface.create("sans-serif", Typeface.BOLD), Typeface.BOLD)
         })
         page.addView(TextView(this).apply {
-            text = "Your WhatsApp chats, linked on this phone"
-            textSize = 14f
-            setTextColor(Color.rgb(91, 103, 112))
-            setPadding(0, dp(2), 0, dp(14))
+            text = "Your WhatsApp, in your pocket"
+            textSize = 15f
+            setTextColor(Color.rgb(92, 111, 105))
+            setPadding(0, dp(3), 0, dp(22))
         })
 
         statusText = TextView(this).apply {
             text = "Checking for a saved WhatsApp link…"
-            textSize = 14f
-            setTextColor(Color.rgb(55, 72, 82))
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-            setBackgroundColor(Color.WHITE)
+            textSize = 13f
+            setTextColor(Color.rgb(47, 78, 68))
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            background = rounded(Color.rgb(229, 240, 234), 14)
         }
         page.addView(statusText)
 
         connectionPanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(18), 0, 0)
+            setPadding(dp(20), dp(22), dp(20), dp(22))
+            background = rounded(Color.WHITE, 20)
+            elevation = dp(2).toFloat()
         }
         connectionPanel.addView(TextView(this).apply {
             text = "Link your WhatsApp"
-            textSize = 20f
-            setTypeface(typeface, Typeface.BOLD)
-            setTextColor(Color.rgb(20, 30, 38))
+            textSize = 22f
+            setTypeface(Typeface.create("sans-serif", Typeface.BOLD), Typeface.BOLD)
+            setTextColor(Color.rgb(24, 43, 38))
         })
         connectionPanel.addView(TextView(this).apply {
             text = "Enter your number, then approve the pairing code in WhatsApp → Linked devices. Your linked session is saved on this phone."
             textSize = 14f
-            setTextColor(Color.rgb(75, 88, 98))
-            setPadding(0, dp(6), 0, dp(10))
+            setLineSpacing(dp(3).toFloat(), 1f)
+            setTextColor(Color.rgb(99, 113, 107))
+            setPadding(0, dp(7), 0, dp(14))
         })
         phoneInput = EditText(this).apply {
-            hint = "Country code and number, e.g. 234…"
+            hint = "Country code and number"
             inputType = InputType.TYPE_CLASS_PHONE
             setSingleLine(true)
+            textSize = 16f
+            setPadding(dp(14), dp(13), dp(14), dp(13))
+            background = rounded(Color.rgb(246, 249, 247), 12)
         }
         connectionPanel.addView(phoneInput, matchWrap())
         linkButton = Button(this).apply {
-            text = "Link WhatsApp"
+            text = "Continue to WhatsApp"
+            setTextColor(Color.WHITE)
+            textSize = 15f
+            isAllCaps = false
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            background = rounded(Color.rgb(22, 105, 82), 14)
+            elevation = dp(2).toFloat()
+            minHeight = dp(52)
             setOnClickListener { startPairing() }
         }
         connectionPanel.addView(linkButton, matchWrap())
@@ -125,9 +141,10 @@ class MainActivity : Activity() {
             textSize = 23f
             gravity = Gravity.CENTER
             setTypeface(Typeface.MONOSPACE, Typeface.BOLD)
-            setTextColor(Color.rgb(23, 51, 45))
+            setTextColor(Color.rgb(23, 69, 56))
             setPadding(dp(12), dp(20), dp(12), dp(20))
-            setBackgroundColor(Color.WHITE)
+            setTypeface(Typeface.create("sans-serif-monospace", Typeface.BOLD), Typeface.BOLD)
+            background = rounded(Color.rgb(239, 247, 242), 14)
             visibility = View.GONE
         }
         connectionPanel.addView(pairingCodeText, matchWrap())
@@ -1070,8 +1087,14 @@ class MainActivity : Activity() {
         Log.e(tag, "$stage failed", error)
         runOnUiThread {
             setBusy(false)
+            pairingCodeText.visibility = View.GONE
+            copyButton.visibility = View.GONE
             showPairing()
-            setStatus("$stage failed: ${root::class.java.simpleName}: ${root.message ?: "no message"}")
+            setStatus(when {
+                root is java.net.UnknownHostException -> "Couldn’t connect to WhatsApp. Check your internet connection and try again."
+                root is java.net.SocketTimeoutException -> "WhatsApp took too long to respond. Try again."
+                else -> "Couldn’t link WhatsApp. Please check your number and internet connection, then try again."
+            })
         }
     }
 
