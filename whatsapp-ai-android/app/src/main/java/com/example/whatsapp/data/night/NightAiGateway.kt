@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 16811)
-Total output lines: 1597
-
 package com.example.whatsapp.data.night
 
 import android.content.Context
@@ -552,7 +549,441 @@ class NightAiGateway private constructor(
             }
 
             append("When the user asks you to choose from an existing Options card, you may add exactly one final line: ")
-            append("NIGHT_CHO…4811 tokens truncated…     val title = args.optString("title").trim()
+            append("NIGHT_CHOICE_SELECTION:{\"messageId\":\"the-choice-message-id\",\"index\":0}. ")
+            append("Indexes are zero-based and must refer to an existing option. ")
+            append("When the user taps an option, Night sends their selected label as a normal user message replying to the card; answer that choice directly. For a multi-select card, wait until the user taps Send selection. ")
+
+            if (currentChatMemory.isNotBlank()) {
+                append("\n\n")
+                append(currentChatMemory)
+            }
+
+            if (otherChats.isNotEmpty()) {
+                append("\n\nOther Night chat summaries:\n")
+                otherChats.forEach {
+                    append("- ")
+                    append(it.title)
+                    append(": ")
+                    append(it.latestSummary.take(800))
+                    append("\n")
+                }
+            }
+
+            if (recallHits.isNotEmpty()) {
+                append("\nExact older-message references that may be relevant:\n")
+                recallHits.forEach { hit ->
+                    append("- [")
+                    append(hit.chatTitle)
+                    append("] ")
+                    append(if (hit.message.role == "assistant") "Night: " else "User: ")
+                    append(hit.message.text.take(700))
+                    hit.libraryItem?.let { file ->
+                        append(" [Library file: ")
+                        append(file.name)
+                        append(", id=")
+                        append(file.id)
+                        append("]")
+                    }
+                    append("\n")
+                }
+                append("Use recalled material only when relevant. ")
+                append("Do not claim a file's contents until a file-reading tool or vision analysis supplied them.")
+            }
+        }
+
+        val payloadMessages = JSONArray()
+            .put(JSONObject().put("role", "system").put("content", system))
+
+        val selectedHasVision = supports(selected.model, "vision")
+        val recentReadableFileIds = if (hasTools) {
+            emptySet()
+        } else {
+            messages
+                .takeLast(16)
+                .filter { it.type == "file" && !it.libraryFileId.isNullOrBlank() }
+                .takeLast(2)
+                .mapNotNull { it.libraryFileId }
+                .toSet()
+        }
+        val fileContext = if (recentReadableFileIds.isEmpty()) {
+            null
+        } else {
+            NightFileContextService.get(context)
+        }
+
+        val conversationMessages = messages.takeLast(60)
+        val messagesById = messages.associateBy { it.id }
+        val replyTargets = conversationMessages
+            .mapNotNull { it.replyToMessageId }
+            .distinct()
+            .associateWith { id -> messagesById[id] ?: repository.getMessage(id) }
+
+        fun replyContext(message: NightMessageEntity): String {
+            val target = message.replyToMessageId?.let(replyTargets::get) ?: return ""
+            val author = if (target.role.equals("assistant", ignoreCase = true)) "Night" else "You"
+            val payload = runCatching { JSONObject(target.payloadJson) }.getOrNull()
+            val targetText = if (target.type == "extension") {
+                extensionMessageContext(target).take(500)
+            } else {
+                target.text.ifBlank {
+                    listOf("title", "subtitle", "body", "transcript", "name")
+                        .map { payload?.optString(it).orEmpty().trim() }
+                        .firstOrNull { it.isNotBlank() }
+                        .orEmpty()
+                }.take(500)
+            }
+            return buildString {
+                append("[Reply context: replying to ")
+                append(author)
+                append("'s ")
+                append(target.type)
+                append(" message")
+                if (targetText.isNotBlank()) {
+                    append(": ")
+                    append(targetText)
+                }
+                append("]")
+            }
+        }
+
+        for (message in conversationMessages) {
+            val role = when (message.role.lowercase()) {
+                "assistant" -> "assistant"
+                "system" -> "system"
+                else -> "user"
+            }
+
+            if (message.type == "choice") {
+                val choicePayload = runCatching { JSONObject(message.payloadJson) }.getOrNull()
+                val optionsArray = choicePayload?.optJSONArray("options")
+                val options = buildList {
+                    if (optionsArray != null) {
+                        for (index in 0 until optionsArray.length()) {
+                            val value = optionsArray.optString(index).trim()
+                            if (value.isNotBlank()) add(value)
+                        }
+                    }
+                }
+
+                val choiceText = buildString {
+                    append(message.text.ifBlank { "Choose an option" })
+                    append("\n[Options message id: ")
+                    append(message.id)
+                    append("]")
+                    if (options.isNotEmpty()) {
+                        append("\nOptions:")
+                        options.forEachIndexed { index, option ->
+                            append("\n")
+                            append(index)
+                            append(": ")
+                            append(option)
+                        }
+                    }
+
+                    if (choicePayload?.has("selectedIndex") == true &&
+                        !choicePayload.isNull("selectedIndex")
+                    ) {
+                        val selectedIndex = choicePayload.optInt("selectedIndex", -1)
+                        if (selectedIndex in options.indices) {
+                            append("\nSelected: ")
+                            append(options[selectedIndex])
+                            choicePayload.optString("selectedBy")
+                                .takeIf { it.isNotBlank() }
+                                ?.let {
+                                    append(" by ")
+                                    append(it)
+                                }
+                        }
+                    }
+                    val selectedIndices = choicePayload?.optJSONArray("selectedIndices")
+                    if (selectedIndices != null) {
+                        val selectedLabels = buildList {
+                            for (position in 0 until selectedIndices.length()) {
+                                val selectedIndex = selectedIndices.optInt(position, -1)
+                                if (selectedIndex in options.indices) add(options[selectedIndex])
+                            }
+                        }
+                        if (selectedLabels.isNotEmpty()) {
+                            append("\nSelected: ")
+                            append(selectedLabels.joinToString(", "))
+                            choicePayload.optString("selectedBy")
+                                .takeIf { it.isNotBlank() }
+                                ?.let { append(" by ").append(it) }
+                        }
+                    }
+                    replyContext(message).takeIf { it.isNotBlank() }?.let {
+                        append("\n")
+                        append(it)
+                    }
+                }
+
+                payloadMessages.put(
+                    JSONObject()
+                        .put("role", role)
+                        .put("content", choiceText)
+                )
+                continue
+            }
+
+            if (message.type == "image" && role == "user") {
+                val payload = runCatching { JSONObject(message.payloadJson) }.getOrNull()
+                val path = payload?.optString("localPath").orEmpty()
+                val mime = payload?.optString("mimeType").orEmpty()
+                    .ifBlank { "image/jpeg" }
+
+                if (selectedHasVision && path.isNotBlank() && File(path).exists()) {
+                    payloadMessages.put(
+                        JSONObject()
+                            .put("role", "user")
+                            .put(
+                                "content",
+                                JSONArray()
+                                    .put(
+                                        JSONObject()
+                                            .put("type", "text")
+                                            .put(
+                                                "text",
+                                                listOfNotNull(
+                                                    message.text.ifBlank { "Please inspect this image." },
+                                                    replyContext(message).takeIf { it.isNotBlank() },
+                                                ).joinToString("\n")
+                                            )
+                                    )
+                                    .put(imagePart(path, mime))
+                            )
+                    )
+                } else {
+                    val fallback = router.resolveCapability(chatId, "vision")
+                    val visionText =
+                        if (
+                            fallback != null &&
+                            path.isNotBlank() &&
+                            File(path).exists()
+                        ) {
+                            runCatching {
+                                analyzeImage(
+                                    resolved = fallback,
+                                    localPath = path,
+                                    mimeType = mime,
+                                    requestText = message.text,
+                                )
+                            }.getOrNull()
+                        } else {
+                            null
+                        }
+
+                    val combined = buildString {
+                        append(message.text.ifBlank { "Image attached." })
+                        replyContext(message).takeIf { it.isNotBlank() }?.let {
+                            append("\n")
+                            append(it)
+                        }
+                        append("\n\n")
+                        if (!visionText.isNullOrBlank()) {
+                            append("[Vision analysis from ")
+                            append(fallback?.profile?.displayName ?: "fallback")
+                            append(": ")
+                            append(visionText)
+                            append("]")
+                        } else {
+                            append("[Image attached, but no working Vision fallback is configured.]")
+                        }
+                    }
+
+                    payloadMessages.put(
+                        JSONObject()
+                            .put("role", "user")
+                            .put("content", combined)
+                    )
+                }
+            } else if (message.text.isNotBlank() || message.type != "text") {
+                val decorated = when (message.type) {
+                    "file" -> buildString {
+                        append(message.text)
+                        append("\n[File attached in Night Library")
+                        message.libraryFileId?.let {
+                            append(", id=")
+                            append(it)
+                        }
+                        append(".")
+
+                        val fileId = message.libraryFileId
+                        if (
+                            fileId != null &&
+                            fileId in recentReadableFileIds &&
+                            fileContext != null
+                        ) {
+                            val extracted = fileContext.read(
+                                id = fileId,
+                                query = latestUserText,
+                                maxChars = 12_000,
+                            ).getOrNull()
+                            if (extracted != null) {
+                                append("\nExtracted document context:\n")
+                                append(extracted.text)
+                            } else {
+                                append(" No readable text could be extracted automatically.")
+                            }
+                        } else if (hasTools) {
+                            append(" Use read_library_file before discussing its contents.")
+                        }
+                        append("]")
+                    }
+                    "voice" -> message.text.ifBlank { "[Voice note; transcript unavailable.]" } +
+                        "\n[Voice note attached in Night Library.]"
+                    "audio" -> message.text.ifBlank { "[Audio attached in Night Library.]" }
+                    "extension" -> extensionMessageContext(message)
+                    else -> if (message.type == "text") message.text else summaryContext(message)
+                }
+                val reply = replyContext(message)
+                val decoratedWithReply = if (reply.isBlank()) decorated else {
+                    decorated + "\n" + reply
+                }
+
+                payloadMessages.put(
+                    JSONObject()
+                        .put("role", role)
+                        .put("content", decoratedWithReply)
+                )
+            }
+        }
+
+        return payloadMessages
+    }
+
+    private fun extensionMessageContext(message: NightMessageEntity): String {
+        val payload = runCatching { JSONObject(message.payloadJson) }.getOrNull()
+            ?: return message.text.ifBlank { "[Extension result]" }
+        return buildString {
+            val extensionName = payload.optString("extensionName").trim()
+            val title = payload.optString("title").trim().ifBlank { message.text }
+            append("[Extension result")
+            if (extensionName.isNotBlank()) {
+                append(" from ")
+                append(extensionName)
+            }
+            append("]: ")
+            append(title)
+            listOf("subtitle", "body", "badge", "status").forEach { key ->
+                payload.optString(key).trim().takeIf { it.isNotBlank() }?.let {
+                    append("\n")
+                    append(it)
+                }
+            }
+            payload.optJSONArray("metadata")?.let { items ->
+                for (index in 0 until minOf(items.length(), 8)) {
+                    val item = items.optJSONObject(index) ?: continue
+                    val label = item.optString("label").trim()
+                    val value = item.optString("value").trim()
+                    if (value.isBlank()) continue
+                    append("\n")
+                    if (label.isNotBlank()) {
+                        append(label)
+                        append(": ")
+                    }
+                    append(value)
+                }
+            }
+            payload.optJSONArray("rows")?.let { rows ->
+                for (index in 0 until minOf(rows.length(), 8)) {
+                    val row = rows.optJSONObject(index) ?: continue
+                    listOf("title", "subtitle", "value")
+                        .map { row.optString(it).trim() }
+                        .filter { it.isNotBlank() }
+                        .takeIf { it.isNotEmpty() }
+                        ?.joinToString(" — ")
+                        ?.let {
+                            append("\n")
+                            append(it)
+                        }
+                }
+            }
+        }.take(2400)
+    }
+
+    private suspend fun runAgent(
+        chatId: String,
+        resolved: NightResolvedModel,
+        messages: JSONArray,
+        onUpdate: suspend (String) -> Unit,
+    ): String {
+        val useTools = supports(resolved.model, "tools")
+        val definitions = if (useTools) NightAgentToolSchemas.all() else null
+        val executedToolResults = mutableMapOf<String, String>()
+        val createdOptionCards = mutableListOf<Pair<String, List<String>>>()
+        val createdOptionCardKeys = mutableSetOf<String>()
+        var sideEffectSucceeded = false
+
+        repeat(MAX_TOOL_ROUNDS) {
+            val step = try {
+                performStreamingStep(
+                    resolved = resolved,
+                    messages = messages,
+                    toolDefinitions = definitions,
+                ) { accumulated ->
+                    if (createdOptionCards.isEmpty()) onUpdate(accumulated)
+                    else onUpdate("")
+                }
+            } catch (failure: Throwable) {
+                if (sideEffectSucceeded) {
+                    throw NightNonRetryableAgentFailure(
+                        "A Night action completed, but the AI continuation failed. " +
+                            (failure.message ?: "The provider stopped responding."),
+                        failure,
+                    )
+                }
+                throw failure
+            }
+
+            if (step.toolCalls.isEmpty()) {
+                val finalText = createdOptionCards.fold(step.content.trim()) { text, card ->
+                    NightChoiceResponsePolicy.suppressDuplicateOptionList(
+                        text = text,
+                        title = card.first,
+                        options = card.second,
+                    )
+                }
+                if (finalText.isBlank()) {
+                    if (createdOptionCards.isNotEmpty()) {
+                        onUpdate("")
+                        return ""
+                    }
+                    error("Provider returned an empty message.")
+                }
+                onUpdate(finalText)
+                return finalText
+            }
+
+            onUpdate("")
+
+            messages.put(
+                step.assistantMessage(
+                    includeReasoning = resolved.profile.providerType.equals(
+                        "deepseek",
+                        ignoreCase = true,
+                    ),
+                )
+            )
+            step.toolCalls.forEach { call ->
+                // A provider may repeat an identical side-effect call in another tool round
+                // with a fresh call id. Reuse its result to avoid duplicate interactive cards.
+                val dedupeKey = when {
+                    NightAgentToolSchemas.isSideEffect(call.name) ->
+                        call.name + "\u0000" + canonicalToolArguments(call.argumentsJson)
+                    call.id.startsWith("night_tool_") ->
+                        call.name + "\u0000" + canonicalToolArguments(call.argumentsJson)
+                    else -> call.id
+                }
+                val result = executedToolResults[dedupeKey]
+                    ?: tools.execute(chatId, call).also {
+                        executedToolResults[dedupeKey] = it
+                    }
+
+                if (call.name == "create_options") {
+                    val args = runCatching { JSONObject(call.argumentsJson) }.getOrNull()
+                    val resultJson = runCatching { JSONObject(result) }.getOrNull()
+                    if (resultJson?.optBoolean("ok", false) == true && args != null) {
+                        val title = args.optString("title").trim()
                         val optionArray = args.optJSONArray("options")
                         val options = buildList {
                             if (optionArray != null) {
