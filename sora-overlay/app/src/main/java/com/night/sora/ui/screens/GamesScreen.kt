@@ -72,6 +72,11 @@ fun GamesScreen(modifier: Modifier = Modifier, library: List<LibraryEntry>) {
         } else round++
     }
 
+    val target = questions.getOrNull(round)
+    val choices = remember(target?.id, candidates) {
+        target?.let { current -> (candidates.filterNot { it.id == current.id }.shuffled().take(3) + current).shuffled() }.orEmpty()
+    }
+
     LazyColumn(
         modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 22.dp, bottom = 24.dp),
@@ -99,9 +104,7 @@ fun GamesScreen(modifier: Modifier = Modifier, library: List<LibraryEntry>) {
                 }
             }
         }
-        if (questions.isNotEmpty() && !finished) {
-            val target = questions[round]
-            val choices = remember(target.id, candidates) { (candidates.filterNot { it.id == target.id }.shuffled().take(3) + target).shuffled() }
+        if (target != null && !finished) {
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("ROUND ${round + 1} OF ${questions.size}", color = SoraMuted, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = .8.sp)
