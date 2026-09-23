@@ -2,3 +2,4 @@ rerun 29 - validate hub tabs after Games compile fix
 verify other hub tabs after follow-up wiring, Bible reading resume, and source-state coverage
 rerun 30 - verify exact-label Library navigation and truthful empty-state walkthrough
 rerun 31 - accept live Anime library content and verify honest empty state when count is zero
+rerun 32 - quote multiword More destinations in hub walkthrough

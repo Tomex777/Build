@@ -142,20 +142,20 @@ tap Statistics
 wait_for "Statistics"
 shot statistics
 adb shell input keyevent 4
-tap Data & storage
+tap "Data & storage"
 wait_for "Clear catalog cache"
 shot data-storage
 adb shell input keyevent 4
-tap Player & reader
+tap "Player & reader"
 wait_for "DEFAULT SOURCES"
 wait_for "No compatible source installed"
 shot player-reader-settings
 adb shell input keyevent 4
-tap AI & models
+tap "AI & models"
 wait_for "AI provider not connected"
 shot ai-provider-state
 adb shell input keyevent 4
-tap About & help
+tap "About & help"
 wait_for "About Sora"
 wait_for "Version"
 shot about
