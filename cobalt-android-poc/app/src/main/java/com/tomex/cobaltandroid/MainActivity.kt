@@ -696,7 +696,7 @@ class MainActivity : Activity() {
                                 })
                             }
                             if (content?.javaClass?.simpleName?.contains("ImageMessage") == true) {
-                                bubble.setOnClickListener { openImageMessage(info, content) }
+                                bubble.setOnClickListener { openMediaMessage(info, content) }
                             }
                             if (content?.javaClass?.simpleName?.contains("VideoMessage") == true) {
                                 bubble.setOnClickListener {
