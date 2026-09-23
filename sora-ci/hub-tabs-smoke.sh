@@ -34,6 +34,22 @@ raise SystemExit(1)
 PY
 }
 
+wait_for_pixel_launcher_anr() {
+  python3 - <<'PY' > /tmp/sora-hub-wait-tap.txt
+import re,xml.etree.ElementTree as ET
+root=ET.parse('/tmp/sora-hub-window.xml').getroot()
+for node in root.iter('node'):
+    if node.attrib.get('text','').strip() != 'Wait': continue
+    match=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+    if match:
+        x1,y1,x2,y2=map(int,match.groups()); print((x1+x2)//2,(y1+y2)//2); break
+else: raise SystemExit(1)
+PY
+  read -r x y < /tmp/sora-hub-wait-tap.txt
+  adb shell input tap "$x" "$y"
+  sleep 2
+}
+
 library_state_ready() {
   python3 - <<'PY'
 import re, xml.etree.ElementTree as ET
@@ -72,6 +88,10 @@ wait_for() {
   for _ in $(seq 1 "$timeout"); do
     dump_ui
     if node_exists "$label"; then return 0; fi
+    if node_exists "Pixel Launcher isn't responding"; then
+      wait_for_pixel_launcher_anr
+      continue
+    fi
     sleep 1
   done
   shot "failure-$label"
