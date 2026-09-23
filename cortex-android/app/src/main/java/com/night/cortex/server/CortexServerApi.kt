@@ -162,6 +162,45 @@ class CortexServerApi(
         }
     }
 
+    fun commandSettings(): List<CommandSetting> {
+        val rows = getJson("/api/cortex/host/settings").optJSONArray("entries") ?: JSONArray()
+        return buildList {
+            for (i in 0 until rows.length()) {
+                val row = rows.optJSONObject(i) ?: continue
+                add(
+                    CommandSetting(
+                        key = row.optString("key"),
+                        label = row.optString("label"),
+                        description = row.optString("description"),
+                        command = row.optString("command"),
+                        enabled = row.optBoolean("enabled", false),
+                    )
+                )
+            }
+        }
+    }
+
+    fun setCommandSetting(key: String, enabled: Boolean): List<CommandSetting> {
+        val rows = postJson(
+            "/api/cortex/host/settings",
+            JSONObject().put("key", key).put("enabled", enabled),
+        ).optJSONArray("entries") ?: JSONArray()
+        return buildList {
+            for (i in 0 until rows.length()) {
+                val row = rows.optJSONObject(i) ?: continue
+                add(
+                    CommandSetting(
+                        key = row.optString("key"),
+                        label = row.optString("label"),
+                        description = row.optString("description"),
+                        command = row.optString("command"),
+                        enabled = row.optBoolean("enabled", false),
+                    )
+                )
+            }
+        }
+    }
+
     fun createBackup(privateBackup: Boolean): BackupEntry {
         val row = postJson("/api/cortex/host/backups", JSONObject().put("private", privateBackup))
         return BackupEntry(
