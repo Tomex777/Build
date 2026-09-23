@@ -706,6 +706,7 @@ public final class AndroidHttpRequest {
 http_response_path = modules / "lib/src/main/java/com/github/auties00/cobalt/util/AndroidHttpResponse.java"
 http_response_path.write_text(r'''package com.github.auties00.cobalt.util;
 
+import java.nio.charset.Charset;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
