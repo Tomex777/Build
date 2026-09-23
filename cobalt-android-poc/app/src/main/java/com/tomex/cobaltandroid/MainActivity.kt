@@ -687,11 +687,20 @@ class MainActivity : Activity() {
                             if (bitmap != null) {
                                 bubble.addView(ImageView(this).apply {
                                     setImageBitmap(bitmap)
-                                    scaleType = ImageView.ScaleType.FIT_CENTER
+                                    scaleType = ImageView.ScaleType.CENTER_CROP
                                     adjustViewBounds = true
                                     maxWidth = dp(260)
                                     maxHeight = dp(260)
+                                    contentDescription = if (content?.let(::isViewOnceContent) == true) "Open view-once photo" else "Open photo"
                                 })
+                            }
+                            if (content?.javaClass?.simpleName?.contains("ImageMessage") == true) {
+                                bubble.setOnClickListener { openImageMessage(info, content) }
+                            }
+                            if (content?.javaClass?.simpleName?.contains("VideoMessage") == true) {
+                                bubble.setOnClickListener {
+                                    setStatus(if (isViewOnceContent(content)) "This is a view-once video. Video playback is not available yet." else "Video playback is not available yet.")
+                                }
                             }
                             val delivery = if (isFromMe(info)) firstValue(info, "status")?.toString()?.lowercase() else null
                             bubble.addView(TextView(this).apply {
@@ -968,23 +977,100 @@ class MainActivity : Activity() {
 
     private fun renderMessage(info: Any): String {
         return try {
-            val container = firstValue(info, "message") ?: return "[message unavailable]"
-            val content = firstValue(container, "content") ?: return "[message]"
+            val container = firstValue(info, "message") ?: return "Message unavailable"
+            val content = firstValue(container, "content") ?: return "Message"
+            val type = content.javaClass.simpleName
             val textValue = firstValue(content, "text")
-            if (content.javaClass.simpleName.contains("ImageMessage")) {
+            if (type.contains("ImageMessage")) {
                 val caption = firstValue(content, "caption")?.toString()?.takeIf { it.isNotBlank() }
-                return if (caption == null) "[Photo]" else "[Photo] $caption"
+                val label = if (isViewOnceContent(content)) "View once photo · Tap to open" else "Photo · Tap to open"
+                return if (caption == null) label else "$label\n$caption"
             }
             val body = when (textValue) {
                 is Optional<*> -> textValue.orElse(null)?.toString()
                 null -> null
                 else -> textValue.toString()
-            }?.takeIf { it.isNotBlank() } ?: "[${content.javaClass.simpleName}]"
+            }?.takeIf { it.isNotBlank() } ?: when {
+                type.contains("VideoMessage") && isViewOnceContent(content) -> "View once video · Tap to open"
+                type.contains("VideoMessage") -> "Video"
+                type.contains("AudioMessage") -> "Voice message"
+                type.contains("DocumentMessage") -> "Document"
+                type.contains("StickerMessage") -> "Sticker"
+                type.contains("ContactMessage") -> "Contact"
+                type.contains("LocationMessage") -> "Location"
+                type.contains("Poll") -> "Poll"
+                else -> "Unsupported message"
+            }
             body
         } catch (_: Throwable) {
             "[message]"
         }
     }
+
+    private fun isViewOnceContent(content: Any): Boolean =
+        firstValue(content, "viewOnce") as? Boolean ?: false
+
+    private fun openImageMessage(info: Any, content: Any) {
+        val id = firstValue(firstValue(info, "key") ?: info, "id")?.toString()
+        val viewOnce = isViewOnceContent(content)
+        if (viewOnce && !id.isNullOrBlank() && !openedViewOnceIds.add(id)) {
+            setStatus("This view-once photo has already been opened in Cobalt.")
+            return
+        }
+        setStatus("Opening photo…")
+        worker.execute {
+            try {
+                val client = currentClient ?: throw IllegalStateException("WhatsApp is disconnected.")
+                val downloader = client.javaClass.methods.firstOrNull {
+                    it.name == "downloadMedia" && it.parameterCount == 1 &&
+                        it.parameterTypes[0].isAssignableFrom(content.javaClass)
+                } ?: throw NoSuchMethodException("Media download is unavailable.")
+                val input = downloader.invoke(client, content) as? java.io.InputStream
+                    ?: throw IllegalStateException("Photo download returned no data.")
+                val output = java.io.ByteArrayOutputStream()
+                input.use { stream ->
+                    val buffer = ByteArray(8192)
+                    var total = 0
+                    while (true) {
+                        val count = stream.read(buffer)
+                        if (count < 0) break
+                        total += count
+                        if (total > MAX_IMAGE_BYTES) throw IllegalArgumentException("Photo is larger than 20 MB.")
+                        output.write(buffer, 0, count)
+                    }
+                }
+                val bytes = output.toByteArray()
+                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    ?: throw IllegalArgumentException("Cobalt could not open this image.")
+                runOnUiThread {
+                    val viewer = ImageView(this).apply {
+                        setImageBitmap(bitmap)
+                        scaleType = ImageView.ScaleType.FIT_CENTER
+                        adjustViewBounds = true
+                        setBackgroundColor(Color.rgb(16, 22, 20))
+                        setPadding(dp(12), dp(12), dp(12), dp(12))
+                    }
+                    AlertDialog.Builder(this)
+                        .setTitle(if (viewOnce) "View once photo" else "Photo")
+                        .setView(viewer)
+                        .setPositiveButton("Close", null)
+                        .show()
+                    setStatus(if (viewOnce) "View-once photo opened. Close it when you’re done." else "Photo opened.")
+                }
+            } catch (error: Throwable) {
+                if (viewOnce && !id.isNullOrBlank()) openedViewOnceIds.remove(id)
+                Log.w(tag, "Could not open image", error)
+                runOnUiThread { setStatus("Could not open this photo. Check your connection and try again.") }
+            }
+        }
+    }
+
+    private fun rounded(color: Int, radiusDp: Int): GradientDrawable =
+        GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = dp(radiusDp).toFloat()
+            setColor(color)
+        }
 
     private fun firstValue(target: Any, vararg methods: String): Any? {
         methods.forEach { name ->
