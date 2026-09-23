@@ -1,11 +1,11 @@
 # Night Progress
 
 - Active branch: `night-groq-key-pool-ci`
-- Current confirmed baseline: `04c78f69c01192022daaeadc5ea73f92e673f06a`
-- Baseline status supplied by the latest real-device handoff:
+- Current source head: `ab3c4bec1f65e8ec56b80d469e96e9d16efcdbaa`
+- Original real-device handoff baseline: `04c78f69c01192022daaeadc5ea73f92e673f06a`
+- Latest validation:
   - Night Groq Key Pool: PASS
-  - Night Integrated Regression: GREEN
-  - Browser Android-16 failure passed on rerun at the same SHA without source changes; treat the earlier failure as CI/emulator flakiness.
+  - Night Integrated Regression at `ab3c4be`: GREEN
 
 ## Completed Night platform phases
 
@@ -103,9 +103,13 @@ Work the user's latest real-device priorities in order: persistent chat history,
 
 The confirmed baseline has no visible message-flow cap: Room observes the complete chat, and the `takeLast(60)` bound exists only while assembling model context. Earlier fixes already addressed user-message persistence (`a0e2a5a2`) and restoring the current-chat summary into prompts (`fc357f36`). No prior root-cause fix for visible history disappearance was found in the conversation record.
 
-Current local cleanup changes add deterministic message ordering, monotonic timestamps for new inserts, chronological completion of streamed assistant messages after tool results, reply/rich-extension context in provider requests, and a playable-audio-preserving STT failure message. Focused Android regressions have been added; they still need to run in CI.
+The visible-history regression was traced to Room replacement semantics: appending or finishing a message called `upsertChat()` on an existing parent row. That DAO uses `@Insert(REPLACE)`, which deletes and reinserts the chat and cascades deletion to its messages and summary checkpoints. The append and finish transactions now update the existing chat row with `@Update`. An Android instrumentation regression crosses 128 messages with timestamp ties and verifies that all visible messages and the summary checkpoint remain present.
 
-This cleanup pass also moves the existing Scripts/Projects workspace to the third main tab, removes its Library shortcut and the duplicate Settings entry from the chat-list menu, keeps U as the configuration home, persists Library filter state, and propagates the saved accent through major app surfaces. Provider add/edit/key/model forms now use bottom sheets. Appearance accepts validated custom accents and imported TTF/OTF fonts; appearance tool calls use validated setting/value actions. Android unit/instrumentation and UI regression runs remain pending because this workspace has no Gradle distribution or `adb`, and the wrapper download is blocked by network access.
+Provider request assembly now carries the restored chat summary, bounded recent context, exact older-message recall, reply references, and relevant rich-message/extension context into the request. The MockWebServer regression inspects the actual provider payload after 65 intervening messages and verifies that a reply can include its older extension result without exposing provider secrets. Streaming completion preserves chronological tool-result/assistant ordering. Voice STT now quotes the WAV codec parameter correctly; a service regression checks multipart upload and transcript parsing. STT failure keeps the recorded audio message available for playback.
+
+This cleanup pass moves the existing Scripts/Projects workspace to the third main tab, removes its Library shortcut and the duplicate Settings entry from the chat-list menu, keeps U as the configuration home, persists Library filter state, and propagates the saved accent through major app surfaces. Provider add/edit/key/model forms use bottom sheets with improved fields. Appearance accepts validated custom accents and registered/imported TTF/OTF fonts; appearance tool calls use validated setting/value actions.
+
+GitHub CI is the Android build and device-test runner for this pass. Commit `0c0aced` passed the Gradle build, Android 16 provider instrumentation (history, request context, and STT), and the main-tab, Browser, Memory, and supporting UI checks; the provider editing UI exposed a nested-scroll crash. Commit `ab3c4be` removes the nested scroll containers. Its Night Integrated Regression and Groq Key Pool workflows both passed. Android 16 provider instrumentation, provider-sheet interaction, Browser, main tabs, Extensions, Video, Mihon Reader, and every other UI suite passed on that source head.
 
 ## Extension rollout checkpoint
 
