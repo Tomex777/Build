@@ -3,6 +3,11 @@ fun buildConfigString(value: String): String =
         .replace("\\", "\\\\")
         .replace("\"", "\\\"") + "\""
 
+val phoneInstallProbe =
+    providers.gradleProperty("HOMIRA_PHONE_INSTALL_PROBE")
+        .orNull
+        ?.equals("true", ignoreCase = true) == true
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -17,11 +22,21 @@ android {
     compileSdkMinor = 1
 
     defaultConfig {
-        applicationId = "com.night.homira"
+        applicationId = if (phoneInstallProbe) {
+            "com.night.homira.installprobe"
+        } else {
+            "com.night.homira"
+        }
         minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
+
+        if (phoneInstallProbe) {
+            ndk {
+                abiFilters += setOf("arm64-v8a")
+            }
+        }
 
         buildConfigField(
             "String",

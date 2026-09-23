@@ -46,6 +46,19 @@ jobs:
           path: homira-android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
+      - name: Build ARM64 install-diagnostic APK
+        working-directory: homira-android
+        run: |
+          gradle :app:clean :app:assembleDebug -PHOMIRA_PHONE_INSTALL_PROBE=true --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/homira-install-probe-arm64.apk
+
+      - name: Upload ARM64 install-diagnostic APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: homira-install-probe-arm64
+          path: homira-android/app/build/outputs/apk/debug/homira-install-probe-arm64.apk
+          if-no-files-found: error
+
       - name: Build TURN relay-only diagnostic APK
         working-directory: homira-android
         run: |
