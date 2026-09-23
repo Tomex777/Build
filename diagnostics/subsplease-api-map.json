@@ -1,0 +1,803 @@
+{
+  "homepage": {
+    "status": 200,
+    "finalUrl": "https://subsplease.org/",
+    "contentType": "text/html; charset=UTF-8",
+    "preview": "<!DOCTYPE html>\n<html lang=\"en-US\">\n<head>\n\t\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<link rel=\"profile\" href=\"https://gmpg.org/xfn/11\">\n<link rel=\"shortcut icon\" href=\"/favicon.ico\">\n<script type=\"text/javascript\">\nconst theme = localStorage.getItem('theme');\nif (theme === null && window.matchMedia(\"(prefers-color-scheme: dark)\").matches) { \n\tlocalStorage.setItem('theme', 'dark');\n\tdocument.documentElement.setAttribute('data-theme', 'dark');\n} else if (theme === \"dark\") { \n\tdocument.documentElement.setAttribute('data-theme', 'dark'); \n}\n</script>\n<title>SubsPlease &#8211; One stop shop for new anime</title>\n<meta name='robots' content='max-image-preview:large' />\n<link rel='dns-prefetch' href='//fonts.googleapis.com' />\n<link rel=\"alternate\" type=\"application/rss+xml\" title=\"SubsPlease &raquo; Feed\" href=\"https://subsplease.org/feed/\" />\n<link rel=\"alternate\" title=\"oEmbed (JSON)\" type=\"application/json+oembed\" href=\"https://subsplease.org/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fsubsplease.org%2F\" />\n<link rel=\"alternate\" title=\"oEmbed (XML)\" type=\"text/xml+oembed\" href=\"https://subsplease.org/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fsubsplease.org%2F&#038;format=xml\" />\n<style id=\"wp-img-auto-sizes-contain-inline-css\">\nimg:is([sizes=auto i],[sizes^=\"auto,\" i]){contain-intrinsic-size:3000px 1500px}\n/*# sourceURL=wp-img-auto-sizes-contain-inline-css */\n</style>\n<style id=\"wp-emoji-styles-inline-css\">\n\n\timg.wp-smiley, img.emoji {\n\t\tdisplay: inline !important;\n\t\tborder: none !important;\n\t\tbox-shadow: none !important;\n\t\theight: 1em !important;\n\t\twidth: 1em !important;\n\t\tmargin: 0 0.07em !important;\n\t\tvertical-align: -0.1em !important;\n\t\tbackground: none !important;\n\t\tpadding: 0 !important;\n\t}\n/*# sourceURL=wp-emoji-styles-inline-css */\n</style>\n<style id=\"wp-block-library-inline-css\">\n:root{--wp-block-synced-color:#7a00df;--wp-block-synced-color--rgb:122,0,223;--wp-bound-block-color:var(--wp-block-synced-color);--wp-editor-canvas-background:#ddd;--wp-admin-theme-color:#007cba;--wp-admin-theme-color--rgb:0,124,186;--wp-admin-theme-color-darker-10:#006ba1;--wp-admin-theme-color-darker-10--rgb:0,107,160.5;--wp-admin-theme-color-darker-20:#005a87;--wp-admin-theme-color-darker-20--rgb:0,90,135;--wp-admin-border-width-focus:2px}@media (min-resolution:192dpi){:root{--wp-admin-border-width-focus:1.5px}}.wp-element-button{cursor:pointer}:root .has-very-light-gray-background-color{background-color:#eee}:root .has-very-dark-gray-background-color{background-color:#313131}:root .has-very-light-gray-color{color:#eee}:root .has-very-dark-gray-color{color:#313131}:root .has-vivid-green-cyan-to-vivid-cyan-blue-gradient-background{background:linear-gradient(135deg,#00d084,#0693e3)}:root .has-purple-crush-gradient-background{background:linear-gradient(135deg,#34e2e4,#4721fb 50%,#ab1dfe)}:root .has-hazy-dawn-gradient-background{background:linear-gradient(135deg,#faaca8,#dad0ec)}:root .has-subdued-olive-gradient-background{background:linear-gradient(135deg,#fafae1,#67a671)}:root .has-atomic-cream-gradient-background{background:linear-gradient(135deg,#fdd79a,#004a59)}:root .has-nightshade-gradient-background{background:linear-gradient(135deg,#330968,#31cdcf)}:root .has-midnight-gradient-background{background:linear-gradient(135deg,#020381,#2874fc)}:root{--wp--preset--font-size--normal:16px;--wp--preset--font-size--huge:42px}.has-regular-font-size{font-size:1em}.has-larger-font-size{font-size:2.625em}.has-normal-font-size{font-size:var(--wp--preset--font-size--normal)}.has-huge-font-size{font-size:var(--wp--preset--font-size--huge)}:root .has-text-align-center{text-align:center}:root .has-text-align-left{text-align:left}:root .has-text-align-right{text-align:right}.has-fit-text{white-space:nowrap!important}#end-resizable-editor-section{display:none}.aligncenter{clear:both}.items-justified-left{justify-content:flex-start}.items-justified-center{justify-content:center}.items-justified-right{justify-content:flex-end}.items-justified-space-between{justify-content:space-between}.screen-reader-text{word-wrap:normal!important;border:0;clip-path:inset(50%);height:1px;margin:-1px;overflow:hidden;padding:0;position:absolute;width:1px;word-break:normal!important}.screen-reader-text:focus{background-color:#ddd;clip-path:none;color:#444;display:block;font-size:1em;height:auto;left:5px;line-height:normal;padding:15px 23px 14px;text-decoration:none;top:5px;width:auto;z-index:100000}html :where(.has-border-color){border-style:solid}html :where([style^=border-color],[style*=\";border-color\"],[style*=\"; border-color\"]){border-style:solid}html :where([style^=border-top-color],[style*=\";border-top-color\"],[style*=\"; border-top-color\"]){border-top-style:solid}html :where([style^=border-right-color],[style*=\";border-right-color\"],[style*=\"; border-right-color\"]){border-right-style:solid}html :where([style^=border-bottom-color],[style*=\";border-bottom-color\"],[style*=\"; border-bottom-color\"]){border-bottom-style:solid}html :where([style^=border-left-color],[style*=\";border-left-color\"],[style*=\"; border-left-color\"]){border-left-style:solid}html :where([style^=border-width],[style*=\";border-width\"],[style*=\"; border-width\"]){border-style:solid}html :where([style^=border-top-width],[style*=\";border-top-width\"],[style*=\"; border-top-width\"]){border-top-style:solid}html :where([style^=border-right-width],[style*=\";border-right-width\"],[style*=\"; border-right-width\"]){border-right-style:solid}html :where([style^=border-bottom-width],[style*=\";border-bottom-width\"],[style*=\"; border-bottom-width\"]){border-bottom-style:solid}html :where([style^=border-left-width],[style*=\";border-left-width\"],[style*=\"; border-left-width\"]){border-left-style:solid}html :where(img[class*=wp-image-]){height:auto;max-width:100%}:where(figure){margin:0 0 1em}html :where(.is-position-sticky){--wp-admin--admin-bar--position-offset:var(--wp-admin--admin-bar--height,0px)}@media screen and (max-width:600px){html :where(.is-position-sticky){--wp-admin--admin-bar--position-offset:0px}}\n\n/*# sourceURL=/wp-includes/css/dist/block-library/common.min.css */\n</style>\n<style id=\"classic-theme-styles-inline-css\">\n/*! This file is auto-generated */\n.wp-block-button__link{color:#fff;background-color:#32373c;border-radius:9999px;box-shadow:none;text-decoration:none;padding:calc(.667em + 2px) calc(1.333em + 2px);font-size:1.125em}.wp-block-file__button{background:#32373c;color:#fff;text-decoration:none}\n/*# sourceURL=/wp-includes/css/classic-themes.min.css */\n</style>\n\n<style id=\"global-styles-inline-css\">\n:root{--wp--preset--aspect-ratio--square: 1;--wp--preset--aspect-ratio--4-3: 4/3;--wp--preset--aspect-ratio--3-4: 3/4;--wp--preset--aspect-ratio--3-2: 3/2;--wp--preset--aspect-ratio--2-3: 2/3;--wp--preset--aspect-ratio--16-9: 16/9;--wp--preset--aspect-ratio--9-16: 9/16;--wp--preset--color--black: #000000;--wp--preset--color--cyan-bluish-gray: #abb8c3;--wp--preset--color--white: #ffffff;--wp--preset--color--pale-pink: #f78da7;--wp--preset--color--vivid-red: #cf2e2e;--wp--preset--color--luminous-vivid-orange: #ff6900;--wp--preset--color--luminous-vivid-amber: #fcb900;--wp--preset--color--light-green-cyan: #7bdcb5;--wp--preset--color--vivid-green-cyan: #00d084;--wp--preset--color--pale-cyan-blue: #8ed1fc;--wp--preset--color--vivid-cyan-blue: #0693e3;--wp--preset--color--vivid-purple: #9b51e0;--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple: linear-gradient(135deg,rgb(6,147,227) 0%,rgb(155,81,224) 100%);--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan: linear-gradient(135deg,rgb(122,220,180) 0%,rgb(0,208,130) 100%);--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange: linear-gradient(135deg,rgb(252,185,0) 0%,rgb(255,105,0) 100%);--wp--preset--gradient--luminous-vivid-orange-to-vivid-red: linear-gradient(135deg,rgb(255,105,0) 0%,rgb(207,46,46) 100%);--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray: linear-gradient(135deg,rgb(238,238,238) 0%"
+  },
+  "scripts": [
+    {
+      "url": "https://subsplease.org/wp-includes/js/jquery/jquery.min.js?ver=3.7.1",
+      "status": 200,
+      "contentType": "application/javascript",
+      "endpoints": [],
+      "apiSnippets": []
+    },
+    {
+      "url": "https://subsplease.org/wp-includes/js/jquery/jquery-migrate.min.js?ver=3.4.1",
+      "status": 200,
+      "contentType": "application/javascript",
+      "endpoints": [],
+      "apiSnippets": []
+    },
+    {
+      "url": "https://www.googletagmanager.com/gtag/js?id=G-DFSYG5WK58",
+      "status": 404,
+      "contentType": "text/html; charset=UTF-8",
+      "endpoints": [],
+      "apiSnippets": []
+    },
+    {
+      "url": "https://subsplease.org/includes/main.js?v=1.0.16.6",
+      "status": 200,
+      "contentType": "application/javascript",
+      "endpoints": [
+        "/api/?f=latest&tz=",
+        "/api/?f=schedule&h=true&tz=",
+        "/api/?f=schedule&tz=",
+        "/api/?f=search&tz=",
+        "/api/?f=show&tz=",
+        "https://subsplease.org",
+        "https://subsplease.org/xdcc/?search="
+      ],
+      "apiSnippets": [
+        "{ $jq('#show-release-table').append(new_row); } else { $jq('#show-batch-table').append(new_row); } }); } $jq(function () { var timezone = Intl.DateTimeFormat().resolvedOptions().timeZone; //Home page if($jq('.frontpage-releases-container').length) { $jq.when( $jq.getJSON('/api/?f=schedule&h=true&tz=' + timezone), $jq.getJSON('/api/?f=latest&tz=' + timezone) ).done(function(data1, data2) { load_schedule(data1[0]); load_releases(data2[0]); }); } //Post if($jq('.post').length) { $jq.when( $jq.getJSON('/api/?f=schedule&h=true&tz=' + timezone) ).done(function(data) { load_schedule(data); }); } //Load more $jq('#latest-load-more span').on('click', function() { var page = $jq('#latest-load-more').data('page'); $jq.getJSON('/api/?f=latest&tz=' + timezone + '&p=' + page, function(data) { if(JSON.stringify(dat",
+        "trong>shows</strong></a> page.'); } else { load_releases(data); $jq('#latest-load-more').data('page', page + 1); } }); }); //Home page search $jq('.search-box').submit(function() { //search term = $jq('.search-box-input').val(); $jq.getJSON('/api/?f=search&tz=' + timezone + '&s=' + term, function(data) { $jq('#releases-table').empty(); if(term == \"\") { $jq('#latest-load-more').show(); } else { $jq('#latest-load-more').hide(); } load_releases(data); }); return false; }); //Show page var show = $jq('#show-release-table').attr('sid'); if(show) { $jq.getJSON('/api/?f=show&tz=' + timezone + '&sid=' + show, function(data) { if(!$jq.isEmptyObject(data['batch'])) { $jq('.series-release').prepend('<h2>Batch [<a href=\"/2021/01/03/we-care-batches-vrv-and-more/\">?</a>]</h2",
+        "ck', function() { if($jq(this).next().is(\":visible\")) { $jq(this).next().hide(); } else { $jq(this).next().show(); } }); }); } //Schedule page if($jq('#full-schedule-table').length) { $jq.when( $jq.getJSON('/api/?f=schedule&h=true&tz=' + timezone), $jq.getJSON('/api/?f=schedule&tz=' + timezone) ).done(function(data1, data2) { load_schedule(data1[0]); $jq.each(data2[0]['schedule'], function(key, val) { $jq('#full-schedule-table').append( '<tr class=\"day-of-week\"><td><h2>'+key+'</h2></td></tr>' ); $jq.each(val, function (key, schedule_item) { var page_link = \"\"; var preview_image = \"https://subsplease.org\" + schedule_item.image_url; if(schedule_item.page) { page_link = \"/shows/\" + s",
+        "data-preview-image=\"' + preview_image + '\">' + schedule_item.title + '</a></td><td class=\"all-schedule-time\">' + schedule_item.time + '</td></tr>' ); }); }); }); } //All shows page, RSS page if($jq('.all-shows').length || $jq('#post-201').length) { $jq.getJSON('/api/?f=schedule&h=true&tz=' + timezone, function(data) { load_schedule(data); }); } }); "
+      ]
+    },
+    {
+      "url": "https://subsplease.org/includes/moment-with-locales.min.js?ver=5.5.2",
+      "status": 200,
+      "contentType": "application/javascript",
+      "endpoints": [],
+      "apiSnippets": []
+    },
+    {
+      "url": "https://subsplease.org/includes/moment-timezone-with-data.min.js?ver=5.5.2",
+      "status": 200,
+      "contentType": "application/javascript",
+      "endpoints": [
+        "https://subsplease.org/analytics/"
+      ],
+      "apiSnippets": []
+    },
+    {
+      "url": "https://subsplease.org/includes/worldclock-plugin.min.js?ver=5.5.2",
+      "status": 200,
+      "contentType": "application/javascript",
+      "endpoints": [],
+      "apiSnippets": []
+    },
+    {
+      "url": "https://subsplease.org/includes/preview-image.js",
+      "status": 200,
+      "contentType": "application/javascript",
+      "endpoints": [],
+      "apiSnippets": []
+    },
+    {
+      "url": "https://subsplease.org/wp-content/themes/allium/js/enquire.js?ver=2.1.6",
+      "status": 200,
+      "contentType": "application/javascript",
+      "endpoints": [],
+      "apiSnippets": []
+    },
+    {
+      "url": "https://subsplease.org/wp-content/themes/allium/js/fitvids.js?ver=1.1",
+      "status": 200,
+      "contentType": "application/javascript",
+      "endpoints": [],
+      "apiSnippets": []
+    },
+    {
+      "url": "https://subsplease.org/wp-content/themes/allium/js/hover-intent.js?ver=r7",
+      "status": 200,
+      "contentType": "application/javascript",
+      "endpoints": [],
+      "apiSnippets": []
+    },
+    {
+      "url": "https://subsplease.org/wp-content/themes/allium/js/superfish.js?ver=1.7.10",
+      "status": 200,
+      "contentType": "application/javascript",
+      "endpoints": [],
+      "apiSnippets": []
+    },
+    {
+      "url": "https://subsplease.org/wp-content/themes/allium/js/custom.js?ver=1.0",
+      "status": 200,
+      "contentType": "application/javascript",
+      "endpoints": [],
+      "apiSnippets": []
+    }
+  ],
+  "api": [
+    {
+      "url": "https://subsplease.org/api/?f=schedule",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/api/?f=schedule",
+      "contentType": "text/html; charset=UTF-8",
+      "jsonSummary": null,
+      "bodyPreview": ""
+    },
+    {
+      "url": "https://subsplease.org/api/?f=schedule&h=true",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/api/?f=schedule&h=true",
+      "contentType": "text/html; charset=UTF-8",
+      "jsonSummary": null,
+      "bodyPreview": ""
+    },
+    {
+      "url": "https://subsplease.org/api/?f=latest",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/api/?f=latest",
+      "contentType": "text/html; charset=UTF-8",
+      "jsonSummary": null,
+      "bodyPreview": ""
+    },
+    {
+      "url": "https://subsplease.org/api/?f=latest&tz=Etc/UTC",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/api/?f=latest&tz=Etc/UTC",
+      "contentType": "text/html; charset=UTF-8",
+      "jsonSummary": {
+        "type": "object",
+        "keys": [
+          "Kami no Shizuku - 01-24",
+          "Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12",
+          "Re Zero kara Hajimeru Isekai Seikatsu - 84",
+          "Youjo Senki S2 - 12",
+          "Clevatess S2 - 12",
+          "Bungou Stray Dogs Wan! S2 - 01-12",
+          "Kokoore - 01-12",
+          "Ryoumin 0-nin Start no Henkyou Ryoushu-sama - 01-12",
+          "Sora wa Akai Kawa no Hotori - 12",
+          "Yoroi Shin Den Samurai Troopers - 24",
+          "Kimi ga Shinu made Koi wo Shitai - 12",
+          "Tai-Ari deshita. Ojousama wa Kakutou Game nante Shinai - 12",
+          "Otome Kaijuu Carameliser - 01-12",
+          "Hanazakari no Kimitachi e S2 - 01-13",
+          "LIAR GAME - 25",
+          "Grand Blue S3 - 12",
+          "Tenkosaki - 12",
+          "Suterare Seijo no Isekai Gohan Tabi - 12",
+          "Buchigire Reijou wa Houfuku wo Chikaimashita - 12",
+          "World Is Dancing - 13"
+        ],
+        "Kami no Shizuku - 01-24": {
+          "type": "object",
+          "keys": [
+            "time",
+            "release_date",
+            "show",
+            "episode",
+            "downloads",
+            "xdcc",
+            "image_url",
+            "page"
+          ]
+        },
+        "Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12": {
+          "type": "object",
+          "keys": [
+            "time",
+            "release_date",
+            "show",
+            "episode",
+            "downloads",
+            "xdcc",
+            "image_url",
+            "page"
+          ]
+        },
+        "Re Zero kara Hajimeru Isekai Seikatsu - 84": {
+          "type": "object",
+          "keys": [
+            "time",
+            "release_date",
+            "show",
+            "episode",
+            "downloads",
+            "xdcc",
+            "image_url",
+            "page"
+          ]
+        },
+        "Youjo Senki S2 - 12": {
+          "type": "object",
+          "keys": [
+            "time",
+            "release_date",
+            "show",
+            "episode",
+            "downloads",
+            "xdcc",
+            "image_url",
+            "page"
+          ]
+        },
+        "Clevatess S2 - 12": {
+          "type": "object",
+          "keys": [
+            "time",
+            "release_date",
+            "show",
+            "episode",
+            "downloads",
+            "xdcc",
+            "image_url",
+            "page"
+          ]
+        }
+      },
+      "bodyPreview": "{\"Kami no Shizuku - 01-24\":{\"time\":\"New\",\"release_date\":\"Wed, 23 Sep 2026 21:23:36 +0000\",\"show\":\"Kami no Shizuku\",\"episode\":\"01-24\",\"downloads\":[{\"res\":\"480\",\"magnet\":\"magnet:?xt=urn:btih:UZ53NBRC62PQOIRCBI6GW55E2SNZI6NX&dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%28480p%29%20%5BBatch%5D&xl=9238081591&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"720\",\"magnet\":\"magnet:?xt=urn:btih:K7WBGBZJ7AOKYVENIAL5OLASPQO6CDWF&dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%28720p%29%20%5BBatch%5D&xl=17761512375&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"1080\",\"magnet\":\"magnet:?xt=urn:btih:QVHAZLXMW3ABB7LGW6FSQXV645GTF2RI&dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%281080p%29%20%5BBatch%5D&xl=34780358874&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"}],\"xdcc\":\"%22%5BSubsPlease%5D+Kami+no+Shizuku%22\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/04\\/155698.jpg\",\"page\":\"kami-no-shizuku\"},\"Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12\":{\"time\":\"New\",\"release_date\":\"Wed, 23 Sep 2026 15:32:08 +0000\",\"show\":\"Otome Game Sekai wa Mob ni Kibishii Sekai desu S2\",\"episode\":\"12\",\"downloads\":[{\"res\":\"480\",\"magnet\":\"magnet:?xt=urn:btih:XTI4T7MYX7QHQVLBORVUE3TQVCNI6FMN&dn=%5BSubsPlease%5D%20Otome%20Game%20Sekai%20wa%20Mob%20ni%20Kibishii%20Sekai%20desu%20S2%20-%2012%20%28480p%29%20%5B63AA988A%5D.mkv&xl=385084572&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"720\",\"magnet\":\"magnet:?xt=urn:btih:RZLAJ4DTK3OZCZZYDUVYMCOVNTOGBGHQ&dn=%5BSubsPlease%5D%20Otome%20Game%20Sekai%20wa%20Mob%20ni%20Kibishii%20Sekai%20desu%20S2%20-%2012%20%28720p%29%20%5BEE9C1ED1%5D.mkv&xl=739208000&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"1080\",\"magnet\":\"magnet:?xt=urn:btih:XLEANOXNTGGSQL4YC4KTZTDKUX2AKDNT&dn=%5BSubsPlease%5D%20Otome%20Game%20Sekai%20wa%20Mob%20ni%20Kibishii%20Sekai%20desu%20S2%20-%2012%20%281080p%29%20%5B53C5979F%5D.mkv&xl=1449351534&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"}],\"xdcc\":\"%22%5BSubsPlease%5D+Otome+Game+Sekai+wa+Mob+ni+Kibishii+Sekai+desu+S2+-+12%22\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/158337.jpg\",\"page\":\"otome-game-sekai-wa-mob-ni-kibishii-sekai-desu-s2\"},\"Re Zero kara Hajimeru Isekai Seikatsu - 84\":{\"time\":\"New\",\"release_date\":\"Wed, 23 Sep 2026 14:02:10 +0000\",\"show\":\"Re Zero kara Hajimeru Isekai Seikatsu\",\"episode\":\"84\",\"downloads\":[{\"res\":\"480\",\"magnet\":\"magnet:?xt=urn:btih:C6Y6ANIESIL6G3BNPHMRZ5GKUOHRBRRQ&dn=%5BSubsPlease%5D%20Re%20Zero%20kara%20Hajimeru%20Isekai%20Seikatsu%20-%2084%20%28480p%29%20%5B4B99F832%5D.mkv&xl=387157507&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"720\",\"magnet\":\"magnet:?xt=urn:btih:WYBXYU2KG5XQPUNXPNJIDOB7LNDJHFPD&dn=%5BSubsPlease%5D%20Re%20Zero%20kara%20Hajimeru%20Isekai%20Seikatsu%20-%2084%20%28720p%29%20%5B70D8A282%5D.mkv&xl=742095133&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"1080\",\"magnet\":\"magnet:?xt=urn:btih:FUN4WSJQXBSHMQDOUAMBG7AKIZHOODQV&dn=%5BSubsPlease%5D%20Re%20Zero%20kara%20Hajimeru%20Isekai%20Seikatsu%20-%2084%20%281080p%29%20%5B5188BBC4%5D.mkv&xl=1449305708&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"}],\"xdcc\":\"%22%5BSubsPlease%5D+Re+Zero+kara+Hajimeru+Isekai+Seikatsu+-+84%22\",\"image_url\":\"\\/wp-content\\/uploads\\/2021\\/01\\/79410.jpg\",\"page\":\"re-zero-kara-hajimeru-isekai-seikatsu\"},\"Youjo Senki S2 - 12\":{\"time\":\"New\",\"release_date\":\"Wed, 23 Sep 2026 13:32:10 +0000\",\"show\":\"Youjo Senki S2\",\"episode\":\"12\",\"downloads\":[{\"res\":\"480\",\"magnet\":\"magnet:?xt=urn:btih:MYNMRYW5VXQJ33V3O32ZWHRDPYGZYHNC&dn=%5BSubsPlease%5D%20Youjo%20Senki%20S2%20-%2012%20%28480p%29%20%5BA153A92A%5D.mkv&xl=381769282&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"720\",\"magnet\":\"magnet:?xt=urn:btih:BBEAXERUWXETKGZECDFFNR4DYRCXBFCK&dn=%5BSubsPlease%5D%20Youjo%20Senki%20S2%20-%2012%20%2872"
+    },
+    {
+      "url": "https://subsplease.org/api/?f=search&s=One%20Piece",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/api/?f=search&s=One%20Piece",
+      "contentType": "text/html; charset=UTF-8",
+      "jsonSummary": null,
+      "bodyPreview": ""
+    },
+    {
+      "url": "https://subsplease.org/api/?f=search&tz=Etc/UTC&s=One%20Piece",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/api/?f=search&tz=Etc/UTC&s=One%20Piece",
+      "contentType": "text/html; charset=UTF-8",
+      "jsonSummary": {
+        "type": "object",
+        "keys": [
+          "One Piece - 1179",
+          "One Piece - 1178",
+          "One Piece - 1177",
+          "One Piece - 1176",
+          "One Piece - 1175",
+          "One Piece - 1174",
+          "One Piece - 1173",
+          "One Piece - 1172",
+          "One Piece - 1171",
+          "One Piece - 1170",
+          "One Piece - 1169",
+          "One Piece Novel Heroines - Movie",
+          "One Piece - 1168",
+          "One Piece - 1167",
+          "One Piece - 1166",
+          "One Piece - 1165",
+          "One Piece - 1164",
+          "One Piece - 1163",
+          "One Piece - 1162",
+          "One Piece - 1161",
+          "One Piece - 1160",
+          "One Piece - 1159",
+          "One Piece - 1158",
+          "One Piece - 1157",
+          "One Piece - 1156",
+          "One Piece - 1155",
+          "One Piece - 1154",
+          "One Piece - 1153",
+          "One Piece - 1152",
+          "One Piece - 1151"
+        ],
+        "One Piece - 1179": {
+          "type": "object",
+          "keys": [
+            "time",
+            "release_date",
+            "show",
+            "episode",
+            "downloads",
+            "xdcc",
+            "image_url",
+            "page"
+          ]
+        },
+        "One Piece - 1178": {
+          "type": "object",
+          "keys": [
+            "time",
+            "release_date",
+            "show",
+            "episode",
+            "downloads",
+            "xdcc",
+            "image_url",
+            "page"
+          ]
+        },
+        "One Piece - 1177": {
+          "type": "object",
+          "keys": [
+            "time",
+            "release_date",
+            "show",
+            "episode",
+            "downloads",
+            "xdcc",
+            "image_url",
+            "page"
+          ]
+        },
+        "One Piece - 1176": {
+          "type": "object",
+          "keys": [
+            "time",
+            "release_date",
+            "show",
+            "episode",
+            "downloads",
+            "xdcc",
+            "image_url",
+            "page"
+          ]
+        },
+        "One Piece - 1175": {
+          "type": "object",
+          "keys": [
+            "time",
+            "release_date",
+            "show",
+            "episode",
+            "downloads",
+            "xdcc",
+            "image_url",
+            "page"
+          ]
+        }
+      },
+      "bodyPreview": "{\"One Piece - 1179\":{\"time\":\"09\\/20\\/26\",\"release_date\":\"Sun, 20 Sep 2026 16:01:54 +0000\",\"show\":\"One Piece\",\"episode\":\"1179\",\"downloads\":[{\"res\":\"480\",\"magnet\":\"magnet:?xt=urn:btih:GAAIFMM7RSWR7N7YLYMRMXCJGRHT2VIJ&dn=%5BSubsPlease%5D%20One%20Piece%20-%201179%20%28480p%29%20%5B104D6A8C%5D.mkv&xl=382451079&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"720\",\"magnet\":\"magnet:?xt=urn:btih:TMTTPSQM75EI2NUSFIH7G62WRXHGEH2D&dn=%5BSubsPlease%5D%20One%20Piece%20-%201179%20%28720p%29%20%5B904B76E3%5D.mkv&xl=736170943&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"1080\",\"magnet\":\"magnet:?xt=urn:btih:RX44RBWVDFTWCZOTNEQGU3WMY7IVXTWO&dn=%5BSubsPlease%5D%20One%20Piece%20-%201179%20%281080p%29%20%5BA02F35FE%5D.mkv&xl=1441870926&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"}],\"xdcc\":\"%22%5BSubsPlease%5D+One+Piece+-+1179%22\",\"image_url\":\"\\/wp-content\\/uploads\\/2020\\/10\\/73245.jpg\",\"page\":\"one-piece\"},\"One Piece - 1178\":{\"time\":\"09\\/13\\/26\",\"release_date\":\"Sun, 13 Sep 2026 16:22:24 +0000\",\"show\":\"One Piece\",\"episode\":\"1178\",\"downloads\":[{\"res\":\"480\",\"magnet\":\"magnet:?xt=urn:btih:QLHLJN3AZVWHCMT2OU7WWX4GM2LNZFVE&dn=%5BSubsPlease%5D%20One%20Piece%20-%201178%20%28480p%29%20%5BF135D08D%5D.mkv&xl=382467922&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"720\",\"magnet\":\"magnet:?xt=urn:btih:TYJ3UK4XLKS5EYBFNHMYXUIZ5NQDABOM&dn=%5BSubsPlease%5D%20One%20Piece%20-%201178%20%28720p%29%20%5BC4CBED9C%5D.mkv&xl=735961646&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"1080\",\"magnet\":\"magnet:?xt=urn:btih:ULKCUAZTZXYXSHL3CZ26EJDQNXQ5KCLB&dn=%5BSubsPlease%5D%20One%20Piece%20-%201178%20%281080p%29%20%5B49944784%5D.mkv&xl=1438934885&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"}],\"xdcc\":\"%22%5BSubsPlease%5D+One+Piece+-+1178%22\",\"image_url\":\"\\/wp-content\\/uploads\\/2020\\/10\\/73245.jpg\",\"page\":\"one-piece\"},\"One Piece - 1177\":{\"time\":\"09\\/06\\/26\",\"release_date\":\"Sun, 06 Sep 2026 16:02:11 +0000\",\"show\":\"One Piece\",\"episode\":\"1177\",\"downloads\":[{\"res\":\"480\",\"magnet\":\"magnet:?xt=urn:btih:WK2MGVWIDDRVYNXWFJXGSGOAFHBI7IRH&dn=%5BSubsPlease%5D%20One%20Piece%20-%201177%20%28480p%29%20%5BF8739875%5D.mkv&xl=382307173&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"720\",\"magnet\":\"magnet:?xt=urn:btih:KBBGNL7PMD2G4RANMGUSLWONQUVC54IZ&dn=%5BSubsPlease%5D%20One%20Piece%20-%201177%20%28720p%29%20%5B8E467E7C%5D.mkv&xl=735959213&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"1080\",\"magnet\":\"magnet:?xt=urn:btih:UIPCXIHN2FEC5MHDGP4YFEBREN7DK4FI&dn=%5BSubsPlease%5D%20One%20Piece%20-%201177%20%281080p%29%20%5B1D212675%5D.mkv&xl=1442420029&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"}],\"xdcc\":\"%22%5BSubsPlease%5D+One+Piece+-+1177%22\",\"image_url\":\"\\/wp-content\\/uploads\\/2020\\/10\\/73245.jpg\",\"page\":\"one-piece\"},\"One Piece - 1176\":{\"time\":\"08\\/30\\/26\",\"release_date\":\"Sun, 30 Aug 2026 16:08:37 +0000\",\"show\":\"One Piece\",\"episode\":\"1176\",\"downloads\":[{\"res\":\"480\",\"magnet\":\"magnet:?xt=urn:btih:JKFQPDUIYNTZPCPCFX7TQAEIDF76LUTK&dn=%5BSubsPlease%5D%20One%20Piece%20-%201176%20%28480p%29%20%5B5A212AC8%5D.mkv&xl=381738485&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"720\",\"magnet\":\"magnet:?xt=urn:btih:BCUQLVQ7BFOTBZ4MB7RFJWKUGLIPPAAY&dn=%5BSubsPlease%5D%20One%20Piece%20-%201176%20%28720p%29%20%5B7A175CC2%5D.mkv&xl=734152034&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A"
+    },
+    {
+      "url": "https://subsplease.org/api/?f=search&s=Frieren",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/api/?f=search&s=Frieren",
+      "contentType": "text/html; charset=UTF-8",
+      "jsonSummary": null,
+      "bodyPreview": ""
+    },
+    {
+      "url": "https://subsplease.org/api/?f=latest&tz=",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/api/?f=latest&tz=",
+      "contentType": "text/html; charset=UTF-8",
+      "jsonSummary": {
+        "type": "object",
+        "keys": [
+          "Kami no Shizuku - 01-24",
+          "Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12",
+          "Re Zero kara Hajimeru Isekai Seikatsu - 84",
+          "Youjo Senki S2 - 12",
+          "Clevatess S2 - 12",
+          "Bungou Stray Dogs Wan! S2 - 01-12",
+          "Kokoore - 01-12",
+          "Ryoumin 0-nin Start no Henkyou Ryoushu-sama - 01-12",
+          "Sora wa Akai Kawa no Hotori - 12",
+          "Yoroi Shin Den Samurai Troopers - 24",
+          "Kimi ga Shinu made Koi wo Shitai - 12",
+          "Tai-Ari deshita. Ojousama wa Kakutou Game nante Shinai - 12",
+          "Otome Kaijuu Carameliser - 01-12",
+          "Hanazakari no Kimitachi e S2 - 01-13",
+          "LIAR GAME - 25",
+          "Grand Blue S3 - 12",
+          "Tenkosaki - 12",
+          "Suterare Seijo no Isekai Gohan Tabi - 12",
+          "Buchigire Reijou wa Houfuku wo Chikaimashita - 12",
+          "World Is Dancing - 13"
+        ],
+        "Kami no Shizuku - 01-24": {
+          "type": "object",
+          "keys": [
+            "time",
+            "release_date",
+            "show",
+            "episode",
+            "downloads",
+            "xdcc",
+            "image_url",
+            "page"
+          ]
+        },
+        "Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12": {
+          "type": "object",
+          "keys": [
+            "time",
+            "release_date",
+            "show",
+            "episode",
+            "downloads",
+            "xdcc",
+            "image_url",
+            "page"
+          ]
+        },
+        "Re Zero kara Hajimeru Isekai Seikatsu - 84": {
+          "type": "object",
+          "keys": [
+            "time",
+            "release_date",
+            "show",
+            "episode",
+            "downloads",
+            "xdcc",
+            "image_url",
+            "page"
+          ]
+        },
+        "Youjo Senki S2 - 12": {
+          "type": "object",
+          "keys": [
+            "time",
+            "release_date",
+            "show",
+            "episode",
+            "downloads",
+            "xdcc",
+            "image_url",
+            "page"
+          ]
+        },
+        "Clevatess S2 - 12": {
+          "type": "object",
+          "keys": [
+            "time",
+            "release_date",
+            "show",
+            "episode",
+            "downloads",
+            "xdcc",
+            "image_url",
+            "page"
+          ]
+        }
+      },
+      "bodyPreview": "{\"Kami no Shizuku - 01-24\":{\"time\":\"New\",\"release_date\":\"Wed, 23 Sep 2026 21:23:36 +0000\",\"show\":\"Kami no Shizuku\",\"episode\":\"01-24\",\"downloads\":[{\"res\":\"480\",\"magnet\":\"magnet:?xt=urn:btih:UZ53NBRC62PQOIRCBI6GW55E2SNZI6NX&dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%28480p%29%20%5BBatch%5D&xl=9238081591&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"720\",\"magnet\":\"magnet:?xt=urn:btih:K7WBGBZJ7AOKYVENIAL5OLASPQO6CDWF&dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%28720p%29%20%5BBatch%5D&xl=17761512375&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"1080\",\"magnet\":\"magnet:?xt=urn:btih:QVHAZLXMW3ABB7LGW6FSQXV645GTF2RI&dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%281080p%29%20%5BBatch%5D&xl=34780358874&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"}],\"xdcc\":\"%22%5BSubsPlease%5D+Kami+no+Shizuku%22\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/04\\/155698.jpg\",\"page\":\"kami-no-shizuku\"},\"Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12\":{\"time\":\"New\",\"release_date\":\"Wed, 23 Sep 2026 15:32:08 +0000\",\"show\":\"Otome Game Sekai wa Mob ni Kibishii Sekai desu S2\",\"episode\":\"12\",\"downloads\":[{\"res\":\"480\",\"magnet\":\"magnet:?xt=urn:btih:XTI4T7MYX7QHQVLBORVUE3TQVCNI6FMN&dn=%5BSubsPlease%5D%20Otome%20Game%20Sekai%20wa%20Mob%20ni%20Kibishii%20Sekai%20desu%20S2%20-%2012%20%28480p%29%20%5B63AA988A%5D.mkv&xl=385084572&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"720\",\"magnet\":\"magnet:?xt=urn:btih:RZLAJ4DTK3OZCZZYDUVYMCOVNTOGBGHQ&dn=%5BSubsPlease%5D%20Otome%20Game%20Sekai%20wa%20Mob%20ni%20Kibishii%20Sekai%20desu%20S2%20-%2012%20%28720p%29%20%5BEE9C1ED1%5D.mkv&xl=739208000&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"1080\",\"magnet\":\"magnet:?xt=urn:btih:XLEANOXNTGGSQL4YC4KTZTDKUX2AKDNT&dn=%5BSubsPlease%5D%20Otome%20Game%20Sekai%20wa%20Mob%20ni%20Kibishii%20Sekai%20desu%20S2%20-%2012%20%281080p%29%20%5B53C5979F%5D.mkv&xl=1449351534&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"}],\"xdcc\":\"%22%5BSubsPlease%5D+Otome+Game+Sekai+wa+Mob+ni+Kibishii+Sekai+desu+S2+-+12%22\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/158337.jpg\",\"page\":\"otome-game-sekai-wa-mob-ni-kibishii-sekai-desu-s2\"},\"Re Zero kara Hajimeru Isekai Seikatsu - 84\":{\"time\":\"New\",\"release_date\":\"Wed, 23 Sep 2026 14:02:10 +0000\",\"show\":\"Re Zero kara Hajimeru Isekai Seikatsu\",\"episode\":\"84\",\"downloads\":[{\"res\":\"480\",\"magnet\":\"magnet:?xt=urn:btih:C6Y6ANIESIL6G3BNPHMRZ5GKUOHRBRRQ&dn=%5BSubsPlease%5D%20Re%20Zero%20kara%20Hajimeru%20Isekai%20Seikatsu%20-%2084%20%28480p%29%20%5B4B99F832%5D.mkv&xl=387157507&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"720\",\"magnet\":\"magnet:?xt=urn:btih:WYBXYU2KG5XQPUNXPNJIDOB7LNDJHFPD&dn=%5BSubsPlease%5D%20Re%20Zero%20kara%20Hajimeru%20Isekai%20Seikatsu%20-%2084%20%28720p%29%20%5B70D8A282%5D.mkv&xl=742095133&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"1080\",\"magnet\":\"magnet:?xt=urn:btih:FUN4WSJQXBSHMQDOUAMBG7AKIZHOODQV&dn=%5BSubsPlease%5D%20Re%20Zero%20kara%20Hajimeru%20Isekai%20Seikatsu%20-%2084%20%281080p%29%20%5B5188BBC4%5D.mkv&xl=1449305708&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"}],\"xdcc\":\"%22%5BSubsPlease%5D+Re+Zero+kara+Hajimeru+Isekai+Seikatsu+-+84%22\",\"image_url\":\"\\/wp-content\\/uploads\\/2021\\/01\\/79410.jpg\",\"page\":\"re-zero-kara-hajimeru-isekai-seikatsu\"},\"Youjo Senki S2 - 12\":{\"time\":\"New\",\"release_date\":\"Wed, 23 Sep 2026 13:32:10 +0000\",\"show\":\"Youjo Senki S2\",\"episode\":\"12\",\"downloads\":[{\"res\":\"480\",\"magnet\":\"magnet:?xt=urn:btih:MYNMRYW5VXQJ33V3O32ZWHRDPYGZYHNC&dn=%5BSubsPlease%5D%20Youjo%20Senki%20S2%20-%2012%20%28480p%29%20%5BA153A92A%5D.mkv&xl=381769282&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com\"},{\"res\":\"720\",\"magnet\":\"magnet:?xt=urn:btih:BBEAXERUWXETKGZECDFFNR4DYRCXBFCK&dn=%5BSubsPlease%5D%20Youjo%20Senki%20S2%20-%2012%20%2872"
+    },
+    {
+      "url": "https://subsplease.org/api/?f=schedule&h=true&tz=",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/api/?f=schedule&h=true&tz=",
+      "contentType": "text/html; charset=UTF-8",
+      "jsonSummary": {
+        "type": "object",
+        "keys": [
+          "tz",
+          "schedule"
+        ],
+        "tz": "Etc/GMT",
+        "schedule": {
+          "type": "list",
+          "length": 5,
+          "sample": [
+            {
+              "title": "Clevatess S2",
+              "page": "clevatess-s2",
+              "image_url": "/wp-content/uploads/2026/07/157105.jpg",
+              "time": "12:00",
+              "aired": true
+            },
+            {
+              "title": "Youjo Senki S2",
+              "page": "youjo-senki-s2",
+              "image_url": "/wp-content/uploads/2026/07/158371.jpg",
+              "time": "13:30",
+              "aired": true
+            }
+          ]
+        }
+      },
+      "bodyPreview": "{\"tz\":\"Etc\\/GMT\",\"schedule\":[{\"title\":\"Clevatess S2\",\"page\":\"clevatess-s2\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/157105.jpg\",\"time\":\"12:00\",\"aired\":true},{\"title\":\"Youjo Senki S2\",\"page\":\"youjo-senki-s2\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/158371.jpg\",\"time\":\"13:30\",\"aired\":true},{\"title\":\"Re Zero kara Hajimeru Isekai Seikatsu\",\"page\":\"re-zero-kara-hajimeru-isekai-seikatsu\",\"image_url\":\"\\/wp-content\\/uploads\\/2021\\/01\\/79410.jpg\",\"time\":\"14:00\",\"aired\":true},{\"title\":\"Otome Game Sekai wa Mob ni Kibishii Sekai desu S2\",\"page\":\"otome-game-sekai-wa-mob-ni-kibishii-sekai-desu-s2\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/158337.jpg\",\"time\":\"15:30\",\"aired\":true},{\"title\":\"Toukutsu Ou\",\"page\":\"toukutsu-ou\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/158471.jpg\",\"time\":\"17:15\",\"aired\":false}]}"
+    },
+    {
+      "url": "https://subsplease.org/api/?f=schedule&tz=",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/api/?f=schedule&tz=",
+      "contentType": "text/html; charset=UTF-8",
+      "jsonSummary": {
+        "type": "object",
+        "keys": [
+          "tz",
+          "schedule"
+        ],
+        "tz": "Etc/GMT",
+        "schedule": {
+          "type": "object",
+          "keys": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday"
+          ]
+        }
+      },
+      "bodyPreview": "{\"tz\":\"Etc\\/GMT\",\"schedule\":{\"Monday\":[{\"title\":\"LIAR GAME\",\"page\":\"liar-game\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/04\\/156078.jpg\",\"time\":\"16:00\"}],\"Tuesday\":[{\"title\":\"Tai-Ari deshita. Ojousama wa Kakutou Game nante Shinai\",\"page\":\"tai-ari-deshita-ojousama-wa-kakutou-game-nante-shinai\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/156268.jpg\",\"time\":\"11:30\"},{\"title\":\"Kimi ga Shinu made Koi wo Shitai\",\"page\":\"kimi-ga-shinu-made-koi-wo-shitai\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/158712.jpg\",\"time\":\"12:30\"},{\"title\":\"Yoroi Shin Den Samurai Troopers\",\"page\":\"yoroi-shin-den-samurai-troopers\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/01\\/153952-1.jpg\",\"time\":\"15:00\"},{\"title\":\"Sora wa Akai Kawa no Hotori\",\"page\":\"sora-wa-akai-kawa-no-hotori\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/158138.jpg\",\"time\":\"17:30\"}],\"Wednesday\":[{\"title\":\"Clevatess S2\",\"page\":\"clevatess-s2\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/157105.jpg\",\"time\":\"12:00\"},{\"title\":\"Youjo Senki S2\",\"page\":\"youjo-senki-s2\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/158371.jpg\",\"time\":\"13:30\"},{\"title\":\"Re Zero kara Hajimeru Isekai Seikatsu\",\"page\":\"re-zero-kara-hajimeru-isekai-seikatsu\",\"image_url\":\"\\/wp-content\\/uploads\\/2021\\/01\\/79410.jpg\",\"time\":\"14:00\"},{\"title\":\"Otome Game Sekai wa Mob ni Kibishii Sekai desu S2\",\"page\":\"otome-game-sekai-wa-mob-ni-kibishii-sekai-desu-s2\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/158337.jpg\",\"time\":\"15:30\"},{\"title\":\"Toukutsu Ou\",\"page\":\"toukutsu-ou\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/158471.jpg\",\"time\":\"17:15\"}],\"Thursday\":[{\"title\":\"Reiwa no Dara-san\",\"page\":\"reiwa-no-dara-san\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/155761.jpg\",\"time\":\"12:30\"},{\"title\":\"Mebius Dust\",\"page\":\"mebius-dust\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/158352.jpg\",\"time\":\"15:00\"},{\"title\":\"Super no Ura de Yani Suu Futari\",\"page\":\"super-no-ura-de-yani-suu-futari\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/156339.jpg\",\"time\":\"16:00\"},{\"title\":\"Tsuihou sareta Tensei Juukishi wa Game Chishiki de Musou suru\",\"page\":\"tsuihou-sareta-tensei-juukishi-wa-game-chishiki-de-musou-suru\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/158711.jpg\",\"time\":\"16:00\"}],\"Friday\":[{\"title\":\"Link Click S3\",\"page\":\"link-click-s3\",\"image_url\":\"\\/wp-includes\\/images\\/image-coming-soon-placeholder.png\",\"time\":\"03:00\"},{\"title\":\"Tensei Shitara Slime Datta Ken S4\",\"page\":\"tensei-shitara-slime-datta-ken-s4\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/04\\/156389.jpg\",\"time\":\"15:00\"},{\"title\":\"Kore Kaite Shine\",\"page\":\"kore-kaite-shine\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/154997.jpg\",\"time\":\"15:35\"},{\"title\":\"Nige Jouzu no Wakagimi S2\",\"page\":\"nige-jouzu-no-wakagimi-s2\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/156329.jpg\",\"time\":\"16:00\"},{\"title\":\"Hell Mode S2\",\"page\":\"hell-mode-s2\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/156314.jpg\",\"time\":\"16:30\"},{\"title\":\"Uchi no Otouto-domo ga Sumimasen\",\"page\":\"uchi-no-otouto-domo-ga-sumimasen\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/156345.jpg\",\"time\":\"16:30\"}],\"Saturday\":[{\"title\":\"Rilakkuma\",\"page\":\"rilakkuma\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/04\\/155696.jpg\",\"time\":\"01:00\"},{\"title\":\"Honzuki no Gekokujou S4\",\"page\":\"honzuki-no-gekokujou-s4\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/04\\/155054.jpg\",\"time\":\"09:30\"},{\"title\":\"Kaijuu 8-gou - Narumi no Heijitsu\",\"page\":\"kaijuu-8-gou-narumi-no-heijitsu\",\"image_url\":\"\\/wp-includes\\/images\\/image-coming-soon-placeholder.png\",\"time\":\"11:00\"},{\"title\":\"Detective Conan\",\"page\":\"detective-conan\",\"image_url\":\"\\/wp-content\\/uploads\\/2020\\/10\\/75199.jpg\",\"time\":\"11:30\"},{\"title\":\"Mairimashita! Iruma-kun S4\",\"page\":\"mairimashita-iruma-kun-s4\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/04\\/154048.jpg\",\"time\":\"12:00\"},{\"title\":\"Yasei no Last Boss ga Arawareta!\",\"page\":\"yasei-no-last-boss-ga-arawareta\",\"image_url\":\"\\/wp-content\\/uploads\\/2025\\/09\\/145051.jpg\",\"time\":\"13:30\"},{\"title\":\"Grow Up Show - Himawari no Circus-dan\",\"page\":\"grow-up-show-himawari-no-circus-dan\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/158716.jpg\",\"time\":\"16:00\"},{\"title\":\"Hanaori-san wa Tensei shitemo Kenka ga Shitai\",\"page\":\"hanaori-san-wa-tensei-shitemo-kenka-ga-shitai\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/156331.jpg\",\"time\":\"17:30\"}],\"Sunday\":[{\"title\":\"Meitantei Precure!\",\"page\":\"meitantei-precure\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/02\\/154944.jpg\",\"time\":\"01:30\"},{\"title\":\"Digimon Beatbreak\",\"page\":\"digimon-beatbreak\",\"image_url\":\"\\/wp-content\\/uploads\\/2025\\/10\\/151242.jpg\",\"time\":\"03:00\"},{\"title\":\"Let's Go Kaiki-gumi\",\"page\":\"lets-go-kaiki-gumi\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/158581.jpg\",\"time\":\"08:30\"},{\"title\":\"Seihantai na Kimi to Boku\",\"page\":\"seihantai-na-kimi-to-boku\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/01\\/154457.jpg\",\"time\":\"08:30\"},{\"title\":\"Tempal - Item no Chikara\",\"page\":\"\",\"image_url\":\"\",\"time\":\"14:30\"},{\"title\":\"Mushoku Tensei S3\",\"page\":\"mushoku-tensei-s3\",\"image_url\":\"\\/wp-content\\/uploads\\/2026\\/07\\/158340.jpg\",\"time\":\"15:00\"},{\"title\":\"Tensei Kizoku, Kantei Skill de Nariagaru\",\"page\":\"tensei-kizoku-kantei-skill-de-nariagaru\",\"image_url\":\"\\/wp-content\\/uploads\\/2024\\/04\\/139538.jpg\",\"time\":\"15:00\"},{\"title\":\"One Piece\",\"page\":\"one-piece\",\"image_url\":\"\\/wp-content\\/uploads\\/2020\\/10\\/73245.jpg\",\"time\":\"16:00\"}]}}"
+    },
+    {
+      "url": "https://subsplease.org/api/?f=search&tz=",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/api/?f=search&tz=",
+      "contentType": "text/html; charset=UTF-8",
+      "jsonSummary": null,
+      "bodyPreview": ""
+    },
+    {
+      "url": "https://subsplease.org/api/?f=show&tz=",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/api/?f=show&tz=",
+      "contentType": "text/html; charset=UTF-8",
+      "jsonSummary": null,
+      "bodyPreview": ""
+    }
+  ],
+  "rss": [
+    {
+      "url": "https://subsplease.org/rss",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/rss/",
+      "contentType": "application/xml",
+      "items": [
+        {
+          "title": "[SubsPlease] Kami no Shizuku (01-24) (1080p) [Batch]",
+          "link": "magnet:?xt=urn:btih:QVHAZLXMW3ABB7LGW6FSQXV645GTF2RI&dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%281080p%29%20%5BBatch%5D&xl=34780358874&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "QVHAZLXMW3ABB7LGW6FSQXV645GTF2RI",
+          "pubDate": "Wed, 23 Sep 2026 14:23:36 +0000",
+          "category": "Kami no Shizuku - 1080"
+        },
+        {
+          "title": "[SubsPlease] Kami no Shizuku (01-24) (720p) [Batch]",
+          "link": "magnet:?xt=urn:btih:K7WBGBZJ7AOKYVENIAL5OLASPQO6CDWF&dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%28720p%29%20%5BBatch%5D&xl=17761512375&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "K7WBGBZJ7AOKYVENIAL5OLASPQO6CDWF",
+          "pubDate": "Wed, 23 Sep 2026 14:22:31 +0000",
+          "category": "Kami no Shizuku - 720"
+        },
+        {
+          "title": "[SubsPlease] Kami no Shizuku (01-24) (480p) [Batch]",
+          "link": "magnet:?xt=urn:btih:UZ53NBRC62PQOIRCBI6GW55E2SNZI6NX&dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%28480p%29%20%5BBatch%5D&xl=9238081591&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "UZ53NBRC62PQOIRCBI6GW55E2SNZI6NX",
+          "pubDate": "Wed, 23 Sep 2026 14:22:15 +0000",
+          "category": "Kami no Shizuku - 480"
+        },
+        {
+          "title": "[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (1080p) [53C5979F].mkv",
+          "link": "magnet:?xt=urn:btih:XLEANOXNTGGSQL4YC4KTZTDKUX2AKDNT&dn=%5BSubsPlease%5D%20Otome%20Game%20Sekai%20wa%20Mob%20ni%20Kibishii%20Sekai%20desu%20S2%20-%2012%20%281080p%29%20%5B53C5979F%5D.mkv&xl=1449351534&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "XLEANOXNTGGSQL4YC4KTZTDKUX2AKDNT",
+          "pubDate": "Wed, 23 Sep 2026 08:32:08 +0000",
+          "category": "Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 1080"
+        },
+        {
+          "title": "[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (720p) [EE9C1ED1].mkv",
+          "link": "magnet:?xt=urn:btih:RZLAJ4DTK3OZCZZYDUVYMCOVNTOGBGHQ&dn=%5BSubsPlease%5D%20Otome%20Game%20Sekai%20wa%20Mob%20ni%20Kibishii%20Sekai%20desu%20S2%20-%2012%20%28720p%29%20%5BEE9C1ED1%5D.mkv&xl=739208000&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "RZLAJ4DTK3OZCZZYDUVYMCOVNTOGBGHQ",
+          "pubDate": "Wed, 23 Sep 2026 08:31:36 +0000",
+          "category": "Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 720"
+        }
+      ],
+      "bodyPreview": "<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:subsplease=\"https://subsplease.org/rss\"><channel><title>SubsPlease RSS</title><description>RSS feed for SubsPlease releases (All)</description><link>https://subsplease.org</link><atom:link href=\"http://subsplease.org/rss\" rel=\"self\" type=\"application/rss+xml\"/><item><title>[SubsPlease] Kami no Shizuku (01-24) (1080p) [Batch]</title><link>magnet:?xt=urn:btih:QVHAZLXMW3ABB7LGW6FSQXV645GTF2RI&amp;dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%281080p%29%20%5BBatch%5D&amp;xl=34780358874&amp;tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&amp;tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&amp;tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&amp;tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&amp;tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&amp;tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&amp;tr=wss%3A%2F%2Ftracker.openwebtorrent.com</link><guid isPermaLink=\"false\">QVHAZLXMW3ABB7LGW6FSQXV645GTF2RI</guid><pubDate>Wed, 23 Sep 2026 14:23:36 +0000</pubDate><category>Kami no Shizuku - 1080</category><subsplease:size>32.39 GiB</subsplease:size></item><item><title>[SubsPlease] Kami no Shizuku (01-24) (720p) [Batch]</title><link>magnet:?xt=urn:btih:K7WBGBZJ7AOKYVENIAL5OLASPQO6CDWF&amp;dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%28720p%29%20%5BBatch%5D&amp;xl=17761512375&amp;tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&amp;tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&amp;tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&amp;tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&amp;tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&amp;tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&amp;tr=wss%3A%2F%2Ftracker.openwebtorrent.com</link><guid isPermaLink=\"false\">K7WBGBZJ7AOKYVENIAL5OLASPQO6CDWF</guid><pubDate>Wed, 23 Sep 2026 14:22:31 +0000</pubDate><category>Kami no Shizuku - 720</category><subsplease:size>16.54 GiB</subsplease:size></item><item><title>[SubsPlease] Kami no Shizuku (01-24) (480p) [Batch]</title><link>magnet:?xt=urn:btih:UZ53NBRC62PQOIRCBI6GW55E2SNZI6NX&amp;dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%28480p%29%20%5BBatch%5D&amp;xl=9238081591&amp;tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&amp;tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&amp;tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&amp;tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&amp;tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&amp;tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&amp;tr=wss%3A%2F%2Ftracker.openwebtorrent.com</link><guid isPermaLink=\"false\">UZ53NBRC62PQOIRCBI6GW55E2SNZI6NX</guid><pubDate>Wed, 23 Sep 2026 14:22:15 +0000</pubDate><category>Kami no Shizuku - 480</category><subsplease:size>8.6 GiB</subsplease:size></item><item><title>[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (1080p) [53C5979F].mkv</title><link>magnet:?xt=urn:btih:XLEANOXNTGGSQL4YC4KTZTDKUX2AKDNT&amp;dn=%5BSubsPlease%5D%20Otome%20Game%20Sekai%20wa%20Mob%20ni%20Kibishii%20Sekai%20desu%20S2%20-%2012%20%281080p%29%20%5B53C5979F%5D.mkv&amp;xl=1449351534&amp;tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&amp;tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&amp;tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&amp;tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&amp;tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&amp;tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&amp;tr=wss%3A%2F%2Ftracker.openwebtorrent.com</link><guid isPermaLink=\"false\">XLEANOXNTGGSQL4YC4KTZTDKUX2AKDNT</guid><pubDate>Wed, 23 Sep 2026 08:32:08 +0000</p"
+    },
+    {
+      "url": "https://subsplease.org/rss/?r=1080",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/rss/?r=1080",
+      "contentType": "application/xml",
+      "items": [
+        {
+          "title": "[SubsPlease] Kami no Shizuku (01-24) (1080p) [Batch]",
+          "link": "magnet:?xt=urn:btih:QVHAZLXMW3ABB7LGW6FSQXV645GTF2RI&dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%281080p%29%20%5BBatch%5D&xl=34780358874&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "QVHAZLXMW3ABB7LGW6FSQXV645GTF2RI",
+          "pubDate": "Wed, 23 Sep 2026 14:23:36 +0000",
+          "category": "Kami no Shizuku - 1080"
+        },
+        {
+          "title": "[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (1080p) [53C5979F].mkv",
+          "link": "magnet:?xt=urn:btih:XLEANOXNTGGSQL4YC4KTZTDKUX2AKDNT&dn=%5BSubsPlease%5D%20Otome%20Game%20Sekai%20wa%20Mob%20ni%20Kibishii%20Sekai%20desu%20S2%20-%2012%20%281080p%29%20%5B53C5979F%5D.mkv&xl=1449351534&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "XLEANOXNTGGSQL4YC4KTZTDKUX2AKDNT",
+          "pubDate": "Wed, 23 Sep 2026 08:32:08 +0000",
+          "category": "Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 1080"
+        },
+        {
+          "title": "[SubsPlease] Re Zero kara Hajimeru Isekai Seikatsu - 84 (1080p) [5188BBC4].mkv",
+          "link": "magnet:?xt=urn:btih:FUN4WSJQXBSHMQDOUAMBG7AKIZHOODQV&dn=%5BSubsPlease%5D%20Re%20Zero%20kara%20Hajimeru%20Isekai%20Seikatsu%20-%2084%20%281080p%29%20%5B5188BBC4%5D.mkv&xl=1449305708&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "FUN4WSJQXBSHMQDOUAMBG7AKIZHOODQV",
+          "pubDate": "Wed, 23 Sep 2026 07:02:10 +0000",
+          "category": "Re Zero kara Hajimeru Isekai Seikatsu - 1080"
+        },
+        {
+          "title": "[SubsPlease] Youjo Senki S2 - 12 (1080p) [12B35D58].mkv",
+          "link": "magnet:?xt=urn:btih:F3CS5UCU5IOWUXY46I6GHZ4CCD45Q7M5&dn=%5BSubsPlease%5D%20Youjo%20Senki%20S2%20-%2012%20%281080p%29%20%5B12B35D58%5D.mkv&xl=1442623334&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "F3CS5UCU5IOWUXY46I6GHZ4CCD45Q7M5",
+          "pubDate": "Wed, 23 Sep 2026 06:32:10 +0000",
+          "category": "Youjo Senki S2 - 1080"
+        },
+        {
+          "title": "[SubsPlease] Clevatess S2 - 12 (1080p) [9D58C13E].mkv",
+          "link": "magnet:?xt=urn:btih:37MTU6N6X27ONMEMSHPA5BEB36HO346O&dn=%5BSubsPlease%5D%20Clevatess%20S2%20-%2012%20%281080p%29%20%5B9D58C13E%5D.mkv&xl=1448043313&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "37MTU6N6X27ONMEMSHPA5BEB36HO346O",
+          "pubDate": "Wed, 23 Sep 2026 05:02:11 +0000",
+          "category": "Clevatess S2 - 1080"
+        }
+      ],
+      "bodyPreview": "<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:subsplease=\"https://subsplease.org/rss\"><channel><title>SubsPlease RSS</title><description>RSS feed for SubsPlease releases (1080p)</description><link>https://subsplease.org</link><atom:link href=\"http://subsplease.org/rss\" rel=\"self\" type=\"application/rss+xml\"/><item><title>[SubsPlease] Kami no Shizuku (01-24) (1080p) [Batch]</title><link>magnet:?xt=urn:btih:QVHAZLXMW3ABB7LGW6FSQXV645GTF2RI&amp;dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%281080p%29%20%5BBatch%5D&amp;xl=34780358874&amp;tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&amp;tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&amp;tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&amp;tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&amp;tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&amp;tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&amp;tr=wss%3A%2F%2Ftracker.openwebtorrent.com</link><guid isPermaLink=\"false\">QVHAZLXMW3ABB7LGW6FSQXV645GTF2RI</guid><pubDate>Wed, 23 Sep 2026 14:23:36 +0000</pubDate><category>Kami no Shizuku - 1080</category><subsplease:size>32.39 GiB</subsplease:size></item><item><title>[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (1080p) [53C5979F].mkv</title><link>magnet:?xt=urn:btih:XLEANOXNTGGSQL4YC4KTZTDKUX2AKDNT&amp;dn=%5BSubsPlease%5D%20Otome%20Game%20Sekai%20wa%20Mob%20ni%20Kibishii%20Sekai%20desu%20S2%20-%2012%20%281080p%29%20%5B53C5979F%5D.mkv&amp;xl=1449351534&amp;tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&amp;tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&amp;tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&amp;tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&amp;tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&amp;tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&amp;tr=wss%3A%2F%2Ftracker.openwebtorrent.com</link><guid isPermaLink=\"false\">XLEANOXNTGGSQL4YC4KTZTDKUX2AKDNT</guid><pubDate>Wed, 23 Sep 2026 08:32:08 +0000</pubDate><category>Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 1080</category><subsplease:size>1.35 GiB</subsplease:size></item><item><title>[SubsPlease] Re Zero kara Hajimeru Isekai Seikatsu - 84 (1080p) [5188BBC4].mkv</title><link>magnet:?xt=urn:btih:FUN4WSJQXBSHMQDOUAMBG7AKIZHOODQV&amp;dn=%5BSubsPlease%5D%20Re%20Zero%20kara%20Hajimeru%20Isekai%20Seikatsu%20-%2084%20%281080p%29%20%5B5188BBC4%5D.mkv&amp;xl=1449305708&amp;tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&amp;tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&amp;tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&amp;tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&amp;tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&amp;tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&amp;tr=wss%3A%2F%2Ftracker.openwebtorrent.com</link><guid isPermaLink=\"false\">FUN4WSJQXBSHMQDOUAMBG7AKIZHOODQV</guid><pubDate>Wed, 23 Sep 2026 07:02:10 +0000</pubDate><category>Re Zero kara Hajimeru Isekai Seikatsu - 1080</category><subsplease:size>1.35 GiB</subsplease:size></item><item><title>[SubsPlease] Youjo Senki S2 - 12 (1080p) [12B35D58].mkv</title><link>magnet:?xt=urn:btih:F3CS5UCU5IOWUXY46I6GHZ4CCD45Q7M5&amp;dn=%5BSubsPlease%5D%20Youjo%20Senki%20S2%20-%2012%20%281080p%29%20%5B12B35D58%5D.mkv&amp;xl=1442623334&amp;tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&amp;tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&amp;tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&amp;tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&amp;tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&amp;tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&amp;tr=wss%3A%2F%2Ftracker.openwebtor"
+    },
+    {
+      "url": "https://subsplease.org/rss/?r=720",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/rss/?r=720",
+      "contentType": "application/xml",
+      "items": [
+        {
+          "title": "[SubsPlease] Kami no Shizuku (01-24) (720p) [Batch]",
+          "link": "magnet:?xt=urn:btih:K7WBGBZJ7AOKYVENIAL5OLASPQO6CDWF&dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%28720p%29%20%5BBatch%5D&xl=17761512375&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "K7WBGBZJ7AOKYVENIAL5OLASPQO6CDWF",
+          "pubDate": "Wed, 23 Sep 2026 14:22:31 +0000",
+          "category": "Kami no Shizuku - 720"
+        },
+        {
+          "title": "[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (720p) [EE9C1ED1].mkv",
+          "link": "magnet:?xt=urn:btih:RZLAJ4DTK3OZCZZYDUVYMCOVNTOGBGHQ&dn=%5BSubsPlease%5D%20Otome%20Game%20Sekai%20wa%20Mob%20ni%20Kibishii%20Sekai%20desu%20S2%20-%2012%20%28720p%29%20%5BEE9C1ED1%5D.mkv&xl=739208000&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "RZLAJ4DTK3OZCZZYDUVYMCOVNTOGBGHQ",
+          "pubDate": "Wed, 23 Sep 2026 08:31:36 +0000",
+          "category": "Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 720"
+        },
+        {
+          "title": "[SubsPlease] Re Zero kara Hajimeru Isekai Seikatsu - 84 (720p) [70D8A282].mkv",
+          "link": "magnet:?xt=urn:btih:WYBXYU2KG5XQPUNXPNJIDOB7LNDJHFPD&dn=%5BSubsPlease%5D%20Re%20Zero%20kara%20Hajimeru%20Isekai%20Seikatsu%20-%2084%20%28720p%29%20%5B70D8A282%5D.mkv&xl=742095133&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "WYBXYU2KG5XQPUNXPNJIDOB7LNDJHFPD",
+          "pubDate": "Wed, 23 Sep 2026 07:01:55 +0000",
+          "category": "Re Zero kara Hajimeru Isekai Seikatsu - 720"
+        },
+        {
+          "title": "[SubsPlease] Youjo Senki S2 - 12 (720p) [F717EE0B].mkv",
+          "link": "magnet:?xt=urn:btih:BBEAXERUWXETKGZECDFFNR4DYRCXBFCK&dn=%5BSubsPlease%5D%20Youjo%20Senki%20S2%20-%2012%20%28720p%29%20%5BF717EE0B%5D.mkv&xl=737790274&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "BBEAXERUWXETKGZECDFFNR4DYRCXBFCK",
+          "pubDate": "Wed, 23 Sep 2026 06:31:43 +0000",
+          "category": "Youjo Senki S2 - 720"
+        },
+        {
+          "title": "[SubsPlease] Clevatess S2 - 12 (720p) [B2F5D798].mkv",
+          "link": "magnet:?xt=urn:btih:6C3WU3YKHW64PFAFO6Y2RRKPPQIJQMWZ&dn=%5BSubsPlease%5D%20Clevatess%20S2%20-%2012%20%28720p%29%20%5BB2F5D798%5D.mkv&xl=737632086&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "6C3WU3YKHW64PFAFO6Y2RRKPPQIJQMWZ",
+          "pubDate": "Wed, 23 Sep 2026 05:02:08 +0000",
+          "category": "Clevatess S2 - 720"
+        }
+      ],
+      "bodyPreview": "<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:subsplease=\"https://subsplease.org/rss\"><channel><title>SubsPlease RSS</title><description>RSS feed for SubsPlease releases (720p)</description><link>https://subsplease.org</link><atom:link href=\"http://subsplease.org/rss\" rel=\"self\" type=\"application/rss+xml\"/><item><title>[SubsPlease] Kami no Shizuku (01-24) (720p) [Batch]</title><link>magnet:?xt=urn:btih:K7WBGBZJ7AOKYVENIAL5OLASPQO6CDWF&amp;dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%28720p%29%20%5BBatch%5D&amp;xl=17761512375&amp;tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&amp;tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&amp;tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&amp;tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&amp;tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&amp;tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&amp;tr=wss%3A%2F%2Ftracker.openwebtorrent.com</link><guid isPermaLink=\"false\">K7WBGBZJ7AOKYVENIAL5OLASPQO6CDWF</guid><pubDate>Wed, 23 Sep 2026 14:22:31 +0000</pubDate><category>Kami no Shizuku - 720</category><subsplease:size>16.54 GiB</subsplease:size></item><item><title>[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (720p) [EE9C1ED1].mkv</title><link>magnet:?xt=urn:btih:RZLAJ4DTK3OZCZZYDUVYMCOVNTOGBGHQ&amp;dn=%5BSubsPlease%5D%20Otome%20Game%20Sekai%20wa%20Mob%20ni%20Kibishii%20Sekai%20desu%20S2%20-%2012%20%28720p%29%20%5BEE9C1ED1%5D.mkv&amp;xl=739208000&amp;tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&amp;tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&amp;tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&amp;tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&amp;tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&amp;tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&amp;tr=wss%3A%2F%2Ftracker.openwebtorrent.com</link><guid isPermaLink=\"false\">RZLAJ4DTK3OZCZZYDUVYMCOVNTOGBGHQ</guid><pubDate>Wed, 23 Sep 2026 08:31:36 +0000</pubDate><category>Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 720</category><subsplease:size>704.96 MiB</subsplease:size></item><item><title>[SubsPlease] Re Zero kara Hajimeru Isekai Seikatsu - 84 (720p) [70D8A282].mkv</title><link>magnet:?xt=urn:btih:WYBXYU2KG5XQPUNXPNJIDOB7LNDJHFPD&amp;dn=%5BSubsPlease%5D%20Re%20Zero%20kara%20Hajimeru%20Isekai%20Seikatsu%20-%2084%20%28720p%29%20%5B70D8A282%5D.mkv&amp;xl=742095133&amp;tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&amp;tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&amp;tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&amp;tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&amp;tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&amp;tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&amp;tr=wss%3A%2F%2Ftracker.openwebtorrent.com</link><guid isPermaLink=\"false\">WYBXYU2KG5XQPUNXPNJIDOB7LNDJHFPD</guid><pubDate>Wed, 23 Sep 2026 07:01:55 +0000</pubDate><category>Re Zero kara Hajimeru Isekai Seikatsu - 720</category><subsplease:size>707.72 MiB</subsplease:size></item><item><title>[SubsPlease] Youjo Senki S2 - 12 (720p) [F717EE0B].mkv</title><link>magnet:?xt=urn:btih:BBEAXERUWXETKGZECDFFNR4DYRCXBFCK&amp;dn=%5BSubsPlease%5D%20Youjo%20Senki%20S2%20-%2012%20%28720p%29%20%5BF717EE0B%5D.mkv&amp;xl=737790274&amp;tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&amp;tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&amp;tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&amp;tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&amp;tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&amp;tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&amp;tr=wss%3A%2F%2Ftracker.openwebtorrent.com</l"
+    },
+    {
+      "url": "https://subsplease.org/rss/?r=sd",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/rss/?r=sd",
+      "contentType": "application/xml",
+      "items": [
+        {
+          "title": "[SubsPlease] Kami no Shizuku (01-24) (480p) [Batch]",
+          "link": "magnet:?xt=urn:btih:UZ53NBRC62PQOIRCBI6GW55E2SNZI6NX&dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%28480p%29%20%5BBatch%5D&xl=9238081591&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "UZ53NBRC62PQOIRCBI6GW55E2SNZI6NX",
+          "pubDate": "Wed, 23 Sep 2026 14:22:15 +0000",
+          "category": "Kami no Shizuku - 480"
+        },
+        {
+          "title": "[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (480p) [63AA988A].mkv",
+          "link": "magnet:?xt=urn:btih:XTI4T7MYX7QHQVLBORVUE3TQVCNI6FMN&dn=%5BSubsPlease%5D%20Otome%20Game%20Sekai%20wa%20Mob%20ni%20Kibishii%20Sekai%20desu%20S2%20-%2012%20%28480p%29%20%5B63AA988A%5D.mkv&xl=385084572&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "XTI4T7MYX7QHQVLBORVUE3TQVCNI6FMN",
+          "pubDate": "Wed, 23 Sep 2026 08:30:55 +0000",
+          "category": "Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 480"
+        },
+        {
+          "title": "[SubsPlease] Re Zero kara Hajimeru Isekai Seikatsu - 84 (480p) [4B99F832].mkv",
+          "link": "magnet:?xt=urn:btih:C6Y6ANIESIL6G3BNPHMRZ5GKUOHRBRRQ&dn=%5BSubsPlease%5D%20Re%20Zero%20kara%20Hajimeru%20Isekai%20Seikatsu%20-%2084%20%28480p%29%20%5B4B99F832%5D.mkv&xl=387157507&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "C6Y6ANIESIL6G3BNPHMRZ5GKUOHRBRRQ",
+          "pubDate": "Wed, 23 Sep 2026 07:00:57 +0000",
+          "category": "Re Zero kara Hajimeru Isekai Seikatsu - 480"
+        },
+        {
+          "title": "[SubsPlease] Youjo Senki S2 - 12 (480p) [A153A92A].mkv",
+          "link": "magnet:?xt=urn:btih:MYNMRYW5VXQJ33V3O32ZWHRDPYGZYHNC&dn=%5BSubsPlease%5D%20Youjo%20Senki%20S2%20-%2012%20%28480p%29%20%5BA153A92A%5D.mkv&xl=381769282&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "MYNMRYW5VXQJ33V3O32ZWHRDPYGZYHNC",
+          "pubDate": "Wed, 23 Sep 2026 06:30:53 +0000",
+          "category": "Youjo Senki S2 - 480"
+        },
+        {
+          "title": "[SubsPlease] Clevatess S2 - 12 (480p) [2BD58AFB].mkv",
+          "link": "magnet:?xt=urn:btih:ROSRJYVQPKNZ7BOTSDOR2D6GVNOKZBSE&dn=%5BSubsPlease%5D%20Clevatess%20S2%20-%2012%20%28480p%29%20%5B2BD58AFB%5D.mkv&xl=384446604&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com",
+          "guid": "ROSRJYVQPKNZ7BOTSDOR2D6GVNOKZBSE",
+          "pubDate": "Wed, 23 Sep 2026 05:02:08 +0000",
+          "category": "Clevatess S2 - 480"
+        }
+      ],
+      "bodyPreview": "<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:subsplease=\"https://subsplease.org/rss\"><channel><title>SubsPlease RSS</title><description>RSS feed for SubsPlease releases (SD)</description><link>https://subsplease.org</link><atom:link href=\"http://subsplease.org/rss\" rel=\"self\" type=\"application/rss+xml\"/><item><title>[SubsPlease] Kami no Shizuku (01-24) (480p) [Batch]</title><link>magnet:?xt=urn:btih:UZ53NBRC62PQOIRCBI6GW55E2SNZI6NX&amp;dn=%5BSubsPlease%5D%20Kami%20no%20Shizuku%20%2801-24%29%20%28480p%29%20%5BBatch%5D&amp;xl=9238081591&amp;tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&amp;tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&amp;tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&amp;tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&amp;tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&amp;tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&amp;tr=wss%3A%2F%2Ftracker.openwebtorrent.com</link><guid isPermaLink=\"false\">UZ53NBRC62PQOIRCBI6GW55E2SNZI6NX</guid><pubDate>Wed, 23 Sep 2026 14:22:15 +0000</pubDate><category>Kami no Shizuku - 480</category><subsplease:size>8.6 GiB</subsplease:size></item><item><title>[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (480p) [63AA988A].mkv</title><link>magnet:?xt=urn:btih:XTI4T7MYX7QHQVLBORVUE3TQVCNI6FMN&amp;dn=%5BSubsPlease%5D%20Otome%20Game%20Sekai%20wa%20Mob%20ni%20Kibishii%20Sekai%20desu%20S2%20-%2012%20%28480p%29%20%5B63AA988A%5D.mkv&amp;xl=385084572&amp;tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&amp;tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&amp;tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&amp;tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&amp;tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&amp;tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&amp;tr=wss%3A%2F%2Ftracker.openwebtorrent.com</link><guid isPermaLink=\"false\">XTI4T7MYX7QHQVLBORVUE3TQVCNI6FMN</guid><pubDate>Wed, 23 Sep 2026 08:30:55 +0000</pubDate><category>Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 480</category><subsplease:size>367.25 MiB</subsplease:size></item><item><title>[SubsPlease] Re Zero kara Hajimeru Isekai Seikatsu - 84 (480p) [4B99F832].mkv</title><link>magnet:?xt=urn:btih:C6Y6ANIESIL6G3BNPHMRZ5GKUOHRBRRQ&amp;dn=%5BSubsPlease%5D%20Re%20Zero%20kara%20Hajimeru%20Isekai%20Seikatsu%20-%2084%20%28480p%29%20%5B4B99F832%5D.mkv&amp;xl=387157507&amp;tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&amp;tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&amp;tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&amp;tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&amp;tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&amp;tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&amp;tr=wss%3A%2F%2Ftracker.openwebtorrent.com</link><guid isPermaLink=\"false\">C6Y6ANIESIL6G3BNPHMRZ5GKUOHRBRRQ</guid><pubDate>Wed, 23 Sep 2026 07:00:57 +0000</pubDate><category>Re Zero kara Hajimeru Isekai Seikatsu - 480</category><subsplease:size>369.22 MiB</subsplease:size></item><item><title>[SubsPlease] Youjo Senki S2 - 12 (480p) [A153A92A].mkv</title><link>magnet:?xt=urn:btih:MYNMRYW5VXQJ33V3O32ZWHRDPYGZYHNC&amp;dn=%5BSubsPlease%5D%20Youjo%20Senki%20S2%20-%2012%20%28480p%29%20%5BA153A92A%5D.mkv&amp;xl=381769282&amp;tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&amp;tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&amp;tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&amp;tr=http%3A%2F%2Ftracker.mywaifu.best%3A6969%2Fannounce&amp;tr=https%3A%2F%2Ftracker.zhuqiy.com%3A443%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.tryhackx.org%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Fretracker.hotplug.ru%3A2710%2Fannounce&amp;tr=udp%3A%2F%2Ftracker.dler.com%3A6969%2Fannounce&amp;tr=http%3A%2F%2Ftracker.beeimg.com%3A6969%2Fannounce&amp;tr=udp%3A%2F%2Ft.overflow.biz%3A6969%2Fannounce&amp;tr=wss%3A%2F%2Ftracker.openwebtorrent.com</link><"
+    },
+    {
+      "url": "https://subsplease.org/rss?t=",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/rss/?t=",
+      "contentType": "application/xml",
+      "items": [
+        {
+          "title": "[SubsPlease] Kami no Shizuku (01-24) (1080p) [Batch]",
+          "link": "https://nyaa.si/view/2165497/torrent",
+          "guid": "QVHAZLXMW3ABB7LGW6FSQXV645GTF2RI",
+          "pubDate": "Wed, 23 Sep 2026 14:23:36 +0000",
+          "category": "Kami no Shizuku - 1080"
+        },
+        {
+          "title": "[SubsPlease] Kami no Shizuku (01-24) (720p) [Batch]",
+          "link": "https://nyaa.si/view/2165496/torrent",
+          "guid": "K7WBGBZJ7AOKYVENIAL5OLASPQO6CDWF",
+          "pubDate": "Wed, 23 Sep 2026 14:22:31 +0000",
+          "category": "Kami no Shizuku - 720"
+        },
+        {
+          "title": "[SubsPlease] Kami no Shizuku (01-24) (480p) [Batch]",
+          "link": "https://nyaa.si/view/2165495/torrent",
+          "guid": "UZ53NBRC62PQOIRCBI6GW55E2SNZI6NX",
+          "pubDate": "Wed, 23 Sep 2026 14:22:15 +0000",
+          "category": "Kami no Shizuku - 480"
+        },
+        {
+          "title": "[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (1080p) [53C5979F].mkv",
+          "link": "https://nyaa.si/view/2165334/torrent",
+          "guid": "XLEANOXNTGGSQL4YC4KTZTDKUX2AKDNT",
+          "pubDate": "Wed, 23 Sep 2026 08:32:08 +0000",
+          "category": "Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 1080"
+        },
+        {
+          "title": "[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (720p) [EE9C1ED1].mkv",
+          "link": "https://nyaa.si/view/2165333/torrent",
+          "guid": "RZLAJ4DTK3OZCZZYDUVYMCOVNTOGBGHQ",
+          "pubDate": "Wed, 23 Sep 2026 08:31:36 +0000",
+          "category": "Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 720"
+        }
+      ],
+      "bodyPreview": "<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:subsplease=\"https://subsplease.org/rss\"><channel><title>SubsPlease RSS</title><description>RSS feed for SubsPlease releases (All)</description><link>https://subsplease.org</link><atom:link href=\"http://subsplease.org/rss\" rel=\"self\" type=\"application/rss+xml\"/><item><title>[SubsPlease] Kami no Shizuku (01-24) (1080p) [Batch]</title><link>https://nyaa.si/view/2165497/torrent</link><guid isPermaLink=\"false\">QVHAZLXMW3ABB7LGW6FSQXV645GTF2RI</guid><pubDate>Wed, 23 Sep 2026 14:23:36 +0000</pubDate><category>Kami no Shizuku - 1080</category><subsplease:size>32.39 GiB</subsplease:size></item><item><title>[SubsPlease] Kami no Shizuku (01-24) (720p) [Batch]</title><link>https://nyaa.si/view/2165496/torrent</link><guid isPermaLink=\"false\">K7WBGBZJ7AOKYVENIAL5OLASPQO6CDWF</guid><pubDate>Wed, 23 Sep 2026 14:22:31 +0000</pubDate><category>Kami no Shizuku - 720</category><subsplease:size>16.54 GiB</subsplease:size></item><item><title>[SubsPlease] Kami no Shizuku (01-24) (480p) [Batch]</title><link>https://nyaa.si/view/2165495/torrent</link><guid isPermaLink=\"false\">UZ53NBRC62PQOIRCBI6GW55E2SNZI6NX</guid><pubDate>Wed, 23 Sep 2026 14:22:15 +0000</pubDate><category>Kami no Shizuku - 480</category><subsplease:size>8.6 GiB</subsplease:size></item><item><title>[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (1080p) [53C5979F].mkv</title><link>https://nyaa.si/view/2165334/torrent</link><guid isPermaLink=\"false\">XLEANOXNTGGSQL4YC4KTZTDKUX2AKDNT</guid><pubDate>Wed, 23 Sep 2026 08:32:08 +0000</pubDate><category>Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 1080</category><subsplease:size>1.35 GiB</subsplease:size></item><item><title>[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (720p) [EE9C1ED1].mkv</title><link>https://nyaa.si/view/2165333/torrent</link><guid isPermaLink=\"false\">RZLAJ4DTK3OZCZZYDUVYMCOVNTOGBGHQ</guid><pubDate>Wed, 23 Sep 2026 08:31:36 +0000</pubDate><category>Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 720</category><subsplease:size>704.96 MiB</subsplease:size></item><item><title>[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (480p) [63AA988A].mkv</title><link>https://nyaa.si/view/2165325/torrent</link><guid isPermaLink=\"false\">XTI4T7MYX7QHQVLBORVUE3TQVCNI6FMN</guid><pubDate>Wed, 23 Sep 2026 08:30:55 +0000</pubDate><category>Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 480</category><subsplease:size>367.25 MiB</subsplease:size></item><item><title>[SubsPlease] Re Zero kara Hajimeru Isekai Seikatsu - 84 (1080p) [5188BBC4].mkv</title><link>https://nyaa.si/view/2165268/torrent</link><guid isPermaLink=\"false\">FUN4WSJQXBSHMQDOUAMBG7AKIZHOODQV</guid><pubDate>Wed, 23 Sep 2026 07:02:10 +0000</pubDate><category>Re Zero kara Hajimeru Isekai Seikatsu - 1080</category><subsplease:size>1.35 GiB</subsplease:size></item><item><title>[SubsPlease] Re Zero kara Hajimeru Isekai Seikatsu - 84 (720p) [70D8A282].mkv</title><link>https://nyaa.si/view/2165266/torrent</link><guid isPermaLink=\"false\">WYBXYU2KG5XQPUNXPNJIDOB7LNDJHFPD</guid><pubDate>Wed, 23 Sep 2026 07:01:55 +0000</pubDate><category>Re Zero kara Hajimeru Isekai Seikatsu - 720</category><subsplease:size>707.72 MiB</subsplease:size></item><item><title>[SubsPlease] Re Zero kara Hajimeru Isekai Seikatsu - 84 (480p) [4B99F832].mkv</title><link>https://nyaa.si/view/2165261/torrent</link><guid isPermaLink=\"false\">C6Y6ANIESIL6G3BNPHMRZ5GKUOHRBRRQ</guid><pubDate>Wed, 23 Sep 2026 07:00:57 +0000</pubDate><category>Re Zero kara Hajimeru Isekai Seikatsu - 480</category><subsplease:size>369.22 MiB</subsplease:size></item><item><title>[SubsPlease] Youjo Senki S2 - 12 (1080p) [12B35D58].mkv</title><link>https://nyaa.si/view/2165245/torrent</link><guid isPermaLink=\"false\">F3CS5UCU5IOWUXY46I6GHZ4CCD45Q7M5</guid><pubDate>Wed, 23 Sep 2026 06:32:10 +0000</pubDate><category>Youjo Senki S2 - 1080</category><subsplease:size>1.34 GiB</subsplease:size></item><item><title>[SubsPlease] Youjo Senki S2 - 12 (720p) [F717EE0B].mkv</title><link>https://nyaa.si/view/2165242/torrent</link><guid isPermaLink=\"false\">BBEAXERUWXETKGZECDFFNR4DYRCXBFCK</guid><pubDate>Wed, 23 Sep 2026 06:31:43 +0000</pubDate><category>Youjo Senki S2 - 720</category><subsplease:size>703.61 MiB</subsplease:size></item><item><title>[SubsPlease] Youjo Senki S2 - 12 (480p) [A153A92A].mkv</title><link>https://nyaa.si/view/2165233/torrent</link><guid isPermaLink=\"false\">MYNMRYW5VXQJ33V3O32ZWHRDPYGZYHNC</guid><pubDate>Wed, 23 Sep 2026 06:30:53 +0000</pubDate><category>Youjo Senki S2 - 480</category><subsplease:size>364.08 MiB</subsplease:size></item><item><title>[SubsPlease] Clevatess S2 - 12 (1080p) [9D58C13E].mkv</title><link>https://nyaa.si/view/2165196/torrent</link><guid isPermaLink=\"false\">37MTU6N6X27ONMEMSHPA5BEB36HO346O</guid><pubDate>Wed, 23 Sep 2026 05:02:11 +0000</pubDate><category>Clevatess S2 - 1080</category><subsplease:size>1.35 GiB</subsplease:size></item><item><title>[SubsPlea"
+    },
+    {
+      "url": "https://subsplease.org/rss/?r=1080&t=",
+      "status": 200,
+      "finalUrl": "https://subsplease.org/rss/?r=1080&t=",
+      "contentType": "application/xml",
+      "items": [
+        {
+          "title": "[SubsPlease] Kami no Shizuku (01-24) (1080p) [Batch]",
+          "link": "https://nyaa.si/view/2165497/torrent",
+          "guid": "QVHAZLXMW3ABB7LGW6FSQXV645GTF2RI",
+          "pubDate": "Wed, 23 Sep 2026 14:23:36 +0000",
+          "category": "Kami no Shizuku - 1080"
+        },
+        {
+          "title": "[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (1080p) [53C5979F].mkv",
+          "link": "https://nyaa.si/view/2165334/torrent",
+          "guid": "XLEANOXNTGGSQL4YC4KTZTDKUX2AKDNT",
+          "pubDate": "Wed, 23 Sep 2026 08:32:08 +0000",
+          "category": "Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 1080"
+        },
+        {
+          "title": "[SubsPlease] Re Zero kara Hajimeru Isekai Seikatsu - 84 (1080p) [5188BBC4].mkv",
+          "link": "https://nyaa.si/view/2165268/torrent",
+          "guid": "FUN4WSJQXBSHMQDOUAMBG7AKIZHOODQV",
+          "pubDate": "Wed, 23 Sep 2026 07:02:10 +0000",
+          "category": "Re Zero kara Hajimeru Isekai Seikatsu - 1080"
+        },
+        {
+          "title": "[SubsPlease] Youjo Senki S2 - 12 (1080p) [12B35D58].mkv",
+          "link": "https://nyaa.si/view/2165245/torrent",
+          "guid": "F3CS5UCU5IOWUXY46I6GHZ4CCD45Q7M5",
+          "pubDate": "Wed, 23 Sep 2026 06:32:10 +0000",
+          "category": "Youjo Senki S2 - 1080"
+        },
+        {
+          "title": "[SubsPlease] Clevatess S2 - 12 (1080p) [9D58C13E].mkv",
+          "link": "https://nyaa.si/view/2165196/torrent",
+          "guid": "37MTU6N6X27ONMEMSHPA5BEB36HO346O",
+          "pubDate": "Wed, 23 Sep 2026 05:02:11 +0000",
+          "category": "Clevatess S2 - 1080"
+        }
+      ],
+      "bodyPreview": "<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:subsplease=\"https://subsplease.org/rss\"><channel><title>SubsPlease RSS</title><description>RSS feed for SubsPlease releases (1080p)</description><link>https://subsplease.org</link><atom:link href=\"http://subsplease.org/rss\" rel=\"self\" type=\"application/rss+xml\"/><item><title>[SubsPlease] Kami no Shizuku (01-24) (1080p) [Batch]</title><link>https://nyaa.si/view/2165497/torrent</link><guid isPermaLink=\"false\">QVHAZLXMW3ABB7LGW6FSQXV645GTF2RI</guid><pubDate>Wed, 23 Sep 2026 14:23:36 +0000</pubDate><category>Kami no Shizuku - 1080</category><subsplease:size>32.39 GiB</subsplease:size></item><item><title>[SubsPlease] Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 12 (1080p) [53C5979F].mkv</title><link>https://nyaa.si/view/2165334/torrent</link><guid isPermaLink=\"false\">XLEANOXNTGGSQL4YC4KTZTDKUX2AKDNT</guid><pubDate>Wed, 23 Sep 2026 08:32:08 +0000</pubDate><category>Otome Game Sekai wa Mob ni Kibishii Sekai desu S2 - 1080</category><subsplease:size>1.35 GiB</subsplease:size></item><item><title>[SubsPlease] Re Zero kara Hajimeru Isekai Seikatsu - 84 (1080p) [5188BBC4].mkv</title><link>https://nyaa.si/view/2165268/torrent</link><guid isPermaLink=\"false\">FUN4WSJQXBSHMQDOUAMBG7AKIZHOODQV</guid><pubDate>Wed, 23 Sep 2026 07:02:10 +0000</pubDate><category>Re Zero kara Hajimeru Isekai Seikatsu - 1080</category><subsplease:size>1.35 GiB</subsplease:size></item><item><title>[SubsPlease] Youjo Senki S2 - 12 (1080p) [12B35D58].mkv</title><link>https://nyaa.si/view/2165245/torrent</link><guid isPermaLink=\"false\">F3CS5UCU5IOWUXY46I6GHZ4CCD45Q7M5</guid><pubDate>Wed, 23 Sep 2026 06:32:10 +0000</pubDate><category>Youjo Senki S2 - 1080</category><subsplease:size>1.34 GiB</subsplease:size></item><item><title>[SubsPlease] Clevatess S2 - 12 (1080p) [9D58C13E].mkv</title><link>https://nyaa.si/view/2165196/torrent</link><guid isPermaLink=\"false\">37MTU6N6X27ONMEMSHPA5BEB36HO346O</guid><pubDate>Wed, 23 Sep 2026 05:02:11 +0000</pubDate><category>Clevatess S2 - 1080</category><subsplease:size>1.35 GiB</subsplease:size></item><item><title>[SubsPlease] Bungou Stray Dogs Wan! S2 (01-12) (1080p) [Batch]</title><link>https://nyaa.si/view/2165100/torrent</link><guid isPermaLink=\"false\">D2UAN7UMT5H3RMS52R3BCMCD7CYUK7I5</guid><pubDate>Tue, 22 Sep 2026 14:56:43 +0000</pubDate><category>Bungou Stray Dogs Wan! S2 - 1080</category><subsplease:size>8.01 GiB</subsplease:size></item><item><title>[SubsPlease] Kokoore (01-12) (1080p) [Batch]</title><link>https://nyaa.si/view/2165095/torrent</link><guid isPermaLink=\"false\">5QKCVQRSGTA4524OAZMT4C3TRCVAJXFX</guid><pubDate>Tue, 22 Sep 2026 13:53:26 +0000</pubDate><category>Kokoore - 1080</category><subsplease:size>16.15 GiB</subsplease:size></item><item><title>[SubsPlease] Ryoumin 0-nin Start no Henkyou Ryoushu-sama (01-12) (1080p) [Batch]</title><link>https://nyaa.si/view/2165087/torrent</link><guid isPermaLink=\"false\">D7XVIEYFN7KHPYF737YCO3BUC7AGQN26</guid><pubDate>Tue, 22 Sep 2026 12:37:56 +0000</pubDate><category>Ryoumin 0-nin Start no Henkyou Ryoushu-sama - 1080</category><subsplease:size>16.25 GiB</subsplease:size></item><item><title>[SubsPlease] Sora wa Akai Kawa no Hotori - 12 (1080p) [54D1653B].mkv</title><link>https://nyaa.si/view/2165047/torrent</link><guid isPermaLink=\"false\">HUKPDTE4RFBECHNQBSVAF3DUTX5R3ZCE</guid><pubDate>Tue, 22 Sep 2026 10:38:42 +0000</pubDate><category>Sora wa Akai Kawa no Hotori - 1080</category><subsplease:size>1.3 GiB</subsplease:size></item><item><title>[SubsPlease] Yoroi Shin Den Samurai Troopers - 24 (1080p) [4C5260CE].mkv</title><link>https://nyaa.si/view/2164975/torrent</link><guid isPermaLink=\"false\">V3LQPACLRXWTD6RCSWFUECYLN6PX455V</guid><pubDate>Tue, 22 Sep 2026 08:00:48 +0000</pubDate><category>Yoroi Shin Den Samurai Troopers - 1080</category><subsplease:size>1.36 GiB</subsplease:size></item><item><title>[SubsPlease] Kimi ga Shinu made Koi wo Shitai - 12 (1080p) [B205216D].mkv</title><link>https://nyaa.si/view/2164926/torrent</link><guid isPermaLink=\"false\">GNBXWDVRLFUTVJSLCF6KXRRWM5NPR4YC</guid><pubDate>Tue, 22 Sep 2026 05:32:14 +0000</pubDate><category>Kimi ga Shinu made Koi wo Shitai - 1080</category><subsplease:size>1.34 GiB</subsplease:size></item><item><title>[SubsPlease] Tai-Ari deshita. Ojousama wa Kakutou Game nante Shinai - 12 (1080p) [AD0E2244].mkv</title><link>https://nyaa.si/view/2164898/torrent</link><guid isPermaLink=\"false\">DTQQU4R44OHES75A2S7T26TNMNMHDDS2</guid><pubDate>Tue, 22 Sep 2026 04:32:03 +0000</pubDate><category>Tai-Ari deshita. Ojousama wa Kakutou Game nante Shinai - 1080</category><subsplease:size>1.35 GiB</subsplease:size></item><item><title>[SubsPlease] Otome Kaijuu Carameliser (01-12) (1080p) [Batch]</title><link>https://nyaa.si/view/2164785/torrent</link><guid isPermaLink=\"false\">JOIMXZ76HPWFK5NA32KYAY5ASQIS2FCW</guid><pubDate>Mon, 21 Sep 2026 15:59:25 +0000</pubDate><category>Otome Kaijuu Carameliser - 1080</category><subsplease:size>16.59 GiB</subsplease:size></i"
+    }
+  ]
+}
