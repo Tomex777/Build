@@ -57,6 +57,7 @@ jobs:
               return { ok:true }
             },
             setSetting: async () => {},
+            setDestination: async account => account === 'B' ? 'B' : 'A',
           })
           setInterval(() => {}, 1000)
           NODE
@@ -70,6 +71,7 @@ jobs:
           curl -fsS http://127.0.0.1:18788/state | grep -q 'ABCD-EFGH'
           curl -fsS -H 'Content-Type: application/json' -d '{"mode":"qr"}' http://127.0.0.1:18788/accounts/B/repair
           curl -fsS http://127.0.0.1:18788/state | grep -q '"pairingMode":"qr"'
+          curl -fsS -H 'Content-Type: application/json' -d '{"account":"B"}' http://127.0.0.1:18788/destination | grep -q '"destination":"B"'
           kill "$(cat /tmp/mscc-local-control.pid)" 2>/dev/null || true
       - name: Validate drop-in command registry
         working-directory: mscc
