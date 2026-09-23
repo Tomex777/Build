@@ -237,6 +237,13 @@ class CortexServerApi(
         )
     }
 
+    fun setDestination(id: String) {
+        postJson(
+            "/api/cortex/mscc/destination",
+            JSONObject().put("account", encodeAccount(id)),
+        )
+    }
+
     fun pairAccount(id: String, mode: String) {
         postJson(
             "/api/cortex/mscc/accounts/${encodeAccount(id)}/pair",

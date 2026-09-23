@@ -57,6 +57,7 @@ class CortexPairingScreenTest {
                     ),
                     busy = false,
                     onRefresh = {},
+                    onDestination = {},
                     onPair = { _, _ -> },
                     onReconnect = {},
                     onRepair = { _, _ -> },
@@ -67,6 +68,7 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("WhatsApp Pairing").assertIsDisplayed()
         composeRule.onNodeWithText("Account A").assertIsDisplayed()
         composeRule.onNodeWithText("Account B").assertIsDisplayed()
+        composeRule.onNodeWithText("Make destination").assertIsDisplayed()
         composeRule.onNodeWithText("Pair account").performClick()
 
         composeRule.onNodeWithText("Pair Account B").assertIsDisplayed()

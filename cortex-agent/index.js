@@ -645,6 +645,16 @@ async function handler(req, res) {
     if (req.method === 'GET' && url.pathname === '/api/cortex/mscc/pairing') {
       return json(res, 200, await msccControl('GET', '/state'));
     }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/mscc/destination') {
+      const body = await readJson(req);
+      const account = String(body.account || '').toUpperCase();
+      if (!['A', 'B'].includes(account)) {
+        throw Object.assign(new Error('Destination must be A or B'), { statusCode: 400 });
+      }
+      const result = await msccControl('POST', '/destination', { account });
+      await recordActivity('mscc:destination.update', { account });
+      return json(res, 200, result);
+    }
     const pairRoute = url.pathname.match(/^\/api\/cortex\/mscc\/accounts\/(A|B)\/(pair|reconnect|repair)$/);
     if (req.method === 'POST' && pairRoute) {
       const [, id, action] = pairRoute;

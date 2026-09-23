@@ -210,6 +210,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                             state = state.pairing,
                             busy = state.loading,
                             onRefresh = vm::refreshPairing,
+                            onDestination = vm::setDestination,
                             onPair = vm::pairAccount,
                             onReconnect = vm::reconnectPairing,
                             onRepair = vm::repairAccount,

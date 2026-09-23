@@ -32,6 +32,7 @@ jobs:
           printf '{"version":1,"service":"mscc","entries":[{"key":"autoCc","label":"Auto CC","description":"Copy V1 automatically","command":"autocc","type":"boolean"}]}\n' >/tmp/cortex-settings/schema.json
           cat >/tmp/mock-mscc.mjs <<'NODE'
           import http from 'node:http'
+          let destination = 'A'
           const accounts = [
             { id:'A', enabled:true, connected:true, status:'connected', numberMasked:'234••••0001', indexCount:12, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
             { id:'B', enabled:true, connected:false, status:'offline', numberMasked:'234••••0002', indexCount:4, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
@@ -46,7 +47,16 @@ jobs:
             }
             if (req.method === 'GET' && url.pathname === '/state') {
               res.setHeader('content-type','application/json')
-              return res.end(JSON.stringify({ version:'1.8.1', destination:'A', settings:{}, accounts, system:{ uptime:'1m', rssMb:50, heapMb:20, port:8787 } }))
+              return res.end(JSON.stringify({ version:'1.8.3', destination, settings:{}, accounts, system:{ uptime:'1m', rssMb:50, heapMb:20, port:8787 } }))
+            }
+            if (req.method === 'POST' && url.pathname === '/destination') {
+              if (!['A','B'].includes(body.account)) {
+                res.statusCode = 400
+                return res.end(JSON.stringify({ error:'bad destination' }))
+              }
+              destination = body.account
+              res.setHeader('content-type','application/json')
+              return res.end(JSON.stringify({ ok:true, destination }))
             }
             const m = url.pathname.match(/^\/accounts\/(A|B)\/(pair|reconnect|repair)$/)
             if (req.method === 'POST' && m) {
@@ -172,6 +182,8 @@ jobs:
           curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q 'ABCD-EFGH'
           curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"mode":"qr"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts/B/repair
           curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q '"pairingMode":"qr"'
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"account":"B"}'             http://127.0.0.1:47831/api/cortex/mscc/destination | grep -q '"destination":"B"'
+          curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q '"destination":"B"'
       - name: Reject unauthenticated requests
         shell: bash
         run: |

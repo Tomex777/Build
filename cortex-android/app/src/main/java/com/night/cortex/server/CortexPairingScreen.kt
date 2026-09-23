@@ -72,11 +72,13 @@ fun CortexPairingScreen(
     state: PairingState?,
     busy: Boolean,
     onRefresh: () -> Unit,
+    onDestination: (String) -> Unit,
     onPair: (String, String) -> Unit,
     onReconnect: (String) -> Unit,
     onRepair: (String, String) -> Unit,
 ) {
     var selected by remember { mutableStateOf<PairingAccount?>(null) }
+    var destinationCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var action by remember { mutableStateOf(PairAction.PAIR) }
 
     Column(Modifier.fillMaxSize()) {
@@ -123,6 +125,7 @@ fun CortexPairingScreen(
                             selected = account
                             action = PairAction.PAIR
                         },
+                        onDestination = { destinationCandidate = account },
                         onReconnect = { onReconnect(account.id) },
                         onRepair = {
                             selected = account
@@ -142,6 +145,17 @@ fun CortexPairingScreen(
                 }
             }
         }
+    }
+
+    destinationCandidate?.let { account ->
+        DestinationSheet(
+            account = account,
+            onDismiss = { destinationCandidate = null },
+            onConfirm = {
+                onDestination(account.id)
+                destinationCandidate = null
+            },
+        )
     }
 
     selected?.let { account ->
@@ -167,6 +181,7 @@ private fun PairingAccountCard(
     destination: Boolean,
     busy: Boolean,
     onPair: () -> Unit,
+    onDestination: () -> Unit,
     onReconnect: () -> Unit,
     onRepair: () -> Unit,
 ) {
@@ -264,6 +279,23 @@ private fun PairingAccountCard(
                     color = CortexDanger,
                     fontSize = 9.sp,
                 )
+            }
+
+            if (account.enabled && !destination) {
+                HorizontalDivider(color = CortexLine)
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !busy, onClick = onDestination)
+                        .padding(horizontal = 13.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Make destination", fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                        Text("Recovered media will be sent to Account ${account.id}.", color = CortexMuted, fontSize = 8.sp)
+                    }
+                    Text("CHANGE", color = CortexAccent, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                }
             }
 
             HorizontalDivider(color = CortexLine)
@@ -366,6 +398,35 @@ private fun PairingQr(dataUri: String) {
                 .background(Color.White, RoundedCornerShape(4.dp))
                 .padding(8.dp),
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DestinationSheet(
+    account: PairingAccount,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = CortexSurface) {
+        Column(
+            Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Change destination", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Use Account ${account.id} (${account.numberMasked}) as the private destination for recovered media?",
+                color = CortexMuted,
+                fontSize = 10.sp,
+            )
+            Button(
+                onClick = onConfirm,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(4.dp),
+            ) {
+                Text("Use Account ${account.id}")
+            }
+        }
     }
 }
 

@@ -341,6 +341,17 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun setDestination(id: String) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy("Destination changed to Account $id.") {
+                withContext(Dispatchers.IO) { api().setDestination(id) }
+                val pairing = withContext(Dispatchers.IO) { api().pairingState() }
+                _state.value = _state.value.copy(pairing = pairing)
+            }
+        }
+    }
+
     fun pairAccount(id: String, mode: String) {
         if (!_state.value.configured) return
         viewModelScope.launch {
