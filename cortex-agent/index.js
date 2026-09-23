@@ -387,7 +387,7 @@ async function serviceState() {
   }
 }
 
-async function sampleCpu() {
+async function sampleSystemCpu() {
   const sample = () => os.cpus().map((cpu) => {
     const times = cpu.times;
     const total = Object.values(times).reduce((sum, value) => sum + value, 0);
@@ -405,6 +405,49 @@ async function sampleCpu() {
   return total > 0 ? Math.max(0, Math.min(100, (1 - idle / total) * 100)) : null;
 }
 
+async function serviceCpuPercent(state) {
+  if (state !== 'active') return 0;
+  const read = async () => {
+    const { stdout } = await exec('systemctl', ['show', MANAGED_SERVICE, '--property=CPUUsageNSec', '--value'], { timeout: 5000 });
+    const value = Number(stdout.trim());
+    return Number.isFinite(value) && value >= 0 ? value : null;
+  };
+  try {
+    const first = await read();
+    if (first == null) return sampleSystemCpu();
+    const started = process.hrtime.bigint();
+    await new Promise((resolve) => setTimeout(resolve, 220));
+    const second = await read();
+    const elapsed = Number(process.hrtime.bigint() - started);
+    if (second == null || elapsed <= 0 || second < first) return sampleSystemCpu();
+    return Math.max(0, Math.min(os.cpus().length * 100, ((second - first) / elapsed) * 100));
+  } catch {
+    return sampleSystemCpu();
+  }
+}
+
+async function serviceMemoryBytes(state) {
+  if (state !== 'active') return 0;
+  try {
+    const { stdout } = await exec('systemctl', ['show', MANAGED_SERVICE, '--property=MemoryCurrent', '--value'], { timeout: 5000 });
+    const value = Number(stdout.trim());
+    return Number.isFinite(value) && value >= 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+async function serviceUptimeMs(state) {
+  if (state !== 'active') return 0;
+  try {
+    const { stdout } = await exec('systemctl', ['show', MANAGED_SERVICE, '--property=ActiveEnterTimestamp', '--value'], { timeout: 5000 });
+    const at = Date.parse(stdout.trim());
+    return Number.isFinite(at) ? Math.max(0, Date.now() - at) : 0;
+  } catch {
+    return 0;
+  }
+}
+
 async function diskStats() {
   const stats = await fs.statfs(PROJECT_ROOT);
   const block = Number(stats.bsize);
@@ -414,21 +457,21 @@ async function diskStats() {
 }
 
 async function hostStatus() {
-  const [state, cpuPercent, disk] = await Promise.all([
-    serviceState(),
-    sampleCpu(),
+  const state = await serviceState();
+  const [cpuPercent, serviceMemory, disk, uptimeMs] = await Promise.all([
+    serviceCpuPercent(state),
+    serviceMemoryBytes(state),
     diskStats(),
+    serviceUptimeMs(state),
   ]);
-  const totalMemory = os.totalmem();
-  const freeMemory = os.freemem();
   return {
     state,
     cpuPercent,
-    memoryUsedBytes: Math.max(0, totalMemory - freeMemory),
-    memoryLimitBytes: totalMemory,
+    memoryUsedBytes: serviceMemory ?? Math.max(0, os.totalmem() - os.freemem()),
+    memoryLimitBytes: os.totalmem(),
     diskUsedBytes: disk.used,
     diskLimitBytes: disk.total,
-    uptimeMs: Math.round(os.uptime() * 1000),
+    uptimeMs,
     runtime: {
       runtime: 'Node.js',
       version: process.version.replace(/^v/, ''),
