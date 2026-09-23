@@ -39,6 +39,10 @@ jobs:
           cp torri-overlay/app/build.gradle.kts torri-src/app/build.gradle.kts
           cp -a torri-overlay/app/src/main/res/drawable/. torri-src/app/src/main/res/drawable/
           cp torri-overlay/app/src/main/res/values/colors.xml torri-src/app/src/main/res/values/colors.xml
+          sed -i 's|@drawable/ic_mihon_splash|@drawable/ic_torri_splash|' torri-src/app/src/main/res/values/themes.xml
+          grep -q '<item name="windowSplashScreenAnimatedIcon">@drawable/ic_torri_splash</item>' torri-src/app/src/main/res/values/themes.xml
+          echo "Verified Torri splash icon reference:"
+          grep 'windowSplashScreenAnimatedIcon' torri-src/app/src/main/res/values/themes.xml
           cp torri-overlay/app/src/main/res/values/torri_strings.xml torri-src/app/src/main/res/values/torri_strings.xml
           cp -a torri-overlay/app/src/debug/res/drawable/. torri-src/app/src/debug/res/drawable/
           mkdir -p torri-src/app/src/debug/res/values
