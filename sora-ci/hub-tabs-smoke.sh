@@ -4,6 +4,7 @@ set -euo pipefail
 OUT=/tmp/sora-hub-tabs
 mkdir -p "$OUT"
 adb wait-for-device
+adb install -r "$SORA_ROOT/live-extension/build/outputs/apk/debug/live-extension-debug.apk" >/dev/null
 adb install -r "$SORA_ROOT/meme-extension/build/outputs/apk/debug/meme-extension-debug.apk" >/dev/null
 adb install -r "$SORA_ROOT/app/build/outputs/apk/debug/app-debug.apk" >/dev/null
 adb shell am force-stop com.night.sora
@@ -97,6 +98,28 @@ wait_for() {
   shot "failure-$label"
   adb logcat -d -t 600 | grep -Ei 'com\.night\.sora|AndroidRuntime|FATAL EXCEPTION' | tail -n 120 >&2 || true
   echo "Timed out waiting for '$label'" >&2
+  return 1
+}
+
+wait_for_any() {
+  local timeout="${1:-50}"
+  shift
+  for _ in $(seq 1 "$timeout"); do
+    dump_ui
+    for label in "$@"; do
+      if node_exists "$label"; then
+        echo "Found one valid state: $label"
+        return 0
+      fi
+    done
+    if node_exists "Pixel Launcher isn't responding"; then
+      wait_for_pixel_launcher_anr
+    else
+      sleep 1
+    fi
+  done
+  shot failure-source-state
+  echo "None of the expected source states appeared: $*" >&2
   return 1
 }
 
@@ -202,7 +225,7 @@ tap "Save message"
 wait_for "sora-smoke-qa"
 wait_for "Messages are stored locally until an AI provider is connected"
 shot ai-local-message
-adb shell input keyevent 4
+tap Close
 tap_scrolling "About & help"
 wait_for "About Sora"
 wait_for "Version"
@@ -268,14 +291,31 @@ shot home-after-bible
 tap Media
 tap "Anime & Manga"
 tap "Movies & TV"
-wait_for "Catalog unavailable"
-wait_for "Retry"
-shot movies-source-state
+wait_for_any 50 "Featured movie" "Catalog unavailable" "No movie titles were returned by the current source feed."
+if node_exists "Catalog unavailable"; then
+  wait_for "Retry"
+  shot movies-source-state
+else
+  shot movies-live-source
+fi
+tap Series
+wait_for_any 50 "Featured series" "Catalog unavailable" "No tv titles were returned by the current source feed."
+if node_exists "Catalog unavailable"; then
+  wait_for "Retry"
+  shot tv-source-state
+else
+  shot tv-live-source
+fi
 tap "Movies & TV"
 tap Music
-wait_for "No compatible music catalog source is installed"
-wait_for "Manage sources"
-shot music-source-state
+wait_for_any 50 "Fresh picks" "Music sources could not load right now." "No Music items were returned by the installed source feed."
+if node_exists "Music sources could not load right now."; then
+  wait_for "Retry"
+  wait_for "Manage sources"
+  shot music-source-state
+else
+  shot music-live-source
+fi
 tap Music
 tap Memes
 if wait_for "Less like this" 40; then

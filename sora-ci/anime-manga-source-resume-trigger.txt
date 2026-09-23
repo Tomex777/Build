@@ -4,3 +4,4 @@ rerun 37 - verify exact source resume after hub smoke navigation fix
 rerun 38 - verify exact source resume with updated hub test
 
 full-app-qa: build and walkthrough extension surfaces
+API 36 full package: verify reader and playback paths
