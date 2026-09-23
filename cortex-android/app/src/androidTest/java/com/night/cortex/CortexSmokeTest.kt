@@ -1,6 +1,6 @@
 package com.night.cortex
 
-import androidx.compose.ui.test.assertExists
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -18,17 +18,20 @@ class CortexSmokeTest {
 
     @Test
     fun opensHomeAndCreatesPhoneLocalProjectFile() {
-        composeRule.onNodeWithText("Night control center").assertExists()
+        composeRule.onNodeWithText("Night control center").assertIsDisplayed()
         composeRule.onNodeWithText("Library").performClick()
-        composeRule.onNodeWithText("Your local project is empty").assertExists()
+        composeRule.onNodeWithText("Your local project is empty").assertIsDisplayed()
         composeRule.onNodeWithText("New file").performClick()
         composeRule.onNodeWithText("File path").performTextInput("index.js")
         composeRule.onNodeWithText("Create").performClick()
         composeRule.waitUntil(5_000) {
             composeRule.onAllNodes(hasText("Start writing…")).fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithText("index.js").assertExists()
+        composeRule.onNodeWithText("index.js").assertIsDisplayed()
         composeRule.onNodeWithText("Save").performClick()
-        composeRule.onNodeWithText("Saved on this phone.").assertExists()
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodes(hasText("Saved on this phone.")).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithText("Saved on this phone.").assertIsDisplayed()
     }
 }
