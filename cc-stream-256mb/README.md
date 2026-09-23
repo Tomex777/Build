@@ -2,21 +2,43 @@
 
 Minimal private WhatsApp companion for low-memory hosting.
 
-## What it does
+## Privacy / destination rule
 
-- Pairs by phone-number pairing code only (no QR UI).
-- Uses Baileys Android companion mode.
-- Automatically forwards incoming view-once media to the account's own chat (or OWNER_NUMBER).
-- Keeps only a tiny in-memory dedupe set; it does not buffer/download media.
-- `.ping` in the bot's own/owner DM reports latency, uptime, and RSS/heap RAM.
+The bot never reposts recovered view-once media into the source group or someone else's DM.
 
-## Server setup
+Every successful V1 recovery goes only to OWNER_NUMBER (defaults to the bot account itself / Message Yourself).
+
+## Recovery paths
+
+1. Live automatic stream: a newly received V1 is forwarded to the owner self-chat when Baileys exposes the live V1 payload.
+2. Owner reply fallback: the owner can reply with any normal message to a V1; the bot silently tries to recover that quoted V1 to the owner self-chat.
+3. Manual fallback: reply to a V1 with .cc; recovery goes to the owner self-chat.
+
+If the same V1 was already delivered successfully, the small in-memory dedupe cache prevents duplicate delivery.
+
+## Owner-only commands
+
+- .cc — manual quoted V1 recovery
+- .cc stream on
+- .cc stream off
+- .cc stream status
+- .ping — latency, uptime and RAM
+- .owner — owner status
+- .help
+
+Command responses are sent to the owner self-chat, not the source group/DM.
+
+## Pairing
+
+Pairing code only. No QR flow.
 
 1. Use Node.js 24.
-2. Copy `.env.example` to `.env` or configure BOT_NUMBER in your host's environment.
-3. Run `npm install`.
-4. Run `npm start`.
-5. On first launch, copy the pairing code from the console into WhatsApp > Linked devices > Link with phone number instead.
-6. Persist the `auth/` directory. If it is deleted, the account must be paired again.
+2. Set BOT_NUMBER to digits only including country code, e.g. 2348012345678.
+3. OWNER_NUMBER is optional and defaults to BOT_NUMBER.
+4. Run npm install.
+5. Run npm start.
+6. Copy the pairing code from the server console.
+7. In WhatsApp: Linked devices > Link with phone number instead.
+8. Keep the auth/ directory persistent across restarts/redeploys.
 
-The current Baileys Android companion mode is experimental. This project intentionally contains no economy, AI, games, downloaders, FFmpeg, Chromium, or command framework.
+The bot uses Baileys Android companion mode and keeps no downloaded media buffers in RAM.
