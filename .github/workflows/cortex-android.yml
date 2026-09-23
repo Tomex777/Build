@@ -61,8 +61,7 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
           script: |
-            cd cortex-android
-            gradle :app:connectedDebugAndroidTest --stacktrace
+            gradle -p cortex-android :app:connectedDebugAndroidTest --stacktrace
             adb shell am force-stop com.night.cortex || true
             adb shell am start -n com.night.cortex/.MainActivity
             sleep 3
