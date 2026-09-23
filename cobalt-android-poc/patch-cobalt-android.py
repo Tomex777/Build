@@ -502,3 +502,269 @@ public final class Logger {
 
 print(f"Patched {changed_refs} System.Logger references across {changed_files} Java files")
 print(f"Added Android logger shim: {logger_path.relative_to(root)}")
+
+
+# Android does not ship java.net.http.HttpClient. The linked Android client uses
+# PlayStoreUtils while building its registration identity, so keep its existing
+# request flow and adapt that small HTTP surface to HttpURLConnection.
+http_support = modules / "lib/src/main/java/com/github/auties00/cobalt/util/AndroidHttpClient.java"
+http_support.write_text(r'''package com.github.auties00.cobalt.util;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URLConnection;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+
+/** Small Android-safe HTTP adapter for Cobalt's registration bootstrap. */
+public final class AndroidHttpClient implements AutoCloseable {
+    public enum Redirect { ALWAYS, NORMAL, NEVER }
+
+    private final int connectTimeoutMillis;
+    private final Redirect redirect;
+
+    private AndroidHttpClient(int connectTimeoutMillis, Redirect redirect) {
+        this.connectTimeoutMillis = connectTimeoutMillis;
+        this.redirect = redirect;
+    }
+
+    public static Builder newBuilder() {
+        return new Builder();
+    }
+
+    public <T> AndroidHttpResponse<T> send(AndroidHttpRequest request,
+                                          AndroidHttpResponse.BodyHandler<T> bodyHandler)
+            throws IOException, InterruptedException {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedException("HTTP request interrupted");
+        }
+        var connection = (HttpURLConnection) request.uri().toURL().openConnection();
+        connection.setConnectTimeout(connectTimeoutMillis);
+        connection.setReadTimeout(request.timeoutMillis());
+        connection.setInstanceFollowRedirects(redirect != Redirect.NEVER);
+        connection.setRequestMethod(request.method());
+        request.headers().forEach(connection::setRequestProperty);
+
+        var body = request.body();
+        if (body != null) {
+            connection.setDoOutput(true);
+            connection.setFixedLengthStreamingMode(body.length);
+            try (OutputStream output = connection.getOutputStream()) {
+                output.write(body);
+            }
+        }
+
+        int status = connection.getResponseCode();
+        InputStream input = status >= 400 ? connection.getErrorStream() : connection.getInputStream();
+        if (input == null) {
+            input = new ByteArrayInputStream(new byte[0]);
+        }
+        try {
+            T result = bodyHandler.handle(status, input);
+            return new AndroidHttpResponse<>(status, result);
+        } catch (IOException error) {
+            connection.disconnect();
+            throw error;
+        } finally {
+            if (bodyHandler.closesInput()) {
+                connection.disconnect();
+            }
+        }
+    }
+
+    @Override
+    public void close() {
+        // HttpURLConnection owns and closes each exchange independently.
+    }
+
+    public static final class Builder {
+        private int connectTimeoutMillis;
+        private Redirect redirect = Redirect.NORMAL;
+
+        public Builder followRedirects(Redirect value) {
+            redirect = Objects.requireNonNull(value);
+            return this;
+        }
+
+        public Builder connectTimeout(Duration value) {
+            connectTimeoutMillis = Math.toIntExact(Math.min(Integer.MAX_VALUE,
+                    Math.max(1L, value.toMillis())));
+            return this;
+        }
+
+        public AndroidHttpClient build() {
+            return new AndroidHttpClient(connectTimeoutMillis, redirect);
+        }
+    }
+}
+
+final class AndroidHttpRequest {
+    private final URI uri;
+    private final int timeoutMillis;
+    private final String method;
+    private final Map<String, String> headers;
+    private final byte[] body;
+
+    private AndroidHttpRequest(URI uri, int timeoutMillis, String method,
+                               Map<String, String> headers, byte[] body) {
+        this.uri = uri;
+        this.timeoutMillis = timeoutMillis;
+        this.method = method;
+        this.headers = headers;
+        this.body = body;
+    }
+
+    public static Builder newBuilder() {
+        return new Builder();
+    }
+
+    public URI uri() { return uri; }
+    public int timeoutMillis() { return timeoutMillis; }
+    public String method() { return method; }
+    public Map<String, String> headers() { return headers; }
+    public byte[] body() { return body; }
+
+    public static final class Builder {
+        private URI uri;
+        private int timeoutMillis;
+        private String method = "GET";
+        private final Map<String, String> headers = new LinkedHashMap<>();
+        private byte[] body;
+
+        public Builder uri(URI value) {
+            uri = Objects.requireNonNull(value);
+            return this;
+        }
+
+        public Builder timeout(Duration value) {
+            timeoutMillis = Math.toIntExact(Math.min(Integer.MAX_VALUE,
+                    Math.max(1L, value.toMillis())));
+            return this;
+        }
+
+        public Builder header(String name, String value) {
+            headers.put(name, value);
+            return this;
+        }
+
+        public Builder GET() {
+            method = "GET";
+            body = null;
+            return this;
+        }
+
+        public Builder POST(BodyPublisher publisher) {
+            method = "POST";
+            body = publisher.bytes();
+            return this;
+        }
+
+        public AndroidHttpRequest build() {
+            if (uri == null) {
+                throw new IllegalStateException("request URI is required");
+            }
+            return new AndroidHttpRequest(uri, timeoutMillis, method,
+                    new LinkedHashMap<>(headers), body);
+        }
+    }
+
+    public static final class BodyPublisher {
+        private final byte[] bytes;
+        private BodyPublisher(byte[] bytes) { this.bytes = bytes; }
+        public byte[] bytes() { return bytes; }
+    }
+
+    public static final class BodyPublishers {
+        private BodyPublishers() {}
+        public static BodyPublisher ofString(String value, Charset charset) {
+            return new BodyPublisher(value.getBytes(charset));
+        }
+    }
+}
+
+final class AndroidHttpResponse<T> {
+    private final int statusCode;
+    private final T body;
+
+    AndroidHttpResponse(int statusCode, T body) {
+        this.statusCode = statusCode;
+        this.body = body;
+    }
+
+    public int statusCode() { return statusCode; }
+    public T body() { return body; }
+
+    interface BodyHandler<T> {
+        T handle(int statusCode, InputStream input) throws IOException;
+        boolean closesInput();
+    }
+
+    public static final class BodyHandlers {
+        private BodyHandlers() {}
+
+        public static BodyHandler<InputStream> ofInputStream() {
+            return new BodyHandler<>() {
+                @Override public InputStream handle(int status, InputStream input) { return input; }
+                @Override public boolean closesInput() { return false; }
+            };
+        }
+
+        public static BodyHandler<String> ofString(Charset charset) {
+            return new BodyHandler<>() {
+                @Override public String handle(int status, InputStream input) throws IOException {
+                    try (input; var output = new ByteArrayOutputStream()) {
+                        input.transferTo(output);
+                        return output.toString(charset.name());
+                    }
+                }
+                @Override public boolean closesInput() { return true; }
+            };
+        }
+
+        public static BodyHandler<Void> discarding() {
+            return new BodyHandler<>() {
+                @Override public Void handle(int status, InputStream input) throws IOException {
+                    try (input) {
+                        var buffer = new byte[4096];
+                        while (input.read(buffer) != -1) {}
+                    }
+                    return null;
+                }
+                @Override public boolean closesInput() { return true; }
+            };
+        }
+    }
+}
+''', encoding="utf-8")
+
+for relative in [
+    "lib/src/main/java/com/github/auties00/cobalt/util/PlayStoreUtils.java",
+    "lib/src/main/java/com/github/auties00/cobalt/client/linked/info/WhatsAppWebClientInfo.java",
+]:
+    path = modules / relative
+    source = path.read_text(encoding="utf-8")
+    source = source.replace("import java.net.http.HttpClient;", "import com.github.auties00.cobalt.util.AndroidHttpClient;")
+    source = source.replace("import java.net.http.HttpRequest;", "import com.github.auties00.cobalt.util.AndroidHttpRequest;")
+    source = source.replace("import java.net.http.HttpResponse;", "import com.github.auties00.cobalt.util.AndroidHttpResponse;")
+    source = source.replace("HttpClient", "AndroidHttpClient")
+    source = source.replace("HttpRequest", "AndroidHttpRequest")
+    source = source.replace("HttpResponse", "AndroidHttpResponse")
+    path.write_text(source, encoding="utf-8")
+
+for relative in [
+    "lib/src/main/java/com/github/auties00/cobalt/util/PlayStoreUtils.java",
+    "lib/src/main/java/com/github/auties00/cobalt/client/linked/info/WhatsAppWebClientInfo.java",
+]:
+    source = (modules / relative).read_text(encoding="utf-8")
+    if "java.net.http" in source or "HttpClient" in source or "HttpRequest" in source or "HttpResponse" in source:
+        raise SystemExit(f"java.net.http reference remains in {relative}")
+print("Replaced linked-client HttpClient bootstrap paths with Android HttpURLConnection.")
