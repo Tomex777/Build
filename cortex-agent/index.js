@@ -583,12 +583,20 @@ async function handler(req, res) {
       const [, id, action] = pairRoute;
       const body = await readJson(req);
       if (action === 'pair') {
-        return json(res, 200, await msccControl('POST', '/accounts/' + id + '/pair', { mode: body.mode === 'qr' ? 'qr' : 'code' }));
+        const mode = body.mode === 'qr' ? 'qr' : 'code';
+        const result = await msccControl('POST', '/accounts/' + id + '/pair', { mode });
+        await recordActivity('mscc:pairing.pair', { account: id, mode });
+        return json(res, 200, result);
       }
       if (action === 'reconnect') {
-        return json(res, 200, await msccControl('POST', '/accounts/' + id + '/reconnect', {}));
+        const result = await msccControl('POST', '/accounts/' + id + '/reconnect', {});
+        await recordActivity('mscc:pairing.reconnect', { account: id });
+        return json(res, 200, result);
       }
-      return json(res, 200, await msccControl('POST', '/accounts/' + id + '/repair', { mode: body.mode === 'qr' ? 'qr' : 'code' }));
+      const mode = body.mode === 'qr' ? 'qr' : 'code';
+      const result = await msccControl('POST', '/accounts/' + id + '/repair', { mode });
+      await recordActivity('mscc:pairing.repair', { account: id, mode });
+      return json(res, 200, result);
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/logs') {
       return json(res, 200, { lines: await logs(url.searchParams.get('limit')) });
