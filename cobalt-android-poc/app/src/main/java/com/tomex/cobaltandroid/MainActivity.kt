@@ -633,6 +633,15 @@ class MainActivity : Activity() {
     }
 
     private fun promptNewChat() {
+        AlertDialog.Builder(this)
+            .setTitle("New conversation")
+            .setItems(arrayOf("Direct chat", "New group")) { _, index ->
+                if (index == 0) promptDirectChat() else promptNewGroup()
+            }
+            .show()
+    }
+
+    private fun promptDirectChat() {
         val input = EditText(this).apply {
             hint = "International phone number"
             inputType = InputType.TYPE_CLASS_PHONE
@@ -659,6 +668,79 @@ class MainActivity : Activity() {
                 openConversation(jid, digits)
             }
             .show()
+    }
+
+    private fun promptNewGroup() {
+        val form = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), 0)
+        }
+        val subjectInput = EditText(this).apply {
+            hint = "Group name"
+            setSingleLine(true)
+        }
+        val participantsInput = EditText(this).apply {
+            hint = "Participant numbers with country codes, separated by commas"
+            inputType = InputType.TYPE_CLASS_PHONE or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            minLines = 2
+            maxLines = 4
+        }
+        form.addView(subjectInput, matchWrap())
+        form.addView(participantsInput, matchWrap())
+
+        AlertDialog.Builder(this)
+            .setTitle("Create group")
+            .setMessage("Add participants using their international numbers.")
+            .setView(form)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Create") { _, _ ->
+                val subject = subjectInput.text.toString().trim()
+                val participants = participantsInput.text.toString()
+                    .split(Regex("[,;\\s]+"))
+                    .map { it.filter(Char::isDigit) }
+                    .filter { it.length in 8..15 }
+                    .distinct()
+                if (subject.isBlank() || participants.isEmpty()) {
+                    setStatus("Enter a group name and at least one valid international number.")
+                    return@setPositiveButton
+                }
+                createGroup(subject, participants)
+            }
+            .show()
+    }
+
+    private fun createGroup(subject: String, participantNumbers: List<String>) {
+        val client = currentClient
+        if (client == null) {
+            setStatus("Connect WhatsApp before creating a group.")
+            return
+        }
+        setStatus("Creating group…")
+        worker.execute {
+            try {
+                val jidClass = Class.forName("com.github.auties00.cobalt.wire.core.jid.Jid", true, classLoader)
+                val linkedClientClass = Class.forName("com.github.auties00.cobalt.client.linked.LinkedWhatsAppClient", true, classLoader)
+                val participants = participantNumbers.map { number ->
+                    jidClass.getMethod("of", String::class.java).invoke(null, number)
+                }
+                val group = linkedClientClass
+                    .getMethod("createGroup", String::class.java, java.util.Collection::class.java)
+                    .invoke(client, subject, participants)
+                val groupJid = group?.let { firstValue(it, "jid") }?.toString()
+                runOnUiThread {
+                    refreshChats()
+                    if (groupJid.isNullOrBlank()) {
+                        setStatus("Group created. Refreshing your chat list…")
+                    } else {
+                        openConversation(groupJid, subject)
+                        setStatus("Group created.")
+                    }
+                }
+            } catch (error: Throwable) {
+                Log.e(tag, "Could not create group", error)
+                runOnUiThread { setStatus("Could not create group: ${error.cause?.message ?: error.message ?: "unknown error"}") }
+            }
+        }
     }
 
     private fun sendMessage() {
