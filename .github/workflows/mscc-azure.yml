@@ -1,0 +1,60 @@
+name: MSCC Azure
+
+on:
+  push:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/**'
+      - '.github/workflows/mscc-azure.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: mscc/package-lock.json
+      - name: Install dependencies
+        working-directory: mscc
+        run: npm install --no-audit --no-fund
+      - name: Syntax check all MSCC modules
+        working-directory: mscc
+        run: npm run check
+      - name: Validate drop-in command registry
+        working-directory: mscc
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { loadCommands, dispatchCommand } from './commands/registry.js'
+
+          const registry = await loadCommands(new URL('./commands/', import.meta.url))
+          const required = ['autocc', 'replycc', 'antidelete', 'status', 'ping', 'help', 'ram']
+          for (const name of required) {
+            if (!registry.commands.has(name)) throw new Error('Missing command: ' + name)
+          }
+
+          const settings = { autoCc: false, replyCc: true, antiDelete: true }
+          const replies = []
+          const ctx = {
+            controller: true,
+            settings,
+            reply: async text => replies.push(String(text)),
+            setSetting: async (key, value) => { settings[key] = value },
+            statusText: async ping => ping ? 'pong-status' : 'status',
+          }
+
+          if (!(await dispatchCommand(registry, '.autocc on', ctx))) throw new Error('autocc not dispatched')
+          if (!settings.autoCc) throw new Error('autocc did not toggle')
+          if (!(await dispatchCommand(registry, '.ram', ctx))) throw new Error('ram not dispatched')
+          if (!(await dispatchCommand(registry, '.help', ctx))) throw new Error('help not dispatched')
+          if (!replies.some(x => x.includes('.autocc'))) throw new Error('help did not list commands')
+
+          const denied = await dispatchCommand(registry, '.status', { ...ctx, controller: false })
+          if (denied) throw new Error('owner-only command executed for non-controller')
+          console.log('MSCC command registry OK:', registry.canonical.map(c => c.name).sort().join(', '))
+          NODE
