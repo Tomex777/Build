@@ -19,6 +19,7 @@ const ACTIVITY_FILE = path.join(STATE_DIR, 'activity.jsonl');
 const BACKUP_DIR = path.join(STATE_DIR, 'backups');
 const COMMAND_SETTINGS_FILE = path.resolve(process.env.CORTEX_COMMAND_SETTINGS_FILE || '/var/lib/mscc/data/mscc-settings.json');
 const COMMAND_SETTINGS_SCHEMA_FILE = path.resolve(process.env.CORTEX_COMMAND_SETTINGS_SCHEMA_FILE || '/var/lib/mscc/data/cortex-settings-schema.json');
+const MSCC_CONTROL_URL = 'http://127.0.0.1:8788';
 const PRIVATE_BACKUP_PATHS = String(process.env.CORTEX_PRIVATE_BACKUP_PATHS || '')
   .split(':')
   .map((value) => value.trim())
@@ -545,6 +546,27 @@ async function assertNoSymlink(target) {
   }
 }
 
+async function msccControl(method, pathname, body = null) {
+  try {
+    const response = await fetch(MSCC_CONTROL_URL + pathname, {
+      method,
+      headers: body ? { 'content-type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(15_000),
+    });
+    const text = await response.text();
+    let payload = {};
+    try { payload = text ? JSON.parse(text) : {}; } catch { payload = { error: text || 'Invalid MSCC response' }; }
+    if (!response.ok) {
+      throw Object.assign(new Error(payload.error || ('MSCC control HTTP ' + response.status)), { statusCode: 502 });
+    }
+    return payload;
+  } catch (error) {
+    if (error?.statusCode) throw error;
+    throw Object.assign(new Error('MSCC pairing control unavailable: ' + (error?.message || error)), { statusCode: 502 });
+  }
+}
+
 async function handler(req, res) {
   try {
     if (!authorized(req)) return json(res, 401, { error: 'Unauthorized' });
@@ -552,6 +574,21 @@ async function handler(req, res) {
 
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/status') {
       return json(res, 200, await hostStatus());
+    }
+    if (req.method === 'GET' && url.pathname === '/api/cortex/mscc/pairing') {
+      return json(res, 200, await msccControl('GET', '/state'));
+    }
+    const pairRoute = url.pathname.match(/^\/api\/cortex\/mscc\/accounts\/(A|B)\/(pair|reconnect|repair)$/);
+    if (req.method === 'POST' && pairRoute) {
+      const [, id, action] = pairRoute;
+      const body = await readJson(req);
+      if (action === 'pair') {
+        return json(res, 200, await msccControl('POST', '/accounts/' + id + '/pair', { mode: body.mode === 'qr' ? 'qr' : 'code' }));
+      }
+      if (action === 'reconnect') {
+        return json(res, 200, await msccControl('POST', '/accounts/' + id + '/reconnect', {}));
+      }
+      return json(res, 200, await msccControl('POST', '/accounts/' + id + '/repair', { mode: body.mode === 'qr' ? 'qr' : 'code' }));
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/logs') {
       return json(res, 200, { lines: await logs(url.searchParams.get('limit')) });

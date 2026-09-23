@@ -30,6 +30,45 @@ jobs:
           printf 'private-auth-state\n' >/tmp/cortex-private/auth.txt
           printf '{"version":1,"autoCc":false,"replyCc":true,"antiDelete":true}\n' >/tmp/cortex-settings/settings.json
           printf '{"version":1,"service":"mscc","entries":[{"key":"autoCc","label":"Auto CC","description":"Copy V1 automatically","command":"autocc","type":"boolean"}]}\n' >/tmp/cortex-settings/schema.json
+          cat >/tmp/mock-mscc.mjs <<'NODE'
+          import http from 'node:http'
+          const accounts = [
+            { id:'A', enabled:true, connected:true, status:'connected', numberMasked:'234••••0001', indexCount:12, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
+            { id:'B', enabled:true, connected:false, status:'offline', numberMasked:'234••••0002', indexCount:4, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
+          ]
+          const server = http.createServer(async (req,res) => {
+            const url = new URL(req.url, 'http://localhost')
+            let body = {}
+            if (req.method === 'POST') {
+              const chunks = []
+              for await (const chunk of req) chunks.push(chunk)
+              body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : {}
+            }
+            if (req.method === 'GET' && url.pathname === '/state') {
+              res.setHeader('content-type','application/json')
+              return res.end(JSON.stringify({ version:'1.8.1', destination:'A', settings:{}, accounts, system:{ uptime:'1m', rssMb:50, heapMb:20, port:8787 } }))
+            }
+            const m = url.pathname.match(/^\/accounts\/(A|B)\/(pair|reconnect|repair)$/)
+            if (req.method === 'POST' && m) {
+              const row = accounts.find(x => x.id === m[1])
+              if (m[2] === 'reconnect') {
+                row.status = 'connecting'
+              } else {
+                row.pairingMode = body.mode === 'qr' ? 'qr' : 'code'
+                row.pairingCode = row.pairingMode === 'code' ? 'ABCD-EFGH' : ''
+                row.pairingQr = row.pairingMode === 'qr' ? 'data:image/png;base64,AA==' : ''
+                row.status = 'pairing'
+              }
+              res.setHeader('content-type','application/json')
+              return res.end(JSON.stringify({ ok:true }))
+            }
+            res.statusCode = 404
+            res.end('{}')
+          })
+          server.listen(8788,'127.0.0.1')
+          NODE
+          node /tmp/mock-mscc.mjs >/tmp/mock-mscc.log 2>&1 &
+          echo $! >/tmp/mock-mscc.pid
           CORTEX_AGENT_TOKEN='test-token-12345678901234567890' \
           NIGHT_ROOT=/tmp/night \
           NIGHT_SERVICE=night.service \
@@ -122,6 +161,15 @@ jobs:
           curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/settings | grep -q '"key":"autoCc"'
           curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"key":"autoCc","enabled":true}'             http://127.0.0.1:47831/api/cortex/host/settings | grep -q '"enabled":true'
           grep -q '"autoCc": true' /tmp/cortex-settings/settings.json
+      - name: Verify MSCC pairing bridge
+        shell: bash
+        run: |
+          AUTH='Authorization: Bearer test-token-12345678901234567890'
+          curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q '"id":"B"'
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"mode":"code"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts/B/pair
+          curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q 'ABCD-EFGH'
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"mode":"qr"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts/B/repair
+          curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q '"pairingMode":"qr"'
       - name: Reject unauthenticated requests
         shell: bash
         run: |
@@ -129,4 +177,6 @@ jobs:
           test "$code" = '401'
       - name: Stop Cortex Agent
         if: always()
-        run: kill "$(cat /tmp/cortex-agent.pid)" 2>/dev/null || true
+        run: |
+          kill "$(cat /tmp/cortex-agent.pid)" 2>/dev/null || true
+          kill "$(cat /tmp/mock-mscc.pid)" 2>/dev/null || true
