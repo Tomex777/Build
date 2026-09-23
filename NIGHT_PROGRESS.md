@@ -249,3 +249,14 @@ All Android 16 UI shards passed except Extensions. Its preview launched, but thr
 The repeated `create_options` persistence test remains green. Identical visible option-card repetition still lacks screen-level screenshot/interaction evidence. Groq 429 TPM remains a provider quota failure.
 
 Next video experiment: virtual devices use TextureView, so switch their VLC output from Android Surface to GLES (`gles2,none`); keep the software H.264 synthetic-MP4 fixture and colored-pixel assertion. Physical devices continue on the native VLC Surface path. Run the full matching APK/video Actions checks before drawing a conclusion.
+
+
+## 2026-09-23 validation follow-up: Integrated Regression #428
+
+Integrated Regression #428 was built from `35cb1590547345bb86804167089c0162cc476c5b`. The build passed, Night ARM64 APK #109 and Groq Key Pool #387 passed, and all 31 Android 16 provider instrumentation tests passed, including live AnimePahe descriptor discovery from the installed matching extension APK. Every Android 16 UI shard passed, including Extensions and Image Editor.
+
+The synthetic-MP4 video check remains red: 0 colored viewport pixels despite a 709×1536 attached/shown TextureView, valid native surface, libVLC surfaces-created callback, and H.264/AAC decoder startup. The explicit virtual-device `gles2,none` output did not produce a VLC Vout event. This does not fix video playback.
+
+The repeated `create_options` persistence test remains green; duplicate visible option cards still have no screenshot/interaction proof. Image Editor UI passed; prior #424 screenshot review found the preview clear/full-width and export full resolution, with physical-device comparison outstanding. Groq 429 TPM stays classified as a provider quota failure.
+
+Next diagnostic: raise VLC verbosity on virtual devices while keeping GLES vout and print the matching VLC/logcat lines from the video Actions shard. Use the resulting module-selection or output-creation error to choose a renderer change. Do not call this fixed while the pixel assertion is zero.
