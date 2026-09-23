@@ -10,6 +10,7 @@ export default {
   // Optional boolean setting metadata. Remove this block if the command is command-only.
   // setting: {
   //   key: 'helloEnabled',
+  //   default: false,
   //   label: 'Hello command',
   //   description: 'Example toggle exposed to Cortex Settings.',
   // },

@@ -5,6 +5,7 @@ export default {
   ownerOnly: true,
   setting: {
     key: 'antiDelete',
+    default: true,
     label: 'Anti-delete',
     description: 'Recover indexed messages when they are revoked.',
   },

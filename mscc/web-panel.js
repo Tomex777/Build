@@ -123,7 +123,7 @@ export function startWebPanel({ port, password, sessionSecret, localControlPort 
       }
       if (req.method === 'POST' && url.pathname === '/api/settings') {
         const body = await readJson(req)
-        if (!['autoCc', 'replyCc', 'antiDelete'].includes(body.key) || typeof body.value !== 'boolean') {
+        if (typeof body.key !== 'string' || typeof body.value !== 'boolean') {
           return sendJson(res, 400, { error: 'Invalid setting' })
         }
         await setSetting(body.key, body.value)

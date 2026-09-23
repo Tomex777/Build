@@ -45,7 +45,7 @@ const WEB_SESSION_SECRET = process.env.WEB_SESSION_SECRET || ''
 const LOCAL_CONTROL_PORT = 8788
 const logger = pino({ level: process.env.LOG_LEVEL || 'silent' })
 const startedAt = Date.now()
-const APP_VERSION = '1.8.6'
+const APP_VERSION = '1.9.0'
 
 if (!/^\d{7,15}$/.test(ACCOUNT_A_NUMBER)) {
   console.error('ACCOUNT_A_NUMBER (or BOT_NUMBER) is required.')
@@ -75,7 +75,26 @@ const makeAccount = (id, number, authDir) => ({
 accounts.set('A', makeAccount('A', ACCOUNT_A_NUMBER, ACCOUNT_A_AUTH_DIR))
 accounts.set('B', makeAccount('B', ACCOUNT_B_NUMBER, ACCOUNT_B_AUTH_DIR))
 
-let settings = { autoCc: false, replyCc: true, antiDelete: true }
+function commandSettingDefaults(registry = commandRegistry) {
+  const defaults = {}
+  for (const command of registry.canonical) {
+    const key = String(command.setting?.key || '').trim()
+    if (!key) continue
+    defaults[key] = command.setting?.default === true
+  }
+  return defaults
+}
+
+function mergeCommandSettings(raw, registry = commandRegistry) {
+  const defaults = commandSettingDefaults(registry)
+  const merged = { ...defaults }
+  for (const key of Object.keys(defaults)) {
+    if (typeof raw?.[key] === 'boolean') merged[key] = raw[key]
+  }
+  return merged
+}
+
+let settings = commandSettingDefaults()
 let destination = DEFAULT_DESTINATION
 let waVersion = null
 let webServer = null
@@ -316,19 +335,25 @@ function scheduleSave() {
 }
 
 async function reloadSettings(silent = false) {
+  let raw = {}
+  let exists = true
   try {
-    const raw = JSON.parse(await readFile(SETTINGS_FILE, 'utf8'))
-    settings = {
-      autoCc: raw?.autoCc === true,
-      replyCc: raw?.replyCc !== false,
-      antiDelete: raw?.antiDelete !== false
-    }
-    destination = raw?.destination === 'B' ? 'B' : raw?.destination === 'A' ? 'A' : DEFAULT_DESTINATION
-    settingsMtimeMs = (await stat(SETTINGS_FILE)).mtimeMs
-    if (!silent) console.log('MSCC settings reloaded from disk')
+    raw = JSON.parse(await readFile(SETTINGS_FILE, 'utf8'))
   } catch (e) {
-    if (e?.code !== 'ENOENT') console.warn('Settings load failed:', e?.message || e)
+    if (e?.code !== 'ENOENT') {
+      console.warn('Settings load failed:', e?.message || e)
+      return
+    }
+    exists = false
   }
+
+  settings = mergeCommandSettings(raw)
+  destination = raw?.destination === 'B' ? 'B' : raw?.destination === 'A' ? 'A' : DEFAULT_DESTINATION
+
+  if (!exists) await saveSettings()
+  else settingsMtimeMs = (await stat(SETTINGS_FILE)).mtimeMs
+
+  if (!silent) console.log('MSCC settings reloaded from disk')
 }
 
 async function saveSettings() {
@@ -347,6 +372,7 @@ async function writeCommandSettingsSchema() {
       description: command.setting.description || command.description || '',
       command: command.name,
       type: 'boolean',
+      default: command.setting.default === true,
     }))
   await mkdir(dirname(CORTEX_SETTINGS_SCHEMA_FILE), { recursive: true })
   await writeFile(CORTEX_SETTINGS_SCHEMA_FILE + '.tmp', JSON.stringify({
@@ -683,6 +709,10 @@ async function repairAccount(id, mode = 'code') {
 }
 
 async function setSetting(key, value) {
+  const defaults = commandSettingDefaults()
+  if (!Object.prototype.hasOwnProperty.call(defaults, key)) {
+    throw new Error(`Unknown command setting: ${key}`)
+  }
   settings[key] = Boolean(value)
   await saveSettings()
 }
@@ -690,6 +720,8 @@ async function setSetting(key, value) {
 async function reloadCommands() {
   const next = await loadCommands(COMMANDS_URL, { cacheBust: Date.now() })
   commandRegistry = next
+  settings = mergeCommandSettings(settings, next)
+  await saveSettings()
   await writeCommandSettingsSchema()
   return next.canonical.map(command => command.name).sort()
 }

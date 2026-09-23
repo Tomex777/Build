@@ -1,6 +1,6 @@
 {
   "name": "mscc",
-  "version": "1.8.6",
+  "version": "1.9.0",
   "private": true,
   "description": "Dual-account private WhatsApp companion with Azure-ready web control panel",
   "type": "module",

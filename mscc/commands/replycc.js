@@ -4,6 +4,7 @@ export default {
   ownerOnly: true,
   setting: {
     key: 'replyCc',
+    default: true,
     label: 'Reply CC',
     description: 'Recover view-once media when a reply references it.',
   },

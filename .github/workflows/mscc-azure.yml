@@ -122,8 +122,13 @@ jobs:
           if (!(await dispatchCommand(registry, '.destination B', ctx))) throw new Error('destination not dispatched')
           if (!(await dispatchCommand(registry, '.reloadcommands', ctx))) throw new Error('reloadcommands not dispatched')
           if (!replies.some(x => x.includes('.autocc'))) throw new Error('help did not list commands')
-          const toggleKeys = registry.canonical.map(c => c.setting?.key).filter(Boolean).sort()
+          const toggles = registry.canonical.filter(c => c.setting?.key)
+          const toggleKeys = toggles.map(c => c.setting.key).sort()
           if (toggleKeys.join(',') !== 'antiDelete,autoCc,replyCc') throw new Error('Unexpected Cortex toggle schema: ' + toggleKeys.join(','))
+          const toggleDefaults = Object.fromEntries(toggles.map(c => [c.setting.key, c.setting.default === true]))
+          if (toggleDefaults.autoCc !== false || toggleDefaults.replyCc !== true || toggleDefaults.antiDelete !== true) {
+            throw new Error('Unexpected command setting defaults: ' + JSON.stringify(toggleDefaults))
+          }
 
           const denied = await dispatchCommand(registry, '.status', { ...ctx, controller: false })
           if (denied) throw new Error('owner-only command executed for non-controller')

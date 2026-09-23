@@ -4,6 +4,7 @@ export default {
   ownerOnly: true,
   setting: {
     key: 'autoCc',
+    default: false,
     label: 'Auto CC',
     description: 'Copy incoming view-once media immediately.',
   },
