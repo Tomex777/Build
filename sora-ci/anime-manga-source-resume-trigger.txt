@@ -1,1 +1,1 @@
-run 10 - rerun current Aniyomi source and exact resume validation
+run 11 - require real manga page rendering through exact reader resume

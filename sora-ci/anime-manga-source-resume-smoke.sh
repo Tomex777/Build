@@ -128,6 +128,17 @@ wait_for_node() {
   return 1
 }
 
+assert_reader_page_rendered() {
+  local page_number="$1"
+  local label="Reader page $page_number loaded"
+  local safe="reader-page-$page_number"
+  if wait_for_node "$label" 25; then
+    return 0
+  fi
+  capture_runtime_diagnostics "failure-$safe"
+  return 1
+}
+
 # Returns 0 for a real catalog surface, 2 for the honest unavailable state,
 # and 1 only when neither state appears. This lets a tab recover independently
 # while AniList is degraded without turning real recovery into a false failure.
@@ -443,6 +454,7 @@ shot 06-manga-demo-source
 
 tap_text 'Chapter 6'
 wait_for_node '1 / 42' 25
+assert_reader_page_rendered 1
 
 wait_for_node 'Demo Manga' 15
 tap_text 'Next page'
@@ -450,7 +462,7 @@ tap_text 'Next page'
 tap_text 'Next page'
 tap_text 'Next page'
 wait_for_node '5 / 42' 20
-sleep 1
+assert_reader_page_rendered 5
 assert_progress_identity MANGA 5 '-c6' demo.manga >/dev/null
 shot 07-manga-page-5
 
@@ -465,6 +477,7 @@ wait_for_node 'Continue reading' 25
 tap_text_below 'Continue reading' Naruto
 wait_for_node '5 / 42' 25
 wait_for_node 'Demo Manga' 15
+assert_reader_page_rendered 5
 assert_progress_identity MANGA 5 '-c6' demo.manga >/dev/null
 shot 08-manga-exact-resume
 

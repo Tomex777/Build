@@ -11,6 +11,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -204,7 +205,7 @@ class AniyomiReaderView(context: Context) : FrameLayout(context) {
                 position
             }
             val pageView = AniyomiReaderPageView(context, isWebtoon = false).apply {
-                bind(pages[actual], onTap, cropBorders)
+                bind(pages[actual], onTap, cropBorders, actual + 1)
             }
             container.addView(
                 pageView,
@@ -240,7 +241,7 @@ class AniyomiReaderView(context: Context) : FrameLayout(context) {
         }
 
         override fun onBindViewHolder(holder: WebtoonHolder, position: Int) {
-            holder.page.bind(pages[position], onTap, cropBorders)
+            holder.page.bind(pages[position], onTap, cropBorders, position + 1)
         }
 
         override fun onViewRecycled(holder: WebtoonHolder) {
@@ -311,12 +312,14 @@ private class AniyomiReaderPageView(
         )
     }
 
-    fun bind(page: ReaderPage, onTap: () -> Unit, cropBorders: Boolean) {
+    fun bind(page: ReaderPage, onTap: () -> Unit, cropBorders: Boolean, pageNumber: Int) {
         val key = buildKey(page)
         boundKey = key
         progress.visibility = View.VISIBLE
         error.visibility = View.GONE
         image.visibility = View.INVISIBLE
+        image.contentDescription = "Reader page $pageNumber loading"
+        error.contentDescription = "Reader page $pageNumber failed to load"
         image.recycle()
         image.setCropBorders(cropBorders)
         image.setOnClickListener { onTap() }
@@ -329,12 +332,14 @@ private class AniyomiReaderPageView(
                     image.maxScale = base * 5f
                     image.setDoubleTapZoomScale(base * 2f)
                     image.setDoubleTapZoomDuration(250)
+                    image.contentDescription = "Reader page $pageNumber loaded"
                     image.visibility = View.VISIBLE
                     progress.visibility = View.GONE
                 }
 
                 override fun onImageLoadError(e: Exception) {
                     if (boundKey != key) return
+                    Log.e(TAG, "Reader page $pageNumber image decode failed", e)
                     progress.visibility = View.GONE
                     error.visibility = View.VISIBLE
                 }
@@ -346,10 +351,12 @@ private class AniyomiReaderPageView(
                 .onSuccess { file ->
                     MAIN.post {
                         if (boundKey != key) return@post
+                        Log.d(TAG, "Reader page $pageNumber cached (${file.length()} bytes)")
                         image.setImage(ImageSource.uri(context, Uri.fromFile(file)))
                     }
                 }
-                .onFailure {
+                .onFailure { failure ->
+                    Log.e(TAG, "Reader page $pageNumber download failed", failure)
                     MAIN.post {
                         if (boundKey != key) return@post
                         progress.visibility = View.GONE
@@ -406,6 +413,7 @@ private class AniyomiReaderPageView(
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     companion object {
+        private const val TAG = "SoraAniyomiReader"
         private val PAGE_EXECUTOR = Executors.newFixedThreadPool(3)
         private val MAIN = Handler(Looper.getMainLooper())
     }
