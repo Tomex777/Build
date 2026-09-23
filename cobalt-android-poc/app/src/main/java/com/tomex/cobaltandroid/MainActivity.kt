@@ -23,7 +23,8 @@ import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
     private val tag = "Cobalt"
-    private val worker = Executors.newSingleThreadExecutor()
+    private val worker = Executors.newFixedThreadPool(3)
+    private val connectionWorker = Executors.newSingleThreadExecutor()
 
     @Volatile private var currentClient: Any? = null
     @Volatile private var hasSavedSession = false
@@ -255,7 +256,13 @@ class MainActivity : Activity() {
                     currentClient = registered
                     attachSessionListeners(registered)
                     runOnUiThread { setStatus("Saved WhatsApp link found. Reconnecting…") }
-                    invokeLinkedClient(registered, "connect")
+                    connectionWorker.execute {
+                        try {
+                            invokeLinkedClient(registered, "connect")
+                        } catch (error: Throwable) {
+                            reportError("Reconnecting WhatsApp", error)
+                        }
+                    }
                 } else {
                     runOnUiThread {
                         hasSavedSession = options != null
@@ -339,10 +346,15 @@ class MainActivity : Activity() {
                 attachSessionListeners(client)
                 currentClient = client
                 runOnUiThread { setStatus("Requesting your WhatsApp linked-device code…") }
-                invokeLinkedClient(client, "connect")
+                connectionWorker.execute {
+                    try {
+                        invokeLinkedClient(client, "connect")
+                    } catch (error: Throwable) {
+                        reportError("Linking WhatsApp", error)
+                    }
+                }
             } catch (error: Throwable) {
                 reportError("Linking WhatsApp", error)
-            } finally {
                 runOnUiThread { setBusy(false) }
             }
         }
@@ -797,6 +809,7 @@ class MainActivity : Activity() {
         } catch (error: Throwable) {
             Log.w(tag, "Disconnect during close failed", error)
         }
+        connectionWorker.shutdownNow()
         worker.shutdownNow()
         super.onDestroy()
     }
