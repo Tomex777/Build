@@ -1,5 +1,6 @@
 package com.night.extensions.animepahe
 
+import android.util.Log
 import com.night.extension.sdk.NightActionRequest
 import com.night.extension.sdk.NightExtensionService
 import com.night.extension.sdk.NightExtensionStandardActions
@@ -25,7 +26,16 @@ class AnimePaheNightExtensionService : NightExtensionService() {
     private val client by lazy { AnimePaheClient(store) }
     private val hlsResolver by lazy { PaheBatcherHlsResolver(store) }
 
-    override fun descriptor(): JSONObject = buildDescriptor()
+    override fun descriptor(): JSONObject =
+        AnimePaheNightExtensionService.buildDescriptor().also { result ->
+            Log.i(
+                "NightAnimePahe",
+                "Runtime descriptor id=${result.optString("extensionId")}, " +
+                    "tools=${result.optJSONArray("tools")?.length() ?: 0}, " +
+                    "messageTypes=${result.optJSONArray("messageTypes")?.length() ?: 0}, " +
+                    "jsonChars=${result.toString().length}.",
+            )
+        }
 
 
 
