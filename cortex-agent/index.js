@@ -17,6 +17,8 @@ const NIGHT_START_COMMAND = process.env.NIGHT_START_COMMAND || 'node index.js';
 const STATE_DIR = path.resolve(process.env.CORTEX_STATE_DIR || path.join(PROJECT_ROOT, '.cortex'));
 const ACTIVITY_FILE = path.join(STATE_DIR, 'activity.jsonl');
 const BACKUP_DIR = path.join(STATE_DIR, 'backups');
+const COMMAND_SETTINGS_FILE = path.resolve(process.env.CORTEX_COMMAND_SETTINGS_FILE || '/var/lib/mscc/data/mscc-settings.json');
+const COMMAND_SETTINGS_SCHEMA_FILE = path.resolve(process.env.CORTEX_COMMAND_SETTINGS_SCHEMA_FILE || '/var/lib/mscc/data/cortex-settings-schema.json');
 const MAX_BODY = 16 * 1024 * 1024;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const PROTECTED_NAMES = new Set(['.git', '.ssh', 'node_modules', '.gradle', '.cortex']);
@@ -281,6 +283,53 @@ async function startupInfo() {
   };
 }
 
+
+async function commandSettings() {
+  let schema;
+  let values = {};
+  try {
+    schema = JSON.parse(await fs.readFile(COMMAND_SETTINGS_SCHEMA_FILE, 'utf8'));
+  } catch (error) {
+    if (error?.code === 'ENOENT') return [];
+    throw error;
+  }
+  try {
+    values = JSON.parse(await fs.readFile(COMMAND_SETTINGS_FILE, 'utf8'));
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+  const entries = Array.isArray(schema?.entries) ? schema.entries : [];
+  return entries
+    .filter((entry) => entry && entry.type === 'boolean' && typeof entry.key === 'string')
+    .map((entry) => ({
+      key: entry.key,
+      label: String(entry.label || entry.key),
+      description: String(entry.description || ''),
+      command: String(entry.command || ''),
+      enabled: values?.[entry.key] === true,
+    }));
+}
+
+async function setCommandSetting(key, enabled) {
+  const entries = await commandSettings();
+  if (!entries.some((entry) => entry.key === key)) {
+    throw Object.assign(new Error('Unknown command setting'), { statusCode: 400 });
+  }
+  let values = {};
+  try {
+    values = JSON.parse(await fs.readFile(COMMAND_SETTINGS_FILE, 'utf8'));
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+  await fs.mkdir(path.dirname(COMMAND_SETTINGS_FILE), { recursive: true });
+  const temp = COMMAND_SETTINGS_FILE + '.cortex-' + crypto.randomUUID() + '.tmp';
+  values = { ...values, version: 1, [key]: enabled === true, savedAt: Date.now() };
+  await fs.writeFile(temp, JSON.stringify(values, null, 2), 'utf8');
+  await fs.rename(temp, COMMAND_SETTINGS_FILE);
+  await recordActivity('server:setting.update', { key, enabled: enabled === true });
+  return commandSettings();
+}
+
 async function serviceState() {
   try {
     const { stdout } = await exec('systemctl', ['is-active', NIGHT_SERVICE]);
@@ -516,6 +565,17 @@ async function handler(req, res) {
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/startup') {
       return json(res, 200, await startupInfo());
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/cortex/host/settings') {
+      return json(res, 200, { entries: await commandSettings() });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/settings') {
+      const body = await readJson(req);
+      if (typeof body.enabled !== 'boolean') {
+        throw Object.assign(new Error('enabled must be boolean'), { statusCode: 400 });
+      }
+      return json(res, 200, { entries: await setCommandSetting(String(body.key || ''), body.enabled) });
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/activity') {
       return json(res, 200, { entries: await activity(url.searchParams.get('limit')) });
