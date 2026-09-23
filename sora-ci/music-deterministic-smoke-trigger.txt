@@ -1,3 +1,4 @@
 rerun current head - verify Music after Games compile fix
 rerun deterministic playback after removing activity relaunch from dialog polling
 rerun current head - confirm deterministic Music playback after hub smoke navigation fix
+rerun current head - confirm deterministic Music playback on final hub test revision

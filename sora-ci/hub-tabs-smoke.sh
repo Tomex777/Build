@@ -34,6 +34,39 @@ raise SystemExit(1)
 PY
 }
 
+library_state_ready() {
+  python3 - <<'PY'
+import re, xml.etree.ElementTree as ET
+root=ET.parse('/tmp/sora-hub-window.xml').getroot()
+screen=re.search(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',root.attrib.get('bounds',''))
+height=int(screen.group(4)) if screen else 2400
+nodes=list(root.iter('node'))
+texts=[node.attrib.get('text','').strip() for node in nodes]
+has_heading=False
+for node in nodes:
+    bounds=re.match(r'\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+    if node.attrib.get('text','').strip() == 'Library' and bounds and int(bounds.group(2)) < height//2:
+        has_heading=True
+        break
+counts=[int(match.group(1)) for text in texts if (match := re.fullmatch(r'(\d+) items?',text))]
+empty='No saved items in this filter.' in texts
+if has_heading and counts and ((counts[0] == 0 and empty) or (counts[0] > 0 and not empty)):
+    raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+
+wait_library_state() {
+  for _ in $(seq 1 25); do
+    dump_ui
+    if library_state_ready; then return 0; fi
+    sleep 1
+  done
+  shot failure-library-state
+  echo 'Library did not show a saved-item count consistent with its empty state.' >&2
+  return 1
+}
+
 wait_for() {
   local label="$1" timeout="${2:-25}"
   for _ in $(seq 1 "$timeout"); do
@@ -87,12 +120,11 @@ wait_for "YOUR PLAY"
 wait_for "Save at least two Anime or Manga titles"
 shot games-empty-library
 
-# Library can be legitimately empty in a clean emulator. Verify the real empty
-# state on All and Memes instead of assuming an item was seeded by another flow.
+# The live Anime flow can seed a real title before this walkthrough. Check that
+# Library shows its count and matching content/empty state, then verify Memes.
 tap Library
-wait_for "0 items"
-wait_for "No saved items in this filter"
-shot library-empty
+wait_library_state
+shot library-all-filter
 adb shell input swipe 950 350 160 350 350
 sleep 1
 tap Memes
