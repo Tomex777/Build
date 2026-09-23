@@ -26,7 +26,8 @@ jobs:
           printf 'secret=must-stay-server-side\n' >/tmp/night/.env.production
           printf 'private-key' >/tmp/night/server.pem
           printf 'server-only' >/tmp/night/node_modules/server-only.js
-          mkdir -p /tmp/cortex-settings
+          mkdir -p /tmp/cortex-settings /tmp/cortex-private
+          printf 'private-auth-state\n' >/tmp/cortex-private/auth.txt
           printf '{"version":1,"autoCc":false,"replyCc":true,"antiDelete":true}\n' >/tmp/cortex-settings/settings.json
           printf '{"version":1,"service":"mscc","entries":[{"key":"autoCc","label":"Auto CC","description":"Copy V1 automatically","command":"autocc","type":"boolean"}]}\n' >/tmp/cortex-settings/schema.json
           CORTEX_AGENT_TOKEN='test-token-12345678901234567890' \
@@ -35,6 +36,7 @@ jobs:
           CORTEX_STATE_DIR=/tmp/cortex-state \
           CORTEX_COMMAND_SETTINGS_FILE=/tmp/cortex-settings/settings.json \
           CORTEX_COMMAND_SETTINGS_SCHEMA_FILE=/tmp/cortex-settings/schema.json \
+          CORTEX_PRIVATE_BACKUP_PATHS=/tmp/cortex-private \
           HOST=127.0.0.1 \
           PORT=47831 \
           node cortex-agent/index.js >/tmp/cortex-agent.log 2>&1 &
@@ -105,7 +107,14 @@ jobs:
           ! grep -q 'node_modules' /tmp/project-list.txt
           ! grep -q '.env.production' /tmp/project-list.txt
           ! grep -q 'server.pem' /tmp/project-list.txt
+          ! grep -q 'cortex-private/auth.txt' /tmp/project-list.txt
           curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/backups | grep -q "$BACKUP"
+
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"private":true}'             http://127.0.0.1:47831/api/cortex/host/backups >/tmp/private-backup.json
+          PRIVATE_BACKUP=$(python -c 'import json; print(json.load(open("/tmp/private-backup.json"))["name"])')
+          curl -fsS -H "$AUTH" "http://127.0.0.1:47831/api/cortex/host/backups/content?name=$PRIVATE_BACKUP" -o /tmp/private.zip
+          unzip -l /tmp/private.zip >/tmp/private-list.txt
+          grep -q 'tmp/cortex-private/auth.txt' /tmp/private-list.txt
       - name: Verify command-driven settings contract
         shell: bash
         run: |
