@@ -14,9 +14,12 @@ const PROJECT_ROOT = path.resolve(process.env.NIGHT_ROOT || '/opt/night');
 const NIGHT_SERVICE = process.env.NIGHT_SERVICE || 'night.service';
 const NIGHT_ENTRY = process.env.NIGHT_ENTRY || 'index.js';
 const NIGHT_START_COMMAND = process.env.NIGHT_START_COMMAND || 'node index.js';
+const STATE_DIR = path.resolve(process.env.CORTEX_STATE_DIR || path.join(PROJECT_ROOT, '.cortex'));
+const ACTIVITY_FILE = path.join(STATE_DIR, 'activity.jsonl');
+const BACKUP_DIR = path.join(STATE_DIR, 'backups');
 const MAX_BODY = 16 * 1024 * 1024;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const PROTECTED_NAMES = new Set(['.git', '.ssh', 'node_modules', '.gradle']);
+const PROTECTED_NAMES = new Set(['.git', '.ssh', 'node_modules', '.gradle', '.cortex']);
 const PROTECTED_FILES = new Set(['id_rsa', 'id_ed25519', 'id_ecdsa', 'id_dsa']);
 
 function isProtectedName(name) {
@@ -82,6 +85,200 @@ function fileType(dirent) {
   if (dirent.isFile()) return 'file';
   if (dirent.isSymbolicLink()) return 'symlink';
   return 'other';
+}
+
+
+async function ensureState() {
+  await fs.mkdir(BACKUP_DIR, { recursive: true });
+}
+
+async function recordActivity(action, detail = {}) {
+  await ensureState();
+  const row = JSON.stringify({
+    id: crypto.randomUUID(),
+    at: new Date().toISOString(),
+    action,
+    detail,
+  });
+  await fs.appendFile(ACTIVITY_FILE, row + '\n', 'utf8');
+  try {
+    const current = await fs.stat(ACTIVITY_FILE);
+    if (current.size > 2 * 1024 * 1024) {
+      const text = await fs.readFile(ACTIVITY_FILE, 'utf8');
+      const lines = text.trim().split(/\r?\n/).slice(-2500);
+      await fs.writeFile(ACTIVITY_FILE, lines.join('\n') + '\n', 'utf8');
+    }
+  } catch {}
+}
+
+async function activity(limit) {
+  const safeLimit = Math.max(10, Math.min(500, Number(limit) || 100));
+  try {
+    const text = await fs.readFile(ACTIVITY_FILE, 'utf8');
+    return text.trim().split(/\r?\n/).filter(Boolean).slice(-safeLimit).reverse().flatMap((line) => {
+      try { return [JSON.parse(line)]; } catch { return []; }
+    });
+  } catch (error) {
+    if (error?.code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+async function makeDirectory(inputPath) {
+  const target = safeProjectPath(inputPath);
+  await assertNoSymlink(target);
+  await fs.mkdir(target, { recursive: false });
+  await recordActivity('server:file.mkdir', { path: path.relative(PROJECT_ROOT, target) || '/' });
+}
+
+async function renamePath(fromInput, toInput) {
+  const from = safeProjectPath(fromInput);
+  const to = safeProjectPath(toInput);
+  if (from === PROJECT_ROOT || to === PROJECT_ROOT) throw Object.assign(new Error('Project root cannot be renamed'), { statusCode: 400 });
+  await assertNoSymlink(from);
+  await assertNoSymlink(to);
+  await fs.mkdir(path.dirname(to), { recursive: true });
+  await fs.rename(from, to);
+  await recordActivity('server:file.rename', {
+    from: path.relative(PROJECT_ROOT, from),
+    to: path.relative(PROJECT_ROOT, to),
+  });
+}
+
+async function deletePath(inputPath) {
+  const target = safeProjectPath(inputPath);
+  if (target === PROJECT_ROOT) throw Object.assign(new Error('Project root cannot be deleted'), { statusCode: 400 });
+  await assertNoSymlink(target);
+  await fs.rm(target, { recursive: true, force: false });
+  await recordActivity('server:file.delete', { path: path.relative(PROJECT_ROOT, target) });
+}
+
+function cleanZipEntry(name) {
+  const normalized = String(name || '').replace(/\\/g, '/');
+  if (!normalized || normalized.startsWith('/') || normalized.split('/').includes('..')) {
+    throw Object.assign(new Error('Unsafe zip entry'), { statusCode: 400 });
+  }
+  return normalized;
+}
+
+async function archivePaths(paths, destination) {
+  if (!Array.isArray(paths) || paths.length < 1 || paths.length > 100) {
+    throw Object.assign(new Error('paths must contain 1-100 items'), { statusCode: 400 });
+  }
+  const dest = safeProjectPath(destination);
+  if (!String(destination).toLowerCase().endsWith('.zip')) {
+    throw Object.assign(new Error('Archive destination must end in .zip'), { statusCode: 400 });
+  }
+  if (dest === PROJECT_ROOT) throw Object.assign(new Error('Invalid archive destination'), { statusCode: 400 });
+  const relative = [];
+  for (const input of paths) {
+    const target = safeProjectPath(String(input));
+    await assertNoSymlink(target);
+    relative.push(path.relative(PROJECT_ROOT, target) || '.');
+  }
+  await fs.rm(dest, { force: true });
+  await fs.mkdir(path.dirname(dest), { recursive: true });
+  await exec('zip', ['-rq', dest, ...relative], {
+    cwd: PROJECT_ROOT,
+    timeout: 5 * 60_000,
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  await recordActivity('server:file.compress', { paths: relative, destination: path.relative(PROJECT_ROOT, dest) });
+}
+
+async function extractArchive(inputPath, destination = '/') {
+  const archive = safeProjectPath(inputPath);
+  const dest = safeProjectPath(destination);
+  await assertNoSymlink(archive);
+  await assertNoSymlink(dest);
+  const result = await exec('unzip', ['-Z1', archive], { timeout: 30_000, maxBuffer: 4 * 1024 * 1024 });
+  result.stdout.split(/\r?\n/).filter(Boolean).forEach(cleanZipEntry);
+  await fs.mkdir(dest, { recursive: true });
+  await exec('unzip', ['-oq', archive, '-d', dest], {
+    timeout: 5 * 60_000,
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  await recordActivity('server:file.decompress', {
+    path: path.relative(PROJECT_ROOT, archive),
+    destination: path.relative(PROJECT_ROOT, dest) || '/',
+  });
+}
+
+function backupName(privateBackup) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  return (privateBackup ? 'private-' : 'project-') + stamp + '.zip';
+}
+
+async function createProjectBackup(privateBackup = false) {
+  await ensureState();
+  const name = backupName(privateBackup);
+  const target = path.join(BACKUP_DIR, name);
+  const excludes = [
+    'node_modules/*', '.git/*', '.cortex/*', '.cache/*', '.npm/*',
+    'temp/*', 'tmp/*', 'downloads/*', '*.log', '*.tmp'
+  ];
+  if (!privateBackup) {
+    excludes.push('.env', '.env.*', 'session/*', 'sessions/*', 'auth/*', 'auth-b/*', 'pair/*', 'pair_temp/*', '*.pem', '*.key', '*.p12', '*.pfx', '*.keystore');
+  }
+  const args = ['-rq', target, '.', ...excludes.flatMap((pattern) => ['-x', pattern])];
+  await exec('zip', args, {
+    cwd: PROJECT_ROOT,
+    timeout: 10 * 60_000,
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  const info = await fs.stat(target);
+  await recordActivity('server:backup.create', { name, private: privateBackup, sizeBytes: info.size });
+  return { name, sizeBytes: info.size, createdAt: info.mtime.toISOString(), private: privateBackup };
+}
+
+async function listBackups() {
+  await ensureState();
+  const entries = await fs.readdir(BACKUP_DIR, { withFileTypes: true });
+  const rows = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.zip')) continue;
+    const full = path.join(BACKUP_DIR, entry.name);
+    const info = await fs.stat(full);
+    rows.push({
+      name: entry.name,
+      sizeBytes: info.size,
+      createdAt: info.mtime.toISOString(),
+      private: entry.name.startsWith('private-'),
+    });
+  }
+  return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+function safeBackupName(name) {
+  const raw = String(name || '');
+  const clean = path.basename(raw);
+  if (clean !== raw || !clean.endsWith('.zip')) throw Object.assign(new Error('Invalid backup name'), { statusCode: 400 });
+  return clean;
+}
+
+async function sendBackup(res, name) {
+  const clean = safeBackupName(name);
+  const target = path.join(BACKUP_DIR, clean);
+  const data = await fs.readFile(target);
+  res.writeHead(200, {
+    'content-type': 'application/zip',
+    'content-length': data.length,
+    'content-disposition': 'attachment; filename="' + clean.replace(/"/g, '') + '"',
+    'cache-control': 'no-store',
+  });
+  res.end(data);
+  await recordActivity('server:backup.download', { name: clean });
+}
+
+async function startupInfo() {
+  return {
+    runtime: 'Node.js',
+    version: process.version.replace(/^v/, ''),
+    entryFile: NIGHT_ENTRY,
+    startCommand: NIGHT_START_COMMAND,
+    projectRoot: PROJECT_ROOT,
+    service: NIGHT_SERVICE,
+  };
 }
 
 async function serviceState() {
@@ -157,6 +354,7 @@ async function power(action) {
     throw Object.assign(new Error('Invalid power action'), { statusCode: 400 });
   }
   await exec('systemctl', [action, NIGHT_SERVICE], { timeout: 30_000 });
+  await recordActivity('server:power.' + action, { service: NIGHT_SERVICE });
   return hostStatus();
 }
 
@@ -200,6 +398,7 @@ async function writeText(inputPath, content) {
   const temp = `${target}.cortex-${crypto.randomUUID()}.tmp`;
   await fs.writeFile(temp, content, 'utf8');
   await fs.rename(temp, target);
+  await recordActivity('server:file.write', { path: path.relative(PROJECT_ROOT, target), bytes: Buffer.byteLength(content, 'utf8') });
 }
 
 async function writeBinary(inputPath, contentBase64) {
@@ -212,6 +411,7 @@ async function writeBinary(inputPath, contentBase64) {
   const temp = `${target}.cortex-${crypto.randomUUID()}.tmp`;
   await fs.writeFile(temp, bytes, { flag: 'wx' });
   await fs.rename(temp, target);
+  await recordActivity('server:file.uploaded', { path: path.relative(PROJECT_ROOT, target), bytes: bytes.length });
 }
 
 async function installDependencies() {
@@ -234,7 +434,9 @@ async function installDependencies() {
     timeout: 5 * 60_000,
     maxBuffer: 8 * 1024 * 1024,
   });
-  return { message: (stdout || stderr || 'Dependencies installed').trim().slice(-1200) };
+  const message = (stdout || stderr || 'Dependencies installed').trim().slice(-1200);
+  await recordActivity('server:dependencies.install', { message });
+  return { message };
 }
 
 async function assertNoSymlink(target) {
@@ -287,6 +489,48 @@ async function handler(req, res) {
       return json(res, 200, await installDependencies());
     }
 
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/files/directory') {
+      const body = await readJson(req);
+      await makeDirectory(String(body.path || ''));
+      return json(res, 200, { ok: true });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/files/rename') {
+      const body = await readJson(req);
+      await renamePath(String(body.from || ''), String(body.to || ''));
+      return json(res, 200, { ok: true });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/files/delete') {
+      const body = await readJson(req);
+      await deletePath(String(body.path || ''));
+      return json(res, 200, { ok: true });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/files/archive') {
+      const body = await readJson(req);
+      await archivePaths(body.paths, String(body.destination || ''));
+      return json(res, 200, { ok: true });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/files/extract') {
+      const body = await readJson(req);
+      await extractArchive(String(body.path || ''), String(body.destination || '/'));
+      return json(res, 200, { ok: true });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/cortex/host/startup') {
+      return json(res, 200, await startupInfo());
+    }
+    if (req.method === 'GET' && url.pathname === '/api/cortex/host/activity') {
+      return json(res, 200, { entries: await activity(url.searchParams.get('limit')) });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/cortex/host/backups') {
+      return json(res, 200, { entries: await listBackups() });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/backups') {
+      const body = await readJson(req);
+      return json(res, 200, await createProjectBackup(body.private === true));
+    }
+    if (req.method === 'GET' && url.pathname === '/api/cortex/host/backups/content') {
+      return sendBackup(res, url.searchParams.get('name') || '');
+    }
+
     return json(res, 404, { error: 'Not found' });
   } catch (error) {
     console.error(error);
@@ -295,6 +539,7 @@ async function handler(req, res) {
 }
 
 await fs.mkdir(PROJECT_ROOT, { recursive: true });
+await ensureState();
 const server = http.createServer(handler);
 server.listen(PORT, HOST, () => {
   console.log(`Cortex Agent listening on http://${HOST}:${PORT}`);
