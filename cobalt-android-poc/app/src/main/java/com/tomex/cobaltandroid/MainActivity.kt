@@ -4,7 +4,10 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.Intent
+import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.net.Uri
 import android.graphics.Typeface
 import android.os.Bundle
 import android.text.InputType
@@ -14,6 +17,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -22,6 +26,11 @@ import java.util.Optional
 import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
+    companion object {
+        private const val REQUEST_PICK_IMAGE = 4101
+        private const val MAX_IMAGE_BYTES = 20 * 1024 * 1024
+    }
+
     private val tag = "Cobalt"
     private val worker = Executors.newFixedThreadPool(3)
     private val connectionWorker = Executors.newSingleThreadExecutor()
@@ -43,6 +52,7 @@ class MainActivity : Activity() {
     private lateinit var conversationTitle: TextView
     private lateinit var messageFeed: LinearLayout
     private lateinit var messageInput: EditText
+    private lateinit var attachButton: Button
     private lateinit var sendButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -215,6 +225,13 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
+        attachButton = Button(this).apply {
+            text = "+"
+            contentDescription = "Send photo"
+            isEnabled = false
+            setOnClickListener { pickImage() }
+        }
+        composer.addView(attachButton)
         messageInput = EditText(this).apply {
             hint = "Message"
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_MULTI_LINE
@@ -550,6 +567,7 @@ class MainActivity : Activity() {
         chatListScreen.visibility = View.GONE
         conversationScreen.visibility = View.VISIBLE
         messageInput.isEnabled = true
+        attachButton.isEnabled = true
         sendButton.isEnabled = true
         markChatRead(jid)
         refreshConversation()
@@ -636,18 +654,34 @@ class MainActivity : Activity() {
                                 gravity = if (isFromMe(info)) Gravity.END else Gravity.START
                                 setPadding(dp(4), dp(3), dp(4), dp(3))
                             }
-                            val bubble = TextView(this).apply {
-                                val delivery = if (isFromMe(info)) firstValue(info, "status")?.toString()?.lowercase() else null
-                                text = if (delivery.isNullOrBlank()) renderMessage(info) else "${renderMessage(info)}\n$delivery"
-                                textSize = 15f
-                                setTextColor(Color.rgb(26, 39, 47))
-                                setPadding(dp(12), dp(8), dp(12), dp(8))
+                            val bubble = LinearLayout(this).apply {
+                                orientation = LinearLayout.VERTICAL
+                                setPadding(dp(8), dp(7), dp(8), dp(7))
                                 setBackgroundColor(if (isFromMe(info)) Color.rgb(214, 242, 223) else Color.WHITE)
                                 setOnLongClickListener {
                                     showReactionMenu(info)
                                     true
                                 }
                             }
+                            val container = firstValue(info, "message")
+                            val content = container?.let { firstValue(it, "content") }
+                            val thumbnail = content?.let { firstValue(it, "jpegThumbnail") as? ByteArray }
+                            val bitmap = thumbnail?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+                            if (bitmap != null) {
+                                bubble.addView(ImageView(this).apply {
+                                    setImageBitmap(bitmap)
+                                    scaleType = ImageView.ScaleType.FIT_CENTER
+                                    adjustViewBounds = true
+                                    maxWidth = dp(260)
+                                    maxHeight = dp(260)
+                                })
+                            }
+                            val delivery = if (isFromMe(info)) firstValue(info, "status")?.toString()?.lowercase() else null
+                            bubble.addView(TextView(this).apply {
+                                text = if (delivery.isNullOrBlank()) renderMessage(info) else renderMessage(info) + "\n" + delivery
+                                textSize = 15f
+                                setTextColor(Color.rgb(26, 39, 47))
+                            })
                             row.addView(bubble, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.88f))
                             messageFeed.addView(row, matchWrap())
                         }
@@ -771,6 +805,93 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun pickImage() {
+        if (selectedChatJid.isNullOrBlank()) {
+            setStatus("Open a chat before attaching a photo.")
+            return
+        }
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "image/*"
+        }
+        startActivityForResult(intent, REQUEST_PICK_IMAGE)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_PICK_IMAGE && resultCode == RESULT_OK) {
+            data?.data?.let(::sendImage)
+        }
+    }
+
+    private fun sendImage(uri: Uri) {
+        val client = currentClient
+        val jidValue = selectedChatJid
+        if (client == null || jidValue.isNullOrBlank()) {
+            setStatus("Open a chat before sending a photo.")
+            return
+        }
+        val caption = messageInput.text.toString().trim()
+        sendButton.isEnabled = false
+        attachButton.isEnabled = false
+        setStatus("Preparing photo…")
+        worker.execute {
+            try {
+                val bytes = contentResolver.openInputStream(uri)?.use { input ->
+                    val output = java.io.ByteArrayOutputStream()
+                    val buffer = ByteArray(8192)
+                    var total = 0
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        total += count
+                        if (total > MAX_IMAGE_BYTES) throw IllegalArgumentException("Choose an image smaller than 20 MB.")
+                        output.write(buffer, 0, count)
+                    }
+                    output.toByteArray()
+                } ?: throw IllegalArgumentException("Could not read the selected photo.")
+
+                val builderClass = Class.forName(
+                    "com.github.auties00.cobalt.wire.linked.message.media.ImageMessageBuilder",
+                    true,
+                    classLoader
+                )
+                val builder = builderClass.getConstructor().newInstance()
+                val withImage = builderClass.getMethod("imageData", ByteArray::class.java).invoke(builder, bytes) ?: builder
+                val withCaption = if (caption.isBlank()) withImage else
+                    builderClass.getMethod("caption", String::class.java).invoke(withImage, caption) ?: withImage
+                val image = builderClass.getMethod("build").invoke(withCaption)
+
+                val jidClass = Class.forName("com.github.auties00.cobalt.wire.core.jid.Jid", true, classLoader)
+                val jidProviderClass = Class.forName("com.github.auties00.cobalt.wire.core.jid.JidProvider", true, classLoader)
+                val containerClass = Class.forName("com.github.auties00.cobalt.wire.linked.message.LinkedMessageContainer", true, classLoader)
+                val containerFactory = containerClass.methods.firstOrNull {
+                    it.name == "of" && it.parameterCount == 1 && it.parameterTypes[0].isAssignableFrom(image.javaClass)
+                } ?: throw NoSuchMethodException("Cobalt image message factory is unavailable.")
+                val messageContainer = containerFactory.invoke(null, image)
+                val recipient = jidClass.getMethod("of", String::class.java).invoke(null, jidValue)
+                val clientClass = Class.forName("com.github.auties00.cobalt.client.WhatsAppClient", true, classLoader)
+                clientClass.getMethod("sendMessage", jidProviderClass, containerClass)
+                    .invoke(client, recipient, messageContainer)
+                runOnUiThread {
+                    messageInput.text.clear()
+                    sendButton.isEnabled = true
+                    attachButton.isEnabled = true
+                    refreshConversation()
+                    refreshChats()
+                    setStatus("Photo sent.")
+                }
+            } catch (error: Throwable) {
+                Log.e(tag, "Could not send photo", error)
+                runOnUiThread {
+                    sendButton.isEnabled = true
+                    attachButton.isEnabled = true
+                    setStatus("Could not send photo: " + (error.cause?.message ?: error.message ?: "unknown error"))
+                }
+            }
+        }
+    }
+
     private fun sendMessage() {
         val client = currentClient
         val jidValue = selectedChatJid
@@ -833,6 +954,10 @@ class MainActivity : Activity() {
             val container = firstValue(info, "message") ?: return "[message unavailable]"
             val content = firstValue(container, "content") ?: return "[message]"
             val textValue = firstValue(content, "text")
+            if (content.javaClass.simpleName.contains("ImageMessage")) {
+                val caption = firstValue(content, "caption")?.toString()?.takeIf { it.isNotBlank() }
+                return if (caption == null) "[Photo]" else "[Photo] $caption"
+            }
             val body = when (textValue) {
                 is Optional<*> -> textValue.orElse(null)?.toString()
                 null -> null
