@@ -1,1 +1,1 @@
-run 12 - render manga pages before exact reader resume validation
+run 35 - guard exact source resume after hub tab navigation changes

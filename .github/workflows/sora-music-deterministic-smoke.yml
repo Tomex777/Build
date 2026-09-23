@@ -2,7 +2,7 @@ name: Sora Music Deterministic Smoke
 
 on:
   push:
-    branches: [sora-android-ci]
+    branches: [sora-android-ci, sora-media-ci]
     paths:
       - 'sora-ci/music-deterministic-smoke-trigger.txt'
   workflow_dispatch:

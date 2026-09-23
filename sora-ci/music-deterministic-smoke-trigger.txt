@@ -1,1 +1,1 @@
-2026-09-17 rerun launcher-isolated deterministic Music proof after fixing the AI compile blocker.
+run current sora-media-ci head - verify Music catalog and playback runtime

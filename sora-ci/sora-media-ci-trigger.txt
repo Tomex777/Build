@@ -1,1 +1,1 @@
-run 25 - verify AniList Anime Manga live flow at rendered reader head
+run 28 - validate complete hub tabs after wiring Bible, Games, Library and source feedback

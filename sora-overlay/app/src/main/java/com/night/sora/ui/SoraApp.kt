@@ -2,6 +2,8 @@
 
 package com.night.sora.ui
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -49,6 +51,7 @@ enum class RootTab(val label: String, val icon: ImageVector) {
 
 sealed interface AppScreen {
     data object Ai : AppScreen
+    data object About : AppScreen
     data object Extensions : AppScreen
     data object Bible : AppScreen
     data object Downloads : AppScreen
@@ -178,6 +181,7 @@ fun SoraApp() {
                     onSelectedTypeChange = { mediaSelectedType = it },
                     isSaved = repository::isSaved, onToggleSaved = repository::toggleSaved,
                     onOpenExtensions = { push(AppScreen.Extensions) }, onOpenDetails = ::openMedia,
+                    onOpenBible = { push(AppScreen.Bible) },
                     onResumeProgress = { entry ->
                         resumeMediaProgress(
                             entry = entry,
@@ -192,9 +196,10 @@ fun SoraApp() {
                 )
                 RootTab.LIBRARY -> LibraryScreen(
                     modifier = Modifier.padding(padding), entries = repository.library,
-                    onOpenMedia = ::openMedia, onSearch = { tab = RootTab.MEDIA },
+                    progressEntries = repository.mediaProgress,
+                    onOpenMedia = ::openMedia,
                 )
-                RootTab.GAMES -> GamesScreen(Modifier.padding(padding))
+                RootTab.GAMES -> GamesScreen(Modifier.padding(padding), repository.library)
                 RootTab.MORE -> MoreScreen(
                     modifier = Modifier.padding(padding),
                     extensionCount = extensions.count {
@@ -207,6 +212,12 @@ fun SoraApp() {
                     onStatistics = { push(AppScreen.Statistics) },
                     onDataStorage = { push(AppScreen.DataStorage) },
                     onPlayerReader = { push(AppScreen.PlayerReaderSettings) },
+                    onAi = { push(AppScreen.Ai) },
+                    onAppearance = {
+                        runCatching { context.startActivity(Intent(Settings.ACTION_DISPLAY_SETTINGS)) }
+                            .onFailure { runCatching { context.startActivity(Intent(Settings.ACTION_SETTINGS)) } }
+                    },
+                    onAbout = { push(AppScreen.About) },
                 )
             }
         }
@@ -228,6 +239,7 @@ fun SoraApp() {
                 onSendText = { text, attachments -> repository.sendAiText(text, attachments) },
                 onBack = ::pop,
             )
+            AppScreen.About -> AboutScreen(onBack = ::pop)
             AppScreen.Extensions -> ExtensionsScreen(extensions = extensions, onBack = ::pop, onRefresh = ::refreshExtensions, onOpen = { push(AppScreen.ExtensionDetail(it)) })
             AppScreen.Bible -> BibleScreen(onBack = ::pop)
             AppScreen.Downloads -> DownloadsScreen(

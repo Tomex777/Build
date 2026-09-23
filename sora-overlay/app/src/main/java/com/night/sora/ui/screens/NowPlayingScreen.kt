@@ -1,5 +1,6 @@
 package com.night.sora.ui.screens
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -37,6 +39,8 @@ fun NowPlayingScreen(
 ) {
     val track = player.currentTrack
     var queueOpen by remember { mutableStateOf(false) }
+    var optionsOpen by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     if (track == null) {
         Column(
@@ -68,7 +72,28 @@ fun NowPlayingScreen(
                     Text(player.sourceName, color = SoraFaint, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-            IconButton(onClick = {}) { Icon(Icons.Rounded.MoreVert, "Track options", tint = SoraText) }
+            Box {
+                IconButton(onClick = { optionsOpen = true }) { Icon(Icons.Rounded.MoreVert, "Track options", tint = SoraText) }
+                DropdownMenu(expanded = optionsOpen, onDismissRequest = { optionsOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Share track") }, leadingIcon = { Icon(Icons.Rounded.Share, null) },
+                        onClick = {
+                            optionsOpen = false
+                            runCatching {
+                                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, "${track.title} · ${track.subtitle}")
+                                }, "Share track"))
+                            }
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(if (saved) "Remove from Library" else "Add to Library") },
+                        leadingIcon = { Icon(if (saved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, null) },
+                        onClick = { optionsOpen = false; onToggleSaved(track) },
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.height(18.dp))

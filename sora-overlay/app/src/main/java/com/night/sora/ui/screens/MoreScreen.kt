@@ -43,6 +43,9 @@ fun MoreScreen(
     onStatistics: () -> Unit,
     onDataStorage: () -> Unit,
     onPlayerReader: () -> Unit,
+    onAi: () -> Unit,
+    onAppearance: () -> Unit,
+    onAbout: () -> Unit,
 ) {
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
@@ -76,11 +79,40 @@ fun MoreScreen(
         item { MoreRow("Player & reader", "Default watch and read sources", Icons.Rounded.Tune, onClick = onPlayerReader) }
 
         item { MoreSectionLabel("SORA") }
-        item { MoreRow("AI & models", "Providers, voice and generated media", Icons.Rounded.AutoAwesome) }
+        item { MoreRow("AI & models", "Open Sora AI chat · no provider configured", Icons.Rounded.AutoAwesome, onClick = onAi) }
         item { MoreDivider() }
-        item { MoreRow("Appearance", "Theme, density and visual preferences", Icons.Rounded.Palette) }
+        item { MoreRow("Appearance", "Device display and text settings", Icons.Rounded.Palette, onClick = onAppearance) }
         item { MoreDivider() }
-        item { MoreRow("About & help", "Version, extension API and support information", Icons.Rounded.Info) }
+        item { MoreRow("About & help", "Version, extension support and app information", Icons.Rounded.Info, onClick = onAbout) }
+    }
+}
+
+@Composable
+fun AboutScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val appVersion = remember {
+        runCatching {
+            @Suppress("DEPRECATION")
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull().orEmpty().ifBlank { "Unknown" }
+    }
+    Scaffold(
+        containerColor = SoraBg,
+        topBar = {
+            TopAppBar(
+                title = { Text("About Sora") },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back") } },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SoraBg),
+            )
+        },
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).padding(22.dp)) {
+            Text("Sora", fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
+            Text("Version $appVersion", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+            Text("An Android media hub with core-owned library, history, progress, playback and reading state.", color = SoraMuted, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 18.dp))
+            Text("Anime and Manga discovery uses AniList. Watch and read sources are installed extensions that provide content to Sora’s player and reader.", color = SoraMuted, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 12.dp))
+            Text("Extension information and installed source status are available in More → Extensions.", color = SoraMuted, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 12.dp))
+        }
     }
 }
 

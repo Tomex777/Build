@@ -4,6 +4,7 @@ package com.night.sora.ui.screens
 
 import android.net.ConnectivityManager
 import android.net.Network
+import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import androidx.compose.foundation.background
@@ -88,6 +89,7 @@ fun MediaScreen(
     isSaved: (ExtensionMediaSelection) -> Boolean,
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
     onOpenExtensions: () -> Unit,
+    onOpenBible: () -> Unit,
     onOpenDetails: (ExtensionMediaSelection) -> Unit,
     onResumeProgress: (MediaProgressEntry) -> Unit,
     onPlayMusic: (ExtensionMediaSelection, List<ExtensionMediaSelection>) -> Unit,
@@ -140,6 +142,10 @@ fun MediaScreen(
     }
 
     fun setDestination(next: MediaDestination) {
+        if (next == MediaDestination.BIBLE) {
+            onOpenBible()
+            return
+        }
         destination = next
         query = ""
         selectedType = when (next) {
@@ -147,7 +153,7 @@ fun MediaScreen(
             MediaDestination.MOVIES_TV -> ContentType.MOVIE
             MediaDestination.MUSIC -> ContentType.MUSIC
             MediaDestination.MEMES -> ContentType.MEME
-            MediaDestination.BIBLE -> ContentType.ANIME
+            MediaDestination.BIBLE -> selectedType
         }
     }
 
@@ -187,13 +193,6 @@ fun MediaScreen(
     }
 
     fun load(search: String) {
-        if (destination == MediaDestination.BIBLE) {
-            rows = emptyList()
-            primaryLoading = false
-            primaryError = null
-            return
-        }
-
         val requestType = selectedType
         val requestDestination = destination
         val requestQuery = search.trim()
@@ -256,27 +255,42 @@ fun MediaScreen(
                 .filter { source -> ext.isCatalogProvider() && key in source.contentTypes }
                 .map { source -> ext to source }
         }
-        if (providers.isEmpty()) return
+        if (providers.isEmpty()) {
+            primaryError = "No compatible ${requestType.label.lowercase()} catalog source is installed."
+            return
+        }
 
         val method = if (requestQuery.isBlank()) ExtensionContract.Method.BROWSE else ExtensionContract.Method.SEARCH
+        primaryLoading = rows.isEmpty()
+        val failures = MutableList(providers.size) { false }
         val collected = MutableList(providers.size) { emptyList<BrowseCard>() }
         var completed = 0
         providers.forEachIndexed { index, (ext, source) ->
             val payload = JSONObject().put("sourceId", source.id).put("type", key).put("query", requestQuery).toString()
             manager.call(ext, method, payload) { result ->
+                failures[index] = result.isFailure
                 collected[index] = result.getOrNull()?.let { parseBrowse(it, source.id, ext.packageName) }.orEmpty()
                 completed++
                 if (completed == providers.size) {
                     val fresh = collected.flatten().distinctBy { it.title.trim().lowercase() }
                     if (requestQuery.isBlank() && fresh.isNotEmpty()) mediaCache.write(requestType, fresh.map { it.toCachedRecord() })
-                    if (selectedType == requestType && destination == requestDestination && query.trim() == requestQuery && fresh.isNotEmpty()) rows = fresh
+                    if (selectedType == requestType && destination == requestDestination && query.trim() == requestQuery) {
+                        primaryLoading = false
+                        if (fresh.isNotEmpty()) {
+                            rows = fresh
+                            primaryError = null
+                        } else if (failures.all { it }) {
+                            primaryError = "${requestType.label} sources could not load right now. Check the source extension and retry."
+                        } else {
+                            primaryError = null
+                        }
+                    }
                 }
             }
         }
     }
 
     LaunchedEffect(selectedType, extensions, query, destination, networkEpoch, refreshEpoch) {
-        if (destination == MediaDestination.BIBLE) return@LaunchedEffect
         if (query.isNotBlank()) delay(450)
         load(query)
     }
@@ -322,7 +336,7 @@ fun MediaScreen(
             searchOpen = searchOpen,
             query = query,
             selectedType = selectedType,
-            searchEnabled = destination != MediaDestination.BIBLE,
+            searchEnabled = true,
             onSwitch = { switchOpen = true },
             onOpenSearch = { searchOpen = true },
             onCloseSearch = { searchOpen = false; query = "" },
@@ -349,7 +363,6 @@ fun MediaScreen(
         }
 
         when {
-            destination == MediaDestination.BIBLE -> BibleHubContent(Modifier.fillMaxSize())
             query.isNotBlank() -> SearchResultsSurface(
                 rows = rows, type = selectedType, query = query, loading = primaryLoading, error = primaryError,
                 selection = ::selection, onOpen = onOpenDetails, onPlayMusic = onPlayMusic, onRetry = { refreshEpoch++ },
@@ -364,14 +377,18 @@ fun MediaScreen(
             destination == MediaDestination.MOVIES_TV -> MovieTvSurface(
                 type = selectedType, rows = rows, libraryEntries = libraryEntries, progressEntries = progressEntries,
                 selection = ::selection, isSaved = isSaved, onToggleSaved = onToggleSaved, onOpen = onOpenDetails,
-                onResume = onResumeProgress,
+                onResume = onResumeProgress, loading = primaryLoading, error = primaryError, onRetry = { refreshEpoch++ },
             )
             destination == MediaDestination.MUSIC -> MusicSurface(
                 panel = musicLocal, rows = rows, libraryEntries = libraryEntries, rankedTaste = rankedTaste,
                 selection = ::selection, onPlay = onPlayMusic, onOpen = onOpenDetails,
                 onOpenExtensions = onOpenExtensions, onSelectPanel = { musicLocal = it },
+                loading = primaryLoading, error = primaryError, onRetry = { refreshEpoch++ },
             )
-            destination == MediaDestination.MEMES -> MemeSurface(rows, ::selection, onOpenDetails)
+            destination == MediaDestination.MEMES -> MemeSurface(
+                rows = rows, selection = ::selection, isSaved = isSaved, onToggleSaved = onToggleSaved, onOpen = onOpenDetails,
+                loading = primaryLoading, error = primaryError, onRetry = { refreshEpoch++ }, onOpenExtensions = onOpenExtensions,
+            )
         }
     }
 
@@ -563,12 +580,24 @@ private fun MovieTvSurface(
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
     onOpen: (ExtensionMediaSelection) -> Unit,
     onResume: (MediaProgressEntry) -> Unit,
+    loading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
 ) {
     val selected = rows.firstOrNull()
     val saved = libraryEntries.filter { it.contentType == type }
     val continued = progressEntries.filter { it.contentType == type && it.progress < .999f }.sortedByDescending { it.updatedAt }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
-        if (selected == null) item { EmptyFeatureShell(type) }
+        if (selected == null) item {
+            when {
+                loading -> Row(Modifier.fillMaxWidth().padding(22.dp), verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    Text("Loading live ${type.label.lowercase()} from installed sources…", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(start = 11.dp))
+                }
+                error != null -> CatalogFailure(error, onRetry)
+                else -> HintLine("No ${type.label.lowercase()} titles were returned by the current source feed.")
+            }
+        }
         if (selected != null) item {
             StreamFeature(
                 card = selected,
@@ -586,10 +615,8 @@ private fun MovieTvSurface(
             MediaSectionTitle("In your library", "${if (type == ContentType.MOVIE) "Movies" else "Series"} you saved in Sora")
             if (saved.isNotEmpty()) ContinueLandscapeRail(saved, onOpen) else HintLine("Saved titles will appear here.")
         }
-        if (rows.isNotEmpty()) {
-            item { MediaSectionTitle("Featured picks", "From your active catalog source"); PortraitRail(rows, type, selection, onOpen) }
-            item { MediaSectionTitle("More to watch", "More titles from the same source"); PortraitRail(rows.drop(6).ifEmpty { rows }, type, selection, onOpen) }
-            item { MediaSectionTitle("10 picks", "A quick shortlist from your source"); TopTenRail(rows.take(10), type, selection, onOpen) }
+        if (rows.size > 1) {
+            item { MediaSectionTitle("More from this source", "Browse the remaining live catalog results"); PortraitRail(rows.drop(1), type, selection, onOpen) }
         }
     }
 }
@@ -605,12 +632,15 @@ private fun MusicSurface(
     onOpen: (ExtensionMediaSelection) -> Unit,
     onOpenExtensions: () -> Unit,
     onSelectPanel: (MusicLocal) -> Unit,
+    loading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
 ) {
     val queue = remember(rows) { rows.map { selection(it, ContentType.MUSIC) } }
     val playFromQueue: (ExtensionMediaSelection) -> Unit = { track -> onPlay(track, queue) }
     when (panel) {
-        MusicLocal.HOME -> MusicHome(rows, rankedTaste, selection, playFromQueue, onOpen, onOpenExtensions, onSelectPanel)
-        MusicLocal.DISCOVER -> MusicDiscover(rows, selection, playFromQueue)
+        MusicLocal.HOME -> MusicHome(rows, rankedTaste, selection, playFromQueue, onOpen, onOpenExtensions, onSelectPanel, loading, error, onRetry)
+        MusicLocal.DISCOVER -> MusicDiscover(rows, selection, playFromQueue, onOpenExtensions, loading, error, onRetry)
         MusicLocal.LIBRARY -> MusicLibrary(libraryEntries, playFromQueue)
     }
 }
@@ -621,6 +651,7 @@ private fun MusicHome(
     selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
     onPlay: (ExtensionMediaSelection) -> Unit, onOpen: (ExtensionMediaSelection) -> Unit,
     onOpenExtensions: () -> Unit, onSelectPanel: (MusicLocal) -> Unit,
+    loading: Boolean, error: String?, onRetry: () -> Unit,
 ) {
     var optionsOpen by remember { mutableStateOf(false) }
     val rankedRows = remember(rows, rankedTaste) {
@@ -666,9 +697,10 @@ private fun MusicHome(
                 }
             }
         }
+        if (rows.isEmpty()) item { CatalogSourceState("Music", loading, error, onRetry, onOpenExtensions) }
         item { MusicQuickGrid(rows.take(6), selection, onPlay) }
         if (rankedRows.isNotEmpty()) {
-            item { MusicSectionTitle("Made for you", if (rankedTaste.isEmpty()) "Fresh picks from your music source" else "Ordered from your listening history", null) }
+            item { MusicSectionTitle(if (rankedTaste.isEmpty()) "Fresh picks" else "Made for you", if (rankedTaste.isEmpty()) "From installed Music sources" else "Ordered from your listening history", null) }
             item { MusicSquareRail(rankedRows.take(8), selection, onPlay) }
         }
         if (recentRows.isNotEmpty()) {
@@ -683,7 +715,15 @@ private fun MusicHome(
 }
 
 @Composable
-private fun MusicDiscover(rows: List<BrowseCard>, selection: (BrowseCard, ContentType) -> ExtensionMediaSelection, onPlay: (ExtensionMediaSelection) -> Unit) {
+private fun MusicDiscover(
+    rows: List<BrowseCard>,
+    selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
+    onPlay: (ExtensionMediaSelection) -> Unit,
+    onOpenExtensions: () -> Unit,
+    loading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
+) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
         item {
             Surface(color = Color(0xFF242118), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth().padding(18.dp)) {
@@ -698,10 +738,10 @@ private fun MusicDiscover(rows: List<BrowseCard>, selection: (BrowseCard, Conten
             }
         }
         if (rows.isEmpty()) {
-            item { HintLine("Install or refresh a Music source to fill Discover.") }
+            item { CatalogSourceState("Music", loading, error, onRetry, onOpenExtensions) }
         } else {
-            item { MusicSectionTitle("Fresh picks", "Music returned by your active source", null); MusicSquareRail(rows, selection, onPlay) }
-            item { MusicSectionTitle("Top songs", "From the current source feed", null); MusicTrackList(rows.take(10), selection, onPlay, numbered = true) }
+            item { MusicSectionTitle("Fresh picks", "Music returned by installed sources", null); MusicSquareRail(rows, selection, onPlay) }
+            item { MusicSectionTitle("More tracks", "Continue through the current feed", null); MusicTrackList(rows.take(10), selection, onPlay) }
         }
     }
 }
@@ -748,21 +788,62 @@ private fun MusicLibrary(
 }
 
 @Composable
-private fun MemeSurface(rows: List<BrowseCard>, selection: (BrowseCard, ContentType) -> ExtensionMediaSelection, onOpen: (ExtensionMediaSelection) -> Unit) {
+private fun MemeSurface(
+    rows: List<BrowseCard>,
+    selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
+    isSaved: (ExtensionMediaSelection) -> Boolean,
+    onToggleSaved: (ExtensionMediaSelection) -> Unit,
+    onOpen: (ExtensionMediaSelection) -> Unit,
+    loading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
+    onOpenExtensions: () -> Unit,
+) {
+    val context = LocalContext.current
+    val preferences = remember(context) { context.getSharedPreferences("sora_meme_feed", android.content.Context.MODE_PRIVATE) }
+    var hidden by remember(preferences) {
+        mutableStateOf(preferences.getStringSet("hidden_ids", emptySet()).orEmpty().toSet())
+    }
+    val visibleRows = remember(rows, hidden) { rows.filterNot { memeKey(it) in hidden } }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)) {
-        if (rows.isEmpty()) item { HintLine("Your feed will appear here as soon as new posts are available.") }
-        items(rows, key = { it.id }) { card ->
-            Surface(color = Color(0xFFF0EDE5), contentColor = Color(0xFF141412), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp).clickable { onOpen(selection(card, ContentType.MEME)) }) {
+        if (visibleRows.isEmpty()) item {
+            if (rows.isEmpty()) CatalogSourceState("Meme", loading, error, onRetry, onOpenExtensions)
+            else HintLine("You hid the posts currently returned by this source.")
+        }
+        items(visibleRows, key = { memeKey(it) }) { card ->
+            val media = selection(card, ContentType.MEME)
+            val saved = isSaved(media)
+            Surface(color = Color(0xFFF0EDE5), contentColor = Color(0xFF141412), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp).clickable { onOpen(media) }) {
                 Column {
-                    Row(Modifier.fillMaxWidth().padding(13.dp), horizontalArrangement = Arrangement.SpaceBetween) { Text(card.subtitle.ifBlank { "meme source" }, fontSize = 11.sp, color = Color(0xFF656158)); Icon(Icons.Rounded.MoreHoriz, null) }
+                    Row(Modifier.fillMaxWidth().padding(13.dp)) { Text(card.subtitle.ifBlank { "Meme source" }, fontSize = 11.sp, color = Color(0xFF656158)) }
                     Text(card.title, fontSize = 18.sp, lineHeight = 21.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp))
                     Box(Modifier.fillMaxWidth().height(260.dp).background(Color(0xFFC5C0B3))) { if (!card.artworkUrl.isNullOrBlank()) AsyncImage(card.artworkUrl, card.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
-                    Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) { Text("♡ Save", fontSize = 12.sp); Text("↗ Share", fontSize = 12.sp); Text("Less like this", fontSize = 12.sp) }
+                    Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(if (saved) "✓ Saved" else "♡ Save", fontSize = 12.sp, modifier = Modifier.clickable { onToggleSaved(media) })
+                        Text("↗ Share", fontSize = 12.sp, modifier = Modifier.clickable {
+                            val body = buildString {
+                                append(card.title)
+                                card.subtitle.takeIf(String::isNotBlank)?.let { append(" · ").append(it) }
+                            }
+                            runCatching {
+                                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, body)
+                                }, "Share Meme"))
+                            }
+                        })
+                        Text("Less like this", fontSize = 12.sp, modifier = Modifier.clickable {
+                            hidden = hidden + memeKey(card)
+                            preferences.edit().putStringSet("hidden_ids", hidden).apply()
+                        })
+                    }
                 }
             }
         }
     }
 }
+
+private fun memeKey(card: BrowseCard) = "${card.extensionPackage}:${card.sourceId}:${card.id}"
 
 @Composable
 private fun SearchResultsSurface(
@@ -1108,6 +1189,30 @@ private fun CatalogFailure(message: String, onRetry: () -> Unit) {
         Text("Catalog unavailable", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp))
         Text(message, color = SoraMuted, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 5.dp))
         TextButton(onClick = onRetry, contentPadding = PaddingValues(vertical = 8.dp)) { Text("Retry") }
+    }
+}
+
+@Composable
+private fun CatalogSourceState(
+    label: String,
+    loading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
+    onOpenExtensions: () -> Unit,
+) {
+    if (loading) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+            Text("Loading $label from installed sources…", color = SoraMuted, fontSize = 11.sp, modifier = Modifier.padding(start = 10.dp))
+        }
+    } else {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 20.dp)) {
+            Text(error ?: "No $label items were returned by the installed source feed.", color = SoraMuted, fontSize = 11.sp, lineHeight = 16.sp)
+            Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                TextButton(onClick = onRetry) { Text("Retry") }
+                TextButton(onClick = onOpenExtensions) { Text("Manage sources") }
+            }
+        }
     }
 }
 

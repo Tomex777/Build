@@ -1,122 +1,172 @@
 package com.night.sora.ui.screens
 
+import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.night.sora.ui.theme.SoraAccent
-import com.night.sora.ui.theme.SoraMuted
-import com.night.sora.ui.theme.SoraSurface
+import coil3.compose.AsyncImage
+import com.night.sora.model.ContentType
+import com.night.sora.model.LibraryEntry
+import com.night.sora.ui.theme.*
 
-private data class GameItem(val title: String, val subtitle: String, val icon: ImageVector)
-
-private val soraGames = listOf(
-    GameItem("Who am I?", "Sora describes an anime or manga character. You guess who it is.", Icons.Rounded.HelpOutline),
-    GameItem("Who said it?", "Match quotes to characters, films or shows you know.", Icons.Rounded.FormatQuote),
-    GameItem("Bible trivia", "Questions based on books and passages you've read.", Icons.Rounded.MenuBook),
-    GameItem("Would you rather?", "AI-generated choices based on your interests and media.", Icons.Rounded.SwapHoriz),
-    GameItem("Meme caption", "Caption a random meme. Sora judges the result.", Icons.Rounded.TagFaces),
-)
+private data class GameStats(val quizzes: Int, val correct: Int, val bestStreak: Int)
 
 @Composable
-fun GamesScreen(modifier: Modifier = Modifier) {
+fun GamesScreen(modifier: Modifier = Modifier, library: List<LibraryEntry>) {
+    val context = LocalContext.current
+    val candidates = remember(library) {
+        library.filter { (it.contentType == ContentType.ANIME || it.contentType == ContentType.MANGA) && !it.artworkUrl.isNullOrBlank() }
+            .distinctBy { it.id }
+    }
+    var stats by remember { mutableStateOf(readGameStats(context)) }
+    var questions by remember { mutableStateOf<List<LibraryEntry>>(emptyList()) }
+    var round by remember { mutableIntStateOf(0) }
+    var currentStreak by remember { mutableIntStateOf(0) }
+    var correctThisGame by remember { mutableIntStateOf(0) }
+    var answered by remember { mutableStateOf<String?>(null) }
+    var finished by remember { mutableStateOf(false) }
+
+    fun startGame() {
+        questions = candidates.shuffled().take(5)
+        round = 0
+        currentStreak = 0
+        correctThisGame = 0
+        answered = null
+        finished = false
+    }
+
+    fun answer(entry: LibraryEntry) {
+        if (answered != null || questions.isEmpty()) return
+        val target = questions[round]
+        val isCorrect = entry.id == target.id
+        answered = entry.id
+        if (isCorrect) {
+            correctThisGame++
+            currentStreak++
+            stats = stats.copy(correct = stats.correct + 1, bestStreak = maxOf(stats.bestStreak, currentStreak))
+        } else currentStreak = 0
+        writeGameStats(context, stats)
+    }
+
+    fun nextRound() {
+        answered = null
+        if (round + 1 >= questions.size) {
+            finished = true
+            stats = stats.copy(quizzes = stats.quizzes + 1)
+            writeGameStats(context, stats)
+        } else round++
+    }
+
     LazyColumn(
         modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 12.dp),
+        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 22.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
-            Column(Modifier.padding(start = 18.dp, end = 18.dp, top = 22.dp, bottom = 4.dp)) {
-                Text("Games", fontSize = 23.sp, fontWeight = FontWeight.Bold)
+            Text("Games", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+            Text("A title quiz built from your saved collection.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
+        }
+        item {
+            Surface(color = Color(0xFF242118), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(19.dp)) {
+                    Text("TITLE MATCH", color = SoraAccent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
+                    Text("Which title is this?", fontSize = 25.sp, lineHeight = 28.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 12.dp))
+                    Text("Pick the real Anime or Manga from its saved cover. Questions and choices come from your Library.", color = SoraMuted, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 6.dp))
+                    if (candidates.size < 2) {
+                        Text("Save at least two Anime or Manga titles with cover art to play.", color = SoraAccent, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 14.dp))
+                    } else {
+                        Button(onClick = ::startGame, shape = RoundedCornerShape(10.dp), modifier = Modifier.padding(top = 14.dp)) {
+                            Icon(Icons.Rounded.PlayArrow, null)
+                            Spacer(Modifier.width(5.dp))
+                            Text(if (questions.isNotEmpty() && !finished) "Start over" else "Play ${minOf(5, candidates.size)} rounds")
+                        }
+                    }
+                }
+            }
+        }
+        if (questions.isNotEmpty() && !finished) {
+            val target = questions[round]
+            val choices = remember(target.id, candidates) { (candidates.filterNot { it.id == target.id }.shuffled().take(3) + target).shuffled() }
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("ROUND ${round + 1} OF ${questions.size}", color = SoraMuted, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = .8.sp)
+                    Text("$correctThisGame correct", color = SoraAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+                AsyncImage(target.artworkUrl, "Cover art quiz", Modifier.fillMaxWidth().height(260.dp).padding(top = 9.dp).background(SoraSurface, RoundedCornerShape(14.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                Text("Choose the title", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 11.dp, bottom = 2.dp))
+            }
+            items(choices, key = { it.id }) { choice ->
+                val isCorrect = choice.id == target.id
+                val isPicked = answered == choice.id
+                val background = when {
+                    answered == null -> SoraSurface
+                    isCorrect -> Color(0xFF263C2C)
+                    isPicked -> Color(0xFF492E27)
+                    else -> SoraSurface
+                }
+                Row(
+                    Modifier.fillMaxWidth().background(background, RoundedCornerShape(12.dp))
+                        .clickable(enabled = answered == null) { answer(choice) }.padding(horizontal = 13.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(choice.label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    if (answered != null && isCorrect) Icon(Icons.Rounded.Check, "Correct", tint = Color(0xFF8AD49A))
+                    else if (answered != null && isPicked) Icon(Icons.Rounded.Close, "Incorrect", tint = Color(0xFFE98573))
+                }
+            }
+            if (answered != null) item {
+                Button(onClick = ::nextRound, modifier = Modifier.fillMaxWidth()) { Text(if (round + 1 == questions.size) "Finish quiz" else "Next") }
+            }
+        }
+        if (finished) item {
+            Surface(color = SoraSurface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(18.dp)) {
+                    Text("Quiz complete", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("You got $correctThisGame of ${questions.size} right.", color = SoraMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp))
+                    TextButton(onClick = ::startGame, modifier = Modifier.padding(top = 6.dp)) { Text("Play again") }
+                }
             }
         }
         item {
-            Column(Modifier.padding(horizontal = 18.dp, vertical = 4.dp)) {
-                Text("Play something.", fontSize = 30.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1.2).sp)
-                Text("Tiny games built around what you already like.", color = SoraMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp))
+            Text("YOUR PLAY", fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp, color = SoraAccent)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GameStat(stats.quizzes.toString(), "Quizzes", Modifier.weight(1f))
+                GameStat(stats.correct.toString(), "Correct", Modifier.weight(1f))
+                GameStat(stats.bestStreak.toString(), "Best streak", Modifier.weight(1f))
             }
         }
-        item { DailyFiveCard() }
-        item {
-            Text("This week", fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 24.dp, bottom = 10.dp))
-            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                WeekStat("18", "Played", Modifier.weight(1f))
-                WeekStat("72%", "Correct", Modifier.weight(1f))
-                WeekStat("4", "Streak", Modifier.weight(1f))
-            }
-        }
-        item {
-            Column(Modifier.padding(start = 18.dp, end = 18.dp, top = 24.dp, bottom = 10.dp)) {
-                Text("Quick games", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text("Generated from your library", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
-            }
-        }
-        soraGames.forEach { game -> item { GameRow(game) } }
     }
 }
 
 @Composable
-private fun DailyFiveCard() {
-    Box(
-        Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp)
-            .heightIn(min = 205.dp)
-            .background(Color(0xFFE7DFCB), RoundedCornerShape(22.dp))
-            .padding(21.dp),
-    ) {
-        Column(Modifier.widthIn(max = 235.dp)) {
-            Text("TODAY'S GAME", color = Color(0xFF161512), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
-            Text("Daily 5", color = Color(0xFF161512), fontSize = 31.sp, lineHeight = 31.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 16.dp))
-            Text(
-                "Five questions pulled from your anime, manga, movies, music and Bible activity.",
-                color = Color(0xFF615D53), fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 8.dp),
-            )
-            Button(
-                onClick = {},
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF171612), contentColor = Color(0xFFF5F1E8)),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                modifier = Modifier.padding(top = 18.dp),
-            ) { Text("Play today's five", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
-        }
-        Text("5", color = Color(0x141C1B17), fontSize = 146.sp, lineHeight = 146.sp, fontWeight = FontWeight.Black, modifier = Modifier.align(Alignment.BottomEnd).offset(x = 13.dp, y = 42.dp))
+private fun GameStat(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(modifier.background(SoraSurface, RoundedCornerShape(13.dp)).padding(vertical = 13.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text(label.uppercase(), color = SoraMuted, fontSize = 8.sp, letterSpacing = .5.sp, modifier = Modifier.padding(top = 3.dp))
     }
 }
 
-@Composable
-private fun WeekStat(value: String, label: String, modifier: Modifier) {
-    Column(
-        modifier.background(Color(0xFF151513), RoundedCornerShape(15.dp)).padding(vertical = 14.dp, horizontal = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(value, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-        Text(label.uppercase(), color = SoraMuted, fontSize = 9.sp, letterSpacing = .7.sp, modifier = Modifier.padding(top = 3.dp))
-    }
+private fun readGameStats(context: Context): GameStats {
+    val prefs = context.getSharedPreferences("sora_games", Context.MODE_PRIVATE)
+    return GameStats(prefs.getInt("quizzes", 0), prefs.getInt("correct", 0), prefs.getInt("best_streak", 0))
 }
 
-@Composable
-private fun GameRow(game: GameItem) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 5.dp)
-            .background(SoraSurface, RoundedCornerShape(18.dp)).padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(56.dp).background(Color(0xFF272621), RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) {
-            Icon(game.icon, null, tint = SoraAccent, modifier = Modifier.size(21.dp))
-        }
-        Column(Modifier.weight(1f).padding(horizontal = 13.dp)) {
-            Text(game.title, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-            Text(game.subtitle, color = SoraMuted, fontSize = 11.sp, lineHeight = 15.sp, modifier = Modifier.padding(top = 4.dp))
-        }
-        Icon(Icons.Rounded.ChevronRight, null, tint = Color(0xFF737168))
-    }
+private fun writeGameStats(context: Context, stats: GameStats) {
+    context.getSharedPreferences("sora_games", Context.MODE_PRIVATE).edit()
+        .putInt("quizzes", stats.quizzes).putInt("correct", stats.correct).putInt("best_streak", stats.bestStreak).apply()
 }

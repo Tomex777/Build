@@ -87,7 +87,7 @@ jobs:
 
       - name: Build Sora Core
         working-directory: /tmp/sora-src/Sora_Android_v0_1
-        run: gradle --stacktrace :app:assembleDebug
+        run: gradle --stacktrace :app:assembleDebug :meme-extension:assembleDebug
 
       - name: Probe AniList availability
         id: anilist_probe
@@ -137,7 +137,9 @@ jobs:
           profile: pixel_7
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash "$GITHUB_WORKSPACE/sora-ci/anime-manga-live-smoke.sh"
+          script: |
+            bash "$GITHUB_WORKSPACE/sora-ci/anime-manga-live-smoke.sh"
+            bash "$GITHUB_WORKSPACE/sora-ci/hub-tabs-smoke.sh"
 
       - name: Upload Anime Manga screenshots
         if: always()
@@ -145,6 +147,15 @@ jobs:
         with:
           name: sora-anime-manga-live-ui
           path: /tmp/sora-anime-manga-live
+          if-no-files-found: warn
+          retention-days: 5
+
+      - name: Upload hub tabs screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sora-hub-tabs-emulator-ui
+          path: /tmp/sora-hub-tabs
           if-no-files-found: warn
           retention-days: 5
 
