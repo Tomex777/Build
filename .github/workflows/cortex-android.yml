@@ -69,10 +69,11 @@ jobs:
             gradle -p cortex-android :app:connectedDebugAndroidTest --info --stacktrace
             test_status=$?
             adb logcat -d > "$GITHUB_WORKSPACE/cortex-android-logcat.txt" || true
+            adb install -r -g cortex-android/app/build/outputs/apk/debug/app-debug.apk || true
             adb shell am force-stop com.night.cortex || true
-            adb shell am start -n com.night.cortex/.MainActivity
+            adb shell am start -n com.night.cortex/.MainActivity || true
             sleep 3
-            adb exec-out screencap -p > "$GITHUB_WORKSPACE/cortex-home-emulator.png"
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/cortex-home-emulator.png" || true
             exit "$test_status"
       - name: Upload emulator screenshot
         if: always()
