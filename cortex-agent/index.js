@@ -439,6 +439,25 @@ async function readText(inputPath) {
   return fs.readFile(target, 'utf8');
 }
 
+
+async function sendProjectFile(res, inputPath) {
+  const target = safeProjectPath(inputPath);
+  await assertNoSymlink(target);
+  const info = await fs.stat(target);
+  if (!info.isFile()) throw Object.assign(new Error('Not a file'), { statusCode: 400 });
+  if (info.size > 100 * 1024 * 1024) throw Object.assign(new Error('File exceeds 100 MB download limit'), { statusCode: 413 });
+  const data = await fs.readFile(target);
+  const name = path.basename(target).replace(/"/g, '');
+  res.writeHead(200, {
+    'content-type': 'application/octet-stream',
+    'content-length': data.length,
+    'content-disposition': 'attachment; filename="' + name + '"',
+    'cache-control': 'no-store',
+  });
+  res.end(data);
+  await recordActivity('server:file.download', { path: path.relative(PROJECT_ROOT, target), bytes: data.length });
+}
+
 async function writeText(inputPath, content) {
   if (typeof content !== 'string') throw Object.assign(new Error('content must be text'), { statusCode: 400 });
   const target = safeProjectPath(inputPath);
@@ -523,6 +542,9 @@ async function handler(req, res) {
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/files/content') {
       return json(res, 200, { content: await readText(url.searchParams.get('path') || '') });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/cortex/host/files/raw') {
+      return sendProjectFile(res, url.searchParams.get('path') || '');
     }
     if (req.method === 'POST' && url.pathname === '/api/cortex/host/files/content') {
       const body = await readJson(req);
