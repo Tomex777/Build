@@ -1,4 +1,6 @@
-import 'dotenv/config'
+try {
+  process.loadEnvFile?.()
+} catch {}
 
 import makeWASocket, {
   Browsers,
@@ -32,22 +34,14 @@ if (!/^\d{7,15}$/.test(OWNER_NUMBER)) {
 const logger = pino({ level: process.env.LOG_LEVEL || 'silent' })
 const startedAt = Date.now()
 
-const handled = new Map()
-const recentMessages = new Map()
 let reconnecting = false
+let streamEnabled = true
 
-const defaults = {
-  streamToOwner: true,
-  autoChats: []
-}
-
-let settings = {
-  ...defaults,
-  autoChats: new Set()
-}
+// Small RAM-only caches. No media bytes are stored.
+const recentMessages = new Map()
+const delivered = new Map()
 
 const ownerJid = () => `${OWNER_NUMBER}@s.whatsapp.net`
-const isGroup = jid => typeof jid === 'string' && jid.endsWith('@g.us')
 
 function normalizeJid(jid = '') {
   try {
@@ -57,9 +51,19 @@ function normalizeJid(jid = '') {
   }
 }
 
+function senderJid(msg) {
+  if (msg?.key?.fromMe) return ownerJid()
+
+  return normalizeJid(
+    msg?.key?.participantPn ||
+    msg?.key?.participant ||
+    msg?.key?.remoteJid ||
+    ''
+  )
+}
+
 function isOwnerMessage(msg) {
-  const chat = normalizeJid(msg?.key?.remoteJid || '')
-  return Boolean(msg?.key?.fromMe) || chat === ownerJid()
+  return Boolean(msg?.key?.fromMe) || senderJid(msg) === ownerJid()
 }
 
 async function loadSettings() {
@@ -67,15 +71,9 @@ async function loadSettings() {
 
   try {
     const raw = JSON.parse(await readFile(SETTINGS_FILE, 'utf8'))
-    settings = {
-      streamToOwner: raw.streamToOwner !== false,
-      autoChats: new Set(Array.isArray(raw.autoChats) ? raw.autoChats : [])
-    }
+    streamEnabled = raw.streamEnabled !== false
   } catch {
-    settings = {
-      streamToOwner: defaults.streamToOwner,
-      autoChats: new Set()
-    }
+    streamEnabled = true
     await saveSettings()
   }
 }
@@ -84,35 +82,33 @@ async function saveSettings() {
   await mkdir(DATA_DIR, { recursive: true })
   await writeFile(
     SETTINGS_FILE,
-    JSON.stringify({
-      streamToOwner: Boolean(settings.streamToOwner),
-      autoChats: [...settings.autoChats]
-    }, null, 2)
+    JSON.stringify({ streamEnabled }, null, 2)
   )
 }
 
 function pruneCaches() {
   const cutoff = Date.now() - 6 * 60 * 60 * 1000
 
-  for (const [key, at] of handled) {
-    if (at < cutoff) handled.delete(key)
-  }
-
   for (const [key, entry] of recentMessages) {
     if (entry.at < cutoff) recentMessages.delete(key)
   }
 
-  while (handled.size > 1000) {
-    handled.delete(handled.keys().next().value)
+  for (const [key, at] of delivered) {
+    if (at < cutoff) delivered.delete(key)
   }
 
   while (recentMessages.size > 200) {
     recentMessages.delete(recentMessages.keys().next().value)
   }
+
+  while (delivered.size > 1000) {
+    delivered.delete(delivered.keys().next().value)
+  }
 }
 
 function cacheMessage(msg) {
   if (!msg?.key?.id) return
+
   const chat = normalizeJid(msg.key.remoteJid || '')
   recentMessages.set(`${chat}|${msg.key.id}`, {
     at: Date.now(),
@@ -129,6 +125,7 @@ function findViewOnceMedia(message) {
   if (!message || typeof message !== 'object') return null
 
   const normalized = normalizeMessageContent(message) || message
+
   for (const key of ['imageMessage', 'videoMessage', 'audioMessage']) {
     const media = normalized[key]
     if (media?.viewOnce === true) {
@@ -157,10 +154,10 @@ function getMessageNode(message) {
   const normalized = normalizeMessageContent(message) || message
   if (!normalized || typeof normalized !== 'object') return null
 
-  const key = Object.keys(normalized)[0]
-  if (!key) return null
+  const type = Object.keys(normalized)[0]
+  if (!type) return null
 
-  const node = normalized[key]
+  const node = normalized[type]
   return node && typeof node === 'object' ? node : null
 }
 
@@ -170,6 +167,7 @@ function getContextInfo(message) {
 
 function commandText(message) {
   const normalized = normalizeMessageContent(message) || message
+
   return (
     normalized?.conversation ||
     normalized?.extendedTextMessage?.text ||
@@ -180,70 +178,54 @@ function commandText(message) {
 }
 
 function formatUptime(ms) {
-  const s = Math.floor(ms / 1000)
-  const d = Math.floor(s / 86400)
-  const h = Math.floor((s % 86400) / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = s % 60
+  const total = Math.floor(ms / 1000)
+  const d = Math.floor(total / 86400)
+  const h = Math.floor((total % 86400) / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
 
   return [
     d && `${d}d`,
     (d || h) && `${h}h`,
     (d || h || m) && `${m}m`,
-    `${sec}s`
+    `${s}s`
   ].filter(Boolean).join(' ')
 }
 
-async function sendText(sock, jid, text, quoted) {
-  return sock.sendMessage(jid, { text }, quoted ? { quoted } : undefined)
+async function ownerText(sock, text, quoted) {
+  return sock.sendMessage(
+    ownerJid(),
+    { text },
+    quoted ? { quoted } : undefined
+  )
 }
 
-async function forwardAsNormal(sock, targetJid, message, dedupeId) {
-  if (!message?.message || !targetJid) return false
-
-  const found = findViewOnceMedia(message.message)
-  if (!found) return false
-
-  const key = `${dedupeId || message.key?.id || 'unknown'}|${targetJid}`
-  pruneCaches()
-  if (handled.has(key)) return true
-
-  const previous = found.media.viewOnce
-  found.media.viewOnce = false
-
-  try {
-    await sock.sendMessage(targetJid, {
-      forward: message,
-      force: true
-    })
-    handled.set(key, Date.now())
-    return true
-  } finally {
-    found.media.viewOnce = previous
-  }
-}
-
-function quotedMessageFrom(msg) {
+function quotedViewOnce(msg) {
   const context = getContextInfo(msg?.message)
   if (!context?.quotedMessage) return null
 
-  const chat = normalizeJid(context.remoteJid || msg.key?.remoteJid || '')
-  const id = context.stanzaId || ''
-  const cached = id ? getCachedMessage(chat, id) : null
+  const sourceChat = normalizeJid(
+    context.remoteJid ||
+    msg.key?.remoteJid ||
+    ''
+  )
+  const sourceId = context.stanzaId || ''
 
+  // Prefer the complete live message if we still have it.
+  const cached = sourceId ? getCachedMessage(sourceChat, sourceId) : null
   if (cached?.message && findViewOnceMedia(cached.message)) {
     return {
       message: cached,
-      source: 'cache',
-      chat,
-      id
+      sourceChat,
+      sourceId,
+      source: 'cache'
     }
   }
 
   const quoted = {
     key: {
-      remoteJid: chat,
-      id,
+      remoteJid: sourceChat,
+      id: sourceId,
       fromMe: false,
       participant: context.participant || undefined
     },
@@ -254,42 +236,84 @@ function quotedMessageFrom(msg) {
 
   return {
     message: quoted,
-    source: 'quote',
-    chat,
-    id
+    sourceChat,
+    sourceId,
+    source: 'quoted'
   }
 }
 
-async function handleOwnerCommand(sock, msg, chat, text) {
+async function forwardToOwner(sock, message, sourceChat, sourceId) {
+  if (!message?.message) return false
+
+  const found = findViewOnceMedia(message.message)
+  if (!found) return false
+
+  const id = sourceId || message.key?.id || 'unknown'
+  const dedupeKey = `${normalizeJid(sourceChat || message.key?.remoteJid || '')}|${id}`
+
+  pruneCaches()
+  if (delivered.has(dedupeKey)) return true
+
+  const previousViewOnce = found.media.viewOnce
+  found.media.viewOnce = false
+
+  try {
+    await sock.sendMessage(ownerJid(), {
+      forward: message,
+      force: true
+    })
+
+    delivered.set(dedupeKey, Date.now())
+    return true
+  } finally {
+    found.media.viewOnce = previousViewOnce
+  }
+}
+
+async function handleOwnerCommand(sock, msg, text) {
   if (!isOwnerMessage(msg)) return false
 
   const args = text.trim().split(/\s+/)
   const command = args[0]?.toLowerCase()
+  if (!command?.startsWith('.')) return false
 
   if (command === '.ping') {
     const mem = process.memoryUsage()
-    const rss = (mem.rss / 1024 / 1024).toFixed(1)
-    const heap = (mem.heapUsed / 1024 / 1024).toFixed(1)
     const before = Date.now()
 
-    const probe = await sendText(sock, chat, '🏓 Checking…', msg)
+    await ownerText(sock, '🏓 Checking…')
     const latency = Date.now() - before
 
-    await sendText(
+    await ownerText(
       sock,
-      chat,
-      `🏓 ${latency}ms\nUptime: ${formatUptime(Date.now() - startedAt)}\nRAM RSS: ${rss} MB\nHeap: ${heap} MB\nStream to owner: ${settings.streamToOwner ? 'ON' : 'OFF'}\nGroup auto here: ${settings.autoChats.has(chat) ? 'ON' : 'OFF'}\nCompanion: Android`,
-      probe
+      `🏓 ${latency}ms\n` +
+      `Uptime: ${formatUptime(Date.now() - startedAt)}\n` +
+      `RAM RSS: ${(mem.rss / 1024 / 1024).toFixed(1)} MB\n` +
+      `Heap: ${(mem.heapUsed / 1024 / 1024).toFixed(1)} MB\n` +
+      `CC Stream: ${streamEnabled ? 'ON' : 'OFF'}\n` +
+      'Destination: owner self-chat only\n' +
+      'Companion: Android'
     )
     return true
   }
 
   if (command === '.owner') {
-    await sendText(
+    await ownerText(
       sock,
-      chat,
-      `👑 Owner: +${OWNER_NUMBER}\nThis bot accepts control commands only from its own linked account/owner.`,
-      msg
+      `👑 Owner: +${OWNER_NUMBER}\nCommands are owner-only. All recovered V1 media is sent only to this chat.`
+    )
+    return true
+  }
+
+  if (command === '.help') {
+    await ownerText(
+      sock,
+      'Commands:\n' +
+      '.cc — reply to a V1 to recover it here\n' +
+      '.cc stream on/off/status\n' +
+      '.ping — latency, uptime and RAM\n' +
+      '.owner — owner status\n\n' +
+      'Also: reply to a V1 with any normal message and the bot will try to recover it here automatically.'
     )
     return true
   }
@@ -300,154 +324,96 @@ async function handleOwnerCommand(sock, msg, chat, text) {
   const action = args[2]?.toLowerCase()
 
   if (!mode) {
-    const quoted = quotedMessageFrom(msg)
+    const quoted = quotedViewOnce(msg)
 
     if (!quoted) {
-      await sendText(sock, chat, 'Reply to a view-once message with .cc', msg)
+      await ownerText(sock, 'Reply to a view-once message with .cc')
       return true
     }
 
-    const ok = await forwardAsNormal(
+    const ok = await forwardToOwner(
       sock,
-      ownerJid(),
       quoted.message,
-      `manual:${quoted.chat}:${quoted.id || msg.key.id}`
+      quoted.sourceChat,
+      quoted.sourceId
     )
 
-    await sendText(
-      sock,
-      chat,
-      ok
-        ? '✅ View-once sent to your Message Yourself chat.'
-        : '❌ I could not recover that quoted view-once.',
-      msg
-    )
-    return true
-  }
-
-  if (mode === 'auto') {
-    if (!isGroup(chat)) {
-      await sendText(sock, chat, 'Use .cc auto on/off/status inside a group.', msg)
-      return true
+    if (!ok) {
+      await ownerText(sock, '❌ I could not recover that quoted view-once.')
     }
 
-    if (!action || action === 'status') {
-      await sendText(
-        sock,
-        chat,
-        `👁️ Group auto reveal is ${settings.autoChats.has(chat) ? 'ON' : 'OFF'} here.`,
-        msg
-      )
-      return true
-    }
-
-    if (action === 'on') {
-      settings.autoChats.add(chat)
-      await saveSettings()
-      await sendText(sock, chat, '✅ Group auto reveal is ON. New view-once media will be reposted as normal media in this group.', msg)
-      return true
-    }
-
-    if (action === 'off') {
-      settings.autoChats.delete(chat)
-      await saveSettings()
-      await sendText(sock, chat, '✅ Group auto reveal is OFF for this group.', msg)
-      return true
-    }
-
-    await sendText(sock, chat, 'Use .cc auto on, .cc auto off, or .cc auto status.', msg)
     return true
   }
 
   if (mode === 'stream') {
     if (!action || action === 'status') {
-      await sendText(sock, chat, `📥 Private stream to owner is ${settings.streamToOwner ? 'ON' : 'OFF'}.`, msg)
+      await ownerText(sock, `📥 Automatic V1 stream is ${streamEnabled ? 'ON' : 'OFF'}.`)
       return true
     }
 
     if (action === 'on') {
-      settings.streamToOwner = true
+      streamEnabled = true
       await saveSettings()
-      await sendText(sock, chat, '✅ Private view-once stream to your Message Yourself chat is ON.', msg)
+      await ownerText(sock, '✅ Automatic V1 stream is ON. Captured V1 media goes only to this chat.')
       return true
     }
 
     if (action === 'off') {
-      settings.streamToOwner = false
+      streamEnabled = false
       await saveSettings()
-      await sendText(sock, chat, '✅ Private view-once stream to your Message Yourself chat is OFF.', msg)
+      await ownerText(sock, '✅ Automatic V1 stream is OFF. Reply fallback and manual .cc still work.')
       return true
     }
 
-    await sendText(sock, chat, 'Use .cc stream on, .cc stream off, or .cc stream status.', msg)
+    await ownerText(sock, 'Use .cc stream on, .cc stream off, or .cc stream status.')
     return true
   }
 
-  await sendText(
-    sock,
-    chat,
-    'CC commands:\n.cc (reply to a V1)\n.cc auto on/off/status\n.cc stream on/off/status',
-    msg
-  )
+  await ownerText(sock, 'Use .cc or .cc stream on/off/status.')
   return true
 }
 
-async function handleOwnerReplyFallback(sock, msg, chat) {
+async function handleOwnerReplyFallback(sock, msg) {
   if (!isOwnerMessage(msg)) return false
 
-  const quoted = quotedMessageFrom(msg)
+  const quoted = quotedViewOnce(msg)
   if (!quoted) return false
 
-  const ok = await forwardAsNormal(
+  const ok = await forwardToOwner(
     sock,
-    chat,
     quoted.message,
-    `reply:${quoted.chat}:${quoted.id || msg.key.id}`
+    quoted.sourceChat,
+    quoted.sourceId
   )
 
   if (ok) {
-    console.log(`Owner reply fallback revealed view-once in ${chat} via ${quoted.source}`)
+    console.log(
+      `Owner reply fallback recovered V1 from ${quoted.sourceChat || 'unknown'} via ${quoted.source}`
+    )
   }
 
   return ok
 }
 
-async function handleLiveViewOnce(sock, msg, chat, upsertType) {
-  if (!findViewOnceMedia(msg.message)) return
+async function handleLiveViewOnce(sock, msg, upsertType) {
+  if (!streamEnabled || msg?.key?.fromMe) return false
+  if (!findViewOnceMedia(msg.message)) return false
 
-  cacheMessage(msg)
+  const sourceChat = normalizeJid(msg.key.remoteJid || '')
+  const ok = await forwardToOwner(
+    sock,
+    msg,
+    sourceChat,
+    msg.key.id
+  )
 
-  const jobs = []
-
-  if (settings.streamToOwner && chat !== ownerJid()) {
-    jobs.push(
-      forwardAsNormal(
-        sock,
-        ownerJid(),
-        msg,
-        `stream:${chat}:${msg.key.id}`
-      ).then(ok => {
-        if (ok) console.log(`Streamed view-once from ${chat} to owner (${upsertType || 'upsert'})`)
-      })
+  if (ok) {
+    console.log(
+      `Streamed V1 from ${sourceChat || 'unknown'} to owner self-chat (${upsertType || 'upsert'})`
     )
   }
 
-  if (isGroup(chat) && settings.autoChats.has(chat)) {
-    jobs.push(
-      forwardAsNormal(
-        sock,
-        chat,
-        msg,
-        `auto:${chat}:${msg.key.id}`
-      ).then(ok => {
-        if (ok) console.log(`Auto-revealed view-once in ${chat} (${upsertType || 'upsert'})`)
-      })
-    )
-  }
-
-  if (jobs.length) {
-    await Promise.allSettled(jobs)
-  }
+  return ok
 }
 
 async function start() {
@@ -478,24 +444,30 @@ async function start() {
     await delay(1500)
     const code = await sock.requestPairingCode(BOT_NUMBER)
     const pretty = code?.match(/.{1,4}/g)?.join('-') || code
+
     console.log('\nPAIRING CODE:', pretty)
     console.log('WhatsApp > Linked devices > Link with phone number instead\n')
   }
 
-  sock.ev.on('connection.update', async update => {
+  sock.ev.on('connection.update', update => {
     if (update.connection === 'open') {
       reconnecting = false
       console.log('Connected as', sock.user?.id || BOT_NUMBER)
-      console.log('Private view-once stream:', settings.streamToOwner ? 'ON' : 'OFF')
       console.log('Owner-only commands: ON')
+      console.log('V1 destination: owner self-chat only')
+      console.log('Automatic V1 stream:', streamEnabled ? 'ON' : 'OFF')
       return
     }
 
     if (update.connection !== 'close' || reconnecting) return
 
     const status = update.lastDisconnect?.error?.output?.statusCode
-    if (status === DisconnectReason.loggedOut || status === DisconnectReason.badSession) {
-      console.error('WhatsApp session is no longer valid. Delete AUTH_DIR and pair again.')
+
+    if (
+      status === DisconnectReason.loggedOut ||
+      status === DisconnectReason.badSession
+    ) {
+      console.error('WhatsApp session is invalid. Delete AUTH_DIR and pair again.')
       process.exit(1)
     }
 
@@ -504,7 +476,9 @@ async function start() {
 
     setTimeout(() => {
       reconnecting = false
-      start().catch(error => console.error('Reconnect failed:', error?.message || error))
+      start().catch(error =>
+        console.error('Reconnect failed:', error?.message || error)
+      )
     }, 2000)
   })
 
@@ -513,23 +487,26 @@ async function start() {
       try {
         if (!msg?.message || !msg?.key?.id) continue
 
-        const chat = normalizeJid(msg.key.remoteJid || '')
-        const text = commandText(msg.message)
-        const owner = isOwnerMessage(msg)
-
         cacheMessage(msg)
 
+        const owner = isOwnerMessage(msg)
+        const text = commandText(msg.message)
+
+        // Commands never respond into the source group/DM; responses go to owner self-chat.
         if (owner && text.startsWith('.')) {
-          const consumed = await handleOwnerCommand(sock, msg, chat, text)
+          const consumed = await handleOwnerCommand(sock, msg, text)
           if (consumed) continue
         }
 
+        // Owner can reply with literally anything to a quoted V1.
+        // Recovery still goes only to the owner self-chat.
         if (owner) {
-          const usedReplyFallback = await handleOwnerReplyFallback(sock, msg, chat)
-          if (usedReplyFallback) continue
+          const recovered = await handleOwnerReplyFallback(sock, msg)
+          if (recovered) continue
         }
 
-        await handleLiveViewOnce(sock, msg, chat, type)
+        // True live automatic path for incoming V1 messages.
+        await handleLiveViewOnce(sock, msg, type)
       } catch (error) {
         console.error('Message handling error:', error?.message || error)
       }
