@@ -159,6 +159,17 @@ jobs:
           if-no-files-found: warn
           retention-days: 5
 
+      - name: Upload installable Sora APKs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sora-android-apks
+          path: |
+            /tmp/sora-src/Sora_Android_v0_1/app/build/outputs/apk/debug/app-debug.apk
+            /tmp/sora-src/Sora_Android_v0_1/meme-extension/build/outputs/apk/debug/meme-extension-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Evaluate emulator live gate
         id: live_gate
         if: always()
