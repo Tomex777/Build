@@ -19,6 +19,11 @@ const ACTIVITY_FILE = path.join(STATE_DIR, 'activity.jsonl');
 const BACKUP_DIR = path.join(STATE_DIR, 'backups');
 const COMMAND_SETTINGS_FILE = path.resolve(process.env.CORTEX_COMMAND_SETTINGS_FILE || '/var/lib/mscc/data/mscc-settings.json');
 const COMMAND_SETTINGS_SCHEMA_FILE = path.resolve(process.env.CORTEX_COMMAND_SETTINGS_SCHEMA_FILE || '/var/lib/mscc/data/cortex-settings-schema.json');
+const PRIVATE_BACKUP_PATHS = String(process.env.CORTEX_PRIVATE_BACKUP_PATHS || '')
+  .split(':')
+  .map((value) => value.trim())
+  .filter(Boolean)
+  .map((value) => path.resolve(value));
 const MAX_BODY = 16 * 1024 * 1024;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const PROTECTED_NAMES = new Set(['.git', '.ssh', 'node_modules', '.gradle', '.cortex']);
@@ -228,6 +233,24 @@ async function createProjectBackup(privateBackup = false) {
     timeout: 10 * 60_000,
     maxBuffer: 16 * 1024 * 1024,
   });
+
+  if (privateBackup) {
+    for (const extraPath of PRIVATE_BACKUP_PATHS) {
+      try {
+        await fs.access(extraPath);
+      } catch {
+        continue;
+      }
+      const relativeFromRoot = path.relative('/', extraPath);
+      if (!relativeFromRoot || relativeFromRoot.startsWith('..')) continue;
+      await exec('zip', ['-rq', target, relativeFromRoot], {
+        cwd: '/',
+        timeout: 10 * 60_000,
+        maxBuffer: 16 * 1024 * 1024,
+      });
+    }
+  }
+
   const info = await fs.stat(target);
   await recordActivity('server:backup.create', { name, private: privateBackup, sizeBytes: info.size });
   return { name, sizeBytes: info.size, createdAt: info.mtime.toISOString(), private: privateBackup };
