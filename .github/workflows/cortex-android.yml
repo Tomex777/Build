@@ -1,5 +1,9 @@
 name: Cortex Android
 
+concurrency:
+  group: cortex-android-live
+  cancel-in-progress: true
+
 on:
   push:
     branches: [cortex-android-live]
