@@ -72,7 +72,7 @@ function ip(req) {
   return String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown'
 }
 
-export function startWebPanel({ port, password, sessionSecret, localControlPort = 8788, getState, pairAccount, reconnectAccount, repairAccount, setSetting, setDestination }) {
+export function startWebPanel({ port, password, sessionSecret, localControlPort = 8788, getState, pairAccount, reconnectAccount, repairAccount, setSetting, setDestination, reloadCommands }) {
   const configured = Boolean(password && password !== 'change-this-password' && password !== 'change-me')
   const secret = createHash('sha256').update(`${sessionSecret || ''}\0${password || ''}\0mscc`).digest()
   const token = createHmac('sha256', secret).update('admin').digest('base64url')
@@ -133,6 +133,9 @@ export function startWebPanel({ port, password, sessionSecret, localControlPort 
         const body = await readJson(req)
         return sendJson(res, 200, { ok: true, destination: await setDestination(body.account) })
       }
+      if (req.method === 'POST' && url.pathname === '/api/commands/reload') {
+        return sendJson(res, 200, { ok: true, commands: await reloadCommands() })
+      }
 
       const m = url.pathname.match(/^\/api\/accounts\/(A|B)\/(pair|reconnect|repair)$/)
       if (req.method === 'POST' && m) {
@@ -163,6 +166,9 @@ export function startWebPanel({ port, password, sessionSecret, localControlPort 
       if (req.method === 'POST' && url.pathname === '/destination') {
         const body = await readJson(req)
         return sendJson(res, 200, { ok: true, destination: await setDestination(body.account) })
+      }
+      if (req.method === 'POST' && url.pathname === '/commands/reload') {
+        return sendJson(res, 200, { ok: true, commands: await reloadCommands() })
       }
       const m = url.pathname.match(/^\/accounts\/(A|B)\/(pair|reconnect|repair)$/)
       if (req.method === 'POST' && m) {

@@ -58,6 +58,7 @@ jobs:
             },
             setSetting: async () => {},
             setDestination: async account => account === 'B' ? 'B' : 'A',
+            reloadCommands: async () => ['autocc', 'replycc', 'reloadcommands'],
           })
           setInterval(() => {}, 1000)
           NODE
@@ -72,6 +73,7 @@ jobs:
           curl -fsS -H 'Content-Type: application/json' -d '{"mode":"qr"}' http://127.0.0.1:18788/accounts/B/repair
           curl -fsS http://127.0.0.1:18788/state | grep -q '"pairingMode":"qr"'
           curl -fsS -H 'Content-Type: application/json' -d '{"account":"B"}' http://127.0.0.1:18788/destination | grep -q '"destination":"B"'
+          curl -fsS -X POST http://127.0.0.1:18788/commands/reload | grep -q '"reloadcommands"'
           kill "$(cat /tmp/mscc-local-control.pid)" 2>/dev/null || true
       - name: Validate drop-in command registry
         working-directory: mscc
