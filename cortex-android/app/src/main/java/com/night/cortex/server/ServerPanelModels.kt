@@ -26,6 +26,14 @@ data class BackupEntry(
     val privateBackup: Boolean,
 )
 
+data class CommandSetting(
+    val key: String,
+    val label: String,
+    val description: String,
+    val command: String,
+    val enabled: Boolean,
+)
+
 data class PendingDownload(
     val name: String,
     val bytes: ByteArray,
@@ -48,5 +56,6 @@ data class ServerPanelState(
     val startup: StartupInfo? = null,
     val activity: List<ActivityEntry> = emptyList(),
     val backups: List<BackupEntry> = emptyList(),
+    val commandSettings: List<CommandSetting> = emptyList(),
     val pendingDownload: PendingDownload? = null,
 )
