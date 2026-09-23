@@ -1,0 +1,26 @@
+name: CC Stream 256MB Check
+
+on:
+  push:
+    branches: [cc-stream-256mb]
+    paths:
+      - 'cc-stream-256mb/**'
+      - '.github/workflows/cc-stream-256mb.yml'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cc-stream-256mb
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cc-stream-256mb/package-lock.json
+      - run: npm install --package-lock-only
+      - run: npm ci
+      - run: npm run check
