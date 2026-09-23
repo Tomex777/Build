@@ -236,3 +236,16 @@ The synthetic-MP4 video interaction test still failed with 0 colored viewport pi
 The provider suite's repeated `create_options` persistence regression remains green. The screen-level question about duplicate option cards still lacks screenshot/interaction evidence; do not classify it as visually verified. Groq 429 TPM remains a provider quota failure. The #426 Image Editor UI suite passed; the earlier #424 screenshot review showed a full-width clear preview and full-resolution export, while physical-device comparison remains outstanding.
 
 Next video experiment: on virtual devices only, explicitly select VLC's `android_display` vout and retain the synthetic-MP4 pixel assertion. Physical devices continue to use their existing native playback path. Verify this through GitHub Actions before calling video fixed.
+
+
+## 2026-09-23 validation follow-up: Integrated Regression #427
+
+Integrated Regression #427 was built from `172021d37630f794d46c254074ac0ade41ea2375`. The build passed, Night ARM64 APK #108 and Groq Key Pool #386 passed, and provider instrumentation completed all 31 Android 16 tests successfully. The installed AnimePahe service discovery regression passed, confirming the Messenger request snapshot fix against the matching APKs. The separate AnimePahe extension regression #44 also passed at the preceding SHA.
+
+The #427 synthetic-MP4 playback check still failed with 0 colored viewport pixels. The active TextureView was 709×1536, attached and shown, with native surface and libVLC surfaces-created readiness true; the H.264 software decoder started, but no VLC Vout event followed. Explicit `--vout=android_display,none` did not change the result. This experiment is not a video fix.
+
+All Android 16 UI shards passed except Extensions. Its preview launched, but three attempts at the same SHA failed because the UI hierarchy never contained the expected `Extensions` heading; this suite passed on #426. The Providers UI shard's initial Android Emulator package download failed with `unknown archive`, then passed on same-SHA retry. Image Editor passed on #427; the earlier #424 screenshot review still confirms a full-width clear preview and full-resolution export, with physical-device comparison outstanding.
+
+The repeated `create_options` persistence test remains green. Identical visible option-card repetition still lacks screen-level screenshot/interaction evidence. Groq 429 TPM remains a provider quota failure.
+
+Next video experiment: virtual devices use TextureView, so switch their VLC output from Android Surface to GLES (`gles2,none`); keep the software H.264 synthetic-MP4 fixture and colored-pixel assertion. Physical devices continue on the native VLC Surface path. Run the full matching APK/video Actions checks before drawing a conclusion.
