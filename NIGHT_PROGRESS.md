@@ -260,3 +260,14 @@ The synthetic-MP4 video check remains red: 0 colored viewport pixels despite a 7
 The repeated `create_options` persistence test remains green; duplicate visible option cards still have no screenshot/interaction proof. Image Editor UI passed; prior #424 screenshot review found the preview clear/full-width and export full resolution, with physical-device comparison outstanding. Groq 429 TPM stays classified as a provider quota failure.
 
 Next diagnostic: raise VLC verbosity on virtual devices while keeping GLES vout and print the matching VLC/logcat lines from the video Actions shard. Use the resulting module-selection or output-creation error to choose a renderer change. Do not call this fixed while the pixel assertion is zero.
+
+
+## 2026-09-23 validation follow-up: Integrated Regression #429
+
+Integrated Regression #429 ran on `1e8dfe996a4f6308e497e92dbc8438c64141cce1`. APK packaging succeeded; Night ARM64 APK #110 and Groq Key Pool #388 passed. Android 16 provider instrumentation passed all 31 tests, including installed AnimePahe discovery into the enabled model inventory. Every UI shard passed, including Providers, Extensions, Integrations, Browser, and Image Editor. The provider artifact reports `OK (31 tests)`.
+
+- The repeated-options persistence regression remains green. The provider UI artifact is for provider settings, not chat option selection, so whether identical cards visibly repeat remains unverified. Keep Groq 429 TPM classified as provider quota failure.
+- I inspected the #429 Image Editor screenshots. The preview is clear and spans the available screen width. The edited JPEG exported at 4089×4087 from a 4121×4116 source; the untouched export matches the source dimensions and remains byte-for-byte preserved. Physical-device comparison remains open.
+- The video screenshot remains entirely black (0 colored viewport pixels). Logcat confirms the TextureView was 709×1536, attached, shown, and surface-ready before VLC playback. Software H.264 decoding started and selected yuv420p, but no Vout event or video-output module selection appeared. Verbosity 3 exposed no useful output-creation error.
+
+Next experiment: keep the synthetic MP4 and surface-created gate, retain VLC verbosity 3, and remove the forced `gles2,none` option on virtual devices so libVLC can negotiate its default output. This tests default output selection after both forced `android_display,none` and `gles2,none` failed. The physical SurfaceView path is unchanged.

@@ -322,10 +322,10 @@ internal fun NightAniyomiVlcPlayer(
             "--no-video-title-show",
         )
         if (virtualVideoDevice) {
-            // VLC's Android app uses GLES vout with OpenGL rendering. Pair the emulator's
-            // TextureView with that output and enable debug logging to expose module failures.
+            // Earlier emulator runs could attach a valid surface and start decoding but did not
+            // create a Vout with either forced android_display or GLES. Keep diagnostics enabled
+            // while allowing libVLC to select its default compatible video output.
             options += "--verbose=3"
-            options += "--vout=gles2,none"
         }
         LibVLC(appContext, options)
     }
