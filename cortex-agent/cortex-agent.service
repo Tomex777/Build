@@ -1,5 +1,5 @@
 [Unit]
-Description=Cortex Agent for Night
+Description=Cortex Agent
 After=network-online.target
 Wants=network-online.target
 
@@ -16,7 +16,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
-ReadWritePaths=/opt/night
+ReadWritePaths=/opt /var/lib/cortex /var/backups
 
 [Install]
 WantedBy=multi-user.target
