@@ -1,4 +1,5 @@
 name: Torri Compile Runner
+# Retrigger using the SDK 36 compatible base
 
 on:
   push:
