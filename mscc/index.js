@@ -29,7 +29,7 @@ const ACCOUNT_B_NUMBER = digits(process.env.ACCOUNT_B_NUMBER)
 const OWNER_NUMBER = digits(process.env.OWNER_NUMBER || ACCOUNT_A_NUMBER)
 const ACCOUNT_A_AUTH_DIR = process.env.ACCOUNT_A_AUTH_DIR || '/var/lib/mscc/auth'
 const ACCOUNT_B_AUTH_DIR = process.env.ACCOUNT_B_AUTH_DIR || '/var/lib/mscc/auth-b'
-const DESTINATION = String(process.env.CC_DESTINATION_ACCOUNT || 'A').toUpperCase() === 'B' ? 'B' : 'A'
+const DEFAULT_DESTINATION = String(process.env.CC_DESTINATION_ACCOUNT || 'A').toUpperCase() === 'B' ? 'B' : 'A'
 const INDEX_FILE = process.env.MESSAGE_INDEX_FILE || '/var/lib/mscc/data/mscc-message-index.json'
 const SETTINGS_FILE = process.env.SETTINGS_FILE || '/var/lib/mscc/data/mscc-settings.json'
 const CORTEX_SETTINGS_SCHEMA_FILE = process.env.CORTEX_SETTINGS_SCHEMA_FILE || join(dirname(SETTINGS_FILE), 'cortex-settings-schema.json')
@@ -44,7 +44,7 @@ const WEB_SESSION_SECRET = process.env.WEB_SESSION_SECRET || ''
 const LOCAL_CONTROL_PORT = 8788
 const logger = pino({ level: process.env.LOG_LEVEL || 'silent' })
 const startedAt = Date.now()
-const APP_VERSION = '1.8.1'
+const APP_VERSION = '1.8.2'
 
 if (!/^\d{7,15}$/.test(ACCOUNT_A_NUMBER)) {
   console.error('ACCOUNT_A_NUMBER (or BOT_NUMBER) is required.')
@@ -75,6 +75,7 @@ accounts.set('A', makeAccount('A', ACCOUNT_A_NUMBER, ACCOUNT_A_AUTH_DIR))
 accounts.set('B', makeAccount('B', ACCOUNT_B_NUMBER, ACCOUNT_B_AUTH_DIR))
 
 let settings = { autoCc: false, replyCc: true, antiDelete: true }
+let destination = DEFAULT_DESTINATION
 let waVersion = null
 let webServer = null
 let saveTimer = null
@@ -98,7 +99,7 @@ const trackable = jid => {
   return x.endsWith('@g.us') || x.endsWith('@s.whatsapp.net') || x.endsWith('@lid')
 }
 const masked = n => !n ? 'Not configured' : n.length < 8 ? n : `${n.slice(0,3)}••••${n.slice(-4)}`
-const destinationAccount = () => accounts.get(DESTINATION)
+const destinationAccount = () => accounts.get(destination)
 
 function futureproof(message) {
   let current = message
@@ -321,6 +322,7 @@ async function reloadSettings(silent = false) {
       replyCc: raw?.replyCc !== false,
       antiDelete: raw?.antiDelete !== false
     }
+    destination = raw?.destination === 'B' ? 'B' : raw?.destination === 'A' ? 'A' : DEFAULT_DESTINATION
     settingsMtimeMs = (await stat(SETTINGS_FILE)).mtimeMs
     if (!silent) console.log('MSCC settings reloaded from disk')
   } catch (e) {
@@ -330,7 +332,7 @@ async function reloadSettings(silent = false) {
 
 async function saveSettings() {
   await mkdir(dirname(SETTINGS_FILE), { recursive: true })
-  await writeFile(SETTINGS_FILE + '.tmp', JSON.stringify({ version: 1, ...settings, savedAt: Date.now() }, null, 2))
+  await writeFile(SETTINGS_FILE + '.tmp', JSON.stringify({ version: 1, ...settings, destination, savedAt: Date.now() }, null, 2))
   await rename(SETTINGS_FILE + '.tmp', SETTINGS_FILE)
   settingsMtimeMs = (await stat(SETTINGS_FILE)).mtimeMs
 }
@@ -427,7 +429,7 @@ async function describe(account, msg) {
 
 async function sendInbox(source, content) {
   const dest = destinationAccount()
-  if (!dest?.enabled) throw new Error(`Destination Account ${DESTINATION} is not configured`)
+  if (!dest?.enabled) throw new Error(`Destination Account ${destination} is not configured`)
   if (dest.connected && dest.sock) {
     try { return await dest.sock.sendMessage(selfJid(dest), content) }
     catch (e) {
@@ -469,6 +471,7 @@ async function onMessages(account, { messages, type }) {
         settings,
         reply: async value => sendInbox(account, { text: String(value) }),
         setSetting,
+        setDestination,
         statusText,
         diagnostics: commandDiagnostics,
       })
@@ -480,7 +483,7 @@ async function onMessages(account, { messages, type }) {
       if (settings.autoCc && vo) {
         const ak = cacheKey(account.id, msg)
         if (!handledAuto.has(ak)) {
-          if (account.id !== DESTINATION) await sendInbox(account, { text: `📥 Auto CC\n${await describe(account, msg)}` })
+          if (account.id !== destination) await sendInbox(account, { text: `📥 Auto CC\n${await describe(account, msg)}` })
           await sendInbox(account, { forward: unlocked(msg), force: true })
           handledAuto.set(ak, Date.now())
         }
@@ -504,7 +507,7 @@ async function onMessages(account, { messages, type }) {
       }
       if (!source) continue
 
-      if (!controller || account.id !== DESTINATION) {
+      if (!controller || account.id !== destination) {
         await sendInbox(account, { text: `↩️ V1 reply detected\n${await describe(account, msg)}` })
       }
       await sendInbox(account, { forward: unlocked(source), force: true })
@@ -682,6 +685,16 @@ async function setSetting(key, value) {
   await saveSettings()
 }
 
+async function setDestination(value) {
+  const id = String(value || '').toUpperCase()
+  if (!['A', 'B'].includes(id)) throw new Error('Destination must be A or B')
+  const account = accounts.get(id)
+  if (!account?.enabled) throw new Error(`Account ${id} is not configured`)
+  destination = id
+  await saveSettings()
+  return destination
+}
+
 function uptime(ms) {
   const s = Math.floor(ms / 1000), d = Math.floor(s/86400), h = Math.floor((s%86400)/3600), m = Math.floor((s%3600)/60)
   return [d&&`${d}d`,(d||h)&&`${h}h`,(d||h||m)&&`${m}m`,`${s%60}s`].filter(Boolean).join(' ')
@@ -690,7 +703,7 @@ function uptime(ms) {
 function commandDiagnostics() {
   return {
     version: APP_VERSION,
-    destination: DESTINATION,
+    destination,
     indexLimit: MAX_CACHE,
     retentionHours: Math.round(TTL_MS / 3600000),
     waVersion: Array.isArray(waVersion) ? waVersion.join('.') : '',
@@ -707,14 +720,14 @@ function commandDiagnostics() {
 
 async function statusText(ping = false) {
   const mem = process.memoryUsage()
-  return `${ping ? '🏓 MSCC\n' : ''}Uptime: ${uptime(Date.now()-startedAt)}\nDestination: Account ${DESTINATION}\nA: ${statusOf(accounts.get('A'))} • ${countFor('A')}/${MAX_CACHE}\nB: ${statusOf(accounts.get('B'))} • ${countFor('B')}/${MAX_CACHE}\nRAM RSS: ${(mem.rss/1048576).toFixed(1)} MB\nAuto CC: ${settings.autoCc?'ON':'OFF'}\nReply CC: ${settings.replyCc?'ON':'OFF'}\nAnti-delete: ${settings.antiDelete?'ON':'OFF'}`
+  return `${ping ? '🏓 MSCC\n' : ''}Uptime: ${uptime(Date.now()-startedAt)}\nDestination: Account ${destination}\nA: ${statusOf(accounts.get('A'))} • ${countFor('A')}/${MAX_CACHE}\nB: ${statusOf(accounts.get('B'))} • ${countFor('B')}/${MAX_CACHE}\nRAM RSS: ${(mem.rss/1048576).toFixed(1)} MB\nAuto CC: ${settings.autoCc?'ON':'OFF'}\nReply CC: ${settings.replyCc?'ON':'OFF'}\nAnti-delete: ${settings.antiDelete?'ON':'OFF'}`
 }
 
 async function webState() {
   const mem = process.memoryUsage()
   return {
     version: APP_VERSION,
-    destination: DESTINATION,
+    destination,
     settings: { ...settings },
     accounts: [...accounts.values()].map(a => ({
       id: a.id,

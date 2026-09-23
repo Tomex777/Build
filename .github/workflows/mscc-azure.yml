@@ -79,7 +79,7 @@ jobs:
           import { loadCommands, dispatchCommand } from './commands/registry.js'
 
           const registry = await loadCommands(new URL('./commands/', import.meta.url))
-          const required = ['autocc', 'replycc', 'antidelete', 'status', 'ping', 'help', 'ram', 'settings', 'uptime', 'accounts', 'index', 'disk', 'version']
+          const required = ['autocc', 'replycc', 'antidelete', 'status', 'ping', 'help', 'ram', 'settings', 'uptime', 'accounts', 'index', 'disk', 'version', 'destination']
           for (const name of required) {
             if (!registry.commands.has(name)) throw new Error('Missing command: ' + name)
           }
@@ -91,6 +91,7 @@ jobs:
             settings,
             reply: async text => replies.push(String(text)),
             setSetting: async (key, value) => { settings[key] = value },
+            setDestination: async value => { ctx.destination = value },
             statusText: async ping => ping ? 'pong-status' : 'status',
             diagnostics: () => ({
               version: '1.8.0',
@@ -113,6 +114,7 @@ jobs:
           if (!(await dispatchCommand(registry, '.index', ctx))) throw new Error('index not dispatched')
           if (!(await dispatchCommand(registry, '.version', ctx))) throw new Error('version not dispatched')
           if (!(await dispatchCommand(registry, '.disk', ctx))) throw new Error('disk not dispatched')
+          if (!(await dispatchCommand(registry, '.destination B', ctx))) throw new Error('destination not dispatched')
           if (!replies.some(x => x.includes('.autocc'))) throw new Error('help did not list commands')
           const toggleKeys = registry.canonical.map(c => c.setting?.key).filter(Boolean).sort()
           if (toggleKeys.join(',') !== 'antiDelete,autoCc,replyCc') throw new Error('Unexpected Cortex toggle schema: ' + toggleKeys.join(','))
