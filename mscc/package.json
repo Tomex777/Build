@@ -1,12 +1,12 @@
 {
   "name": "mscc",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "private": true,
   "description": "Dual-account private WhatsApp companion with Azure-ready web control panel",
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "check": "node --check index.js && node --check web-panel.js",
+    "check": "node --check index.js && node --check web-panel.js && find commands -type f -name '*.js' -print0 | xargs -0 -n1 node --check",
     "start": "node --max-old-space-size=192 index.js"
   },
   "engines": {
