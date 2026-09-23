@@ -39,51 +39,45 @@
     "detailsLinks": 0
   },
   "api": {
-    "indexCount": 5,
+    "indexCount": 30,
     "indexSample": [
       {
         "content_id": "HjQaSpwuZPFvPqo4",
-        "title": [
-          "Otome Game Sekai wa Mob ni Kibishii Sekai desu 2nd Season",
-          "Trapped in a Dating Sim: The World of Otome Games is Tough for Mobs Season 2"
-        ]
+        "title": "Trapped in a Dating Sim: The World of Otome Games is Tough for Mobs Season 2"
       },
       {
         "content_id": "9Uc3YA6AnvwoQHak",
-        "title": [
-          "Katainaka no Ossan, Kensei ni Naru II",
-          "From Old Country Bumpkin to Master Swordsman Season 2"
-        ]
+        "title": "From Old Country Bumpkin to Master Swordsman Season 2"
       },
       {
         "content_id": "x7Tl1HluzkoCi6d8",
-        "title": [
-          "Re:Zero kara Hajimeru Isekai Seikatsu 4th Season",
-          "Re:ZERO -Starting Life in Another World- Season 4"
-        ]
+        "title": "Re:ZERO -Starting Life in Another World- Season 4"
       },
       {
         "content_id": "iosm7BlucCfqFGu3",
-        "title": [
-          "Perfect Addiction",
-          "Perfect Addiction"
-        ]
+        "title": "Perfect Addiction"
       },
       {
         "content_id": "YANM8u8WTjcC5pDt",
-        "title": [
-          "Youjo Senki II (2nd Season)",
-          "Saga of Tanya the Evil II"
-        ]
+        "title": "Saga of Tanya the Evil II"
+      },
+      {
+        "content_id": "7CYFOsHrcanUpSJY",
+        "title": "Clevatess Season 2"
+      },
+      {
+        "content_id": "lT29m9oG23x3Yb47",
+        "title": "Where the Sky and the Red River Meet"
+      },
+      {
+        "content_id": "tIkXDOkMWpJMWuul",
+        "title": "I Want to Love You Till Your Dying Day"
       }
     ]
   },
   "chosen": {
     "contentId": "HjQaSpwuZPFvPqo4",
-    "title": [
-      "Otome Game Sekai wa Mob ni Kibishii Sekai desu 2nd Season",
-      "Trapped in a Dating Sim: The World of Otome Games is Tough for Mobs Season 2"
-    ],
+    "title": "Trapped in a Dating Sim: The World of Otome Games is Tough for Mobs Season 2",
     "episode": "1",
     "episodeMeta": {
       "contentTitle_episode_en": "It's Always Love That Saves the World",
@@ -104,39 +98,507 @@
   "stream": {
     "host": "cdn.animeonsen.xyz",
     "pathname": "/video/mp4-dash/HjQaSpwuZPFvPqo4/1/manifest.mpd",
-    "queryKeys": []
+    "queryKeys": [],
+    "cdnResponses": [
+      {
+        "status": 200,
+        "resourceType": "xhr",
+        "path": "/video/mp4-dash/HjQaSpwuZPFvPqo4/1/manifest.mpd",
+        "contentType": "application/dash+xml",
+        "count": 1
+      }
+    ],
+    "cdnFailures": [],
+    "manifestSummary": {
+      "status": 200,
+      "contentType": "application/dash+xml",
+      "representations": [
+        {
+          "id": "0",
+          "mimeType": "video/mp4",
+          "codecs": "avc1.4d401f",
+          "bandwidth": "674425",
+          "width": "1280",
+          "height": "720",
+          "frameRate": "24000/1001",
+          "audioSamplingRate": null
+        },
+        {
+          "id": "1",
+          "mimeType": "audio/mp4",
+          "codecs": "mp4a.40.2",
+          "bandwidth": "96000",
+          "width": null,
+          "height": null,
+          "frameRate": null,
+          "audioSamplingRate": "44100"
+        }
+      ]
+    }
   },
   "chromiumPlayback": {
     "events": [
       {
-        "name": "waiting",
-        "at": 14222,
-        "currentTime": 0,
-        "readyState": 0,
-        "networkState": 2
-      },
-      {
         "name": "loadstart",
-        "at": 14222,
+        "at": 14962.800000000003,
         "currentTime": 0,
         "readyState": 0,
         "networkState": 2
+      }
+    ],
+    "dashEvents": [
+      {
+        "event": "manifestLoaded",
+        "at": 14953.899999999994
       },
       {
-        "name": "error",
-        "at": 14287.599999999977,
-        "currentTime": 0,
-        "readyState": 0,
-        "networkState": 3
+        "event": "error",
+        "at": 14963.600000000006,
+        "error": "[object Object]"
       }
     ],
     "samples": [
       {
-        "wallSeconds": 2.0003000000000175,
+        "wallSeconds": 2.0002000000000115,
         "currentTime": 0,
         "paused": true,
         "readyState": 0,
-        "networkState": 3,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 4.000400000000009,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 6.000600000000006,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 8.000800000000003,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 10.001,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 12.001200000000011,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 14.00140000000001,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 16.0015,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 18.001800000000003,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 20.00190000000001,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 22.002100000000006,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 24.0023,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 26.0025,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 28.00270000000001,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 30.002800000000004,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 32.003,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 34.0031,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 36.003200000000014,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 38.00339999999999,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 40.003600000000006,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 42.00380000000002,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 44.003899999999994,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 46.00410000000001,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 48.004300000000015,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 50.0044,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 52.0046,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 54.00480000000002,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 56.00489999999999,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 58.005100000000006,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
+        "buffered": [],
+        "width": 0,
+        "height": 0,
+        "quality": {
+          "totalVideoFrames": 0,
+          "droppedVideoFrames": 0,
+          "corruptedVideoFrames": 0
+        }
+      },
+      {
+        "wallSeconds": 60.00530000000002,
+        "currentTime": 0,
+        "paused": true,
+        "readyState": 0,
+        "networkState": 2,
         "buffered": [],
         "width": 0,
         "height": 0,
@@ -147,15 +609,12 @@
         }
       }
     ],
-    "error": {
-      "code": 4,
-      "message": "MEDIA_ELEMENT_ERROR: Format error"
-    },
+    "error": null,
     "started": false,
     "ended": false,
-    "duration": null,
+    "duration": 1420,
     "finalCurrentTime": 0,
-    "waitingCount": 1,
+    "waitingCount": 0,
     "stalledCount": 0,
     "seekCount": 0
   },
@@ -175,6 +634,6 @@
     "secondsRequested": 90,
     "exitCode": 8,
     "signal": null,
-    "warnings": "[https @ 0x5565d757e640] No trailing CRLF found in HTTP header. Adding it.\n[https @ 0x5565d757e640] HTTP error 403 Forbidden\n[in#0 @ 0x5565d757de80] Error opening input: Server returned 403 Forbidden (access denied)\nError opening input file https://cdn.animeonsen.xyz/video/mp4-dash/HjQaSpwuZPFvPqo4/1/manifest.mpd.\nError opening input files: Server returned 403 Forbidden (access denied)\n"
+    "warnings": "[https @ 0x55c3116f4640] No trailing CRLF found in HTTP header. Adding it.\n[https @ 0x55c3116f4640] HTTP error 403 Forbidden\n[in#0 @ 0x55c3116f3e80] Error opening input: Server returned 403 Forbidden (access denied)\nError opening input file https://cdn.animeonsen.xyz/video/mp4-dash/HjQaSpwuZPFvPqo4/1/manifest.mpd.\nError opening input files: Server returned 403 Forbidden (access denied)\n"
   }
 }
