@@ -244,6 +244,9 @@ class CortexServerApi(
         )
     }
 
+    fun reloadCommands(): List<String> =
+        postJson("/api/cortex/mscc/commands/reload", JSONObject()).optJSONArray("commands").strings()
+
     fun pairAccount(id: String, mode: String) {
         postJson(
             "/api/cortex/mscc/accounts/${encodeAccount(id)}/pair",

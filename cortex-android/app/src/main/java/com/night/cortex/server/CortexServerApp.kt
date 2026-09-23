@@ -243,6 +243,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                             onConnection = { sheet = SheetMode.CONNECTION },
                             onToggle = vm::setCommandSetting,
                             onRefresh = vm::refreshSettings,
+                            onReloadCommands = vm::reloadCommands,
                         )
                         ServerTab.ACTIVITY -> ActivityPage(state, vm::refreshActivity)
                     }
@@ -828,6 +829,7 @@ private fun SettingsPage(
     onConnection: () -> Unit,
     onToggle: (String, Boolean) -> Unit,
     onRefresh: () -> Unit,
+    onReloadCommands: () -> Unit,
 ) {
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -845,6 +847,29 @@ private fun SettingsPage(
                     )
                 }
                 IconButton(onClick = onRefresh) { Icon(Icons.Rounded.Refresh, "Refresh settings") }
+            }
+        }
+        item {
+            Surface(color = CortexSurface, shape = RoundedCornerShape(4.dp)) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onReloadCommands)
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Rounded.Refresh, null)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Reload command files", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text(
+                            "Use this after adding or editing files in commands/. No bot restart needed.",
+                            color = CortexMuted,
+                            fontSize = 9.sp,
+                        )
+                    }
+                    Text("RELOAD", color = CortexAccent, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
 

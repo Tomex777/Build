@@ -58,6 +58,10 @@ jobs:
               res.setHeader('content-type','application/json')
               return res.end(JSON.stringify({ ok:true, destination }))
             }
+            if (req.method === 'POST' && url.pathname === '/commands/reload') {
+              res.setHeader('content-type','application/json')
+              return res.end(JSON.stringify({ ok:true, commands:['autocc','replycc','reloadcommands'] }))
+            }
             const m = url.pathname.match(/^\/accounts\/(A|B)\/(pair|reconnect|repair)$/)
             if (req.method === 'POST' && m) {
               const row = accounts.find(x => x.id === m[1])
@@ -184,6 +188,7 @@ jobs:
           curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q '"pairingMode":"qr"'
           curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"account":"B"}'             http://127.0.0.1:47831/api/cortex/mscc/destination | grep -q '"destination":"B"'
           curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q '"destination":"B"'
+          curl -fsS -X POST -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/commands/reload | grep -q '"reloadcommands"'
       - name: Reject unauthenticated requests
         shell: bash
         run: |

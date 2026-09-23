@@ -331,6 +331,20 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun reloadCommands() {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy {
+                val names = withContext(Dispatchers.IO) { api().reloadCommands() }
+                val rows = withContext(Dispatchers.IO) { api().commandSettings() }
+                _state.value = _state.value.copy(
+                    commandSettings = rows,
+                    message = "Reloaded ${names.size} commands.",
+                )
+            }
+        }
+    }
+
     fun refreshPairing() {
         if (!_state.value.configured) return
         viewModelScope.launch {

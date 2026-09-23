@@ -655,6 +655,11 @@ async function handler(req, res) {
       await recordActivity('mscc:destination.update', { account });
       return json(res, 200, result);
     }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/mscc/commands/reload') {
+      const result = await msccControl('POST', '/commands/reload', {});
+      await recordActivity('mscc:commands.reload', { count: Array.isArray(result.commands) ? result.commands.length : 0 });
+      return json(res, 200, result);
+    }
     const pairRoute = url.pathname.match(/^\/api\/cortex\/mscc\/accounts\/(A|B)\/(pair|reconnect|repair)$/);
     if (req.method === 'POST' && pairRoute) {
       const [, id, action] = pairRoute;
