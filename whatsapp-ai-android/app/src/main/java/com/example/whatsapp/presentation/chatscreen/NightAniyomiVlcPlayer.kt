@@ -297,6 +297,7 @@ internal fun NightAniyomiVlcPlayer(
             "--network-caching=1500",
             "--no-video-title-show",
         )
+        if (virtualVideoDevice) options += "--verbose=2"
         LibVLC(appContext, options)
     }
     val player = remember(item.localPath, softwareDecode, hardwareRetryGeneration) { MediaPlayer(libVlc) }
@@ -334,6 +335,31 @@ internal fun NightAniyomiVlcPlayer(
     val menuOpen = subtitleMenu || audioMenu || speedMenu || moreMenu
 
     DisposableEffect(player, libVlc, item.localPath, item.requestHeaders) {
+        if (virtualVideoDevice) {
+            player.setEventListener { event ->
+                val eventName = when (event.type) {
+                    MediaPlayer.Event.Opening -> "opening"
+                    MediaPlayer.Event.Buffering -> "buffering"
+                    MediaPlayer.Event.Playing -> "playing"
+                    MediaPlayer.Event.Paused -> "paused"
+                    MediaPlayer.Event.Stopped -> "stopped"
+                    MediaPlayer.Event.EndReached -> "end"
+                    MediaPlayer.Event.EncounteredError -> "error"
+                    MediaPlayer.Event.Vout -> "vout:${event.voutCount}"
+                    MediaPlayer.Event.ESAdded -> "es-added:${event.esChangedType}"
+                    MediaPlayer.Event.ESDeleted -> "es-deleted:${event.esChangedType}"
+                    else -> null
+                }
+                if (eventName != null) {
+                    Log.i(
+                        "NightVideo",
+                        "VLC event=$eventName generation=$hardwareRetryGeneration " +
+                            "software=$softwareDecode.",
+                    )
+                }
+            }
+        }
+
         val media = Media(libVlc, mediaUri).apply {
             if (softwareDecode) {
                 // Do not call setHWDecoderEnabled(false, false) here: in this

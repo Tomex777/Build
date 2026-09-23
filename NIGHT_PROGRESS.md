@@ -2,20 +2,22 @@
 
 - Active branch: `night-groq-key-pool-ci`
 - Handoff baseline: `c296e0fd9cfbffd2d70a2d94880e5237cdfe0d6a`
-- Current source head: `539a31d0ec406ee86fac899e6b98699de5a15730`
+- Current source head: `504de94cf460c84030473f74bb36b4c7374975c0`
 - Latest validation:
   - `57d3cef`: Night ARM64 APK and Groq Key Pool passed.
   - `57d3cef`: 31 provider tests ran; only AnimePahe service discovery failed. Android could see the installed service, but Night received a descriptor with zero tools and zero message types. All 13 UI suites passed, including Extensions, Integrations, Image Editor, and PDF Editor.
   - `57d3cef`: Integrated video job stopped during Android Emulator package download (`unknown archive`), before playback ran.
-  - `539a31d`: Integrated build stopped at `:app:packageDebug` with Java heap exhaustion before emulator tests. Groq hit the same packaging OOM; its workflow now uses a 4 GB heap and one worker in `4051e61`.
-  - `539a31d`: ARM64 build and Groq rerun are in progress. The extension test captures the raw service descriptor over IPC, but needs another integrated run after increasing that workflow's heap too.
+  - `539a31d`: ARM64 passed. Groq and Integrated Regression initially hit Java heap exhaustion during APK packaging; both workflows now use a 4 GB heap and one worker (`4051e61`, `504de94`).
+  - `504de94`, Integrated Regression #416: APK packaging succeeded and artifacts were produced for both Night and AnimePahe. All 13 Android 16 UI suites passed. The separate provider job failed while compiling `NightExtensionToolIntegrationInstrumentedTest.kt` because its Messenger callback referenced `connection` before Kotlin could resolve it; this pass fixes that test harness issue, so AnimePahe's live descriptor still has no valid result.
+  - `504de94`, video job: Android 36 emulator again showed a black video viewport after VLC attached its texture surface and started playback. The saved screenshot confirms the black frame; logs contain no decoder/Vout events.
+  - `504de94`, image editor suite: original 4121×4116 image was preserved byte-for-byte; edited copy exported at 4089×4087. The in-app editor screenshot did not reproduce a tiny preview or export-quality loss.
 
 ## Current device issues
 
-- AnimePahe service registration vs. prompt inventory: raw descriptor IPC result pending; `539a31d` never reached the emulator because APK packaging ran out of heap.
+- AnimePahe service registration vs. prompt inventory: `504de94` built the matching APKs, but its focused device regression did not compile due to a test-harness scoping error. That error is fixed in the current working tree; rerun is pending.
 - Repeated identical options cards: provider regression asserted one persisted card after two identical `create_options` calls; passed among the 30 successful tests at `57d3cef`.
-- Black video viewport: reproduced on Android 16 emulator; VLC surface attached and playback started, but the frame assertion saw an all-black viewport. Need a successful emulator rerun with additional VLC logcat diagnostics.
-- Image editor preview/quality: editor interaction suite passed at `57d3cef`; user-provided MP4 sample remains useful if the generated fixture cannot reproduce the user's case.
+- Black video viewport: reproduced on Android 16 emulator on #416; VLC surface attached and playback started, but the frame assertion saw an all-black viewport. Current logcat lacks VLC decoder/Vout events, so add targeted diagnostics before trying another rendering change.
+- Image editor preview/quality: editor interaction suite passes on #416; its fixture preserves original dimensions/bytes and exports a full-resolution edited copy. The reported tiny preview may depend on a different entry point or user image.
 
 ## Completed Night platform phases
 

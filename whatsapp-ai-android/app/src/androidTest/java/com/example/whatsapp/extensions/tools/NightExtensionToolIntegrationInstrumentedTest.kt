@@ -118,7 +118,8 @@ class NightExtensionToolIntegrationInstrumentedTest {
         suspendCancellableCoroutine { continuation ->
             val requestId = UUID.randomUUID().toString()
             var bound = false
-            val connection = object : ServiceConnection {
+            lateinit var connection: ServiceConnection
+            connection = object : ServiceConnection {
                 override fun onServiceConnected(name: ComponentName, binder: IBinder) {
                     val replyTo = Messenger(
                         Handler(Looper.getMainLooper()) { reply ->
