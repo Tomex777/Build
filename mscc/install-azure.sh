@@ -2,7 +2,7 @@
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
-VERSION="1.7.0"
+VERSION="1.8.1"
 BASE="/opt/mscc"
 RELEASE="$BASE/releases/$VERSION"
 STATE="/var/lib/mscc"
@@ -87,6 +87,9 @@ if [[ "$A" =~ ^[0-9]{7,15}$ ]] && [ -n "$PW" ] && [ "$PW" != "change-this-passwo
   sudo systemctl --no-pager --full status mscc.service || true
   echo
   curl -fsS http://127.0.0.1:8787/health || true
+  echo
+  echo "Local Cortex pairing bridge:"
+  curl -fsS http://127.0.0.1:8788/state || true
   echo
 else
   echo
