@@ -148,3 +148,13 @@ Reference extension order:
 
 Night calling remains user ↔ AI Live Voice only.
 Do not add human-to-human WebRTC/FCM calling or a Calls bottom tab to Night.
+
+## 2026-09-23 device follow-up
+
+Continue on `night-groq-key-pool-ci` at `fada822cd62947d0b6e5f69a667064a2a0208b57`; do not use the older `04c78f…` handoff SHA. Use GitHub Actions for Android builds and emulator/device checks, install the matching Night and AnimePahe artifacts, and leave `main` untouched.
+
+Integrated Regression #417 built both matching APKs and passed the Extensions and Integrations UI suites. The provider instrumentation installed and bound the AnimePahe service from the matching APK, but its raw descriptor IPC result was `{}`; the manager correctly marked the extension unusable at 0 tools / 0 message types. The source descriptor unit test expects 5 tools and 6 message types. Added service-side count/reply logging and provider-failure logcat artifact capture to identify whether descriptor construction or Messenger delivery loses the data on the next Actions run.
+
+The #417 video regression again displayed a black preview. VLC parsed the fixture and started the H.264 decoder, but there was no Vout event; logs showed two surface attachment attempts a millisecond apart. A local uncommitted attach-generation guard cancels stale queued surface attachments and needs Actions verification.
+
+The #417 Image Editor UI job was blocked by an Android System UI not responding dialog, and Memory UI hit an SDK archive installation error. Rerun those jobs after the next integrated workflow settles. Duplicate option-card behavior still needs on-device verification. The observed Groq `429 TPM` remains a provider quota failure, independent of these UI/extension issues. Black video preview and tiny image-editor preview/quality concerns remain open until reproduced and fixed.

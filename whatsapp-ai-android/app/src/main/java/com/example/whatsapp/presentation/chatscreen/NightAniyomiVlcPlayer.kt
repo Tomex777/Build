@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import org.videolan.libvlc.LibVLC
@@ -304,6 +305,7 @@ internal fun NightAniyomiVlcPlayer(
     var attachedPlayer by remember(item.localPath) {
         mutableStateOf<MediaPlayer?>(null)
     }
+    val attachRequest = remember(player) { AtomicInteger(0) }
 
     var controlsVisible by remember(item.localPath) { mutableStateOf(true) }
     var controlsLocked by remember(item.localPath) { mutableStateOf(false) }
@@ -385,6 +387,7 @@ internal fun NightAniyomiVlcPlayer(
         media.release()
 
         onDispose {
+            attachRequest.incrementAndGet()
             // VLC stop/release can block while MediaCodec is flushing. Doing
             // that synchronously from Compose disposal freezes the UI exactly
             // when decoder recovery swaps player generations. Detach the old
@@ -659,29 +662,32 @@ internal fun NightAniyomiVlcPlayer(
                 if (attachedPlayer !== player) {
                     // Avoid starting VLC against a zero-sized or stale surface. The
                     // same VLCVideoLayout stays mounted while the player/engine swaps.
+                    val attachRequestId = attachRequest.incrementAndGet()
                     layout.post {
-                        if (attachedPlayer !== player) {
-                            runCatching { attachedPlayer?.detachViews() }
-                            val attached = runCatching {
-                                // SurfaceView can advance playback while remaining visually
-                                // black when embedded under Compose on some Android devices.
-                                // TextureView keeps VLC's frames in the same view/composition
-                                // hierarchy as the player controls.
-                                player.attachViews(layout, null, true, true)
-                            }.isSuccess
-                            if (attached) {
-                                attachedPlayer = player
-                                Log.i(
-                                    "NightVideo",
-                                    "Attached VLC surface " +
-                                        "(generation=$hardwareRetryGeneration, software=$softwareDecode).",
-                                )
-                                layout.installNightVideoTapHandler {
-                                    controlsVisible = !controlsVisible
+                        if (attachRequest.get() == attachRequestId) {
+                            if (attachedPlayer !== player) {
+                                runCatching { attachedPlayer?.detachViews() }
+                                val attached = runCatching {
+                                    // SurfaceView can advance playback while remaining visually
+                                    // black when embedded under Compose on some Android devices.
+                                    // TextureView keeps VLC's frames in the same view/composition
+                                    // hierarchy as the player controls.
+                                    player.attachViews(layout, null, true, true)
+                                }.isSuccess
+                                if (attached) {
+                                    attachedPlayer = player
+                                    Log.i(
+                                        "NightVideo",
+                                        "Attached VLC surface " +
+                                            "(generation=$hardwareRetryGeneration, software=$softwareDecode).",
+                                    )
+                                    layout.installNightVideoTapHandler {
+                                        controlsVisible = !controlsVisible
+                                    }
+                                    runCatching { player.setVideoScale(aspect.scale) }
+                                } else {
+                                    Log.e("NightVideo", "Could not attach VLC player to video surface.")
                                 }
-                                runCatching { player.setVideoScale(aspect.scale) }
-                            } else {
-                                Log.e("NightVideo", "Could not attach VLC player to video surface.")
                             }
                         }
                     }

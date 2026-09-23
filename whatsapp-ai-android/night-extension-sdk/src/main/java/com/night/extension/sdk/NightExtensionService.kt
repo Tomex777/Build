@@ -8,6 +8,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.Message
 import android.os.Messenger
+import android.util.Log
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import org.json.JSONObject
@@ -68,7 +69,15 @@ abstract class NightExtensionService : Service() {
             runCatching {
                 when (message.what) {
                     NightExtensionProtocol.MSG_DESCRIBE ->
-                        descriptor()
+                        descriptor().also { result ->
+                            Log.i(
+                                "NightExtension",
+                                "Descriptor from ${javaClass.name}: " +
+                                    "id=${result.optString("extensionId")}, " +
+                                    "tools=${result.optJSONArray("tools")?.length() ?: 0}, " +
+                                    "messageTypes=${result.optJSONArray("messageTypes")?.length() ?: 0}.",
+                            )
+                        }
 
                     NightExtensionProtocol.MSG_EXECUTE_TOOL ->
                         executeTool(
@@ -125,11 +134,19 @@ abstract class NightExtensionService : Service() {
                     else -> JSONObject()
                 }
             }.onSuccess { result ->
+                val resultJson = result.toString()
+                if (message.what == NightExtensionProtocol.MSG_DESCRIBE) {
+                    Log.i(
+                        "NightExtension",
+                        "Sending descriptor reply (${resultJson.length} chars, " +
+                            "requestId=$requestId).",
+                    )
+                }
                 sendReply(
                     replyTo = replyTo,
                     requestId = requestId,
                     ok = true,
-                    resultJson = result.toString(),
+                    resultJson = resultJson,
                     error = null,
                 )
             }.onFailure { error ->

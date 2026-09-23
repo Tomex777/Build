@@ -11,8 +11,15 @@ fi
 adb install --no-streaming -r "$extension_apk"
 cd whatsapp-ai-android
 chmod +x gradlew
-./gradlew :app:connectedDebugAndroidTest \
+if ./gradlew :app:connectedDebugAndroidTest \
   -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8" \
   --max-workers=1 \
   -Pandroid.testInstrumentationRunnerArguments.class=com.example.whatsapp.data.night.NightAiGatewayProviderInstrumentedTest,com.example.whatsapp.data.night.NightChatHistoryInstrumentedTest,com.example.whatsapp.data.night.NightSpeechServiceInstrumentedTest,com.example.whatsapp.data.night.NightAppearanceControllerInstrumentedTest,com.example.whatsapp.data.night.NightLibraryIntegrationInstrumentedTest,com.example.whatsapp.data.night.NightProviderAdminInstrumentedTest,com.example.whatsapp.extensions.tools.NightMcpHttpBridgeInstrumentedTest,com.example.whatsapp.extensions.tools.NightExtensionToolIntegrationInstrumentedTest \
-  --stacktrace
+  --stacktrace; then
+  exit 0
+else
+  mkdir -p ../night-provider-diagnostics
+  adb logcat -d -v time -s NightExtension:I AndroidRuntime:E \
+    > ../night-provider-diagnostics/provider-failure-logcat.txt || true
+  exit 1
+fi

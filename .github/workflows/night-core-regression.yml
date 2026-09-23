@@ -254,6 +254,7 @@ jobs:
           path: |
             whatsapp-ai-android/app/build/reports/androidTests/
             whatsapp-ai-android/app/build/outputs/androidTest-results/
+            night-provider-diagnostics/
           if-no-files-found: warn
 
   android-16-ui:
