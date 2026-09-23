@@ -60,21 +60,22 @@ abstract class NightExtensionService : Service() {
         error("Unknown Night extension action: ${request.actionId}")
 
     private fun handle(message: Message) {
+        val requestCode = message.what
         val replyTo = message.replyTo ?: return
-        val data = message.data ?: Bundle.EMPTY
+        val data = Bundle(message.data ?: Bundle.EMPTY)
         val requestId =
             data.getString(NightExtensionProtocol.KEY_REQUEST_ID).orEmpty()
 
-        if (message.what == NightExtensionProtocol.MSG_DESCRIBE) {
+        if (requestCode == NightExtensionProtocol.MSG_DESCRIBE) {
             Log.i(
                 "NightExtensionIPC",
-                "Received DESCRIBE in ${javaClass.name} (what=${message.what}, requestId=$requestId).",
+                "Received DESCRIBE in ${javaClass.name} (what=${requestCode}, requestId=$requestId).",
             )
         }
 
         executor.execute {
             runCatching {
-                when (message.what) {
+                when (requestCode) {
                     NightExtensionProtocol.MSG_DESCRIBE ->
                         descriptor().also { result ->
                             Log.i(
@@ -150,7 +151,7 @@ abstract class NightExtensionService : Service() {
                 }
             }.onSuccess { result ->
                 val resultJson = result.toString()
-                if (message.what == NightExtensionProtocol.MSG_DESCRIBE) {
+                if (requestCode == NightExtensionProtocol.MSG_DESCRIBE) {
                     Log.i(
                         "NightExtensionIPC",
                         "Serialized DESCRIBE reply: chars=${resultJson.length}, requestId=$requestId.",

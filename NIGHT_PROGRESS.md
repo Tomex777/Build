@@ -213,3 +213,15 @@ The branch was verified at `73c70b22ec5e18e6b8633425152af13cc3776b69` before thi
 - Main Tabs, Browser, Integrations, Live Voice, Mihon Reader, MCP Servers, Memory, Message Blocks, Providers, Extension Config, and Image Editor UI suites passed. PDF Editor timed out waiting for its composer content description. Extensions UI failed during SDK/emulator setup with an unknown-archive error before exercising the app.
 
 No further commit was pushed while a #424 job was running. The video, runtime descriptor, and visual repeated-card questions remain open for focused follow-up.
+
+
+## 2026-09-23 validation follow-up: Integrated Regression #425
+
+[Integrated Regression #425](https://github.com/Tomex777/Build/actions/runs/35921471722) was built from `b62d3b1faa6ab8a4868a4f5cb1110771de2399a9`.
+
+- The provider job again ran 31 tests with one failure: `installedAnimePaheIsRefreshedIntoTheEnabledModelInventory`. The matching extension APK bound and replied with `ok=true`, `resultJson={}` (2 characters), and no service error.
+- The new device-side IPC log showed `Received DESCRIBE ... what=1`, followed by `Sent empty-looking descriptor reply ... ok=true, chars=2`. Neither the SDK's descriptor-built/serialized logs nor AnimePahe's descriptor log appeared. Source tracing found that `NightExtensionService.handle(Message)` queued a lambda which later reread `message.what`; Android recycles a Message after its Handler callback returns, so the worker could fall through to the default `JSONObject()` reply branch. The focused fix snapshots the request code and copies the Bundle before executor dispatch. Verify that fix on the next Actions run; do not count source tests alone as runtime proof.
+- The repeated `create_options` side-effect test passed among the 30 successful provider tests. No chat-options visual interaction evidence was captured, so identical visible option-card repetition remains open. Groq 429 TPM remains a provider quota result.
+- Video evidence again showed a black synthetic-MP4 viewport despite an attached TextureView, valid native surface, and libVLC `onSurfacesCreated` callback. VLC opened the file, selected software H.264 decoding, and reported `playing`; no Vout event followed. This remains unresolved.
+- ARM64 APK #106, Groq Key Pool #384, and the AnimePahe extension regression passed. All 13 Android 16 UI shards passed on #425, including Extensions, PDF Editor, and Image Editor.
+
