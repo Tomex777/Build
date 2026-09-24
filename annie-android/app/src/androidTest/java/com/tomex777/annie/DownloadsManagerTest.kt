@@ -23,7 +23,7 @@ class DownloadsManagerTest {
     )
 
     @Test fun groupsShowPartialAvailabilityAndFilterByMedia() {
-        compose.setContent { DownloadsManagerContent(items, onRemove = {}) }
+        compose.setContent { DownloadsManagerContent(items, onRemove = {}, onStateChange = { _, _ -> }) }
         compose.onNodeWithText("2 of 247 chapters available offline").assertExists()
         compose.onNodeWithText("1 of 12 episodes available offline").assertExists()
         compose.onNodeWithTag("download_filter_Manga").performClick()
@@ -32,8 +32,36 @@ class DownloadsManagerTest {
     }
 
     @Test fun partialUnitsAreNotReportedAsWholeTitleDownloaded() {
-        compose.setContent { DownloadsManagerContent(items, onRemove = {}) }
+        compose.setContent { DownloadsManagerContent(items, onRemove = {}, onStateChange = { _, _ -> }) }
         compose.onNodeWithText("2 of 247 chapters available offline").assertExists()
         compose.onNodeWithText("Downloaded", substring = true).assertDoesNotExist()
     }
+    @Test fun downloadingRowCanPauseAndResume() {
+        val currentItems = mutableStateListOf(
+            DownloadItem("active", "manga:4", "src-a", "Source A", DownloadMediaKind.MANGA, "Queued Manga",
+                unitTitle = "Chapter 3", unitNumber = "3", state = DownloadState.DOWNLOADING, progress = .45f, batchTotal = 20)
+        )
+        compose.setContent {
+            DownloadsManagerContent(
+                items = currentItems,
+                onRemove = { item -> currentItems.removeAll { it.id == item.id } },
+                onStateChange = { item, state ->
+                    val index = currentItems.indexOfFirst { it.id == item.id }
+                    if (index >= 0) currentItems[index] = currentItems[index].copy(state = state)
+                },
+            )
+        }
+        compose.onNodeWithText("Queued Manga").performClick()
+        compose.onNodeWithTag("download_action_pause").performClick()
+        compose.onNodeWithText("Paused").assertExists()
+        compose.onNodeWithTag("download_action_resume").assertExists()
+    }
+
+    @Test fun statusFilterShowsPartialCatalogCount() {
+        compose.setContent { DownloadsManagerContent(items, onRemove = {}, onStateChange = { _, _ -> }) }
+        compose.onNodeWithTag("download_status_Downloaded").performClick()
+        compose.onNodeWithText("2 of 247 chapters available offline").assertExists()
+        compose.onNodeWithText("Example Series").assertDoesNotExist()
+    }
+
 }
