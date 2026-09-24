@@ -1,9 +1,8 @@
-import {
-  ExtensionHost,
-  normalizeYouTubeSearchPayload,
-  youtubeEmbedUrl,
-  youtubeSearchUrl
-} from "./extension-host.mjs";
+import { ExtensionHost, youtubeEmbedUrl } from "./extension-host.mjs";
+import { descriptor as weebDescriptor, search as searchWeebCentral } from "./extensions/weeb-central.mjs";
+import { descriptor as tfpdlDescriptor, search as searchTfpdl } from "./extensions/tfpdl.mjs";
+import { descriptor as subspleaseDescriptor, search as searchSubsPlease } from "./extensions/subsplease.mjs";
+import { createYouTubeMusicExtension } from "./extensions/youtube-music.mjs";
 
 const el = selector => document.querySelector(selector);
 const chat = el("#chat");
@@ -19,7 +18,12 @@ const statusByProvider = [
   { id: "youtube", name: "YouTube", media: "Music", state: youtubeApiKey ? "Connected" : "Needs API key", note: "Official API search and embedded playback; no extracted audio or downloads." }
 ];
 
-const host = new ExtensionHost([]);
+const host = new ExtensionHost([
+  { descriptor: weebDescriptor, search: searchWeebCentral },
+  { descriptor: tfpdlDescriptor, search: searchTfpdl },
+  { descriptor: subspleaseDescriptor, search: searchSubsPlease },
+  createYouTubeMusicExtension({ getApiKey: () => youtubeApiKey })
+], { music: "youtube-music" });
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]);
@@ -100,45 +104,26 @@ function renderYouTubeResults(items) {
 }
 
 async function searchYouTube(query) {
-  if (!youtubeApiKey) {
-    appendMessage("annie", 'Add a YouTube Data API key in <button class="inline-command" data-command="/extensions">/extensions</button>, then search again.');
-    return;
-  }
-  const url = youtubeSearchUrl(query);
-  if (!url) {
-    appendMessage("annie", "Type a song, artist, or YouTube link to search.");
-    return;
-  }
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: { "X-Goog-Api-Key": youtubeApiKey },
-      signal: controller.signal,
-      cache: "no-store"
-    });
-    let payload = {};
-    try { payload = await response.json(); } catch {}
-    if (!response.ok) {
-      const reason = payload?.error?.errors?.[0]?.reason || "";
-      if (reason === "quotaExceeded") throw new Error("YouTube search quota is exhausted. Try again after the quota resets.");
-      if (response.status === 403 || response.status === 400) throw new Error("YouTube rejected the key or request. Check that the Data API is enabled and the key's referrer restrictions match this app.");
-      throw new Error("YouTube search failed with HTTP " + response.status + ".");
-    }
-    renderYouTubeResults(normalizeYouTubeSearchPayload(payload));
-  } catch (error) {
-    const message = controller.signal.aborted
-      ? "YouTube search timed out. Check the connection and try again."
-      : error instanceof TypeError
-        ? "Could not reach YouTube. Check the connection and try again."
-        : error?.message || "YouTube search failed. Try again.";
-    appendMessage("annie", escapeHtml(message));
-  } finally {
-    clearTimeout(timeout);
-  }
-}
+  const result = await host.search("music", query, { defaultExtensionId: "youtube-music", timeoutMs: 15000 });
+  if (result.status === "matched") return renderYouTubeResults(result.items);
 
+  const lastAttempt = result.attempts[result.attempts.length - 1];
+  const code = lastAttempt?.code;
+  const messages = {
+    YOUTUBE_KEY_REQUIRED: 'Add a YouTube Data API key in <button class="inline-command" data-command="/extensions">/extensions</button>, then search again.',
+    YOUTUBE_QUOTA: "YouTube search quota is exhausted. Try again after its quota resets.",
+    YOUTUBE_KEY_REJECTED: "YouTube rejected the API key. Check that the Data API is enabled and the key is restricted to this app’s domain.",
+    NETWORK_UNAVAILABLE: "Could not reach YouTube. Check the connection and try again.",
+    INVALID_RESPONSE: "YouTube returned a response Annie could not read.",
+    QUERY_INVALID: "Keep the search under 500 characters.",
+    YOUTUBE_HTTP_ERROR: "YouTube search failed. Try again."
+  };
+  if (result.status === "empty") return appendMessage("annie", "YouTube returned no embeddable videos for that search.");
+  if (result.status === "unavailable") return appendMessage("annie", "The YouTube music extension is unavailable.");
+  if (lastAttempt?.status === "timeout") return appendMessage("annie", "YouTube search timed out. Check the connection and try again.");
+  if (lastAttempt?.status === "cancelled") return appendMessage("annie", "Search cancelled.");
+  appendMessage("annie", messages[code] || "YouTube search failed. Try again.");
+}
 function normalizedCommand(value) {
   return String(value || "").toLocaleLowerCase().replace(/\s+/g, " ").trim();
 }
