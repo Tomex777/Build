@@ -270,7 +270,7 @@ private fun AnnieChat() {
                 modifier = Modifier.weight(1f).fillMaxWidth().testTag("conversation"),
                 state = listState,
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 18.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp)
+                verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.Bottom)
             ) {
                 items(messages, key = { it.id }) { entry ->
                     ChatBubble(
@@ -719,7 +719,7 @@ internal fun MangaResultMessage(item: CatalogItem, onAction: (String) -> Unit) {
             .background(Bubble).padding(12.dp).testTag("manga_details_card"),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(Modifier.fillMaxWidth().height(208.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF1D3550))) {
+        Box(Modifier.fillMaxWidth().height(208.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF1D3550)).testTag("manga_cover_artwork")) {
             if (item.image.isNotBlank()) AsyncImage(
                 model = item.image, contentDescription = "${item.title} cover artwork",
                 contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()

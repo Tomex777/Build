@@ -46,6 +46,7 @@ class ReportedFlowsTest {
         val actions = mutableListOf<String>()
         compose.setContent { MangaResultMessage(manga) { actions += it } }
         compose.onNodeWithTag("manga_details_card").assertIsDisplayed()
+        compose.onNodeWithTag("manga_cover_artwork").assertIsDisplayed()
         compose.onNodeWithText("Moonlit Archive").assertIsDisplayed()
         compose.onNodeWithText("Yuna Mori · 2024 · 28 chapters · Ongoing").assertIsDisplayed()
         compose.onNodeWithText("Fantasy").assertIsDisplayed()

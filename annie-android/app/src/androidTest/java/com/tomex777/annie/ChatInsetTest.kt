@@ -25,8 +25,10 @@ class ChatInsetTest {
         val conversation = compose.onNodeWithTag("conversation").fetchSemanticsNode().boundsInRoot
         val composer = compose.onNodeWithTag("composer").fetchSemanticsNode().boundsInRoot
         val input = compose.onNodeWithTag("composer_input").fetchSemanticsNode().boundsInRoot
+        val latestMessage = compose.onNodeWithText("Hi, I’m Annie. What are you in the mood for? Type a command to start. Providers stay separate, and I’ll show clearly when one is unavailable.").fetchSemanticsNode().boundsInRoot
         assertTrue("Conversation must start below the status-bar-safe top bar", conversation.top >= top.bottom)
         assertTrue("Conversation must end at the composer, without a blank gap", kotlin.math.abs(composer.top - conversation.bottom) <= 2f)
+        assertTrue("Latest message should stay close to the composer instead of leaving an empty gap", composer.top - latestMessage.bottom < 60f)
         assertTrue("Composer must remain above the keyboard while focused", input.bottom <= composer.bottom)
     }
 }
