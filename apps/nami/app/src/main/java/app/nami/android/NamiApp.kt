@@ -84,7 +84,7 @@ import app.nami.runtime.GlobalSearchSection
 import app.nami.runtime.GlobalSearchState
 import app.nami.runtime.NamiSourceRegistry
 import app.nami.source.NamiAnimeSource
-import coil3.compose.AsyncImage
+import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
