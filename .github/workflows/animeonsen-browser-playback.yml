@@ -81,8 +81,25 @@ jobs:
             if (msg.type() === 'error') consoleErrors.push(msg.text());
           });
 
-          const nav = await page.goto(BASE + '/', { waitUntil: 'domcontentloaded', timeout: 60000 });
-          await page.waitForTimeout(12000);
+          let nav = null;
+          const navigationAttempts = [];
+          for (let attempt=1; attempt<=4; attempt++) {
+            nav = await page.goto(BASE + '/?night_probe=' + attempt + '_' + Date.now(), {
+              waitUntil: 'domcontentloaded',
+              timeout: 60000
+            });
+            await page.waitForTimeout(10000);
+            navigationAttempts.push({
+              attempt,
+              status:nav?.status() ?? null,
+              title:await page.title(),
+              gotApiHeader:Boolean(apiHeader),
+              gotIndex:Boolean(indexResponse?.content?.length),
+              consoleErrors:consoleErrors.slice(-8)
+            });
+            if (apiHeader && indexResponse?.content?.length) break;
+            await page.waitForTimeout(2500);
+          }
 
           out.page = {
             status: nav?.status() ?? null,
@@ -90,11 +107,12 @@ jobs:
             url: page.url(),
             pageErrors: pageErrors.slice(-20),
             consoleErrors: consoleErrors.slice(-30),
-            detailsLinks: await page.locator('a[href*="/details/"]').count()
+            detailsLinks: await page.locator('a[href*="/details/"]').count(),
+            navigationAttempts
           };
 
           if (!apiHeader || !indexResponse?.content?.length) {
-            out.api.failure = 'Browser did not obtain AnimeOnsen content API session';
+            out.api.failure = 'Browser did not obtain AnimeOnsen content API session after retries';
             fs.writeFileSync('diagnostics/animeonsen-browser-playback.json', JSON.stringify(out,null,2));
             await browser.close();
             process.exit(2);
