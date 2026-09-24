@@ -61,6 +61,7 @@ test("timeouts fall through to the next extension", async () => {
   const result = await host.search("anime", "query", { timeoutMs: 5 });
   assert.equal(result.status, "matched");
   assert.equal(result.attempts[0].status, "timeout");
+  assert.equal(result.attempts[0].code, "EXTENSION_TIMEOUT");
 });
 
 test("a disabled or incompatible extension is not selected", async () => {
@@ -211,4 +212,20 @@ test("equal-priority providers preserve registration order", async () => {
   const result = await host.search("anime", "query");
   assert.deepEqual(order, ["first", "second"]);
   assert.equal(result.items[0].extensionId, "registered-second");
+});
+
+
+test("provider error codes survive fallback without exposing provider messages", async () => {
+  const coded = Object.assign(new Error("secret provider detail"), { code: "PROVIDER_AUTH_REQUIRED" });
+  const host = new ExtensionHost([
+    adapter("coded", async () => { throw coded; }, { priority: 1 }),
+    adapter("empty", async () => [], { priority: 2 })
+  ]);
+  const result = await host.search("anime", "query");
+  assert.equal(result.status, "failed");
+  assert.deepEqual(result.attempts, [
+    { extensionId: "coded", status: "error", code: "PROVIDER_AUTH_REQUIRED" },
+    { extensionId: "empty", status: "empty" }
+  ]);
+  assert.equal("message" in result.attempts[0], false);
 });

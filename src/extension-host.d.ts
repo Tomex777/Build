@@ -57,6 +57,8 @@ export type ExtensionSearchStatus =
 export interface ExtensionSearchAttempt {
   readonly extensionId: string;
   readonly status: ExtensionAttemptStatus;
+  /** Stable machine-readable reason supplied by the host or provider; user-facing messages stay in the app. */
+  readonly code?: string;
 }
 
 export interface AttributedMediaResult extends ExtensionSearchResult {

@@ -49,7 +49,7 @@ function raceWithTimeout(operation, milliseconds, signal) {
       finish(reject, reason);
     };
     const timer = setTimeout(() => {
-      const error = new Error("Extension search timed out");
+      const error = Object.assign(new Error("Extension search timed out"), { code: "EXTENSION_TIMEOUT" });
       controller.abort(error);
       finish(reject, error);
     }, milliseconds);
@@ -133,7 +133,7 @@ export class ExtensionHost {
         const cancelled = options.signal?.aborted;
         attempts.push({
           extensionId: extension.descriptor.id,
-          status: cancelled ? "cancelled" : error?.message === "Extension search timed out" ? "timeout" : "error",
+          status: cancelled ? "cancelled" : error?.code === "EXTENSION_TIMEOUT" ? "timeout" : "error",
           ...(typeof error?.code === "string" ? { code: error.code } : {})
         });
         if (cancelled) return { status: "cancelled", items: [], attempts };
