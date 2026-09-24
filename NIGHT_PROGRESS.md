@@ -297,3 +297,6 @@ Integrated Regression #431 ran on `dc0d1da967695747d401d20f73cfc76125c4e006`. Th
 - Night's subsequent VLC screenshot remained black (478 colored pixels, ratio 0.0015). VLC's attached/shown 709×1536 TextureView was ready and software H.264/AAC decoding started, but no Vout event followed. The comparison confirms the fixture and standard Android SurfaceView playback path work; since Night's virtual path uses TextureView, it does not yet distinguish a libVLC output failure from a TextureView-specific interaction.
 
 Next diagnostic: run Android `MediaPlayer` directly into a TextureView with this same fixture, then compare that pixel result with the Night VLC path. Use the result to isolate the remaining output path before choosing a production player change. Video is not fixed; physical-device rendering remains unverified.
+
+
+The #432 follow-up adds a second platform baseline: Android `MediaPlayer` renders directly into a `TextureView` with the same synthetic MP4, before the existing VideoView/SurfaceView baseline and Night VLC check. This separates platform decoder behavior from the SurfaceView-versus-TextureView difference. GitHub Actions result is pending.

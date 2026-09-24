@@ -428,6 +428,22 @@ if colored < 1200 or ratio < 0.003:
 PY
 }
 
+echo "STEP: compare Android MediaPlayer on the same TextureView type"
+adb shell am force-stop "$PACKAGE"
+adb shell am start -W -n "$PACKAGE/.MediaViewerPreviewActivity" \
+  --es night.preview.videoPath "$APP_VIDEO" \
+  --es night.preview.renderer platform-texture
+sleep 5
+assert_alive
+adb exec-out screencap -p > "$ARTIFACTS/platform-texture-renderer.png" || true
+if assert_video_frames_rendered "$ARTIFACTS/platform-texture-renderer.png"; then
+  echo "platformTextureRendererColoredPixels=true" > "$ARTIFACTS/platform-texture-renderer-result.txt"
+else
+  echo "platformTextureRendererColoredPixels=false" > "$ARTIFACTS/platform-texture-renderer-result.txt"
+fi
+capture_media_logcat "platform-texture-renderer"
+assert_no_crash
+
 echo "STEP: compare Android platform VideoView with the same fixture"
 adb shell am force-stop "$PACKAGE"
 adb shell am start -W -n "$PACKAGE/.MediaViewerPreviewActivity" \
