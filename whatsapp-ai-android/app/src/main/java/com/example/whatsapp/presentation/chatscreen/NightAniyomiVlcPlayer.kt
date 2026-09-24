@@ -753,8 +753,6 @@ internal fun NightAniyomiVlcPlayer(
                 factory = { viewContext ->
                     VideoView(viewContext).apply {
                         platformVideoView = this
-                        isClickable = true
-                        setOnClickListener { controlsVisible = !controlsVisible }
                         setOnPreparedListener { mediaPlayer ->
                             platformMediaPlayer = mediaPlayer
                             mediaPlayer.isLooping = true
@@ -775,7 +773,9 @@ internal fun NightAniyomiVlcPlayer(
                         setVideoURI(mediaUri, item.requestHeaders)
                     }
                 },
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().clickable {
+                    controlsVisible = !controlsVisible
+                },
             )
         } else if (active) AndroidView(
             factory = { viewContext ->
