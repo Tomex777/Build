@@ -136,3 +136,37 @@ test("YouTube search rejects oversized queries and deduplicates video IDs", asyn
   assert.equal(results.length, 1);
   assert.equal(results[0].title, "First result");
 });
+
+test("YouTube adapter reports key, quota, and network errors without leaking credentials", async () => {
+  const { createYouTubeMusicExtension } = await import("../src/extensions/youtube-music.mjs");
+  const missingKey = createYouTubeMusicExtension({ getApiKey: () => "" });
+  await assert.rejects(() => missingKey.search({ query: "song" }), error => error.code === "YOUTUBE_KEY_REQUIRED");
+
+  let request;
+  const working = createYouTubeMusicExtension({
+    getApiKey: () => "test-key",
+    fetchImpl: async (url, options) => {
+      request = { url: new URL(url), options };
+      return {
+        ok: true,
+        json: async () => ({ items: [
+          { id: { videoId: "dQw4w9WgXcQ" }, snippet: { title: "Song", channelTitle: "Artist" } }
+        ] })
+      };
+    }
+  });
+  const results = await working.search({ query: "artist song", signal: new AbortController().signal });
+  assert.equal(results.length, 1);
+  assert.equal(request.url.searchParams.has("key"), false);
+  assert.equal(request.options.headers["X-Goog-Api-Key"], "test-key");
+  assert.equal(request.options.cache, "no-store");
+
+  const quota = createYouTubeMusicExtension({
+    getApiKey: () => "test-key",
+    fetchImpl: async () => ({ ok: false, status: 403, json: async () => ({ error: { errors: [{ reason: "quotaExceeded" }] } }) })
+  });
+  await assert.rejects(() => quota.search({ query: "song" }), error => error.code === "YOUTUBE_QUOTA");
+
+  const offline = createYouTubeMusicExtension({ getApiKey: () => "test-key", fetchImpl: async () => { throw new Error("offline"); } });
+  await assert.rejects(() => offline.search({ query: "song" }), error => error.code === "NETWORK_UNAVAILABLE");
+});
