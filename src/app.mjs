@@ -53,7 +53,7 @@ function menuCard(title, description, actions) {
 
 function renderExtensions() {
   const cards = statusByProvider.map(provider =>
-    '<section class="extension-card"><div class="extension-head"><strong>' + escapeHtml(provider.name) +
+    '<section class="extension-card" data-provider="' + escapeHtml(provider.id) + '"><div class="extension-head"><strong>' + escapeHtml(provider.name) +
     '</strong><span class="extension-state ' + (provider.id === "youtube" ? "state-ready" : "state-pending") +
     '">' + escapeHtml(provider.state) + '</span></div><div class="extension-media">' + escapeHtml(provider.media) +
     '</div><p>' + escapeHtml(provider.note) + '</p></section>'
@@ -61,7 +61,7 @@ function renderExtensions() {
   const keyPanel =
     '<section class="youtube-key-config"><label for="youtube-api-key">YouTube Data API key</label>' +
     '<div class="key-row"><input id="youtube-api-key" type="password" autocomplete="new-password" placeholder="Paste a referrer-restricted key">' +
-    '<button type="button" class="key-save" data-save-youtube-key>Save</button></div>' +
+    '<button type="button" class="key-save" data-save-youtube-key>Save</button><button type="button" class="key-clear" data-clear-youtube-key>Clear</button></div>' +
     '<small>Stored for this browser tab only. Restrict the key to your app domain in Google Cloud. Search calls YouTube directly; Annie does not cache results.</small></section>';
   appendMessage("annie",
     '<div class="menu-title">Extensions</div><p class="muted">Providers stay independent. A missing or failed extension never blocks the others.</p>' +
@@ -232,6 +232,16 @@ form.addEventListener("submit", event => {
 });
 
 chat.addEventListener("click", event => {
+  const clearButton = event.target.closest("[data-clear-youtube-key]");
+  if (clearButton) {
+    youtubeApiKey = "";
+    try { sessionStorage.removeItem("annie.youtube.apiKey"); } catch {}
+    statusByProvider.find(provider => provider.id === "youtube").state = "Needs API key";
+    const badge = chat.querySelector('[data-provider="youtube"] .extension-state');
+    if (badge) { badge.textContent = "Needs API key"; badge.classList.remove("state-ready"); badge.classList.add("state-pending"); }
+    appendMessage("annie", "YouTube key cleared from this tab.");
+    return;
+  }
   const saveButton = event.target.closest("[data-save-youtube-key]");
   if (saveButton) {
     const keyField = el("#youtube-api-key");
@@ -240,6 +250,8 @@ chat.addEventListener("click", event => {
     youtubeApiKey = key;
     try { sessionStorage.setItem("annie.youtube.apiKey", key); } catch {}
     statusByProvider.find(provider => provider.id === "youtube").state = "Connected";
+    const badge = chat.querySelector('[data-provider="youtube"] .extension-state');
+    if (badge) { badge.textContent = "Connected"; badge.classList.remove("state-pending"); badge.classList.add("state-ready"); }
     appendMessage("annie", "YouTube key saved for this tab. Search uses the official API; playback stays in the official player.");
     return;
   }
