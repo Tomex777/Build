@@ -173,8 +173,12 @@ private fun AnnieChat() {
         addAnnie("", searchMedia = media, searchInitial = query)
     }
 
+    val downloads = remember { mutableStateListOf<DownloadItem>().apply { addAll(DownloadStore.read(context)) } }
+
     fun openDownloads() {
-        addAnnie("No downloads yet.", menuTitle = "Downloads")
+        downloads.clear()
+        downloads.addAll(DownloadStore.read(context))
+        activeSheet = "Downloads"
     }
 
     fun openSelectedTitle(item: CatalogItem) {
@@ -295,7 +299,6 @@ private fun AnnieChat() {
                     )
                 }
             }
-            CommandSuggestions(value = draft, onSelect = { command -> draft = "$command " })
             Composer(
                 value = draft,
                 onValueChange = { draft = it },
@@ -313,7 +316,15 @@ private fun AnnieChat() {
             containerColor = Panel,
             contentColor = BrightText,
         ) {
-            CommandSheet(category = category) { action ->
+            if (category == "Downloads") {
+                DownloadsManagerContent(
+                    items = downloads,
+                    onRemove = { item ->
+                        downloads.remove(item)
+                        DownloadStore.write(context, downloads)
+                    },
+                )
+            } else CommandSheet(category = category) { action ->
                 activeSheet = null
                 when (action) {
                     "Search anime" -> openSearch("anime")
