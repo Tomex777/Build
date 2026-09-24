@@ -41,7 +41,9 @@ class ReportedFlowsTest {
         compose.onNodeWithText("Search the catalog").assertIsDisplayed()
         compose.onNodeWithText("/anime recent").assertIsDisplayed()
         compose.onNodeWithText("New episodes").assertIsDisplayed()
-        assertEquals(3, compose.onAllNodesWithText("/", substring = true).fetchSemanticsNodes().size)
+        assertEquals(1, compose.onAllNodesWithText("/anime", substring = false).fetchSemanticsNodes().size)
+        assertEquals(1, compose.onAllNodesWithText("/anime search", substring = false).fetchSemanticsNodes().size)
+        assertEquals(1, compose.onAllNodesWithText("/anime recent", substring = false).fetchSemanticsNodes().size)
         compose.onNodeWithText("/anime").performClick()
         assertEquals("/anime", selected)
     }
