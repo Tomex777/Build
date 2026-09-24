@@ -10,3 +10,4 @@ full-app-qa: build and walkthrough extension surfaces
 API 36 full package: build and validate real Movies, TV, Music sources
 API 36 player autoplay fix: rerun exact resume and full app QA
 rerun 35 - dismiss AI keyboard before returning to More destinations
+rerun 36 - align movie and series empty-state labels in hub walkthrough
