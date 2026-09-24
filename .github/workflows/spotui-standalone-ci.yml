@@ -1,0 +1,137 @@
+name: SpotUI Standalone Android CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [spotui-standalone-ci]
+    paths:
+      - 'spotui-overlay/**'
+      - '.github/workflows/spotui-standalone-ci.yml'
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Import pinned SpotUI Innertube
+        run: bash sora-ci/import_spotui_innertube.sh
+
+      - name: Reconstruct Android build root
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/spotui-src /tmp/sora.zip /tmp/spotui-artifacts
+          cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/sora.zip
+          unzip -q /tmp/sora.zip -d /tmp/spotui-src
+          ROOT=/tmp/spotui-src/Sora_Android_v0_1
+          test -f "$ROOT/settings.gradle.kts"
+
+          cp -R sora-overlay/. "$ROOT/"
+          cp -R spotui-overlay/. "$ROOT/"
+
+          mkdir -p "$ROOT/spotui-app/src/main/java/com/night/sora/youtubemusic"
+          cp "$ROOT/youtube-music-extension/src/main/java/com/night/sora/youtubemusic/YouTubeMusicCatalog.kt" "$ROOT/spotui-app/src/main/java/com/night/sora/youtubemusic/"
+          cp "$ROOT/youtube-music-extension/src/main/java/com/night/sora/youtubemusic/YouTubeMusicSession.kt" "$ROOT/spotui-app/src/main/java/com/night/sora/youtubemusic/"
+          cp "$ROOT/youtube-music-extension/src/main/java/com/night/sora/youtubemusic/YouTubePoToken.kt" "$ROOT/spotui-app/src/main/java/com/night/sora/youtubemusic/"
+          cp "$ROOT/youtube-music-extension/src/main/java/com/night/sora/youtubemusic/YouTubeSessionCookies.kt" "$ROOT/spotui-app/src/main/java/com/night/sora/youtubemusic/"
+          mkdir -p "$ROOT/spotui-app/src/main/assets"
+          cp "$ROOT/youtube-music-extension/src/main/assets/po_token.html" "$ROOT/spotui-app/src/main/assets/po_token.html"
+
+          python3 - "$ROOT/settings.gradle.kts" <<'PY'
+          from pathlib import Path
+          import sys
+          p = Path(sys.argv[1])
+          text = p.read_text()
+          for line in ['include(":youtube-innertube")', 'include(":spotui-app")']:
+              if line not in text:
+                  text += "\n" + line + "\n"
+          p.write_text(text)
+          PY
+
+          echo "SPOTUI_ROOT=$ROOT" >> "$GITHUB_ENV"
+          mkdir -p /tmp/spotui-artifacts
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android 36 SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 12266719
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+
+      - name: Build standalone APK
+        working-directory: ${{ env.SPOTUI_ROOT }}
+        run: gradle --stacktrace :spotui-app:assembleDebug
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Smoke test live app
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            set -euo pipefail
+            APK="$SPOTUI_ROOT/spotui-app/build/outputs/apk/debug/spotui-app-debug.apk"
+            adb install -r "$APK"
+            adb shell am force-stop com.night.spotui
+            adb shell am start -W -n com.night.spotui/.MainActivity
+            sleep 8
+            adb exec-out screencap -p > /tmp/spotui-artifacts/00-home.png
+            adb shell uiautomator dump /sdcard/spotui.xml >/dev/null
+            adb pull /sdcard/spotui.xml /tmp/spotui-artifacts/00-home.xml >/dev/null
+            grep -q 'text="SpotUI"' /tmp/spotui-artifacts/00-home.xml
+            grep -q 'text="Search"' /tmp/spotui-artifacts/00-home.xml
+            grep -q 'text="Library"' /tmp/spotui-artifacts/00-home.xml
+
+            python3 - <<'PY'
+            import re, subprocess, xml.etree.ElementTree as ET
+            root=ET.parse('/tmp/spotui-artifacts/00-home.xml').getroot()
+            for n in root.iter('node'):
+                if (n.attrib.get('text') or '') == 'Search':
+                    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', n.attrib.get('bounds',''))
+                    if m:
+                        x1,y1,x2,y2=map(int,m.groups())
+                        subprocess.check_call(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)])
+                        break
+            PY
+            sleep 2
+            adb shell input tap 400 190
+            adb shell input text Adele
+            adb shell input keyevent KEYCODE_ENTER
+            sleep 12
+            adb exec-out screencap -p > /tmp/spotui-artifacts/01-search.png
+            adb shell uiautomator dump /sdcard/spotui-search.xml >/dev/null
+            adb pull /sdcard/spotui-search.xml /tmp/spotui-artifacts/01-search.xml >/dev/null
+            grep -qi 'Adele' /tmp/spotui-artifacts/01-search.xml
+
+      - name: Stage APK
+        if: always()
+        run: |
+          cp "$SPOTUI_ROOT/spotui-app/build/outputs/apk/debug/spotui-app-debug.apk" /tmp/spotui-artifacts/SpotUI-debug.apk || true
+          ls -lh /tmp/spotui-artifacts || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: spotui-standalone-android
+          path: /tmp/spotui-artifacts
+          if-no-files-found: error
+          retention-days: 14
