@@ -71,7 +71,7 @@ class SettingsStore(private val context: Context) {
         prefs[Keys.savedPosts] = encodePosts(posts)
     }
 
-    private fun encodeCategories(items: List<FedCategory>): String {
+    private fun encodeCategories(items: List<FeedCategory>): String {
         val arr = JSONArray()
         items.forEach { c ->
             arr.put(JSONObject().apply {
