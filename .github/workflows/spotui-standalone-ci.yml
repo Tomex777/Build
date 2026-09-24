@@ -6,6 +6,7 @@ on:
     branches: [spotui-standalone-ci]
     paths:
       - 'spotui-overlay/**'
+      - 'spotui-ci/**'
       - '.github/workflows/spotui-standalone-ci.yml'
 
 jobs:
