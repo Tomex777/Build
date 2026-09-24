@@ -120,6 +120,12 @@ class SpotPlaybackController(
         resolveAndPlay(track)
     }
 
+    fun selectQueueIndex(index: Int) {
+        if (index !in queue.indices || index == currentIndex) return
+        currentIndex = index
+        resolveAndPlay(queue[index])
+    }
+
     fun togglePlayPause() {
         val track = currentTrack ?: return
         if (errorMessage != null || player.mediaItemCount == 0) {
