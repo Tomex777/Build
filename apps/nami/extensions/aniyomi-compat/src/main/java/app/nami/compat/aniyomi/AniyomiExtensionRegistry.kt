@@ -88,7 +88,7 @@ class AniyomiExtensionRegistry(
             .takeIf { it > 0 }
             ?.toDouble()
             ?: extensionVersion.substringBeforeLast('.').toDoubleOrNull()
-        if (extensionLibVersion !in SUPPORTED_EXTENSION_LIB_VERSIONS) {
+        if (extensionLibVersion == null || extensionLibVersion !in SUPPORTED_EXTENSION_LIB_VERSIONS) {
             Log.w(LOG_TAG, "Skipping ${packageInfo.packageName}: unsupported extensions-lib ${extensionLibVersion ?: "unknown"}")
             return emptyList()
         }
