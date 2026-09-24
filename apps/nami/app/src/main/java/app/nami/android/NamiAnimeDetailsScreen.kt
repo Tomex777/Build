@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
@@ -274,6 +273,7 @@ private fun AnimeInfoBox(
     sourceName: String,
     topPadding: androidx.compose.ui.unit.Dp,
 ) {
+    val backgroundColor = MaterialTheme.colorScheme.background
     Box(modifier = Modifier.fillMaxWidth()) {
         val backdrop = anime.bannerUrl ?: anime.coverUrl
         if (!backdrop.isNullOrBlank()) {
@@ -289,7 +289,7 @@ private fun AnimeInfoBox(
                             Brush.verticalGradient(
                                 listOf(
                                     Color.Transparent,
-                                    MaterialTheme.colorScheme.background,
+                                    backgroundColor,
                                 ),
                             ),
                         )
