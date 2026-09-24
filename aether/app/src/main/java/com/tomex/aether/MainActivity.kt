@@ -149,6 +149,7 @@ fun AetherApp(vm: MainViewModel = viewModel()) {
             )
 
             when {
+                state.settings.redditClientId.isBlank() -> RedditSetupState { showSettings = true }
                 state.loading && state.posts.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = AetherAccent, strokeWidth = 2.dp)
                 }

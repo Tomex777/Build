@@ -109,3 +109,24 @@ internal fun VibeSheet(
         }
     }
 }
+
+
+@Composable
+internal fun RedditSetupState(onSetup: () -> Unit) {
+    Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+        Column(
+            Modifier.padding(horizontal = 28.dp),
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+        ) {
+            Text("Connect Reddit", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Aether needs the Client ID from your Reddit installed app to load feeds and comments.",
+                color = AetherMuted,
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                modifier = Modifier.padding(top = 7.dp, bottom = 14.dp),
+            )
+            Button(onClick = onSetup) { Text("Set up Reddit") }
+        }
+    }
+}
