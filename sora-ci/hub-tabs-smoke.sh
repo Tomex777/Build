@@ -322,27 +322,33 @@ else
 fi
 tap Music
 tap Memes
-if wait_for "Less like this" 40; then
-  tap "♡ Save"
-  wait_for "✓ Saved"
-  shot meme-saved
-  tap "Less like this"
-  shot meme-hidden-from-feed
-  tap Library
-  adb shell input swipe 950 350 160 350 350
-  sleep 1
-  tap Memes
-  wait_for "1 item"
-  shot library-saved-meme
-  tap Media
-  tap "Anime & Manga"
-  tap Memes
+if wait_for_any 40 "Less like this" "Memes sources could not load right now."; then
+  if node_exists "Memes sources could not load right now."; then
+    # Reddit can decline or time out requests from hosted emulator networks.
+    # Treat its explicit unavailable state as valid, without first recording
+    # an expected timeout as a failure screenshot.
+    wait_for "Retry"
+    wait_for "Manage sources"
+    shot memes-source-state
+  else
+    tap "♡ Save"
+    wait_for "✓ Saved"
+    shot meme-saved
+    tap "Less like this"
+    shot meme-hidden-from-feed
+    tap Library
+    adb shell input swipe 950 350 160 350 350
+    sleep 1
+    tap Memes
+    wait_for "1 item"
+    shot library-saved-meme
+    tap Media
+    tap "Anime & Manga"
+    tap Memes
+  fi
 else
-  # An installed extension may exist while its feed is unavailable. The honest
-  # error message is provider-specific; Retry and Manage sources are stable UI.
-  wait_for "Retry"
-  wait_for "Manage sources"
-  shot memes-source-state
+  echo 'Memes feed showed neither content nor its honest unavailable state.' >&2
+  exit 1
 fi
 
 # The Media switcher routes its Bible entry into the same reader.
