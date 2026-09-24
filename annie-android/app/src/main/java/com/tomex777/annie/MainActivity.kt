@@ -116,7 +116,9 @@ private data class ChatEntry(
     val id: Long,
     val fromUser: Boolean,
     val text: String,
-    val catalog: List<CatalogItem> = emptyList()
+    val catalog: List<CatalogItem> = emptyList(),
+    val menuTitle: String? = null,
+    val actions: List<String> = emptyList()
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -124,7 +126,7 @@ private data class ChatEntry(
 private fun AnnieChat() {
     val context = LocalContext.current
     val messages = remember {
-        mutableStateListOf(ChatEntry(1, false, "Hey, I’m Annie. Choose a media type or type a command to get started."))
+        mutableStateListOf(ChatEntry(1, false, "Hi, I’m Annie. What are you in the mood for? Type a command to start. Providers stay separate, and I’ll show clearly when one is unavailable."))
     }
     var draft by remember { mutableStateOf("") }
     var activeSheet by remember { mutableStateOf<String?>(null) }
@@ -134,12 +136,46 @@ private fun AnnieChat() {
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    fun addAnnie(text: String, catalog: List<CatalogItem> = emptyList()) {
-        messages.add(ChatEntry(System.nanoTime(), false, text, catalog))
+    fun addAnnie(
+        text: String,
+        catalog: List<CatalogItem> = emptyList(),
+        menuTitle: String? = null,
+        actions: List<String> = emptyList()
+    ) {
+        messages.add(ChatEntry(System.nanoTime(), false, text, catalog, menuTitle, actions))
         scope.launch { listState.animateScrollToItem(messages.lastIndex) }
     }
 
-    fun openCategory(category: String) { activeSheet = category }
+    fun openCategory(category: String) {
+        when (category) {
+            "Anime" -> addAnnie("Choose an action or type a title to search.", menuTitle = category,
+                actions = listOf("Search anime", "Recently aired", "Continue watching", "Downloads"))
+            "Movies & TV" -> addAnnie("Choose an action or type a title to search.", menuTitle = category,
+                actions = listOf("Search movies", "Recently released", "Continue watching", "Downloads"))
+            "Manga" -> addAnnie("Choose an action or type a title to search.", menuTitle = category,
+                actions = listOf("Search manga", "Recently updated", "Continue reading", "Downloads"))
+            "Music" -> addAnnie("Choose an action or type a song to search.", menuTitle = category,
+                actions = listOf("Search music", "Open YouTube link"))
+            else -> activeSheet = category
+        }
+    }
+
+    fun handleMenuAction(category: String, action: String) {
+        when (category to action) {
+            "Anime" to "Search anime" -> draft = "/anime "
+            "Anime" to "Recently aired" -> addAnnie("New anime episodes\nNo episodes found yet. Connect an anime extension in Extensions and try again.")
+            "Anime" to "Continue watching" -> addAnnie("Nothing to continue watching yet.")
+            "Movies & TV" to "Search movies" -> draft = "/movie "
+            "Movies & TV" to "Recently released" -> addAnnie("Recently released titles need a connected movie extension.")
+            "Movies & TV" to "Continue watching" -> addAnnie("Nothing to continue watching yet.")
+            "Manga" to "Search manga" -> draft = "/manga "
+            "Manga" to "Recently updated" -> addAnnie("Recently updated chapters need a connected manga extension.")
+            "Manga" to "Continue reading" -> addAnnie("Nothing to continue reading yet.")
+            "Music" to "Search music" -> draft = "/music "
+            "Music" to "Open YouTube link" -> draft = "/music "
+            else -> addAnnie("No downloads yet.")
+        }
+    }
 
     fun startSearch(media: String, query: String) {
         if (media == "movie") {
@@ -207,12 +243,11 @@ private fun AnnieChat() {
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
-                item { WelcomePanel() }
                 items(messages, key = { it.id }) { entry ->
-                    ChatBubble(entry) { item ->
+                    ChatBubble(entry, onCatalogClick = { item ->
                         val url = "https://anilist.co/${item.mediaType.lowercase()}/${item.id}"
                         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
-                    }
+                    }, onActionClick = ::handleMenuAction)
                 }
                 if (isSearching) item {
                     Row(
@@ -225,12 +260,7 @@ private fun AnnieChat() {
                     }
                 }
             }
-            QuickCommands(
-                onSelect = { category ->
-                    if (category == "Downloads") addAnnie("No downloads yet.")
-                    else openCategory(category)
-                }
-            )
+            CommandSuggestions(value = draft, onSelect = { command -> draft = "$command " })
             Composer(
                 value = draft,
                 onValueChange = { draft = it },
@@ -312,7 +342,7 @@ private fun WelcomePanel() {
                 Text("Search, pick up where you left off, or browse your library.", color = SoftText, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
                 Spacer(Modifier.height(16.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("アニメ", "漫画", "♫").forEachIndexed { index, name ->
+                    listOf("Anime", "Manga", "Music").forEachIndexed { index, name ->
                         Box(
                             Modifier.weight(1f).height(68.dp).clip(RoundedCornerShape(14.dp)).background(Color.White.copy(alpha = 0.06f)),
                             contentAlignment = Alignment.Center
@@ -327,7 +357,11 @@ private fun WelcomePanel() {
 }
 
 @Composable
-private fun ChatBubble(entry: ChatEntry, onCatalogClick: (CatalogItem) -> Unit) {
+private fun ChatBubble(
+    entry: ChatEntry,
+    onCatalogClick: (CatalogItem) -> Unit,
+    onActionClick: (String, String) -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (entry.fromUser) Arrangement.End else Arrangement.Start,
@@ -344,7 +378,40 @@ private fun ChatBubble(entry: ChatEntry, onCatalogClick: (CatalogItem) -> Unit) 
             horizontalAlignment = if (entry.fromUser) Alignment.End else Alignment.Start
         ) {
             Text(if (entry.fromUser) "You" else "Annie", color = SoftText, fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp, bottom = 5.dp))
-            if (entry.catalog.isNotEmpty()) {
+            if (entry.menuTitle != null) {
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
+                        .background(Bubble).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(entry.menuTitle, color = BrightText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(entry.text, color = SoftText, fontSize = 14.sp, lineHeight = 20.sp)
+                    entry.actions.forEach { action ->
+                        val icon = when {
+                            action.startsWith("Search") -> "⌕"
+                            action.contains("aired") || action.contains("released") || action.contains("updated") -> "◷"
+                            action.contains("Continue") -> "▶"
+                            action == "Downloads" -> "↓"
+                            else -> "♫"
+                        }
+                        Surface(
+                            color = Color(0xFF10263D),
+                            shape = RoundedCornerShape(15.dp),
+                            border = BorderStroke(1.dp, Color(0xFF294562)),
+                            modifier = Modifier.fillMaxWidth().clickable { onActionClick(entry.menuTitle, action) }
+                        ) {
+                            Row(
+                                Modifier.padding(horizontal = 15.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                Text(icon, color = Color(0xFF27A8F2), fontSize = 18.sp)
+                                Text(action, color = BrightText, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
+                }
+            } else if (entry.catalog.isNotEmpty()) {
                 Column(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)).background(Bubble).padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -407,19 +474,36 @@ private fun statusLabel(status: String): String = when (status) {
 }
 
 @Composable
-private fun QuickCommands(onSelect: (String) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+@Composable
+private fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
+    val commands = listOf(
+        "/anime" to "Anime",
+        "/movie" to "Movies & TV",
+        "/manga" to "Manga",
+        "/music" to "Music",
+        "/downloads" to "Downloads",
+        "/extensions" to "Extensions",
+        "/help" to "Help"
+    )
+    val raw = value.trimStart()
+    if (!raw.startsWith("/") || raw.any(Char::isWhitespace)) return
+    val matches = commands.filter { it.first.startsWith(raw, ignoreCase = true) }
+    if (matches.isEmpty()) return
+
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(16.dp)).background(Panel).padding(6.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        listOf("Anime", "Movies & TV", "Manga", "Music", "Downloads").forEach { name ->
-            Surface(
-                color = Color(0xFF102139),
-                shape = CircleShape,
-                border = BorderStroke(1.dp, Color(0xFF2B435F)),
-                modifier = Modifier.clickable { onSelect(name) }
+        matches.forEach { (command, label) ->
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp))
+                    .clickable { onSelect(command) }.padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(name, color = Color(0xFFC1D2E7), fontSize = 12.sp, modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp))
+                Text(command, color = BrightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.width(10.dp))
+                Text(label, color = SoftText, fontSize = 12.sp)
             }
         }
     }
