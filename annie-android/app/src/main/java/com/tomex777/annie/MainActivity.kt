@@ -1024,11 +1024,11 @@ internal fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
         matches.take(if (raw == "/") 9 else 5).forEach { (command, label) ->
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp))
-                    .clickable { onSelect(command) }.padding(horizontal = 12.dp, vertical = 10.dp),
+                    .clickable { onSelect(command) }.testTag("slash_command_$command")
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(command, color = BrightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.testTag("slash_command_$command"))
+                Text(command, color = BrightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.width(10.dp))
                 Text(label, color = SoftText, fontSize = 12.sp)
             }
