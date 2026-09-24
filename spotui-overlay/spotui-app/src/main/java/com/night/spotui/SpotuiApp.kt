@@ -82,7 +82,9 @@ import com.night.spotui.playback.SpotPlaybackController
 import com.night.spotui.playback.SpotRuntime
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -153,7 +155,12 @@ fun SpotuiApp() {
                 bottomBar = {
                     Column {
                         player.currentTrack?.let { track ->
-                            MiniPlayer(track = track, player = player, onOpen = { showPlayer = true })
+                            MiniPlayer(
+                                track = track,
+                                player = player,
+                                onOpen = { showPlayer = true },
+                                onSignIn = { showSignIn = true },
+                            )
                         }
                         NavigationBar(containerColor = Color(0xFF101010)) {
                             NavigationBarItem(
@@ -215,6 +222,7 @@ fun SpotuiApp() {
                     player = player,
                     liked = likedTracks.any { it.id == player.currentTrack?.id },
                     onToggleLike = { player.currentTrack?.let(::toggleLike) },
+                    onSignIn = { showSignIn = true },
                     onClose = { showPlayer = false },
                 )
             }
@@ -410,7 +418,12 @@ private fun Artwork(track: Track, modifier: Modifier) {
 }
 
 @Composable
-private fun MiniPlayer(track: Track, player: SpotPlaybackController, onOpen: () -> Unit) {
+private fun MiniPlayer(
+    track: Track,
+    player: SpotPlaybackController,
+    onOpen: () -> Unit,
+    onSignIn: () -> Unit,
+) {
     Surface(
         color = Color(0xFF2B2B2B),
         shape = RoundedCornerShape(8.dp),
@@ -420,7 +433,17 @@ private fun MiniPlayer(track: Track, player: SpotPlaybackController, onOpen: () 
             Artwork(track, Modifier.size(46.dp))
             Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
                 Text(track.title, color = SpotText, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(track.artist, color = SpotMuted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (requiresYouTubeSignIn(player.errorMessage)) {
+                    Text(
+                        "YouTube needs sign-in · Sign in",
+                        color = SpotGreen,
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                        modifier = Modifier.clickable(onClick = onSignIn),
+                    )
+                } else {
+                    Text(track.artist, color = SpotMuted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
             IconButton(onClick = player::togglePlayPause) {
                 if (player.isLoading) {
@@ -442,6 +465,7 @@ private fun NowPlaying(
     player: SpotPlaybackController,
     liked: Boolean,
     onToggleLike: () -> Unit,
+    onSignIn: () -> Unit,
     onClose: () -> Unit,
 ) {
     val track = player.currentTrack ?: return
@@ -476,8 +500,21 @@ private fun NowPlaying(
             Text(formatTime(player.positionMs), color = SpotMuted, fontSize = 10.sp)
             Text(formatTime(player.durationMs), color = SpotMuted, fontSize = 10.sp)
         }
-        player.errorMessage?.let {
-            Text(it, color = Color(0xFFFF9D92), fontSize = 11.sp, modifier = Modifier.padding(top = 10.dp))
+        player.errorMessage?.let { message ->
+            if (requiresYouTubeSignIn(message)) {
+                Surface(
+                    color = Color(0xFF19271E),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp).clickable(onClick = onSignIn),
+                ) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text("YouTube needs sign-in on this network.", color = SpotText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Open YouTube Music sign-in", color = SpotGreen, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                    }
+                }
+            } else {
+                Text(message, color = Color(0xFFFF9D92), fontSize = 11.sp, modifier = Modifier.padding(top = 10.dp))
+            }
         }
         Spacer(Modifier.height(12.dp))
         Row(
@@ -515,6 +552,7 @@ private fun NowPlaying(
 @Composable
 private fun YouTubeSignIn(source: YouTubeMusicSource, onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
+    val session = remember(source) { source.browserSession() }
     var webView by remember { mutableStateOf<WebView?>(null) }
     var status by remember { mutableStateOf("Sign in, then tap Done.") }
 
@@ -528,7 +566,7 @@ private fun YouTubeSignIn(source: YouTubeMusicSource, onClose: () -> Unit) {
                 Icon(Icons.Rounded.KeyboardArrowDown, "Close sign in", tint = SpotText)
             }
             Column(Modifier.weight(1f)) {
-                Text("YouTube Music", color = SpotText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(session.title, color = SpotText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Text(status, color = SpotMuted, fontSize = 10.sp)
             }
             Text(
@@ -537,12 +575,23 @@ private fun YouTubeSignIn(source: YouTubeMusicSource, onClose: () -> Unit) {
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.clickable {
                     val view = webView ?: return@clickable
-                    val cookie = CookieManager.getInstance().getCookie("https://music.youtube.com/").orEmpty()
-                    val agent = view.settings.userAgentString.orEmpty()
                     scope.launch {
-                        source.storeBrowserSession(cookie, agent)
+                        status = "Saving YouTube session…"
+                        CookieManager.getInstance().flush()
+                        val visitorData = evaluateSessionScript(view, session.scripts["visitorData"])
+                        val dataSyncId = evaluateSessionScript(view, session.scripts["dataSyncId"])
+                        val authUser = evaluateSessionScript(view, session.scripts["authUser"]).ifBlank { "0" }
+                        val cookie = CookieManager.getInstance().getCookie("https://music.youtube.com/").orEmpty()
+                        val agent = view.settings.userAgentString.orEmpty()
+                        source.storeBrowserSession(
+                            cookieHeader = cookie,
+                            userAgent = agent,
+                            visitorData = visitorData,
+                            dataSyncId = dataSyncId,
+                            authUser = authUser,
+                        )
                             .onSuccess { signed ->
-                                status = if (signed) "Signed in." else "No signed-in YouTube session found."
+                                status = if (signed) "Signed in. You can play music now." else "No signed-in YouTube session found."
                                 if (signed) onClose()
                             }
                             .onFailure { status = it.message ?: "Could not save session." }
@@ -560,12 +609,33 @@ private fun YouTubeSignIn(source: YouTubeMusicSource, onClose: () -> Unit) {
                     CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                     webViewClient = WebViewClient()
                     webChromeClient = WebChromeClient()
-                    loadUrl(source.loginUrl())
+                    loadUrl(session.url)
                     webView = this
                 }
             },
         )
     }
+}
+
+private suspend fun evaluateSessionScript(view: WebView, script: String?): String {
+    if (script.isNullOrBlank()) return ""
+    return suspendCancellableCoroutine { continuation ->
+        view.evaluateJavascript(script) { raw ->
+            if (!continuation.isActive) return@evaluateJavascript
+            val decoded = runCatching {
+                if (raw.isNullOrBlank() || raw == "null") "" else JSONArray("[" + raw + "]").optString(0)
+            }.getOrDefault("")
+            continuation.resume(decoded)
+        }
+    }
+}
+
+private fun requiresYouTubeSignIn(message: String?): Boolean {
+    val text = message.orEmpty()
+    return text.contains("LOGIN_REQUIRED", ignoreCase = true) ||
+        text.contains("sign in", ignoreCase = true) ||
+        text.contains("not a bot", ignoreCase = true) ||
+        text.contains("confirm you", ignoreCase = true)
 }
 
 @Composable
