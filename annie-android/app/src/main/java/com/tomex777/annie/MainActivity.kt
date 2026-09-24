@@ -175,10 +175,10 @@ private fun AnnieChat() {
 
     val downloads = remember { mutableStateListOf<DownloadItem>().apply { addAll(DownloadStore.read(context)) } }
 
-    fun openDownloads() {
+    fun openDownloads(mediaFilter: String = "All") {
         downloads.clear()
         downloads.addAll(DownloadStore.read(context))
-        activeSheet = "Downloads"
+        activeSheet = "Downloads:$mediaFilter"
     }
 
     fun openSelectedTitle(item: CatalogItem) {
@@ -210,15 +210,15 @@ private fun AnnieChat() {
             "Anime" to "Search anime" -> openSearch("anime")
             "Anime" to "Recently aired" -> addAnnie("No episodes found yet. Connect an anime extension to check episode availability.", menuTitle = "New anime episodes", actions = listOf("Today", "This week", "All"))
             "Anime" to "Continue watching" -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
-            "Anime" to "Downloads" -> openDownloads()
+            "Anime" to "Downloads" -> openDownloads("Anime")
             "Movies & TV" to "Search movies" -> openSearch("movie")
             "Movies & TV" to "Recently released" -> addAnnie("Recently released titles need a connected movie extension.")
             "Movies & TV" to "Continue watching" -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
-            "Movies & TV" to "Downloads" -> openDownloads()
+            "Movies & TV" to "Downloads" -> openDownloads("Movies")
             "Manga" to "Search manga" -> openSearch("manga")
             "Manga" to "Recently updated" -> addAnnie("Recently updated chapters need a connected manga extension.")
             "Manga" to "Continue reading" -> addAnnie("Nothing to continue reading yet.", menuTitle = "Continue reading")
-            "Manga" to "Downloads" -> openDownloads()
+            "Manga" to "Downloads" -> openDownloads("Manga")
             "Music" to "Search music" -> openSearch("music")
             "Music" to "Open YouTube link" -> draft = "/music "
             "New anime episodes" to "Today", "New anime episodes" to "This week", "New anime episodes" to "All" ->
@@ -244,7 +244,7 @@ private fun AnnieChat() {
                 query.isBlank() -> openCategory("Anime")
                 query.equals("search", true) -> startSearch("anime", "")
                 query.startsWith("search ", true) -> startSearch("anime", query.substringAfter(" ", "").trim())
-                query.equals("download", true) || query.equals("downloads", true) -> openDownloads()
+                query.equals("download", true) || query.equals("downloads", true) -> openDownloads("Anime")
                 query.equals("recently aired", true) -> handleMenuAction("Anime", "Recently aired")
                 query.equals("continue", true) || query.equals("continue watching", true) -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
                 else -> startSearch("anime", query)
@@ -253,7 +253,7 @@ private fun AnnieChat() {
                 query.isBlank() -> openCategory("Manga")
                 query.equals("search", true) -> startSearch("manga", "")
                 query.startsWith("search ", true) -> startSearch("manga", query.substringAfter(" ", "").trim())
-                query.equals("download", true) || query.equals("downloads", true) -> openDownloads()
+                query.equals("download", true) || query.equals("downloads", true) -> openDownloads("Manga")
                 query.equals("continue", true) || query.equals("continue reading", true) -> addAnnie("Nothing to continue reading yet.", menuTitle = "Continue reading")
                 else -> startSearch("manga", query)
             }
@@ -261,7 +261,7 @@ private fun AnnieChat() {
                 query.isBlank() -> openCategory("Movies & TV")
                 query.equals("search", true) -> startSearch("movie", "")
                 query.startsWith("search ", true) -> startSearch("movie", query.substringAfter(" ", "").trim())
-                query.equals("download", true) || query.equals("downloads", true) -> openDownloads()
+                query.equals("download", true) || query.equals("downloads", true) -> openDownloads("Movies")
                 query.equals("continue", true) || query.equals("continue watching", true) -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
                 else -> startSearch("movie", query)
             }
@@ -316,13 +316,21 @@ private fun AnnieChat() {
             containerColor = Panel,
             contentColor = BrightText,
         ) {
-            if (category == "Downloads") {
+            if (category.startsWith("Downloads:")) {
                 DownloadsManagerContent(
                     items = downloads,
                     onRemove = { item ->
                         downloads.remove(item)
                         DownloadStore.write(context, downloads)
                     },
+                    onStateChange = { item, state ->
+                        val index = downloads.indexOfFirst { it.id == item.id }
+                        if (index >= 0) {
+                            downloads[index] = downloads[index].copy(state = state)
+                            DownloadStore.write(context, downloads)
+                        }
+                    },
+                    initialMediaFilter = category.substringAfter(":", "All"),
                 )
             } else CommandSheet(category = category) { action ->
                 activeSheet = null
@@ -330,7 +338,12 @@ private fun AnnieChat() {
                     "Search anime" -> openSearch("anime")
                     "Recently aired" -> handleMenuAction("Anime", "Recently aired")
                     "Continue watching" -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
-                    "Downloads" -> openDownloads()
+                    "Downloads" -> openDownloads(when (category) {
+                        "Anime" -> "Anime"
+                        "Manga" -> "Manga"
+                        "Movies & TV" -> "Movies"
+                        else -> "All"
+                    })
                     "Search movies" -> openSearch("movie")
                     "Recently released" -> addAnnie("Recently released titles need a connected movie extension.")
                     "Search manga" -> openSearch("manga")

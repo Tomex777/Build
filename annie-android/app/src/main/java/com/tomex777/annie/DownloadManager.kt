@@ -75,6 +75,8 @@ internal data class DownloadItem(
     val batchTotal: Int? = null,
     val catalogTotal: Int? = null,
     val localPath: String = "",
+    val failureReason: String = "",
+    val quality: String = "",
 )
 
 internal data class ChapterBatch(val first: Int, val last: Int) {
@@ -143,6 +145,8 @@ internal object DownloadStore {
                         batchTotal = json.optInt("batchTotal").takeIf { it > 0 },
                         catalogTotal = json.optInt("catalogTotal").takeIf { it > 0 },
                         localPath = json.optString("localPath"),
+                        failureReason = json.optString("failureReason"),
+                        quality = json.optString("quality"),
                     )
                 )
             }
@@ -170,6 +174,8 @@ internal object DownloadStore {
                     .put("batchTotal", item.batchTotal ?: 0)
                     .put("catalogTotal", item.catalogTotal ?: 0)
                     .put("localPath", item.localPath)
+                    .put("failureReason", item.failureReason)
+                    .put("quality", item.quality)
             )
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -202,11 +208,25 @@ private data class DownloadGroup(
 internal fun DownloadsManagerContent(
     items: List<DownloadItem>,
     onRemove: (DownloadItem) -> Unit,
+    onStateChange: (DownloadItem, DownloadState) -> Unit,
+    initialMediaFilter: String = "All",
     modifier: Modifier = Modifier,
 ) {
     val filters = listOf("All", "Manga", "Novels", "Anime", "Movies", "TV Series", "Music")
-    var selectedFilter by remember { mutableStateOf("All") }
-    val visibleItems = items.filter { selectedFilter == "All" || it.kind.filter == selectedFilter }
+    val statusFilters = listOf("All", "Downloading", "Downloaded", "Paused", "Failed")
+    var selectedFilter by remember(initialMediaFilter) { mutableStateOf(initialMediaFilter) }
+    var selectedStatus by remember { mutableStateOf("All") }
+    val visibleItems = items
+        .filter { selectedFilter == "All" || it.kind.filter == selectedFilter }
+        .filter { item ->
+            when (selectedStatus) {
+                "Downloading" -> item.state == DownloadState.QUEUED || item.state == DownloadState.DOWNLOADING
+                "Downloaded" -> item.state == DownloadState.COMPLETE
+                "Paused" -> item.state == DownloadState.PAUSED
+                "Failed" -> item.state == DownloadState.FAILED
+                else -> true
+            }
+        }
     val groups = visibleItems
         .groupBy { "${it.canonicalTitleId}|${it.sourceId}" }
         .map { (key, groupItems) ->
@@ -252,6 +272,24 @@ internal fun DownloadsManagerContent(
                     }
                 }
             }
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                statusFilters.forEach { filter ->
+                    val selected = selectedStatus == filter
+                    Surface(
+                        color = if (selected) Color(0xFF24415F) else DownloadsBg,
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, if (selected) DownloadsCyan else Color(0xFF294562)),
+                        modifier = Modifier.testTag("download_status_${filter.replace(" ", "_")}")
+                            .clickable { selectedStatus = filter },
+                    ) {
+                        Text(filter, color = if (selected) DownloadsCyan else DownloadsMuted, fontSize = 12.sp,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp))
+                    }
+                }
+            }
         }
 
         if (groups.isEmpty()) {
@@ -261,7 +299,7 @@ internal fun DownloadsManagerContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text("↓", color = DownloadsCyan, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-                Text("No downloads yet", color = DownloadsText, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                Text(if (items.isEmpty()) "No downloads yet" else "No ${selectedStatus.lowercase()} downloads", color = DownloadsText, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
                 Text("Downloads from manga, anime, movies, TV, novels, and music will appear here.",
                     color = DownloadsMuted, fontSize = 13.sp, lineHeight = 19.sp)
             }
@@ -280,6 +318,7 @@ internal fun DownloadsManagerContent(
                             if (open) expanded.remove(group.key) else expanded.add(group.key)
                         },
                         onRemove = onRemove,
+                        onStateChange = onStateChange,
                     )
                 }
             }
@@ -293,16 +332,19 @@ private fun DownloadGroupCard(
     expanded: Boolean,
     onToggle: () -> Unit,
     onRemove: (DownloadItem) -> Unit,
+    onStateChange: (DownloadItem, DownloadState) -> Unit,
 ) {
     val completed = group.items.count { it.state == DownloadState.COMPLETE }
     val active = group.items.firstOrNull { it.state == DownloadState.DOWNLOADING }
     val queued = group.items.count { it.state == DownloadState.QUEUED }
     val failed = group.items.count { it.state == DownloadState.FAILED }
+    val paused = group.items.count { it.state == DownloadState.PAUSED }
     val total = group.items.firstNotNullOfOrNull { it.catalogTotal }
     val batchTotal = group.items.firstNotNullOfOrNull { it.batchTotal }
     val progressText = when {
-        active != null -> "${completed} of ${batchTotal ?: group.items.size} ${group.kind.unitLabel} downloaded · Downloading"
+        active != null -> "${completed} of ${batchTotal ?: group.items.size} ${group.kind.unitLabel} · Downloading"
         queued > 0 -> "${completed} of ${batchTotal ?: group.items.size} ${group.kind.unitLabel} · $queued queued"
+        paused > 0 -> "${completed} of ${batchTotal ?: group.items.size} ${group.kind.unitLabel} · $paused paused"
         completed > 0 && total != null -> "$completed of $total ${group.kind.unitLabel} available offline"
         completed > 0 -> "$completed ${group.kind.unitLabel} available offline"
         failed > 0 -> "$failed ${group.kind.unitLabel} failed"
@@ -341,7 +383,7 @@ private fun DownloadGroupCard(
             if (expanded) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     group.items.forEach { item ->
-                        DownloadUnitRow(item = item, onRemove = { onRemove(item) })
+                        DownloadUnitRow(item = item, onRemove = { onRemove(item) }, onStateChange = { state -> onStateChange(item, state) })
                     }
                 }
             }
@@ -350,7 +392,7 @@ private fun DownloadGroupCard(
 }
 
 @Composable
-private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit) {
+private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateChange: (DownloadState) -> Unit) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(DownloadsRow).padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -393,14 +435,46 @@ private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit) {
                 }
                 DownloadState.QUEUED -> Text("Queued", color = DownloadsMuted, fontSize = 11.sp)
                 DownloadState.PAUSED -> Text("Paused", color = DownloadsMuted, fontSize = 11.sp)
-                DownloadState.FAILED -> Text("Failed · Retry available", color = DownloadsRed, fontSize = 11.sp)
-                DownloadState.COMPLETE -> if (item.bytesTotal > 0) Text(formatDownloadSize(item.bytesTotal), color = DownloadsMuted, fontSize = 10.sp)
+                DownloadState.FAILED -> Text(
+                    "Failed · ${item.failureReason.ifBlank { "Retry available" }}",
+                    color = DownloadsRed, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                )
+                DownloadState.COMPLETE -> {
+                    if (item.bytesTotal > 0) Text(formatDownloadSize(item.bytesTotal), color = DownloadsMuted, fontSize = 10.sp)
+                    if (item.quality.isNotBlank()) Text(item.quality, color = DownloadsMuted, fontSize = 10.sp)
+                }
             }
         }
-        if (item.state == DownloadState.FAILED || item.state == DownloadState.COMPLETE) {
-            Text("⋮", color = DownloadsMuted, fontSize = 18.sp, modifier = Modifier.clickable(onClick = onRemove))
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp), horizontalAlignment = Alignment.End) {
+            when (item.state) {
+                DownloadState.DOWNLOADING -> {
+                    DownloadAction("Pause") { onStateChange(DownloadState.PAUSED) }
+                    DownloadAction("Cancel", destructive = true, onClick = onRemove)
+                }
+                DownloadState.QUEUED -> DownloadAction("Cancel", destructive = true, onClick = onRemove)
+                DownloadState.PAUSED -> {
+                    DownloadAction("Resume") { onStateChange(DownloadState.QUEUED) }
+                    DownloadAction("Cancel", destructive = true, onClick = onRemove)
+                }
+                DownloadState.FAILED -> {
+                    DownloadAction("Retry") { onStateChange(DownloadState.QUEUED) }
+                    DownloadAction("Remove", destructive = true, onClick = onRemove)
+                }
+                DownloadState.COMPLETE -> DownloadAction("Delete", destructive = true, onClick = onRemove)
+            }
         }
     }
+}
+
+@Composable
+private fun DownloadAction(label: String, destructive: Boolean = false, onClick: () -> Unit) {
+    Text(
+        label,
+        modifier = Modifier.testTag("download_action_${label.lowercase()}").clickable(onClick = onClick).padding(horizontal = 5.dp, vertical = 2.dp),
+        color = if (destructive) DownloadsRed else DownloadsCyan,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.SemiBold,
+    )
 }
 
 @Composable
