@@ -3,6 +3,7 @@ import { descriptor as weebDescriptor, search as searchWeebCentral } from "./ext
 import { descriptor as tfpdlDescriptor, search as searchTfpdl } from "./extensions/tfpdl.mjs";
 import { descriptor as subspleaseDescriptor, search as searchSubsPlease } from "./extensions/subsplease.mjs";
 import { createYouTubeMusicExtension } from "./extensions/youtube-music.mjs";
+import { createAniListCatalogExtension } from "./extensions/anilist-catalog.mjs";
 
 const el = selector => document.querySelector(selector);
 const chat = el("#chat");
@@ -12,6 +13,7 @@ let youtubeApiKey = "";
 try { youtubeApiKey = sessionStorage.getItem("annie.youtube.apiKey") || ""; } catch {}
 
 const statusByProvider = [
+  { id: "anilist-catalog", name: "AniList", media: "Anime & manga metadata", state: "Catalog ready", ready: true, note: "Official catalog metadata only; no episodes, chapters, streams, or downloads." },
   { id: "weeb-central", name: "Weeb Central", media: "Manga", state: "Unavailable", note: "Needs an authorized content API or license." },
   { id: "tfpdl", name: "TFPDL", media: "Movies & series", state: "Unavailable", note: "Needs an authorized content API or license." },
   { id: "subsplease", name: "SubsPlease", media: "Anime", state: "Unavailable", note: "Needs an authorized content API or license." },
@@ -22,8 +24,9 @@ const host = new ExtensionHost([
   { descriptor: weebDescriptor, search: searchWeebCentral },
   { descriptor: tfpdlDescriptor, search: searchTfpdl },
   { descriptor: subspleaseDescriptor, search: searchSubsPlease },
-  createYouTubeMusicExtension({ getApiKey: () => youtubeApiKey })
-], { music: "youtube-music" });
+  createYouTubeMusicExtension({ getApiKey: () => youtubeApiKey }),
+  createAniListCatalogExtension()
+], { anime: "anilist-catalog", manga: "anilist-catalog", music: "youtube-music" });
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]);
@@ -58,7 +61,7 @@ function menuCard(title, description, actions) {
 function renderExtensions() {
   const cards = statusByProvider.map(provider =>
     '<section class="extension-card" data-provider="' + escapeHtml(provider.id) + '"><div class="extension-head"><strong>' + escapeHtml(provider.name) +
-    '</strong><span class="extension-state ' + (provider.id === "youtube" ? "state-ready" : "state-pending") +
+    '</strong><span class="extension-state ' + (provider.ready || (provider.id === "youtube" && youtubeApiKey) ? "state-ready" : "state-pending") +
     '">' + escapeHtml(provider.state) + '</span></div><div class="extension-media">' + escapeHtml(provider.media) +
     '</div><p>' + escapeHtml(provider.note) + '</p></section>'
   ).join("");

@@ -229,3 +229,54 @@ test("provider error codes survive fallback without exposing provider messages",
   ]);
   assert.equal("message" in result.attempts[0], false);
 });
+
+
+test("AniList catalog uses official GraphQL metadata search without media delivery", async () => {
+  const { createAniListCatalogExtension } = await import("../src/extensions/anilist-catalog.mjs");
+  let request;
+  const extension = createAniListCatalogExtension({
+    fetchImpl: async (url, options) => {
+      request = { url, options, body: JSON.parse(options.body) };
+      return {
+        ok: true,
+        json: async () => ({ data: { Page: { media: [
+          { id: 1, type: "ANIME", title: { english: "Cowboy Bebop", romaji: "Cowboy Bebop" }, startDate: { year: 1998 }, episodes: 26, chapters: null, status: "FINISHED", coverImage: { medium: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/x1.jpg" } },
+          { id: 1, type: "ANIME", title: { english: "Duplicate" } },
+          { id: -1, type: "ANIME", title: { english: "Malformed" } }
+        ] } } })
+      };
+    }
+  });
+  const result = await extension.search({ query: " Cowboy Bebop ", mediaType: "anime", signal: new AbortController().signal });
+  assert.equal(request.url, "https://graphql.anilist.co");
+  assert.equal(request.options.method, "POST");
+  assert.equal(request.options.cache, "no-store");
+  assert.equal(request.body.variables.search, "Cowboy Bebop");
+  assert.equal(request.body.variables.type, "ANIME");
+  assert.match(request.body.query, /isAdult:\s*false/);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].title, "Cowboy Bebop");
+  assert.equal(result[0].mediaType, "anime");
+  assert.equal(result[0].episodes, 26);
+  assert.equal(result[0].url, "https://anilist.co/anime/1");
+  assert.equal("streamUrl" in result[0], false);
+  assert.equal("downloadUrl" in result[0], false);
+});
+
+test("AniList catalog rejects unsupported, oversized, rate-limited, and unsafe results", async () => {
+  const { createAniListCatalogExtension, normalizeAniListPayload } = await import("../src/extensions/anilist-catalog.mjs");
+  const unused = createAniListCatalogExtension({ fetchImpl: async () => { throw new Error("must not call"); } });
+  await assert.rejects(() => unused.search({ query: "x".repeat(201), mediaType: "anime" }), error => error.code === "ANILIST_QUERY_INVALID");
+  await assert.rejects(() => unused.search({ query: "title", mediaType: "movie" }), error => error.code === "ANILIST_MEDIA_UNSUPPORTED");
+
+  const limited = createAniListCatalogExtension({
+    fetchImpl: async () => ({ ok: false, status: 429, json: async () => ({}) })
+  });
+  await assert.rejects(() => limited.search({ query: "title", mediaType: "manga" }), error => error.code === "ANILIST_RATE_LIMIT");
+
+  const normalized = normalizeAniListPayload({ data: { Page: { media: [
+    { id: 2, type: "MANGA", title: { romaji: "Safe title" }, coverImage: { medium: "https://attacker.example/cover.jpg" } }
+  ] } } });
+  assert.equal(normalized[0].thumbnail, "");
+  assert.equal(normalized[0].url, "https://anilist.co/manga/2");
+});
