@@ -139,10 +139,10 @@ class AniyomiExtensionRegistry(
                     packageName = packageInfo.packageName,
                     extensionName = extensionName,
                     extensionVersion = extensionVersion,
-                    extensionApiVersion = extensionLibVersion.toInt(),
+                    extensionApiVersion = extensionLibVersion!!.toInt(),
                     source = legacy,
                 ).also {
-                    Log.i(LOG_TAG, "Loaded source ${it.metadata.id} from ${packageInfo.packageName} (version $extensionVersion, API ${extensionLibVersion.toInt()})")
+                    Log.i(LOG_TAG, "Loaded source ${it.metadata.id} from ${packageInfo.packageName} (version $extensionVersion, API ${extensionLibVersion!!.toInt()})")
                 }
             }
         }
