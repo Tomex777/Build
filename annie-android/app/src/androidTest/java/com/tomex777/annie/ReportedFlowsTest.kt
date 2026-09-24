@@ -1,6 +1,6 @@
 package com.tomex777.annie
 
-import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -59,7 +59,7 @@ class ReportedFlowsTest {
         var selected = 0
         compose.setContent { CatalogCard(manga) { selected++ } }
         compose.onNodeWithTag("catalog_details_action").assertIsDisplayed()
-        compose.onNodeWithText("Select this title  ›").assertDoesNotExist()
+        assertEquals(0, compose.onAllNodesWithText("Select this title  ›").fetchSemanticsNodes().size)
         compose.onNodeWithTag("catalog_result_card").performClick()
         assertEquals(1, selected)
     }
