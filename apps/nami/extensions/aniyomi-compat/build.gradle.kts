@@ -1,9 +1,14 @@
-plugins { id("com.android.library"); kotlin("android") }
+plugins {
+    id("com.android.library")
+    kotlin("android")
+}
 
 android {
     namespace = "app.nami.compat.aniyomi"
     compileSdk = 36
+
     defaultConfig { minSdk = 26 }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -14,4 +19,12 @@ android {
 dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:source-api"))
+    implementation(project(":core:source-runtime"))
+
+    implementation("androidx.preference:preference-ktx:1.2.1")
+    implementation("com.github.mihonapp:injekt:91edab2317")
+    implementation("com.squareup.okhttp3:okhttp:5.4.0")
+    implementation("org.jsoup:jsoup:1.22.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
 }
