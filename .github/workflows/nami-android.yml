@@ -58,7 +58,7 @@ jobs:
       - name: Install Android emulator image and SDK platform
         run: sdkmanager "platforms;android-35" "platforms;android-36" "build-tools;35.0.0" "system-images;android-35;google_apis;x86_64"
       - name: Download real Aniyomi-compatible AnimeTake extension
-        run: curl --fail --location --retry 3 --output /tmp/animetake.apk https://raw.githubusercontent.com/mojuru/anime-repo/repo/apk/aniyomi-en.animetake-v16.20.apk
+        run: curl --fail --location --retry 3 --output /tmp/animetake.apk https://raw.githubusercontent.com/mojuru/anime-repo/ae5dcf8f2c6adc32735f818fc9a3eb051b06c5c6/apk/aniyomi-en.animetake-v16.20.apk
       - name: Run real extension and native-source smoke test
         uses: reactivecircus/android-emulator-runner@v2
         with:
