@@ -6,6 +6,7 @@ app.use(express.json({ limit: '1mb' }))
 const PORT = Number(process.env.PORT || 8787)
 const GROQ_KEYS = (process.env.GROQ_API_KEYS || '').split(',').map(x => x.trim()).filter(Boolean)
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
+const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || 'qwen/qwen3.8-27b'
 const DEEPSEEK_KEY = (process.env.DEEPSEEK_API_KEY || '').trim()
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat'
 const UA = 'Aether/0.1 Android meme discovery service'
@@ -17,7 +18,6 @@ app.get('/api/validate-subreddit', async (req, res) => {
   try {
     const candidate = await validateSubreddit(String(req.query.name || ''))
     if (!candidate) return res.status(404).json({ error: 'Subreddit not found' })
-    if (candidate.over18) return res.status(422).json({ error: 'This Aether build does not add adult communities.' })
     res.json(candidate)
   } catch (error) {
     res.status(502).json({ error: safeError(error) })
@@ -32,13 +32,13 @@ app.post('/api/discover', async (req, res) => {
     const intent = await discoverIntent(prompt)
     const queryTerms = [...new Set([...(intent.queries || []), prompt])].filter(Boolean).slice(0, 5)
     const searchGroups = await Promise.all(queryTerms.map(q => searchSubreddits(q, 16).catch(() => [])))
-    const pool = uniqueByName(searchGroups.flat()).filter(x => !x.over18).slice(0, 22)
+    const pool = uniqueByName(searchGroups.flat()).slice(0, 22)
 
     const profiled = []
     // Keep Reddit request pressure modest while still verifying every returned result.
     for (const candidate of pool) {
       const verified = await validateSubreddit(candidate.name).catch(() => null)
-      if (!verified || verified.over18) continue
+      if (!verified) continue
       const profile = await profileSubreddit(verified, prompt).catch(() => ({ ...verified, mediaFit: 0, recentPosts: 0, matchScore: 0 }))
       profiled.push(profile)
     }
@@ -59,7 +59,8 @@ for (const action of ['caption', 'explain', 'tags', 'similar']) {
     try {
       const title = String(req.body?.title || '')
       const subreddit = String(req.body?.subreddit || '')
-      const result = await runMemeAction(action, { title, subreddit })
+      const imageUrl = String(req.body?.imageUrl || req.body?.mediaUrl || '')
+      const result = await runMemeAction(action, { title, subreddit, imageUrl })
       res.json(result)
     } catch (error) {
       res.status(500).json({ error: safeError(error) })
@@ -76,14 +77,16 @@ async function discoverIntent(prompt) {
   return { categoryName: words.slice(0, 2).join(' '), queries: [prompt, words.slice(0, 4).join(' ')] }
 }
 
-async function runMemeAction(action, { title, subreddit }) {
+async function runMemeAction(action, { title, subreddit, imageUrl }) {
   const context = `Meme title: ${title}\nSubreddit: r/${subreddit}`
   if (action === 'caption') {
-    const text = await chat('Write one short witty alternative meme caption. Output only the caption.', context)
+    const instruction = 'Write one short witty alternative meme caption, maximum 12 words. Output only the caption.'
+    const text = imageUrl ? await chatVision(instruction, context, imageUrl).catch(() => chat(instruction, context)) : await chat(instruction, context)
     return { text: text.trim() }
   }
   if (action === 'explain') {
-    const text = await chat('Explain the likely joke/context concisely. Be clear when context cannot be known from the title alone.', context)
+    const instruction = 'Explain this meme in 2-3 concise sentences: the joke, format/trope, and useful cultural context. Do not invent context that is not visible.'
+    const text = imageUrl ? await chatVision(instruction, context, imageUrl).catch(() => chat(instruction, context)) : await chat(instruction, context)
     return { text: text.trim() }
   }
   if (action === 'tags') {
@@ -93,6 +96,46 @@ async function runMemeAction(action, { title, subreddit }) {
   const raw = await chat('Return ONLY a JSON array of 4-7 short search phrases that would find similar memes.', context)
   const tags = parseJsonArray(raw).slice(0, 7)
   return { tags, text: tags.length ? 'Search ideas based on this post.' : '' }
+}
+
+async function chatVision(system, user, imageUrl) {
+  let lastError
+  if (GROQ_KEYS.length) {
+    for (let attempt = 0; attempt < GROQ_KEYS.length; attempt++) {
+      const key = GROQ_KEYS[(groqCursor + attempt) % GROQ_KEYS.length]
+      try {
+        const text = await openAiVisionCompatible('https://api.groq.com/openai/v1/chat/completions', key, GROQ_VISION_MODEL, system, user, imageUrl)
+        groqCursor = (groqCursor + attempt + 1) % GROQ_KEYS.length
+        return text
+      } catch (error) { lastError = error }
+    }
+  }
+  throw lastError || new Error('No Groq vision key configured.')
+}
+
+async function openAiVisionCompatible(url, key, model, system, user, imageUrl) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model,
+      temperature: 0.35,
+      messages: [
+        ...(system ? [{ role: 'system', content: system }] : []),
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: user },
+            { type: 'image_url', image_url: { url: imageUrl } },
+          ],
+        },
+      ],
+    }),
+  })
+  const text = await response.text()
+  if (!response.ok) throw new Error(`Vision AI ${response.status}: ${text.slice(0, 220)}`)
+  const json = JSON.parse(text)
+  return String(json?.choices?.[0]?.message?.content || '')
 }
 
 async function chat(system, user) {
@@ -165,7 +208,7 @@ async function validateSubreddit(name) {
 async function profileSubreddit(candidate, query) {
   const json = await redditJson(`https://www.reddit.com/r/${encodeURIComponent(candidate.name)}/hot.json?limit=30&raw_json=1`)
   const posts = (json?.data?.children || []).map(x => x.data).filter(Boolean)
-  const usable = posts.filter(p => !p.over_18 && !p.stickied)
+  const usable = posts.filter(p => !p.stickied)
   const imageGif = usable.filter(isImageOrGif).length
   const mediaFit = usable.length ? imageGif / usable.length : 0
   const qTerms = query.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(x => x.length > 2)

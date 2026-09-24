@@ -30,6 +30,8 @@ class AiGatewayClient(
             put("title", post.title)
             put("subreddit", post.subreddit)
             put("mediaUrl", post.mediaUrl)
+            val visualUrl = if (post.kind == MediaKind.VIDEO) post.posterUrl.orEmpty() else post.mediaUrl
+            if (visualUrl.isNotBlank()) put("imageUrl", visualUrl)
         }
         val obj = postJson("${baseUrl.trimEnd('/')}/api/ai/$endpoint", payload)
         AiResult(

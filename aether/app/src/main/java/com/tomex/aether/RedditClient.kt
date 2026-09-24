@@ -124,7 +124,6 @@ class RedditClient(
 
     private fun parsePost(d: JSONObject, includeVideos: Boolean): MemePost? {
         if (d.optBoolean("stickied", false)) return null
-        if (d.optBoolean("over_18", false)) return null
         val id = d.optString("id")
         if (id.isBlank()) return null
 

@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -48,6 +49,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         viewModelScope.launch {
+            // Load the persisted seen set before the first feed request so an app restart
+            // cannot briefly re-introduce posts the user has already consumed.
+            _state.update { it.copy(seenIds = store.seenIds.first()) }
             combine(store.categories, store.selectedCategoryId, store.appSettings) { cats, selected, settings ->
                 Triple(cats, selected, settings)
             }.collect { (cats, selected, settings) ->
@@ -191,7 +195,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun validateSubreddit(name: String, onDone: (SubredditCandidate?) -> Unit) {
         viewModelScope.launch {
             val result = runCatching { repository.validateSubreddit(name) }.getOrNull()
-            onDone(result?.takeIf { !it.over18 })
+            onDone(result)
         }
     }
 
