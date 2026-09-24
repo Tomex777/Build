@@ -191,3 +191,24 @@ test("the three catalog slots are separate, correctly scoped, and disabled", asy
     assert.equal((await host.search(type, query)).status, "unavailable");
   }
 });
+
+
+test("result identity is collision-safe when metadata contains separators", async () => {
+  const host = new ExtensionHost([adapter("collision", async () => [
+    { title: "a|b", year: "c" },
+    { title: "a", year: "b|c" }
+  ])]);
+  const result = await host.search("anime", "query");
+  assert.equal(result.items.length, 2);
+});
+
+test("equal-priority providers preserve registration order", async () => {
+  const order = [];
+  const host = new ExtensionHost([
+    adapter("registered-first", async () => { order.push("first"); return []; }, { priority: 20 }),
+    adapter("registered-second", async () => { order.push("second"); return [{ title: "Found" }]; }, { priority: 20 })
+  ]);
+  const result = await host.search("anime", "query");
+  assert.deepEqual(order, ["first", "second"]);
+  assert.equal(result.items[0].extensionId, "registered-second");
+});
