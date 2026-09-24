@@ -230,7 +230,11 @@ fun SpotuiApp() {
             }
 
             if (showSignIn) {
-                YouTubeSignIn(source = source, onClose = { showSignIn = false })
+                YouTubeSignIn(
+                    source = source,
+                    onConnected = player::retryCurrent,
+                    onClose = { showSignIn = false },
+                )
             }
         }
     }
@@ -552,7 +556,11 @@ private fun NowPlaying(
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun YouTubeSignIn(source: YouTubeMusicSource, onClose: () -> Unit) {
+private fun YouTubeSignIn(
+    source: YouTubeMusicSource,
+    onConnected: () -> Unit,
+    onClose: () -> Unit,
+) {
     val scope = rememberCoroutineScope()
     val session = remember(source) { source.browserSession() }
     var webView by remember { mutableStateOf<WebView?>(null) }
@@ -573,6 +581,7 @@ private fun YouTubeSignIn(source: YouTubeMusicSource, onClose: () -> Unit) {
                 .onSuccess { signed ->
                     if (signed) {
                         status = "YouTube Music connected"
+                        onConnected()
                         delay(350)
                         onClose()
                     } else {
@@ -614,6 +623,7 @@ private fun YouTubeSignIn(source: YouTubeMusicSource, onClose: () -> Unit) {
                             .onSuccess { signed ->
                                 status = if (signed) "YouTube Music connected" else "No signed-in YouTube session found."
                                 if (signed) {
+                                    onConnected()
                                     delay(350)
                                     onClose()
                                 } else {
