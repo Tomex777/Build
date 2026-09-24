@@ -16,7 +16,7 @@ object LiveCatalog {
     fun browse(sourceId: String, type: String): String = when (sourceId) {
         "live.jikan.anime" -> mapJikanList(get("https://api.jikan.moe/v4/top/anime?limit=25"), isManga = false)
         "live.jikan.manga" -> mapJikanList(get("https://api.jikan.moe/v4/top/manga?limit=25"), isManga = true)
-        "live.itunes.movies" -> mapItunes(get(itunesSearch("new movie", "movie", "movie")), type = "movie")
+        "live.itunes.movies" -> mapItunes(get(itunesSearch("movie", "movie", "movie")), type = "movie")
         "live.tvmaze.tv" -> mapTvSchedule(get("https://api.tvmaze.com/schedule?country=US"))
         "live.itunes.music" -> mapItunes(get(itunesSearch("top hits", "music", "song")), type = "music")
         else -> JSONArray().toString()

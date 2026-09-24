@@ -15,3 +15,4 @@ rerun 37 - validate movie and TV empty-state copy on Android 36
 rerun 38 - rebuild full hub after restoring catalog surfaces and correcting empty copy
 rerun 39 - recognize meme feed content or explicit source unavailability without failure screenshot
 Reddit OAuth setup and full hub QA
+Broaden live iTunes movie browse query and verify API 36 movie state
