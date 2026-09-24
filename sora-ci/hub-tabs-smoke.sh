@@ -225,6 +225,10 @@ tap "Save message"
 wait_for "sora-smoke-qa"
 wait_for "Messages are stored locally until an AI provider is connected"
 shot ai-local-message
+# Dismiss the soft keyboard before tapping the AI close affordance. While the
+# keyboard is open, Compose reports zero-sized bounds for the header buttons.
+adb shell input keyevent 4
+wait_for "Message Sora"
 tap Close
 tap_scrolling "About & help"
 wait_for "About Sora"
