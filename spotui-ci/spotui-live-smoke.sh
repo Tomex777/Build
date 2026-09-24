@@ -199,16 +199,46 @@ adb logcat -v threadtime > "$OUT/resolver-live-logcat.txt" 2>&1 &
 LIVE_LOGCAT_PID=$!
 tap_text 'Play Easy On Me'
 wait_for_node 'Mini player' 15
-wait_for_node Pause 50
-shot 02-playing
 
-adb shell dumpsys activity services com.night.spotui | grep -q 'SpotPlaybackService'
-adb shell dumpsys media_session | grep -q 'com.night.spotui'
+PLAYBACK_OUTCOME=""
+for _ in $(seq 1 50); do
+  if node_exists Pause >/dev/null 2>&1; then
+    PLAYBACK_OUTCOME="playing"
+    break
+  fi
+  if node_contains 'YouTube needs sign-in' >/dev/null 2>&1; then
+    PLAYBACK_OUTCOME="challenged"
+    break
+  fi
+  sleep 1
+done
 
-adb shell am start -W -a android.settings.SETTINGS >/dev/null
-sleep 3
-adb shell dumpsys activity services com.night.spotui | grep -q 'SpotPlaybackService'
-adb shell dumpsys media_session | grep -q 'com.night.spotui'
-shot 03-background
+if [[ "$PLAYBACK_OUTCOME" == "playing" ]]; then
+  shot 02-playing
+  adb shell dumpsys activity services com.night.spotui | grep -q 'SpotPlaybackService'
+  adb shell dumpsys media_session | grep -q 'com.night.spotui'
 
-echo "SpotUI standalone live smoke passed."
+  adb shell am start -W -a android.settings.SETTINGS >/dev/null
+  sleep 3
+  adb shell dumpsys activity services com.night.spotui | grep -q 'SpotPlaybackService'
+  adb shell dumpsys media_session | grep -q 'com.night.spotui'
+  shot 03-background
+  touch "$OUT/FULL_ANONYMOUS_PLAYBACK_PASS"
+  echo "SpotUI standalone live playback passed anonymously."
+elif [[ "$PLAYBACK_OUTCOME" == "challenged" ]]; then
+  shot 02-youtube-challenge
+  tap_text 'YouTube needs sign-in · Sign in'
+  wait_for_node 'Close sign in' 20
+  shot 03-sign-in-flow
+  capture_resolver_logs
+  grep -Eqi 'LOGIN_REQUIRED|sign in to confirm|not a bot' "$OUT/resolver-summary.txt"
+  touch "$OUT/YOUTUBE_SIGN_IN_REQUIRED"
+  echo "YouTube challenged the CI runner; SpotUI surfaced and opened the signed-in fallback correctly."
+else
+  capture_resolver_logs
+  echo "Neither playback nor the explicit YouTube sign-in fallback appeared." >&2
+  cat "$OUT/resolver-summary.txt" >&2 2>/dev/null || true
+  exit 1
+fi
+
+echo "SpotUI standalone smoke passed."
