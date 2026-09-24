@@ -295,7 +295,7 @@ shot home-after-bible
 tap Media
 tap "Anime & Manga"
 tap "Movies & TV"
-wait_for_any 50 "Featured movie" "Catalog unavailable" "No movie titles were returned by the current source feed."
+wait_for_any 50 "Featured movie" "Catalog unavailable" "No movies titles were returned by the current source feed."
 if node_exists "Catalog unavailable"; then
   wait_for "Retry"
   shot movies-source-state
@@ -303,7 +303,7 @@ else
   shot movies-live-source
 fi
 tap Series
-wait_for_any 50 "Featured series" "Catalog unavailable" "No tv titles were returned by the current source feed."
+wait_for_any 50 "Featured series" "Catalog unavailable" "No series titles were returned by the current source feed."
 if node_exists "Catalog unavailable"; then
   wait_for "Retry"
   shot tv-source-state
