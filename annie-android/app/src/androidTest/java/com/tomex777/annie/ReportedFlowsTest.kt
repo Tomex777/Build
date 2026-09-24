@@ -35,9 +35,11 @@ class ReportedFlowsTest {
         }
         compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
         compose.onNodeWithText("/anime").assertIsDisplayed()
-        compose.onNodeWithText("Anime menu").assertIsDisplayed()
+        compose.onNodeWithText("Browse anime").assertIsDisplayed()
         compose.onNodeWithText("/anime search").assertIsDisplayed()
-        compose.onNodeWithText("Search anime").assertIsDisplayed()
+        compose.onNodeWithText("Search the catalog").assertIsDisplayed()
+        compose.onNodeWithText("/anime recent").assertIsDisplayed()
+        compose.onNodeWithText("New episodes").assertIsDisplayed()
         compose.onNodeWithText("/anime").performClick()
         assertEquals("/anime", selected)
     }
@@ -61,7 +63,7 @@ class ReportedFlowsTest {
     @Test fun searchResultsUseDetailsActionAndDoNotShowSelectTitleFooter() {
         var selected = 0
         compose.setContent { CatalogCard(manga) { selected++ } }
-        compose.onNodeWithText("Details  ›", substring = true).assertIsDisplayed()
+        compose.onNodeWithTag("catalog_details_action").assertIsDisplayed()
         assertEquals(0, compose.onAllNodesWithText("Select this title  ›").fetchSemanticsNodes().size)
         compose.onNodeWithTag("catalog_result_card").performClick()
         assertEquals(1, selected)

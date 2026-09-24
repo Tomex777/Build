@@ -223,7 +223,7 @@ private fun AnnieChat() {
                 query.equals("search", true) -> startSearch("anime", "")
                 query.startsWith("search ", true) -> startSearch("anime", query.substringAfter(" ", "").trim())
                 query.equals("download", true) || query.equals("downloads", true) -> openDownloads("Anime")
-                query.equals("recently aired", true) -> handleMenuAction("Anime", "Recently aired")
+                query.equals("recent", true) || query.equals("recently aired", true) -> handleMenuAction("Anime", "Recently aired")
                 query.equals("continue", true) || query.equals("continue watching", true) -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
                 else -> startSearch("anime", query)
             }
@@ -760,9 +760,9 @@ internal fun MangaResultMessage(item: CatalogItem, onAction: (String) -> Unit) {
 @Composable
 private fun MangaCardAction(label: String, icon: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Surface(
-        color = Color(0xFF10263D),
+        color = if (label == "Continue reading") Blue else Color(0xFF10263D),
         shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.dp, Color(0xFF294562)),
+        border = BorderStroke(1.dp, if (label == "Continue reading") Blue else Color(0xFF168EEA)),
         modifier = modifier.clickable(onClick = onClick).testTag("manga_action_$label")
     ) {
         Row(
@@ -770,7 +770,7 @@ private fun MangaCardAction(label: String, icon: String, modifier: Modifier = Mo
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            ActionGlyph(icon, Color(0xFF27A8F2))
+            ActionGlyph(icon, if (label == "Continue reading") Color.White else Color(0xFF42B9F5))
             Text(label, color = BrightText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         }
     }
@@ -887,12 +887,12 @@ internal fun CatalogCard(item: CatalogItem, onClick: () -> Unit) {
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, Color(0xFF29425E))
     ) {
-        Row(Modifier.fillMaxWidth().padding(10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+        Row(Modifier.fillMaxWidth().padding(10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
                 model = item.image,
                 contentDescription = item.title,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.width(98.dp).height(132.dp).clip(RoundedCornerShape(11.dp)).background(Color(0xFF1D3550))
+                modifier = Modifier.width(104.dp).height(78.dp).clip(RoundedCornerShape(11.dp)).background(Color(0xFF1D3550))
             )
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 val mediaLabel = when (item.mediaType) {
@@ -901,18 +901,20 @@ internal fun CatalogCard(item: CatalogItem, onClick: () -> Unit) {
                     "TV" -> "TV SERIES"
                     else -> if (item.format == "MOVIE") "ANIME MOVIE" else "ANIME"
                 }
-                Text("$mediaLabel · ${item.sourceLabel.uppercase()}", color = Color(0xFF75BDF1), fontSize = 9.sp, letterSpacing = 1.1.sp, fontWeight = FontWeight.Bold)
-                Text(item.title, color = BrightText, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                val count = if (item.mediaType == "MANGA") item.chapters?.let { "$it chapters listed" } else item.episodes?.let { "$it episodes listed" }
-                val facts = listOfNotNull(item.year?.toString(), count)
-                if (facts.isNotEmpty()) Text(facts.joinToString(" · "), color = SoftText, fontSize = 11.sp)
-                if ((item.mediaType == "ANIME" || item.mediaType == "MANGA") && item.status in setOf("RELEASING", "FINISHED", "NOT_YET_RELEASED")) {
-                    Text(statusLabel(item.status), color = Teal, fontSize = 11.sp)
-                } else if (item.summary.isNotBlank()) {
-                    Text(item.summary, color = SoftText, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
-                Text("Details  ›", color = Color(0xFF9CD7FF), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.testTag("catalog_details_action"))
+                Text(mediaLabel, color = Color(0xFF75BDF1), fontSize = 9.sp, letterSpacing = 1.1.sp, fontWeight = FontWeight.Bold)
+                Text(item.title, color = BrightText, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                val count = if (item.mediaType == "MANGA") item.chapters?.let { "$it chapters" } else item.episodes?.let { "$it episodes" }
+                val facts = listOfNotNull(item.year?.toString(), count, item.sourceLabel.takeIf { it.isNotBlank() })
+                if (facts.isNotEmpty()) Text(facts.joinToString(" · "), color = SoftText, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Surface(
+                color = Color.Transparent,
+                shape = RoundedCornerShape(11.dp),
+                border = BorderStroke(1.dp, Color(0xFF168EEA)),
+                modifier = Modifier.testTag("catalog_details_action").clickable(onClick = onClick)
+            ) {
+                Text("Details", color = Color(0xFF42B9F5), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp))
             }
         }
     }
@@ -928,8 +930,9 @@ private fun statusLabel(status: String): String = when (status) {
 @Composable
 internal fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
     val commands = listOf(
-        "/anime" to "Anime menu",
-        "/anime search" to "Search anime",
+        "/anime" to "Browse anime",
+        "/anime search" to "Search the catalog",
+        "/anime recent" to "New episodes",
         "/anime downloads" to "Downloads",
         "/anime recently aired" to "Recently aired",
         "/anime continue watching" to "Continue watching",
@@ -952,7 +955,7 @@ internal fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
             .clip(RoundedCornerShape(16.dp)).background(Panel).padding(6.dp).testTag("slash_suggestions"),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        matches.take(6).forEach { (command, label) ->
+        matches.take(3).forEach { (command, label) ->
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp))
                     .clickable { onSelect(command) }.padding(horizontal = 12.dp, vertical = 10.dp),
