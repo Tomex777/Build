@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import app.nami.domain.AnimeDetails
 import app.nami.domain.AnimeEpisode
 import app.nami.domain.AnimeRef
@@ -13,6 +14,7 @@ import app.nami.domain.MediaTrack
 import app.nami.domain.ResolvedMedia
 import app.nami.runtime.NamiSourceRegistry
 import app.nami.source.NamiAnimeSource
+import app.nami.source.SourceCapabilities
 import app.nami.source.SourceMetadata
 import app.nami.source.SourceOrigin
 import app.nami.source.SourcePage
@@ -31,6 +33,9 @@ import java.util.concurrent.ConcurrentHashMap
 private const val EXTENSION_FEATURE = "tachiyomi.animeextension"
 private const val METADATA_SOURCE_CLASS = "tachiyomi.animeextension.class"
 private const val METADATA_NAME = "aniyomix.name"
+private const val METADATA_EXTENSION_LIB = "aniyomix.extensionLib"
+private const val LOG_TAG = "NamiAniyomiCompat"
+private val SUPPORTED_EXTENSION_LIB_VERSIONS = setOf(16.0)
 private const val LEGACY_LABEL_PREFIX = "Aniyomi: "
 
 /**
@@ -42,8 +47,16 @@ class AniyomiExtensionRegistry(
 ) : NamiSourceRegistry {
 
     override suspend fun installedSources(): List<NamiAnimeSource> = withContext(Dispatchers.IO) {
-        installedExtensionPackages()
-            .flatMap { packageInfo -> loadPackage(packageInfo) }
+        val packages = installedExtensionPackages()
+        Log.i(LOG_TAG, "Found ${packages.size} installed anime extension package(s)")
+        packages
+            .flatMap { packageInfo ->
+                runCatching { loadPackage(packageInfo) }
+                    .onFailure {
+                        Log.w(LOG_TAG, "Extension package ${packageInfo.packageName} failed during discovery (${it.javaClass.simpleName})")
+                    }
+                    .getOrDefault(emptyList())
+            }
             .distinctBy { it.metadata.id }
             .sortedBy { it.metadata.name.lowercase() }
     }
@@ -66,13 +79,28 @@ class AniyomiExtensionRegistry(
 
     private fun loadPackage(packageInfo: PackageInfo): List<NamiAnimeSource> {
         val applicationInfo = packageInfo.applicationInfo ?: return emptyList()
-        val metadata = applicationInfo.metaData ?: return emptyList()
+        val metadata = applicationInfo.metaData ?: run {
+            Log.w(LOG_TAG, "Skipping ${packageInfo.packageName}: extension metadata is missing")
+            return emptyList()
+        }
+        val extensionVersion = packageInfo.versionName ?: "unknown"
+        val extensionLibVersion = metadata.getInt(METADATA_EXTENSION_LIB, 0)
+            .takeIf { it > 0 }
+            ?.toDouble()
+            ?: extensionVersion.substringBeforeLast('.').toDoubleOrNull()
+        if (extensionLibVersion !in SUPPORTED_EXTENSION_LIB_VERSIONS) {
+            Log.w(LOG_TAG, "Skipping ${packageInfo.packageName}: unsupported extensions-lib ${extensionLibVersion ?: "unknown"}")
+            return emptyList()
+        }
         val declaredClasses = metadata.getString(METADATA_SOURCE_CLASS)
             ?.split(';')
             ?.map(String::trim)
             ?.filter(String::isNotEmpty)
             .orEmpty()
-        if (declaredClasses.isEmpty()) return emptyList()
+        if (declaredClasses.isEmpty()) {
+            Log.w(LOG_TAG, "Skipping ${packageInfo.packageName}: no source classes are declared")
+            return emptyList()
+        }
 
         val extensionName = metadata.getString(METADATA_NAME)
             ?: context.packageManager.getApplicationLabel(applicationInfo)
@@ -88,24 +116,35 @@ class AniyomiExtensionRegistry(
                 declaredName
             }
 
-            runCatching {
-                val instance = Class.forName(className, true, loader)
+            val loadedSources = runCatching {
+                val instance = Class.forName(className, false, loader)
                     .getDeclaredConstructor()
                     .newInstance()
 
                 when (instance) {
                     is AnimeSource -> listOf(instance)
                     is AnimeSourceFactory -> instance.createSources()
-                    else -> emptyList()
+                    else -> error("Declared class is neither AnimeSource nor AnimeSourceFactory")
                 }
+            }.onFailure {
+                Log.w(LOG_TAG, "Failed loading ${packageInfo.packageName}:$className (${it.javaClass.simpleName})")
             }.getOrDefault(emptyList())
-                .map { legacy ->
-                    LegacyAnimeSourceAdapter(
-                        packageName = packageInfo.packageName,
-                        extensionName = extensionName,
-                        source = legacy,
-                    )
+
+            if (loadedSources.isEmpty()) {
+                Log.w(LOG_TAG, "No sources produced by ${packageInfo.packageName}:$className")
+            }
+
+            loadedSources.map { legacy ->
+                LegacyAnimeSourceAdapter(
+                    packageName = packageInfo.packageName,
+                    extensionName = extensionName,
+                    extensionVersion = extensionVersion,
+                    extensionApiVersion = extensionLibVersion.toInt(),
+                    source = legacy,
+                ).also {
+                    Log.i(LOG_TAG, "Loaded source ${it.metadata.id} from ${packageInfo.packageName} (version $extensionVersion, API ${extensionLibVersion.toInt()})")
                 }
+            }
         }
     }
 }
@@ -113,6 +152,8 @@ class AniyomiExtensionRegistry(
 private class LegacyAnimeSourceAdapter(
     private val packageName: String,
     private val extensionName: String,
+    private val extensionVersion: String,
+    private val extensionApiVersion: Int,
     private val source: AnimeSource,
 ) : NamiAnimeSource {
 
@@ -126,6 +167,18 @@ private class LegacyAnimeSourceAdapter(
         origin = SourceOrigin.ANIYOMI_COMPATIBLE,
         extensionName = extensionName,
         homeUrl = (source as? AnimeHttpSource)?.getHomeUrl(),
+        capabilities = SourceCapabilities(
+            searchable = source is eu.kanade.tachiyomi.animesource.AnimeCatalogueSource,
+            browsable = source is AnimeHttpSource,
+            details = true,
+            episodes = true,
+            streamable = source is AnimeHttpSource,
+            downloadable = false,
+            configurable = source is eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource,
+        ),
+        extensionPackage = packageName,
+        extensionVersion = extensionVersion,
+        extensionApiVersion = extensionApiVersion,
     )
 
     override suspend fun search(query: String, page: Int): SourcePage<AnimeSearchResult> {
