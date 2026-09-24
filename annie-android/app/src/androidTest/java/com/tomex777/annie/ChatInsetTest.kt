@@ -18,6 +18,8 @@ class ChatInsetTest {
 
     @Test fun keyboardLayoutKeepsStatusBarConversationAndComposerInOrder() {
         compose.onNodeWithTag("top_bar").assertIsDisplayed()
+        compose.onNodeWithTag("chat_history_button").performClick()
+        compose.onNodeWithTag("new_chat_button").assertIsDisplayed().performClick()
         compose.onNodeWithTag("conversation").assertIsDisplayed()
         compose.onNodeWithTag("composer_input").performClick().performTextInput("/ani")
         compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()

@@ -142,6 +142,9 @@ internal fun AnnieChat() {
     val density = LocalDensity.current
     val keyboardVisible = WindowInsets.ime.getBottom(density) > 0
     LaunchedEffect(Unit) { ChatHistoryStore.write(context, chats) }
+    LaunchedEffect(activeChatId) {
+        if (messages.size <= 1) listState.scrollToItem(0)
+    }
     LaunchedEffect(activeChatId, messages.size, keyboardVisible) {
         if (messages.size > 1) listState.animateScrollToItem(messages.lastIndex)
     }
