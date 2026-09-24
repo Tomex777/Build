@@ -474,7 +474,6 @@ private fun statusLabel(status: String): String = when (status) {
 }
 
 @Composable
-@Composable
 private fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
     val commands = listOf(
         "/anime" to "Anime",
