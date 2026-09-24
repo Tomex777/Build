@@ -43,7 +43,6 @@ import org.json.JSONObject
 
 internal enum class DownloadMediaKind(val label: String, val filter: String) {
     MANGA("Manga", "Manga"),
-    NOVEL("Novel", "Novels"),
     ANIME("Anime", "Anime"),
     MOVIE("Movie", "Movies"),
     TV("TV series", "TV Series"),
@@ -212,7 +211,7 @@ internal fun DownloadsManagerContent(
     initialMediaFilter: String = "All",
     modifier: Modifier = Modifier,
 ) {
-    val filters = listOf("All", "Manga", "Novels", "Anime", "Movies", "TV Series", "Music")
+    val filters = listOf("All", "Manga", "Anime", "Movies", "TV Series", "Music")
     val statusFilters = listOf("All", "Downloading", "Downloaded", "Paused", "Failed")
     var selectedFilter by remember(initialMediaFilter) { mutableStateOf(initialMediaFilter) }
     var selectedStatus by remember { mutableStateOf("All") }
@@ -298,10 +297,7 @@ internal fun DownloadsManagerContent(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("↓", color = DownloadsCyan, fontSize = 30.sp, fontWeight = FontWeight.Bold)
                 Text(if (items.isEmpty()) "No downloads yet" else "No ${selectedStatus.lowercase()} downloads", color = DownloadsText, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                Text("Downloads from manga, anime, movies, TV, novels, and music will appear here.",
-                    color = DownloadsMuted, fontSize = 13.sp, lineHeight = 19.sp)
             }
         } else {
             LazyColumn(
@@ -483,7 +479,6 @@ private fun BoxPlaceholder(kind: DownloadMediaKind) {
         Text(
             when (kind) {
                 DownloadMediaKind.MANGA -> "▤"
-                DownloadMediaKind.NOVEL -> "≡"
                 DownloadMediaKind.ANIME, DownloadMediaKind.TV, DownloadMediaKind.MOVIE -> "▶"
                 DownloadMediaKind.MUSIC -> "♫"
             },
@@ -497,7 +492,6 @@ private fun BoxPlaceholder(kind: DownloadMediaKind) {
 private val DownloadMediaKind.unitLabel: String
     get() = when (this) {
         DownloadMediaKind.MANGA -> "chapters"
-        DownloadMediaKind.NOVEL -> "chapters"
         DownloadMediaKind.ANIME, DownloadMediaKind.TV -> "episodes"
         DownloadMediaKind.MOVIE -> "files"
         DownloadMediaKind.MUSIC -> "tracks"

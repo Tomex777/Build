@@ -4,6 +4,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.performClick
 import org.junit.Rule
 import org.junit.Test
@@ -61,6 +62,14 @@ class DownloadsManagerTest {
         compose.onNodeWithTag("download_status_Downloaded").performClick()
         compose.onNodeWithText("2 of 247 chapters available offline").assertExists()
         compose.onNodeWithText("Example Series").assertDoesNotExist()
+    }
+
+    @Test fun emptyDownloadsStateOmitsArrowNovelFilterAndExplanatorySentence() {
+        compose.setContent { DownloadsManagerContent(emptyList(), onRemove = {}, onStateChange = { _, _ -> }) }
+        compose.onNodeWithText("No downloads yet").assertExists()
+        compose.onNodeWithText("↓").assertDoesNotExist()
+        compose.onNodeWithText("Novels").assertDoesNotExist()
+        compose.onNodeWithText("Downloads from manga, anime, movies, TV, novels, and music will appear here.").assertDoesNotExist()
     }
 
 }

@@ -124,21 +124,34 @@ internal data class ChatEntry(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AnnieChat() {
+internal fun AnnieChat() {
     val context = LocalContext.current
-    val messages = remember {
-        mutableStateListOf(ChatEntry(1, false, "Hi, I’m Annie. What are you in the mood for? Type a command to start. Providers stay separate, and I’ll show clearly when one is unavailable."))
+    val chats = remember {
+        mutableStateListOf<ChatSession>().apply {
+            addAll(ChatHistoryStore.read(context))
+            if (isEmpty()) add(newWelcomeChat())
+        }
     }
+    var activeChatId by remember { mutableStateOf(chats.first().id) }
+    val activeChat = chats.firstOrNull { it.id == activeChatId } ?: chats.first()
+    val messages = activeChat.messages
     var draft by remember { mutableStateOf("") }
     var activeSheet by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val keyboardVisible = WindowInsets.ime.getBottom(density) > 0
-    LaunchedEffect(messages.size, keyboardVisible) {
+    LaunchedEffect(Unit) { ChatHistoryStore.write(context, chats) }
+    LaunchedEffect(activeChatId, messages.size, keyboardVisible) {
         if (messages.size > 1) listState.animateScrollToItem(messages.lastIndex)
     }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    fun persistHistory() {
+        val activeIndex = chats.indexOfFirst { it.id == activeChatId }
+        if (activeIndex > 0) chats.add(0, chats.removeAt(activeIndex))
+        ChatHistoryStore.write(context, chats)
+    }
 
     fun addAnnie(
         text: String,
@@ -151,6 +164,7 @@ private fun AnnieChat() {
         selectedStage: String? = null
     ) {
         messages.add(ChatEntry(System.nanoTime(), false, text, catalog, menuTitle, actions, searchMedia, searchInitial, selectedItem, selectedStage))
+        persistHistory()
         scope.launch { listState.animateScrollToItem(messages.lastIndex) }
     }
 
@@ -215,6 +229,7 @@ private fun AnnieChat() {
         val value = draft.trim()
         if (value.isEmpty()) return
         messages.add(ChatEntry(System.nanoTime(), true, value))
+        persistHistory()
         draft = ""
         val parts = value.split(Regex("\\s+"), limit = 2)
         val command = parts.firstOrNull()?.lowercase().orEmpty()
@@ -270,7 +285,7 @@ private fun AnnieChat() {
 
     Surface(modifier = Modifier.fillMaxSize(), color = Night) {
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding().testTag("chat_root")) {
-            AnnieTopBar(onExtensions = { activeSheet = "Extensions" })
+            AnnieTopBar(onHistory = { activeSheet = "Chat history" })
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth().testTag("conversation"),
                 state = listState,
@@ -313,7 +328,28 @@ private fun AnnieChat() {
             containerColor = Panel,
             contentColor = BrightText,
         ) {
-            if (category.startsWith("Downloads:")) {
+            if (category == "Chat history") {
+                ChatHistoryContent(
+                    chats = chats,
+                    activeChatId = activeChatId,
+                    onNewChat = {
+                        val newChat = newWelcomeChat()
+                        chats.add(0, newChat)
+                        activeChatId = newChat.id
+                        draft = ""
+                        persistHistory()
+                        activeSheet = null
+                    },
+                    onSelectChat = { id ->
+                        activeChatId = id
+                        draft = ""
+                        activeSheet = null
+                    },
+                    onExtensions = {
+                        activeSheet = "Extensions"
+                    },
+                )
+            } else if (category.startsWith("Downloads:")) {
                 DownloadsManagerContent(
                     items = downloads,
                     onRemove = { item ->
@@ -355,8 +391,71 @@ private fun AnnieChat() {
     }
 }
 
+private fun newWelcomeChat(): ChatSession {
+    val welcome = ChatEntry(
+        id = System.nanoTime(),
+        fromUser = false,
+        text = "Hi, I’m Annie. What are you in the mood for? Type a command to start. Providers stay separate, and I’ll show clearly when one is unavailable.",
+    )
+    return ChatSession(System.nanoTime().toString(), mutableStateListOf(welcome))
+}
+
 @Composable
-private fun AnnieTopBar(onExtensions: () -> Unit) {
+private fun ChatHistoryContent(
+    chats: List<ChatSession>,
+    activeChatId: String,
+    onNewChat: () -> Unit,
+    onSelectChat: (String) -> Unit,
+    onExtensions: () -> Unit,
+) {
+    Column(
+        Modifier.fillMaxWidth().heightIn(max = 620.dp).padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text("Chats", color = BrightText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Surface(
+            color = Blue,
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onNewChat).testTag("new_chat_button"),
+        ) {
+            Text("＋   New chat", color = BrightText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp))
+        }
+        if (chats.isEmpty()) {
+            Text("No saved chats", color = SoftText, fontSize = 14.sp, modifier = Modifier.padding(vertical = 16.dp))
+        } else {
+            LazyColumn(
+                Modifier.fillMaxWidth().weight(1f, fill = false).testTag("chat_history_list"),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(chats, key = { it.id }) { chat ->
+                    Surface(
+                        color = if (chat.id == activeChatId) Color(0xFF1A3554) else Bubble,
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.dp, if (chat.id == activeChatId) Blue else Color(0xFF294562)),
+                        modifier = Modifier.fillMaxWidth().clickable { onSelectChat(chat.id) }
+                            .testTag("chat_history_${chat.id}"),
+                    ) {
+                        Column(Modifier.padding(horizontal = 14.dp, vertical = 11.dp)) {
+                            Text(chat.title, color = BrightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            if (chat.preview.isNotBlank()) {
+                                Text(chat.preview, color = SoftText, fontSize = 12.sp, maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Text("Extensions", color = SoftText, fontSize = 14.sp,
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onExtensions)
+                .testTag("chat_history_extensions").padding(horizontal = 12.dp, vertical = 10.dp))
+    }
+}
+
+@Composable
+private fun AnnieTopBar(onHistory: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().height(68.dp).background(Panel).padding(horizontal = 16.dp).testTag("top_bar"),
         verticalAlignment = Alignment.CenterVertically
@@ -375,7 +474,7 @@ private fun AnnieTopBar(onExtensions: () -> Unit) {
         }
         Text(
             "⋮",
-            modifier = Modifier.clip(CircleShape).clickable(onClick = onExtensions).padding(horizontal = 12.dp, vertical = 6.dp),
+            modifier = Modifier.clip(CircleShape).clickable(onClick = onHistory).padding(horizontal = 12.dp, vertical = 6.dp).testTag("chat_history_button"),
             color = SoftText,
             fontSize = 24.sp
         )
@@ -1069,7 +1168,7 @@ internal fun Composer(value: String, onValueChange: (String) -> Unit, onSuggesti
                 }
             )
         }
-        Surface(color = Blue, shape = CircleShape, modifier = Modifier.size(46.dp).clickable(onClick = onSend)) {
+        Surface(color = Blue, shape = CircleShape, modifier = Modifier.size(46.dp).clickable(onClick = onSend).testTag("send_message")) {
             Box(contentAlignment = Alignment.Center) { Text("➤", color = Color.White, fontSize = 19.sp) }
         }
         }
