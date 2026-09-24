@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
@@ -83,6 +84,7 @@ import com.night.spotui.playback.SpotRuntime
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONArray
@@ -554,7 +556,36 @@ private fun YouTubeSignIn(source: YouTubeMusicSource, onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
     val session = remember(source) { source.browserSession() }
     var webView by remember { mutableStateOf<WebView?>(null) }
-    var status by remember { mutableStateOf("Sign in, then tap Done.") }
+    var status by remember { mutableStateOf("Sign in to YouTube Music") }
+    var saving by remember { mutableStateOf(false) }
+
+    LaunchedEffect(webView) {
+        val view = webView ?: return@LaunchedEffect
+        while (true) {
+            delay(750)
+            if (saving || !view.url.orEmpty().startsWith("https://music.youtube.com")) continue
+            val cookie = CookieManager.getInstance().getCookie("https://music.youtube.com/").orEmpty()
+            if (!hasYouTubeAccountCookie(cookie)) continue
+
+            saving = true
+            status = "Connecting YouTube Music…"
+            persistYouTubeBrowserSession(view, source, session)
+                .onSuccess { signed ->
+                    if (signed) {
+                        status = "YouTube Music connected"
+                        delay(350)
+                        onClose()
+                    } else {
+                        status = "YouTube sign-in was not detected."
+                        saving = false
+                    }
+                }
+                .onFailure {
+                    status = it.message ?: "Could not save YouTube session."
+                    saving = false
+                }
+        }
+    }
 
     BackHandler(onBack = onClose)
     Column(Modifier.fillMaxSize().background(SpotBlack).statusBarsPadding()) {
@@ -575,26 +606,24 @@ private fun YouTubeSignIn(source: YouTubeMusicSource, onClose: () -> Unit) {
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.clickable {
                     val view = webView ?: return@clickable
+                    if (saving) return@clickable
                     scope.launch {
-                        status = "Saving YouTube session…"
-                        CookieManager.getInstance().flush()
-                        val visitorData = evaluateSessionScript(view, session.scripts["visitorData"])
-                        val dataSyncId = evaluateSessionScript(view, session.scripts["dataSyncId"])
-                        val authUser = evaluateSessionScript(view, session.scripts["authUser"]).ifBlank { "0" }
-                        val cookie = CookieManager.getInstance().getCookie("https://music.youtube.com/").orEmpty()
-                        val agent = view.settings.userAgentString.orEmpty()
-                        source.storeBrowserSession(
-                            cookieHeader = cookie,
-                            userAgent = agent,
-                            visitorData = visitorData,
-                            dataSyncId = dataSyncId,
-                            authUser = authUser,
-                        )
+                        saving = true
+                        status = "Connecting YouTube Music…"
+                        persistYouTubeBrowserSession(view, source, session)
                             .onSuccess { signed ->
-                                status = if (signed) "Signed in. You can play music now." else "No signed-in YouTube session found."
-                                if (signed) onClose()
+                                status = if (signed) "YouTube Music connected" else "No signed-in YouTube session found."
+                                if (signed) {
+                                    delay(350)
+                                    onClose()
+                                } else {
+                                    saving = false
+                                }
                             }
-                            .onFailure { status = it.message ?: "Could not save session." }
+                            .onFailure {
+                                status = it.message ?: "Could not save YouTube session."
+                                saving = false
+                            }
                     }
                 }.padding(12.dp),
             )
@@ -605,6 +634,8 @@ private fun YouTubeSignIn(source: YouTubeMusicSource, onClose: () -> Unit) {
                 WebView(context).apply {
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
+                    settings.databaseEnabled = true
+                    settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
                     CookieManager.getInstance().setAcceptCookie(true)
                     CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                     webViewClient = WebViewClient()
@@ -615,6 +646,31 @@ private fun YouTubeSignIn(source: YouTubeMusicSource, onClose: () -> Unit) {
             },
         )
     }
+}
+
+private suspend fun persistYouTubeBrowserSession(
+    view: WebView,
+    source: YouTubeMusicSource,
+    session: BrowserSessionSpec,
+): Result<Boolean> {
+    CookieManager.getInstance().flush()
+    val visitorData = evaluateSessionScript(view, session.scripts["visitorData"])
+    val dataSyncId = evaluateSessionScript(view, session.scripts["dataSyncId"])
+    val authUser = evaluateSessionScript(view, session.scripts["authUser"]).ifBlank { "0" }
+    val cookie = CookieManager.getInstance().getCookie("https://music.youtube.com/").orEmpty()
+    val agent = view.settings.userAgentString.orEmpty()
+    return source.storeBrowserSession(
+        cookieHeader = cookie,
+        userAgent = agent,
+        visitorData = visitorData,
+        dataSyncId = dataSyncId,
+        authUser = authUser,
+    )
+}
+
+private fun hasYouTubeAccountCookie(cookie: String): Boolean {
+    val names = cookie.split(';').map { it.substringBefore('=').trim() }.toSet()
+    return "SAPISID" in names || "__Secure-3PAPISID" in names || "__Secure-1PAPISID" in names
 }
 
 private suspend fun evaluateSessionScript(view: WebView, script: String?): String {
