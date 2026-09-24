@@ -25,7 +25,7 @@ export function validateDescriptor(descriptor) {
 }
 
 function normalizeTitle(value) {
-  return String(value || "").normalize("NFKC").trim().toLocaleLowerCase().replace(/\s+/g, " ");
+  return String(value || "").normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function resultKey(item) {
