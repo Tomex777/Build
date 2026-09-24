@@ -172,7 +172,7 @@ export function youtubeEmbedUrl(input) {
 
 export function youtubeSearchUrl(query) {
   const text = typeof query === "string" ? query.trim() : "";
-  if (!text) return null;
+  if (!text || text.length > 500) return null;
   const url = new URL("https://www.googleapis.com/youtube/v3/search");
   url.searchParams.set("part", "snippet");
   url.searchParams.set("type", "video");
@@ -185,10 +185,12 @@ export function youtubeSearchUrl(query) {
 
 export function normalizeYouTubeSearchPayload(payload) {
   if (!payload || !Array.isArray(payload.items)) return [];
+  const seen = new Set();
   return payload.items.flatMap(item => {
     const id = item?.id?.videoId;
     const title = item?.snippet?.title;
-    if (typeof id !== "string" || !/^[A-Za-z0-9_-]{11}$/.test(id) || typeof title !== "string" || !title.trim()) return [];
+    if (typeof id !== "string" || !/^[A-Za-z0-9_-]{11}$/.test(id) || seen.has(id) || typeof title !== "string" || !title.trim()) return [];
+    seen.add(id);
     const rawThumbnail = item?.snippet?.thumbnails?.medium?.url || item?.snippet?.thumbnails?.default?.url || "";
     let thumbnail = "";
     try {
