@@ -13,7 +13,6 @@ import android.view.SurfaceView
 import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
-import android.widget.MediaController
 import android.widget.VideoView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -296,10 +295,9 @@ internal fun NightAniyomiVlcPlayer(
     val appContext = context.applicationContext
     val virtualVideoDevice = remember { isNightVirtualVideoDevice() }
     val useTextureView = virtualVideoDevice
-    // Start virtual and physical devices on VLC's hardware decoder path.
-    // The watchdog recreates a stalled VLC player with software decoding.
+    // Virtual Android devices use software decode; physical devices keep hardware.
     var softwareDecode by remember(item.localPath, item.requestHeaders) {
-        mutableStateOf(false)
+        mutableStateOf(virtualVideoDevice)
     }
     var hardwareRetryGeneration by remember(item.localPath) { mutableStateOf(0) }
     var hardwareRetryCount by remember(item.localPath) { mutableStateOf(0) }
@@ -335,6 +333,10 @@ internal fun NightAniyomiVlcPlayer(
     val attachInFlight = remember(player) { AtomicBoolean(false) }
     var hasVlcVideoOutput by remember(player) { mutableStateOf(false) }
     var usePlatformFallback by remember(item.localPath) { mutableStateOf(false) }
+    var platformVideoView by remember(item.localPath) { mutableStateOf<VideoView?>(null) }
+    var platformMediaPlayer by remember(item.localPath) {
+        mutableStateOf<android.media.MediaPlayer?>(null)
+    }
 
     var controlsVisible by remember(item.localPath) { mutableStateOf(true) }
     var controlsLocked by remember(item.localPath) { mutableStateOf(false) }
@@ -446,7 +448,14 @@ internal fun NightAniyomiVlcPlayer(
         }
     }
 
-    LaunchedEffect(active, player, softwareDecode, hardwareRetryGeneration) {
+    LaunchedEffect(
+        active,
+        player,
+        softwareDecode,
+        hardwareRetryGeneration,
+        usePlatformFallback,
+        platformVideoView,
+    ) {
         if (!active) {
             runCatching { player.pause() }
             attachedVlcVoutCallback?.let { callback ->
@@ -462,6 +471,18 @@ internal fun NightAniyomiVlcPlayer(
             if (landscape) {
                 landscape = false
                 activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            }
+            return@LaunchedEffect
+        }
+
+        if (usePlatformFallback) {
+            while (isActive && active && usePlatformFallback) {
+                val view = platformVideoView
+                length = view?.let { runCatching { it.duration.coerceAtLeast(0).toLong() }.getOrDefault(0L) } ?: 0L
+                position = view?.let { runCatching { it.currentPosition.coerceAtLeast(0).toLong() }.getOrDefault(0L) } ?: 0L
+                playing = view?.let { runCatching { it.isPlaying }.getOrDefault(false) } ?: false
+                if (position >= 500L) playbackStarted = true
+                delay(250L)
             }
             return@LaunchedEffect
         }
@@ -536,14 +557,14 @@ internal fun NightAniyomiVlcPlayer(
         hardwareRetryGeneration,
         userPaused,
     ) {
-        if (!active || softwareDecode || userPaused) return@LaunchedEffect
+        if (!active || softwareDecode || userPaused || usePlatformFallback) return@LaunchedEffect
 
         val startedAt = SystemClock.elapsedRealtime()
         var lastAdvanceAt = startedAt
         var lastObservedPosition = position
         var lastHeartbeatAt = startedAt
 
-        while (isActive && active && !softwareDecode && !userPaused) {
+        while (isActive && active && !softwareDecode && !userPaused && !usePlatformFallback) {
             delay(500L)
 
             val now = SystemClock.elapsedRealtime()
@@ -731,11 +752,16 @@ internal fun NightAniyomiVlcPlayer(
             AndroidView(
                 factory = { viewContext ->
                     VideoView(viewContext).apply {
-                        val controller = MediaController(viewContext)
-                        setMediaController(controller)
-                        controller.setAnchorView(this)
+                        platformVideoView = this
+                        isClickable = true
+                        setOnClickListener { controlsVisible = !controlsVisible }
                         setOnPreparedListener { mediaPlayer ->
+                            platformMediaPlayer = mediaPlayer
                             mediaPlayer.isLooping = true
+                            runCatching {
+                                mediaPlayer.playbackParams =
+                                    mediaPlayer.playbackParams.setSpeed(playbackSpeed)
+                            }
                             Log.i("NightVideo", "Android VideoView fallback prepared media.")
                             start()
                         }
@@ -816,7 +842,9 @@ internal fun NightAniyomiVlcPlayer(
                                             layout.installNightVideoTapHandler {
                                                 controlsVisible = !controlsVisible
                                             }
-                                            runCatching { player.setVideoScale(aspect.scale) }
+                                            if (!usePlatformFallback) {
+                                        runCatching { player.setVideoScale(aspect.scale) }
+                                    }
                                         } else {
                                             Log.w(
                                                 "NightVideo",
@@ -886,7 +914,7 @@ internal fun NightAniyomiVlcPlayer(
         )
 
         AnimatedVisibility(
-            visible = controlsVisible && !usePlatformFallback,
+            visible = controlsVisible,
             modifier = Modifier.fillMaxSize(),
         ) {
             Box(
@@ -1061,14 +1089,26 @@ internal fun NightAniyomiVlcPlayer(
 
                         IconButton(
                             onClick = {
-                                if (player.isPlaying) {
-                                    userPaused = true
-                                    player.pause()
+                                if (usePlatformFallback) {
+                                    val view = platformVideoView
+                                    if (view?.isPlaying == true) {
+                                        userPaused = true
+                                        view.pause()
+                                    } else {
+                                        userPaused = false
+                                        view?.start()
+                                    }
+                                    playing = view?.isPlaying == true
                                 } else {
-                                    userPaused = false
-                                    player.play()
+                                    if (player.isPlaying) {
+                                        userPaused = true
+                                        player.pause()
+                                    } else {
+                                        userPaused = false
+                                        player.play()
+                                    }
+                                    playing = player.isPlaying
                                 }
-                                playing = player.isPlaying
                                 controlsVisible = true
                             },
                             modifier = Modifier
@@ -1183,7 +1223,15 @@ internal fun NightAniyomiVlcPlayer(
                                             text = { Text(formatNightRate(rate) + "×") },
                                             onClick = {
                                                 playbackSpeed = rate
-                                                runCatching { player.setRate(rate) }
+                                                if (usePlatformFallback) {
+                                                    platformMediaPlayer?.let { native ->
+                                                        runCatching {
+                                                            native.playbackParams = native.playbackParams.setSpeed(rate)
+                                                        }
+                                                    }
+                                                } else {
+                                                    runCatching { player.setRate(rate) }
+                                                }
                                                 speedMenu = false
                                             },
                                         )
@@ -1246,7 +1294,11 @@ internal fun NightAniyomiVlcPlayer(
                                 },
                                 onValueChangeFinished = {
                                     val target = dragPosition.toLong().coerceIn(0L, length)
-                                    player.setTime(target)
+                                    if (usePlatformFallback) {
+                                        platformVideoView?.seekTo(target.toInt())
+                                    } else {
+                                        player.setTime(target)
+                                    }
                                     position = target
                                     dragging = false
                                     controlsVisible = true
