@@ -1,6 +1,7 @@
 package com.tomex777.annie
 
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertIsDisplayed
@@ -40,6 +41,7 @@ class ReportedFlowsTest {
         compose.onNodeWithText("Search the catalog").assertIsDisplayed()
         compose.onNodeWithText("/anime recent").assertIsDisplayed()
         compose.onNodeWithText("New episodes").assertIsDisplayed()
+        assertEquals(3, compose.onAllNodesWithText("/", substring = true).fetchSemanticsNodes().size)
         compose.onNodeWithText("/anime").performClick()
         assertEquals("/anime", selected)
     }
@@ -65,8 +67,15 @@ class ReportedFlowsTest {
         compose.setContent { CatalogCard(manga) { selected++ } }
         compose.onNodeWithTag("catalog_details_action").assertIsDisplayed()
         assertEquals(0, compose.onAllNodesWithText("Select this title  ›").fetchSemanticsNodes().size)
-        compose.onNodeWithTag("catalog_result_card").performClick()
+        compose.onNodeWithTag("catalog_details_action").performClick()
         assertEquals(1, selected)
+    }
+
+    @Test fun approvedActionColorsRemainCyanPurpleTealAndCyan() {
+        assertEquals(Color(0xFF42B9F5), actionColor("Search anime"))
+        assertEquals(Color(0xFFB68CFF), actionColor("Recently aired"))
+        assertEquals(Color(0xFF54D6AE), actionColor("Continue watching"))
+        assertEquals(Color(0xFF42B9F5), actionColor("Downloads"))
     }
 
     @Test fun choosingEpisodeDateRangeReturnsOneRangeSpecificUnavailableResult() {
