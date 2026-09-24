@@ -23,9 +23,11 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -262,7 +264,7 @@ private fun HomeScreen(
             ) {
                 Column(Modifier.weight(1f)) {
                     Text("SpotUI", color = SpotText, fontSize = 30.sp, fontWeight = FontWeight.Black)
-                    Text("Music, without the extra clutter.", color = SpotMuted, fontSize = 12.sp)
+                    Text("Your listening space", color = SpotMuted, fontSize = 11.sp)
                 }
                 IconButton(onClick = onSignIn) {
                     Icon(Icons.Rounded.AccountCircle, "YouTube Music account", tint = SpotText, modifier = Modifier.size(30.dp))
@@ -270,50 +272,24 @@ private fun HomeScreen(
             }
         }
 
-        if (tracks.isNotEmpty()) {
+        if (tracks.isEmpty()) {
             item {
-                Text(
-                    "Made for you",
-                    color = SpotText,
-                    fontSize = 21.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
-                )
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
-                ) {
-                    items(tracks.take(10), key = Track::id) { track ->
-                        Column(Modifier.size(width = 154.dp, height = 208.dp).clickable { onPlay(track) }) {
-                            Artwork(track, Modifier.fillMaxWidth().aspectRatio(1f))
-                            Text(
-                                track.title,
-                                color = SpotText,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(top = 8.dp),
-                            )
-                            Text(track.artist, color = SpotMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                    }
-                }
-                Text(
-                    "Popular right now",
-                    color = SpotText,
-                    fontSize = 21.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp),
-                )
+                if (loading) LoadingBlock("Loading YouTube Music…")
+                else ErrorBlock(error ?: "YouTube Music returned no songs.", onSignIn)
             }
-            items(tracks, key = { "home-" + it.id }) { track ->
-                TrackRow(track, liked.contains(track.id), { onPlay(track) }, { onToggleLike(track) })
-            }
+        } else {
+            item { MusicQuickGrid(tracks.take(6), liked, onPlay, onToggleLike) }
+            item { MusicSectionTitle("Made for you", "Fresh music from YouTube Music") }
+            item { MusicSquareRail(tracks.take(10), onPlay) }
+            item { MusicSectionTitle("Artists in your mix", "From what is playing right now") }
+            item { ArtistRail(tracks) }
+            item { MusicSectionTitle("Your rotation", "Keep listening") }
+            item { MusicTrackList(tracks.take(10), liked, onPlay, onToggleLike) }
         }
 
-        if (loading) item { LoadingBlock("Loading YouTube Music…") }
-        error?.let { message -> item { ErrorBlock(message, onSignIn) } }
+        error?.takeIf { tracks.isNotEmpty() }?.let { message ->
+            item { ErrorBlock(message, onSignIn) }
+        }
     }
 }
 
@@ -364,24 +340,182 @@ private fun LibraryScreen(
 ) {
     LazyColumn(modifier.fillMaxSize().background(SpotBlack)) {
         item {
-            Column(Modifier.statusBarsPadding().padding(18.dp)) {
-                Text("Your Library", color = SpotText, fontSize = 30.sp, fontWeight = FontWeight.Black)
-                Text(tracks.size.toString() + " liked songs", color = SpotMuted, fontSize = 12.sp)
+            Column(Modifier.statusBarsPadding().fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp)) {
+                Text("YOUR MUSIC", color = SpotGreen, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                Text("Everything you kept.", color = SpotText, fontSize = 25.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 3.dp))
+                Text(
+                    if (tracks.isEmpty()) "Saved songs will appear here." else tracks.size.toString() + " saved " + if (tracks.size == 1) "song" else "songs",
+                    color = SpotMuted,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
         }
         if (tracks.isEmpty()) {
             item {
                 Column(
-                    Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 80.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 72.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Icon(Icons.Rounded.FavoriteBorder, null, tint = SpotMuted, modifier = Modifier.size(48.dp))
-                    Text("Your liked songs will appear here.", color = SpotMuted, modifier = Modifier.padding(top = 14.dp))
+                    Text("Like a song and it will stay here.", color = SpotMuted, modifier = Modifier.padding(top = 14.dp))
                 }
             }
+        } else {
+            item { MusicSectionTitle("Saved songs", "Stored on this phone") }
+            items(tracks, key = { "liked-" + it.id }) { track ->
+                TrackRow(track, true, { onPlay(track) }, { onToggleLike(track) })
+            }
         }
-        items(tracks, key = { "liked-" + it.id }) { track ->
-            TrackRow(track, true, { onPlay(track) }, { onToggleLike(track) })
+    }
+}
+
+@Composable
+private fun MusicQuickGrid(
+    tracks: List<Track>,
+    liked: Set<String>,
+    onPlay: (Track) -> Unit,
+    onToggleLike: (Track) -> Unit,
+) {
+    Column(
+        Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        tracks.chunked(2).forEach { chunk ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                chunk.forEach { track ->
+                    Row(
+                        Modifier.weight(1f)
+                            .height(58.dp)
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(SpotRaised)
+                            .semantics { contentDescription = "Play " + track.title }
+                            .clickable { onPlay(track) },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Artwork(track, Modifier.size(58.dp))
+                        Text(
+                            track.title,
+                            color = SpotText,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(start = 9.dp).weight(1f),
+                        )
+                        if (liked.contains(track.id)) {
+                            Icon(
+                                Icons.Rounded.Favorite,
+                                "Unlike",
+                                tint = SpotGreen,
+                                modifier = Modifier.padding(end = 8.dp).size(16.dp).clickable { onToggleLike(track) },
+                            )
+                        }
+                    }
+                }
+                if (chunk.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun MusicSectionTitle(title: String, subtitle: String) {
+    Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 12.dp, top = 22.dp, bottom = 9.dp)) {
+        Text(title, color = SpotText, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        Text(subtitle, color = SpotMuted, fontSize = 10.sp)
+    }
+}
+
+@Composable
+private fun MusicSquareRail(
+    tracks: List<Track>,
+    onPlay: (Track) -> Unit,
+) {
+    LazyRow(
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(tracks, key = { "square-" + it.id }) { track ->
+            Column(
+                Modifier.width(146.dp)
+                    .semantics { contentDescription = "Play " + track.title }
+                    .clickable { onPlay(track) }
+            ) {
+                Artwork(track, Modifier.size(146.dp))
+                Text(
+                    track.title,
+                    color = SpotText,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 7.dp),
+                )
+                Text(track.artist, color = SpotMuted, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArtistRail(tracks: List<Track>) {
+    val artists = tracks
+        .map { it.artist.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
+        .take(8)
+    LazyRow(
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        items(artists, key = { "artist-" + it }) { artist ->
+            val representative = tracks.firstOrNull { it.artist.trim() == artist }
+            Column(Modifier.width(94.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    Modifier.size(86.dp).clip(CircleShape).background(SpotRaised),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (!representative?.artworkUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            representative?.artworkUrl,
+                            artist,
+                            Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                        )
+                    } else {
+                        Text(artist.take(1), color = SpotText, fontSize = 28.sp, fontWeight = FontWeight.Black)
+                    }
+                }
+                Text(
+                    artist,
+                    color = SpotText,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MusicTrackList(
+    tracks: List<Track>,
+    liked: Set<String>,
+    onPlay: (Track) -> Unit,
+    onToggleLike: (Track) -> Unit,
+) {
+    Column {
+        tracks.forEach { track ->
+            TrackRow(
+                track = track,
+                liked = liked.contains(track.id),
+                onPlay = { onPlay(track) },
+                onToggleLike = { onToggleLike(track) },
+            )
         }
     }
 }
