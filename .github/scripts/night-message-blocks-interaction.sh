@@ -101,6 +101,24 @@ if grep -qi "Created by" night-message-blocks-artifacts/all-blocks.xml; then
   exit 1
 fi
 
+# Render the one persisted choice produced when identical create_options calls
+# arrive twice. Provider instrumentation verifies persistence; this capture
+# verifies the resulting message is presented as one visible choice card.
+adb shell am force-stop com.example.whatsapp
+adb shell am start -W -n com.example.whatsapp/.ChatPreviewActivity --es mode options
+sleep 3
+adb exec-out screencap -p > night-message-blocks-artifacts/05-repeated-options.png
+adb shell uiautomator dump /sdcard/options.xml >/dev/null
+adb exec-out cat /sdcard/options.xml > night-message-blocks-artifacts/05-repeated-options.xml
+python3 - <<'PY'
+import xml.etree.ElementTree as ET
+root = ET.parse("night-message-blocks-artifacts/05-repeated-options.xml").getroot()
+texts = [node.attrib.get("text", "") for node in root.iter("node")]
+assert texts.count("Pick one") == 1, f"expected one visible option card, found {texts.count('Pick one')}"
+assert any("Choose one" in text for text in texts), "choice-card detail was not visible"
+assert texts.count("A") == 1 and texts.count("B") == 1, "choice options A and B were not visible exactly once"
+PY
+
 adb logcat -d -v threadtime > night-message-blocks-artifacts/logcat.txt
 test -z "$(grep -A5 "FATAL EXCEPTION:" night-message-blocks-artifacts/logcat.txt | grep "Process: com.example.whatsapp" | head -n 1)"
 if grep -q "ANR in com.example.whatsapp" night-message-blocks-artifacts/logcat.txt; then
@@ -108,4 +126,4 @@ if grep -q "ANR in com.example.whatsapp" night-message-blocks-artifacts/logcat.t
   exit 1
 fi
 
-printf '%s\n' "androidApi=36" "messageBlocks=true" "watermarkFree=true" "codeCopyTable=true" "progress=true" "questionPermission=true" "toolExtension=true" "sourcesDiffConnection=true" > night-message-blocks-artifacts/summary.txt
+printf '%s\n' "androidApi=36" "messageBlocks=true" "watermarkFree=true" "codeCopyTable=true" "progress=true" "questionPermission=true" "repeatedOptionsCard=true" "toolExtension=true" "sourcesDiffConnection=true" > night-message-blocks-artifacts/summary.txt

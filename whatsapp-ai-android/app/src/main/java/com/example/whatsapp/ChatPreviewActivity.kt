@@ -27,6 +27,9 @@ import com.example.whatsapp.presentation.chatscreen.CurrentWhatsAppConversation
 import com.example.whatsapp.presentation.chatscreen.ExtensionResultMessage
 import com.example.whatsapp.presentation.chatscreen.LinkPreviewMessage
 import com.example.whatsapp.presentation.chatscreen.MangaResultMessage
+import com.example.whatsapp.presentation.chatscreen.NightBlockMessage
+import com.example.whatsapp.presentation.chatscreen.NightQuestionBlock
+import com.example.whatsapp.presentation.chatscreen.NightQuestionOption
 import com.example.whatsapp.presentation.chatscreen.MessageAction
 import com.example.whatsapp.presentation.chatscreen.ReplyKind
 import com.example.whatsapp.presentation.chatscreen.ReplyPreview
@@ -76,6 +79,7 @@ class ChatPreviewActivity : ComponentActivity() {
                         "extension-config" -> extensionConfigurationPreviewMessages()
                         "browser" -> browserPreviewMessages(browserVerificationState)
                         "blocks" -> nightBlockPreviewMessages()
+                        "options" -> optionPreviewMessages()
                         "utility" -> utilityPreviewMessages()
                         else -> whatsappPreviewMessages()
                     },
@@ -118,6 +122,25 @@ class ChatPreviewActivity : ComponentActivity() {
         }
     }
 }
+
+private fun optionPreviewMessages(): List<WhatsAppVisualMessage> = listOf(
+    NightBlockMessage(
+        id = "options-after-repeat",
+        time = "14:26",
+        blocks = listOf(
+            NightQuestionBlock(
+                blockId = "pick-one",
+                title = "Pick one",
+                detail = "Choose one. You can also type your own answer.",
+                options = listOf(
+                    NightQuestionOption(id = "a", label = "A"),
+                    NightQuestionOption(id = "b", label = "B"),
+                ),
+                multiple = true,
+            ),
+        ),
+    ),
+)
 
 private fun mediaPreviewMessages(image: String): List<WhatsAppVisualMessage> = listOf(
     WhatsAppVisualMessage.PhotoMessage(
