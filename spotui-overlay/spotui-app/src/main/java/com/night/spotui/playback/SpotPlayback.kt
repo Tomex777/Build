@@ -112,8 +112,16 @@ class SpotPlaybackController(
     }
 
     fun togglePlayPause() {
-        if (currentTrack == null) return
+        val track = currentTrack ?: return
+        if (errorMessage != null || player.mediaItemCount == 0) {
+            resolveAndPlay(track)
+            return
+        }
         if (player.isPlaying || player.playWhenReady) player.pause() else player.play()
+    }
+
+    fun retryCurrent() {
+        currentTrack?.let(::resolveAndPlay)
     }
 
     fun skipNext() {
