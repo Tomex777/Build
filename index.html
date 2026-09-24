@@ -1,1 +1,39 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="theme-color" content="#07080d"/><title>Homiesphere</title><script defer="defer" src="/static/js/main.2db3cd22.js"></script></head><body><noscript>You need to enable JavaScript to run this app.</noscript><div id="root"></div></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07111e">
+  <meta name="description" content="Annie — command-first media chat with independent extensions.">
+  <title>Annie</title>
+  <link rel="stylesheet" href="/src/styles.css">
+  <script type="module" src="/src/app.mjs"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <span class="back" aria-hidden="true">‹</span>
+      <div class="avatar" aria-hidden="true">A</div>
+      <div>
+        <div class="brand">Annie</div>
+        <div class="online">Online</div>
+      </div>
+      <button class="header-menu" aria-label="Open extensions" data-quick-command="/extensions">⋮</button>
+    </header>
+    <main class="chat" id="chat" aria-live="polite" aria-label="Chat with Annie"></main>
+    <footer class="composer-wrap">
+      <nav class="quick-commands" aria-label="Quick commands">
+        <button type="button" data-quick-command="/anime">Anime</button>
+        <button type="button" data-quick-command="/movie">Movies &amp; TV</button>
+        <button type="button" data-quick-command="/manga">Manga</button>
+        <button type="button" data-quick-command="/music">Music</button>
+      </nav>
+      <form class="compose-row" id="composer-form">
+        <button class="plus" type="button" aria-label="Attachments">+</button>
+        <input class="composer" id="composer" autocomplete="off" placeholder="Message Annie…" aria-label="Message Annie">
+        <button class="send" type="submit" aria-label="Send message">➤</button>
+      </form>
+    </footer>
+  </div>
+</body>
+</html>
