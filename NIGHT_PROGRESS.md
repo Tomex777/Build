@@ -325,3 +325,16 @@ All jobs for the source commit `144256efbe4c081bfa902b36dcd1bc6d3c5fdd78` comple
 - Keep the Groq 429 TPM report classified as provider quota failure, separate from extension discovery and option-card rendering.
 
 The new options evidence is in Actions artifact `night-integrated-ui-message-blocks-evidence` from run `35948484966` (artifact `10787499879`). The provider report is artifact `10787568698`. Continue to treat the emulator preview as presentation evidence, not as proof of the physical device appearance.
+
+
+## 2026-09-24 validation follow-up: Integrated Regression #439
+
+[Integrated Regression #439](https://github.com/Tomex777/Build/actions/runs/35978611846) ran on source commit `f3498cabe9bea7b26db54bb6ba5c0c3c5d0c0195` and completed successfully. The build and all 13 Android 16 UI shards passed, including Image Editor and Message Blocks. Android 16 provider instrumentation passed 31/31 tests with no failures or errors.
+
+- The installed AnimePahe extension returned a serialized runtime descriptor (3,326 JSON characters) containing 5 tools and 6 message types. `installedAnimePaheIsRefreshedIntoTheEnabledModelInventory` passed, as did the repeated `create_options` side-effect test `completedSideEffectPreventsCrossProviderRetry`.
+- The Message Blocks artifact includes `05-repeated-options.png`. It shows one `Pick one` ChoiceResultMessage card with A and B once each and one “Choose one or more” action; its UI suite assertions passed. This preview fixture is separate from provider instrumentation, so it verifies the renderer and single-card presentation, not a screenshot from a live provider chat. Keep the provider persistence result and visual preview as separate evidence.
+- The synthetic-MP4 video flow passed. Logcat shows VLC's attached TextureView and surface became ready, but VLC created no video output on the Android 16 virtual device; Night selected its Android `VideoView` fallback. The screenshot shows the colored fixture during playback, and progress advanced from 0:08 to 0:12. Playback controls, orientation changes, track menus, PiP return, editor preview, and export checks completed in the passing job. This verifies virtual-device playback through the fallback; the Samsung SM-A165F physical VLC path remains unverified.
+- Image Editor's UI suite passed and its artifact contains a visible editor preview, successful export, and `untouchedImagePreservedByteForByte=true`. Emulator evidence is verified; the Samsung SM-A165F comparison remains open.
+- Groq 429 TPM stays classified as provider quota failure, separate from extension discovery, video output, and option-card rendering.
+
+Evidence artifacts: provider report `10800390021`, video `10799692565`, Message Blocks `10799417537`, and Image Editor `10800110495`.
