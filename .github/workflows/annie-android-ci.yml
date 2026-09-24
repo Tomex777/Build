@@ -37,7 +37,7 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Run download manager UI tests on Android emulator
+      - name: Run Android emulator UI and metadata API tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35

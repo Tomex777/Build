@@ -67,13 +67,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 
 private val Night = Color(0xFF07111E)
 private val Panel = Color(0xFF0D1B2C)
@@ -105,31 +100,6 @@ private fun AnnieTheme(content: @Composable () -> Unit) {
         content = content
     )
 }
-
-private data class SeasonItem(
-    val id: Int,
-    val title: String,
-    val image: String,
-    val year: Int?,
-    val episodes: Int?
-) {
-    fun asCatalogItem() = CatalogItem(id, "ANIME", title, image, year, "UNKNOWN", episodes, null)
-}
-
-private data class CatalogItem(
-    val id: Int,
-    val mediaType: String,
-    val title: String,
-    val image: String,
-    val year: Int?,
-    val status: String,
-    val episodes: Int?,
-    val chapters: Int?,
-    val format: String = "",
-    val seasons: List<SeasonItem> = emptyList(),
-    val creator: String? = null,
-    val genres: List<String> = emptyList()
-)
 
 private data class ChatEntry(
     val id: Long,
@@ -184,13 +154,7 @@ private fun AnnieChat() {
     }
 
     fun openSelectedTitle(item: CatalogItem) {
-        if (item.mediaType == "ANIME" && item.seasons.size > 1) {
-            addAnnie("", selectedItem = item, selectedStage = "series")
-        } else if (item.mediaType == "ANIME") {
-            addAnnie("", selectedItem = item, selectedStage = "episodes")
-        } else {
-            addAnnie("", selectedItem = item, selectedStage = "manga")
-        }
+        selectedDetailsStage(item)?.let { addAnnie("", selectedItem = item, selectedStage = it) }
     }
 
     fun openCategory(category: String) {
@@ -198,7 +162,7 @@ private fun AnnieChat() {
             "Anime" -> addAnnie("Choose an action or type a title to search.", menuTitle = category,
                 actions = listOf("Search anime", "Recently aired", "Continue watching", "Downloads"))
             "Movies & TV" -> addAnnie("Choose an action or type a title to search.", menuTitle = category,
-                actions = listOf("Search movies", "Recently released", "Continue watching", "Downloads"))
+                actions = listOf("Search movies", "Search TV series", "Recently released", "Continue watching", "Downloads"))
             "Manga" -> addAnnie("Choose an action or type a title to search.", menuTitle = category,
                 actions = listOf("Search manga", "Recently updated", "Continue reading", "Downloads"))
             "Music" -> addAnnie("Choose an action or type a song to search.", menuTitle = category,
@@ -214,6 +178,7 @@ private fun AnnieChat() {
             "Anime" to "Continue watching" -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
             "Anime" to "Downloads" -> openDownloads("Anime")
             "Movies & TV" to "Search movies" -> openSearch("movie")
+            "Movies & TV" to "Search TV series" -> openSearch("tv")
             "Movies & TV" to "Recently released" -> addAnnie("Recently released titles need a connected movie extension.")
             "Movies & TV" to "Continue watching" -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
             "Movies & TV" to "Downloads" -> openDownloads("Movies")
@@ -267,6 +232,12 @@ private fun AnnieChat() {
                 query.equals("continue", true) || query.equals("continue watching", true) -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
                 else -> startSearch("movie", query)
             }
+            "/tv", "/series" -> when {
+                query.isBlank() -> startSearch("tv", "")
+                query.equals("search", true) -> startSearch("tv", "")
+                query.startsWith("search ", true) -> startSearch("tv", query.substringAfter(" ", "").trim())
+                else -> startSearch("tv", query)
+            }
             "/music" -> {
                 if (query.startsWith("https://", true) || query.startsWith("http://", true)) {
                     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(query))) }
@@ -276,8 +247,8 @@ private fun AnnieChat() {
             }
             "/downloads" -> openDownloads()
             "/extensions", "/settings" -> openCategory("Extensions")
-            "/help" -> addAnnie("Try /anime, /movie, /manga, /music, /downloads, or /extensions.")
-            else -> addAnnie("Try a slash command: /anime, /movie, /manga, /music, or /downloads.")
+            "/help" -> addAnnie("Try /anime, /movie, /tv, /manga, /music, /downloads, or /extensions.")
+            else -> addAnnie("Try a slash command: /anime, /movie, /tv, /manga, /music, or /downloads.")
         }
     }
 
@@ -295,6 +266,9 @@ private fun AnnieChat() {
                         entry,
                         onCatalogClick = ::openSelectedTitle,
                         onActionClick = ::handleMenuAction,
+                        onOpenSource = { sourceUrl ->
+                            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(sourceUrl))) }
+                        },
                         onSeriesAction = { item, stage, season ->
                             addAnnie("", selectedItem = season?.asCatalogItem() ?: item, selectedStage = stage)
                         }
@@ -347,12 +321,13 @@ private fun AnnieChat() {
                         else -> "All"
                     })
                     "Search movies" -> openSearch("movie")
+                    "Search TV series" -> openSearch("tv")
                     "Recently released" -> addAnnie("Recently released titles need a connected movie extension.")
                     "Search manga" -> openSearch("manga")
                     "Recently updated" -> addAnnie("Recently updated chapters need a connected manga extension.")
                     "Continue reading" -> addAnnie("Nothing to continue reading yet.", menuTitle = "Continue reading")
                     "Search music", "Open YouTube link" -> openSearch("music")
-                    else -> addAnnie("AniList provides anime and manga metadata. YouTube uses its official player. Other content actions need supported sources.")
+                    else -> addAnnie("AniList provides anime and manga metadata; Wikidata provides movie metadata; TVmaze provides TV metadata. Search results do not provide playable or downloadable files.")
                 }
             }
         }
@@ -424,6 +399,7 @@ private fun ChatBubble(
     entry: ChatEntry,
     onCatalogClick: (CatalogItem) -> Unit,
     onActionClick: (String, String) -> Unit,
+    onOpenSource: (String) -> Unit,
     onSeriesAction: (CatalogItem, String, SeasonItem?) -> Unit
 ) {
     Row(
@@ -449,6 +425,8 @@ private fun ChatBubble(
                     "series" -> SeriesCardMessage(entry.selectedItem) {
                         onSeriesAction(entry.selectedItem, "seasons", null)
                     }
+                    "movie" -> MediaMetadataMessage(entry.selectedItem, "Movie", onOpenSource)
+                    "tv" -> MediaMetadataMessage(entry.selectedItem, "TV series", onOpenSource)
                     "seasons" -> SeasonListMessage(entry.selectedItem) { season ->
                         onSeriesAction(entry.selectedItem, "episodes", season)
                     }
@@ -558,7 +536,7 @@ private fun ActionGlyph(name: String, color: Color) {
 }
 
 @Composable
-private fun SearchMessage(mediaType: String, initialQuery: String, onSelect: (CatalogItem) -> Unit) {
+internal fun SearchMessage(mediaType: String, initialQuery: String, onSelect: (CatalogItem) -> Unit) {
     var query by remember(mediaType, initialQuery) { mutableStateOf(initialQuery) }
     var results by remember(mediaType) { mutableStateOf(emptyList<CatalogItem>()) }
     var loading by remember(mediaType) { mutableStateOf(false) }
@@ -571,19 +549,22 @@ private fun SearchMessage(mediaType: String, initialQuery: String, onSelect: (Ca
             loading = false
             return@LaunchedEffect
         }
-        if (mediaType != "anime" && mediaType != "manga") {
+        if (mediaType !in setOf("anime", "manga", "movie", "tv")) {
             loading = false
             error = true
             return@LaunchedEffect
         }
+        val searchedQuery = query.trim()
         delay(300)
+        if (query.trim() != searchedQuery) return@LaunchedEffect
         loading = true
         try {
-            results = searchAniList(mediaType, query.trim())
+            val found = searchCatalog(mediaType, searchedQuery)
+            if (query.trim() == searchedQuery) results = found
         } catch (_: Exception) {
-            error = true
+            if (query.trim() == searchedQuery) error = true
         } finally {
-            loading = false
+            if (query.trim() == searchedQuery) loading = false
         }
     }
 
@@ -592,7 +573,17 @@ private fun SearchMessage(mediaType: String, initialQuery: String, onSelect: (Ca
             .background(Bubble).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text(if (mediaType == "manga") "Search manga" else "Search anime", color = BrightText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text(
+            when (mediaType) {
+                "manga" -> "Search manga"
+                "movie" -> "Search movies"
+                "tv" -> "Search TV series"
+                else -> "Search anime"
+            },
+            color = BrightText,
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp
+        )
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(Color(0xFF0C1A2B))
                 .padding(horizontal = 14.dp, vertical = 13.dp),
@@ -612,8 +603,8 @@ private fun SearchMessage(mediaType: String, initialQuery: String, onSelect: (Ca
             }
         }
         when {
-            error && mediaType != "anime" && mediaType != "manga" ->
-                Text("A matching content source is not connected yet.", color = SoftText, fontSize = 13.sp)
+            error && mediaType !in setOf("anime", "manga", "movie", "tv") ->
+                Text("A matching metadata catalog is not connected for this media type.", color = SoftText, fontSize = 13.sp)
             error -> Text("Search is temporarily unavailable. Try again.", color = SoftText, fontSize = 13.sp)
             loading -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Blue)
@@ -754,6 +745,64 @@ private fun MangaCardAction(label: String, icon: String, modifier: Modifier = Mo
 }
 
 @Composable
+internal fun MediaMetadataMessage(item: CatalogItem, mediaLabel: String, onOpenSource: (String) -> Unit = {}) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
+            .background(Bubble).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text("$mediaLabel metadata", color = Color(0xFF77C5FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (item.image.isNotBlank()) {
+                AsyncImage(
+                    model = item.image,
+                    contentDescription = item.title,
+                    modifier = Modifier.width(96.dp).height(130.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF1D3550))
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f)) {
+                Text(item.title, color = BrightText, fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                val facts = listOfNotNull(
+                    item.year?.toString(),
+                    item.runtimeMinutes?.let { "$it min" },
+                    item.status.takeIf { it.isNotBlank() && it != "METADATA" }
+                )
+                if (facts.isNotEmpty()) Text(facts.joinToString(" · "), color = SoftText, fontSize = 11.sp, lineHeight = 16.sp)
+                if (item.creator != null) Text("Directed by ${item.creator}", color = SoftText, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        if (item.genres.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                item.genres.forEach { genre ->
+                    Surface(color = Color(0xFF10263D), shape = RoundedCornerShape(14.dp)) {
+                        Text(genre, color = Color(0xFF9CD7FF), fontSize = 10.sp,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
+                    }
+                }
+            }
+        }
+        if (item.summary.isNotBlank()) {
+            Text(item.summary, color = SoftText, fontSize = 13.sp, lineHeight = 19.sp, maxLines = 5, overflow = TextOverflow.Ellipsis)
+        }
+        Surface(color = Color(0xFF10263D), shape = RoundedCornerShape(12.dp)) {
+            Text("Metadata only · ${item.sourceLabel}. Playback and downloads need a connected media source.",
+                color = SoftText, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(10.dp))
+        }
+        if (item.sourceUrl.isNotBlank()) {
+            Surface(
+                color = Color(0xFF10263D),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, Color(0xFF294562)),
+                modifier = Modifier.fillMaxWidth().clickable { onOpenSource(item.sourceUrl) }
+            ) {
+                Text("Open ${item.sourceLabel} record  ›", color = Color(0xFF9CD7FF), fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp))
+            }
+        }
+    }
+}
+
+@Composable
 private fun MangaChapterListMessage(item: CatalogItem) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
@@ -814,11 +863,22 @@ private fun CatalogCard(item: CatalogItem, onClick: () -> Unit) {
             )
             Column(modifier = Modifier.weight(1f).height(132.dp), verticalArrangement = Arrangement.SpaceBetween) {
                 Column {
-                    Text(if (item.mediaType == "MANGA") "MANGA · ANILIST" else "ANIME · ANILIST", color = Color(0xFF75BDF1), fontSize = 9.sp, letterSpacing = 1.1.sp, fontWeight = FontWeight.Bold)
+                    val mediaLabel = when (item.mediaType) {
+                        "MANGA" -> "MANGA"
+                        "MOVIE" -> "MOVIE"
+                        "TV" -> "TV SERIES"
+                        else -> if (item.format == "MOVIE") "ANIME MOVIE" else "ANIME"
+                    }
+                    Text("$mediaLabel · ${item.sourceLabel.uppercase()}", color = Color(0xFF75BDF1), fontSize = 9.sp, letterSpacing = 1.1.sp, fontWeight = FontWeight.Bold)
                     Text(item.title, color = BrightText, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 5.dp))
                     val count = if (item.mediaType == "MANGA") item.chapters?.let { "$it chapters listed" } else item.episodes?.let { "$it episodes listed" }
                     Text(listOfNotNull(item.year?.toString(), count).joinToString(" · ").ifBlank { "Catalog details" }, color = SoftText, fontSize = 11.sp, modifier = Modifier.padding(top = 5.dp))
-                    Text(statusLabel(item.status), color = Teal, fontSize = 11.sp, modifier = Modifier.padding(top = 5.dp))
+                    if (item.mediaType == "ANIME" || item.mediaType == "MANGA") {
+                        Text(statusLabel(item.status), color = Teal, fontSize = 11.sp, modifier = Modifier.padding(top = 5.dp))
+                    } else if (item.summary.isNotBlank()) {
+                        Text(item.summary, color = SoftText, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 5.dp))
+                    }
                 }
                 Text("Select this title  ›", color = Color(0xFF9CD7FF), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
@@ -842,6 +902,8 @@ private fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
         "/anime recently aired" to "Recently aired",
         "/anime continue watching" to "Continue watching",
         "/movie search" to "Search movies",
+        "/tv" to "Search TV series",
+        "/tv search" to "Search TV series",
         "/manga search" to "Search manga",
         "/music" to "Music",
         "/downloads" to "Downloads",
@@ -920,7 +982,8 @@ private fun CommandSheet(category: String, onChoose: (String) -> Unit) {
             MenuAction("↓", "Downloads", "Open your saved media")
         )
         "Movies & TV" -> listOf(
-            MenuAction("⌕", "Search movies", "Find a movie or series"),
+            MenuAction("⌕", "Search movies", "Find a movie"),
+            MenuAction("▤", "Search TV series", "Find a television series"),
             MenuAction("◷", "Recently released", "Browse recent releases"),
             MenuAction("▶", "Continue watching", "Resume a saved title"),
             MenuAction("↓", "Downloads", "Open your saved media")
@@ -973,136 +1036,5 @@ private fun CommandSheet(category: String, onChoose: (String) -> Unit) {
                 }
             }
         }
-    }
-}
-
-private suspend fun searchAniList(mediaType: String, search: String): List<CatalogItem> = withContext(Dispatchers.IO) {
-    val quotedSearch = JSONObject.quote(search)
-    val typeName = if (mediaType == "anime") "ANIME" else "MANGA"
-    val graph = """
-        query AnnieSearch {
-          Page(page: 1, perPage: 10) {
-            media(search: $quotedSearch, type: $typeName, isAdult: false, sort: SEARCH_MATCH) {
-              id
-              type
-              title { english romaji native }
-              startDate { year }
-              episodes
-              chapters
-              status
-              format
-              genres
-              staff(sort: RELEVANCE, perPage: 5) {
-                edges { role node { name { full } } }
-              }
-              relations {
-                edges {
-                  relationType
-                  node {
-                    id
-                    type
-                    format
-                    title { english romaji native }
-                    startDate { year }
-                    episodes
-                    coverImage { large }
-                  }
-                }
-              }
-              coverImage { large }
-            }
-          }
-        }
-    """.trimIndent()
-    val body = JSONObject().put("query", graph).toString()
-    val connection = (URL("https://graphql.anilist.co").openConnection() as HttpURLConnection).apply {
-        requestMethod = "POST"
-        connectTimeout = 12_000
-        readTimeout = 15_000
-        doOutput = true
-        setRequestProperty("Content-Type", "application/json")
-        setRequestProperty("Accept", "application/json")
-    }
-    try {
-        connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-        val code = connection.responseCode
-        val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-        val payload = stream.bufferedReader().use { it.readText() }
-        if (code !in 200..299) error("AniList HTTP $code")
-        val rows = JSONObject(payload).getJSONObject("data").getJSONObject("Page").getJSONArray("media")
-        buildList {
-            for (index in 0 until rows.length()) {
-                val row = rows.optJSONObject(index) ?: continue
-                val titles = row.optJSONObject("title") ?: continue
-                val name = titles.optString("english").takeIf { it.isNotBlank() }
-                    ?: titles.optString("romaji").takeIf { it.isNotBlank() }
-                    ?: titles.optString("native").takeIf { it.isNotBlank() }
-                    ?: continue
-                val itemId = row.optInt("id")
-                val itemType = row.optString("type")
-                val itemFormat = row.optString("format")
-                val itemYear = row.optJSONObject("startDate")?.optInt("year")?.takeIf { it > 0 }
-                val creators = buildList {
-                    val edges = row.optJSONObject("staff")?.optJSONArray("edges") ?: return@buildList
-                    for (staffIndex in 0 until edges.length()) {
-                        val edge = edges.optJSONObject(staffIndex) ?: continue
-                        val role = edge.optString("role")
-                        if (!role.contains("story", ignoreCase = true) && !role.contains("art", ignoreCase = true)) continue
-                        val name = edge.optJSONObject("node")?.optJSONObject("name")?.optString("full").orEmpty()
-                        if (name.isNotBlank()) add("$name · $role")
-                    }
-                }
-                val genres = buildList {
-                    val genreArray = row.optJSONArray("genres") ?: return@buildList
-                    for (genreIndex in 0 until genreArray.length()) {
-                        genreArray.optString(genreIndex).takeIf { it.isNotBlank() }?.let(::add)
-                    }
-                }
-                val linkedSeasons = buildList {
-                    val edges = row.optJSONObject("relations")?.optJSONArray("edges") ?: return@buildList
-                    for (edgeIndex in 0 until edges.length()) {
-                        val edge = edges.optJSONObject(edgeIndex) ?: continue
-                        if (edge.optString("relationType") !in setOf("SEQUEL", "PREQUEL")) continue
-                        val node = edge.optJSONObject("node") ?: continue
-                        if (node.optString("type") != "ANIME" || node.optString("format") != "TV") continue
-                        val relatedTitle = node.optJSONObject("title") ?: continue
-                        val relatedName = relatedTitle.optString("english").takeIf { it.isNotBlank() }
-                            ?: relatedTitle.optString("romaji").takeIf { it.isNotBlank() }
-                            ?: relatedTitle.optString("native").takeIf { it.isNotBlank() }
-                            ?: continue
-                        add(SeasonItem(
-                            id = node.optInt("id"),
-                            title = relatedName,
-                            image = node.optJSONObject("coverImage")?.optString("large").orEmpty(),
-                            year = node.optJSONObject("startDate")?.optInt("year")?.takeIf { it > 0 },
-                            episodes = node.optInt("episodes").takeIf { it > 0 }
-                        ))
-                    }
-                }.plus(
-                    if (itemType == "ANIME" && itemFormat == "TV") listOf(
-                        SeasonItem(itemId, name, row.optJSONObject("coverImage")?.optString("large").orEmpty(), itemYear,
-                            row.optInt("episodes").takeIf { it > 0 })
-                    ) else emptyList()
-                ).distinctBy { it.id }.sortedWith(compareBy<SeasonItem> { it.year ?: Int.MAX_VALUE }.thenBy { it.id })
-                add(
-                    CatalogItem(
-                        id = itemId,
-                        mediaType = itemType,
-                        title = name,
-                        image = row.optJSONObject("coverImage")?.optString("large").orEmpty(),
-                        year = itemYear,
-                        status = row.optString("status"),
-                        episodes = row.optInt("episodes").takeIf { it > 0 },
-                        chapters = row.optInt("chapters").takeIf { it > 0 },
-                        format = itemFormat,
-                        seasons = linkedSeasons,
-                        creator = creators.firstOrNull(),
-                        genres = genres
-                    )
-                )
-            }
-        }
-    } finally {
-        connection.disconnect()
     }
 }
