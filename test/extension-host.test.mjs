@@ -44,7 +44,7 @@ test("normalizes duplicate results and drops malformed entries", async () => {
 
 test("provider exceptions and malformed payloads fall through", async () => {
   const host = new ExtensionHost([
-    adapter("broken", async () => { throw new Error("network down"); }),
+    adapter("broken", async () => { throw new Error("network down"); }, { priority: 1 }),
     adapter("malformed", async () => ({ title: "not a list" }), { priority: 2 }),
     adapter("good", async () => [{ title: "Good result" }], { priority: 3 })
   ]);
@@ -55,7 +55,7 @@ test("provider exceptions and malformed payloads fall through", async () => {
 
 test("timeouts fall through to the next extension", async () => {
   const host = new ExtensionHost([
-    adapter("slow", () => new Promise(() => {})),
+    adapter("slow", () => new Promise(() => {}), { priority: 1 }),
     adapter("ready", async () => [{ title: "Ready" }], { priority: 2 })
   ]);
   const result = await host.search("anime", "query", { timeoutMs: 5 });
@@ -79,7 +79,7 @@ test("duplicate extension ids and invalid defaults are rejected", () => {
 test("cancellation stops fallback execution", async () => {
   const controller = new AbortController();
   const host = new ExtensionHost([
-    adapter("first", async () => { controller.abort(new Error("user cancelled")); throw new Error("cancel"); }),
+    adapter("first", async () => { controller.abort(new Error("user cancelled")); throw new Error("cancel"); }, { priority: 1 }),
     adapter("second", async () => [{ title: "must not run" }], { priority: 2 })
   ]);
   const result = await host.search("anime", "query", { signal: controller.signal });
