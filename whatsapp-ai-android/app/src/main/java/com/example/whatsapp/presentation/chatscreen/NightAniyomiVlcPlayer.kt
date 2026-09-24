@@ -13,6 +13,8 @@ import android.view.SurfaceView
 import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
+import android.widget.MediaController
+import android.widget.VideoView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -331,6 +333,8 @@ internal fun NightAniyomiVlcPlayer(
     }
     val attachRequest = remember(player) { AtomicInteger(0) }
     val attachInFlight = remember(player) { AtomicBoolean(false) }
+    var hasVlcVideoOutput by remember(player) { mutableStateOf(false) }
+    var usePlatformFallback by remember(item.localPath) { mutableStateOf(false) }
 
     var controlsVisible by remember(item.localPath) { mutableStateOf(true) }
     var controlsLocked by remember(item.localPath) { mutableStateOf(false) }
@@ -364,6 +368,9 @@ internal fun NightAniyomiVlcPlayer(
     DisposableEffect(player, libVlc, item.localPath, item.requestHeaders) {
         if (virtualVideoDevice) {
             player.setEventListener { event ->
+                if (event.type == MediaPlayer.Event.Vout) {
+                    hasVlcVideoOutput = event.voutCount > 0
+                }
                 val eventName = when (event.type) {
                     MediaPlayer.Event.Opening -> "opening"
                     MediaPlayer.Event.Buffering -> "buffering"
@@ -597,6 +604,39 @@ internal fun NightAniyomiVlcPlayer(
         }
     }
 
+    LaunchedEffect(
+        active,
+        attachedPlayer,
+        player,
+        hasVlcVideoOutput,
+        usePlatformFallback,
+    ) {
+        if (
+            !virtualVideoDevice ||
+            !active ||
+            attachedPlayer !== player ||
+            hasVlcVideoOutput ||
+            usePlatformFallback
+        ) {
+            return@LaunchedEffect
+        }
+
+        delay(3_500L)
+        if (
+            active &&
+            attachedPlayer === player &&
+            !hasVlcVideoOutput &&
+            !usePlatformFallback
+        ) {
+            Log.w(
+                "NightVideo",
+                "VLC created no video output on the virtual device; falling back to Android VideoView.",
+            )
+            runCatching { player.pause() }
+            usePlatformFallback = true
+        }
+    }
+
     LaunchedEffect(audioMenu, subtitleMenu, player) {
         if (audioMenu) {
             audioTracks = runCatching {
@@ -687,7 +727,31 @@ internal fun NightAniyomiVlcPlayer(
             },
         contentAlignment = Alignment.Center,
     ) {
-        if (active) AndroidView(
+        if (active && usePlatformFallback) {
+            AndroidView(
+                factory = { viewContext ->
+                    VideoView(viewContext).apply {
+                        val controller = MediaController(viewContext)
+                        setMediaController(controller)
+                        controller.setAnchorView(this)
+                        setOnPreparedListener { mediaPlayer ->
+                            mediaPlayer.isLooping = true
+                            Log.i("NightVideo", "Android VideoView fallback prepared media.")
+                            start()
+                        }
+                        setOnErrorListener { _, what, extra ->
+                            Log.e(
+                                "NightVideo",
+                                "Android VideoView fallback failed (what=$what, extra=$extra).",
+                            )
+                            true
+                        }
+                        setVideoURI(mediaUri, item.requestHeaders)
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else if (active) AndroidView(
             factory = { viewContext ->
                 VLCVideoLayout(viewContext).also { layout ->
                     layout.installNightVideoTapHandler {
@@ -822,7 +886,7 @@ internal fun NightAniyomiVlcPlayer(
         )
 
         AnimatedVisibility(
-            visible = controlsVisible,
+            visible = controlsVisible && !usePlatformFallback,
             modifier = Modifier.fillMaxSize(),
         ) {
             Box(
