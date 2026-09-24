@@ -69,6 +69,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -378,7 +380,7 @@ private fun TrackRow(
     onToggleLike: () -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onPlay).padding(horizontal = 18.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth().semantics { contentDescription = "Play " + track.title }.clickable(onClick = onPlay).padding(horizontal = 18.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Artwork(track, Modifier.size(56.dp))
