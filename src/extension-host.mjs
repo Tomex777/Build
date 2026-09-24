@@ -29,7 +29,7 @@ function normalizeTitle(value) {
 }
 
 function resultKey(item) {
-  return [normalizeTitle(item.title), item.year ?? "", item.season ?? "", item.episode ?? ""].join("|");
+  return JSON.stringify([normalizeTitle(item.title), item.year ?? "", item.season ?? "", item.episode ?? ""]);
 }
 
 function raceWithTimeout(operation, milliseconds, signal) {
