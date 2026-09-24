@@ -41,28 +41,13 @@ class AiGatewayClient(
         )
     }
 
-    suspend fun discover(baseUrl: String, prompt: String): List<SubredditCandidate> = withContext(Dispatchers.IO) {
+    suspend fun discoverIntent(baseUrl: String, prompt: String): DiscoveryIntent = withContext(Dispatchers.IO) {
         require(baseUrl.isNotBlank()) { "AI server is not configured" }
         val obj = postJson("${baseUrl.trimEnd('/')}/api/discover", JSONObject().put("prompt", prompt))
-        val arr = obj.optJSONArray("candidates") ?: JSONArray()
-        buildList {
-            for (i in 0 until arr.length()) {
-                val c = arr.optJSONObject(i) ?: continue
-                add(
-                    SubredditCandidate(
-                        name = c.optString("name"),
-                        title = c.optString("title"),
-                        subscribers = c.optLong("subscribers"),
-                        description = c.optString("description"),
-                        verified = c.optBoolean("verified", true),
-                        over18 = c.optBoolean("over18", false),
-                        mediaFit = c.optDouble("mediaFit", 0.0).toFloat(),
-                        recentPosts = c.optInt("recentPosts", 0),
-                        matchScore = c.optDouble("matchScore", 0.0).toFloat(),
-                    )
-                )
-            }
-        }
+        DiscoveryIntent(
+            categoryName = obj.optString("categoryName"),
+            queries = obj.optJSONArray("queries").toStringList(),
+        )
     }
 
     private fun postJson(url: String, json: JSONObject): JSONObject {

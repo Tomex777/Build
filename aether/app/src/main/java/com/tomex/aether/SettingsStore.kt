@@ -9,9 +9,11 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.UUID
 
 private val Context.aetherDataStore by preferencesDataStore(name = "aether")
 
@@ -25,6 +27,8 @@ class SettingsStore(private val context: Context) {
         val seenIds = stringSetPreferencesKey("seen_ids")
         val savedPosts = stringPreferencesKey("saved_posts_json")
         val aiBaseUrl = stringPreferencesKey("ai_base_url")
+        val redditClientId = stringPreferencesKey("reddit_client_id")
+        val redditDeviceId = stringPreferencesKey("reddit_device_id")
     }
 
     val categories: Flow<List<FeedCategory>> = context.aetherDataStore.data.map { prefs ->
@@ -45,6 +49,7 @@ class SettingsStore(private val context: Context) {
             autoplayVideos = prefs[Keys.autoplayVideos] ?: false,
             sortMode = runCatching { SortMode.valueOf(prefs[Keys.sortMode] ?: SortMode.HOT.name) }.getOrDefault(SortMode.HOT),
             aiBaseUrl = prefs[Keys.aiBaseUrl].orEmpty(),
+            redditClientId = prefs[Keys.redditClientId].orEmpty(),
         )
     }
 
@@ -53,6 +58,15 @@ class SettingsStore(private val context: Context) {
     suspend fun setAutoplayVideos(value: Boolean) = context.aetherDataStore.edit { it[Keys.autoplayVideos] = value }
     suspend fun setSortMode(value: SortMode) = context.aetherDataStore.edit { it[Keys.sortMode] = value.name }
     suspend fun setAiBaseUrl(value: String) = context.aetherDataStore.edit { it[Keys.aiBaseUrl] = value.trim().trimEnd('/') }
+    suspend fun setRedditClientId(value: String) = context.aetherDataStore.edit { it[Keys.redditClientId] = value.trim() }
+
+    suspend fun getOrCreateRedditDeviceId(): String {
+        val existing = context.aetherDataStore.data.first()[Keys.redditDeviceId]
+        if (!existing.isNullOrBlank()) return existing
+        val created = UUID.randomUUID().toString().replace("-", "").take(30)
+        context.aetherDataStore.edit { it[Keys.redditDeviceId] = created }
+        return created
+    }
 
     suspend fun setCategories(value: List<FeedCategory>) = context.aetherDataStore.edit { prefs ->
         prefs[Keys.categories] = encodeCategories(value)

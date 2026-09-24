@@ -51,6 +51,12 @@ data class AppSettings(
     val autoplayVideos: Boolean = false,
     val sortMode: SortMode = SortMode.HOT,
     val aiBaseUrl: String = "",
+    val redditClientId: String = "",
+)
+
+data class DiscoveryIntent(
+    val categoryName: String = "",
+    val queries: List<String> = emptyList(),
 )
 
 data class AiResult(

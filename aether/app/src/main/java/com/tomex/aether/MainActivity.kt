@@ -197,6 +197,7 @@ fun AetherApp(vm: MainViewModel = viewModel()) {
             onAutoplay = vm::setAutoplayVideos,
             onSort = vm::setSortMode,
             onAiBaseUrl = vm::setAiBaseUrl,
+            onRedditClientId = vm::setRedditClientId,
             onClearSeen = vm::clearSeen,
             onDismiss = { showSettings = false },
         )

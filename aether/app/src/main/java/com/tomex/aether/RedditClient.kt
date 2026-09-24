@@ -3,6 +3,8 @@ package com.tomex.aether
 import android.text.Html
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.Credentials
+import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
@@ -19,6 +21,26 @@ class RedditClient(
     data class FeedPage(val posts: List<MemePost>, val after: String?)
 
     private val userAgent = "android:com.tomex.aether:0.1 (Aether meme browser)"
+    private val authLock = Any()
+    @Volatile private var clientId: String = ""
+    @Volatile private var deviceId: String = ""
+    private var accessToken: String = ""
+    private var tokenExpiresAtMs: Long = 0L
+
+    fun configure(clientId: String, deviceId: String) {
+        val cleanClient = clientId.trim()
+        val cleanDevice = deviceId.trim()
+        synchronized(authLock) {
+            if (this.clientId != cleanClient || this.deviceId != cleanDevice) {
+                this.clientId = cleanClient
+                this.deviceId = cleanDevice
+                accessToken = ""
+                tokenExpiresAtMs = 0L
+            }
+        }
+    }
+
+    fun isConfigured(): Boolean = clientId.isNotBlank() && deviceId.isNotBlank()
 
     suspend fun fetchSubreddit(
         subreddit: String,
@@ -28,18 +50,19 @@ class RedditClient(
         limit: Int = 35,
         searchTerms: List<String> = emptyList(),
     ): FeedPage = withContext(Dispatchers.IO) {
+        requireConfigured()
         val safeSub = subreddit.removePrefix("r/").trim()
         val query = buildString {
-            append("limit=$limit&raw_json=1")
-            if (!after.isNullOrBlank()) append("&after=${enc(after)}")
+            append("limit="); append(limit); append("&raw_json=1")
+            if (!after.isNullOrBlank()) { append("&after="); append(enc(after)) }
             if (sort == SortMode.TOP) append("&t=week")
             if (searchTerms.isNotEmpty()) {
-                append("&restrict_sr=on&q=${enc(searchTerms.joinToString(" OR "))}")
-                append("&sort=${sort.wire}")
+                append("&restrict_sr=on&q="); append(enc(searchTerms.joinToString(" OR ")))
+                append("&sort="); append(sort.wire)
             }
         }
         val endpoint = if (searchTerms.isEmpty()) sort.wire else "search"
-        val json = getJson("https://www.reddit.com/r/${encPath(safeSub)}/$endpoint.json?$query")
+        val json = oauthJson("/r/" + encPath(safeSub) + "/" + endpoint + "?" + query)
         val data = json.optJSONObject("data") ?: return@withContext FeedPage(emptyList(), null)
         val children = data.optJSONArray("children") ?: JSONArray()
         val posts = buildList {
@@ -52,8 +75,8 @@ class RedditClient(
     }
 
     suspend fun fetchComments(postId: String): List<RedditComment> = withContext(Dispatchers.IO) {
-        val raw = getText("https://www.reddit.com/comments/${encPath(postId)}.json?limit=100&depth=8&sort=top&raw_json=1")
-        val root = JSONArray(raw)
+        requireConfigured()
+        val root = JSONArray(oauthText("/comments/" + encPath(postId) + "?limit=100&depth=8&sort=top&raw_json=1"))
         if (root.length() < 2) return@withContext emptyList()
         val children = root.optJSONObject(1)?.optJSONObject("data")?.optJSONArray("children") ?: JSONArray()
         val output = mutableListOf<RedditComment>()
@@ -62,37 +85,38 @@ class RedditClient(
     }
 
     suspend fun searchSubreddits(query: String, limit: Int = 20): List<SubredditCandidate> = withContext(Dispatchers.IO) {
-        val json = getJson("https://www.reddit.com/subreddits/search.json?q=${enc(query)}&limit=$limit&raw_json=1")
+        requireConfigured()
+        val json = oauthJson("/subreddits/search?q=" + enc(query) + "&limit=" + limit + "&raw_json=1")
         val children = json.optJSONObject("data")?.optJSONArray("children") ?: JSONArray()
         buildList {
             for (i in 0 until children.length()) {
                 val d = children.optJSONObject(i)?.optJSONObject("data") ?: continue
                 val name = d.optString("display_name")
                 if (name.isBlank()) continue
-                add(
-                    SubredditCandidate(
-                        name = name,
-                        title = decode(d.optString("title")),
-                        subscribers = d.optLong("subscribers", 0),
-                        description = decode(d.optString("public_description")),
-                        verified = true,
-                        over18 = d.optBoolean("over18", false),
-                    )
-                )
+                add(SubredditCandidate(
+                    name = name,
+                    title = decode(d.optString("title")),
+                    subscribers = d.optLong("subscribers", 0L),
+                    description = decode(d.optString("public_description")),
+                    verified = true,
+                    over18 = d.optBoolean("over18", false),
+                ))
             }
         }
     }
 
     suspend fun validateSubreddit(name: String): SubredditCandidate? = withContext(Dispatchers.IO) {
+        requireConfigured()
         val safe = name.removePrefix("r/").trim()
         if (safe.isBlank()) return@withContext null
         runCatching {
-            val json = getJson("https://www.reddit.com/r/${encPath(safe)}/about.json?raw_json=1")
-            val d = json.optJSONObject("data") ?: return@runCatching null
+            val d = oauthJson("/r/" + encPath(safe) + "/about?raw_json=1").optJSONObject("data") ?: return@runCatching null
+            val canonical = d.optString("display_name")
+            if (canonical.isBlank()) return@runCatching null
             SubredditCandidate(
-                name = d.optString("display_name", safe),
+                name = canonical,
                 title = decode(d.optString("title")),
-                subscribers = d.optLong("subscribers", 0),
+                subscribers = d.optLong("subscribers", 0L),
                 description = decode(d.optString("public_description")),
                 verified = true,
                 over18 = d.optBoolean("over18", false),
@@ -101,15 +125,12 @@ class RedditClient(
     }
 
     suspend fun profileCandidate(candidate: SubredditCandidate, query: String): SubredditCandidate = withContext(Dispatchers.IO) {
-        val page = runCatching { fetchSubreddit(candidate.name, SortMode.HOT, includeVideos = true, limit = 30) }
-            .getOrDefault(FeedPage(emptyList(), null))
-        val recent = page.posts
-        val imageGifCount = recent.count { it.kind == MediaKind.IMAGE || it.kind == MediaKind.GIF }
-        val mediaFit = if (recent.isEmpty()) 0f else imageGifCount.toFloat() / recent.size.toFloat()
-        val text = (candidate.name + " " + candidate.title + " " + candidate.description).lowercase()
-        val terms = query.lowercase().split(Regex("\\s+")).filter { it.length > 2 }
-        val relevance = if (terms.isEmpty()) 0.4f else terms.count { text.contains(it) }.toFloat() / terms.size
-        val activity = (recent.size.coerceAtMost(30) / 30f)
+        val recent = runCatching { fetchSubreddit(candidate.name, SortMode.HOT, includeVideos = true, limit = 30).posts }.getOrDefault(emptyList())
+        val mediaFit = if (recent.isEmpty()) 0f else recent.count { it.kind == MediaKind.IMAGE || it.kind == MediaKind.GIF }.toFloat() / recent.size
+        val terms = query.lowercase().replace(Regex("[^a-z0-9 ]"), " ").split(Regex("\\s+")).filter { it.length > 2 }
+        val haystack = (candidate.name + " " + candidate.title + " " + candidate.description).lowercase()
+        val relevance = if (terms.isEmpty()) .4f else terms.count { haystack.contains(it) }.toFloat() / terms.size
+        val activity = recent.size.coerceAtMost(30) / 30f
         val subscriberSignal = when {
             candidate.subscribers >= 1_000_000 -> 1f
             candidate.subscribers >= 100_000 -> .85f
@@ -117,8 +138,7 @@ class RedditClient(
             candidate.subscribers > 0 -> .45f
             else -> .2f
         }
-        val score = (relevance * .42f + mediaFit * .33f + activity * .15f + subscriberSignal * .10f)
-            .coerceIn(0f, 1f)
+        val score = (relevance * .42f + mediaFit * .33f + activity * .15f + subscriberSignal * .10f).coerceIn(0f, 1f)
         candidate.copy(mediaFit = mediaFit, recentPosts = recent.size, matchScore = score)
     }
 
@@ -205,18 +225,62 @@ class RedditClient(
         }
     }
 
-    private fun getJson(url: String): JSONObject = JSONObject(getText(url))
 
-    private fun getText(url: String): String {
+    private fun requireConfigured() {
+        if (!isConfigured()) error("Reddit setup required. Add your Reddit installed-app Client ID in Aether Settings.")
+    }
+
+    private fun ensureToken(): String = synchronized(authLock) {
+        val now = System.currentTimeMillis()
+        if (accessToken.isNotBlank() && now < tokenExpiresAtMs - 60_000L) return@synchronized accessToken
+        requireConfigured()
+        val form = FormBody.Builder()
+            .add("grant_type", "https://oauth.reddit.com/grants/installed_client")
+            .add("device_id", deviceId)
+            .build()
         val request = Request.Builder()
-            .url(url)
+            .url("https://www.reddit.com/api/v1/access_token")
+            .header("Authorization", Credentials.basic(clientId, ""))
             .header("User-Agent", userAgent)
             .header("Accept", "application/json")
+            .post(form)
             .build()
         http.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) error("Reddit ${response.code}: ${response.message}")
-            return response.body?.string() ?: error("Empty Reddit response")
+            val body = response.body?.string().orEmpty()
+            if (!response.isSuccessful) error("Reddit OAuth " + response.code + ": " + body.take(180))
+            val json = JSONObject(body)
+            val token = json.optString("access_token")
+            if (token.isBlank()) error("Reddit OAuth did not return an access token.")
+            accessToken = token
+            tokenExpiresAtMs = now + json.optLong("expires_in", 3600L) * 1000L
+            token
         }
+    }
+
+    private fun oauthJson(path: String): JSONObject = JSONObject(oauthText(path))
+
+    private fun oauthText(path: String): String {
+        var lastCode = 0
+        var lastBody = ""
+        repeat(2) { attempt ->
+            val token = ensureToken()
+            val request = Request.Builder()
+                .url("https://oauth.reddit.com" + path)
+                .header("Authorization", "bearer " + token)
+                .header("User-Agent", userAgent)
+                .header("Accept", "application/json")
+                .build()
+            http.newCall(request).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (response.isSuccessful) return body
+                lastCode = response.code
+                lastBody = body
+                if (response.code == 401 && attempt == 0) {
+                    synchronized(authLock) { accessToken = ""; tokenExpiresAtMs = 0L }
+                } else error("Reddit " + response.code + ": " + body.take(180))
+            }
+        }
+        error("Reddit " + lastCode + ": " + lastBody.take(180))
     }
 
     private fun decode(value: String): String = Html.fromHtml(value, Html.FROM_HTML_MODE_LEGACY).toString()

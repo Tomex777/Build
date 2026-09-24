@@ -156,13 +156,26 @@ internal fun SettingsSheet(
     onAutoplay: (Boolean) -> Unit,
     onSort: (SortMode) -> Unit,
     onAiBaseUrl: (String) -> Unit,
+    onRedditClientId: (String) -> Unit,
     onClearSeen: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     var aiUrl by remember(settings.aiBaseUrl) { mutableStateOf(settings.aiBaseUrl) }
+    var redditClientId by remember(settings.redditClientId) { mutableStateOf(settings.redditClientId) }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = AetherSurface, contentColor = AetherText) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp).padding(bottom = 28.dp)) {
             Text("Settings", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(18.dp))
+            Text("Reddit access", color = AetherMuted, fontSize = 11.sp)
+            OutlinedTextField(
+                value = redditClientId,
+                onValueChange = { redditClientId = it.trim() },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Installed-app Client ID") },
+                trailingIcon = { TextButton(onClick = { onRedditClientId(redditClientId) }) { Text("Save") } },
+            )
+            Text("Required because Reddit no longer serves anonymous JSON feeds. No Reddit client secret is stored in Aether.", color = Color(0xFF777777), fontSize = 10.sp, modifier = Modifier.padding(top = 5.dp))
             Spacer(Modifier.height(18.dp))
             Text("Sort", color = AetherMuted, fontSize = 11.sp)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

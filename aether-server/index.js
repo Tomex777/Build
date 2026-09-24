@@ -14,41 +14,13 @@ let groqCursor = 0
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, groqKeys: GROQ_KEYS.length, deepseek: Boolean(DEEPSEEK_KEY) }))
 
-app.get('/api/validate-subreddit', async (req, res) => {
-  try {
-    const candidate = await validateSubreddit(String(req.query.name || ''))
-    if (!candidate) return res.status(404).json({ error: 'Subreddit not found' })
-    res.json(candidate)
-  } catch (error) {
-    res.status(502).json({ error: safeError(error) })
-  }
-})
-
 app.post('/api/discover', async (req, res) => {
   try {
     const prompt = String(req.body?.prompt || '').trim()
     if (!prompt) return res.status(400).json({ error: 'prompt is required' })
-
     const intent = await discoverIntent(prompt)
-    const queryTerms = [...new Set([...(intent.queries || []), prompt])].filter(Boolean).slice(0, 5)
-    const searchGroups = await Promise.all(queryTerms.map(q => searchSubreddits(q, 16).catch(() => [])))
-    const pool = uniqueByName(searchGroups.flat()).slice(0, 22)
-
-    const profiled = []
-    // Keep Reddit request pressure modest while still verifying every returned result.
-    for (const candidate of pool) {
-      const verified = await validateSubreddit(candidate.name).catch(() => null)
-      if (!verified) continue
-      const profile = await profileSubreddit(verified, prompt).catch(() => ({ ...verified, mediaFit: 0, recentPosts: 0, matchScore: 0 }))
-      profiled.push(profile)
-    }
-
-    profiled.sort((a, b) => b.matchScore - a.matchScore)
-    res.json({
-      categoryName: intent.categoryName || '',
-      queries: queryTerms,
-      candidates: profiled.slice(0, 12),
-    })
+    const queries = [...new Set([...(intent.queries || []), prompt])].filter(Boolean).slice(0, 5)
+    res.json({ categoryName: intent.categoryName || '', queries })
   } catch (error) {
     res.status(500).json({ error: safeError(error) })
   }

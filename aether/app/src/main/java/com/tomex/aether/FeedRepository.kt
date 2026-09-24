@@ -4,7 +4,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlin.math.max
-import kotlin.random.Random
 
 class FeedRepository(
     private val reddit: RedditClient,
@@ -29,7 +28,6 @@ class FeedRepository(
         val subs = category.subreddits.map { it.removePrefix("r/").trim() }.filter { it.isNotBlank() }
         if (subs.isEmpty()) return@coroutineScope emptyList()
 
-        // Rotate rather than hammering every configured subreddit on every page.
         val shuffled = subs.sortedBy { stableOrder(it, rotation) }
         val selected = shuffled.filterNot { exhausted.contains(cursorKey(it, settings.sortMode, category.tags)) }.take(4)
             .ifEmpty {
@@ -38,10 +36,10 @@ class FeedRepository(
             }
         rotation++
 
-        val pages = selected.map { sub ->
+        val results = selected.map { sub ->
             async {
                 val key = cursorKey(sub, settings.sortMode, category.tags)
-                val page = runCatching {
+                key to runCatching {
                     reddit.fetchSubreddit(
                         subreddit = sub,
                         sort = settings.sortMode,
@@ -50,13 +48,21 @@ class FeedRepository(
                         limit = 40,
                         searchTerms = category.tags,
                     )
-                }.getOrDefault(RedditClient.FeedPage(emptyList(), null))
+                }
+            }
+        }.awaitAll()
+
+        val successful = results.mapNotNull { (key, result) ->
+            result.getOrNull()?.also { page ->
                 cursors[key] = page.after
                 if (page.after == null) exhausted += key
-                page.posts
             }
-        }.awaitAll().flatten()
+        }
+        if (successful.isEmpty()) {
+            results.firstNotNullOfOrNull { it.second.exceptionOrNull() }?.let { throw it }
+        }
 
+        val pages = successful.flatMap { it.posts }
         val unique = pages
             .asSequence()
             .filter { it.id !in seenIds && it.id !in currentIds }
@@ -71,24 +77,38 @@ class FeedRepository(
     suspend fun comments(postId: String): List<RedditComment> = reddit.fetchComments(postId)
 
     suspend fun discover(prompt: String, aiBaseUrl: String): List<SubredditCandidate> {
-        if (aiBaseUrl.isNotBlank()) {
-            val server = runCatching { ai.discover(aiBaseUrl, prompt) }.getOrNull()
-            if (!server.isNullOrEmpty()) return server.filter { it.verified && !it.over18 }.sortedByDescending { it.matchScore }
-        }
-        val queries = prompt
+        val fallbackQueries = prompt
             .lowercase()
             .replace(Regex("[^a-z0-9 ]"), " ")
             .split(Regex("\\s+"))
             .filter { it.length > 2 }
             .take(5)
             .ifEmpty { listOf(prompt) }
-        val base = queries.flatMap { q -> runCatching { reddit.searchSubreddits(q, 12) }.getOrDefault(emptyList()) }
-            .distinctBy { it.name.lowercase() }
-            .filter { !it.over18 }
-            .take(18)
+
+        val intent = if (aiBaseUrl.isNotBlank()) {
+            runCatching { ai.discoverIntent(aiBaseUrl, prompt) }.getOrNull()
+        } else null
+
+        val queries = ((intent?.queries ?: emptyList()) + prompt + fallbackQueries)
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .take(5)
+
+        val discovered = queries.flatMap { q ->
+            runCatching { reddit.searchSubreddits(q, 12) }.getOrDefault(emptyList())
+        }.distinctBy { it.name.lowercase() }.take(20)
+
         return coroutineScope {
-            base.map { c -> async { reddit.profileCandidate(c, prompt) } }.awaitAll()
-        }.sortedByDescending { it.matchScore }
+            discovered.map { candidate ->
+                async {
+                    runCatching {
+                        val verified = reddit.validateSubreddit(candidate.name) ?: return@runCatching null
+                        reddit.profileCandidate(verified, prompt)
+                    }.getOrNull()
+                }
+            }.awaitAll()
+        }.filterNotNull().sortedByDescending { it.matchScore }
     }
 
     suspend fun memeAi(baseUrl: String, post: MemePost, action: AiAction): AiResult = ai.memeAction(baseUrl, post, action)
@@ -101,7 +121,6 @@ class FeedRepository(
         var i = 0; var g = 0; var v = 0
         var cycle = 0
         while (i < images.size || g < gifs.size || v < videos.size) {
-            // The default rhythm deliberately favors still images: image, image, GIF when available.
             repeat(2) { if (i < images.size) result += images[i++] }
             if (g < gifs.size) result += gifs[g++]
             if (i < images.size) result += images[i++]
@@ -109,12 +128,11 @@ class FeedRepository(
             cycle++
             if (cycle > max(posts.size, 1) * 2) break
         }
-        // In edge cases (e.g. a GIF-only subreddit), do not throw away content.
         while (g < gifs.size) result += gifs[g++]
         while (includeVideos && v < videos.size) result += videos[v++]
         return result.distinctBy { it.id }
     }
 
-    private fun cursorKey(sub: String, sort: SortMode, tags: List<String>) = "$sub|${sort.name}|${tags.joinToString(",")}" 
+    private fun cursorKey(sub: String, sort: SortMode, tags: List<String>) = sub + "|" + sort.name + "|" + tags.joinToString(",")
     private fun stableOrder(value: String, salt: Int): Int = value.hashCode() xor (salt * 1103515245)
 }

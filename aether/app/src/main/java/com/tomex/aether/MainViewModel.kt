@@ -49,17 +49,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         viewModelScope.launch {
-            // Load the persisted seen set before the first feed request so an app restart
-            // cannot briefly re-introduce posts the user has already consumed.
+            // Load persistent device/feed identity before the first Reddit request.
+            val redditDeviceId = store.getOrCreateRedditDeviceId()
             _state.update { it.copy(seenIds = store.seenIds.first()) }
             combine(store.categories, store.selectedCategoryId, store.appSettings) { cats, selected, settings ->
                 Triple(cats, selected, settings)
             }.collect { (cats, selected, settings) ->
                 val safeSelected = selected.takeIf { id -> cats.any { it.id == id } } ?: cats.firstOrNull()?.id.orEmpty()
+                reddit.configure(settings.redditClientId, redditDeviceId)
                 _state.update { it.copy(categories = cats, selectedCategoryId = safeSelected, settings = settings) }
                 val key = buildString {
                     append(cats.hashCode()); append('|'); append(safeSelected); append('|')
-                    append(settings.includeVideos); append('|'); append(settings.sortMode)
+                    append(settings.includeVideos); append('|'); append(settings.sortMode); append('|'); append(settings.redditClientId)
                 }
                 if (key != lastConfigKey) {
                     lastConfigKey = key
@@ -164,6 +165,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setAutoplayVideos(value: Boolean) = viewModelScope.launch { store.setAutoplayVideos(value) }
     fun setSortMode(value: SortMode) = viewModelScope.launch { store.setSortMode(value) }
     fun setAiBaseUrl(value: String) = viewModelScope.launch { store.setAiBaseUrl(value) }
+    fun setRedditClientId(value: String) = viewModelScope.launch { store.setRedditClientId(value) }
     fun clearSeen() = viewModelScope.launch { store.clearSeen(); reload(); postMessage("Seen history cleared") }
 
     fun saveCategory(category: FeedCategory) {
