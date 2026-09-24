@@ -1,7 +1,4 @@
 import { ExtensionHost, youtubeEmbedUrl } from "./extension-host.mjs";
-import { descriptor as weebDescriptor, search as searchWeebCentral } from "./extensions/weeb-central.mjs";
-import { descriptor as tfpdlDescriptor, search as searchTfpdl } from "./extensions/tfpdl.mjs";
-import { descriptor as subspleaseDescriptor, search as searchSubsPlease } from "./extensions/subsplease.mjs";
 import { createYouTubeMusicExtension } from "./extensions/youtube-music.mjs";
 import { createAniListCatalogExtension } from "./extensions/anilist-catalog.mjs";
 
@@ -14,16 +11,10 @@ try { youtubeApiKey = sessionStorage.getItem("annie.youtube.apiKey") || ""; } ca
 
 const statusByProvider = [
   { id: "anilist-catalog", name: "AniList", media: "Anime & manga metadata", state: "Catalog ready", ready: true, note: "Official catalog metadata only; no episodes, chapters, streams, or downloads." },
-  { id: "weeb-central", name: "Weeb Central", media: "Manga", state: "Unavailable", note: "Needs an authorized content API or license." },
-  { id: "tfpdl", name: "TFPDL", media: "Movies & series", state: "Unavailable", note: "Needs an authorized content API or license." },
-  { id: "subsplease", name: "SubsPlease", media: "Anime", state: "Unavailable", note: "Needs an authorized content API or license." },
   { id: "youtube", name: "YouTube", media: "Music", state: youtubeApiKey ? "Connected" : "Needs API key", note: "Official API search and embedded playback; no extracted audio or downloads." }
 ];
 
 const host = new ExtensionHost([
-  { descriptor: weebDescriptor, search: searchWeebCentral },
-  { descriptor: tfpdlDescriptor, search: searchTfpdl },
-  { descriptor: subspleaseDescriptor, search: searchSubsPlease },
   createYouTubeMusicExtension({ getApiKey: () => youtubeApiKey }),
   createAniListCatalogExtension()
 ], { anime: "anilist-catalog", manga: "anilist-catalog", music: "youtube-music" });
