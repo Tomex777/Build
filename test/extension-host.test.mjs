@@ -170,3 +170,24 @@ test("YouTube adapter reports key, quota, and network errors without leaking cre
   const offline = createYouTubeMusicExtension({ getApiKey: () => "test-key", fetchImpl: async () => { throw new Error("offline"); } });
   await assert.rejects(() => offline.search({ query: "song" }), error => error.code === "NETWORK_UNAVAILABLE");
 });
+
+test("the three catalog slots are separate, correctly scoped, and disabled", async () => {
+  const weeb = await import("../src/extensions/weeb-central.mjs");
+  const tfpdl = await import("../src/extensions/tfpdl.mjs");
+  const subsplease = await import("../src/extensions/subsplease.mjs");
+  assert.equal(weeb.descriptor.id, "weeb-central");
+  assert.deepEqual(weeb.descriptor.mediaTypes, ["manga"]);
+  assert.equal(weeb.descriptor.enabled, false);
+  assert.deepEqual(tfpdl.descriptor.mediaTypes, ["movie", "tv"]);
+  assert.equal(tfpdl.descriptor.enabled, false);
+  assert.deepEqual(subsplease.descriptor.mediaTypes, ["anime"]);
+  assert.equal(subsplease.descriptor.enabled, false);
+  const host = new ExtensionHost([
+    { descriptor: weeb.descriptor, search: weeb.search },
+    { descriptor: tfpdl.descriptor, search: tfpdl.search },
+    { descriptor: subsplease.descriptor, search: subsplease.search }
+  ]);
+  for (const [type, query] of [["manga", "Example"], ["movie", "Example"], ["tv", "Example"], ["anime", "Example"]]) {
+    assert.equal((await host.search(type, query)).status, "unavailable");
+  }
+});
