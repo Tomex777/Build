@@ -7,6 +7,12 @@ import com.night.sora.youtubemusic.normalizeYouTubeCookieHeader
 import org.json.JSONArray
 import org.json.JSONObject
 
+data class BrowserSessionSpec(
+    val url: String,
+    val title: String,
+    val scripts: Map<String, String>,
+)
+
 interface MusicSource {
     val name: String
     suspend fun home(): Result<List<Track>>
@@ -64,8 +70,26 @@ class YouTubeMusicSource(context: Context) : MusicSource {
         )
     }
 
-    override fun loginUrl(): String =
-        JSONObject(YouTubeMusicSession.browserSession()).getString("url")
+    fun browserSession(): BrowserSessionSpec {
+        val raw = JSONObject(YouTubeMusicSession.browserSession())
+        val scriptObject = raw.optJSONObject("sessionScripts")
+        val scripts = buildMap {
+            if (scriptObject != null) {
+                val keys = scriptObject.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    scriptObject.optString(key).takeIf(String::isNotBlank)?.let { put(key, it) }
+                }
+            }
+        }
+        return BrowserSessionSpec(
+            url = raw.getString("url"),
+            title = raw.optString("title", "YouTube Music sign in"),
+            scripts = scripts,
+        )
+    }
+
+    override fun loginUrl(): String = browserSession().url
 
     override suspend fun storeBrowserSession(
         cookieHeader: String,
