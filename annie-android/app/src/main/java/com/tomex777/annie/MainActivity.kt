@@ -126,7 +126,9 @@ private data class CatalogItem(
     val episodes: Int?,
     val chapters: Int?,
     val format: String = "",
-    val seasons: List<SeasonItem> = emptyList()
+    val seasons: List<SeasonItem> = emptyList(),
+    val creator: String? = null,
+    val genres: List<String> = emptyList()
 )
 
 private data class ChatEntry(
@@ -451,7 +453,11 @@ private fun ChatBubble(
                         onSeriesAction(entry.selectedItem, "episodes", season)
                     }
                     "episodes" -> EpisodeListMessage(entry.selectedItem)
-                    else -> MangaResultMessage(entry.selectedItem)
+                    "chapters" -> MangaChapterListMessage(entry.selectedItem)
+                    "reader" -> MangaReaderUnavailableMessage(entry.selectedItem)
+                    else -> MangaResultMessage(entry.selectedItem) { stage ->
+                        onSeriesAction(entry.selectedItem, stage, null)
+                    }
                 }
             } else if (entry.menuTitle != null) {
                 Column(
@@ -685,22 +691,111 @@ private fun EpisodeListMessage(item: CatalogItem) {
 }
 
 @Composable
-private fun MangaResultMessage(item: CatalogItem) {
+private fun MangaResultMessage(item: CatalogItem, onAction: (String) -> Unit) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
             .background(Bubble).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("Manga", color = Color(0xFF77C5FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            AsyncImage(item.image, item.title, Modifier.width(96.dp).height(130.dp).clip(RoundedCornerShape(12.dp)))
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            AsyncImage(
+                model = item.image,
+                contentDescription = item.title,
+                modifier = Modifier.width(96.dp).height(130.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF1D3550))
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f)) {
                 Text(item.title, color = BrightText, fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                Text(listOfNotNull(item.year?.toString(), item.chapters?.let { "$it chapters" }).joinToString(" · "), color = SoftText, fontSize = 12.sp)
+                item.creator?.let { Text(it, color = SoftText, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                Text(
+                    listOfNotNull(
+                        item.year?.toString(),
+                        item.chapters?.let { "$it chapters" },
+                        mangaStatusLabel(item.status),
+                    ).joinToString(" · "),
+                    color = SoftText, fontSize = 11.sp, lineHeight = 16.sp
+                )
             }
         }
-        Text("Chapter list requires a connected manga extension.", color = SoftText, fontSize = 12.sp)
+        if (item.genres.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                item.genres.forEach { genre ->
+                    Surface(color = Color(0xFF10263D), shape = RoundedCornerShape(14.dp)) {
+                        Text(genre, color = Color(0xFF9CD7FF), fontSize = 10.sp,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
+                    }
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            MangaCardAction("Start reading", "play", Modifier.weight(1f)) { onAction("reader") }
+            MangaCardAction("Chapters", "history", Modifier.weight(1f)) { onAction("chapters") }
+        }
     }
+}
+
+@Composable
+private fun MangaCardAction(label: String, icon: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(
+        color = Color(0xFF10263D),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, Color(0xFF294562)),
+        modifier = modifier.clickable(onClick = onClick)
+    ) {
+        Row(
+            Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ActionGlyph(icon, Color(0xFF27A8F2))
+            Text(label, color = BrightText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun MangaChapterListMessage(item: CatalogItem) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
+            .background(Bubble).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(11.dp)
+    ) {
+        Text("Chapters · ${item.title}", color = BrightText, fontWeight = FontWeight.Bold, fontSize = 17.sp,
+            maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Source", color = SoftText, fontSize = 12.sp)
+            Surface(color = Color(0xFF10263D), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, Color(0xFF294562))) {
+                Text("No manga extension connected", color = SoftText, fontSize = 12.sp,
+                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp))
+            }
+        }
+        Text(
+            "Connect a manga extension to load chapters. The selected source will stay scoped to this chapter list.",
+            color = SoftText, fontSize = 13.sp, lineHeight = 19.sp
+        )
+    }
+}
+
+@Composable
+private fun MangaReaderUnavailableMessage(item: CatalogItem) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
+            .background(Bubble).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(item.title, color = BrightText, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+        Text("Reader", color = Color(0xFF77C5FF), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            "Annie needs a manga source with chapter pages before it can open the Mihon-style reader.",
+            color = SoftText, fontSize = 13.sp, lineHeight = 19.sp
+        )
+    }
+}
+
+private fun mangaStatusLabel(status: String): String = when (status) {
+    "RELEASING" -> "Ongoing"
+    "FINISHED" -> "Completed"
+    else -> "Status unknown"
 }
 
 @Composable
@@ -896,6 +991,10 @@ private suspend fun searchAniList(mediaType: String, search: String): List<Catal
               chapters
               status
               format
+              genres
+              staff(sort: RELEVANCE, perPage: 5) {
+                edges { role node { name { full } } }
+              }
               relations {
                 edges {
                   relationType
@@ -943,6 +1042,22 @@ private suspend fun searchAniList(mediaType: String, search: String): List<Catal
                 val itemType = row.optString("type")
                 val itemFormat = row.optString("format")
                 val itemYear = row.optJSONObject("startDate")?.optInt("year")?.takeIf { it > 0 }
+                val creators = buildList {
+                    val edges = row.optJSONObject("staff")?.optJSONArray("edges") ?: return@buildList
+                    for (staffIndex in 0 until edges.length()) {
+                        val edge = edges.optJSONObject(staffIndex) ?: continue
+                        val role = edge.optString("role")
+                        if (!role.contains("story", ignoreCase = true) && !role.contains("art", ignoreCase = true)) continue
+                        val name = edge.optJSONObject("node")?.optJSONObject("name")?.optString("full").orEmpty()
+                        if (name.isNotBlank()) add("$name · $role")
+                    }
+                }
+                val genres = buildList {
+                    val genreArray = row.optJSONArray("genres") ?: return@buildList
+                    for (genreIndex in 0 until genreArray.length()) {
+                        genreArray.optString(genreIndex).takeIf { it.isNotBlank() }?.let(::add)
+                    }
+                }
                 val linkedSeasons = buildList {
                     val edges = row.optJSONObject("relations")?.optJSONArray("edges") ?: return@buildList
                     for (edgeIndex in 0 until edges.length()) {
@@ -980,7 +1095,9 @@ private suspend fun searchAniList(mediaType: String, search: String): List<Catal
                         episodes = row.optInt("episodes").takeIf { it > 0 },
                         chapters = row.optInt("chapters").takeIf { it > 0 },
                         format = itemFormat,
-                        seasons = linkedSeasons
+                        seasons = linkedSeasons,
+                        creator = creators.firstOrNull(),
+                        genres = genres
                     )
                 )
             }
