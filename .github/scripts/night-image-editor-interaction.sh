@@ -47,6 +47,17 @@ refresh_ui() {
     if adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 &&
        adb exec-out cat /sdcard/window.xml > /tmp/window.xml 2>/dev/null &&
        grep -q "<hierarchy" /tmp/window.xml; then
+      if grep -q "Quickstep isn't responding" /tmp/window.xml; then
+        local close_coords close_x close_y
+        close_coords="$(python3 /tmp/night_image_uia.py text "Close app" 2>/dev/null || true)"
+        if [ -n "$close_coords" ]; then
+          read -r close_x close_y <<<"$close_coords"
+          adb shell input tap "$close_x" "$close_y" || true
+          printf '%s\\n' "Dismissed Quickstep ANR dialog during image-editor test" >> "$OUT/system-dialogs.txt"
+          sleep 2
+          return refresh_ui
+        fi
+      fi
       return 0
     fi
     sleep 1
