@@ -26,13 +26,14 @@ class AniyomiCompatibilitySmokeTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val start = System.nanoTime()
         val installed = AniyomiExtensionRegistry(context).installedSources()
-        val animeTake = installed.firstOrNull {
+        val animeSogo = installed.firstOrNull {
             it.metadata.extensionPackage == "eu.kanade.tachiyomi.animeextension.en.animesogo"
         }
-        assertNotNull("AnimeSogo v16.8 must be discovered from its installed APK", animeTake)
-        animeTake!!
-        assertEquals("16.8", animeTake.metadata.extensionVersion)
-        assertEquals(16, animeTake.metadata.extensionApiVersion)
+        assertNotNull("AnimeSogo v16.8 must be discovered from its installed APK", animeSogo)
+        println("NamiSourceSmoke: discovered ${installed.size} sources; selected ${animeSogo?.metadata?.id}")
+        animeSogo!!
+        assertEquals("16.8", animeSogo.metadata.extensionVersion)
+        assertEquals(16, animeSogo.metadata.extensionApiVersion)
 
         val jikan = JikanAnimeSource()
         val combined = CompositeNamiSourceRegistry(
@@ -40,25 +41,31 @@ class AniyomiCompatibilitySmokeTest {
             NamiSourceRegistry { listOf(jikan) },
         )
         val query = "Bleach"
+        println("NamiSourceSmoke: global search started for $query")
         val search = withTimeout(90_000) { GlobalAnimeSearch(combined).search(query) }
-        val extensionResults = search.resultsBySource[animeTake.metadata.id].orEmpty()
+        println("NamiSourceSmoke: global search completed; sources=${search.resultsBySource.keys}; failures=${search.failures.map { it.sourceId + ":" + it.cause.javaClass.simpleName }}")
+        val extensionResults = search.resultsBySource[animeSogo.metadata.id].orEmpty()
         val nativeResults = search.resultsBySource[jikan.metadata.id].orEmpty()
         assertTrue("AnimeSogo returned no real results for $query", extensionResults.isNotEmpty())
         assertTrue("Jikan returned no real results for $query", nativeResults.isNotEmpty())
 
         val anime = extensionResults.firstOrNull { it.title.contains(query, ignoreCase = true) }
             ?: throw AssertionError("AnimeSogo results did not contain $query")
-        val details = withTimeout(60_000) { animeTake.details(anime.ref) }
+        println("NamiSourceSmoke: AnimeSogo result selected: ${anime.title}; loading details")
+        val details = withTimeout(60_000) { animeSogo.details(anime.ref) }
+        println("NamiSourceSmoke: details loaded: ${details.title}; loading episodes")
         assertTrue("Anime details title is empty", details.title.isNotBlank())
-        val episodes = withTimeout(60_000) { animeTake.episodes(anime.ref) }
+        val episodes = withTimeout(60_000) { animeSogo.episodes(anime.ref) }
+        println("NamiSourceSmoke: episodes loaded: ${episodes.size}; resolving first three")
         assertTrue("AnimeSogo returned no episodes", episodes.isNotEmpty())
 
         var resolvedCount = 0
         for (episode in episodes.take(3)) {
-            resolvedCount = withTimeout(60_000) { animeTake.resolve(episode.ref).size }
+            resolvedCount = withTimeout(60_000) { animeSogo.resolve(episode.ref).size }
             if (resolvedCount > 0) break
         }
         assertTrue("AnimeSogo did not resolve a stream from the first three episodes", resolvedCount > 0)
+        println("NamiSourceSmoke: resolved stream count=$resolvedCount")
 
         val nativeAnime = nativeResults.firstOrNull { it.title.contains(query, ignoreCase = true) }
             ?: throw AssertionError("Jikan results did not contain $query")
@@ -70,7 +77,7 @@ class AniyomiCompatibilitySmokeTest {
         val elapsed = (System.nanoTime() - start) / 1_000_000
         Log.i(
             "NamiSourceSmoke",
-            "query=$query extension=${animeTake.metadata.extensionPackage} " +
+            "query=$query extension=${animeSogo.metadata.extensionPackage} " +
                 "extensionResults=${extensionResults.size} nativeResults=${nativeResults.size} " +
                 "episodes=${episodes.size} resolvedStreams=$resolvedCount nativeEpisodes=${nativeEpisodes.size} " +
                 "failures=${search.failures.map { it.sourceId + ":" + it.cause.javaClass.simpleName }} " +
