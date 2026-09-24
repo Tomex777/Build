@@ -285,3 +285,15 @@ Next diagnostic should compare a non-libVLC Android renderer with the same gener
 
 
 The next diagnostic source pass adds a controlled Android `VideoView` baseline to the video Actions job. It plays the same generated local MP4 before launching Night's VLC viewer and records its screenshot/pixel result and platform decoder logs. This is a diagnostic route in the existing preview Activity only, selected by a test intent extra; the normal Night viewer remains on its current code path. The #431 Actions result is pending.
+
+
+## 2026-09-24 validation follow-up: Integrated Regression #431
+
+Integrated Regression #431 ran on `dc0d1da967695747d401d20f73cfc76125c4e006`. The APK build passed. ARM64 APK #112 and Groq Key Pool #390 passed. Provider instrumentation passed all 31 tests, including live AnimePahe service discovery into Night's enabled model inventory. Every Android 16 UI shard passed, including Main Tabs; its #430 ADB startup error was transient.
+
+- The provider instrumentation remains green, including the existing repeated-options persistence regression. The Providers UI artifact still does not exercise chat option selection, so visible repetition of identical option cards remains unverified. Groq 429 TPM remains a separate quota failure.
+- Image Editor's UI suite passed. The #429 screenshot review found a clear full-width preview and near-source-resolution edited export, while the untouched export matched the original; physical-device comparison remains open.
+- The added same-fixture platform baseline rendered through Android `VideoView`: 48,500 colored viewport pixels (ratio 0.1492). The emulator displayed a Quickstep “isn't responding” overlay during the screenshot, but colored video remained visible around it and the pixel threshold passed.
+- Night's subsequent VLC screenshot remained black (478 colored pixels, ratio 0.0015). VLC's attached/shown 709×1536 TextureView was ready and software H.264/AAC decoding started, but no Vout event followed. The comparison confirms the fixture and standard Android SurfaceView playback path work; since Night's virtual path uses TextureView, it does not yet distinguish a libVLC output failure from a TextureView-specific interaction.
+
+Next diagnostic: run Android `MediaPlayer` directly into a TextureView with this same fixture, then compare that pixel result with the Night VLC path. Use the result to isolate the remaining output path before choosing a production player change. Video is not fixed; physical-device rendering remains unverified.
