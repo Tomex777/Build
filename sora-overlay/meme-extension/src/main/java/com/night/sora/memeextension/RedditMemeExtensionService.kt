@@ -29,7 +29,7 @@ class RedditMemeExtensionService : Service() {
         contentTypes = setOf("memes"),
         capabilities = setOf("catalog", "browse", "search", "details", "feed"),
         permissions = listOf(
-            ExtensionPermission("network", listOf("www.reddit.com", "reddit.com", "i.redd.it", "preview.redd.it")),
+            ExtensionPermission("network", listOf("www.reddit.com", "oauth.reddit.com", "reddit.com", "i.redd.it", "preview.redd.it")),
         ),
         sources = listOf(
             SourceDescriptor(
@@ -61,10 +61,10 @@ class RedditMemeExtensionService : Service() {
                 val result = runCatching {
                     when (method) {
                         ExtensionContract.Method.MANIFEST -> descriptor.toJson()
-                        ExtensionContract.Method.BROWSE -> RedditMemeCatalog.browse()
-                        ExtensionContract.Method.SEARCH -> RedditMemeCatalog.search(payload.optString("query"))
-                        ExtensionContract.Method.DETAILS -> RedditMemeCatalog.details(payload.optString("id"))
-                        ExtensionContract.Method.FEED -> RedditMemeCatalog.browse()
+                        ExtensionContract.Method.BROWSE -> RedditMemeCatalog.browse(payload.optString("redditClientId"))
+                        ExtensionContract.Method.SEARCH -> RedditMemeCatalog.search(payload.optString("query"), payload.optString("redditClientId"))
+                        ExtensionContract.Method.DETAILS -> RedditMemeCatalog.details(payload.optString("id"), payload.optString("redditClientId"))
+                        ExtensionContract.Method.FEED -> RedditMemeCatalog.browse(payload.optString("redditClientId"))
                         else -> error("Unsupported method: $method")
                     }
                 }

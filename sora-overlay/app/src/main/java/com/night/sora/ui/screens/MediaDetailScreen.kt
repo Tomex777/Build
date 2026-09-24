@@ -76,6 +76,9 @@ fun MediaDetailScreen(
 ) {
     val context = LocalContext.current
     val sourcePrefs = remember(context) { context.getSharedPreferences("sora_preferred_sources_v1", Context.MODE_PRIVATE) }
+    val redditClientId = remember(context) {
+        context.getSharedPreferences("sora_reddit_source_v1", Context.MODE_PRIVATE).getString("client_id", "").orEmpty()
+    }
     val listState = rememberLazyListState()
 
     var active by remember(selection) { mutableStateOf(selection) }
@@ -154,7 +157,7 @@ fun MediaDetailScreen(
         manager.call(
             ext,
             method,
-            JSONObject().put("sourceId", target.sourceId).put("id", target.id).toString(),
+            JSONObject().put("sourceId", target.sourceId).put("id", target.id).put("redditClientId", redditClientId).toString(),
         ) { result ->
             if (target.type == ContentType.MOVIE) {
                 movieStreams = result.getOrNull()?.let(::parsePlaybackStreams).orEmpty()
@@ -324,7 +327,7 @@ fun MediaDetailScreen(
             manager.call(
                 displayExtension,
                 ExtensionContract.Method.DETAILS,
-                JSONObject().put("sourceId", requested.sourceId).put("id", requested.id).toString(),
+                JSONObject().put("sourceId", requested.sourceId).put("id", requested.id).put("redditClientId", redditClientId).toString(),
             ) { result ->
                 if (active.id == requested.id && active.type == requested.type) {
                     result.getOrNull()?.let { metadata = parseMetadata(it, requested.subtitle) }

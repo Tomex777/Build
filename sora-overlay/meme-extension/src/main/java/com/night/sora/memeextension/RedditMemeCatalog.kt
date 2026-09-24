@@ -6,30 +6,35 @@ import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
 
 object RedditMemeCatalog {
     private const val CACHE_MS = 2 * 60 * 1000L
+    private const val USER_AGENT = "android:com.night.sora.ext.memes.reddit:v0.1.0 (Sora Reddit meme source)"
+    private const val CLIENT_ID_REQUIRED = "Reddit requires an installed-app client ID. Open More → Extensions → Reddit Memes to configure it."
     private data class CacheEntry(val at: Long, val body: String)
+    private data class TokenEntry(val value: String, val expiresAt: Long)
     private val cache = ConcurrentHashMap<String, CacheEntry>()
+    private val tokens = ConcurrentHashMap<String, TokenEntry>()
 
-    fun browse(): String = mapListing(
-        get("https://www.reddit.com/r/memes/hot.json?raw_json=1&limit=50")
+    fun browse(clientId: String): String = mapListing(
+        get("https://oauth.reddit.com/r/memes/hot.json?raw_json=1&limit=50", clientId)
     )
 
-    fun search(query: String): String {
+    fun search(query: String, clientId: String): String {
         val q = query.trim()
-        if (q.isBlank()) return browse()
+        if (q.isBlank()) return browse(clientId)
         val encoded = URLEncoder.encode(q, StandardCharsets.UTF_8.toString())
         return mapListing(
-            get("https://www.reddit.com/r/memes/search.json?raw_json=1&restrict_sr=1&sort=relevance&t=all&limit=50&q=$encoded")
+            get("https://oauth.reddit.com/r/memes/search.json?raw_json=1&restrict_sr=1&sort=relevance&t=all&limit=50&q=$encoded", clientId)
         )
     }
 
-    fun details(id: String): String {
+    fun details(id: String, clientId: String): String {
         val postId = id.removePrefix("t3_").substringBefore('|')
         if (postId.isBlank()) return JSONObject().put("description", "Post unavailable.").toString()
-        val raw = get("https://www.reddit.com/comments/$postId.json?raw_json=1&limit=1")
+        val raw = get("https://oauth.reddit.com/comments/$postId.json?raw_json=1&limit=1", clientId)
         val listings = JSONArray(raw)
         val child = listings.optJSONObject(0)
             ?.optJSONObject("data")
@@ -38,6 +43,76 @@ object RedditMemeCatalog {
             ?.optJSONObject("data")
             ?: return JSONObject().put("description", "Post unavailable.").toString()
         return detailObject(child).toString()
+    }
+
+    private fun accessToken(clientId: String): String {
+        val normalizedId = clientId.trim()
+        require(normalizedId.isNotBlank()) { CLIENT_ID_REQUIRED }
+        tokens[normalizedId]?.takeIf { it.expiresAt > System.currentTimeMillis() }?.let { return it.value }
+        synchronized(tokens) {
+            tokens[normalizedId]?.takeIf { it.expiresAt > System.currentTimeMillis() }?.let { return it.value }
+            val connection = URI("https://www.reddit.com/api/v1/access_token").toURL().openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.connectTimeout = 12_000
+            connection.readTimeout = 15_000
+            connection.doOutput = true
+            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+            connection.setRequestProperty("User-Agent", USER_AGENT)
+            val basic = Base64.getEncoder().encodeToString("$normalizedId:".toByteArray(StandardCharsets.UTF_8))
+            connection.setRequestProperty("Authorization", "Basic $basic")
+            try {
+                connection.outputStream.bufferedWriter(StandardCharsets.UTF_8).use {
+                    it.write("grant_type=https%3A%2F%2Foauth.reddit.com%2Fgrants%2Finstalled_client&device_id=DO_NOT_TRACK_THIS_DEVICE")
+                }
+                val code = connection.responseCode
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                if (code !in 200..299) error(redditHttpError(code))
+                val json = JSONObject(body)
+                val value = json.optString("access_token").takeIf { it.isNotBlank() }
+                    ?: error("Reddit did not issue an access token. Check the installed-app client ID.")
+                val lifetimeMs = (json.optLong("expires_in", 3600L).coerceAtLeast(120L) - 60L) * 1000L
+                tokens[normalizedId] = TokenEntry(value, System.currentTimeMillis() + lifetimeMs)
+                return value
+            } finally {
+                connection.disconnect()
+            }
+        }
+    }
+
+    private fun get(url: String, clientId: String, retryUnauthorized: Boolean = true): String {
+        val token = accessToken(clientId)
+        val now = System.currentTimeMillis()
+        val cacheKey = "$clientId|$url"
+        cache[cacheKey]?.takeIf { now - it.at < CACHE_MS }?.let { return it.body }
+        val connection = URI(url).toURL().openConnection() as HttpURLConnection
+        connection.requestMethod = "GET"
+        connection.connectTimeout = 12_000
+        connection.readTimeout = 15_000
+        connection.setRequestProperty("Accept", "application/json")
+        connection.setRequestProperty("Authorization", "Bearer $token")
+        connection.setRequestProperty("User-Agent", USER_AGENT)
+        return try {
+            val code = connection.responseCode
+            if (code == 401 && retryUnauthorized) {
+                tokens.remove(clientId.trim())
+                return get(url, clientId, retryUnauthorized = false)
+            }
+            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+            val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            if (code !in 200..299) error(redditHttpError(code))
+            cache[cacheKey] = CacheEntry(now, body)
+            body
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun redditHttpError(code: Int): String = when (code) {
+        401, 403 -> "Reddit rejected this app's credentials (HTTP $code). Check the installed-app client ID."
+        429 -> "Reddit is rate-limiting this source. Wait a moment and retry."
+        else -> "Reddit returned HTTP $code. Retry or check the source configuration."
     }
 
     private fun mapListing(raw: String): String {
@@ -114,25 +189,4 @@ object RedditMemeCatalog {
         .replace("&amp;", "&")
         .replace("&quot;", "\"")
         .replace("&#39;", "'")
-
-    private fun get(url: String): String {
-        val now = System.currentTimeMillis()
-        cache[url]?.takeIf { now - it.at < CACHE_MS }?.let { return it.body }
-        val connection = URI(url).toURL().openConnection() as HttpURLConnection
-        connection.requestMethod = "GET"
-        connection.connectTimeout = 12_000
-        connection.readTimeout = 15_000
-        connection.setRequestProperty("Accept", "application/json")
-        connection.setRequestProperty("User-Agent", "android:com.night.sora.ext.memes.reddit:0.1 (Sora private media client)")
-        return try {
-            val code = connection.responseCode
-            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-            val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            if (code !in 200..299) error("Reddit returned HTTP $code")
-            cache[url] = CacheEntry(now, body)
-            body
-        } finally {
-            connection.disconnect()
-        }
-    }
 }

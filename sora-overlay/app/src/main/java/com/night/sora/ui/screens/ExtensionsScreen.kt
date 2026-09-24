@@ -60,6 +60,11 @@ fun ExtensionDetailScreen(extension: InstalledExtension, onBack: () -> Unit) {
     val context = LocalContext.current
     val manager = remember { ExtensionManager(context.applicationContext) }
     val descriptor = extension.descriptor
+    val isRedditSource = extension.packageName == "com.night.sora.ext.memes.reddit"
+    val redditPreferences = remember(context) { context.getSharedPreferences("sora_reddit_source_v1", android.content.Context.MODE_PRIVATE) }
+    var redditClientId by remember(extension.packageName) {
+        mutableStateOf(redditPreferences.getString("client_id", "").orEmpty())
+    }
     var browserSession by remember(extension.packageName) { mutableStateOf<SourceBrowserSession?>(null) }
     var browserBusySourceId by remember(extension.packageName) { mutableStateOf<String?>(null) }
     var browserError by remember(extension.packageName) { mutableStateOf<String?>(null) }
@@ -116,6 +121,21 @@ fun ExtensionDetailScreen(extension: InstalledExtension, onBack: () -> Unit) {
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(vertical = 10.dp)) {
             item { DenseRow("Package", extension.packageName, Icons.Rounded.Inventory2) }
+            if (isRedditSource) {
+                item {
+                    RedditSourceConfiguration(
+                        initialClientId = redditClientId,
+                        onSave = { clientId ->
+                            redditPreferences.edit().putString("client_id", clientId.trim()).apply()
+                            redditClientId = clientId.trim()
+                        },
+                        onClear = {
+                            redditPreferences.edit().remove("client_id").apply()
+                            redditClientId = ""
+                        },
+                    )
+                }
+            }
             item { DenseRow("API", "${extension.apiVersion}", Icons.Rounded.Code) }
             descriptor?.let { d ->
                 item { DenseRow("Version", d.version, Icons.Rounded.Update) }
@@ -140,6 +160,43 @@ fun ExtensionDetailScreen(extension: InstalledExtension, onBack: () -> Unit) {
                 item { Text(message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) }
             }
             extension.error?.let { item { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(20.dp)) } }
+        }
+    }
+}
+
+@Composable
+private fun RedditSourceConfiguration(
+    initialClientId: String,
+    onSave: (String) -> Unit,
+    onClear: () -> Unit,
+) {
+    var value by remember(initialClientId) { mutableStateOf(initialClientId) }
+    var message by remember(initialClientId) {
+        mutableStateOf(if (initialClientId.isBlank()) "Not configured" else "Reddit source configured")
+    }
+    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Text("Reddit access", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Create an installed app at reddit.com/prefs/apps and enter its public client ID. Do not enter a script or web-app secret.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                value = value,
+                onValueChange = { value = it; message = "Unsaved changes" },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Installed-app client ID") },
+                singleLine = true,
+            )
+            Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    enabled = value.isNotBlank(),
+                    onClick = { onSave(value); message = "Saved. Return to Memes and retry." },
+                ) { Text("Save ID") }
+                TextButton(onClick = { onClear(); value = ""; message = "Not configured" }) { Text("Clear") }
+            }
         }
     }
 }

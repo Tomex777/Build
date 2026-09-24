@@ -58,6 +58,18 @@ jobs:
           ! grep -q 'name.contains(normalized)' "$DETAIL"
           ! grep -q 'The Last Platform\|After Rain' "$MEDIA"
 
+      - name: Enforce Reddit OAuth configuration
+        run: |
+          set -euo pipefail
+          REDDIT='sora-overlay/meme-extension/src/main/java/com/night/sora/memeextension/RedditMemeCatalog.kt'
+          SERVICE='sora-overlay/meme-extension/src/main/java/com/night/sora/memeextension/RedditMemeExtensionService.kt'
+          SETTINGS='sora-overlay/app/src/main/java/com/night/sora/ui/screens/ExtensionsScreen.kt'
+          grep -q 'oauth.reddit.com' "$REDDIT"
+          grep -q 'installed_client' "$REDDIT"
+          grep -q 'redditClientId' "$SERVICE"
+          grep -q 'Installed-app client ID' "$SETTINGS"
+          ! grep -q 'www.reddit.com/r/memes' "$REDDIT"
+
       - name: Reconstruct current Android source
         run: |
           rm -rf /tmp/sora-src /tmp/sora.zip

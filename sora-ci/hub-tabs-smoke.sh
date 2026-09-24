@@ -182,6 +182,9 @@ wait_for "Extensions"
 wait_for "Reddit Memes"
 tap "Reddit Memes"
 wait_for "Reddit · r/memes"
+wait_for "Reddit access"
+wait_for "Installed-app client ID"
+wait_for "Save ID"
 shot extension-detail
 adb shell input keyevent 4
 wait_for "Extensions"
@@ -322,8 +325,8 @@ else
 fi
 tap Music
 tap Memes
-if wait_for_any 40 "Less like this" "Memes sources could not load right now."; then
-  if node_exists "Memes sources could not load right now."; then
+if wait_for_any 40 "Less like this" "installed-app client ID" "Memes sources could not load right now."; then
+  if node_exists "installed-app client ID" || node_exists "Memes sources could not load right now."; then
     # Reddit can decline or time out requests from hosted emulator networks.
     # Treat its explicit unavailable state as valid, without first recording
     # an expected timeout as a failure screenshot.

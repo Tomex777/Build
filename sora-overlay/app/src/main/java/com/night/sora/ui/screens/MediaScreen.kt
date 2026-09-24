@@ -4,6 +4,7 @@ package com.night.sora.ui.screens
 
 import android.net.ConnectivityManager
 import android.net.Network
+import android.content.SharedPreferences
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
@@ -29,6 +30,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -140,6 +143,16 @@ fun MediaScreen(
             if (registered) runCatching { connectivity.unregisterNetworkCallback(callback) }
         }
     }
+
+    val redditPreferences = remember(context) { context.getSharedPreferences("sora_reddit_source_v1", android.content.Context.MODE_PRIVATE) }
+    DisposableEffect(redditPreferences) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == "client_id") refreshEpoch++
+        }
+        redditPreferences.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { redditPreferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refreshEpoch++ }
 
     fun setDestination(next: MediaDestination) {
         if (next == MediaDestination.BIBLE) {
@@ -262,13 +275,18 @@ fun MediaScreen(
 
         val method = if (requestQuery.isBlank()) ExtensionContract.Method.BROWSE else ExtensionContract.Method.SEARCH
         primaryLoading = rows.isEmpty()
-        val failures = MutableList(providers.size) { false }
+        val failures = MutableList<String?>(providers.size) { null }
         val collected = MutableList(providers.size) { emptyList<BrowseCard>() }
         var completed = 0
         providers.forEachIndexed { index, (ext, source) ->
-            val payload = JSONObject().put("sourceId", source.id).put("type", key).put("query", requestQuery).toString()
+            val payload = JSONObject()
+                .put("sourceId", source.id)
+                .put("type", key)
+                .put("query", requestQuery)
+                .put("redditClientId", redditPreferences.getString("client_id", "").orEmpty())
+                .toString()
             manager.call(ext, method, payload) { result ->
-                failures[index] = result.isFailure
+                failures[index] = result.exceptionOrNull()?.message
                 collected[index] = result.getOrNull()?.let { parseBrowse(it, source.id, ext.packageName) }.orEmpty()
                 completed++
                 if (completed == providers.size) {
@@ -279,8 +297,9 @@ fun MediaScreen(
                         if (fresh.isNotEmpty()) {
                             rows = fresh
                             primaryError = null
-                        } else if (failures.all { it }) {
-                            primaryError = "${requestType.label} sources could not load right now. Check the source extension and retry."
+                        } else if (failures.all { it != null }) {
+                            primaryError = failures.firstOrNull { !it.isNullOrBlank() }
+                                ?: "${requestType.label} sources could not load right now. Check the source extension and retry."
                         } else {
                             primaryError = null
                         }

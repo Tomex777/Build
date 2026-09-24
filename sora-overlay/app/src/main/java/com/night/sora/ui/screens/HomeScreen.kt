@@ -68,6 +68,9 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val mediaCache = remember { MediaCatalogCache(context.applicationContext) }
+    val redditClientId = remember(context) {
+        context.getSharedPreferences("sora_reddit_source_v1", android.content.Context.MODE_PRIVATE).getString("client_id", "").orEmpty()
+    }
     var networkEpoch by remember { mutableIntStateOf(0) }
     var recommendations by remember {
         mutableStateOf(
@@ -100,7 +103,7 @@ fun HomeScreen(
             result.removeAll { it.type == ContentType.MOVIE }; result.addAll(cards.take(4)); recommendations = result.toList()
         }
         loadHomeType(extensions, manager, mediaCache, ContentType.MUSIC) { cards -> music = cards.take(8) }
-        loadHomeType(extensions, manager, mediaCache, ContentType.MEME) { cards -> memes = cards.take(4) }
+        loadHomeType(extensions, manager, mediaCache, ContentType.MEME, redditClientId) { cards -> memes = cards.take(4) }
     }
 
     val continueEntries = progressEntries
@@ -311,6 +314,7 @@ private fun loadHomeType(
     manager: ExtensionManager,
     cache: MediaCatalogCache,
     type: ContentType,
+    redditClientId: String = "",
     callback: (List<HomeBrowseCard>) -> Unit,
 ) {
     val key = when (type) { ContentType.MOVIE -> "movie"; ContentType.MEME -> "memes"; else -> type.name.lowercase() }
@@ -325,7 +329,11 @@ private fun loadHomeType(
     val collected = MutableList(providers.size) { emptyList<HomeBrowseCard>() }
     var completed = 0
     providers.forEachIndexed { index, (ext, source) ->
-        manager.call(ext, ExtensionContract.Method.BROWSE, JSONObject().put("sourceId", source.id).put("type", key).toString()) { result ->
+        manager.call(
+            ext,
+            ExtensionContract.Method.BROWSE,
+            JSONObject().put("sourceId", source.id).put("type", key).put("redditClientId", redditClientId).toString(),
+        ) { result ->
             collected[index] = result.getOrNull()?.let { raw ->
                 runCatching {
                     val array = JSONArray(raw)
