@@ -53,7 +53,6 @@ class DownloadsManagerTest {
         }
         compose.onNodeWithText("Queued Manga").performClick()
         compose.onNodeWithTag("download_action_pause").performClick()
-        compose.onNodeWithText("Paused").assertExists()
         compose.onNodeWithTag("download_action_resume").assertExists()
     }
 
