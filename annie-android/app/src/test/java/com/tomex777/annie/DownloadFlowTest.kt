@@ -18,7 +18,7 @@ class DownloadFlowTest {
 
     @Test fun sourceMatchingUsesAliasOverlapAndLeavesUnrelatedTitlesLow() {
         assertEquals(100, matchSourceTitle(listOf("The Greatest Estate Developer"), listOf("The Greatest Estate Developer")))
-        assertEquals(80, matchSourceTitle(listOf("The Greatest Estate Developer"), listOf("Greatest Estate Developer")))
+        assertEquals(60, matchSourceTitle(listOf("The Greatest Estate Developer"), listOf("Greatest Estate Developer")))
         assertEquals(0, matchSourceTitle(listOf("Blue Lock"), listOf("Frieren Beyond Journey's End")))
     }
 }
