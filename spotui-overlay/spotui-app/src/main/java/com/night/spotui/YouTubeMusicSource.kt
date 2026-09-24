@@ -68,6 +68,16 @@ class YouTubeMusicSource(context: Context) : MusicSource {
             mimeType = item.optString("mimeType").takeIf(String::isNotBlank),
             headers = headers,
         )
+    }.recoverCatching { cause ->
+        val detail = cause.message.orEmpty()
+        val challenged = detail.contains("LOGIN_REQUIRED", ignoreCase = true) ||
+            detail.contains("sign in", ignoreCase = true) ||
+            detail.contains("not a bot", ignoreCase = true) ||
+            detail.contains("confirm you", ignoreCase = true)
+        if (challenged) {
+            error("YouTube Music needs sign-in on this network. Sign in once, then SpotUI will retry this song.")
+        }
+        throw cause
     }
 
     fun browserSession(): BrowserSessionSpec {
