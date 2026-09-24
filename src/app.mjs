@@ -88,7 +88,7 @@ function renderCatalogResults(items, mediaType) {
       ? (item.chapters ? item.chapters + " chapters listed" : "Chapter count unavailable")
       : (item.episodes ? item.episodes + " episodes listed" : "Episode count unavailable");
     const status = item.status
-      ? item.status.replaceAll("_", " ").toLocaleLowerCase().replace(/\\b\\w/g, letter => letter.toLocaleUpperCase())
+      ? item.status.replaceAll("_", " ").toLocaleLowerCase().replace(/\b\w/g, letter => letter.toLocaleUpperCase())
       : "Status unknown";
     const cover = item.thumbnail
       ? '<img class="catalog-cover" src="' + escapeHtml(item.thumbnail) + '" alt="" loading="lazy">'
