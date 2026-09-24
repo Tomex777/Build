@@ -12,3 +12,4 @@ API 36 player autoplay fix: rerun exact resume and full app QA
 rerun 35 - dismiss AI keyboard before returning to More destinations
 rerun 36 - align movie and series empty-state labels in hub walkthrough
 rerun 37 - validate movie and TV empty-state copy on Android 36
+rerun 38 - rebuild full hub after restoring catalog surfaces and correcting empty copy
