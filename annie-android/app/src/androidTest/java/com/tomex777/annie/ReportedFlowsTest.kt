@@ -35,7 +35,7 @@ class ReportedFlowsTest {
             Composer(value = "/ani", onValueChange = {}, onSuggestionSelected = { selected = it }, onSend = {}, onMenu = {})
         }
         compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
-        compose.onNodeWithText("/anime").assertIsDisplayed()
+        compose.onNodeWithTag("slash_command_/anime").assertIsDisplayed()
         compose.onNodeWithText("Browse anime").assertIsDisplayed()
         compose.onNodeWithText("/anime search").assertIsDisplayed()
         compose.onNodeWithText("Search the catalog").assertIsDisplayed()
@@ -44,7 +44,7 @@ class ReportedFlowsTest {
         assertEquals(1, compose.onAllNodesWithText("/anime", substring = false).fetchSemanticsNodes().size)
         assertEquals(1, compose.onAllNodesWithText("/anime search", substring = false).fetchSemanticsNodes().size)
         assertEquals(1, compose.onAllNodesWithText("/anime recent", substring = false).fetchSemanticsNodes().size)
-        compose.onNodeWithText("/anime").performClick()
+        compose.onNodeWithTag("slash_command_/anime").performClick()
         assertEquals("/anime", selected)
     }
 
@@ -57,7 +57,7 @@ class ReportedFlowsTest {
             typedCommand.value = command
             compose.waitForIdle()
             compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
-            compose.onNodeWithText(command, substring = false).assertIsDisplayed()
+            compose.onNodeWithTag("slash_command_$command").assertIsDisplayed()
         }
         typedCommand.value = "/"
         compose.waitForIdle()

@@ -1027,7 +1027,8 @@ internal fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
                     .clickable { onSelect(command) }.padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(command, color = BrightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(command, color = BrightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.testTag("slash_command_$command"))
                 Spacer(Modifier.width(10.dp))
                 Text(label, color = SoftText, fontSize = 12.sp)
             }
