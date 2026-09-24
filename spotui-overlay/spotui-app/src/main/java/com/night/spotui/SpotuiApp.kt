@@ -42,6 +42,9 @@ import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
@@ -82,6 +85,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil3.compose.AsyncImage
 import com.night.spotui.playback.SpotPlaybackController
+import com.night.spotui.playback.SpotRepeatMode
 import com.night.spotui.playback.SpotRuntime
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -659,9 +663,16 @@ private fun NowPlaying(
         Spacer(Modifier.height(12.dp))
         Row(
             Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            IconButton(onClick = player::toggleShuffle) {
+                Icon(
+                    Icons.Rounded.Shuffle,
+                    "Shuffle",
+                    tint = if (player.shuffleEnabled) SpotGreen else SpotMuted,
+                )
+            }
             IconButton(onClick = player::skipPrevious) {
                 Icon(Icons.Rounded.SkipPrevious, "Previous", tint = SpotText, modifier = Modifier.size(38.dp))
             }
@@ -675,6 +686,13 @@ private fun NowPlaying(
             }
             IconButton(onClick = player::skipNext) {
                 Icon(Icons.Rounded.SkipNext, "Next", tint = SpotText, modifier = Modifier.size(38.dp))
+            }
+            IconButton(onClick = player::cycleRepeatMode) {
+                Icon(
+                    if (player.repeatMode == SpotRepeatMode.ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                    "Repeat",
+                    tint = if (player.repeatMode == SpotRepeatMode.OFF) SpotMuted else SpotGreen,
+                )
             }
         }
         Spacer(Modifier.height(22.dp))
