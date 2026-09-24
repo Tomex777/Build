@@ -80,6 +80,33 @@ function showYouTube(url) {
     "player-bubble");
 }
 
+
+function renderCatalogResults(items, mediaType) {
+  const label = mediaType === "manga" ? "Manga" : "Anime";
+  const cards = items.map(item => {
+    const count = mediaType === "manga"
+      ? (item.chapters ? item.chapters + " chapters listed" : "Chapter count unavailable")
+      : (item.episodes ? item.episodes + " episodes listed" : "Episode count unavailable");
+    const status = item.status
+      ? item.status.replaceAll("_", " ").toLocaleLowerCase().replace(/\\b\\w/g, letter => letter.toLocaleUpperCase())
+      : "Status unknown";
+    const cover = item.thumbnail
+      ? '<img class="catalog-cover" src="' + escapeHtml(item.thumbnail) + '" alt="" loading="lazy">'
+      : '<div class="catalog-cover catalog-cover-fallback" aria-hidden="true">A</div>';
+    return '<article class="catalog-card">' + cover +
+      '<div class="catalog-copy"><span class="catalog-kicker">' + label + ' · AniList</span>' +
+      '<h3>' + escapeHtml(item.title) + '</h3>' +
+      '<p>' + escapeHtml((item.year || "Year unknown") + " · " + count) + '</p>' +
+      '<span class="catalog-status">' + escapeHtml(status) + '</span>' +
+      '<a class="catalog-link" href="' + escapeHtml(item.url) + '" target="_blank" rel="noopener noreferrer">Open AniList ↗</a></div></article>';
+  }).join("");
+  appendMessage("annie",
+    '<div class="menu-title">' + label + ' search</div>' +
+    '<p class="muted">Catalog information from AniList. Playback, episodes, chapters, and downloads need a connected source.</p>' +
+    '<div class="catalog-results">' + cards + '</div>',
+    "menu-bubble");
+}
+
 function renderYouTubeResults(items) {
   if (!items.length) {
     appendMessage("annie", "YouTube returned no embeddable videos for that search.");
@@ -190,12 +217,11 @@ async function handleCommand(raw) {
     command === "/manga" ? "manga" : null;
   if (mediaType && query) {
     const result = await host.search(mediaType, query);
-    if (result.status === "matched") {
-      appendMessage("annie", "Found " + result.items.length + " result(s) from " + escapeHtml(result.items[0].extensionName) + ".");
-    } else {
-      appendMessage("annie", "No authorized " + escapeHtml(mediaType) + " extension is connected yet. Use /extensions to see provider status.");
+    if (result.status === "matched") return renderCatalogResults(result.items, mediaType);
+    if (mediaType === "movie") {
+      return appendMessage("annie", "Movie search is not connected yet. AniList provides anime and manga catalog metadata, not a general movie catalog.");
     }
-    return;
+    return appendMessage("annie", "AniList could not return results right now. Check your connection and try again.");
   }
   appendMessage("annie", 'I use slash commands. Try <button class="inline-command" data-command="/help">/help</button> or <button class="inline-command" data-command="/extensions">/extensions</button>.');
 }
