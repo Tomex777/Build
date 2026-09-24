@@ -1,0 +1,160 @@
+name: StreamingUnity House map
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/streamingunity-house-map.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe House resolver
+        run: |
+          mkdir -p diagnostics
+          python3 - <<'PY'
+          import requests, json, re, html as htmllib, urllib.parse, os
+
+          BASES=["https://streamingunity.win","https://streamingunity.vip"]
+          UA="Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
+          s=requests.Session()
+          s.headers.update({
+            "User-Agent":UA,
+            "Accept-Language":"en-US,en;q=0.9"
+          })
+          out={"titleId":1693,"slug":"house","attempts":[],"resolved":{}}
+
+          def parse_data_page(text):
+            m=re.search(r'data-page="([^"]+)"',text)
+            if not m: return None
+            raw=htmllib.unescape(m.group(1))
+            try:return json.loads(raw)
+            except:return None
+
+          chosen=None
+          for base in BASES:
+            url=f"{base}/en/titles/1693-house"
+            try:
+              r=s.get(url,timeout=30,allow_redirects=True)
+              rec={"base":base,"status":r.status_code,"finalUrl":r.url,"contentType":r.headers.get("content-type"),"bytes":len(r.content)}
+              page=parse_data_page(r.text)
+              rec["hasDataPage"]=bool(page)
+              if page:
+                props=page.get("props") or {}
+                title=props.get("title") or {}
+                rec["title"]={k:title.get(k) for k in ("id","name","slug","type","tmdb_id","release_date","runtime")}
+                seasons=title.get("seasons") or []
+                rec["seasons"]=[{k:x.get(k) for k in ("id","number","name")} for x in seasons]
+                loaded=props.get("loadedSeason") or {}
+                eps=loaded.get("episodes") or []
+                rec["loadedSeason"]={
+                  "id":loaded.get("id"),"number":loaded.get("number"),
+                  "episodes":[{k:e.get(k) for k in ("id","number","name","duration")} for e in eps[:12]]
+                }
+                if title.get("id")==1693 and (eps or seasons):
+                  chosen=(base,page)
+              out["attempts"].append(rec)
+            except Exception as e:
+              out["attempts"].append({"base":base,"error":repr(e)})
+
+          if not chosen:
+            json.dump(out,open("diagnostics/streamingunity-house-map.json","w"),indent=2)
+            print(json.dumps(out,indent=2))
+            raise SystemExit(2)
+
+          base,page=chosen
+          props=page.get("props") or {}
+          title=props.get("title") or {}
+          loaded=props.get("loadedSeason") or {}
+          episodes=loaded.get("episodes") or []
+
+          # If the landing page didn't include season 1 episodes, request season 1.
+          if not episodes:
+            su=f"{base}/en/titles/1693-house/season-1"
+            r=s.get(su,timeout=30)
+            p=parse_data_page(r.text) or {}
+            loaded=(p.get("props") or {}).get("loadedSeason") or {}
+            episodes=loaded.get("episodes") or []
+            out["resolved"]["season1Request"]={"status":r.status_code,"hasDataPage":bool(p)}
+
+          if not episodes:
+            out["resolved"]["error"]="No episodes found"
+            json.dump(out,open("diagnostics/streamingunity-house-map.json","w"),indent=2)
+            print(json.dumps(out,indent=2))
+            raise SystemExit(3)
+
+          ep=episodes[0]
+          ep_id=ep.get("id")
+          out["resolved"]["episode"]={k:ep.get(k) for k in ("id","number","name","duration")}
+
+          iframe=f"{base}/en/iframe/1693?episode_id={ep_id}&next_episode=0"
+          ir=s.get(iframe,headers={"Referer":f"{base}/"},timeout=30)
+          out["resolved"]["iframe"]={"status":ir.status_code,"contentType":ir.headers.get("content-type"),"bytes":len(ir.content)}
+
+          # Never save ephemeral tokens; save only the embed host/path shape.
+          em=re.search(r'https://vixcloud\.co/embed/[^"\'\s<>]+',ir.text)
+          if not em:
+            out["resolved"]["error"]="No VixCloud embed found"
+            json.dump(out,open("diagnostics/streamingunity-house-map.json","w"),indent=2)
+            print(json.dumps(out,indent=2))
+            raise SystemExit(4)
+
+          embed=htmllib.unescape(em.group(0))
+          eu=urllib.parse.urlparse(embed)
+          out["resolved"]["embed"]={"host":eu.netloc,"path":eu.path,"queryKeys":sorted(urllib.parse.parse_qs(eu.query).keys())}
+
+          er=s.get(embed,headers={"Referer":f"{base}/"},timeout=30)
+          out["resolved"]["embedResponse"]={"status":er.status_code,"contentType":er.headers.get("content-type"),"bytes":len(er.content)}
+
+          # Parse script but redact token/expires and any media URL.
+          script=None
+          for m in re.finditer(r'<script[^>]*>(.*?)</script>',er.text,re.S|re.I):
+            if "masterPlaylist" in m.group(1):
+              script=m.group(1); break
+          if not script:
+            out["resolved"]["error"]="No masterPlaylist script found"
+            json.dump(out,open("diagnostics/streamingunity-house-map.json","w"),indent=2)
+            print(json.dumps(out,indent=2))
+            raise SystemExit(5)
+
+          token=next(iter(re.findall(r"['\"]token['\"]\s*:\s*['\"]([^'\"]+)",script)),None)
+          expires=next(iter(re.findall(r"['\"]expires['\"]\s*:\s*['\"]([^'\"]+)",script)),None)
+          urlm=next(iter(re.findall(r"url\s*:\s*['\"]([^'\"]+)",script)),None)
+          fhd=("canPlayFHD = true" in script or "canPlayFHD=true" in script)
+          out["resolved"]["masterConfig"]={"gotToken":bool(token),"gotExpires":bool(expires),"gotBaseUrl":bool(urlm),"canPlayFHD":fhd}
+
+          if token and expires and urlm:
+            sep="&" if "?" in urlm else "?"
+            master=urlm+sep+("h=1&" if fhd else "")+f"token={urllib.parse.quote(token)}&expires={urllib.parse.quote(expires)}&lang=en"
+            mr=s.get(master,headers={
+              "Referer":"https://vixcloud.co/",
+              "Origin":"https://vixcloud.co",
+              "Accept":"*/*"
+            },timeout=30)
+            out["resolved"]["master"]={
+              "status":mr.status_code,
+              "contentType":mr.headers.get("content-type"),
+              "isM3U8":"#EXTM3U" in mr.text,
+              "hasAudioGroup":"#EXT-X-MEDIA:TYPE=AUDIO" in mr.text,
+              "hasSubtitleGroup":"#EXT-X-MEDIA:TYPE=SUBTITLES" in mr.text,
+              "variantCount":mr.text.count("#EXT-X-STREAM-INF")
+            }
+
+          json.dump(out,open("diagnostics/streamingunity-house-map.json","w"),indent=2)
+          print(json.dumps(out,indent=2))
+          PY
+      - name: Commit result
+        if: always()
+        run: |
+          test -f diagnostics/streamingunity-house-map.json || echo '{"error":"no result"}' > diagnostics/streamingunity-house-map.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/streamingunity-house-map.json
+          git commit -m "record StreamingUnity House resolver map" || true
+          git push || true
