@@ -1,7 +1,7 @@
 package com.tomex777.annie
 
 import androidx.compose.ui.test.assertDoesNotExist
-import androidx.compose.ui.test.assertExists
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -31,11 +31,11 @@ class ReportedFlowsTest {
         compose.setContent {
             Composer(value = "/ani", onValueChange = {}, onSuggestionSelected = { selected = it }, onSend = {}, onMenu = {})
         }
-        compose.onNodeWithTag("slash_suggestions").assertExists()
-        compose.onNodeWithText("/anime").assertExists()
-        compose.onNodeWithText("Anime menu").assertExists()
-        compose.onNodeWithText("/anime search").assertExists()
-        compose.onNodeWithText("Search anime").assertExists()
+        compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
+        compose.onNodeWithText("/anime").assertIsDisplayed()
+        compose.onNodeWithText("Anime menu").assertIsDisplayed()
+        compose.onNodeWithText("/anime search").assertIsDisplayed()
+        compose.onNodeWithText("Search anime").assertIsDisplayed()
         compose.onNodeWithText("/anime").performClick()
         assertEquals("/anime", selected)
     }
@@ -43,13 +43,13 @@ class ReportedFlowsTest {
     @Test fun approvedMangaDetailsCardShowsCoverMetadataGenresSynopsisAndActions() {
         val actions = mutableListOf<String>()
         compose.setContent { MangaResultMessage(manga) { actions += it } }
-        compose.onNodeWithTag("manga_details_card").assertExists()
-        compose.onNodeWithText("Moonlit Archive").assertExists()
-        compose.onNodeWithText("Yuna Mori · 2024 · 28 chapters · Ongoing").assertExists()
-        compose.onNodeWithText("Fantasy").assertExists()
-        compose.onNodeWithText("Mystery").assertExists()
-        compose.onNodeWithText(manga.summary).assertExists()
-        compose.onNodeWithText("Last read chapter · Not started").assertExists()
+        compose.onNodeWithTag("manga_details_card").assertIsDisplayed()
+        compose.onNodeWithText("Moonlit Archive").assertIsDisplayed()
+        compose.onNodeWithText("Yuna Mori · 2024 · 28 chapters · Ongoing").assertIsDisplayed()
+        compose.onNodeWithText("Fantasy").assertIsDisplayed()
+        compose.onNodeWithText("Mystery").assertIsDisplayed()
+        compose.onNodeWithText(manga.summary).assertIsDisplayed()
+        compose.onNodeWithText("Last read chapter · Not started").assertIsDisplayed()
         compose.onNodeWithTag("manga_action_Continue reading").performClick()
         compose.onNodeWithTag("manga_action_Chapters").performClick()
         assertEquals(listOf("reader", "chapters"), actions)
@@ -58,7 +58,7 @@ class ReportedFlowsTest {
     @Test fun searchResultsUseDetailsActionAndDoNotShowSelectTitleFooter() {
         var selected = 0
         compose.setContent { CatalogCard(manga) { selected++ } }
-        compose.onNodeWithTag("catalog_details_action").assertExists()
+        compose.onNodeWithTag("catalog_details_action").assertIsDisplayed()
         compose.onNodeWithText("Select this title  ›").assertDoesNotExist()
         compose.onNodeWithTag("catalog_result_card").performClick()
         assertEquals(1, selected)
@@ -74,11 +74,11 @@ class ReportedFlowsTest {
     }
 
     @Test fun liveChatLayoutKeepsStatusBarTopBarConversationAndComposerOrderedWithIme() {
-        compose.onNodeWithTag("top_bar").assertExists()
-        compose.onNodeWithTag("conversation").assertExists()
+        compose.onNodeWithTag("top_bar").assertIsDisplayed()
+        compose.onNodeWithTag("conversation").assertIsDisplayed()
         compose.onNodeWithTag("composer_input").performClick().performTextInput("/ani")
-        compose.onNodeWithTag("slash_suggestions").assertExists()
-        compose.onNodeWithTag("top_bar").assertExists()
+        compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
+        compose.onNodeWithTag("top_bar").assertIsDisplayed()
         val top = compose.onNodeWithTag("top_bar").fetchSemanticsNode().boundsInRoot
         val input = compose.onNodeWithTag("composer_input").fetchSemanticsNode().boundsInRoot
         assertTrue("Top bar should remain above the composer while the keyboard is active", top.bottom < input.top)
