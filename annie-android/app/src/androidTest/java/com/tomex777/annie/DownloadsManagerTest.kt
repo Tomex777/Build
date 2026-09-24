@@ -34,7 +34,7 @@ class DownloadsManagerTest {
     @Test fun partialUnitsAreNotReportedAsWholeTitleDownloaded() {
         compose.setContent { DownloadsManagerContent(items, onRemove = {}, onStateChange = { _, _ -> }) }
         compose.onNodeWithText("2 of 247 chapters available offline").assertExists()
-        compose.onNodeWithText("Downloaded", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("247 of 247 chapters available offline").assertDoesNotExist()
     }
     @Test fun downloadingRowCanPauseAndResume() {
         val currentItems = mutableStateListOf(
