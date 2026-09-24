@@ -71,9 +71,13 @@ jobs:
             adb install -r /tmp/animesogo.apk
             adb install -r apps/nami/app/build/outputs/apk/debug/app-debug.apk
             adb install -r apps/nami/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-            adb shell am start -W -n app.nami.android/.MainActivity
-            adb shell pidof app.nami.android | grep -q .
             set +e
+            timeout 60s adb shell am start -W -n app.nami.android/.MainActivity > /tmp/nami-launch.log 2>&1
+            launch_result=$?
+            cat /tmp/nami-launch.log
+            timeout 15s adb logcat -d -s AndroidRuntime:E ActivityManager:E NamiAniyomiCompat:W || true
+            if [ "$launch_result" -ne 0 ]; then exit "$launch_result"; fi
+            adb shell pidof app.nami.android | grep -q .
             output=$(timeout 360s adb shell am instrument -w -r -e class app.nami.android.compat.AniyomiCompatibilitySmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1)
             result=$?
             printf '%s\n' "$output"
