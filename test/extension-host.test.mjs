@@ -125,3 +125,14 @@ test("YouTube search results discard malformed IDs and unsafe thumbnails", async
   ] });
   assert.equal(unsafe[0].thumbnail, "");
 });
+
+test("YouTube search rejects oversized queries and deduplicates video IDs", async () => {
+  const { youtubeSearchUrl, normalizeYouTubeSearchPayload } = await import("../src/extension-host.mjs");
+  assert.equal(youtubeSearchUrl("x".repeat(501)), null);
+  const results = normalizeYouTubeSearchPayload({ items: [
+    { id: { videoId: "dQw4w9WgXcQ" }, snippet: { title: "First result" } },
+    { id: { videoId: "dQw4w9WgXcQ" }, snippet: { title: "Duplicate result" } }
+  ] });
+  assert.equal(results.length, 1);
+  assert.equal(results[0].title, "First result");
+});
