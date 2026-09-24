@@ -2,10 +2,11 @@ package com.tomex777.annie
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.performClick
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
@@ -67,9 +68,9 @@ class DownloadsManagerTest {
     @Test fun emptyDownloadsStateOmitsArrowNovelFilterAndExplanatorySentence() {
         compose.setContent { DownloadsManagerContent(emptyList(), onRemove = {}, onStateChange = { _, _ -> }) }
         compose.onNodeWithText("No downloads yet").assertExists()
-        compose.onNodeWithText("↓").assertDoesNotExist()
-        compose.onNodeWithText("Novels").assertDoesNotExist()
-        compose.onNodeWithText("Downloads from manga, anime, movies, TV, novels, and music will appear here.").assertDoesNotExist()
+        assertEquals(0, compose.onAllNodesWithText("↓").fetchSemanticsNodes().size)
+        assertEquals(0, compose.onAllNodesWithText("Novels").fetchSemanticsNodes().size)
+        assertEquals(0, compose.onAllNodesWithText("Downloads from manga, anime, movies, TV, novels, and music will appear here.").fetchSemanticsNodes().size)
     }
 
 }
