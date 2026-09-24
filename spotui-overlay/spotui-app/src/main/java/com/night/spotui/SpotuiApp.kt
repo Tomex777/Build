@@ -41,6 +41,8 @@ import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.Repeat
@@ -48,11 +50,13 @@ import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
@@ -604,6 +608,7 @@ private fun MiniPlayer(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NowPlaying(
     player: SpotPlaybackController,
@@ -613,6 +618,7 @@ private fun NowPlaying(
     onClose: () -> Unit,
 ) {
     val track = player.currentTrack ?: return
+    var queueOpen by remember { mutableStateOf(false) }
     BackHandler(onBack = onClose)
     Column(
         Modifier.fillMaxSize().background(Color(0xFF11140F)).statusBarsPadding().navigationBarsPadding().padding(20.dp)
@@ -701,6 +707,65 @@ private fun NowPlaying(
                 Text("SOURCE", color = SpotMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                 Text("YouTube Music", color = SpotText, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
                 if (player.streamLabel.isNotBlank()) Text(player.streamLabel, color = SpotMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth().clickable { queueOpen = true }.padding(vertical = 18.dp, horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Rounded.QueueMusic, null, tint = SpotMuted)
+            Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                Text("Queue", color = SpotText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(player.queue.size.toString() + " tracks", color = SpotMuted, fontSize = 10.sp)
+            }
+        }
+    }
+
+    if (queueOpen) {
+        ModalBottomSheet(
+            onDismissRequest = { queueOpen = false },
+            containerColor = Color(0xFF161616),
+        ) {
+            Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 16.dp)) {
+                Text(
+                    "Queue",
+                    color = SpotText,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                )
+                if (player.queue.isEmpty()) {
+                    Text("Nothing queued.", color = SpotMuted, modifier = Modifier.padding(18.dp))
+                } else {
+                    player.queue.forEachIndexed { index, item ->
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .semantics { contentDescription = "Queue " + item.title }
+                                .clickable {
+                                    player.selectQueueIndex(index)
+                                    queueOpen = false
+                                }
+                                .padding(horizontal = 18.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Artwork(item, Modifier.size(48.dp))
+                            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                                Text(
+                                    item.title,
+                                    color = SpotText,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (index == player.currentIndex) FontWeight.Black else FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(item.artist, color = SpotMuted, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                            if (index == player.currentIndex) {
+                                Icon(Icons.Rounded.GraphicEq, "Playing", tint = SpotGreen)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
