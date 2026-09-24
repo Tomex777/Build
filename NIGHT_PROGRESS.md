@@ -312,3 +312,16 @@ The branch is at `45c422c5728856fd752ac8f83f21d57fc92cbfed`. All Actions workflo
 - Repeated `create_options` persistence coverage remains green. No chat-options screenshot or interaction artifact verifies whether identical cards visibly repeat, so the visual question remains open. Keep Groq 429 TPM separate as a provider quota result.
 
 Night now falls back to Android `VideoView` on virtual devices if VLC creates no video output. Physical devices keep the VLC path; physical playback still needs confirmation on the SM-A165F. The synthetic MP4 remains representative and passed the fallback video interaction flow.
+
+
+## 2026-09-24 validation follow-up: Integrated Regression on `144256ef`
+
+All jobs for the source commit `144256efbe4c081bfa902b36dcd1bc6d3c5fdd78` completed successfully: the integrated build and unit tests, ARM64 APK, Groq Key Pool, Android 16 provider instrumentation, Android 16 video interaction, and all 13 UI shards.
+
+- Provider instrumentation reported 31 tests, 0 failures, and 0 errors. `completedSideEffectPreventsCrossProviderRetry` passed after two identical `create_options` calls and confirmed one persisted choice message. `installedAnimePaheIsRefreshedIntoTheEnabledModelInventory` also passed using the matching APKs. Runtime logs show the AnimePahe service descriptor with 5 tools, 6 message types, and 3,326 JSON characters.
+- The message-blocks shard now captures a dedicated Android 16 choice-card preview. The screenshot shows one `Pick one` card with options A and B; the UI hierarchy contains the title once and each option once. The persistence check and screenshot use separate provider and preview paths, so together they verify the single-record side effect and the shared question-card renderer; this is not a screenshot captured from the provider test's live chat.
+- The synthetic MP4 video interaction passed again on the Android 16 emulator. The virtual-device VideoView fallback and its playback controls remain verified there. The Samsung SM-A165F physical VLC path is still unverified.
+- Image Editor UI passed. The prior screenshot review still shows a clear full-width preview and a preserved original; physical-device comparison remains open.
+- Keep the Groq 429 TPM report classified as provider quota failure, separate from extension discovery and option-card rendering.
+
+The new options evidence is in Actions artifact `night-integrated-ui-message-blocks-evidence` from run `35948484966` (artifact `10787499879`). The provider report is artifact `10787568698`. Continue to treat the emulator preview as presentation evidence, not as proof of the physical device appearance.
