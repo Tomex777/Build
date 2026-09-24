@@ -17,6 +17,16 @@ interface NamiAnimeSource {
     suspend fun resolve(episode: EpisodeRef): List<ResolvedMedia>
 }
 
+data class SourceCapabilities(
+    val searchable: Boolean = true,
+    val browsable: Boolean = false,
+    val details: Boolean = true,
+    val episodes: Boolean = true,
+    val streamable: Boolean = true,
+    val downloadable: Boolean = false,
+    val configurable: Boolean = false,
+)
+
 data class SourceMetadata(
     val id: String,
     val name: String,
@@ -26,6 +36,11 @@ data class SourceMetadata(
     val extensionName: String? = null,
     /** Source homepage used by source browse WebView. */
     val homeUrl: String? = null,
+    val capabilities: SourceCapabilities = SourceCapabilities(),
+    /** Package metadata is kept at the adapter edge, not used as domain identity. */
+    val extensionPackage: String? = null,
+    val extensionVersion: String? = null,
+    val extensionApiVersion: Int? = null,
 )
 
 enum class SourceOrigin { NATIVE_NAMI, ANIYOMI_COMPATIBLE }
