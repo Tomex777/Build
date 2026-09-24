@@ -17,6 +17,9 @@ data class AnimeDetails(
     val bannerUrl: String? = null,
     val description: String? = null,
     val metadata: Map<String, String> = emptyMap(),
+    val genres: List<String> = emptyList(),
+    /** Source page used by the Aniyomi-style WebView action. */
+    val webUrl: String? = null,
 )
 
 data class EpisodeRef(

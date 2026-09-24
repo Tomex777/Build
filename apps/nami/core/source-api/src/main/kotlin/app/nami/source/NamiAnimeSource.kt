@@ -22,6 +22,10 @@ data class SourceMetadata(
     val name: String,
     val language: String? = null,
     val origin: SourceOrigin,
+    /** Extension/package display name used for source-aware download folders. */
+    val extensionName: String? = null,
+    /** Source homepage used by source browse WebView. */
+    val homeUrl: String? = null,
 )
 
 enum class SourceOrigin { NATIVE_NAMI, ANIYOMI_COMPATIBLE }
