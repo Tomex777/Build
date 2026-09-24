@@ -74,7 +74,12 @@ jobs:
             adb shell am start -W -n app.nami.android/.MainActivity
             adb shell pidof app.nami.android | grep -q .
             set +e
-            timeout 360s adb shell am instrument -w -r -e class app.nami.android.compat.AniyomiCompatibilitySmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner
+            output=$(timeout 360s adb shell am instrument -w -r -e class app.nami.android.compat.AniyomiCompatibilitySmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1)
             result=$?
+            printf '%s\n' "$output"
             adb logcat -d -s NamiAniyomiCompat:W NamiSourceSmoke:I
-            exit "$result"
+            if [ "$result" -ne 0 ]; then exit "$result"; fi
+            printf '%s\n' "$output" | grep -Fq "OK (1 test)" || {
+              echo "Instrumentation did not report a passing test."
+              exit 1
+            }
