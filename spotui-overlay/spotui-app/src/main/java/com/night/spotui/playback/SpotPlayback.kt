@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
@@ -33,6 +34,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+enum class SpotRepeatMode { OFF, ALL, ONE }
+
 class SpotPlaybackController(
     context: Context,
     private val source: MusicSource,
@@ -54,6 +57,7 @@ class SpotPlaybackController(
         .setMediaSourceFactory(DefaultMediaSourceFactory(resolving))
         .build()
     private var requestSerial = 0L
+    private var baseQueue: List<Track> = emptyList()
 
     var currentTrack by mutableStateOf<Track?>(null)
         private set
@@ -71,6 +75,10 @@ class SpotPlaybackController(
         private set
     var errorMessage by mutableStateOf<String?>(null)
         private set
+    var shuffleEnabled by mutableStateOf(false)
+        private set
+    var repeatMode by mutableStateOf(SpotRepeatMode.OFF)
+        private set
     var streamLabel by mutableStateOf("")
         private set
 
@@ -83,7 +91,7 @@ class SpotPlaybackController(
             override fun onPlaybackStateChanged(state: Int) {
                 isLoading = state == Player.STATE_BUFFERING
                 if (state == Player.STATE_READY) durationMs = player.duration.coerceAtLeast(0L)
-                if (state == Player.STATE_ENDED) skipNext()
+                if (state == Player.STATE_ENDED) handleEnded()
             }
 
             override fun onPlayerError(error: PlaybackException) {
@@ -104,9 +112,10 @@ class SpotPlaybackController(
 
     fun play(track: Track, sourceQueue: List<Track>) {
         SpotPlaybackService.ensureStarted(appContext)
-        queue = sourceQueue.distinctBy(Track::id).let { list ->
+        baseQueue = sourceQueue.distinctBy(Track::id).let { list ->
             if (list.any { it.id == track.id }) list else listOf(track) + list
         }
+        queue = if (shuffleEnabled) shuffledAround(track, baseQueue) else baseQueue
         currentIndex = queue.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
         resolveAndPlay(track)
     }
@@ -126,9 +135,15 @@ class SpotPlaybackController(
 
     fun skipNext() {
         if (queue.isEmpty()) return
-        val next = if (currentIndex < queue.lastIndex) currentIndex + 1 else 0
-        currentIndex = next
-        resolveAndPlay(queue[next])
+        val next = when {
+            currentIndex < queue.lastIndex -> currentIndex + 1
+            repeatMode == SpotRepeatMode.ALL -> 0
+            else -> -1
+        }
+        if (next >= 0) {
+            currentIndex = next
+            resolveAndPlay(queue[next])
+        }
     }
 
     fun skipPrevious() {
@@ -137,15 +152,59 @@ class SpotPlaybackController(
             player.seekTo(0)
             return
         }
-        val previous = if (currentIndex > 0) currentIndex - 1 else queue.lastIndex
+        val previous = when {
+            currentIndex > 0 -> currentIndex - 1
+            repeatMode == SpotRepeatMode.ALL -> queue.lastIndex
+            else -> 0
+        }
         currentIndex = previous
         resolveAndPlay(queue[previous])
+    }
+
+    fun toggleShuffle() {
+        val track = currentTrack ?: return
+        shuffleEnabled = !shuffleEnabled
+        if (baseQueue.isEmpty()) baseQueue = queue
+        queue = if (shuffleEnabled) shuffledAround(track, baseQueue) else baseQueue
+        currentIndex = queue.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
+    }
+
+    fun cycleRepeatMode() {
+        repeatMode = when (repeatMode) {
+            SpotRepeatMode.OFF -> SpotRepeatMode.ALL
+            SpotRepeatMode.ALL -> SpotRepeatMode.ONE
+            SpotRepeatMode.ONE -> SpotRepeatMode.OFF
+        }
     }
 
     fun seekToFraction(value: Float) {
         if (durationMs <= 0) return
         player.seekTo((durationMs * value.coerceIn(0f, 1f)).toLong())
     }
+
+    private fun handleEnded() {
+        when (repeatMode) {
+            SpotRepeatMode.ONE -> {
+                player.seekTo(0)
+                player.play()
+            }
+            SpotRepeatMode.ALL -> {
+                if (queue.isNotEmpty()) {
+                    currentIndex = if (currentIndex < queue.lastIndex) currentIndex + 1 else 0
+                    resolveAndPlay(queue[currentIndex])
+                }
+            }
+            SpotRepeatMode.OFF -> {
+                if (currentIndex < queue.lastIndex) {
+                    currentIndex += 1
+                    resolveAndPlay(queue[currentIndex])
+                }
+            }
+        }
+    }
+
+    private fun shuffledAround(track: Track, values: List<Track>): List<Track> =
+        listOf(track) + values.filterNot { it.id == track.id }.shuffled()
 
     private fun resolveAndPlay(track: Track) {
         currentTrack = track
@@ -221,7 +280,32 @@ class SpotPlaybackService : MediaSessionService() {
             activityIntent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        session = MediaSession.Builder(this, playback.sessionPlayer())
+        val sessionPlayer = object : ForwardingPlayer(playback.sessionPlayer()) {
+            override fun getAvailableCommands(): Player.Commands =
+                super.getAvailableCommands().buildUpon()
+                    .add(COMMAND_SEEK_TO_NEXT)
+                    .add(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+                    .add(COMMAND_SEEK_TO_PREVIOUS)
+                    .add(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                    .build()
+
+            override fun isCommandAvailable(command: Int): Boolean = when (command) {
+                COMMAND_SEEK_TO_NEXT,
+                COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+                COMMAND_SEEK_TO_PREVIOUS,
+                COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> true
+                else -> super.isCommandAvailable(command)
+            }
+
+            override fun hasNextMediaItem(): Boolean = playback.queue.size > 1
+            override fun hasPreviousMediaItem(): Boolean = playback.queue.size > 1
+            override fun seekToNext() = playback.skipNext()
+            override fun seekToNextMediaItem() = playback.skipNext()
+            override fun seekToPrevious() = playback.skipPrevious()
+            override fun seekToPreviousMediaItem() = playback.skipPrevious()
+        }
+
+        session = MediaSession.Builder(this, sessionPlayer)
             .setSessionActivity(pendingIntent)
             .build()
     }
