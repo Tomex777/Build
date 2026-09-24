@@ -29,4 +29,27 @@ class NullMetadataTest {
         assertEquals(1, results.size)
         assertEquals("Valid Series", results.single().title)
     }
+
+    @Test fun relatedNarutoTitlesAreNotGuessedToBeSeasons() {
+        val payload = """{"data":{"Page":{"media":[
+          {"id":20,"type":"ANIME","title":{"english":"Naruto","romaji":"Naruto"},"format":"TV","episodes":220,"relations":{"edges":[
+            {"relationType":"SEQUEL","node":{"id":21,"type":"ANIME","format":"TV","title":{"english":"Naruto: Shippuden"},"episodes":500}}
+          ]},"coverImage":{"large":"https://example.test/naruto.jpg"}}
+        ]}}}"""
+        val naruto = parseAniListSearchPayload(payload, "anime").single()
+        assertEquals("Naruto", naruto.title)
+        assertEquals(emptyList<SeasonItem>(), naruto.seasons)
+        assertEquals("series", selectedDetailsStage(naruto))
+    }
+
+    @Test fun nullableOptionalMetadataDoesNotBecomeTheStringNull() {
+        val payload = """{"data":{"Page":{"media":[
+          {"id":30,"type":"MANGA","title":{"english":"Archive","romaji":"Archive"},"format":"MANGA","status":null,"description":null,"coverImage":{"large":null},"genres":[null,"null"]}
+        ]}}}"""
+        val item = parseAniListSearchPayload(payload, "manga").single()
+        assertEquals("", item.image)
+        assertEquals("UNKNOWN", item.status)
+        assertEquals("", item.summary)
+        assertEquals(emptyList<String>(), item.genres)
+    }
 }

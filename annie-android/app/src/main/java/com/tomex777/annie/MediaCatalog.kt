@@ -39,8 +39,7 @@ internal data class CatalogItem(
 
 internal fun selectedDetailsStage(item: CatalogItem): String? = when {
     item.mediaType == "ANIME" && item.format == "MOVIE" -> "movie"
-    item.mediaType == "ANIME" && item.seasons.size > 1 -> "series"
-    item.mediaType == "ANIME" -> "episodes"
+    item.mediaType == "ANIME" -> "series"
     item.mediaType == "MANGA" -> "manga"
     item.mediaType == "TV" -> "tv"
     item.mediaType == "MOVIE" -> "movie"
@@ -75,20 +74,6 @@ internal suspend fun searchAniList(mediaType: String, search: String): List<Cata
               staff(sort: RELEVANCE, perPage: 5) {
                 edges { role node { name { full } } }
               }
-              relations {
-                edges {
-                  relationType
-                  node {
-                    id
-                    type
-                    format
-                    title { english romaji native }
-                    startDate { year }
-                    episodes
-                    coverImage { large }
-                  }
-                }
-              }
               coverImage { large }
             }
           }
@@ -114,49 +99,27 @@ internal fun parseAniListSearchPayload(payload: String, mediaType: String): List
                 val edges = row.optJSONObject("staff")?.optJSONArray("edges") ?: return@buildList
                 for (staffIndex in 0 until edges.length()) {
                     val edge = edges.optJSONObject(staffIndex) ?: continue
-                    val role = edge.optString("role")
+                    val role = edge.usableString("role") ?: continue
                     if (!role.contains("story", ignoreCase = true) && !role.contains("art", ignoreCase = true)) continue
-                    val staffName = edge.optJSONObject("node")?.optJSONObject("name")?.optString("full").orEmpty()
+                    val staffName = edge.optJSONObject("node")?.optJSONObject("name")?.usableString("full").orEmpty()
                     if (staffName.isNotBlank()) add("$staffName · $role")
                 }
             }
             val genres = row.optJSONArray("genres").toStringList()
-            val linkedSeasons = buildList {
-                val edges = row.optJSONObject("relations")?.optJSONArray("edges") ?: return@buildList
-                for (edgeIndex in 0 until edges.length()) {
-                    val edge = edges.optJSONObject(edgeIndex) ?: continue
-                    if (edge.optString("relationType") !in setOf("SEQUEL", "PREQUEL")) continue
-                    val node = edge.optJSONObject("node") ?: continue
-                    if (node.optString("type") != "ANIME" || node.optString("format") != "TV") continue
-                    val relatedName = titleFrom(node.optJSONObject("title")) ?: continue
-                    add(SeasonItem(
-                        id = node.optInt("id"),
-                        title = relatedName,
-                        image = node.optJSONObject("coverImage")?.optString("large").orEmpty(),
-                        year = node.optJSONObject("startDate")?.optInt("year")?.takeIf { it > 0 },
-                        episodes = node.optInt("episodes").takeIf { it > 0 }
-                    ))
-                }
-            }.plus(
-                if (itemType == "ANIME" && itemFormat == "TV") listOf(
-                    SeasonItem(itemId, name, row.optJSONObject("coverImage")?.optString("large").orEmpty(), itemYear,
-                        row.optInt("episodes").takeIf { it > 0 })
-                ) else emptyList()
-            ).distinctBy { it.id }.sortedWith(compareBy<SeasonItem> { it.year ?: Int.MAX_VALUE }.thenBy { it.id })
             add(CatalogItem(
                 id = itemId,
                 mediaType = itemType,
                 title = name,
-                image = row.optJSONObject("coverImage")?.optString("large").orEmpty(),
+                image = row.optJSONObject("coverImage")?.usableString("large").orEmpty(),
                 year = itemYear,
-                status = row.optString("status"),
+                status = row.usableString("status") ?: "UNKNOWN",
                 episodes = row.optInt("episodes").takeIf { it > 0 },
                 chapters = row.optInt("chapters").takeIf { it > 0 },
                 format = itemFormat,
-                seasons = linkedSeasons,
+                seasons = emptyList(),
                 creator = creators.firstOrNull(),
                 genres = genres,
-                summary = row.optString("description"),
+                summary = row.usableString("description").orEmpty(),
                 runtimeMinutes = row.optInt("duration").takeIf { it > 0 },
                 sourceLabel = "AniList",
                 sourceUrl = "https://anilist.co/${if (itemType == "MANGA") "manga" else "anime"}/$itemId"
@@ -179,24 +142,24 @@ internal fun parseTvMazeSearchPayload(payload: String): List<CatalogItem> {
             val title = show.usableString("name") ?: continue
             if (id <= 0) continue
             val premiered = show.optString("premiered")
-            val image = show.optJSONObject("image")?.optString("original")?.takeIf { it.isNotBlank() }
-                ?: show.optJSONObject("image")?.optString("medium").orEmpty()
+            val image = show.optJSONObject("image")?.usableString("original")
+                ?: show.optJSONObject("image")?.usableString("medium").orEmpty()
             add(CatalogItem(
                 id = id,
                 mediaType = "TV",
                 title = title,
                 image = image,
                 year = premiered.take(4).toIntOrNull(),
-                status = show.optString("status", "UNKNOWN"),
+                status = show.usableString("status") ?: "UNKNOWN",
                 episodes = null,
                 chapters = null,
                 format = show.optString("type"),
                 genres = show.optJSONArray("genres").toStringList(),
-                summary = cleanSummary(show.optString("summary")),
+                summary = cleanSummary(show.usableString("summary").orEmpty()),
                 runtimeMinutes = show.optInt("averageRuntime").takeIf { it > 0 }
                     ?: show.optInt("runtime").takeIf { it > 0 },
                 sourceLabel = "TVmaze",
-                sourceUrl = show.optString("url").replace("http://", "https://")
+                sourceUrl = show.usableString("url")?.replace("http://", "https://").orEmpty()
             ))
         }
     }
@@ -249,7 +212,7 @@ internal fun parseWikidataMovie(id: String, entity: JSONObject, labels: Map<Stri
         chapters = null,
         creator = directors.firstOrNull(),
         genres = genres,
-        summary = entity.optJSONObject("descriptions")?.optJSONObject("en")?.optString("value").orEmpty(),
+        summary = entity.optJSONObject("descriptions")?.optJSONObject("en")?.usableString("value").orEmpty(),
         runtimeMinutes = runtime,
         sourceLabel = "Wikidata",
         sourceUrl = "https://www.wikidata.org/wiki/$id"
@@ -267,8 +230,8 @@ private fun parseWikidataLabels(payload: String): Map<String, String> {
         val keys = entities.keys()
         while (keys.hasNext()) {
             val id = keys.next()
-            entities.optJSONObject(id)?.optJSONObject("labels")?.optJSONObject("en")?.optString("value")
-                ?.takeIf { it.isNotBlank() }?.let { put(id, it) }
+            entities.optJSONObject(id)?.optJSONObject("labels")?.optJSONObject("en")?.usableString("value")
+                ?.let { put(id, it) }
         }
     }
 }

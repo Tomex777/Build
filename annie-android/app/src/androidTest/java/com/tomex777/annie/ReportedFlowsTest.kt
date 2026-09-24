@@ -48,6 +48,43 @@ class ReportedFlowsTest {
         assertEquals("/anime", selected)
     }
 
+    @Test fun slashAutocompleteOffersEveryMediaRootAndSharedContinueCommand() {
+        val typedCommand = mutableStateOf("/anime")
+        compose.setContent {
+            Composer(value = typedCommand.value, onValueChange = {}, onSuggestionSelected = {}, onSend = {}, onMenu = {})
+        }
+        for (command in listOf("/anime", "/manga", "/tv", "/tv series", "/movie", "/music", "/continue", "/anime continue")) {
+            typedCommand.value = command
+            compose.waitForIdle()
+            compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
+            compose.onNodeWithText(command, substring = false).assertIsDisplayed()
+        }
+        typedCommand.value = "/"
+        compose.waitForIdle()
+        for (root in listOf("/anime", "/manga", "/movie", "/tv", "/music", "/continue")) {
+            compose.onNodeWithText(root, substring = false).assertExists()
+        }
+    }
+
+    @Test fun animeDetailsOfferBeginningPlaybackAndSeasonListActions() {
+        val actions = mutableListOf<String>()
+        val anime = CatalogItem(
+            id = 10, mediaType = "ANIME", title = "Blue Abroad Days", image = "", year = 2024,
+            status = "RELEASING", episodes = 37, chapters = null, genres = listOf("Travel", "Drama"),
+            summary = "A young woman sets off on a solo journey."
+        )
+        compose.setContent { SeriesCardMessage(anime) { actions += it } }
+        compose.onNodeWithTag("anime_details_card").assertIsDisplayed()
+        compose.onNodeWithText("Blue Abroad Days").assertIsDisplayed()
+        compose.onNodeWithText("Travel").assertIsDisplayed()
+        compose.onNodeWithText("Drama").assertIsDisplayed()
+        compose.onNodeWithText(anime.summary).assertIsDisplayed()
+        compose.onNodeWithText("Last watched: Not started").assertIsDisplayed()
+        compose.onNodeWithTag("anime_action_play").performClick()
+        compose.onNodeWithTag("anime_action_seasons").performClick()
+        assertEquals(listOf("play", "seasons"), actions)
+    }
+
     @Test fun approvedMangaDetailsCardShowsCoverMetadataGenresSynopsisAndActions() {
         val actions = mutableListOf<String>()
         compose.setContent { MangaResultMessage(manga) { actions += it } }

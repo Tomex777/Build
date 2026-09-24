@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
@@ -32,6 +33,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -245,8 +247,10 @@ private fun AnnieChat() {
             }
             "/tv", "/series" -> when {
                 query.isBlank() -> startSearch("tv", "")
+                query.equals("series", true) -> startSearch("tv", "")
                 query.equals("search", true) -> startSearch("tv", "")
                 query.startsWith("search ", true) -> startSearch("tv", query.substringAfter(" ", "").trim())
+                query.equals("continue", true) || query.equals("continue watching", true) -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
                 else -> startSearch("tv", query)
             }
             "/music" -> {
@@ -257,6 +261,7 @@ private fun AnnieChat() {
                 else addAnnie("For music playback, paste a YouTube link. Annie keeps playback in YouTube’s official player.")
             }
             "/downloads" -> openDownloads()
+            "/continue" -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
             "/extensions", "/settings" -> openCategory("Extensions")
             "/help" -> addAnnie("Try /anime, /movie, /tv, /manga, /music, /downloads, or /extensions.")
             else -> addAnnie("Try a slash command: /anime, /movie, /tv, /manga, /music, or /downloads.")
@@ -270,7 +275,7 @@ private fun AnnieChat() {
                 modifier = Modifier.weight(1f).fillMaxWidth().testTag("conversation"),
                 state = listState,
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 18.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.Bottom)
+                verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.Top)
             ) {
                 items(messages, key = { it.id }) { entry ->
                     ChatBubble(
@@ -281,7 +286,11 @@ private fun AnnieChat() {
                             runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(sourceUrl))) }
                         },
                         onSeriesAction = { item, stage, season ->
-                            addAnnie("", selectedItem = season?.asCatalogItem() ?: item, selectedStage = stage)
+                            if (stage == "play") {
+                                addAnnie("Playback is unavailable until an anime streaming source is connected.")
+                            } else {
+                                addAnnie("", selectedItem = season?.asCatalogItem() ?: item, selectedStage = stage)
+                            }
                         }
                     )
                 }
@@ -434,8 +443,8 @@ internal fun ChatBubble(
                 SearchMessage(entry.searchMedia, entry.searchInitial, onCatalogClick)
             } else if (entry.selectedItem != null) {
                 when (entry.selectedStage) {
-                    "series" -> SeriesCardMessage(entry.selectedItem) {
-                        onSeriesAction(entry.selectedItem, "seasons", null)
+                    "series" -> SeriesCardMessage(entry.selectedItem) { stage ->
+                        onSeriesAction(entry.selectedItem, stage, null)
                     }
                     "movie" -> MediaMetadataMessage(entry.selectedItem, "Movie", onOpenSource)
                     "tv" -> MediaMetadataMessage(entry.selectedItem, "TV series", onOpenSource)
@@ -648,25 +657,65 @@ internal fun SearchMessage(mediaType: String, initialQuery: String, onSelect: (C
 }
 
 @Composable
-private fun SeriesCardMessage(item: CatalogItem, onSeasons: () -> Unit) {
+internal fun SeriesCardMessage(item: CatalogItem, onAction: (String) -> Unit) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
-            .background(Bubble).padding(16.dp),
+            .background(Bubble).padding(14.dp).testTag("anime_details_card"),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Series", color = Color(0xFF77C5FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            AsyncImage(item.image, item.title, Modifier.width(96.dp).height(130.dp).clip(RoundedCornerShape(12.dp)))
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(item.title, color = BrightText, fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                Text(listOfNotNull(item.year?.toString(), item.status.takeIf { it != "UNKNOWN" }?.let(::statusLabel)).joinToString(" · "), color = SoftText, fontSize = 12.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+            if (item.image.isNotBlank()) {
+                AsyncImage(
+                    model = item.image,
+                    contentDescription = "${item.title} cover artwork",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.width(112.dp).height(176.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF1D3550))
+                )
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text(item.title, color = BrightText, fontWeight = FontWeight.Bold, fontSize = 18.sp, lineHeight = 22.sp,
+                    maxLines = 3, overflow = TextOverflow.Ellipsis)
+                val facts = listOfNotNull(
+                    item.seasons.size.takeIf { it > 0 }?.let { "$it seasons" },
+                    item.episodes?.let { "$it episodes" },
+                    item.year?.toString()
+                )
+                if (facts.isNotEmpty()) Text(facts.joinToString(" · "), color = SoftText, fontSize = 12.sp, lineHeight = 17.sp)
+                if (item.genres.isNotEmpty()) {
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        item.genres.forEach { genre ->
+                            Surface(color = Color(0xFF10263D), shape = RoundedCornerShape(14.dp)) {
+                                Text(genre, color = Color(0xFF9CD7FF), fontSize = 10.sp,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp))
+                            }
+                        }
+                    }
+                }
+                if (item.summary.isNotBlank()) Text(item.summary, color = SoftText, fontSize = 12.sp, lineHeight = 17.sp,
+                    maxLines = 5, overflow = TextOverflow.Ellipsis)
             }
         }
-        Surface(
-            color = Color(0xFF10263D), shape = RoundedCornerShape(14.dp),
-            border = BorderStroke(1.dp, Color(0xFF294562)),
-            modifier = Modifier.fillMaxWidth().clickable(onClick = onSeasons)
-        ) { Text("Seasons", color = BrightText, fontSize = 15.sp, modifier = Modifier.padding(14.dp)) }
+        Text("Last watched: Not started", color = Teal, fontSize = 12.sp, modifier = Modifier.testTag("anime_last_watched"))
+        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            SeriesCardAction("Play from the beginning", "play", Modifier.weight(1.2f)) { onAction("play") }
+            SeriesCardAction("Seasons", "list", Modifier.weight(0.8f)) { onAction("seasons") }
+        }
+    }
+}
+
+@Composable
+private fun SeriesCardAction(label: String, icon: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(
+        color = if (label.startsWith("Play")) Blue else Color(0xFF10263D),
+        shape = RoundedCornerShape(13.dp),
+        border = BorderStroke(1.dp, if (label.startsWith("Play")) Blue else Color(0xFF168EEA)),
+        modifier = modifier.clickable(onClick = onClick).testTag("anime_action_${if (label.startsWith("Play")) "play" else "seasons"}")
+    ) {
+        Row(Modifier.padding(horizontal = 9.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            ActionGlyph(icon, if (label.startsWith("Play")) Color.White else Color(0xFF42B9F5))
+            Text(label, color = BrightText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, lineHeight = 15.sp)
+        }
     }
 }
 
@@ -678,7 +727,12 @@ private fun SeasonListMessage(item: CatalogItem, onSelect: (SeasonItem) -> Unit)
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(item.title, color = BrightText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-        Text("Choose a season", color = SoftText, fontSize = 13.sp)
+        if (item.seasons.isEmpty()) {
+            Text("Season information is unavailable from this metadata source. Annie will show seasons when a connected source provides them.",
+                color = SoftText, fontSize = 13.sp, lineHeight = 19.sp)
+        } else {
+            Text("Choose a season", color = SoftText, fontSize = 13.sp)
+        }
         item.seasons.forEachIndexed { index, season ->
             Surface(
                 color = Color(0xFF10263D), shape = RoundedCornerShape(14.dp),
@@ -934,27 +988,40 @@ internal fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
         "/anime recent" to "New episodes",
         "/anime downloads" to "Downloads",
         "/anime recently aired" to "Recently aired",
+        "/anime continue" to "Continue watching",
         "/anime continue watching" to "Continue watching",
+        "/manga" to "Browse manga",
         "/movie search" to "Search movies",
+        "/movie" to "Browse movies",
+        "/movie continue" to "Continue watching",
+        "/tv series" to "Browse TV series",
         "/tv" to "Search TV series",
         "/tv search" to "Search TV series",
+        "/tv continue" to "Continue watching",
         "/manga search" to "Search manga",
+        "/manga continue" to "Continue reading",
+        "/manga downloads" to "Downloads",
         "/music" to "Music",
+        "/continue" to "Continue watching",
         "/downloads" to "Downloads",
         "/extensions" to "Extensions",
         "/help" to "Help"
     )
     val raw = value.trimStart()
     if (!raw.startsWith("/") || raw.contains("\n")) return
-    val matches = commands.filter { it.first.startsWith(raw, ignoreCase = true) }
+    val matches = if (raw == "/") {
+        commands.filter { it.first.count { char -> char == ' ' } == 0 }
+    } else {
+        commands.filter { it.first.startsWith(raw, ignoreCase = true) }
+    }
     if (matches.isEmpty()) return
 
     Column(
-        Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp)
+        Modifier.fillMaxWidth().heightIn(max = 240.dp).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 6.dp)
             .clip(RoundedCornerShape(16.dp)).background(Panel).padding(6.dp).testTag("slash_suggestions"),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        matches.take(3).forEach { (command, label) ->
+        matches.take(if (raw == "/") 9 else 5).forEach { (command, label) ->
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp))
                     .clickable { onSelect(command) }.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -970,10 +1037,10 @@ internal fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
 
 @Composable
 internal fun Composer(value: String, onValueChange: (String) -> Unit, onSuggestionSelected: (String) -> Unit = {}, onSend: () -> Unit, onMenu: () -> Unit) {
-    Column(Modifier.fillMaxWidth().testTag("composer")) {
+    Column(Modifier.fillMaxWidth().imePadding().navigationBarsPadding().testTag("composer")) {
         CommandSuggestions(value, onSuggestionSelected)
         Row(
-        modifier = Modifier.fillMaxWidth().imePadding().navigationBarsPadding()
+        modifier = Modifier.fillMaxWidth()
             .background(Night).padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
