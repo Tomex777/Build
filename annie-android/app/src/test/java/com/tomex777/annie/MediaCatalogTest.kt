@@ -55,6 +55,7 @@ class MediaCatalogTest {
         assertEquals("movie", selectedDetailsStage(CatalogItem(2, "MOVIE", "F", "", null, "METADATA", null, null)))
         assertEquals("tv", selectedDetailsStage(CatalogItem(3, "TV", "S", "", null, "Ended", null, null)))
         assertEquals("movie", selectedDetailsStage(CatalogItem(4, "ANIME", "A", "", null, "FINISHED", null, null, format = "MOVIE")))
-        assertEquals("episodes", selectedDetailsStage(CatalogItem(5, "ANIME", "A", "", null, "RELEASING", 12, null, format = "TV")))
+        assertEquals("series", selectedDetailsStage(CatalogItem(5, "ANIME", "A", "", null, "RELEASING", 12, null, format = "TV")))
+        assertEquals("series", selectedDetailsStage(CatalogItem(6, "ANIME", "B", "", null, "UNKNOWN", null, null)))
     }
 }
