@@ -96,3 +96,32 @@ test("YouTube links are validated and embedded without download endpoints", () =
   assert.equal(youtubeEmbedUrl("https://youtu.be/dQw4w9WgXcQ").includes("youtube-nocookie.com/embed/"), true);
   assert.equal(youtubeEmbedUrl("https://example.com/video"), null);
 });
+
+
+test("YouTube search URL is constrained to embeddable video results", async () => {
+  const { youtubeSearchUrl } = await import("../src/extension-host.mjs");
+  const url = new URL(youtubeSearchUrl("  artist song  "));
+  assert.equal(url.origin, "https://www.googleapis.com");
+  assert.equal(url.pathname, "/youtube/v3/search");
+  assert.equal(url.searchParams.get("q"), "artist song");
+  assert.equal(url.searchParams.get("type"), "video");
+  assert.equal(url.searchParams.get("videoEmbeddable"), "true");
+  assert.equal(url.searchParams.get("videoSyndicated"), "true");
+  assert.equal(youtubeSearchUrl("  "), null);
+});
+
+test("YouTube search results discard malformed IDs and unsafe thumbnails", async () => {
+  const { normalizeYouTubeSearchPayload } = await import("../src/extension-host.mjs");
+  const results = normalizeYouTubeSearchPayload({ items: [
+    { id: { videoId: "dQw4w9WgXcQ" }, snippet: { title: " Song ", channelTitle: "Artist", thumbnails: { medium: { url: "https://i.ytimg.com/vi/x/mqdefault.jpg" } } } },
+    { id: { videoId: "bad" }, snippet: { title: "Bad ID" } },
+    { id: { videoId: "dQw4w9WgXcQ" }, snippet: { title: " " } }
+  ] });
+  assert.equal(results.length, 1);
+  assert.equal(results[0].title, "Song");
+  assert.equal(results[0].thumbnail.startsWith("https://i.ytimg.com/"), true);
+  const unsafe = normalizeYouTubeSearchPayload({ items: [
+    { id: { videoId: "dQw4w9WgXcQ" }, snippet: { title: "Song", thumbnails: { medium: { url: "https://attacker.example/image.jpg" } } } }
+  ] });
+  assert.equal(unsafe[0].thumbnail, "");
+});
