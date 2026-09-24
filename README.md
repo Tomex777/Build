@@ -1,6 +1,14 @@
 # Annie
 
-Annie is a command-first media chat app. The extension host routes deterministic commands without requiring AI.
+Annie is a command-first media chat web prototype. Commands work without requiring AI.
+
+## Current scope
+
+- **Anime and manga:** AniList catalog search with image cards, status, year, and catalog episode/chapter counts. AniList is metadata only; it does not provide playback, chapter pages, or downloads.
+- **Music:** YouTube Data API search and playback in YouTube's official embedded player.
+- **Movies, episodes, manga reading, downloads, and watch/read progress:** UI entry points are present, but these need authorized content providers and local persistence before they can work end to end.
+
+The excluded source adapters are not loaded by the app.
 
 ## Build and test
 
@@ -10,17 +18,8 @@ Annie is a command-first media chat app. The extension host routes deterministic
 
 GitHub Actions runs all three steps and uploads the `annie-media-web` artifact.
 
-## Independent provider extensions
+## YouTube setup
 
-| Extension | Media | Current state |
-|---|---|---|
-| Weeb Central | Manga | Isolated slot; disabled pending an authorized API or content license |
-| TFPDL | Movies and TV | Isolated slot; disabled pending an authorized API or content license |
-| SubsPlease | Anime | Isolated slot; disabled pending an authorized API or content license |
-| YouTube | Music | Official Data API search and embedded player |
+Add a YouTube Data API key in `/extensions`. The key is stored for the current browser tab. Browser keys are visible to users, so restrict the key to the app origin and the YouTube Data API. A public production deployment should proxy API requests through a server.
 
-Each adapter declares its own ID and media types. Routing tries the configured default first, then enabled fallbacks by priority. Empty results, malformed payloads, exceptions, timeouts, cancellation, and duplicate results are handled independently.
-
-The YouTube extension only searches embeddable videos and plays them in the official YouTube player. It does not extract audio, download videos, or cache search results. Add a YouTube Data API key in `/extensions`; browser keys are visible to users, so restrict the key to this app's origin and the YouTube Data API. A public production deployment should proxy API requests through a server.
-
-The three catalog slots are intentionally disabled until an authorized content API or license is available. The app reports that state rather than silently substituting sources.
+The YouTube extension only searches embeddable videos and plays them in YouTube's official player. It does not extract audio, download videos, or cache search results.
