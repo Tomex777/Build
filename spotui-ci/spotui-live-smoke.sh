@@ -145,6 +145,9 @@ parents={child: parent for parent in root.iter() for child in parent}
 for node in root.iter('node'):
     value=((node.attrib.get('text') or '')+' '+(node.attrib.get('content-desc') or '')).lower()
     if 'adele' not in value: continue
+    if node.attrib.get('class') == 'android.widget.EditText': continue
+    m0=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+    if m0 and int(m0.group(2)) < 500: continue
     current=node
     while current is not None:
         if current.attrib.get('clickable') == 'true':
@@ -172,6 +175,8 @@ adb shell input keyevent KEYCODE_ENTER
 wait_for_contains Adele 35
 shot 01-search-adele
 
+adb shell input keyevent KEYCODE_BACK
+sleep 2
 adb logcat -c || true
 tap_first_adele_result
 wait_for_node Pause 50
