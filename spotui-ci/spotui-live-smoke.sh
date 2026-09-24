@@ -175,10 +175,11 @@ adb shell input keyevent KEYCODE_ENTER
 wait_for_contains Adele 35
 shot 01-search-adele
 
-adb shell input keyevent KEYCODE_BACK
+adb shell input keyevent KEYCODE_BACK || true
 sleep 2
 adb logcat -c || true
-tap_first_adele_result
+tap_text 'Play Easy On Me'
+wait_for_node 'Mini player' 15
 wait_for_node Pause 50
 shot 02-playing
 
