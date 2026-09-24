@@ -8,11 +8,10 @@ const statusByProvider = [
   { id: "weeb-central", name: "Weeb Central", media: "Manga", state: "Unavailable", note: "Needs an authorized content API or license." },
   { id: "tfpdl", name: "TFPDL", media: "Movies & series", state: "Unavailable", note: "Needs an authorized content API or license." },
   { id: "subsplease", name: "SubsPlease", media: "Anime", state: "Unavailable", note: "Needs an authorized content API or license." },
-  { id: "youtube", name: "YouTube", media: "Music", state: "Ready for link playback", note: "Official embedded player. Search needs a YouTube API key." }
+  { id: "youtube", name: "YouTube", media: "Music", state: "Link playback", note: "Official embedded player. Search needs a YouTube API key." }
 ];
 
 const host = new ExtensionHost([]);
-let messageNumber = 0;
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]);
@@ -52,7 +51,7 @@ function renderExtensions() {
     '</div><p>' + escapeHtml(provider.note) + '</p></section>'
   ).join("");
   appendMessage("annie",
-    '<div class="menu-title">Extensions</div><p class="muted">Each provider stays isolated; a missing or failed extension never blocks the others.</p>' +
+    '<div class="menu-title">Extensions</div><p class="muted">Providers stay independent. A missing or failed extension never blocks the others.</p>' +
     '<div class="extension-list">' + cards + '</div>',
     "menu-bubble");
 }
@@ -70,24 +69,30 @@ function showYouTube(url) {
     "player-bubble");
 }
 
+function normalizedCommand(value) {
+  return String(value || "").toLocaleLowerCase().replace(/\s+/g, " ").trim();
+}
+
 async function handleCommand(raw) {
   const text = raw.trim();
   const [first, ...tail] = text.split(/\s+/);
   const command = first.toLowerCase();
   const query = tail.join(" ");
-  if (command === "/anime") return menuCard("Anime", "Choose an action or type a title to search.", [
+  const normalized = normalizedCommand(query);
+
+  if (command === "/anime" && !query) return menuCard("Anime", "Choose an action or type a title to search.", [
     { icon: "⌕", label: "Search anime", command: "/anime " },
     { icon: "◷", label: "Recently aired", command: "/anime recently aired" },
     { icon: "▶", label: "Continue watching", command: "/anime continue" },
     { icon: "↓", label: "Downloads", command: "/downloads anime" }
   ]);
-  if (command === "/movie" || command === "/movies") return menuCard("Movies & series", "Choose an action or type a title to search.", [
+  if ((command === "/movie" || command === "/movies") && !query) return menuCard("Movies & series", "Choose an action or type a title to search.", [
     { icon: "⌕", label: "Search movies", command: "/movie " },
     { icon: "◷", label: "Recently released", command: "/movie recently released" },
     { icon: "▶", label: "Continue watching", command: "/movie continue" },
     { icon: "↓", label: "Downloads", command: "/downloads movies" }
   ]);
-  if (command === "/manga") return menuCard("Manga", "Choose an action or type a title to search.", [
+  if (command === "/manga" && !query) return menuCard("Manga", "Choose an action or type a title to search.", [
     { icon: "⌕", label: "Search manga", command: "/manga " },
     { icon: "◷", label: "Recently updated", command: "/manga recently updated" },
     { icon: "▤", label: "Continue reading", command: "/manga continue" },
@@ -95,10 +100,9 @@ async function handleCommand(raw) {
   ]);
   if (command === "/music") {
     if (/^https?:\/\//i.test(query)) return showYouTube(query);
-    return appendMessage("annie", "Send a YouTube video link after /music for compliant in-app playback. Search and lyrics will need authorized provider APIs.");
+    return appendMessage("annie", "Send a YouTube video link after /music for playback in the official player. Search and synced lyrics need authorized provider APIs.");
   }
   if (command === "/extensions") return renderExtensions();
-  if (command === "/downloads") return appendMessage("annie", "Your shared Downloads manager will appear here once an authorized media extension is installed.");
   if (command === "/help") return menuCard("Annie commands", "Annie works command-first. AI can be added as an optional helper later.", [
     { icon: "A", label: "Anime", command: "/anime" },
     { icon: "F", label: "Movies & series", command: "/movie" },
@@ -106,17 +110,39 @@ async function handleCommand(raw) {
     { icon: "♫", label: "Music", command: "/music" },
     { icon: "⌘", label: "Extensions", command: "/extensions" }
   ]);
-  if (command.startsWith("/")) {
-    const mediaType = command === "/anime" ? "anime" : command === "/movie" || command === "/movies" ? "movie" : command === "/manga" ? "manga" : null;
-    if (mediaType && query) {
-      const result = await host.search(mediaType, query);
-      if (result.status === "matched") {
-        appendMessage("annie", "Found " + result.items.length + " result(s) from " + escapeHtml(result.items[0].extensionName) + ".");
-      } else {
-        appendMessage("annie", "No authorized " + escapeHtml(mediaType) + " extension is connected yet. Use /extensions to see provider status.");
-      }
-      return;
+
+  if (command === "/downloads") {
+    const filter = query || "all media";
+    return appendMessage("annie", "No " + escapeHtml(filter) + " downloads yet. Downloads will appear here when an authorized extension is connected.");
+  }
+
+  if (command === "/anime" && normalized === "recently aired") {
+    return appendMessage("annie", "The recently aired feed needs an authorized anime catalog extension before it can show verified episodes.");
+  }
+  if ((command === "/movie" || command === "/movies") && normalized === "recently released") {
+    return appendMessage("annie", "The release feed needs an authorized movies and series catalog extension.");
+  }
+  if (command === "/manga" && normalized === "recently updated") {
+    return appendMessage("annie", "The chapter update feed needs an authorized manga catalog extension.");
+  }
+  if ((command === "/anime" || command === "/movie" || command === "/movies") && normalized === "continue") {
+    return appendMessage("annie", "Nothing to continue watching yet.");
+  }
+  if (command === "/manga" && normalized === "continue") {
+    return appendMessage("annie", "Nothing to continue reading yet.");
+  }
+
+  const mediaType = command === "/anime" ? "anime" :
+    command === "/movie" || command === "/movies" ? "movie" :
+    command === "/manga" ? "manga" : null;
+  if (mediaType && query) {
+    const result = await host.search(mediaType, query);
+    if (result.status === "matched") {
+      appendMessage("annie", "Found " + result.items.length + " result(s) from " + escapeHtml(result.items[0].extensionName) + ".");
+    } else {
+      appendMessage("annie", "No authorized " + escapeHtml(mediaType) + " extension is connected yet. Use /extensions to see provider status.");
     }
+    return;
   }
   appendMessage("annie", 'I use slash commands. Try <button class="inline-command" data-command="/help">/help</button> or <button class="inline-command" data-command="/extensions">/extensions</button>.');
 }
@@ -148,4 +174,4 @@ document.querySelectorAll("[data-quick-command]").forEach(button => {
   });
 });
 
-appendMessage("annie", "Hi, I’m Annie. Type a command to start. The extensions stay separate, and I’ll show clearly when one is not available.", "welcome-bubble");
+appendMessage("annie", "Hi, I’m Annie. Type a command to start. Providers stay separate, and I’ll show clearly when one is unavailable.", "welcome-bubble");
