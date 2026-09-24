@@ -22,7 +22,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -951,7 +952,7 @@ internal fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
             .clip(RoundedCornerShape(16.dp)).background(Panel).padding(6.dp).testTag("slash_suggestions"),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        matches.forEach { (command, label) ->
+        matches.take(6).forEach { (command, label) ->
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp))
                     .clickable { onSelect(command) }.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -970,7 +971,7 @@ internal fun Composer(value: String, onValueChange: (String) -> Unit, onSuggesti
     Column(Modifier.fillMaxWidth().testTag("composer")) {
         CommandSuggestions(value, onSuggestionSelected)
         Row(
-        modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
+        modifier = Modifier.fillMaxWidth().imePadding().navigationBarsPadding()
             .background(Night).padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
