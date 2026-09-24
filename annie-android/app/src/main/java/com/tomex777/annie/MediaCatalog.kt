@@ -52,7 +52,7 @@ internal suspend fun searchCatalog(mediaType: String, query: String): List<Catal
     "movie" -> searchWikidataMovies(query)
     "tv" -> searchTvMaze(query)
     else -> emptyList()
-}
+}.filter { it.title.isUsableCatalogText() && it.mediaType in setOf("ANIME", "MANGA", "MOVIE", "TV") }
 
 internal suspend fun searchAniList(mediaType: String, search: String): List<CatalogItem> = withContext(Dispatchers.IO) {
     val quotedSearch = JSONObject.quote(search)
@@ -104,10 +104,11 @@ internal fun parseAniListSearchPayload(payload: String, mediaType: String): List
         for (index in 0 until rows.length()) {
             val row = rows.optJSONObject(index) ?: continue
             val titles = row.optJSONObject("title") ?: continue
-            val name = titleFrom(titles) ?: continue
+            val name = titleFrom(titles)?.takeIf(String::isUsableCatalogText) ?: continue
             val itemId = row.optInt("id")
-            val itemType = row.optString("type")
-            val itemFormat = row.optString("format")
+            if (itemId <= 0) continue
+            val itemType = row.usableString("type") ?: continue
+            val itemFormat = row.usableString("format").orEmpty()
             val itemYear = row.optJSONObject("startDate")?.optInt("year")?.takeIf { it > 0 }
             val creators = buildList {
                 val edges = row.optJSONObject("staff")?.optJSONArray("edges") ?: return@buildList
@@ -175,7 +176,8 @@ internal fun parseTvMazeSearchPayload(payload: String): List<CatalogItem> {
         for (index in 0 until rows.length()) {
             val show = rows.optJSONObject(index)?.optJSONObject("show") ?: continue
             val id = show.optInt("id")
-            val title = show.optString("name").takeIf { it.isNotBlank() } ?: continue
+            val title = show.usableString("name") ?: continue
+            if (id <= 0) continue
             val premiered = show.optString("premiered")
             val image = show.optJSONObject("image")?.optString("original")?.takeIf { it.isNotBlank() }
                 ?: show.optJSONObject("image")?.optString("medium").orEmpty()
@@ -239,7 +241,7 @@ internal fun parseWikidataMovie(id: String, entity: JSONObject, labels: Map<Stri
     return CatalogItem(
         id = id.removePrefix("Q").toIntOrNull() ?: 0,
         mediaType = "MOVIE",
-        title = entity.optJSONObject("labels")?.optJSONObject("en")?.optString("value").orEmpty(),
+        title = entity.optJSONObject("labels")?.optJSONObject("en")?.usableString("value").orEmpty(),
         image = image,
         year = year,
         status = "METADATA",
@@ -311,13 +313,18 @@ private fun claimMinutes(claims: JSONObject, property: String): Int? {
 }
 
 private fun titleFrom(titles: JSONObject?): String? = titles?.let {
-    it.optString("english").takeIf { value -> value.isNotBlank() }
-        ?: it.optString("romaji").takeIf { value -> value.isNotBlank() }
-        ?: it.optString("native").takeIf { value -> value.isNotBlank() }
+    it.usableString("english") ?: it.usableString("romaji") ?: it.usableString("native")
 }
 
+private fun JSONObject.usableString(key: String): String? {
+    if (!has(key) || isNull(key)) return null
+    return opt(key)?.toString()?.trim()?.takeIf(String::isUsableCatalogText)
+}
+
+private fun String.isUsableCatalogText(): Boolean = isNotBlank() && !equals("null", ignoreCase = true) && !equals("undefined", ignoreCase = true)
+
 private fun JSONArray?.toStringList(): List<String> = this?.let { array ->
-    buildList { for (index in 0 until array.length()) array.optString(index).takeIf { value -> value.isNotBlank() }?.let(::add) }
+    buildList { for (index in 0 until array.length()) array.opt(index)?.toString()?.trim()?.takeIf(String::isUsableCatalogText)?.let(::add) }
 } ?: emptyList()
 
 private fun cleanSummary(value: String): String = value

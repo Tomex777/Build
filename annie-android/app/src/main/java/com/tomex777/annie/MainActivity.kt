@@ -19,8 +19,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -60,7 +62,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -125,6 +130,11 @@ private fun AnnieChat() {
     var activeSheet by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val keyboardVisible = WindowInsets.ime.getBottom(density) > 0
+    LaunchedEffect(messages.size, keyboardVisible) {
+        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
+    }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     fun addAnnie(
@@ -189,7 +199,7 @@ private fun AnnieChat() {
             "Music" to "Search music" -> openSearch("music")
             "Music" to "Open YouTube link" -> draft = "/music "
             "New anime episodes" to "Today", "New anime episodes" to "This week", "New anime episodes" to "All" ->
-                addAnnie("No episodes found for this time range. Connect an anime extension to check availability.", menuTitle = "New anime episodes", actions = listOf("Today", "This week", "All"))
+                addAnnie(recentEpisodesUnavailableMessage(action))
             else -> openDownloads()
         }
     }
@@ -253,10 +263,10 @@ private fun AnnieChat() {
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Night) {
-        Column(modifier = Modifier.fillMaxSize().imePadding()) {
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding().testTag("chat_root")) {
             AnnieTopBar(onExtensions = { activeSheet = "Extensions" })
             LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+                modifier = Modifier.weight(1f).fillMaxWidth().testTag("conversation"),
                 state = listState,
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp)
@@ -278,6 +288,7 @@ private fun AnnieChat() {
             Composer(
                 value = draft,
                 onValueChange = { draft = it },
+                onSuggestionSelected = { draft = "$it " },
                 onSend = { submit() },
                 onMenu = { activeSheet = "Attachments" }
             )
@@ -337,7 +348,7 @@ private fun AnnieChat() {
 @Composable
 private fun AnnieTopBar(onExtensions: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().statusBarsPadding().height(68.dp).background(Panel).padding(horizontal = 16.dp),
+        modifier = Modifier.fillMaxWidth().height(68.dp).background(Panel).padding(horizontal = 16.dp).testTag("top_bar"),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -464,7 +475,7 @@ private fun ChatBubble(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
-                                ActionGlyph(icon, Color(0xFF27A8F2))
+                                ActionGlyph(icon, actionColor(action))
                                 Text(action, color = BrightText, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                             }
                         }
@@ -498,6 +509,17 @@ private fun ChatBubble(
 }
 
 @Composable
+private fun actionColor(action: String): Color = when {
+    action.startsWith("Search", ignoreCase = true) || action == "Downloads" -> Color(0xFF42B9F5)
+    action.contains("aired", ignoreCase = true) || action.contains("released", ignoreCase = true) || action.contains("updated", ignoreCase = true) || action == "Today" || action == "This week" || action == "All" -> Color(0xFFB68CFF)
+    action.contains("Continue", ignoreCase = true) || action.contains("reading", ignoreCase = true) -> Teal
+    else -> Color(0xFF42B9F5)
+}
+
+internal fun recentEpisodesUnavailableMessage(range: String): String =
+    "No episodes found for $range. Connect an anime extension to check availability."
+
+@Composable
 private fun ActionGlyph(name: String, color: Color) {
     Canvas(Modifier.size(20.dp)) {
         val w = 2.dp.toPx()
@@ -510,6 +532,14 @@ private fun ActionGlyph(name: String, color: Color) {
                 drawCircle(color, 7.dp.toPx(), Offset(size.width / 2, size.height / 2), style = Stroke(w))
                 drawLine(color, Offset(size.width / 2, size.height / 2), Offset(size.width / 2, 5.dp.toPx()), w)
                 drawLine(color, Offset(size.width / 2, size.height / 2), Offset(14.dp.toPx(), 12.dp.toPx()), w)
+            }
+            "book" -> {
+                drawRoundRect(color, topLeft = Offset(3.dp.toPx(), 2.dp.toPx()), size = androidx.compose.ui.geometry.Size(6.dp.toPx(), 16.dp.toPx()), style = Stroke(w), cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.dp.toPx()))
+                drawRoundRect(color, topLeft = Offset(11.dp.toPx(), 2.dp.toPx()), size = androidx.compose.ui.geometry.Size(6.dp.toPx(), 16.dp.toPx()), style = Stroke(w), cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.dp.toPx()))
+                drawLine(color, Offset(10.dp.toPx(), 4.dp.toPx()), Offset(10.dp.toPx(), 16.dp.toPx()), w)
+            }
+            "list" -> {
+                for (y in listOf(4.dp, 10.dp, 16.dp)) { drawCircle(color, 1.dp.toPx(), Offset(3.dp.toPx(), y.toPx())); drawLine(color, Offset(7.dp.toPx(), y.toPx()), Offset(18.dp.toPx(), y.toPx()), w) }
             }
             "play" -> {
                 val p = Path().apply {
@@ -682,32 +712,30 @@ private fun EpisodeListMessage(item: CatalogItem) {
 }
 
 @Composable
-private fun MangaResultMessage(item: CatalogItem, onAction: (String) -> Unit) {
+internal fun MangaResultMessage(item: CatalogItem, onAction: (String) -> Unit) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
-            .background(Bubble).padding(16.dp),
+            .background(Bubble).padding(12.dp).testTag("manga_details_card"),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Manga", color = Color(0xFF77C5FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            AsyncImage(
-                model = item.image,
-                contentDescription = item.title,
-                modifier = Modifier.width(96.dp).height(130.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF1D3550))
+        Box(Modifier.fillMaxWidth().height(208.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF1D3550))) {
+            if (item.image.isNotBlank()) AsyncImage(
+                model = item.image, contentDescription = "${item.title} cover artwork",
+                contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()
             )
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f)) {
-                Text(item.title, color = BrightText, fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                item.creator?.let { Text(it, color = SoftText, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis) }
-                Text(
-                    listOfNotNull(
-                        item.year?.toString(),
-                        item.chapters?.let { "$it chapters" },
-                        mangaStatusLabel(item.status),
-                    ).joinToString(" · "),
-                    color = SoftText, fontSize = 11.sp, lineHeight = 16.sp
-                )
-            }
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE607111E)))))
+            Text("MANGA", color = Color(0xFF9CD7FF), fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.TopStart).padding(14.dp))
         }
+        Text(item.title, color = BrightText, fontWeight = FontWeight.Bold, fontSize = 21.sp, lineHeight = 25.sp,
+            maxLines = 2, overflow = TextOverflow.Ellipsis)
+        val metadata = listOfNotNull(
+            item.creator?.takeIf(String::isNotBlank),
+            item.year?.toString(),
+            item.chapters?.let { "$it chapters" },
+            item.status.takeIf { it in setOf("RELEASING", "FINISHED") }?.let(::mangaStatusLabel)
+        )
+        if (metadata.isNotEmpty()) Text(metadata.joinToString(" · "), color = SoftText, fontSize = 12.sp, lineHeight = 17.sp)
         if (item.genres.isNotEmpty()) {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 item.genres.forEach { genre ->
@@ -718,9 +746,12 @@ private fun MangaResultMessage(item: CatalogItem, onAction: (String) -> Unit) {
                 }
             }
         }
+        if (item.summary.isNotBlank()) Text(item.summary, color = SoftText, fontSize = 13.sp, lineHeight = 19.sp,
+            maxLines = 5, overflow = TextOverflow.Ellipsis)
+        Text("Last read chapter · Not started", color = SoftText, fontSize = 12.sp, modifier = Modifier.testTag("last_read_chapter"))
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            MangaCardAction("Start reading", "play", Modifier.weight(1f)) { onAction("reader") }
-            MangaCardAction("Chapters", "history", Modifier.weight(1f)) { onAction("chapters") }
+            MangaCardAction("Continue reading", "book", Modifier.weight(1f)) { onAction("reader") }
+            MangaCardAction("Chapters", "list", Modifier.weight(1f)) { onAction("chapters") }
         }
     }
 }
@@ -731,7 +762,7 @@ private fun MangaCardAction(label: String, icon: String, modifier: Modifier = Mo
         color = Color(0xFF10263D),
         shape = RoundedCornerShape(14.dp),
         border = BorderStroke(1.dp, Color(0xFF294562)),
-        modifier = modifier.clickable(onClick = onClick)
+        modifier = modifier.clickable(onClick = onClick).testTag("manga_action_$label")
     ) {
         Row(
             Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
@@ -848,9 +879,9 @@ private fun mangaStatusLabel(status: String): String = when (status) {
 }
 
 @Composable
-private fun CatalogCard(item: CatalogItem, onClick: () -> Unit) {
+internal fun CatalogCard(item: CatalogItem, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).testTag("catalog_result_card"),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF0B1A2A)),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, Color(0xFF29425E))
@@ -880,7 +911,7 @@ private fun CatalogCard(item: CatalogItem, onClick: () -> Unit) {
                             modifier = Modifier.padding(top = 5.dp))
                     }
                 }
-                Text("Select this title  ›", color = Color(0xFF9CD7FF), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text("Details  ›", color = Color(0xFF9CD7FF), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.testTag("catalog_details_action"))
             }
         }
     }
@@ -894,7 +925,7 @@ private fun statusLabel(status: String): String = when (status) {
 }
 
 @Composable
-private fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
+internal fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
     val commands = listOf(
         "/anime" to "Anime menu",
         "/anime search" to "Search anime",
@@ -917,7 +948,7 @@ private fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
 
     Column(
         Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(16.dp)).background(Panel).padding(6.dp),
+            .clip(RoundedCornerShape(16.dp)).background(Panel).padding(6.dp).testTag("slash_suggestions"),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         matches.forEach { (command, label) ->
@@ -935,9 +966,12 @@ private fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
 }
 
 @Composable
-private fun Composer(value: String, onValueChange: (String) -> Unit, onSend: () -> Unit, onMenu: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().navigationBarsPadding().background(Night).padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
+internal fun Composer(value: String, onValueChange: (String) -> Unit, onSuggestionSelected: (String) -> Unit = {}, onSend: () -> Unit, onMenu: () -> Unit) {
+    Column(Modifier.fillMaxWidth().testTag("composer")) {
+        CommandSuggestions(value, onSuggestionSelected)
+        Row(
+        modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
+            .background(Night).padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -951,7 +985,7 @@ private fun Composer(value: String, onValueChange: (String) -> Unit, onSend: () 
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).testTag("composer_input"),
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = BrightText),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
@@ -966,6 +1000,7 @@ private fun Composer(value: String, onValueChange: (String) -> Unit, onSend: () 
         }
         Surface(color = Blue, shape = CircleShape, modifier = Modifier.size(46.dp).clickable(onClick = onSend)) {
             Box(contentAlignment = Alignment.Center) { Text("➤", color = Color.White, fontSize = 19.sp) }
+        }
         }
     }
 }
