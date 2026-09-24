@@ -1,14 +1,22 @@
-import { ExtensionHost, youtubeEmbedUrl } from "./extension-host.mjs";
+import {
+  ExtensionHost,
+  normalizeYouTubeSearchPayload,
+  youtubeEmbedUrl,
+  youtubeSearchUrl
+} from "./extension-host.mjs";
 
 const el = selector => document.querySelector(selector);
 const chat = el("#chat");
 const input = el("#composer");
 const form = el("#composer-form");
+let youtubeApiKey = "";
+try { youtubeApiKey = sessionStorage.getItem("annie.youtube.apiKey") || ""; } catch {}
+
 const statusByProvider = [
   { id: "weeb-central", name: "Weeb Central", media: "Manga", state: "Unavailable", note: "Needs an authorized content API or license." },
   { id: "tfpdl", name: "TFPDL", media: "Movies & series", state: "Unavailable", note: "Needs an authorized content API or license." },
   { id: "subsplease", name: "SubsPlease", media: "Anime", state: "Unavailable", note: "Needs an authorized content API or license." },
-  { id: "youtube", name: "YouTube", media: "Music", state: "Link playback", note: "Official embedded player. Search needs a YouTube API key." }
+  { id: "youtube", name: "YouTube", media: "Music", state: youtubeApiKey ? "Connected" : "Needs API key", note: "Official API search and embedded playback; no extracted audio or downloads." }
 ];
 
 const host = new ExtensionHost([]);
@@ -50,9 +58,14 @@ function renderExtensions() {
     '">' + escapeHtml(provider.state) + '</span></div><div class="extension-media">' + escapeHtml(provider.media) +
     '</div><p>' + escapeHtml(provider.note) + '</p></section>'
   ).join("");
+  const keyPanel =
+    '<section class="youtube-key-config"><label for="youtube-api-key">YouTube Data API key</label>' +
+    '<div class="key-row"><input id="youtube-api-key" type="password" autocomplete="new-password" placeholder="Paste a referrer-restricted key">' +
+    '<button type="button" class="key-save" data-save-youtube-key>Save</button></div>' +
+    '<small>Stored for this browser tab only. Restrict the key to your app domain in Google Cloud. Search calls YouTube directly; Annie does not cache results.</small></section>';
   appendMessage("annie",
     '<div class="menu-title">Extensions</div><p class="muted">Providers stay independent. A missing or failed extension never blocks the others.</p>' +
-    '<div class="extension-list">' + cards + '</div>',
+    '<div class="extension-list">' + cards + '</div>' + keyPanel,
     "menu-bubble");
 }
 
@@ -67,6 +80,63 @@ function showYouTube(url) {
     '<div class="video-frame"><iframe src="' + embed + '" title="YouTube player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>' +
     '<p class="player-note">Playback stays in YouTube’s official player. Annie does not extract or download the audio.</p>',
     "player-bubble");
+}
+
+function renderYouTubeResults(items) {
+  if (!items.length) {
+    appendMessage("annie", "YouTube returned no embeddable videos for that search.");
+    return;
+  }
+  const rows = items.map(item =>
+    '<button class="youtube-result" type="button" data-youtube-video="' + item.id + '">' +
+    (item.thumbnail ? '<img src="' + escapeHtml(item.thumbnail) + '" alt="" loading="lazy">' : '<span class="thumb-fallback">▶</span>') +
+    '<span class="result-copy"><strong>' + escapeHtml(item.title) + '</strong><small>' + escapeHtml(item.channel || "YouTube") + '</small></span>' +
+    '<span class="result-play" aria-label="Play">▶</span></button>'
+  ).join("");
+  appendMessage("annie",
+    '<div class="menu-title">YouTube results</div><p class="muted">Choose a video to play it in YouTube’s official player.</p>' +
+    '<div class="youtube-results">' + rows + '</div>',
+    "menu-bubble");
+}
+
+async function searchYouTube(query) {
+  if (!youtubeApiKey) {
+    appendMessage("annie", 'Add a YouTube Data API key in <button class="inline-command" data-command="/extensions">/extensions</button>, then search again.');
+    return;
+  }
+  const url = youtubeSearchUrl(query);
+  if (!url) {
+    appendMessage("annie", "Type a song, artist, or YouTube link to search.");
+    return;
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "X-Goog-Api-Key": youtubeApiKey },
+      signal: controller.signal,
+      cache: "no-store"
+    });
+    let payload = {};
+    try { payload = await response.json(); } catch {}
+    if (!response.ok) {
+      const reason = payload?.error?.errors?.[0]?.reason || "";
+      if (reason === "quotaExceeded") throw new Error("YouTube search quota is exhausted. Try again after the quota resets.");
+      if (response.status === 403 || response.status === 400) throw new Error("YouTube rejected the key or request. Check that the Data API is enabled and the key's referrer restrictions match this app.");
+      throw new Error("YouTube search failed with HTTP " + response.status + ".");
+    }
+    renderYouTubeResults(normalizeYouTubeSearchPayload(payload));
+  } catch (error) {
+    const message = controller.signal.aborted
+      ? "YouTube search timed out. Check the connection and try again."
+      : error instanceof TypeError
+        ? "Could not reach YouTube. Check the connection and try again."
+        : error?.message || "YouTube search failed. Try again.";
+    appendMessage("annie", escapeHtml(message));
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function normalizedCommand(value) {
@@ -98,9 +168,15 @@ async function handleCommand(raw) {
     { icon: "▤", label: "Continue reading", command: "/manga continue" },
     { icon: "↓", label: "Downloads", command: "/downloads manga" }
   ]);
+  if (command === "/music" && !query) return menuCard("Music", "Search YouTube or paste a YouTube link. Lyrics require an authorized lyrics provider.", [
+    { icon: "⌕", label: "Search music", command: "/music search " },
+    { icon: "▶", label: "Paste YouTube link", command: "/music " },
+    { icon: "⌘", label: "Set up YouTube", command: "/extensions" }
+  ]);
   if (command === "/music") {
     if (/^https?:\/\//i.test(query)) return showYouTube(query);
-    return appendMessage("annie", "Send a YouTube video link after /music for playback in the official player. Search and synced lyrics need authorized provider APIs.");
+    if (normalized.startsWith("search ")) return searchYouTube(query.slice(7).trim());
+    return searchYouTube(query);
   }
   if (command === "/extensions") return renderExtensions();
   if (command === "/help") return menuCard("Annie commands", "Annie works command-first. AI can be added as an optional helper later.", [
@@ -110,12 +186,10 @@ async function handleCommand(raw) {
     { icon: "♫", label: "Music", command: "/music" },
     { icon: "⌘", label: "Extensions", command: "/extensions" }
   ]);
-
   if (command === "/downloads") {
     const filter = query || "all media";
     return appendMessage("annie", "No " + escapeHtml(filter) + " downloads yet. Downloads will appear here when an authorized extension is connected.");
   }
-
   if (command === "/anime" && normalized === "recently aired") {
     return appendMessage("annie", "The recently aired feed needs an authorized anime catalog extension before it can show verified episodes.");
   }
@@ -158,9 +232,22 @@ form.addEventListener("submit", event => {
 });
 
 chat.addEventListener("click", event => {
-  const button = event.target.closest("[data-command]");
-  if (!button) return;
-  input.value = button.dataset.command;
+  const saveButton = event.target.closest("[data-save-youtube-key]");
+  if (saveButton) {
+    const keyField = el("#youtube-api-key");
+    const key = keyField?.value.trim() || "";
+    if (!key) return appendMessage("annie", "Paste a YouTube Data API key first.");
+    youtubeApiKey = key;
+    try { sessionStorage.setItem("annie.youtube.apiKey", key); } catch {}
+    statusByProvider.find(provider => provider.id === "youtube").state = "Connected";
+    appendMessage("annie", "YouTube key saved for this tab. Search uses the official API; playback stays in the official player.");
+    return;
+  }
+  const videoButton = event.target.closest("[data-youtube-video]");
+  if (videoButton) return showYouTube("https://www.youtube.com/watch?v=" + videoButton.dataset.youtubeVideo);
+  const commandButton = event.target.closest("[data-command]");
+  if (!commandButton) return;
+  input.value = commandButton.dataset.command;
   input.focus();
   if (input.value.endsWith(" ")) return;
   form.requestSubmit();
