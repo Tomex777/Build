@@ -294,11 +294,10 @@ internal fun NightAniyomiVlcPlayer(
     val appContext = context.applicationContext
     val virtualVideoDevice = remember { isNightVirtualVideoDevice() }
     val useTextureView = virtualVideoDevice
-    // Virtual Android devices often report advancing playback time while the
-    // hardware decoder produces no frames for VLC's embedded preview surface.
-    // Start those devices on software decode; physical devices keep hardware.
+    // Start virtual and physical devices on VLC's hardware decoder path.
+    // The watchdog recreates a stalled VLC player with software decoding.
     var softwareDecode by remember(item.localPath, item.requestHeaders) {
-        mutableStateOf(virtualVideoDevice)
+        mutableStateOf(false)
     }
     var hardwareRetryGeneration by remember(item.localPath) { mutableStateOf(0) }
     var hardwareRetryCount by remember(item.localPath) { mutableStateOf(0) }
