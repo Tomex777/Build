@@ -11,6 +11,10 @@ on:
       - 'sora-ci/import_spotui_innertube.sh'
       - '.github/workflows/spotui-standalone-ci.yml'
 
+concurrency:
+  group: spotui-standalone-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-smoke:
     runs-on: ubuntu-latest
