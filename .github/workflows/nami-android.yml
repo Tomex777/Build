@@ -1,0 +1,40 @@
+name: Nami Android
+
+on:
+  push:
+    branches: ["nami/**"]
+    paths:
+      - "apps/nami/**"
+      - ".github/workflows/nami-android.yml"
+  pull_request:
+    paths:
+      - "apps/nami/**"
+      - ".github/workflows/nami-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK platform
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+      - name: Build debug APK
+        working-directory: apps/nami
+        run: gradle :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nami-debug-apk
+          path: apps/nami/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
