@@ -12,7 +12,7 @@ class NullMetadataTest {
         val payload = """{"data":{"Page":{"media":[
           {"id":1,"type":"MANGA","title":{"english":null,"romaji":"null","native":"Moonlit Archive"},"startDate":{"year":2024},"chapters":12,"status":"FINISHED","format":"MANGA","description":null,"genres":["Fantasy",null],"coverImage":{"large":null}},
           {"id":2,"type":"MANGA","title":{"english":null,"romaji":"null","native":null},"coverImage":{"large":null}}
-        ]}}"""
+        ]}}}"""
         val results = parseAniListSearchPayload(payload, "manga")
         assertEquals(1, results.size)
         assertEquals("Moonlit Archive", results.single().title)

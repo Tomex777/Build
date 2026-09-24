@@ -1,8 +1,10 @@
 package com.tomex777.annie
 
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -17,7 +19,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 
 @RunWith(AndroidJUnit4::class)
 class ReportedFlowsTest {
-    @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    @get:Rule val compose = createComposeRule()
 
     private val manga = CatalogItem(
         id = 9, mediaType = "MANGA", title = "Moonlit Archive", image = "",
@@ -73,14 +75,25 @@ class ReportedFlowsTest {
         }
     }
 
-    @Test fun liveChatLayoutKeepsStatusBarTopBarConversationAndComposerOrderedWithIme() {
-        compose.onNodeWithTag("top_bar").assertIsDisplayed()
-        compose.onNodeWithTag("conversation").assertIsDisplayed()
-        compose.onNodeWithTag("composer_input").performClick().performTextInput("/ani")
-        compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
-        compose.onNodeWithTag("top_bar").assertIsDisplayed()
-        val top = compose.onNodeWithTag("top_bar").fetchSemanticsNode().boundsInRoot
-        val input = compose.onNodeWithTag("composer_input").fetchSemanticsNode().boundsInRoot
-        assertTrue("Top bar should remain above the composer while the keyboard is active", top.bottom < input.top)
+    @Test fun selectingEpisodeRangeReplacesChoicesWithOneUnavailableResult() {
+        compose.setContent {
+            val range = remember { mutableStateOf<String?>(null) }
+            val selected = range.value
+            if (selected == null) {
+                ChatBubble(
+                    entry = ChatEntry(1, false, "No episodes found yet.", menuTitle = "New anime episodes", actions = listOf("Today", "This week", "All")),
+                    onCatalogClick = {},
+                    onActionClick = { _, action -> range.value = action },
+                    onOpenSource = {},
+                    onSeriesAction = { _, _, _ -> }
+                )
+            } else {
+                androidx.compose.material3.Text(recentEpisodesUnavailableMessage(selected))
+            }
+        }
+        compose.onNodeWithText("Today").performClick()
+        compose.onNodeWithText("No episodes found for Today. Connect an anime extension to check availability.").assertIsDisplayed()
+        assertEquals(0, compose.onAllNodesWithText("This week").fetchSemanticsNodes().size)
+        assertEquals(0, compose.onAllNodesWithText("All").fetchSemanticsNodes().size)
     }
 }

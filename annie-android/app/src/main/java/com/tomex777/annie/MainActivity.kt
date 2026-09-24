@@ -107,7 +107,7 @@ private fun AnnieTheme(content: @Composable () -> Unit) {
     )
 }
 
-private data class ChatEntry(
+internal data class ChatEntry(
     val id: Long,
     val fromUser: Boolean,
     val text: String,
@@ -407,7 +407,7 @@ private fun WelcomePanel() {
 }
 
 @Composable
-private fun ChatBubble(
+internal fun ChatBubble(
     entry: ChatEntry,
     onCatalogClick: (CatalogItem) -> Unit,
     onActionClick: (String, String) -> Unit,
