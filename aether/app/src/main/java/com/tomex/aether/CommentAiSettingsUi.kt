@@ -108,7 +108,14 @@ internal fun CommentRow(comment: RedditComment) {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-internal fun AiSheet(post: MemePost, loading: Boolean, result: AiResult?, onAction: (AiAction) -> Unit, onDismiss: () -> Unit) {
+internal fun AiSheet(
+    post: MemePost,
+    loading: Boolean,
+    result: AiResult?,
+    onAction: (AiAction) -> Unit,
+    onSearchTag: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = AetherSurface, contentColor = AetherText) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 26.dp)) {
             Text("Aether AI", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
@@ -128,7 +135,7 @@ internal fun AiSheet(post: MemePost, loading: Boolean, result: AiResult?, onActi
                     if (result.tags.isNotEmpty()) {
                         Spacer(Modifier.height(10.dp))
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            result.tags.forEach { AssistChip(onClick = {}, label = { Text(it) }) }
+                            result.tags.forEach { tag -> AssistChip(onClick = { onSearchTag(tag) }, label = { Text(tag) }) }
                         }
                     }
                 }

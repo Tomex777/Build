@@ -26,6 +26,22 @@ app.post('/api/discover', async (req, res) => {
   }
 })
 
+app.post('/api/vibe', async (req, res) => {
+  try {
+    const mood = String(req.body?.mood || '').trim()
+    const categories = Array.isArray(req.body?.categories) ? req.body.categories.map(String).filter(Boolean) : []
+    if (!mood) return res.status(400).json({ error: 'mood is required' })
+    if (!categories.length) return res.status(400).json({ error: 'categories are required' })
+    const system = `Pick exactly one category from this list for the user's current mood: ${categories.join(', ')}. Return ONLY JSON {"category":"EXACT LIST VALUE","reason":"one short sentence"}.`
+    const raw = await chat(system, mood)
+    const parsed = parseJsonObject(raw) || {}
+    const picked = categories.find(x => x.toLowerCase() === String(parsed.category || '').toLowerCase()) || categories[0]
+    res.json({ category: picked, reason: String(parsed.reason || '') })
+  } catch (error) {
+    res.status(500).json({ error: safeError(error) })
+  }
+})
+
 for (const action of ['caption', 'explain', 'tags', 'similar']) {
   app.post(`/api/ai/${action}`, async (req, res) => {
     try {

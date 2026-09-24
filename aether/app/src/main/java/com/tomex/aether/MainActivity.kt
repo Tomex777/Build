@@ -78,6 +78,8 @@ fun AetherApp(vm: MainViewModel = viewModel()) {
     val listState = rememberLazyListState()
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var showSaved by rememberSaveable { mutableStateOf(false) }
+    var showSearch by rememberSaveable { mutableStateOf(false) }
+    var showVibe by rememberSaveable { mutableStateOf(false) }
     var editingCategory by remember { mutableStateOf<FeedCategory?>(null) }
     var aiPost by remember { mutableStateOf<MemePost?>(null) }
 
@@ -132,6 +134,9 @@ fun AetherApp(vm: MainViewModel = viewModel()) {
             AetherHeader(
                 seenCount = state.seenIds.size,
                 savedCount = state.savedPosts.size,
+                searchActive = state.searchQuery.isNotBlank(),
+                onSearch = { showSearch = true },
+                onVibe = { showVibe = true },
                 onSaved = { showSaved = true },
                 onSettings = { showSettings = true },
             )
@@ -164,6 +169,7 @@ fun AetherApp(vm: MainViewModel = viewModel()) {
                     },
                     onShare = { post -> sharePost(context, post) },
                     onOpenSource = { post -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(post.permalink))) },
+                    onReact = vm::toggleReaction,
                 )
             }
         }
@@ -186,7 +192,32 @@ fun AetherApp(vm: MainViewModel = viewModel()) {
             loading = state.aiLoading,
             result = state.aiResult,
             onAction = { vm.runAi(aiPost!!, it) },
+            onSearchTag = { tag ->
+                vm.setSearchQuery(tag)
+                aiPost = null
+                vm.clearAiResult()
+            },
             onDismiss = { aiPost = null; vm.clearAiResult() },
+        )
+    }
+
+
+    if (showSearch) {
+        SearchSheet(
+            currentQuery = state.searchQuery,
+            onSearch = vm::setSearchQuery,
+            onClear = vm::clearSearch,
+            onDismiss = { showSearch = false },
+        )
+    }
+
+    if (showVibe) {
+        VibeSheet(
+            loading = state.vibeLoading,
+            result = state.vibeResult,
+            onMatch = vm::matchVibe,
+            onApply = vm::applyVibe,
+            onDismiss = { showVibe = false; vm.clearVibe() },
         )
     }
 

@@ -34,6 +34,10 @@ data class AetherUiState(
     val aiResult: AiResult? = null,
     val aiLoading: Boolean = false,
     val message: String? = null,
+    val reactions: Map<String, String> = emptyMap(),
+    val searchQuery: String = "",
+    val vibeLoading: Boolean = false,
+    val vibeResult: VibeResult? = null,
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -70,6 +74,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch { store.seenIds.collect { ids -> _state.update { it.copy(seenIds = ids) } } }
         viewModelScope.launch { store.savedPosts.collect { posts -> _state.update { it.copy(savedPosts = posts) } } }
+        viewModelScope.launch { store.reactions.collect { reactions -> _state.update { it.copy(reactions = reactions) } } }
     }
 
     fun selectCategory(id: String) {
@@ -101,6 +106,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 settings = s.settings,
                 seenIds = _state.value.seenIds,
                 currentIds = _state.value.posts.mapTo(mutableSetOf()) { it.id },
+                searchQuery = _state.value.searchQuery,
             )
         }.onSuccess { batch ->
             _state.update { current ->
@@ -113,6 +119,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }.onFailure { error ->
             _state.update { it.copy(loading = false, loadingMore = false, error = error.message ?: "Could not load Reddit") }
+        }
+    }
+
+    fun setSearchQuery(query: String) {
+        val clean = query.trim()
+        if (clean == _state.value.searchQuery) return
+        _state.update { it.copy(searchQuery = clean) }
+        reload()
+    }
+
+    fun clearSearch() = setSearchQuery("")
+
+    fun toggleReaction(postId: String, emoji: String) {
+        viewModelScope.launch {
+            val current = _state.value.reactions[postId]
+            store.setReaction(postId, if (current == emoji) null else emoji)
         }
     }
 
@@ -226,6 +248,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 .onFailure { e -> _state.update { it.copy(aiLoading = false, message = e.message ?: "AI request failed") } }
         }
     }
+
+    fun matchVibe(mood: String) {
+        val baseUrl = _state.value.settings.aiBaseUrl
+        if (baseUrl.isBlank()) {
+            postMessage("Set the Aether AI server URL in Settings first")
+            return
+        }
+        if (mood.isBlank()) return
+        _state.update { it.copy(vibeLoading = true, vibeResult = null) }
+        viewModelScope.launch {
+            runCatching { repository.vibe(baseUrl, mood, _state.value.categories) }
+                .onSuccess { result -> _state.update { it.copy(vibeLoading = false, vibeResult = result) } }
+                .onFailure { e -> _state.update { it.copy(vibeLoading = false, message = e.message ?: "Vibe match failed") } }
+        }
+    }
+
+    fun applyVibe(result: VibeResult) {
+        val category = _state.value.categories.firstOrNull { it.name.equals(result.category, true) } ?: return
+        selectCategory(category.id)
+        _state.update { it.copy(vibeResult = null) }
+    }
+
+    fun clearVibe() = _state.update { it.copy(vibeResult = null, vibeLoading = false) }
 
     fun clearAiResult() = _state.update { it.copy(aiResult = null, aiLoading = false) }
 

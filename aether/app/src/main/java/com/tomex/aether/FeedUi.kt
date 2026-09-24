@@ -40,14 +40,26 @@ import kotlinx.coroutines.launch
 import kotlin.math.*
 
 @Composable
-internal fun AetherHeader(seenCount: Int, savedCount: Int, onSaved: () -> Unit, onSettings: () -> Unit) {
+internal fun AetherHeader(
+    seenCount: Int,
+    savedCount: Int,
+    searchActive: Boolean,
+    onSearch: () -> Unit,
+    onVibe: () -> Unit,
+    onSaved: () -> Unit,
+    onSettings: () -> Unit,
+) {
     Row(
         Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text("Aether", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = AetherText)
         Spacer(Modifier.weight(1f))
-        if (seenCount > 0) Text("$seenCount seen", fontSize = 11.sp, color = AetherMuted, modifier = Modifier.padding(end = 6.dp))
+        if (seenCount > 0) Text("$seenCount seen", fontSize = 11.sp, color = AetherMuted, modifier = Modifier.padding(end = 3.dp))
+        IconButton(onClick = onSearch) {
+            Icon(Icons.Default.Search, "Search", tint = if (searchActive) AetherAccent else AetherText)
+        }
+        IconButton(onClick = onVibe) { Icon(Icons.Default.AutoAwesome, "Vibe match", tint = AetherText) }
         Box {
             IconButton(onClick = onSaved) { Icon(Icons.Default.BookmarkBorder, "Saved", tint = AetherText) }
             if (savedCount > 0) Box(
@@ -107,6 +119,7 @@ internal fun MemeFeed(
     onDownload: (MemePost) -> Unit,
     onShare: (MemePost) -> Unit,
     onOpenSource: (MemePost) -> Unit,
+    onReact: (String, String) -> Unit,
 ) {
     LazyColumn(
         state = listState,
@@ -129,6 +142,8 @@ internal fun MemeFeed(
                 onDownload = { onDownload(post) },
                 onShare = { onShare(post) },
                 onOpenSource = { onOpenSource(post) },
+                reaction = state.reactions[post.id],
+                onReact = { emoji -> onReact(post.id, emoji) },
             )
         }
         if (state.loadingMore) item {
@@ -154,6 +169,8 @@ internal fun MemeItem(
     onDownload: () -> Unit,
     onShare: () -> Unit,
     onOpenSource: () -> Unit,
+    reaction: String?,
+    onReact: (String) -> Unit,
 ) {
     var dragX by remember(post.id) { mutableFloatStateOf(0f) }
     var videoPlaying by remember(post.id) { mutableStateOf(autoplayVideos) }
@@ -204,6 +221,23 @@ internal fun MemeItem(
                     Text(post.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 3, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.height(3.dp))
                     Text("r/${post.subreddit}  •  ${compactNumber(post.score)} points", color = Color.White.copy(alpha = .72f), fontSize = 11.sp)
+                }
+
+                Row(
+                    Modifier.align(Alignment.BottomCenter).padding(bottom = 58.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    listOf("😂", "💀", "🔥", "😭").forEach { emoji ->
+                        Box(
+                            Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(if (reaction == emoji) Color.White.copy(alpha = .22f) else Color.Black.copy(alpha = .46f))
+                                .clickable { onReact(emoji) },
+                            contentAlignment = Alignment.Center,
+                        ) { Text(emoji, fontSize = 18.sp) }
+                    }
                 }
 
                 Row(

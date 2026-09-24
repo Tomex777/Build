@@ -54,6 +54,11 @@ data class AppSettings(
     val redditClientId: String = "",
 )
 
+data class VibeResult(
+    val category: String,
+    val reason: String = "",
+)
+
 data class DiscoveryIntent(
     val categoryName: String = "",
     val queries: List<String> = emptyList(),

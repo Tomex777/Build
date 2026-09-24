@@ -50,6 +50,19 @@ class AiGatewayClient(
         )
     }
 
+    suspend fun vibe(baseUrl: String, mood: String, categories: List<FeedCategory>): VibeResult = withContext(Dispatchers.IO) {
+        require(baseUrl.isNotBlank()) { "AI server is not configured" }
+        val payload = JSONObject().apply {
+            put("mood", mood)
+            put("categories", JSONArray(categories.map { it.name }))
+        }
+        val obj = postJson("${baseUrl.trimEnd('/')}/api/vibe", payload)
+        VibeResult(
+            category = obj.optString("category"),
+            reason = obj.optString("reason"),
+        )
+    }
+
     private fun postJson(url: String, json: JSONObject): JSONObject {
         val request = Request.Builder()
             .url(url)

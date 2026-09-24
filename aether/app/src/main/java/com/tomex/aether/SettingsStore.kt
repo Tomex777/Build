@@ -29,6 +29,7 @@ class SettingsStore(private val context: Context) {
         val aiBaseUrl = stringPreferencesKey("ai_base_url")
         val redditClientId = stringPreferencesKey("reddit_client_id")
         val redditDeviceId = stringPreferencesKey("reddit_device_id")
+        val reactions = stringPreferencesKey("reactions_json")
     }
 
     val categories: Flow<List<FeedCategory>> = context.aetherDataStore.data.map { prefs ->
@@ -42,6 +43,7 @@ class SettingsStore(private val context: Context) {
     val seenIds: Flow<Set<String>> = context.aetherDataStore.data.map { it[Keys.seenIds] ?: emptySet() }
 
     val savedPosts: Flow<List<MemePost>> = context.aetherDataStore.data.map { decodePosts(it[Keys.savedPosts]) }
+    val reactions: Flow<Map<String, String>> = context.aetherDataStore.data.map { decodeReactions(it[Keys.reactions]) }
 
     val appSettings: Flow<AppSettings> = context.aetherDataStore.data.map { prefs ->
         AppSettings(
@@ -84,6 +86,25 @@ class SettingsStore(private val context: Context) {
     suspend fun setSavedPosts(posts: List<MemePost>) = context.aetherDataStore.edit { prefs ->
         prefs[Keys.savedPosts] = encodePosts(posts)
     }
+
+    suspend fun setReaction(postId: String, emoji: String?) = context.aetherDataStore.edit { prefs ->
+        val next = decodeReactions(prefs[Keys.reactions]).toMutableMap()
+        if (emoji.isNullOrBlank()) next.remove(postId) else next[postId] = emoji
+        if (next.size > 5_000) {
+            next.keys.take(next.size - 4_000).forEach(next::remove)
+        }
+        prefs[Keys.reactions] = JSONObject(next as Map<*, *>).toString()
+    }
+
+    private fun decodeReactions(raw: String?): Map<String, String> = runCatching {
+        if (raw.isNullOrBlank()) return@runCatching emptyMap()
+        val obj = JSONObject(raw)
+        buildMap {
+            obj.keys().forEach { key ->
+                obj.optString(key).takeIf { it.isNotBlank() }?.let { put(key, it) }
+            }
+        }
+    }.getOrDefault(emptyMap())
 
     private fun encodeCategories(items: List<FeedCategory>): String {
         val arr = JSONArray()

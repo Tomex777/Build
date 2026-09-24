@@ -24,12 +24,16 @@ class FeedRepository(
         settings: AppSettings,
         seenIds: Set<String>,
         currentIds: Set<String>,
+        searchQuery: String = "",
     ): List<MemePost> = coroutineScope {
         val subs = category.subreddits.map { it.removePrefix("r/").trim() }.filter { it.isNotBlank() }
         if (subs.isEmpty()) return@coroutineScope emptyList()
 
+        val effectiveTerms = (category.tags + searchQuery.trim().takeIf { it.isNotBlank() }.orEmpty())
+            .filter { it.isNotBlank() }
+            .distinct()
         val shuffled = subs.sortedBy { stableOrder(it, rotation) }
-        val selected = shuffled.filterNot { exhausted.contains(cursorKey(it, settings.sortMode, category.tags)) }.take(4)
+        val selected = shuffled.filterNot { exhausted.contains(cursorKey(it, settings.sortMode, effectiveTerms)) }.take(4)
             .ifEmpty {
                 exhausted.clear()
                 shuffled.take(4)
@@ -38,7 +42,7 @@ class FeedRepository(
 
         val results = selected.map { sub ->
             async {
-                val key = cursorKey(sub, settings.sortMode, category.tags)
+                val key = cursorKey(sub, settings.sortMode, effectiveTerms)
                 key to runCatching {
                     reddit.fetchSubreddit(
                         subreddit = sub,
@@ -46,7 +50,7 @@ class FeedRepository(
                         includeVideos = settings.includeVideos,
                         after = cursors[key],
                         limit = 40,
-                        searchTerms = category.tags,
+                        searchTerms = effectiveTerms,
                     )
                 }
             }
@@ -112,6 +116,9 @@ class FeedRepository(
     }
 
     suspend fun memeAi(baseUrl: String, post: MemePost, action: AiAction): AiResult = ai.memeAction(baseUrl, post, action)
+
+    suspend fun vibe(baseUrl: String, mood: String, categories: List<FeedCategory>): VibeResult =
+        ai.vibe(baseUrl, mood, categories)
 
     private fun blendImageFirst(posts: List<MemePost>, includeVideos: Boolean): List<MemePost> {
         val images = posts.filter { it.kind == MediaKind.IMAGE }.shuffled()
