@@ -126,7 +126,7 @@ async function openAiCompatible(url, key, model, system, user) {
     }),
   })
   const text = await response.text()
-  if (!response.ok) throw new Error(`AI ${response.status}: ${text.slice(0, 220)}`)
+  if (!response.ok) throw new Error('AI ' + response.status + ': ' + text.slice(0, 220))
   const json = JSON.parse(text)
   return String(json?.choices?.[0]?.message?.content || '')
 }
