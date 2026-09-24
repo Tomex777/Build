@@ -1,0 +1,14 @@
+{
+  "name": "aether-ai-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node index.js",
+    "check": "node --check index.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
