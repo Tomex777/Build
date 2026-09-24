@@ -3,8 +3,21 @@ set -euo pipefail
 
 OUT=/tmp/spotui-artifacts
 mkdir -p "$OUT"
+LIVE_LOGCAT_PID=""
+
+capture_resolver_logs() {
+  if [[ -f "$OUT/resolver-live-logcat.txt" ]]; then
+    grep -Ei 'SoraYouTubeMusic|player start|player result|resolved|signature timestamp|potoken|newpipe|PlaybackException|ExoPlayer|HttpDataSource|googlevideo' "$OUT/resolver-live-logcat.txt" \
+      | tail -n 260 > "$OUT/resolver-summary.txt" || true
+  fi
+}
 
 cleanup() {
+  if [[ -n "${LIVE_LOGCAT_PID:-}" ]]; then
+    kill "$LIVE_LOGCAT_PID" >/dev/null 2>&1 || true
+    wait "$LIVE_LOGCAT_PID" >/dev/null 2>&1 || true
+  fi
+  capture_resolver_logs
   adb shell pm enable com.android.launcher3 >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -73,6 +86,10 @@ wait_for_node() {
     elapsed=$((elapsed+1))
   done
   shot failure-node
+  capture_resolver_logs
+  echo "--- SpotUI resolver summary ---" >&2
+  cat "$OUT/resolver-summary.txt" >&2 2>/dev/null || true
+  echo "--- end resolver summary ---" >&2
   adb logcat -d -t 800 | grep -Ei 'com\.night\.spotui|youtube|innertube|ExoPlayer|AndroidRuntime|FATAL|Exception' | tail -n 200 >&2 || true
   return 1
 }
@@ -178,6 +195,8 @@ shot 01-search-adele
 adb shell input keyevent KEYCODE_BACK || true
 sleep 2
 adb logcat -c || true
+adb logcat -v threadtime > "$OUT/resolver-live-logcat.txt" 2>&1 &
+LIVE_LOGCAT_PID=$!
 tap_text 'Play Easy On Me'
 wait_for_node 'Mini player' 15
 wait_for_node Pause 50
