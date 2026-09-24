@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+OUT=/tmp/spotui-artifacts
+mkdir -p "$OUT"
+
+cleanup() {
+  adb shell pm enable com.android.launcher3 >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+APK="$SPOTUI_ROOT/spotui-app/build/outputs/apk/debug/spotui-app-debug.apk"
+adb uninstall com.night.spotui >/dev/null 2>&1 || true
+adb install -r "$APK"
+
+adb shell am force-stop com.android.launcher3 >/dev/null 2>&1 || true
+adb shell pm disable-user --user 0 com.android.launcher3 >/dev/null 2>&1 || true
+
+adb shell am force-stop com.night.spotui
+adb shell am start -W -n com.night.spotui/.MainActivity >/dev/null
+sleep 7
+
+dump_ui() {
+  adb shell uiautomator dump /sdcard/spotui.xml >/dev/null 2>&1 || true
+  adb pull /sdcard/spotui.xml /tmp/spotui.xml >/dev/null 2>&1 || true
+}
+
+shot() {
+  local name="$1"
+  adb exec-out screencap -p > "$OUT/$name.png"
+  dump_ui
+  cp /tmp/spotui.xml "$OUT/$name.xml" || true
+}
+
+node_exists() {
+  local label="$1"
+  dump_ui
+  python3 - "$label" <<'PY'
+import sys, xml.etree.ElementTree as ET
+label=sys.argv[1]
+root=ET.parse('/tmp/spotui.xml').getroot()
+for node in root.iter('node'):
+    text=(node.attrib.get('text') or '').strip()
+    desc=(node.attrib.get('content-desc') or '').strip()
+    if text == label or desc == label:
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+
+node_contains() {
+  local label="$1"
+  dump_ui
+  python3 - "$label" <<'PY'
+import sys, xml.etree.ElementTree as ET
+needle=sys.argv[1].lower()
+root=ET.parse('/tmp/spotui.xml').getroot()
+for node in root.iter('node'):
+    value=((node.attrib.get('text') or '')+' '+(node.attrib.get('content-desc') or '')).lower()
+    if needle in value:
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+
+wait_for_node() {
+  local label="$1"
+  local timeout="$2"
+  local elapsed=0
+  while (( elapsed < timeout )); do
+    if node_exists "$label"; then return 0; fi
+    sleep 1
+    elapsed=$((elapsed+1))
+  done
+  shot failure-node
+  adb logcat -d -t 800 | grep -Ei 'com\.night\.spotui|youtube|innertube|ExoPlayer|AndroidRuntime|FATAL|Exception' | tail -n 200 >&2 || true
+  return 1
+}
+
+wait_for_contains() {
+  local label="$1"
+  local timeout="$2"
+  local elapsed=0
+  while (( elapsed < timeout )); do
+    if node_contains "$label"; then return 0; fi
+    sleep 1
+    elapsed=$((elapsed+1))
+  done
+  shot failure-contains
+  adb logcat -d -t 1000 | grep -Ei 'com\.night\.spotui|youtube|innertube|ExoPlayer|AndroidRuntime|FATAL|Exception' | tail -n 240 >&2 || true
+  return 1
+}
+
+tap_text() {
+  local label="$1"
+  dump_ui
+  python3 - "$label" <<'PY'
+import re, subprocess, sys, xml.etree.ElementTree as ET
+label=sys.argv[1]
+root=ET.parse('/tmp/spotui.xml').getroot()
+matches=[]
+for node in root.iter('node'):
+    text=(node.attrib.get('text') or '').strip()
+    desc=(node.attrib.get('content-desc') or '').strip()
+    if text != label and desc != label: continue
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+    if not m: continue
+    x1,y1,x2,y2=map(int,m.groups())
+    matches.append(((x1+x2)//2,(y1+y2)//2))
+if not matches: raise SystemExit("No UI node for "+label)
+x,y=matches[-1]
+subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
+PY
+  sleep 2
+}
+
+tap_search_field() {
+  dump_ui
+  python3 <<'PY'
+import re, subprocess, xml.etree.ElementTree as ET
+root=ET.parse('/tmp/spotui.xml').getroot()
+candidates=[]
+for node in root.iter('node'):
+    cls=node.attrib.get('class','')
+    text=(node.attrib.get('text') or '').strip()
+    if cls != 'android.widget.EditText' and text != 'Songs, artists, albums':
+        continue
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+    if not m: continue
+    x1,y1,x2,y2=map(int,m.groups())
+    candidates.append(((x1+x2)//2,(y1+y2)//2))
+if not candidates: raise SystemExit('Search field not found')
+x,y=candidates[0]
+subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
+PY
+  sleep 1
+}
+
+tap_first_adele_result() {
+  dump_ui
+  python3 <<'PY'
+import re, subprocess, xml.etree.ElementTree as ET
+root=ET.parse('/tmp/spotui.xml').getroot()
+parents={child: parent for parent in root.iter() for child in parent}
+for node in root.iter('node'):
+    value=((node.attrib.get('text') or '')+' '+(node.attrib.get('content-desc') or '')).lower()
+    if 'adele' not in value: continue
+    current=node
+    while current is not None:
+        if current.attrib.get('clickable') == 'true':
+            m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', current.attrib.get('bounds',''))
+            if m:
+                x1,y1,x2,y2=map(int,m.groups())
+                subprocess.check_call(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)])
+                raise SystemExit(0)
+        current=parents.get(current)
+raise SystemExit('No clickable Adele result found')
+PY
+  sleep 2
+}
+
+wait_for_node SpotUI 20
+wait_for_node Search 20
+wait_for_node Library 20
+shot 00-home
+
+tap_text Search
+wait_for_node Search 15
+tap_search_field
+adb shell input text Adele
+adb shell input keyevent KEYCODE_ENTER
+wait_for_contains Adele 35
+shot 01-search-adele
+
+adb logcat -c || true
+tap_first_adele_result
+wait_for_node Pause 50
+shot 02-playing
+
+adb shell dumpsys activity services com.night.spotui | grep -q 'SpotPlaybackService'
+adb shell dumpsys media_session | grep -q 'com.night.spotui'
+
+adb shell am start -W -a android.settings.SETTINGS >/dev/null
+sleep 3
+adb shell dumpsys activity services com.night.spotui | grep -q 'SpotPlaybackService'
+adb shell dumpsys media_session | grep -q 'com.night.spotui'
+shot 03-background
+
+echo "SpotUI standalone live smoke passed."

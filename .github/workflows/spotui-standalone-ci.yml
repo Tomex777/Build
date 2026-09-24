@@ -87,40 +87,7 @@ jobs:
           profile: pixel_7
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: |
-            set -eu
-            APK="$SPOTUI_ROOT/spotui-app/build/outputs/apk/debug/spotui-app-debug.apk"
-            adb install -r "$APK"
-            adb shell am force-stop com.night.spotui
-            adb shell am start -W -n com.night.spotui/.MainActivity
-            sleep 8
-            adb exec-out screencap -p > /tmp/spotui-artifacts/00-home.png
-            adb shell uiautomator dump /sdcard/spotui.xml >/dev/null
-            adb pull /sdcard/spotui.xml /tmp/spotui-artifacts/00-home.xml >/dev/null
-            grep -q 'text="SpotUI"' /tmp/spotui-artifacts/00-home.xml
-            grep -q 'text="Search"' /tmp/spotui-artifacts/00-home.xml
-            grep -q 'text="Library"' /tmp/spotui-artifacts/00-home.xml
-
-            python3 - <<'PY'
-            import re, subprocess, xml.etree.ElementTree as ET
-            root=ET.parse('/tmp/spotui-artifacts/00-home.xml').getroot()
-            for n in root.iter('node'):
-                if (n.attrib.get('text') or '') == 'Search':
-                    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', n.attrib.get('bounds',''))
-                    if m:
-                        x1,y1,x2,y2=map(int,m.groups())
-                        subprocess.check_call(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)])
-                        break
-            PY
-            sleep 2
-            adb shell input tap 400 190
-            adb shell input text Adele
-            adb shell input keyevent KEYCODE_ENTER
-            sleep 12
-            adb exec-out screencap -p > /tmp/spotui-artifacts/01-search.png
-            adb shell uiautomator dump /sdcard/spotui-search.xml >/dev/null
-            adb pull /sdcard/spotui-search.xml /tmp/spotui-artifacts/01-search.xml >/dev/null
-            grep -qi 'Adele' /tmp/spotui-artifacts/01-search.xml
+          script: bash "$GITHUB_WORKSPACE/spotui-ci/spotui-live-smoke.sh"
 
       - name: Stage APK
         if: always()
