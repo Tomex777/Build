@@ -101,9 +101,9 @@ if grep -qi "Created by" night-message-blocks-artifacts/all-blocks.xml; then
   exit 1
 fi
 
-# Render the one persisted choice produced when identical create_options calls
-# arrive twice. Provider instrumentation verifies persistence; this capture
-# verifies the resulting message is presented as one visible choice card.
+# Render the ChoiceResultMessage shape used by Night's persisted "choice"
+# messages. Provider instrumentation separately verifies that duplicate
+# create_options calls persist only one result.
 adb shell am force-stop com.example.whatsapp
 adb shell am start -W -n com.example.whatsapp/.ChatPreviewActivity --es mode options
 sleep 3
@@ -115,8 +115,8 @@ import xml.etree.ElementTree as ET
 root = ET.parse("night-message-blocks-artifacts/05-repeated-options.xml").getroot()
 texts = [node.attrib.get("text", "") for node in root.iter("node")]
 assert texts.count("Pick one") == 1, f"expected one visible option card, found {texts.count('Pick one')}"
-assert any("Choose one" in text for text in texts), "choice-card detail was not visible"
 assert texts.count("A") == 1 and texts.count("B") == 1, "choice options A and B were not visible exactly once"
+assert texts.count("Choose one or more") == 1, "multiple-choice submit action was not visible"
 PY
 
 adb logcat -d -v threadtime > night-message-blocks-artifacts/logcat.txt
