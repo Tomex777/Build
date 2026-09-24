@@ -68,10 +68,10 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val mediaCache = remember { MediaCatalogCache(context.applicationContext) }
-    val redditClientId = remember(context) {
-        context.getSharedPreferences("sora_reddit_source_v1", android.content.Context.MODE_PRIVATE).getString("client_id", "").orEmpty()
-    }
+    val redditPreferences = remember(context) { context.getSharedPreferences("sora_reddit_source_v1", android.content.Context.MODE_PRIVATE) }
+    val tmdbPreferences = remember(context) { context.getSharedPreferences("sora_tmdb_source_v1", android.content.Context.MODE_PRIVATE) }
     var networkEpoch by remember { mutableIntStateOf(0) }
+    var credentialsEpoch by remember { mutableIntStateOf(0) }
     var recommendations by remember {
         mutableStateOf(
             listOf(ContentType.ANIME, ContentType.MANGA, ContentType.MOVIE)
@@ -91,7 +91,19 @@ fun HomeScreen(
         onDispose { if (registered) runCatching { connectivity.unregisterNetworkCallback(callback) } }
     }
 
-    LaunchedEffect(extensions, networkEpoch) {
+    DisposableEffect(redditPreferences, tmdbPreferences) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == "client_id" || key == "read_access_token") credentialsEpoch++
+        }
+        redditPreferences.registerOnSharedPreferenceChangeListener(listener)
+        tmdbPreferences.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            redditPreferences.unregisterOnSharedPreferenceChangeListener(listener)
+            tmdbPreferences.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+
+    LaunchedEffect(extensions, networkEpoch, credentialsEpoch) {
         val result = mutableStateListOf<HomeBrowseCard>().apply { addAll(recommendations) }
         loadHomeType(extensions, manager, mediaCache, ContentType.ANIME) { cards ->
             result.removeAll { it.type == ContentType.ANIME }; result.addAll(cards.take(4)); recommendations = result.toList()
@@ -99,11 +111,15 @@ fun HomeScreen(
         loadHomeType(extensions, manager, mediaCache, ContentType.MANGA) { cards ->
             result.removeAll { it.type == ContentType.MANGA }; result.addAll(cards.take(4)); recommendations = result.toList()
         }
-        loadHomeType(extensions, manager, mediaCache, ContentType.MOVIE) { cards ->
+        loadHomeType(extensions, manager, mediaCache, ContentType.MOVIE, tmdbReadAccessToken = tmdbPreferences.getString("read_access_token", "").orEmpty()) { cards ->
             result.removeAll { it.type == ContentType.MOVIE }; result.addAll(cards.take(4)); recommendations = result.toList()
         }
         loadHomeType(extensions, manager, mediaCache, ContentType.MUSIC) { cards -> music = cards.take(8) }
-        loadHomeType(extensions, manager, mediaCache, ContentType.MEME, redditClientId) { cards -> memes = cards.take(4) }
+        loadHomeType(
+            extensions, manager, mediaCache, ContentType.MEME,
+            redditClientId = redditPreferences.getString("client_id", "").orEmpty(),
+            tmdbReadAccessToken = tmdbPreferences.getString("read_access_token", "").orEmpty(),
+        ) { cards -> memes = cards.take(4) }
     }
 
     val continueEntries = progressEntries
@@ -315,6 +331,7 @@ private fun loadHomeType(
     cache: MediaCatalogCache,
     type: ContentType,
     redditClientId: String = "",
+    tmdbReadAccessToken: String = "",
     callback: (List<HomeBrowseCard>) -> Unit,
 ) {
     val key = when (type) { ContentType.MOVIE -> "movie"; ContentType.MEME -> "memes"; else -> type.name.lowercase() }
@@ -332,7 +349,18 @@ private fun loadHomeType(
         manager.call(
             ext,
             ExtensionContract.Method.BROWSE,
-            JSONObject().put("sourceId", source.id).put("type", key).put("redditClientId", redditClientId).toString(),
+            JSONObject()
+                .put("sourceId", source.id)
+                .put("type", key)
+                .put(
+                    "redditClientId",
+                    if (ext.packageName == "com.night.sora.ext.memes.reddit" && source.id == "reddit.memes") redditClientId else "",
+                )
+                .put(
+                    "tmdbReadAccessToken",
+                    if (ext.packageName == "com.night.sora.ext.live" && source.id == "live.tmdb.movies") tmdbReadAccessToken else "",
+                )
+                .toString(),
         ) { result ->
             collected[index] = result.getOrNull()?.let { raw ->
                 runCatching {

@@ -16,3 +16,4 @@ rerun 38 - rebuild full hub after restoring catalog surfaces and correcting empt
 rerun 39 - recognize meme feed content or explicit source unavailability without failure screenshot
 Reddit OAuth setup and full hub QA
 Broaden live iTunes movie browse query and verify API 36 movie state
+Add TMDB movie discovery with explicit API-token configuration

@@ -79,6 +79,9 @@ fun MediaDetailScreen(
     val redditClientId = remember(context) {
         context.getSharedPreferences("sora_reddit_source_v1", Context.MODE_PRIVATE).getString("client_id", "").orEmpty()
     }
+    val tmdbReadAccessToken = remember(context) {
+        context.getSharedPreferences("sora_tmdb_source_v1", Context.MODE_PRIVATE).getString("read_access_token", "").orEmpty()
+    }
     val listState = rememberLazyListState()
 
     var active by remember(selection) { mutableStateOf(selection) }
@@ -157,7 +160,12 @@ fun MediaDetailScreen(
         manager.call(
             ext,
             method,
-            JSONObject().put("sourceId", target.sourceId).put("id", target.id).put("redditClientId", redditClientId).toString(),
+            JSONObject()
+                .put("sourceId", target.sourceId)
+                .put("id", target.id)
+                .put("redditClientId", if (ext.packageName == "com.night.sora.ext.memes.reddit" && target.sourceId == "reddit.memes") redditClientId else "")
+                .put("tmdbReadAccessToken", if (ext.packageName == "com.night.sora.ext.live" && target.sourceId == "live.tmdb.movies") tmdbReadAccessToken else "")
+                .toString(),
         ) { result ->
             if (target.type == ContentType.MOVIE) {
                 movieStreams = result.getOrNull()?.let(::parsePlaybackStreams).orEmpty()
@@ -185,7 +193,7 @@ fun MediaDetailScreen(
         readerError = null
         playbackError = null
         sourceResolutionMessage = null
-        searchSourceSelection(active, ext, source, manager) { found ->
+        searchSourceSelection(active, ext, source, manager, redditClientId, tmdbReadAccessToken) { found ->
             sourceSearchBusy = false
             if (found == null) {
                 sourceSearchError = "${source.name} did not return an exact title match for ${active.title}."
@@ -327,7 +335,12 @@ fun MediaDetailScreen(
             manager.call(
                 displayExtension,
                 ExtensionContract.Method.DETAILS,
-                JSONObject().put("sourceId", requested.sourceId).put("id", requested.id).put("redditClientId", redditClientId).toString(),
+                JSONObject()
+                    .put("sourceId", requested.sourceId)
+                    .put("id", requested.id)
+                    .put("redditClientId", if (displayExtension.packageName == "com.night.sora.ext.memes.reddit" && requested.sourceId == "reddit.memes") redditClientId else "")
+                    .put("tmdbReadAccessToken", if (displayExtension.packageName == "com.night.sora.ext.live" && requested.sourceId == "live.tmdb.movies") tmdbReadAccessToken else "")
+                    .toString(),
             ) { result ->
                 if (active.id == requested.id && active.type == requested.type) {
                     result.getOrNull()?.let { metadata = parseMetadata(it, requested.subtitle) }
@@ -347,7 +360,7 @@ fun MediaDetailScreen(
                 sourceOptions.firstOrNull { (ext, source) -> ext.packageName == parts[0] && source.id == parts[1] }
             }
             if (option != null) {
-                searchSourceSelection(requested, option.first, option.second, manager) { found ->
+                searchSourceSelection(requested, option.first, option.second, manager, redditClientId, tmdbReadAccessToken) { found ->
                     if (active.id == requested.id && active.type == requested.type) {
                         if (found != null) {
                             consumption = found
@@ -857,12 +870,16 @@ private fun searchSourceSelection(
     ext: InstalledExtension,
     source: SourceDescriptor,
     manager: ExtensionManager,
+    redditClientId: String,
+    tmdbReadAccessToken: String,
     callback: (ExtensionMediaSelection?) -> Unit,
 ) {
     val payload = JSONObject()
         .put("sourceId", source.id)
         .put("type", detailTypeKey(active.type))
         .put("query", active.title)
+        .put("redditClientId", if (ext.packageName == "com.night.sora.ext.memes.reddit" && source.id == "reddit.memes") redditClientId else "")
+        .put("tmdbReadAccessToken", if (ext.packageName == "com.night.sora.ext.live" && source.id == "live.tmdb.movies") tmdbReadAccessToken else "")
         .toString()
     manager.call(ext, ExtensionContract.Method.SEARCH, payload) { result ->
         callback(result.getOrNull()?.let { raw -> parseBestSourceSelection(raw, source.id, ext.packageName, active) })

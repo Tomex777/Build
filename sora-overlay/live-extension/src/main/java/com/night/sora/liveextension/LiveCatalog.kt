@@ -10,35 +10,40 @@ import java.util.concurrent.ConcurrentHashMap
 
 object LiveCatalog {
     private const val CACHE_MS = 5 * 60 * 1000L
+    private const val TMDB_TOKEN_REQUIRED = "Movies require a TMDB API Read Access Token. Open More → Extensions → Sora Live Sources to configure it."
     private data class CacheEntry(val at: Long, val body: String)
     private val cache = ConcurrentHashMap<String, CacheEntry>()
 
-    fun browse(sourceId: String, type: String): String = when (sourceId) {
+    fun browse(sourceId: String, type: String, tmdbToken: String = ""): String = when (sourceId) {
         "live.jikan.anime" -> mapJikanList(get("https://api.jikan.moe/v4/top/anime?limit=25"), isManga = false)
         "live.jikan.manga" -> mapJikanList(get("https://api.jikan.moe/v4/top/manga?limit=25"), isManga = true)
-        "live.itunes.movies" -> mapItunes(get(itunesSearch("movie", "movie", "movie")), type = "movie")
+        "live.itunes.movies", "live.tmdb.movies" -> mapTmdbMovies(tmdbGet("https://api.themoviedb.org/3/trending/movie/week?language=en-US&page=1", tmdbToken))
         "live.tvmaze.tv" -> mapTvSchedule(get("https://api.tvmaze.com/schedule?country=US"))
         "live.itunes.music" -> mapItunes(get(itunesSearch("top hits", "music", "song")), type = "music")
         else -> JSONArray().toString()
     }
 
-    fun search(sourceId: String, query: String): String {
+    fun search(sourceId: String, query: String, tmdbToken: String = ""): String {
         val q = query.trim()
-        if (q.isBlank()) return browse(sourceId, "")
+        if (q.isBlank()) return browse(sourceId, "", tmdbToken)
         return when (sourceId) {
             "live.jikan.anime" -> mapJikanList(get("https://api.jikan.moe/v4/anime?q=${enc(q)}&limit=25&sfw=true"), false)
             "live.jikan.manga" -> mapJikanList(get("https://api.jikan.moe/v4/manga?q=${enc(q)}&limit=25&sfw=true"), true)
-            "live.itunes.movies" -> mapItunes(get(itunesSearch(q, "movie", "movie")), "movie")
+            "live.itunes.movies", "live.tmdb.movies" -> mapTmdbMovies(
+                tmdbGet("https://api.themoviedb.org/3/search/movie?query=${enc(q)}&include_adult=false&language=en-US&page=1", tmdbToken)
+            )
             "live.tvmaze.tv" -> mapTvSearch(get("https://api.tvmaze.com/search/shows?q=${enc(q)}"))
             "live.itunes.music" -> mapItunes(get(itunesSearch(q, "music", "song")), "music")
             else -> JSONArray().toString()
         }
     }
 
-    fun details(sourceId: String, id: String): String = when (sourceId) {
+    fun details(sourceId: String, id: String, tmdbToken: String = ""): String = when (sourceId) {
         "live.jikan.anime" -> mapJikanDetails(get("https://api.jikan.moe/v4/anime/${numericId(id)}/full"))
         "live.jikan.manga" -> mapJikanDetails(get("https://api.jikan.moe/v4/manga/${numericId(id)}/full"))
-        "live.itunes.movies" -> mapItunesDetails(get("https://itunes.apple.com/lookup?id=${numericId(id)}&entity=movie"), "movie")
+        "live.itunes.movies", "live.tmdb.movies" -> mapTmdbDetails(
+            tmdbGet("https://api.themoviedb.org/3/movie/${numericId(id)}?language=en-US", tmdbToken)
+        )
         "live.tvmaze.tv" -> mapTvDetails(get("https://api.tvmaze.com/shows/${numericId(id)}"))
         "live.itunes.music" -> mapItunesDetails(get("https://itunes.apple.com/lookup?id=${numericId(id)}&entity=song"), "music")
         else -> JSONObject().put("description", "No details available.").toString()
@@ -73,7 +78,7 @@ object LiveCatalog {
     fun relatedArtists(sourceId: String, id: String): String = JSONArray().toString()
     fun feed(sourceId: String): String = JSONArray().toString()
 
-    private fun get(url: String): String {
+    private fun get(url: String, bearerToken: String? = null): String {
         val now = System.currentTimeMillis()
         cache[url]?.takeIf { now - it.at < CACHE_MS }?.let { return it.body }
         val connection = URI(url).toURL().openConnection() as HttpURLConnection
@@ -82,6 +87,7 @@ object LiveCatalog {
         connection.readTimeout = 15_000
         connection.setRequestProperty("Accept", "application/json")
         connection.setRequestProperty("User-Agent", "Sora/0.2 Android")
+        if (!bearerToken.isNullOrBlank()) connection.setRequestProperty("Authorization", "Bearer ${bearerToken.trim()}")
         return try {
             val code = connection.responseCode
             val stream = if (code in 200..299) connection.inputStream else connection.errorStream
@@ -92,6 +98,78 @@ object LiveCatalog {
         } finally {
             connection.disconnect()
         }
+    }
+
+    private fun tmdbGet(url: String, accessToken: String): String {
+        val token = accessToken.trim()
+        require(token.isNotBlank()) { TMDB_TOKEN_REQUIRED }
+        val now = System.currentTimeMillis()
+        cache[url]?.takeIf { now - it.at < CACHE_MS }?.let { return it.body }
+        val connection = URI(url).toURL().openConnection() as HttpURLConnection
+        connection.requestMethod = "GET"
+        connection.connectTimeout = 12_000
+        connection.readTimeout = 15_000
+        connection.setRequestProperty("Accept", "application/json")
+        connection.setRequestProperty("Authorization", "Bearer $token")
+        connection.setRequestProperty("User-Agent", "Sora/0.2 Android")
+        return try {
+            val code = connection.responseCode
+            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+            val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            if (code !in 200..299) {
+                val message = when (code) {
+                    401, 403 -> "TMDB rejected the API Read Access Token (HTTP $code). Check it in More → Extensions → Sora Live Sources."
+                    429 -> "TMDB is rate-limiting requests. Wait a moment and retry."
+                    else -> "TMDB returned HTTP $code. Retry the movie catalog."
+                }
+                error(message)
+            }
+            cache[url] = CacheEntry(now, body)
+            body
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun mapTmdbMovies(raw: String): String {
+        val data = JSONObject(raw).optJSONArray("results") ?: JSONArray()
+        return JSONArray().apply {
+            for (i in 0 until data.length()) {
+                val item = data.optJSONObject(i) ?: continue
+                if (item.optBoolean("adult", false)) continue
+                val id = item.optInt("id")
+                val title = item.optString("title").trim()
+                if (id <= 0 || title.isBlank()) continue
+                val date = item.optString("release_date").take(4)
+                val rating = item.optDouble("vote_average", 0.0).takeIf { it > 0.0 }?.let { String.format("%.1f", it) }
+                val poster = item.optString("poster_path").takeIf { it.startsWith("/") }
+                    ?.let { "https://image.tmdb.org/t/p/w500$it" }.orEmpty()
+                put(
+                    JSONObject()
+                        .put("id", id.toString())
+                        .put("title", title)
+                        .put("subtitle", listOfNotNull(date, rating?.let { "$it TMDB" }).joinToString(" · "))
+                        .put("artworkUrl", poster)
+                )
+            }
+        }.toString()
+    }
+
+    private fun mapTmdbDetails(raw: String): String {
+        val movie = JSONObject(raw)
+        val genres = movie.optJSONArray("genres")
+        val genreNames = if (genres == null) emptyList() else buildList {
+            for (index in 0 until genres.length()) genres.optJSONObject(index)?.optString("name")?.takeIf { it.isNotBlank() }?.let(::add)
+        }
+        val date = movie.optString("release_date").take(4)
+        val rating = movie.optDouble("vote_average", 0.0).takeIf { it > 0.0 }?.let { String.format("%.1f / 10 on TMDB", it) }.orEmpty()
+        return JSONObject()
+            .put("description", movie.optString("overview").ifBlank { "No overview available from TMDB." })
+            .put("genres", JSONArray(genreNames))
+            .put("year", date.toIntOrNull() ?: 0)
+            .put("score", rating)
+            .put("status", movie.optString("status"))
+            .toString()
     }
 
     private fun itunesSearch(term: String, media: String, entity: String): String =

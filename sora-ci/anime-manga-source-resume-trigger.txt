@@ -11,3 +11,4 @@ API 36 retry: verify resumed player progress after control auto-hide
 rerun 44 - rebuild and validate source resume after media copy fix
 rerun 46 - retest source resume against restored MediaScreen
 Revalidate source resume after shared catalog UI changes
+Revalidate source resume after final hub integrations

@@ -25,14 +25,14 @@ class LiveExtensionService : Service() {
         version = "0.2.0",
         apiVersion = ExtensionContract.API_VERSION,
         author = "Night",
-        description = "Temporary network-backed discovery sources for Movies, TV and Music.",
+        description = "Network-backed discovery for movies, TV and music. Movie playback requires a separate playback extension.",
         contentTypes = setOf("movie", "tv", "music"),
         capabilities = setOf("catalog", "browse", "search", "details", "episodes", "streams", "lyrics", "relatedArtists"),
         permissions = listOf(
-            ExtensionPermission("network", listOf("api.tvmaze.com", "itunes.apple.com")),
+            ExtensionPermission("network", listOf("api.tvmaze.com", "itunes.apple.com", "api.themoviedb.org", "image.tmdb.org")),
         ),
         sources = listOf(
-            SourceDescriptor("live.itunes.movies", "iTunes Movies", setOf("movie"), setOf("browse", "search", "details")),
+            SourceDescriptor("live.tmdb.movies", "TMDB Movies", setOf("movie"), setOf("browse", "search", "details")),
             SourceDescriptor("live.tvmaze.tv", "TVmaze", setOf("tv"), setOf("browse", "search", "details", "episodes")),
             SourceDescriptor("live.itunes.music", "iTunes Music", setOf("music"), setOf("browse", "search", "details", "streams", "lyrics", "relatedArtists")),
         ),
@@ -60,9 +60,9 @@ class LiveExtensionService : Service() {
                     val id = payload.optString("id")
                     when (method) {
                         ExtensionContract.Method.MANIFEST -> descriptor.toJson()
-                        ExtensionContract.Method.BROWSE -> LiveCatalog.browse(sourceId, payload.optString("type"))
-                        ExtensionContract.Method.SEARCH -> LiveCatalog.search(sourceId, payload.optString("query"))
-                        ExtensionContract.Method.DETAILS -> LiveCatalog.details(sourceId, id)
+                        ExtensionContract.Method.BROWSE -> LiveCatalog.browse(sourceId, payload.optString("type"), payload.optString("tmdbReadAccessToken"))
+                        ExtensionContract.Method.SEARCH -> LiveCatalog.search(sourceId, payload.optString("query"), payload.optString("tmdbReadAccessToken"))
+                        ExtensionContract.Method.DETAILS -> LiveCatalog.details(sourceId, id, payload.optString("tmdbReadAccessToken"))
                         ExtensionContract.Method.EPISODES -> LiveCatalog.episodes(sourceId, id)
                         ExtensionContract.Method.CHAPTERS -> LiveCatalog.chapters(sourceId, id)
                         ExtensionContract.Method.PAGES -> LiveCatalog.pages(sourceId, id)

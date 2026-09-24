@@ -70,11 +70,18 @@ jobs:
           grep -q 'Installed-app client ID' "$SETTINGS"
           ! grep -q 'www.reddit.com/r/memes' "$REDDIT"
 
-      - name: Guard broad movie discovery query
+      - name: Enforce TMDB movie catalog configuration
         run: |
           set -euo pipefail
           LIVE='sora-overlay/live-extension/src/main/java/com/night/sora/liveextension/LiveCatalog.kt'
-          grep -q 'itunesSearch("movie", "movie", "movie")' "$LIVE"
+          SERVICE='sora-overlay/live-extension/src/main/java/com/night/sora/liveextension/LiveExtensionService.kt'
+          SETTINGS='sora-overlay/app/src/main/java/com/night/sora/ui/screens/ExtensionsScreen.kt'
+          MEDIA='sora-overlay/app/src/main/java/com/night/sora/ui/screens/MediaScreen.kt'
+          grep -q 'api.themoviedb.org/3/trending/movie/week' "$LIVE"
+          grep -q 'live.tmdb.movies' "$SERVICE"
+          grep -q 'tmdbReadAccessToken' "$SERVICE"
+          grep -q 'TMDB API Read Access Token' "$SETTINGS"
+          grep -q 'ext.packageName == "com.night.sora.ext.live" && source.id == "live.tmdb.movies"' "$MEDIA"
           ! grep -q 'itunesSearch("new movie"' "$LIVE"
 
       - name: Reconstruct current Android source

@@ -145,12 +145,17 @@ fun MediaScreen(
     }
 
     val redditPreferences = remember(context) { context.getSharedPreferences("sora_reddit_source_v1", android.content.Context.MODE_PRIVATE) }
-    DisposableEffect(redditPreferences) {
+    val tmdbPreferences = remember(context) { context.getSharedPreferences("sora_tmdb_source_v1", android.content.Context.MODE_PRIVATE) }
+    DisposableEffect(redditPreferences, tmdbPreferences) {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == "client_id") refreshEpoch++
+            if (key == "client_id" || key == "read_access_token") refreshEpoch++
         }
         redditPreferences.registerOnSharedPreferenceChangeListener(listener)
-        onDispose { redditPreferences.unregisterOnSharedPreferenceChangeListener(listener) }
+        tmdbPreferences.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            redditPreferences.unregisterOnSharedPreferenceChangeListener(listener)
+            tmdbPreferences.unregisterOnSharedPreferenceChangeListener(listener)
+        }
     }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refreshEpoch++ }
 
@@ -283,7 +288,16 @@ fun MediaScreen(
                 .put("sourceId", source.id)
                 .put("type", key)
                 .put("query", requestQuery)
-                .put("redditClientId", redditPreferences.getString("client_id", "").orEmpty())
+                .put(
+                    "redditClientId",
+                    if (ext.packageName == "com.night.sora.ext.memes.reddit" && source.id == "reddit.memes")
+                        redditPreferences.getString("client_id", "").orEmpty() else "",
+                )
+                .put(
+                    "tmdbReadAccessToken",
+                    if (ext.packageName == "com.night.sora.ext.live" && source.id == "live.tmdb.movies")
+                        tmdbPreferences.getString("read_access_token", "").orEmpty() else "",
+                )
                 .toString()
             manager.call(ext, method, payload) { result ->
                 failures[index] = result.exceptionOrNull()?.message
@@ -297,7 +311,7 @@ fun MediaScreen(
                         if (fresh.isNotEmpty()) {
                             rows = fresh
                             primaryError = null
-                        } else if (failures.all { it != null }) {
+                        } else if (failures.any { !it.isNullOrBlank() }) {
                             primaryError = failures.firstOrNull { !it.isNullOrBlank() }
                                 ?: "${requestType.label} sources could not load right now. Check the source extension and retry."
                         } else {
@@ -397,6 +411,7 @@ fun MediaScreen(
                 type = selectedType, rows = rows, libraryEntries = libraryEntries, progressEntries = progressEntries,
                 selection = ::selection, isSaved = isSaved, onToggleSaved = onToggleSaved, onOpen = onOpenDetails,
                 onResume = onResumeProgress, loading = primaryLoading, error = primaryError, onRetry = { refreshEpoch++ },
+                onOpenExtensions = onOpenExtensions,
             )
             destination == MediaDestination.MUSIC -> MusicSurface(
                 panel = musicLocal, rows = rows, libraryEntries = libraryEntries, rankedTaste = rankedTaste,
@@ -602,6 +617,7 @@ private fun MovieTvSurface(
     loading: Boolean,
     error: String?,
     onRetry: () -> Unit,
+    onOpenExtensions: () -> Unit,
 ) {
     val selected = rows.firstOrNull()
     val emptyFeedNoun = when (type) {
@@ -618,7 +634,7 @@ private fun MovieTvSurface(
                     CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     Text("Loading live ${type.label.lowercase()} from installed sources…", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(start = 11.dp))
                 }
-                error != null -> CatalogFailure(error, onRetry)
+                error != null -> CatalogSourceState(if (type == ContentType.MOVIE) "Movies" else "Series", false, error, onRetry, onOpenExtensions)
                 else -> HintLine("No $emptyFeedNoun titles were returned by the current source feed.")
             }
         }

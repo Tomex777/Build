@@ -179,6 +179,14 @@ shot library-memes-empty
 tap More
 tap Extensions
 wait_for "Extensions"
+wait_for "Sora Live Sources"
+tap "Sora Live Sources"
+wait_for "TMDB movie catalog"
+wait_for "TMDB API Read Access Token"
+wait_for "Save token"
+shot extension-detail-tmdb
+adb shell input keyevent 4
+wait_for "Extensions"
 wait_for "Reddit Memes"
 tap "Reddit Memes"
 wait_for "Reddit · r/memes"
@@ -298,9 +306,10 @@ shot home-after-bible
 tap Media
 tap "Anime & Manga"
 tap "Movies & TV"
-wait_for_any 50 "Featured movie" "Catalog unavailable" "No movie titles were returned by the current source feed."
-if node_exists "Catalog unavailable"; then
+wait_for_any 50 "Featured movie" "TMDB API Read Access Token" "Catalog unavailable" "No movie titles were returned by the current source feed."
+if node_exists "TMDB API Read Access Token" || node_exists "Catalog unavailable"; then
   wait_for "Retry"
+  wait_for "Manage sources"
   shot movies-source-state
 else
   shot movies-live-source

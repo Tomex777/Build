@@ -9,3 +9,4 @@ API 36 player autoplay fix: verify shared player integration
 rerun 45 - rebuild and validate Music after shared media copy fix
 rerun 46 - retest Music against restored MediaScreen
 Revalidate music after shared catalog UI changes
+Revalidate Music after final shared app changes
