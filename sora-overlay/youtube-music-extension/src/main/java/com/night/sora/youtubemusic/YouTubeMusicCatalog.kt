@@ -178,13 +178,28 @@ object YouTubeMusicCatalog {
         requireSource(sourceId)
         ensureVisitorData()
 
-        val signatureTimestamp = runCatching {
-            NewPipeExtractor.getSignatureTimestamp(id).getOrNull()
-        }.getOrNull()
+        // Keep the native fast path truly fast. Most native identities do not
+        // require a signature timestamp, and resolving player.js through NewPipe
+        // can block for a long time on challenged/cloud networks. Only pay that
+        // cost if we actually reach a client that requires it.
         Log.i(
             TAG,
-            "resolver context id=$id visitor=${!YouTube.visitorData.isNullOrBlank()} signedIn=${hasSignedInCookie(YouTube.cookie)} signatureTimestamp=${signatureTimestamp ?: "none"}",
+            "resolver start id=$id visitor=${!YouTube.visitorData.isNullOrBlank()} signedIn=${hasSignedInCookie(YouTube.cookie)}",
         )
+        var signatureTimestamp: Int? = null
+        var signatureTimestampResolved = false
+        fun signatureTimestampFor(client: YouTubeClient): Int? {
+            if (!client.useSignatureTimestamp) return null
+            if (!signatureTimestampResolved) {
+                signatureTimestampResolved = true
+                Log.i(TAG, "signature timestamp start id=$id")
+                signatureTimestamp = runCatching {
+                    NewPipeExtractor.getSignatureTimestamp(id).getOrNull()
+                }.getOrNull()
+                Log.i(TAG, "signature timestamp result id=$id value=${signatureTimestamp ?: "none"}")
+            }
+            return signatureTimestamp
+        }
 
         val failures = mutableListOf<String>()
         for (client in nativePlaybackClients) {
@@ -194,7 +209,7 @@ object YouTubeMusicCatalog {
                 YouTube.player(
                     videoId = id,
                     client = client,
-                    signatureTimestamp = signatureTimestamp.takeIf { client.useSignatureTimestamp },
+                    signatureTimestamp = signatureTimestampFor(client),
                     authenticated = false,
                 ).getOrNull()
             }
@@ -270,7 +285,7 @@ object YouTubeMusicCatalog {
                 YouTube.player(
                     videoId = id,
                     client = client,
-                    signatureTimestamp = signatureTimestamp,
+                    signatureTimestamp = signatureTimestampFor(client),
                     poToken = tokenPair.playerRequestPoToken,
                     authenticated = true,
                 ).getOrNull()
@@ -314,7 +329,7 @@ object YouTubeMusicCatalog {
                 YouTube.player(
                     videoId = id,
                     client = WEB_REMIX,
-                    signatureTimestamp = signatureTimestamp,
+                    signatureTimestamp = signatureTimestampFor(WEB_REMIX),
                     poToken = tokenPair.playerRequestPoToken,
                     authenticated = false,
                 ).getOrNull()
