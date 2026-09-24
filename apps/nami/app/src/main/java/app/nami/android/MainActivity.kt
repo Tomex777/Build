@@ -14,11 +14,13 @@ class MainActivity : ComponentActivity() {
 
         val database = NamiDatabase(applicationContext)
         val sourceRegistry = AniyomiExtensionRegistry(applicationContext)
+        val downloadManager = NamiDownloadManager(applicationContext, database)
 
         setContent {
             NamiApp(
                 sourceRegistry = sourceRegistry,
                 database = database,
+                downloadManager = downloadManager,
             )
         }
     }

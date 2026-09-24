@@ -114,6 +114,7 @@ private sealed interface NamiRoute {
 fun NamiApp(
     sourceRegistry: NamiSourceRegistry,
     database: NamiDatabase,
+    downloadManager: NamiDownloadManager,
 ) {
     var rootTab by rememberSaveable { mutableIntStateOf(0) }
     var libraryRevision by remember { mutableIntStateOf(0) }
@@ -190,21 +191,22 @@ fun NamiApp(
                     }
 
                     is NamiRoute.Details -> {
-                        AnimeDetailsScreen(
-                            route = current,
+                        NamiAnimeDetailsScreen(
                             database = database,
+                            source = current.source,
+                            item = current.item,
                             onBack = { stack.removeAt(stack.lastIndex) },
                             onLibraryChanged = { libraryRevision++ },
                             onOpenWeb = { title, url ->
                                 stack += NamiRoute.Browser(title, url)
                             },
+                            downloadManager = downloadManager,
                         )
                     }
 
                     NamiRoute.Downloads -> {
-                        SimpleDestination(
-                            title = "Downloads",
-                            body = "Downloaded episodes and active downloads will appear here.",
+                        NamiDownloadsScreen(
+                            downloadManager = downloadManager,
                             onBack = { stack.removeAt(stack.lastIndex) },
                         )
                     }
@@ -481,7 +483,7 @@ private fun AnimeCard(
 }
 
 @Composable
-private fun Cover(
+internal fun Cover(
     url: String?,
     contentDescription: String?,
     modifier: Modifier,

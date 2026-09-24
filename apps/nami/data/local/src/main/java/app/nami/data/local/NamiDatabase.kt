@@ -15,6 +15,23 @@ data class StoredLibraryEntry(
     val addedAtEpochMillis: Long,
 )
 
+data class StoredDownload(
+    val id: Long,
+    val sourceId: String,
+    val extensionName: String,
+    val sourceAnimeId: String,
+    val sourceEpisodeId: String,
+    val relativePath: String,
+    val displayName: String?,
+    val contentUri: String?,
+    val mimeType: String?,
+    val state: String,
+    val progress: Int,
+    val errorMessage: String?,
+    val createdAtEpochMillis: Long,
+    val updatedAtEpochMillis: Long,
+)
+
 /** Nami-owned local store. */
 class NamiDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, VERSION) {
 
@@ -31,6 +48,14 @@ class NamiDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) {
             createDownloadTable(db)
+        }
+        if (oldVersion < 3) {
+            addColumnIfMissing(db, "downloads", "display_name", "TEXT")
+            addColumnIfMissing(db, "downloads", "content_uri", "TEXT")
+            addColumnIfMissing(db, "downloads", "mime_type", "TEXT")
+            addColumnIfMissing(db, "downloads", "progress", "INTEGER NOT NULL DEFAULT 0")
+            addColumnIfMissing(db, "downloads", "error_message", "TEXT")
+            addColumnIfMissing(db, "downloads", "updated_at", "INTEGER NOT NULL DEFAULT 0")
         }
     }
 
@@ -106,6 +131,104 @@ class NamiDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
         }
     }
 
+    fun upsertDownload(
+        sourceId: String,
+        extensionName: String,
+        sourceAnimeId: String,
+        sourceEpisodeId: String,
+        relativePath: String,
+        state: String,
+        progress: Int,
+        displayName: String? = null,
+        contentUri: String? = null,
+        mimeType: String? = null,
+        errorMessage: String? = null,
+    ) {
+        val now = System.currentTimeMillis()
+        val existing = getDownload(sourceId, sourceEpisodeId)
+        val values = ContentValues().apply {
+            put("source_id", sourceId)
+            put("extension_name", extensionName)
+            put("source_anime_id", sourceAnimeId)
+            put("source_episode_id", sourceEpisodeId)
+            put("relative_path", relativePath)
+            put("state", state)
+            put("progress", progress.coerceIn(0, 100))
+            put("display_name", displayName)
+            put("content_uri", contentUri)
+            put("mime_type", mimeType)
+            put("error_message", errorMessage)
+            put("updated_at", now)
+            put("created_at", existing?.createdAtEpochMillis ?: now)
+        }
+        writableDatabase.insertWithOnConflict(
+            "downloads",
+            null,
+            values,
+            SQLiteDatabase.CONFLICT_REPLACE,
+        )
+    }
+
+    fun getDownload(sourceId: String, sourceEpisodeId: String): StoredDownload? {
+        readableDatabase.query(
+            "downloads",
+            DOWNLOAD_COLUMNS,
+            "source_id = ? AND source_episode_id = ?",
+            arrayOf(sourceId, sourceEpisodeId),
+            null,
+            null,
+            null,
+            "1",
+        ).use { cursor ->
+            return if (cursor.moveToFirst()) readDownload(cursor) else null
+        }
+    }
+
+    fun getDownloads(): List<StoredDownload> {
+        readableDatabase.query(
+            "downloads",
+            DOWNLOAD_COLUMNS,
+            null,
+            null,
+            null,
+            null,
+            "updated_at DESC",
+        ).use { cursor ->
+            val items = ArrayList<StoredDownload>(cursor.count)
+            while (cursor.moveToNext()) {
+                items += readDownload(cursor)
+            }
+            return items
+        }
+    }
+
+    fun deleteDownloadRecord(sourceId: String, sourceEpisodeId: String) {
+        writableDatabase.delete(
+            "downloads",
+            "source_id = ? AND source_episode_id = ?",
+            arrayOf(sourceId, sourceEpisodeId),
+        )
+    }
+
+    private fun readDownload(cursor: android.database.Cursor): StoredDownload {
+        return StoredDownload(
+            id = cursor.getLong(cursor.getColumnIndexOrThrow("id")),
+            sourceId = cursor.getString(cursor.getColumnIndexOrThrow("source_id")),
+            extensionName = cursor.getString(cursor.getColumnIndexOrThrow("extension_name")),
+            sourceAnimeId = cursor.getString(cursor.getColumnIndexOrThrow("source_anime_id")),
+            sourceEpisodeId = cursor.getString(cursor.getColumnIndexOrThrow("source_episode_id")),
+            relativePath = cursor.getString(cursor.getColumnIndexOrThrow("relative_path")),
+            displayName = cursor.getString(cursor.getColumnIndexOrThrow("display_name")),
+            contentUri = cursor.getString(cursor.getColumnIndexOrThrow("content_uri")),
+            mimeType = cursor.getString(cursor.getColumnIndexOrThrow("mime_type")),
+            state = cursor.getString(cursor.getColumnIndexOrThrow("state")),
+            progress = cursor.getInt(cursor.getColumnIndexOrThrow("progress")),
+            errorMessage = cursor.getString(cursor.getColumnIndexOrThrow("error_message")),
+            createdAtEpochMillis = cursor.getLong(cursor.getColumnIndexOrThrow("created_at")),
+            updatedAtEpochMillis = cursor.getLong(cursor.getColumnIndexOrThrow("updated_at")),
+        )
+    }
+
     private fun createBaseTables(db: SQLiteDatabase) {
         db.execSQL(
             """CREATE TABLE library_entries (
@@ -154,15 +277,60 @@ class NamiDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
                 source_anime_id TEXT NOT NULL,
                 source_episode_id TEXT NOT NULL,
                 relative_path TEXT NOT NULL,
+                display_name TEXT,
+                content_uri TEXT,
+                mime_type TEXT,
                 state TEXT NOT NULL,
+                progress INTEGER NOT NULL DEFAULT 0,
+                error_message TEXT,
                 created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL DEFAULT 0,
                 UNIQUE(source_id, source_episode_id)
             )""".trimIndent(),
         )
     }
 
+    private fun addColumnIfMissing(
+        db: SQLiteDatabase,
+        table: String,
+        column: String,
+        declaration: String,
+    ) {
+        val hasColumn = db.rawQuery("PRAGMA table_info($table)", null).use { cursor ->
+            val nameIndex = cursor.getColumnIndex("name")
+            var found = false
+            while (cursor.moveToNext()) {
+                if (nameIndex >= 0 && cursor.getString(nameIndex) == column) {
+                    found = true
+                    break
+                }
+            }
+            found
+        }
+        if (!hasColumn) {
+            db.execSQL("ALTER TABLE $table ADD COLUMN $column $declaration")
+        }
+    }
+
     companion object {
         private const val DATABASE_NAME = "nami.db"
-        private const val VERSION = 2
+        private const val VERSION = 3
+
+        private val DOWNLOAD_COLUMNS = arrayOf(
+            "id",
+            "source_id",
+            "extension_name",
+            "source_anime_id",
+            "source_episode_id",
+            "relative_path",
+            "display_name",
+            "content_uri",
+            "mime_type",
+            "state",
+            "progress",
+            "error_message",
+            "created_at",
+            "updated_at",
+        )
     }
 }
