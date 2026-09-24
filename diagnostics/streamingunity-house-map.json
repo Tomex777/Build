@@ -1,0 +1,324 @@
+{
+  "titleId": 1693,
+  "slug": "house",
+  "attempts": [
+    {
+      "base": "https://streamingunity.win",
+      "status": 200,
+      "finalUrl": "https://streamingunity.win/en/titles/1693-house",
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 282408,
+      "hasDataPage": true,
+      "title": {
+        "id": 1693,
+        "name": "House",
+        "slug": "house",
+        "type": "tv",
+        "tmdb_id": 1408,
+        "release_date": "2004-11-16",
+        "runtime": null
+      },
+      "seasons": [
+        {
+          "id": 1065,
+          "number": 1,
+          "name": null
+        },
+        {
+          "id": 1066,
+          "number": 2,
+          "name": null
+        },
+        {
+          "id": 1067,
+          "number": 3,
+          "name": null
+        },
+        {
+          "id": 1068,
+          "number": 4,
+          "name": null
+        },
+        {
+          "id": 1069,
+          "number": 5,
+          "name": null
+        },
+        {
+          "id": 1070,
+          "number": 6,
+          "name": null
+        },
+        {
+          "id": 1071,
+          "number": 7,
+          "name": null
+        },
+        {
+          "id": 1072,
+          "number": 8,
+          "name": null
+        }
+      ],
+      "loadedSeason": {
+        "id": 1065,
+        "number": 1,
+        "episodes": [
+          {
+            "id": 15434,
+            "number": 1,
+            "name": "Pilot",
+            "duration": 19
+          },
+          {
+            "id": 15435,
+            "number": 2,
+            "name": "Paternity",
+            "duration": 20
+          },
+          {
+            "id": 15436,
+            "number": 3,
+            "name": "Occam's Razor",
+            "duration": 20
+          },
+          {
+            "id": 15437,
+            "number": 4,
+            "name": "Maternity",
+            "duration": 20
+          },
+          {
+            "id": 15438,
+            "number": 5,
+            "name": "Damned If You Do",
+            "duration": 20
+          },
+          {
+            "id": 15439,
+            "number": 6,
+            "name": "The Socratic Method",
+            "duration": 20
+          },
+          {
+            "id": 15440,
+            "number": 7,
+            "name": "Fidelity",
+            "duration": 10
+          },
+          {
+            "id": 15441,
+            "number": 8,
+            "name": "Poison",
+            "duration": 20
+          },
+          {
+            "id": 15442,
+            "number": 9,
+            "name": "DNR",
+            "duration": 10
+          },
+          {
+            "id": 15443,
+            "number": 10,
+            "name": "Histories",
+            "duration": 20
+          },
+          {
+            "id": 15444,
+            "number": 11,
+            "name": "Detox",
+            "duration": 10
+          },
+          {
+            "id": 15445,
+            "number": 12,
+            "name": "Sports Medicine",
+            "duration": 20
+          }
+        ]
+      }
+    },
+    {
+      "base": "https://streamingunity.vip",
+      "status": 200,
+      "finalUrl": "https://streamingunity.win/en/titles/1693-house",
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 282410,
+      "hasDataPage": true,
+      "title": {
+        "id": 1693,
+        "name": "House",
+        "slug": "house",
+        "type": "tv",
+        "tmdb_id": 1408,
+        "release_date": "2004-11-16",
+        "runtime": null
+      },
+      "seasons": [
+        {
+          "id": 1065,
+          "number": 1,
+          "name": null
+        },
+        {
+          "id": 1066,
+          "number": 2,
+          "name": null
+        },
+        {
+          "id": 1067,
+          "number": 3,
+          "name": null
+        },
+        {
+          "id": 1068,
+          "number": 4,
+          "name": null
+        },
+        {
+          "id": 1069,
+          "number": 5,
+          "name": null
+        },
+        {
+          "id": 1070,
+          "number": 6,
+          "name": null
+        },
+        {
+          "id": 1071,
+          "number": 7,
+          "name": null
+        },
+        {
+          "id": 1072,
+          "number": 8,
+          "name": null
+        }
+      ],
+      "loadedSeason": {
+        "id": 1065,
+        "number": 1,
+        "episodes": [
+          {
+            "id": 15434,
+            "number": 1,
+            "name": "Pilot",
+            "duration": 19
+          },
+          {
+            "id": 15435,
+            "number": 2,
+            "name": "Paternity",
+            "duration": 20
+          },
+          {
+            "id": 15436,
+            "number": 3,
+            "name": "Occam's Razor",
+            "duration": 20
+          },
+          {
+            "id": 15437,
+            "number": 4,
+            "name": "Maternity",
+            "duration": 20
+          },
+          {
+            "id": 15438,
+            "number": 5,
+            "name": "Damned If You Do",
+            "duration": 20
+          },
+          {
+            "id": 15439,
+            "number": 6,
+            "name": "The Socratic Method",
+            "duration": 20
+          },
+          {
+            "id": 15440,
+            "number": 7,
+            "name": "Fidelity",
+            "duration": 10
+          },
+          {
+            "id": 15441,
+            "number": 8,
+            "name": "Poison",
+            "duration": 20
+          },
+          {
+            "id": 15442,
+            "number": 9,
+            "name": "DNR",
+            "duration": 10
+          },
+          {
+            "id": 15443,
+            "number": 10,
+            "name": "Histories",
+            "duration": 20
+          },
+          {
+            "id": 15444,
+            "number": 11,
+            "name": "Detox",
+            "duration": 10
+          },
+          {
+            "id": 15445,
+            "number": 12,
+            "name": "Sports Medicine",
+            "duration": 20
+          }
+        ]
+      }
+    }
+  ],
+  "resolved": {
+    "episode": {
+      "id": 15434,
+      "number": 1,
+      "name": "Pilot",
+      "duration": 19
+    },
+    "iframe": {
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 1190
+    },
+    "embed": {
+      "host": "vixcloud.co",
+      "path": "/embed/199980",
+      "queryKeys": [
+        "d",
+        "expires",
+        "lang",
+        "referer",
+        "t",
+        "token"
+      ]
+    },
+    "embedResponse": {
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bytes": 6237
+    },
+    "masterConfig": {
+      "gotToken": true,
+      "gotExpires": true,
+      "gotBaseUrl": true,
+      "canPlayFHD": false
+    },
+    "master": {
+      "status": 200,
+      "contentType": "application/vnd.apple.mpegurl",
+      "isM3U8": true,
+      "hasAudioGroup": true,
+      "hasSubtitleGroup": true,
+      "variantCount": 2
+    }
+  }
+}
