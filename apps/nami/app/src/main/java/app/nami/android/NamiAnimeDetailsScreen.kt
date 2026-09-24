@@ -254,6 +254,7 @@ fun NamiAnimeDetailsScreen(
                             AniyomiEpisodeRow(
                                 episode = episode,
                                 status = downloadStatus,
+                                downloadEnabled = source.metadata.capabilities.downloadable,
                                 onDownload = { downloadManager.enqueue(source, anime, episode) },
                                 onOpen = {
                                     downloadStatus?.let { downloadManager.openDownloaded(context, it) }
@@ -525,6 +526,7 @@ private fun ExpandableDescription(
 private fun AniyomiEpisodeRow(
     episode: AnimeEpisode,
     status: NamiDownloadStatus?,
+    downloadEnabled: Boolean,
     onDownload: () -> Unit,
     onOpen: () -> Unit,
 ) {
@@ -560,49 +562,53 @@ private fun AniyomiEpisodeRow(
             }
         }
 
-        val action = if (downloaded) onOpen else onDownload
-        IconButton(
-            onClick = action,
-            enabled = status?.state != NamiDownloadState.QUEUED,
-        ) {
-            when (status?.state) {
-                NamiDownloadState.QUEUED -> CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
-                )
-                NamiDownloadState.DOWNLOADING -> Box(
-                    modifier = Modifier.size(28.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(
-                        progress = { status.progress / 100f },
-                        modifier = Modifier.size(28.dp),
-                        strokeWidth = 3.dp,
+        if (downloaded || downloadEnabled || status != null) {
+            val action = if (downloaded) onOpen else onDownload
+            IconButton(
+                onClick = action,
+                enabled = downloaded ||
+                    (downloadEnabled && status?.state != NamiDownloadState.QUEUED &&
+                        status?.state != NamiDownloadState.DOWNLOADING),
+            ) {
+                when (status?.state) {
+                    NamiDownloadState.QUEUED -> CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
                     )
-                    Icon(
-                        imageVector = Icons.Outlined.ArrowDownward,
-                        contentDescription = "Downloading",
-                        modifier = Modifier.size(16.dp),
+                    NamiDownloadState.DOWNLOADING -> Box(
+                        modifier = Modifier.size(28.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(
+                            progress = { status.progress / 100f },
+                            modifier = Modifier.size(28.dp),
+                            strokeWidth = 3.dp,
+                        )
+                        Icon(
+                            imageVector = Icons.Outlined.ArrowDownward,
+                            contentDescription = "Downloading",
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                    NamiDownloadState.DOWNLOADED -> Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = "Downloaded",
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    NamiDownloadState.ERROR -> Icon(
+                        imageVector = Icons.Outlined.ErrorOutline,
+                        contentDescription = status.errorMessage ?: "Download failed",
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                    null -> Icon(
+                        imageVector = Icons.Outlined.Download,
+                        contentDescription = "Download",
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                NamiDownloadState.DOWNLOADED -> Icon(
-                    imageVector = Icons.Filled.CheckCircle,
-                    contentDescription = "Downloaded",
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                NamiDownloadState.ERROR -> Icon(
-                    imageVector = Icons.Outlined.ErrorOutline,
-                    contentDescription = status.errorMessage ?: "Download failed",
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.error,
-                )
-                null -> Icon(
-                    imageVector = Icons.Outlined.Download,
-                    contentDescription = "Download",
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
     }

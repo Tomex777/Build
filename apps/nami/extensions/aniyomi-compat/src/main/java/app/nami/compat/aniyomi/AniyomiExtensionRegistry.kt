@@ -173,7 +173,7 @@ private class LegacyAnimeSourceAdapter(
             details = true,
             episodes = true,
             streamable = source is AnimeHttpSource,
-            downloadable = false,
+            downloadable = source is AnimeHttpSource,
             configurable = source is eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource,
         ),
         extensionPackage = packageName,
