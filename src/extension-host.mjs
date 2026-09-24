@@ -168,3 +168,39 @@ export function youtubeEmbedUrl(input) {
   const id = parseYouTubeVideoUrl(input);
   return id ? "https://www.youtube-nocookie.com/embed/" + id + "?controls=1&playsinline=1&rel=0" : null;
 }
+
+
+export function youtubeSearchUrl(query) {
+  const text = typeof query === "string" ? query.trim() : "";
+  if (!text) return null;
+  const url = new URL("https://www.googleapis.com/youtube/v3/search");
+  url.searchParams.set("part", "snippet");
+  url.searchParams.set("type", "video");
+  url.searchParams.set("maxResults", "10");
+  url.searchParams.set("videoEmbeddable", "true");
+  url.searchParams.set("videoSyndicated", "true");
+  url.searchParams.set("q", text);
+  return url.toString();
+}
+
+export function normalizeYouTubeSearchPayload(payload) {
+  if (!payload || !Array.isArray(payload.items)) return [];
+  return payload.items.flatMap(item => {
+    const id = item?.id?.videoId;
+    const title = item?.snippet?.title;
+    if (typeof id !== "string" || !/^[A-Za-z0-9_-]{11}$/.test(id) || typeof title !== "string" || !title.trim()) return [];
+    const rawThumbnail = item?.snippet?.thumbnails?.medium?.url || item?.snippet?.thumbnails?.default?.url || "";
+    let thumbnail = "";
+    try {
+      const parsed = new URL(rawThumbnail);
+      if (parsed.protocol === "https:" && ["i.ytimg.com", "img.youtube.com"].includes(parsed.hostname)) thumbnail = parsed.toString();
+    } catch {}
+    return [{
+      id,
+      title: title.trim(),
+      channel: typeof item?.snippet?.channelTitle === "string" ? item.snippet.channelTitle : "",
+      thumbnail,
+      url: "https://www.youtube.com/watch?v=" + id
+    }];
+  });
+}
