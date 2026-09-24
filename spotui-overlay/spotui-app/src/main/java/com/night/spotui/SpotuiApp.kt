@@ -414,7 +414,7 @@ private fun MiniPlayer(track: Track, player: SpotPlaybackController, onOpen: () 
     Surface(
         color = Color(0xFF2B2B2B),
         shape = RoundedCornerShape(8.dp),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp).clickable(onClick = onOpen),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp).semantics { contentDescription = "Mini player" }.clickable(onClick = onOpen),
     ) {
         Row(Modifier.padding(7.dp), verticalAlignment = Alignment.CenterVertically) {
             Artwork(track, Modifier.size(46.dp))
