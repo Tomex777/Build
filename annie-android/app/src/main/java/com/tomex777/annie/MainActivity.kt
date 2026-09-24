@@ -134,7 +134,7 @@ private fun AnnieChat() {
     val density = LocalDensity.current
     val keyboardVisible = WindowInsets.ime.getBottom(density) > 0
     LaunchedEffect(messages.size, keyboardVisible) {
-        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
+        if (messages.size > 1) listState.animateScrollToItem(messages.lastIndex)
     }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -887,32 +887,32 @@ internal fun CatalogCard(item: CatalogItem, onClick: () -> Unit) {
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, Color(0xFF29425E))
     ) {
-        Row(Modifier.fillMaxWidth().padding(10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth().padding(10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
             AsyncImage(
                 model = item.image,
                 contentDescription = item.title,
+                contentScale = ContentScale.Crop,
                 modifier = Modifier.width(98.dp).height(132.dp).clip(RoundedCornerShape(11.dp)).background(Color(0xFF1D3550))
             )
-            Column(modifier = Modifier.weight(1f).height(132.dp), verticalArrangement = Arrangement.SpaceBetween) {
-                Column {
-                    val mediaLabel = when (item.mediaType) {
-                        "MANGA" -> "MANGA"
-                        "MOVIE" -> "MOVIE"
-                        "TV" -> "TV SERIES"
-                        else -> if (item.format == "MOVIE") "ANIME MOVIE" else "ANIME"
-                    }
-                    Text("$mediaLabel · ${item.sourceLabel.uppercase()}", color = Color(0xFF75BDF1), fontSize = 9.sp, letterSpacing = 1.1.sp, fontWeight = FontWeight.Bold)
-                    Text(item.title, color = BrightText, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 5.dp))
-                    val count = if (item.mediaType == "MANGA") item.chapters?.let { "$it chapters listed" } else item.episodes?.let { "$it episodes listed" }
-                    Text(listOfNotNull(item.year?.toString(), count).joinToString(" · ").ifBlank { "Catalog details" }, color = SoftText, fontSize = 11.sp, modifier = Modifier.padding(top = 5.dp))
-                    if (item.mediaType == "ANIME" || item.mediaType == "MANGA") {
-                        Text(statusLabel(item.status), color = Teal, fontSize = 11.sp, modifier = Modifier.padding(top = 5.dp))
-                    } else if (item.summary.isNotBlank()) {
-                        Text(item.summary, color = SoftText, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(top = 5.dp))
-                    }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                val mediaLabel = when (item.mediaType) {
+                    "MANGA" -> "MANGA"
+                    "MOVIE" -> "MOVIE"
+                    "TV" -> "TV SERIES"
+                    else -> if (item.format == "MOVIE") "ANIME MOVIE" else "ANIME"
                 }
-                Text("Details  ›", color = Color(0xFF9CD7FF), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.testTag("catalog_details_action"))
+                Text("$mediaLabel · ${item.sourceLabel.uppercase()}", color = Color(0xFF75BDF1), fontSize = 9.sp, letterSpacing = 1.1.sp, fontWeight = FontWeight.Bold)
+                Text(item.title, color = BrightText, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                val count = if (item.mediaType == "MANGA") item.chapters?.let { "$it chapters listed" } else item.episodes?.let { "$it episodes listed" }
+                val facts = listOfNotNull(item.year?.toString(), count)
+                if (facts.isNotEmpty()) Text(facts.joinToString(" · "), color = SoftText, fontSize = 11.sp)
+                if ((item.mediaType == "ANIME" || item.mediaType == "MANGA") && item.status in setOf("RELEASING", "FINISHED", "NOT_YET_RELEASED")) {
+                    Text(statusLabel(item.status), color = Teal, fontSize = 11.sp)
+                } else if (item.summary.isNotBlank()) {
+                    Text(item.summary, color = SoftText, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+                Text("Details  ›", color = Color(0xFF9CD7FF), fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.testTag("catalog_details_action"))
             }
         }
     }

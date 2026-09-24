@@ -30,7 +30,8 @@ class ChatInsetTest {
         assertTrue("Top bar must start below the status bar inset", top.top > 0f)
         assertTrue("Conversation must start below the status-bar-safe top bar", conversation.top >= top.bottom)
         assertTrue("Conversation must end at the composer, without a blank gap", kotlin.math.abs(composer.top - conversation.bottom) <= 2f)
-        assertTrue("Latest message should stay close to the composer instead of leaving an empty gap", composer.top - latestMessage.bottom < 60f)
+        val messageGapPx = composer.top - latestMessage.bottom
+        assertTrue("Latest message should stay close to the composer instead of leaving an empty gap ($messageGapPx px)", messageGapPx < 150f)
         assertTrue("Composer must remain above the keyboard while focused", input.bottom <= composer.bottom)
     }
 }

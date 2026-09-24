@@ -61,7 +61,7 @@ class ReportedFlowsTest {
     @Test fun searchResultsUseDetailsActionAndDoNotShowSelectTitleFooter() {
         var selected = 0
         compose.setContent { CatalogCard(manga) { selected++ } }
-        compose.onNodeWithTag("catalog_details_action").assertIsDisplayed()
+        compose.onNodeWithText("Details  ›", substring = true).assertIsDisplayed()
         assertEquals(0, compose.onAllNodesWithText("Select this title  ›").fetchSemanticsNodes().size)
         compose.onNodeWithTag("catalog_result_card").performClick()
         assertEquals(1, selected)
