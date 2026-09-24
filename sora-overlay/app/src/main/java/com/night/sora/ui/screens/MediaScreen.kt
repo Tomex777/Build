@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 17635)
-Total output lines: 1241
-
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package com.night.sora.ui.screens
@@ -415,7 +412,552 @@ fun MediaScreen(
                     if (item == destination) Icon(Icons.Rounded.Check, null, tint = SoraAccent)
                 }
             }
-            Sp…7635 tokens truncated… }) {
+            Spacer(Modifier.height(20.dp))
+        }
+    }
+}
+
+@Composable
+private fun MediaTopBar(
+    title: String,
+    searchOpen: Boolean,
+    query: String,
+    selectedType: ContentType,
+    searchEnabled: Boolean,
+    onSwitch: () -> Unit,
+    onOpenSearch: () -> Unit,
+    onCloseSearch: () -> Unit,
+    onQuery: (String) -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth().statusBarsPadding().height(58.dp).padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (searchOpen && searchEnabled) {
+            IconButton(onClick = onCloseSearch) { Icon(Icons.Rounded.ArrowBack, "Close search") }
+            Box(Modifier.weight(1f).background(SoraSurfaceHigh, RoundedCornerShape(14.dp)).padding(horizontal = 13.dp, vertical = 10.dp)) {
+                BasicTextField(
+                    value = query, onValueChange = onQuery, singleLine = true,
+                    textStyle = TextStyle(color = SoraText, fontSize = 14.sp), modifier = Modifier.fillMaxWidth(),
+                    decorationBox = { inner -> if (query.isEmpty()) Text("Search ${selectedType.label}…", color = SoraMuted, fontSize = 14.sp); inner() },
+                )
+            }
+            if (query.isNotEmpty()) IconButton(onClick = { onQuery("") }) { Icon(Icons.Rounded.Close, "Clear") }
+        } else {
+            TextButton(onClick = onSwitch, colors = ButtonDefaults.textButtonColors(contentColor = SoraText)) {
+                Text(title, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                Spacer(Modifier.width(5.dp))
+                Icon(Icons.Rounded.KeyboardArrowDown, null, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.weight(1f))
+            if (searchEnabled) {
+                IconButton(onClick = onOpenSearch) { Icon(Icons.Rounded.Search, "Search $title") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LocalTabs(labels: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 18.dp, vertical = 5.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        labels.forEachIndexed { index, label ->
+            Column(Modifier.clickable { onSelect(index) }.padding(vertical = 7.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(label, color = if (index == selected) SoraText else SoraMuted, fontSize = 12.sp, fontWeight = if (index == selected) FontWeight.ExtraBold else FontWeight.SemiBold)
+                if (index == selected) Box(Modifier.padding(top = 7.dp).width(24.dp).height(2.dp).background(SoraAccent, RoundedCornerShape(99.dp)))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AnimeMangaSurface(
+    type: ContentType,
+    rows: List<BrowseCard>,
+    popularRows: List<BrowseCard>,
+    seasonRows: List<BrowseCard>,
+    upcomingRows: List<BrowseCard>,
+    topRows: List<BrowseCard>,
+    discoverRows: List<BrowseCard>,
+    loading: Boolean,
+    error: String?,
+    cacheFetchedAt: Long,
+    feedFailures: Int,
+    libraryEntries: List<LibraryEntry>,
+    progressEntries: List<MediaProgressEntry>,
+    selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
+    isSaved: (ExtensionMediaSelection) -> Boolean,
+    onToggleSaved: (ExtensionMediaSelection) -> Unit,
+    onOpen: (ExtensionMediaSelection) -> Unit,
+    onResume: (MediaProgressEntry) -> Unit,
+    onRetry: () -> Unit,
+) {
+    val selected = rows.firstOrNull() ?: seasonRows.firstOrNull() ?: popularRows.firstOrNull() ?: topRows.firstOrNull()
+    val saved = libraryEntries.filter { it.contentType == type }
+    val continued = progressEntries
+        .filter { it.contentType == type && it.progress > 0f && it.progress < .999f }
+        .sortedByDescending { it.updatedAt }
+    val currentLabel = if (type == ContentType.ANIME) "Airing now" else "Publishing now"
+    val notice = when {
+        error != null && rows.isNotEmpty() -> "Could not refresh. Showing saved catalog data${cacheAgeSuffix(cacheFetchedAt)}."
+        loading && rows.isNotEmpty() -> "Refreshing saved catalog data${cacheAgeSuffix(cacheFetchedAt)}…"
+        feedFailures > 0 && selected != null -> "Some discovery sections couldn't refresh. Showing the catalog data currently available."
+        else -> null
+    }
+
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 18.dp)) {
+        if (notice != null) item { CatalogNotice(notice) }
+        when {
+            selected != null -> item {
+                val selectedMedia = selection(selected, type)
+                StreamFeature(
+                    card = selected,
+                    kicker = currentLabel,
+                    body = selected.subtitle,
+                    primaryLabel = "Details",
+                    selection = selectedMedia,
+                    isSaved = isSaved(selectedMedia),
+                    onToggleSaved = onToggleSaved,
+                    onOpen = onOpen,
+                )
+            }
+            loading -> item { EmptyFeatureShell(type) }
+            error != null -> item { CatalogFailure(error, onRetry) }
+            else -> item { CatalogFailure("No live ${type.label.lowercase()} catalog items were returned.", onRetry) }
+        }
+
+        if (continued.isNotEmpty()) item {
+            MediaSectionTitle(if (type == ContentType.ANIME) "Continue watching" else "Continue reading", "Resume exactly where you stopped")
+            ProgressLandscapeRail(continued, onResume)
+        }
+
+        if (saved.isNotEmpty()) item {
+            MediaSectionTitle("In your library", if (type == ContentType.ANIME) "Anime you saved" else "Manga you saved")
+            ContinueLandscapeRail(saved, onOpen)
+        }
+
+        if (type == ContentType.ANIME && seasonRows.isNotEmpty()) item {
+            MediaSectionTitle("Popular this season", "Currently airing seasonal Anime from AniList")
+            PortraitRail(seasonRows, type, selection, onOpen)
+        }
+        if (type == ContentType.MANGA && popularRows.isNotEmpty()) item {
+            MediaSectionTitle("Popular manga", "Popular Manga from the live catalog")
+            PortraitRail(popularRows, type, selection, onOpen)
+        }
+        if (type == ContentType.ANIME && popularRows.isNotEmpty()) item {
+            MediaSectionTitle("Popular anime", "Popular Anime from the live catalog")
+            PortraitRail(popularRows, type, selection, onOpen)
+        }
+        if (topRows.isNotEmpty()) item {
+            MediaSectionTitle("Top 10 ${type.label.lowercase()}", "Highest-ranked titles returned by AniList")
+            TopTenRail(topRows.take(10), type, selection, onOpen)
+        }
+        if (type == ContentType.ANIME && upcomingRows.isNotEmpty()) item {
+            MediaSectionTitle("Upcoming anime", "Upcoming titles from AniList")
+            NewHotStack(upcomingRows.take(5), type, selection, onOpen)
+        }
+        if (type == ContentType.MANGA && discoverRows.isNotEmpty()) item {
+            MediaSectionTitle("Recently started", "Manga ordered by start date from AniList")
+            PortraitRail(discoverRows, type, selection, onOpen)
+        }
+        if (rows.isNotEmpty()) item {
+            MediaSectionTitle(currentLabel, if (type == ContentType.ANIME) "Anime currently airing" else "Manga currently publishing")
+            PortraitRail(rows, type, selection, onOpen)
+        }
+    }
+}
+
+@Composable
+private fun MovieTvSurface(
+    type: ContentType,
+    rows: List<BrowseCard>,
+    libraryEntries: List<LibraryEntry>,
+    progressEntries: List<MediaProgressEntry>,
+    selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
+    isSaved: (ExtensionMediaSelection) -> Boolean,
+    onToggleSaved: (ExtensionMediaSelection) -> Unit,
+    onOpen: (ExtensionMediaSelection) -> Unit,
+    onResume: (MediaProgressEntry) -> Unit,
+    loading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
+) {
+    val selected = rows.firstOrNull()
+    val emptyFeedNoun = when (type) {
+        ContentType.MOVIE -> "movie"
+        ContentType.TV -> "TV"
+        else -> type.label.lowercase()
+    }
+    val saved = libraryEntries.filter { it.contentType == type }
+    val continued = progressEntries.filter { it.contentType == type && it.progress < .999f }.sortedByDescending { it.updatedAt }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
+        if (selected == null) item {
+            when {
+                loading -> Row(Modifier.fillMaxWidth().padding(22.dp), verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    Text("Loading live ${type.label.lowercase()} from installed sources…", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(start = 11.dp))
+                }
+                error != null -> CatalogFailure(error, onRetry)
+                else -> HintLine("No $emptyFeedNoun titles were returned by the current source feed.")
+            }
+        }
+        if (selected != null) item {
+            StreamFeature(
+                card = selected,
+                kicker = if (type == ContentType.MOVIE) "Featured movie" else "Featured series",
+                body = selected.subtitle.ifBlank { "From your active catalog source" },
+                primaryLabel = "Open",
+                selection = selection(selected, type), isSaved = isSaved(selection(selected, type)), onToggleSaved = onToggleSaved, onOpen = onOpen,
+            )
+        }
+        if (continued.isNotEmpty()) item {
+            MediaSectionTitle("Continue watching", "Real playback progress from your last session")
+            ProgressLandscapeRail(continued, onResume)
+        }
+        item {
+            MediaSectionTitle("In your library", "${if (type == ContentType.MOVIE) "Movies" else "Series"} you saved in Sora")
+            if (saved.isNotEmpty()) ContinueLandscapeRail(saved, onOpen) else HintLine("Saved titles will appear here.")
+        }
+        if (rows.size > 1) {
+            item { MediaSectionTitle("More from this source", "Browse the remaining live catalog results"); PortraitRail(rows.drop(1), type, selection, onOpen) }
+        }
+    }
+}
+
+@Composable
+private fun MusicSurface(
+    panel: MusicLocal,
+    rows: List<BrowseCard>,
+    libraryEntries: List<LibraryEntry>,
+    rankedTaste: List<ListeningSignal>,
+    selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
+    onPlay: (ExtensionMediaSelection, List<ExtensionMediaSelection>) -> Unit,
+    onOpen: (ExtensionMediaSelection) -> Unit,
+    onOpenExtensions: () -> Unit,
+    onSelectPanel: (MusicLocal) -> Unit,
+    loading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
+) {
+    val queue = remember(rows) { rows.map { selection(it, ContentType.MUSIC) } }
+    val playFromQueue: (ExtensionMediaSelection) -> Unit = { track -> onPlay(track, queue) }
+    when (panel) {
+        MusicLocal.HOME -> MusicHome(rows, rankedTaste, selection, playFromQueue, onOpen, onOpenExtensions, onSelectPanel, loading, error, onRetry)
+        MusicLocal.DISCOVER -> MusicDiscover(rows, selection, playFromQueue, onOpenExtensions, loading, error, onRetry)
+        MusicLocal.LIBRARY -> MusicLibrary(libraryEntries, playFromQueue)
+    }
+}
+
+@Composable
+private fun MusicHome(
+    rows: List<BrowseCard>, rankedTaste: List<ListeningSignal>,
+    selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
+    onPlay: (ExtensionMediaSelection) -> Unit, onOpen: (ExtensionMediaSelection) -> Unit,
+    onOpenExtensions: () -> Unit, onSelectPanel: (MusicLocal) -> Unit,
+    loading: Boolean, error: String?, onRetry: () -> Unit,
+) {
+    var optionsOpen by remember { mutableStateOf(false) }
+    val rankedRows = remember(rows, rankedTaste) {
+        val order = rankedTaste.mapIndexed { index, signal -> signal.artistName.trim().lowercase() to index }.toMap()
+        rows.sortedBy { card -> order[card.subtitle.substringBefore(" · ").trim().lowercase()] ?: Int.MAX_VALUE }
+    }
+    val recentRows = remember(rows, rankedTaste) {
+        rankedTaste
+            .sortedByDescending { it.lastPlayedEpochMs }
+            .flatMap { signal ->
+                rows.filter { card -> card.subtitle.substringBefore(" · ").trim().equals(signal.artistName.trim(), ignoreCase = true) }
+            }
+            .distinctBy { it.id }
+    }
+
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
+        item {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Music", fontSize = 28.sp, fontWeight = FontWeight.Black)
+                    Text("Your listening space", color = SoraMuted, fontSize = 11.sp)
+                }
+                Box {
+                    IconButton(onClick = { optionsOpen = true }) { Icon(Icons.Rounded.MoreVert, "Music options") }
+                    DropdownMenu(expanded = optionsOpen, onDismissRequest = { optionsOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Discover") },
+                            leadingIcon = { Icon(Icons.Rounded.Explore, null) },
+                            onClick = { optionsOpen = false; onSelectPanel(MusicLocal.DISCOVER) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Your Music") },
+                            leadingIcon = { Icon(Icons.Rounded.LibraryMusic, null) },
+                            onClick = { optionsOpen = false; onSelectPanel(MusicLocal.LIBRARY) },
+                        )
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text("Music sources") },
+                            leadingIcon = { Icon(Icons.Rounded.Extension, null) },
+                            onClick = { optionsOpen = false; onOpenExtensions() },
+                        )
+                    }
+                }
+            }
+        }
+        if (rows.isEmpty()) item { CatalogSourceState("Music", loading, error, onRetry, onOpenExtensions) }
+        item { MusicQuickGrid(rows.take(6), selection, onPlay) }
+        if (rankedRows.isNotEmpty()) {
+            item { MusicSectionTitle(if (rankedTaste.isEmpty()) "Fresh picks" else "Made for you", if (rankedTaste.isEmpty()) "From installed Music sources" else "Ordered from your listening history", null) }
+            item { MusicSquareRail(rankedRows.take(8), selection, onPlay) }
+        }
+        if (recentRows.isNotEmpty()) {
+            item { MusicSectionTitle("From artists you played recently", "Pulled from your actual listening history", null) }
+            item { MusicSquareRail(recentRows.take(8), selection, onPlay) }
+        }
+        if (rankedTaste.isNotEmpty()) {
+            item { MusicSectionTitle("Your top artists", "Based on your listening history", null); ArtistRail(rankedRows) }
+            item { MusicSectionTitle("Your rotation", "Artists and songs you return to", null); MusicTrackList(rankedRows.take(8), selection, onPlay) }
+        }
+    }
+}
+
+@Composable
+private fun MusicDiscover(
+    rows: List<BrowseCard>,
+    selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
+    onPlay: (ExtensionMediaSelection) -> Unit,
+    onOpenExtensions: () -> Unit,
+    loading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
+) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
+        item {
+            Surface(color = Color(0xFF242118), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth().padding(18.dp)) {
+                Column(Modifier.padding(20.dp)) {
+                    Text("DISCOVER", color = SoraAccent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
+                    Text("Something new for tonight.", fontSize = 27.sp, lineHeight = 29.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 16.dp))
+                    Text("Fresh music from your installed source, ready to explore.", color = SoraMuted, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 8.dp))
+                    Button(onClick = { rows.firstOrNull()?.let { onPlay(selection(it, ContentType.MUSIC)) } }, enabled = rows.isNotEmpty(), shape = RoundedCornerShape(10.dp), modifier = Modifier.padding(top = 18.dp)) {
+                        Icon(Icons.Rounded.PlayArrow, null); Spacer(Modifier.width(5.dp)); Text("Play from Discover")
+                    }
+                }
+            }
+        }
+        if (rows.isEmpty()) {
+            item { CatalogSourceState("Music", loading, error, onRetry, onOpenExtensions) }
+        } else {
+            item { MusicSectionTitle("Fresh picks", "Music returned by installed sources", null); MusicSquareRail(rows, selection, onPlay) }
+            item { MusicSectionTitle("More tracks", "Continue through the current feed", null); MusicTrackList(rows.take(10), selection, onPlay) }
+        }
+    }
+}
+
+@Composable
+private fun MusicLibrary(
+    libraryEntries: List<LibraryEntry>,
+    onPlay: (ExtensionMediaSelection) -> Unit,
+) {
+    val savedMusic = libraryEntries.filter { it.contentType == ContentType.MUSIC }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
+        item {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp)) {
+                Text("YOUR MUSIC", color = SoraAccent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                Text("Everything you kept.", fontSize = 25.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 3.dp))
+                Text(
+                    if (savedMusic.isEmpty()) "Saved songs will appear here." else "${savedMusic.size} saved ${if (savedMusic.size == 1) "song" else "songs"}",
+                    color = SoraMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+        if (savedMusic.isEmpty()) {
+            item { HintLine("Save a song from its player or details screen to keep it in Your Music.") }
+        } else {
+            item { MusicSectionTitle("Saved songs", "Stored in your Sora library", null) }
+            items(savedMusic, key = { it.id }) { entry ->
+                val track = entry.toMediaSelection()
+                Row(
+                    Modifier.fillMaxWidth()
+                        .then(if (track != null) Modifier.clickable { onPlay(track) } else Modifier)
+                        .padding(horizontal = 18.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Poster(entry.artworkUrl, entry.label, Modifier.size(48.dp), 5)
+                    Column(Modifier.weight(1f).padding(horizontal = 11.dp)) {
+                        Text(entry.label, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(entry.mediaSubtitle.ifBlank { entry.detail }, color = SoraMuted, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    if (track != null) Icon(Icons.Rounded.PlayArrow, "Play ${entry.label}", tint = SoraMuted, modifier = Modifier.size(18.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MemeSurface(
+    rows: List<BrowseCard>,
+    selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
+    isSaved: (ExtensionMediaSelection) -> Boolean,
+    onToggleSaved: (ExtensionMediaSelection) -> Unit,
+    onOpen: (ExtensionMediaSelection) -> Unit,
+    loading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
+    onOpenExtensions: () -> Unit,
+) {
+    val context = LocalContext.current
+    val preferences = remember(context) { context.getSharedPreferences("sora_meme_feed", android.content.Context.MODE_PRIVATE) }
+    var hidden by remember(preferences) {
+        mutableStateOf(preferences.getStringSet("hidden_ids", emptySet()).orEmpty().toSet())
+    }
+    val visibleRows = remember(rows, hidden) { rows.filterNot { memeKey(it) in hidden } }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)) {
+        if (visibleRows.isEmpty()) item {
+            if (rows.isEmpty()) CatalogSourceState("Meme", loading, error, onRetry, onOpenExtensions)
+            else HintLine("You hid the posts currently returned by this source.")
+        }
+        items(visibleRows, key = { memeKey(it) }) { card ->
+            val media = selection(card, ContentType.MEME)
+            val saved = isSaved(media)
+            Surface(color = Color(0xFFF0EDE5), contentColor = Color(0xFF141412), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp).clickable { onOpen(media) }) {
+                Column {
+                    Row(Modifier.fillMaxWidth().padding(13.dp)) { Text(card.subtitle.ifBlank { "Meme source" }, fontSize = 11.sp, color = Color(0xFF656158)) }
+                    Text(card.title, fontSize = 18.sp, lineHeight = 21.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp))
+                    Box(Modifier.fillMaxWidth().height(260.dp).background(Color(0xFFC5C0B3))) { if (!card.artworkUrl.isNullOrBlank()) AsyncImage(card.artworkUrl, card.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+                    Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(if (saved) "✓ Saved" else "♡ Save", fontSize = 12.sp, modifier = Modifier.clickable { onToggleSaved(media) })
+                        Text("↗ Share", fontSize = 12.sp, modifier = Modifier.clickable {
+                            val body = buildString {
+                                append(card.title)
+                                card.subtitle.takeIf(String::isNotBlank)?.let { append(" · ").append(it) }
+                            }
+                            runCatching {
+                                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, body)
+                                }, "Share Meme"))
+                            }
+                        })
+                        Text("Less like this", fontSize = 12.sp, modifier = Modifier.clickable {
+                            hidden = hidden + memeKey(card)
+                            preferences.edit().putStringSet("hidden_ids", hidden).apply()
+                        })
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun memeKey(card: BrowseCard) = "${card.extensionPackage}:${card.sourceId}:${card.id}"
+
+@Composable
+private fun SearchResultsSurface(
+    rows: List<BrowseCard>,
+    type: ContentType,
+    query: String,
+    loading: Boolean,
+    error: String?,
+    selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
+    onOpen: (ExtensionMediaSelection) -> Unit,
+    onPlayMusic: (ExtensionMediaSelection, List<ExtensionMediaSelection>) -> Unit,
+    onRetry: () -> Unit,
+) {
+    val musicQueue = remember(rows, type) { if (type == ContentType.MUSIC) rows.map { selection(it, type) } else emptyList() }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 18.dp)) {
+        item { MediaSectionTitle("Search", "${type.label} · ${query.trim()}") }
+        when {
+            loading && rows.isEmpty() -> items(6) { SearchResultSkeleton(type) }
+            error != null && rows.isEmpty() -> item { CatalogFailure(error, onRetry) }
+            !loading && rows.isEmpty() -> item {
+                Text("No ${type.label.lowercase()} results for “${query.trim()}”.", color = SoraMuted, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 24.dp))
+            }
+        }
+        items(rows, key = { "search-${type.name}-${it.id}" }) { card ->
+            Row(
+                Modifier.fillMaxWidth().clickable {
+                    if (type == ContentType.MUSIC) onPlayMusic(selection(card, type), musicQueue) else onOpen(selection(card, type))
+                }.padding(horizontal = 18.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Poster(card.artworkUrl, card.title, Modifier.size(width = 58.dp, height = if (type == ContentType.MUSIC) 58.dp else 82.dp), if (type == ContentType.MUSIC) 7 else 6)
+                Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                    Text(type.label.uppercase(), color = SoraAccent, fontSize = 8.sp, fontWeight = FontWeight.Black, letterSpacing = .8.sp)
+                    Text(card.title, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    if (card.subtitle.isNotBlank()) Text(card.subtitle, color = SoraMuted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Icon(Icons.Rounded.ChevronRight, null, tint = SoraFaint, modifier = Modifier.size(18.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchResultSkeleton(type: ContentType) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(width = 58.dp, height = if (type == ContentType.MUSIC) 58.dp else 82.dp).background(SoraSurfaceHigh, RoundedCornerShape(6.dp)))
+        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+            Box(Modifier.width(52.dp).height(7.dp).background(SoraSurface, RoundedCornerShape(4.dp)))
+            Box(Modifier.padding(top = 8.dp).fillMaxWidth(.72f).height(11.dp).background(SoraSurfaceHigh, RoundedCornerShape(5.dp)))
+            Box(Modifier.padding(top = 7.dp).fillMaxWidth(.44f).height(8.dp).background(SoraSurface, RoundedCornerShape(4.dp)))
+        }
+    }
+}
+
+@Composable
+private fun EmptyFeatureShell(type: ContentType) {
+    Box(
+        Modifier.fillMaxWidth().height(360.dp)
+            .background(Brush.verticalGradient(listOf(Color(0xFF252520), Color(0xFF171714), SoraBg)))
+    ) {
+        Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
+            Box(Modifier.width(84.dp).height(8.dp).background(SoraSurfaceHigh, RoundedCornerShape(4.dp)))
+            Box(Modifier.padding(top = 12.dp).width(244.dp).height(30.dp).background(SoraSurfaceHigh, RoundedCornerShape(6.dp)))
+            Box(Modifier.padding(top = 10.dp).width(290.dp).height(10.dp).background(SoraSurfaceHigh, RoundedCornerShape(5.dp)))
+            Box(Modifier.padding(top = 7.dp).width(214.dp).height(10.dp).background(SoraSurface, RoundedCornerShape(5.dp)))
+            Row(Modifier.padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.width(106.dp).height(42.dp).background(Color.White.copy(alpha = .10f), RoundedCornerShape(7.dp)))
+                Box(Modifier.width(106.dp).height(42.dp).background(SoraSurfaceHigh, RoundedCornerShape(7.dp)))
+            }
+        }
+    }
+}
+
+@Composable
+private fun StreamFeature(card: BrowseCard, kicker: String, body: String, primaryLabel: String, selection: ExtensionMediaSelection, isSaved: Boolean, onToggleSaved: (ExtensionMediaSelection) -> Unit, onOpen: (ExtensionMediaSelection) -> Unit) {
+    Box(Modifier.fillMaxWidth().height(420.dp).clickable { onOpen(selection) }) {
+        Poster(card.artworkUrl, card.title, Modifier.fillMaxSize(), 0)
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent, SoraBg))))
+        Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
+            Text(kicker.uppercase(), color = SoraAccent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+            Text(card.title, fontSize = 31.sp, lineHeight = 33.sp, fontWeight = FontWeight.Black, maxLines = 2, modifier = Modifier.padding(top = 7.dp))
+            Text(body, color = Color.White.copy(alpha = .78f), fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 5.dp))
+            Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { onOpen(selection) }, colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black), shape = RoundedCornerShape(6.dp)) { Icon(Icons.Rounded.Info, null); Spacer(Modifier.width(5.dp)); Text(primaryLabel, fontWeight = FontWeight.Bold) }
+                FilledTonalButton(onClick = { onToggleSaved(selection) }, shape = RoundedCornerShape(6.dp), colors = ButtonDefaults.filledTonalButtonColors(containerColor = Color(0xCC282824), contentColor = Color.White)) { Icon(if (isSaved) Icons.Rounded.Check else Icons.Rounded.Add, null); Spacer(Modifier.width(5.dp)); Text("Library") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MediaSectionTitle(title: String, subtitle: String) {
+    Column(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 22.dp, bottom = 10.dp)) { Text(title, fontSize = 19.sp, fontWeight = FontWeight.Bold); Text(subtitle, color = SoraMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp)) }
+}
+
+@Composable
+private fun PortraitRail(rows: List<BrowseCard>, type: ContentType, selection: (BrowseCard, ContentType) -> ExtensionMediaSelection, onOpen: (ExtensionMediaSelection) -> Unit) {
+    LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (rows.isEmpty()) {
+            items(6) { index ->
+                Column(Modifier.width(116.dp)) {
+                    Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).background(if (index % 2 == 0) SoraSurfaceHigh else SoraSurface, RoundedCornerShape(7.dp)))
+                    Box(Modifier.padding(top = 7.dp).width(82.dp).height(8.dp).background(SoraSurfaceHigh, RoundedCornerShape(4.dp)))
+                    Box(Modifier.padding(top = 5.dp).width(56.dp).height(6.dp).background(SoraSurface, RoundedCornerShape(4.dp)))
+                }
+            }
+        } else {
+            items(rows.take(12), key = { "p-${type.name}-${it.id}" }) { card ->
+                Column(Modifier.width(116.dp).clickable { onOpen(selection(card, type)) }) {
                     Poster(card.artworkUrl, card.title, Modifier.fillMaxWidth().aspectRatio(2f / 3f), 7)
                     Text(card.title, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
                     Text(card.subtitle, color = SoraMuted, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
