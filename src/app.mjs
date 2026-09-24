@@ -66,7 +66,7 @@ function renderExtensions() {
     '<section class="youtube-key-config"><label for="youtube-api-key">YouTube Data API key</label>' +
     '<div class="key-row"><input id="youtube-api-key" type="password" autocomplete="new-password" placeholder="Paste a referrer-restricted key">' +
     '<button type="button" class="key-save" data-save-youtube-key>Save</button><button type="button" class="key-clear" data-clear-youtube-key>Clear</button></div>' +
-    '<small>Stored for this browser tab only. Restrict the key to your app domain in Google Cloud. Search calls YouTube directly; Annie does not cache results.</small></section>';
+    '<small>Stored for this browser tab only. Browser keys are visible in DevTools. Restrict this key to the app origin and YouTube Data API; proxy it for production. Search calls YouTube directly; Annie does not cache results.</small></section>';
   appendMessage("annie",
     '<div class="menu-title">Extensions</div><p class="muted">Providers stay independent. A missing or failed extension never blocks the others.</p>' +
     '<div class="extension-list">' + cards + '</div>' + keyPanel,
