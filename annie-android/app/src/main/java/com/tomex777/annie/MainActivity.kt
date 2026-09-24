@@ -510,7 +510,7 @@ internal fun ChatBubble(
 }
 
 @Composable
-private fun actionColor(action: String): Color = when {
+internal fun actionColor(action: String): Color = when {
     action.startsWith("Search", ignoreCase = true) || action == "Downloads" -> Color(0xFF42B9F5)
     action.contains("aired", ignoreCase = true) || action.contains("released", ignoreCase = true) || action.contains("updated", ignoreCase = true) || action == "Today" || action == "This week" || action == "All" -> Color(0xFFB68CFF)
     action.contains("Continue", ignoreCase = true) || action.contains("reading", ignoreCase = true) -> Teal
