@@ -411,8 +411,14 @@ adb logcat -G 16M >/dev/null 2>&1 || true
 adb logcat -c >/dev/null 2>&1 || true
 tap_text 'Episode 1'
 ensure_player_control 'Demo Anime' 25
+wait_for_node 'Pause' 15
 shot 03-anime-player
-sleep 6
+for attempt in $(seq 1 20); do
+  if assert_progress_identity ANIME 1000 '-e1' demo.anime > /tmp/anime-position.txt 2>/dev/null; then
+    break
+  fi
+  sleep 1
+done
 assert_progress_identity ANIME 1000 '-e1' demo.anime > /tmp/anime-position.txt
 ANIME_POSITION="$(tail -n 1 /tmp/anime-position.txt)"
 echo "Saved Anime position: $ANIME_POSITION ms"
@@ -427,6 +433,7 @@ fi
 wait_for_node 'Continue watching' 25
 tap_text_below 'Continue watching' Naruto
 ensure_player_control 'Demo Anime' 25
+wait_for_node 'Pause' 15
 sleep 3
 assert_progress_identity ANIME "$ANIME_POSITION" '-e1' demo.anime >/dev/null
 shot 04-anime-exact-resume

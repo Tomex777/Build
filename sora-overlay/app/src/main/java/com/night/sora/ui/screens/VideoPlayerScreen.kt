@@ -64,6 +64,7 @@ fun VideoPlayerScreen(
     var durationMs by remember(session) { mutableLongStateOf(0L) }
     var isPlaying by remember { mutableStateOf(false) }
     var isBuffering by remember { mutableStateOf(false) }
+    var didStartPlayback by remember(session) { mutableStateOf(false) }
     var speed by remember { mutableFloatStateOf(1f) }
     var controlsLocked by remember { mutableStateOf(false) }
     var seekPreviewMs by remember { mutableStateOf<Long?>(null) }
@@ -131,6 +132,10 @@ fun VideoPlayerScreen(
             positionMs = resumeAt.coerceAtLeast(0L),
         )
         currentPlayer.setSpeed(speed)
+        // A newly loaded mpv file can retain the paused state from initialization
+        // on Android 16. Resume here and again once duration confirms the file is
+        // ready; the one-time guard below keeps this from overriding user pauses.
+        currentPlayer.resume()
     }
 
     LaunchedEffect(player, session) {
@@ -142,6 +147,11 @@ fun VideoPlayerScreen(
             durationMs = total
             isPlaying = !currentPlayer.isPaused()
             isBuffering = currentPlayer.isBuffering()
+
+            if (!didStartPlayback && total > 0L) {
+                if (currentPlayer.isPaused()) currentPlayer.resume()
+                didStartPlayback = true
+            }
 
             if (!didInitialSeek && total > 0L && session.initialPositionMs > 0L) {
                 currentPlayer.seekTo(session.initialPositionMs)

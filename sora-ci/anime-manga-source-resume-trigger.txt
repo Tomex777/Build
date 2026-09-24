@@ -5,3 +5,4 @@ rerun 38 - verify exact source resume with updated hub test
 
 full-app-qa: build and walkthrough extension surfaces
 API 36 full package: verify reader and playback paths
+API 36 player autoplay fix: verify playback progress and exact resume
