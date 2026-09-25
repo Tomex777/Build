@@ -88,7 +88,6 @@ class LocalVideoPlaybackTest {
             }
         }
         screenshot.recycle()
-        compose.onNodeWithTag("media_player").performClick()
         compose.onNodeWithTag("player_play_pause").performClick()
         compose.waitUntil(2_500) {
             compose.onAllNodesWithText("▶").fetchSemanticsNodes().isNotEmpty()
