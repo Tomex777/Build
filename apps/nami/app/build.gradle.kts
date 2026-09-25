@@ -35,6 +35,9 @@ dependencies {
 
     implementation(platform("androidx.compose:compose-bom:2025.02.00"))
     implementation("androidx.activity:activity-compose:1.10.1")
+    implementation("androidx.fragment:fragment-ktx:1.8.6")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.preference:preference-ktx:1.2.1")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.material3:material3")

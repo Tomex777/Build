@@ -213,7 +213,7 @@ internal class LegacyAnimeSourceAdapter(
     private val extensionVersion: String,
     private val extensionApiVersion: Int,
     private val source: AnimeSource,
-) : NamiAnimeSource {
+) : NamiAnimeSource, AniyomiConfigurableSourceHandle {
 
     private val animeCache = ConcurrentHashMap<String, SAnime>()
     private val episodeCache = ConcurrentHashMap<String, SEpisode>()
@@ -239,6 +239,12 @@ internal class LegacyAnimeSourceAdapter(
         extensionVersion = extensionVersion,
         extensionApiVersion = extensionApiVersion,
     )
+
+    override fun setupPreferenceScreen(screen: androidx.preference.PreferenceScreen) {
+        val configurable = source as? eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
+            ?: error("Source ${metadata.name} does not expose configurable preferences")
+        configurable.setupPreferenceScreen(screen)
+    }
 
     override suspend fun search(query: String, page: Int): SourcePage<AnimeSearchResult> {
         val result = when {

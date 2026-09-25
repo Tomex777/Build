@@ -16,6 +16,9 @@
         android:hardwareAccelerated="true"
         android:usesCleartextTraffic="true">
         <activity
+            android:name=".AniyomiSourcePreferencesActivity"
+            android:exported="false" />
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>

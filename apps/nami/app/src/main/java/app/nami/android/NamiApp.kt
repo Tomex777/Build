@@ -2,6 +2,7 @@
 
 package app.nami.android
 
+import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,16 +32,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.VideoLibrary
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -55,7 +52,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -70,14 +66,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.nami.data.local.NamiDatabase
 import app.nami.data.local.StoredLibraryEntry
-import app.nami.domain.AnimeDetails
-import app.nami.domain.AnimeEpisode
 import app.nami.domain.AnimeSearchResult
 import app.nami.runtime.AnimeSearchItemResult
 import app.nami.runtime.GlobalAnimeSearch
@@ -510,6 +505,7 @@ private fun SourceSearchScreen(
     onOpenAnime: (AnimeSearchResult) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val pager = remember(route.source) { SourceSearchPager(route.source) }
 
@@ -562,6 +558,23 @@ private fun SourceSearchScreen(
                     }
                 },
                 actions = {
+                    if (route.source.metadata.capabilities.configurable) {
+                        IconButton(
+                            onClick = {
+                                context.startActivity(
+                                    Intent(
+                                        context,
+                                        AniyomiSourcePreferencesActivity::class.java,
+                                    ).putExtra(
+                                        AniyomiSourcePreferencesActivity.EXTRA_SOURCE_ID,
+                                        route.source.metadata.id,
+                                    ),
+                                )
+                            },
+                        ) {
+                            Icon(Icons.Outlined.Settings, contentDescription = "Source settings")
+                        }
+                    }
                     route.source.metadata.homeUrl?.let { homeUrl ->
                         IconButton(onClick = { onOpenWeb(homeUrl) }) {
                             Icon(Icons.Outlined.Public, contentDescription = "Web view")
@@ -671,230 +684,6 @@ private fun SourceSearchScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun AnimeDetailsScreen(
-    route: NamiRoute.Details,
-    database: NamiDatabase,
-    onBack: () -> Unit,
-    onLibraryChanged: () -> Unit,
-    onOpenWeb: (String, String) -> Unit,
-) {
-    var details by remember { mutableStateOf<AnimeDetails?>(null) }
-    var episodes by remember { mutableStateOf<List<AnimeEpisode>>(emptyList()) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var loading by remember { mutableStateOf(true) }
-    var inLibrary by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-
-    LaunchedEffect(route.item.ref) {
-        loading = true
-        error = null
-        runCatching {
-            val loadedDetails = route.source.details(route.item.ref)
-            val loadedEpisodes = route.source.episodes(route.item.ref)
-            Triple(
-                loadedDetails,
-                loadedEpisodes,
-                withContext(Dispatchers.IO) { database.isInLibrary(route.item.ref) },
-            )
-        }.onSuccess {
-            details = it.first
-            episodes = it.second
-            inLibrary = it.third
-        }.onFailure {
-            error = it.message ?: "Unknown error"
-        }
-        loading = false
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(details?.title ?: route.item.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
-            )
-        },
-    ) { padding ->
-        when {
-            loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-
-            error != null -> {
-                EmptyCenter(
-                    modifier = Modifier.padding(padding),
-                    text = error ?: "Unknown error",
-                )
-            }
-
-            details != null -> {
-                val anime = details!!
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = padding,
-                ) {
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                        ) {
-                            Cover(
-                                url = anime.coverUrl ?: route.item.coverUrl,
-                                contentDescription = anime.title,
-                                modifier = Modifier
-                                    .width(120.dp)
-                                    .aspectRatio(2f / 3f),
-                            )
-                            Spacer(Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(anime.title, style = MaterialTheme.typography.headlineSmall)
-                                Spacer(Modifier.height(8.dp))
-                                anime.metadata.values
-                                    .filter { it.isNotBlank() }
-                                    .take(4)
-                                    .forEach {
-                                        Text(
-                                            text = it,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            modifier = Modifier.padding(bottom = 2.dp),
-                                        )
-                                    }
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                        ) {
-                            AssistChip(
-                                onClick = {
-                                    scope.launch {
-                                        withContext(Dispatchers.IO) {
-                                            if (inLibrary) {
-                                                database.removeFromLibrary(anime.ref)
-                                            } else {
-                                                database.addToLibrary(anime)
-                                            }
-                                        }
-                                        inLibrary = !inLibrary
-                                        onLibraryChanged()
-                                    }
-                                },
-                                label = { Text(if (inLibrary) "In library" else "Add to library") },
-                                leadingIcon = {
-                                    Icon(
-                                        if (inLibrary) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                },
-                            )
-                            anime.webUrl?.let { webUrl ->
-                                AssistChip(
-                                    onClick = { onOpenWeb(anime.title, webUrl) },
-                                    label = { Text("Web view") },
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.Outlined.Public,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp),
-                                        )
-                                    },
-                                )
-                            }
-                        }
-
-                        anime.description?.takeIf { it.isNotBlank() }?.let {
-                            Text(
-                                text = it.trim(),
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
-
-                        if (anime.genres.isNotEmpty()) {
-                            Text(
-                                text = anime.genres.joinToString(" • "),
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelLarge,
-                            )
-                        }
-
-                        HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
-                        Text(
-                            text = "Episodes",
-                            modifier = Modifier.padding(16.dp),
-                            style = MaterialTheme.typography.titleLarge,
-                        )
-                    }
-
-                    if (episodes.isEmpty()) {
-                        item {
-                            Text(
-                                text = "No episodes found.",
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            )
-                        }
-                    } else {
-                        lazyItems(
-                            items = episodes,
-                            key = {
-                                it.ref.sourceId + "|" + it.ref.sourceAnimeId + "|" + it.ref.sourceEpisodeId
-                            },
-                        ) { episode ->
-                            EpisodeRow(episode)
-                            HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EpisodeRow(episode: AnimeEpisode) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = episode.title,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            episode.number?.let {
-                Text(
-                    text = "Episode " + if (it % 1.0 == 0.0) it.toInt().toString() else it.toString(),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-        }
-        Icon(Icons.Outlined.Download, contentDescription = "Download", tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
