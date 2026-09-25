@@ -71,6 +71,8 @@ internal class ScriptFiles(context: Context) {
                 """.trimMargin()
             )
         }
+        val chess = File(root, "chess.js")
+        if (!chess.exists()) chess.writeText(StarterScripts.chess)
     }
 
     fun listProjects(): List<ScriptProject> = root.listFiles().orEmpty()
@@ -314,6 +316,10 @@ internal class ScriptRuntime(
             if (chatId.isNotBlank()) clearActiveSession(context, chatId)
             null
         }
+        runtime.function("annieRenderChess") { args ->
+            val fen = args.firstOrNull()?.toString().orEmpty()
+            ChessBoardRenderer.render(context, fen)
+        }
         runtime.asyncFunction("annieHttpRequest") { args ->
             val request = JSONObject(args.firstOrNull() as? String ?: "{}")
             requestHttp(request)
@@ -460,6 +466,7 @@ internal class ScriptRuntime(
             |    globalThis.__annieSessionHandlers[String(definition.name)] = definition.onMessage;
             |  }},
             |  http: { request: request => annieHttpRequest(JSON.stringify(request)) },
+            |  image: { chess: fen => annieRenderChess(String(fen)) },
             |  storage: {
             |    get: key => { const raw = annieStoreGet(String(key)); return raw == null ? null : JSON.parse(raw); },
             |    set: (key, value) => annieStoreSet(String(key), JSON.stringify(value))
