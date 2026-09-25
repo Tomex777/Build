@@ -38,6 +38,9 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
 
     open val versionId: Int = 1
 
+    /** Related-anime lookup is optional and disabled unless a source opts in. */
+    open val disableRelatedAnimesBySearch: Boolean get() = false
+
     override val id: Long by lazy { generateId(name, lang, versionId) }
 
     val headers: Headers by lazy { headersBuilder().build() }
@@ -134,6 +137,11 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
 
     protected open fun seasonListRequest(anime: SAnime): Request = GET(baseUrl + anime.url, headers)
     protected open fun seasonListParse(response: Response): List<SAnime> = emptyList()
+
+
+    open fun relatedAnimeListRequest(anime: SAnime): Request = GET(baseUrl + anime.url, headers)
+
+    open fun relatedAnimeListParse(response: Response): List<SAnime> = emptyList()
 
     override suspend fun getHosterList(episode: SEpisode): List<Hoster> =
         client.newCall(hosterListRequest(episode)).awaitSuccess().use(::hosterListParse)
