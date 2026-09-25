@@ -17,6 +17,17 @@ import org.junit.runner.RunWith
 class ScriptChatFlowTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
+    @Test fun scriptsCommandOpensTheInAppStudio() {
+        compose.setContent { AnnieTheme { AnnieChat() } }
+        compose.onNodeWithTag("composer_input").performTextInput("/scripts")
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("script_studio").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("script_studio").assertIsDisplayed()
+        compose.onNodeWithTag("script_editor").assertIsDisplayed()
+    }
+
     @Test fun scriptCommandRunsThroughComposerAndAppearsAsAChatMessage() {
         compose.setContent { AnnieTheme { AnnieChat() } }
         compose.onNodeWithTag("composer_input").performTextInput("/echo")
