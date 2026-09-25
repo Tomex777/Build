@@ -197,7 +197,78 @@ internal fun AnnieChat() {
         addAnnie("", searchMedia = media, searchInitial = query)
     }
 
-    val downloads = remember { mutableStateListOf<DownloadItem>().apply { addAll(DownloadStore.read(context)) } }
+    val downloads = remember {
+        mutableStateListOf<DownloadItem>().apply {
+            addAll(
+                DownloadStore.read(context).map { item ->
+                    if (
+                        item.sourceUrl.isNotBlank() &&
+                        item.state in setOf(DownloadState.QUEUED, DownloadState.DOWNLOADING)
+                    ) {
+                        item.copy(
+                            state = DownloadState.PAUSED,
+                            failureReason = "Download was interrupted. Tap Resume.",
+                        )
+                    } else {
+                        item
+                    }
+                }
+            )
+        }
+    }
+    val mediaDownloader = remember(context) {
+        AnnieMediaDownloader(context) { changed ->
+            val index = downloads.indexOfFirst { it.id == changed.id }
+            if (index >= 0) downloads[index] = changed else downloads.add(changed)
+            DownloadStore.write(context, downloads)
+        }
+    }
+    androidx.compose.runtime.DisposableEffect(mediaDownloader) {
+        onDispose { mediaDownloader.close() }
+    }
+
+    fun queueScriptVideoDownload(data: org.json.JSONObject, scriptId: String?) {
+        val source = ScriptVideoDownloadSource.from(data)
+        if (source == null) {
+            addAnnie("This video script did not return a downloadable media URL.")
+            return
+        }
+        val title = data.optString("title").ifBlank { "Video" }
+        val mediaType = data.optString("mediaType").uppercase()
+        val kind = when (mediaType) {
+            "ANIME" -> DownloadMediaKind.ANIME
+            "TV", "SERIES" -> DownloadMediaKind.TV
+            "MUSIC" -> DownloadMediaKind.MUSIC
+            else -> DownloadMediaKind.MOVIE
+        }
+        val sourceId = data.optString("sourceId")
+            .ifBlank { scriptId.orEmpty() }
+            .ifBlank { "script" }
+        val item = DownloadItem(
+            id = "script-video-" + System.nanoTime(),
+            canonicalTitleId = data.optString("canonicalTitleId")
+                .ifBlank { sourceId + ":" + title.lowercase() },
+            sourceId = sourceId,
+            sourceName = data.optString("sourceName").ifBlank { scriptId ?: "Script" },
+            kind = kind,
+            title = title,
+            artworkUrl = data.optString("thumbnail"),
+            unitTitle = data.optString("episodeTitle").ifBlank { title },
+            unitNumber = data.optString("episodeNumber"),
+            state = DownloadState.QUEUED,
+            quality = source.quality,
+            sourceUrl = source.url,
+            headersJson = org.json.JSONObject(source.headers).toString(),
+            sourceMimeType = source.mimeType,
+        )
+        mediaDownloader.enqueue(item)
+        addAnnie(
+            buildString {
+                append("Downloading ").append(title)
+                source.quality.takeIf { it.isNotBlank() }?.let { append(" · ").append(it) }
+            }
+        )
+    }
 
     fun openDownloads(mediaFilter: String = "All") {
         downloads.clear()
@@ -399,6 +470,9 @@ internal fun AnnieChat() {
                                     }
                                 }
                             },
+                            onScriptVideoDownload = { data, owner ->
+                                queueScriptVideoDownload(data, owner)
+                            },
                         )
                     }
                     if (entry.id == lastSentMessageId) {
@@ -471,14 +545,21 @@ internal fun AnnieChat() {
                         launchPlayer(context, item.toPlayerCatalogItem(), mediaUri, PlayerMode.OFFLINE)
                     },
                     onRemove = { item ->
-                        downloads.remove(item)
+                        mediaDownloader.remove(item)
+                        downloads.removeAll { it.id == item.id }
                         DownloadStore.write(context, downloads)
                     },
                     onStateChange = { item, state ->
-                        val index = downloads.indexOfFirst { it.id == item.id }
-                        if (index >= 0) {
-                            downloads[index] = downloads[index].copy(state = state)
-                            DownloadStore.write(context, downloads)
+                        when (state) {
+                            DownloadState.PAUSED -> mediaDownloader.pause(item)
+                            DownloadState.QUEUED -> mediaDownloader.resume(item)
+                            else -> {
+                                val index = downloads.indexOfFirst { it.id == item.id }
+                                if (index >= 0) {
+                                    downloads[index] = downloads[index].copy(state = state)
+                                    DownloadStore.write(context, downloads)
+                                }
+                            }
                         }
                     },
                     initialMediaFilter = category.substringAfter(":", "All"),
@@ -673,6 +754,7 @@ internal fun ChatBubble(
     onOpenSource: (String) -> Unit,
     onSeriesAction: (CatalogItem, String, SeasonItem?) -> Unit,
     onScriptAction: (String, String) -> Unit = { _, _ -> },
+    onScriptVideoDownload: (org.json.JSONObject, String?) -> Unit = { _, _ -> },
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -710,7 +792,11 @@ internal fun ChatBubble(
                     }
                 }
             } else if (entry.scriptMessageJson != null) {
-                ScriptMessageCard(entry.scriptMessageJson, onScriptAction)
+                ScriptMessageCard(
+                    payload = entry.scriptMessageJson,
+                    onAction = onScriptAction,
+                    onVideoDownload = { data -> onScriptVideoDownload(data, entry.scriptId) },
+                )
             } else if (entry.menuTitle != null) {
                 Column(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
@@ -772,7 +858,11 @@ internal fun ChatBubble(
 }
 
 @Composable
-private fun ScriptMessageCard(payload: String, onAction: (String, String) -> Unit) {
+private fun ScriptMessageCard(
+    payload: String,
+    onAction: (String, String) -> Unit,
+    onVideoDownload: (org.json.JSONObject) -> Unit,
+) {
     val data = remember(payload) { runCatching { org.json.JSONObject(payload) }.getOrNull() }
         ?: run {
             Surface(color = Bubble, shape = RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)) {
@@ -785,7 +875,7 @@ private fun ScriptMessageCard(payload: String, onAction: (String, String) -> Uni
     when (type) {
         "image" -> ScriptImageMessage(data)
         "music" -> ScriptMusicMessage(data)
-        "video" -> ScriptVideoMessage(data)
+        "video" -> ScriptVideoMessage(data, onVideoDownload)
         "options" -> ScriptOptionsMessage(data, onAction)
         "progress" -> ScriptProgressMessage(data)
         "text" -> Text(data.optString("text"), color = BrightText, fontSize = 15.sp)
@@ -887,10 +977,14 @@ private fun ScriptMusicMessage(data: org.json.JSONObject) {
 }
 
 @Composable
-private fun ScriptVideoMessage(data: org.json.JSONObject) {
+private fun ScriptVideoMessage(
+    data: org.json.JSONObject,
+    onDownload: (org.json.JSONObject) -> Unit,
+) {
     val context = LocalContext.current
     val title = data.optString("title").ifBlank { "Video" }
-    val uri = data.optString("uri").takeIf(String::isNotBlank)
+    val source = remember(data.toString()) { ScriptVideoDownloadSource.from(data) }
+    val uri = source?.url
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)).background(Bubble).padding(8.dp)) {
         Box(Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF030811))
             .clickable(enabled = uri != null) {
@@ -901,7 +995,28 @@ private fun ScriptVideoMessage(data: org.json.JSONObject) {
                 contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             Text("▶", color = Color.White, fontSize = 26.sp, modifier = Modifier.clip(CircleShape).background(Color(0xBB07111E)).padding(16.dp))
         }
-        Text(title, color = BrightText, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 9.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(title, color = BrightText, fontWeight = FontWeight.SemiBold)
+                source?.quality?.takeIf(String::isNotBlank)?.let {
+                    Text(it, color = SoftText, fontSize = 12.sp)
+                }
+            }
+            Text(
+                "Download",
+                color = Color(0xFF42B9F5),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .clickable(enabled = source != null) { onDownload(data) }
+                    .padding(horizontal = 8.dp, vertical = 7.dp)
+                    .testTag("script_video_download"),
+            )
+        }
     }
 }
 
