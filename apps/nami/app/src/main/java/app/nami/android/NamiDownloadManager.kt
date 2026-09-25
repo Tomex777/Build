@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
@@ -56,6 +58,7 @@ class NamiDownloadManager(
     private val database: NamiDatabase,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val downloadPermits = Semaphore(MAX_PARALLEL_DOWNLOADS)
     private val mutableStatuses = MutableStateFlow<Map<String, NamiDownloadStatus>>(emptyMap())
     val statuses: StateFlow<Map<String, NamiDownloadStatus>> = mutableStatuses.asStateFlow()
 
@@ -104,7 +107,10 @@ class NamiDownloadManager(
                 status = queued,
                 sourceAnimeId = episode.ref.sourceAnimeId,
             )
-            runDownload(source, anime, episode, queued)
+            downloadPermits.withPermit {
+                // QUEUED is now a real queue state: only permit holders enter DOWNLOADING.
+                runDownload(source, anime, episode, queued)
+            }
         }
     }
 
@@ -514,6 +520,10 @@ class NamiDownloadManager(
         progress = progress,
         errorMessage = errorMessage,
     )
+
+    companion object {
+        internal const val MAX_PARALLEL_DOWNLOADS = 2
+    }
 
     private data class DownloadTarget(
         val output: OutputStream,
