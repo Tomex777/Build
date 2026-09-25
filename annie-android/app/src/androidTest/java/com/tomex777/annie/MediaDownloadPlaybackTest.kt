@@ -176,4 +176,90 @@ class MediaDownloadPlaybackTest {
             compose.onAllNodesWithText("—:—").fetchSemanticsNodes().isEmpty()
         }
         compose.waitUntil(45_000) {
-            compose.onA
+            compose.onAllNodesWithText("Ⅱ").fetchSemanticsNodes().isNotEmpty()
+        }
+        val screenshotUri = saveEmulatorScreenshot(screenshotName)
+        val screenshot = checkNotNull(
+            context.contentResolver.openInputStream(screenshotUri)?.use(BitmapFactory::decodeStream)
+        ) { "Could not reopen $title screenshot" }
+        val left = screenshot.width / 4
+        val right = screenshot.width * 3 / 4
+        val top = screenshot.height / 4
+        val bottom = screenshot.height * 3 / 4
+        var sampled = 0
+        var colored = 0
+        for (y in top until bottom step 8) {
+            for (x in left until right step 8) {
+                val pixel = screenshot.getPixel(x, y)
+                val red = android.graphics.Color.red(pixel)
+                val green = android.graphics.Color.green(pixel)
+                val blue = android.graphics.Color.blue(pixel)
+                sampled++
+                if (maxOf(red, green, blue) > 60 && maxOf(red, green, blue) - minOf(red, green, blue) > 12) colored++
+            }
+        }
+        screenshot.recycle()
+        assertTrue("$title stayed visually black ($colored/$sampled colored samples)", colored > sampled / 100)
+    }
+
+    private fun waitUntil(timeoutMs: Long, predicate: () -> Boolean) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (predicate()) return
+            Thread.sleep(25)
+        }
+    }
+
+    private class FixtureServer : AutoCloseable {
+        private val server = ServerSocket(0, 16, InetAddress.getByName("127.0.0.1"))
+        private val pool = Executors.newCachedThreadPool()
+        private val running = AtomicBoolean(true)
+        private val counts = ConcurrentHashMap<String, AtomicInteger>()
+        val authorizationFailures = AtomicInteger(0)
+        val secondSegmentStarted = CountDownLatch(1)
+        val baseUrl = "http://127.0.0.1:${server.localPort}"
+
+        init {
+            pool.execute {
+                while (running.get()) {
+                    try {
+                        val socket = server.accept()
+                        pool.execute { handle(socket) }
+                    } catch (_: Throwable) {
+                        if (running.get()) throw AssertionError("Fixture server accept failed")
+                    }
+                }
+            }
+        }
+
+        fun url(path: String) = baseUrl + path
+        fun requestCount(path: String) = counts[path]?.get() ?: 0
+
+        private fun handle(socket: Socket) {
+            socket.use { client ->
+                client.soTimeout = 10_000
+                val reader = BufferedReader(InputStreamReader(client.getInputStream(), StandardCharsets.ISO_8859_1))
+                val request = reader.readLine() ?: return
+                val path = request.split(' ').getOrNull(1)?.substringBefore('?') ?: return
+                val headers = linkedMapOf<String, String>()
+                while (true) {
+                    val line = reader.readLine() ?: break
+                    if (line.isEmpty()) break
+                    val colon = line.indexOf(':')
+                    if (colon > 0) headers[line.substring(0, colon).trim().lowercase(Locale.US)] = line.substring(colon + 1).trim()
+                }
+                val count = counts.computeIfAbsent(path) { AtomicInteger(0) }.incrementAndGet()
+
+                if (path == "/redirect-mkv") {
+                    writeResponse(client, 302, "text/plain", ByteArray(0), mapOf("Location" to url("/direct.mkv")))
+                    return
+                }
+                if (!authorized(headers)) {
+                    authorizationFailures.incrementAndGet()
+                    writeResponse(client, 403, "text/plain", "forbidden".toByteArray())
+                    return
+                }
+
+                when (path) {
+                    "/direct.mkv" -> writeResponse(client, 200, "video/x-matroska", DIRECT_MKV)
+                    "/master.m3u8" -> writeResponse(client, 20
