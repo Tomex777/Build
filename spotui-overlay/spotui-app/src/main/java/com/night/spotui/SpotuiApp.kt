@@ -690,7 +690,7 @@ private fun MiniPlayer(
             Artwork(track, Modifier.size(46.dp))
             Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
                 Text(track.title, color = SpotText, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (requiresSourceSessionBrowser(player.errorMessage)) {
+                if (requiresSourceSession(player.errorMessage)) {
                     Text(
                         "Source needs browser session · Open",
                         color = SpotGreen,
@@ -774,7 +774,7 @@ private fun NowPlaying(
             Text(formatTime(player.durationMs), color = SpotMuted, fontSize = 10.sp)
         }
         player.errorMessage?.let { message ->
-            if (requiresSourceSessionBrowser(message)) {
+            if (requiresSourceSession(message)) {
                 Surface(
                     color = Color(0xFF19271E),
                     shape = RoundedCornerShape(12.dp),
@@ -1226,9 +1226,10 @@ private suspend fun evaluateSessionScript(view: WebView, script: String?): Strin
     }
 }
 
-private fun requiresSourceSessionBrowser(message: String?): Boolean {
+private fun requiresSourceSession(message: String?): Boolean {
     val text = message.orEmpty()
-    return text.contains("LOGIN_REQUIRED", ignoreCase = true) ||
+    return text.contains("browser session", ignoreCase = true) ||
+        text.contains("LOGIN_REQUIRED", ignoreCase = true) ||
         text.contains("sign in", ignoreCase = true) ||
         text.contains("not a bot", ignoreCase = true) ||
         text.contains("confirm you", ignoreCase = true)
