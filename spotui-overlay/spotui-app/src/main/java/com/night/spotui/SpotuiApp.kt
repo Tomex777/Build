@@ -473,7 +473,7 @@ private fun HomeScreen(
     liked: Set<String>,
     onPlay: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
-    onArtist: (String) -> Unit,
+    onArtist: (String, String?) -> Unit,
     onRetry: () -> Unit,
 ) {
     LazyColumn(
@@ -486,7 +486,7 @@ private fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("SpotUI", color = SpotText, fontSize = 30.sp, fontWeight = FontWeight.Black)
+                    Text("Auri", color = SpotText, fontSize = 30.sp, fontWeight = FontWeight.Black)
                     Text("Your listening space", color = SpotMuted, fontSize = 11.sp)
                 }
             }
@@ -1003,7 +1003,7 @@ private fun MusicSectionTitle(title: String, subtitle: String) {
 private fun MusicSquareRail(
     tracks: List<Track>,
     onPlay: (Track) -> Unit,
-    onArtist: (String) -> Unit,
+    onArtist: (String, String?) -> Unit,
 ) {
     LazyRow(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
@@ -1031,7 +1031,7 @@ private fun MusicSquareRail(
                     fontSize = 9.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.clickable { onArtist(track.artist) },
+                    modifier = Modifier.clickable { onArtist(track.artist, track.artistId.takeIf(String::isNotBlank)) },
                 )
             }
         }
@@ -1039,7 +1039,7 @@ private fun MusicSquareRail(
 }
 
 @Composable
-private fun ArtistRail(tracks: List<Track>, onArtist: (String) -> Unit) {
+private fun ArtistRail(tracks: List<Track>, onArtist: (String, String?) -> Unit) {
     val artists = tracks
         .map { it.artist.trim() }
         .filter { it.isNotBlank() }
@@ -1052,7 +1052,9 @@ private fun ArtistRail(tracks: List<Track>, onArtist: (String) -> Unit) {
         items(artists, key = { "artist-" + it }) { artist ->
             val representative = tracks.firstOrNull { it.artist.trim() == artist }
             Column(
-                Modifier.width(94.dp).clickable { onArtist(artist) },
+                Modifier.width(94.dp).clickable {
+                    onArtist(artist, representative?.artistId?.takeIf(String::isNotBlank))
+                },
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Box(
@@ -1090,7 +1092,7 @@ private fun MusicTrackList(
     liked: Set<String>,
     onPlay: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
-    onArtist: (String) -> Unit,
+    onArtist: (String, String?) -> Unit,
 ) {
     Column {
         tracks.forEach { track ->
@@ -1099,7 +1101,7 @@ private fun MusicTrackList(
                 liked = liked.contains(track.id),
                 onPlay = { onPlay(track) },
                 onToggleLike = { onToggleLike(track) },
-                onArtist = { onArtist(track.artist) },
+                onArtist = { onArtist(track.artist, track.artistId.takeIf(String::isNotBlank)) },
             )
         }
     }
@@ -1206,7 +1208,7 @@ private fun NowPlaying(
     onToggleLike: () -> Unit,
     onSignIn: () -> Unit,
     lyricsRepository: LyricsRepository,
-    onArtist: (String) -> Unit,
+    onArtist: (String, String?) -> Unit,
     onClose: () -> Unit,
 ) {
     val track = player.currentTrack ?: return
@@ -1249,7 +1251,9 @@ private fun NowPlaying(
                     track.artist,
                     color = SpotMuted,
                     fontSize = 14.sp,
-                    modifier = Modifier.padding(top = 4.dp).clickable { onArtist(track.artist) },
+                    modifier = Modifier.padding(top = 4.dp).clickable {
+                        onArtist(track.artist, track.artistId.takeIf(String::isNotBlank))
+                    },
                 )
             }
             IconButton(onClick = onToggleLike) {
@@ -1772,52 +1776,6 @@ private fun ErrorBlock(message: String, action: () -> Unit) {
             )
         }
     }
-}
-
-private class LibraryStore(context: Context) {
-    private val prefs = context.getSharedPreferences("spotui_library_v1", Context.MODE_PRIVATE)
-
-    fun all(): List<Track> = runCatching {
-        val array = JSONArray(prefs.getString(KEY, "[]"))
-        buildList {
-            for (index in 0 until array.length()) {
-                val item = array.optJSONObject(index) ?: continue
-                add(
-                    Track(
-                        id = item.optString("id"),
-                        title = item.optString("title"),
-                        artist = item.optString("artist"),
-                        album = item.optString("album"),
-                        artworkUrl = item.optString("artworkUrl").takeIf(String::isNotBlank),
-                        durationSeconds = item.optLong("durationSeconds"),
-                        explicit = item.optBoolean("explicit"),
-                    )
-                )
-            }
-        }.filter { it.id.isNotBlank() && it.title.isNotBlank() }
-    }.getOrDefault(emptyList())
-
-    fun toggle(track: Track) {
-        val current = all().toMutableList()
-        val index = current.indexOfFirst { it.id == track.id }
-        if (index >= 0) current.removeAt(index) else current.add(0, track)
-        val array = JSONArray()
-        current.forEach { item ->
-            array.put(
-                JSONObject()
-                    .put("id", item.id)
-                    .put("title", item.title)
-                    .put("artist", item.artist)
-                    .put("album", item.album)
-                    .put("artworkUrl", item.artworkUrl ?: "")
-                    .put("durationSeconds", item.durationSeconds)
-                    .put("explicit", item.explicit)
-            )
-        }
-        prefs.edit().putString(KEY, array.toString()).apply()
-    }
-
-    companion object { private const val KEY = "liked" }
 }
 
 private fun formatTime(ms: Long): String {
