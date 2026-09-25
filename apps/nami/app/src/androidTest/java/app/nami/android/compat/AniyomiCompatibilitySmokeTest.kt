@@ -41,10 +41,11 @@ class AniyomiCompatibilitySmokeTest {
         val search = withTimeout(90_000) {
             GlobalAnimeSearch(NamiSourceRegistry { installed }).search(query)
         }
-        println(
-            "NamiSourceSmoke: global search completed; " +
-                "sources=${search.resultsBySource.keys}; " +
-                "failures=${search.failures.map { it.sourceId + ":" + it.cause.javaClass.simpleName }}",
+        Log.i(
+            "NamiSourceSmoke",
+            "globalSearch sources=${search.resultsBySource.keys} " +
+                "counts=${search.resultsBySource.mapValues { it.value.size }} " +
+                "failures=${search.failures.map { it.sourceId + ":" + it.stage + ":" + it.cause.javaClass.simpleName }}",
         )
         val extensionResults = search.resultsBySource[animeSogo.metadata.id].orEmpty()
         assertTrue("AnimeSogo returned no real results for $query", extensionResults.isNotEmpty())
