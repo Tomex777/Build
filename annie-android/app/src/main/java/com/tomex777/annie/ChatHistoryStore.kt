@@ -70,6 +70,9 @@ internal object ChatHistoryStore {
         .put("searchInitial", entry.searchInitial)
         .put("selectedItem", entry.selectedItem?.let(::encodeCatalogItem) ?: JSONObject.NULL)
         .put("selectedStage", entry.selectedStage ?: JSONObject.NULL)
+        .put("scriptMessageJson", entry.scriptMessageJson ?: JSONObject.NULL)
+        .put("scriptId", entry.scriptId ?: JSONObject.NULL)
+        .put("scriptCommandName", entry.scriptCommandName ?: JSONObject.NULL)
 
     private fun decodeMessage(json: JSONObject): ChatEntry? = runCatching {
         val id = json.optLong("id")
@@ -92,6 +95,9 @@ internal object ChatHistoryStore {
             searchInitial = json.optString("searchInitial").takeUnless { it == "null" }.orEmpty(),
             selectedItem = json.optJSONObject("selectedItem")?.let(::decodeCatalogItem),
             selectedStage = json.nullableString("selectedStage"),
+            scriptMessageJson = json.nullableString("scriptMessageJson"),
+            scriptId = json.nullableString("scriptId"),
+            scriptCommandName = json.nullableString("scriptCommandName"),
         )
     }.getOrNull()
 

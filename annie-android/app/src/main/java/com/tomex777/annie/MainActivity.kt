@@ -3,6 +3,7 @@ package com.tomex777.annie
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.media.MediaPlayer
 import java.io.File
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -53,6 +54,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -81,6 +83,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -128,13 +131,22 @@ internal data class ChatEntry(
     val searchMedia: String? = null,
     val searchInitial: String = "",
     val selectedItem: CatalogItem? = null,
-    val selectedStage: String? = null
+    val selectedStage: String? = null,
+    val scriptMessageJson: String? = null,
+    val scriptId: String? = null,
+    val scriptCommandName: String? = null,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AnnieChat() {
     val context = LocalContext.current
+    val scriptWorkspace = remember(context) { ScriptWorkspace(context) }
+    var scriptCommands by remember { mutableStateOf<List<ScriptCommand>>(emptyList()) }
+    LaunchedEffect(scriptWorkspace) { scriptCommands = scriptWorkspace.reload() }
+    androidx.compose.runtime.DisposableEffect(scriptWorkspace) {
+        onDispose { scriptWorkspace.close() }
+    }
     val chats = remember {
         mutableStateListOf<ChatSession>().apply {
             addAll(ChatHistoryStore.read(context))
@@ -170,9 +182,12 @@ internal fun AnnieChat() {
         searchMedia: String? = null,
         searchInitial: String = "",
         selectedItem: CatalogItem? = null,
-        selectedStage: String? = null
+        selectedStage: String? = null,
+        scriptMessageJson: String? = null,
+        scriptId: String? = null,
+        scriptCommandName: String? = null,
     ) {
-        messages.add(ChatEntry(System.nanoTime(), false, text, catalog, menuTitle, actions, searchMedia, searchInitial, selectedItem, selectedStage))
+        messages.add(ChatEntry(System.nanoTime(), false, text, catalog, menuTitle, actions, searchMedia, searchInitial, selectedItem, selectedStage, scriptMessageJson, scriptId, scriptCommandName))
         persistHistory()
         scope.launch { listState.animateScrollToItem(messages.lastIndex) }
     }
@@ -245,6 +260,26 @@ internal fun AnnieChat() {
         val parts = value.split(Regex("\\s+"), limit = 2)
         val command = parts.firstOrNull()?.lowercase().orEmpty()
         val query = parts.getOrNull(1)?.trim().orEmpty()
+        val dynamicCommand = scriptCommands.firstOrNull {
+            command == "/${it.name}" || command.removePrefix("/") in it.aliases
+        }
+        if (dynamicCommand != null) {
+            val chatId = activeChatId
+            scope.launch {
+                val resultJson = scriptWorkspace.execute(dynamicCommand.name, value, chatId, sentMessage.id)
+                val result = runCatching { org.json.JSONObject(resultJson) }.getOrNull()
+                if (result == null) {
+                    addAnnie("The script returned a result Annie could not read.")
+                } else if (result.optString("type") == "error") {
+                    addAnnie("Script error\n${result.optString("text", "Script failed").take(300)}")
+                } else if (result.optString("type") == "text") {
+                    addAnnie(result.optString("text"), scriptMessageJson = resultJson, scriptId = dynamicCommand.scriptId, scriptCommandName = dynamicCommand.name)
+                } else {
+                    addAnnie("", scriptMessageJson = resultJson, scriptId = dynamicCommand.scriptId, scriptCommandName = dynamicCommand.name)
+                }
+            }
+            return
+        }
         when (command) {
             "/anime" -> when {
                 query.isBlank() -> openCategory("Anime")
@@ -341,7 +376,8 @@ internal fun AnnieChat() {
                     draft = TextFieldValue(selected, selection = TextRange(selected.length))
                 },
                 onSend = { submit() },
-                onMenu = { activeSheet = "Attachments" }
+                onMenu = { activeSheet = "Attachments" },
+                scriptCommands = scriptCommands
             )
         }
     }
@@ -615,6 +651,8 @@ internal fun ChatBubble(
                         onSeriesAction(entry.selectedItem, stage, null)
                     }
                 }
+            } else if (entry.scriptMessageJson != null) {
+                ScriptMessageCard(entry.scriptMessageJson)
             } else if (entry.menuTitle != null) {
                 Column(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
@@ -671,6 +709,163 @@ internal fun ChatBubble(
                 Modifier.padding(start = 9.dp, top = 18.dp).size(32.dp).clip(CircleShape).background(Color(0xFF18598C)),
                 contentAlignment = Alignment.Center
             ) { Text("Y", color = BrightText, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+        }
+    }
+}
+
+@Composable
+private fun ScriptMessageCard(payload: String) {
+    val data = remember(payload) { runCatching { org.json.JSONObject(payload) }.getOrNull() }
+    val type = data?.optString("type").orEmpty()
+    when (type) {
+        "image" -> ScriptImageMessage(data)
+        "music" -> ScriptMusicMessage(data)
+        "video" -> ScriptVideoMessage(data)
+        "options" -> ScriptOptionsMessage(data)
+        "progress" -> ScriptProgressMessage(data)
+        "text" -> Text(data.optString("text"), color = BrightText, fontSize = 15.sp)
+        else -> Surface(color = Bubble, shape = RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)) {
+            Text(data?.optString("text")?.takeIf(String::isNotBlank) ?: "Script response", color = BrightText,
+                fontSize = 15.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp))
+        }
+    }
+}
+
+@Composable
+private fun ScriptImageMessage(data: org.json.JSONObject) {
+    val uri = data.optString("uri").takeIf(String::isNotBlank)
+    var expanded by remember(uri) { mutableStateOf(false) }
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 20.dp, 20.dp, 20.dp)).background(Bubble).padding(8.dp)
+    ) {
+        if (uri == null) {
+            Text("Image could not be loaded", color = SoftText, modifier = Modifier.padding(12.dp))
+        } else {
+            AsyncImage(
+                model = uri,
+                contentDescription = data.optString("caption").ifBlank { "Image message" },
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp).clip(RoundedCornerShape(14.dp))
+                    .clickable { expanded = true }.testTag("script_image_message"),
+            )
+        }
+        data.optString("caption").takeIf(String::isNotBlank)?.let {
+            Text(it, color = BrightText, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp))
+        }
+    }
+    if (expanded && uri != null) {
+        Dialog(onDismissRequest = { expanded = false }) {
+            Box(Modifier.fillMaxSize().background(Color(0xFF030811)).clickable { expanded = false }, contentAlignment = Alignment.Center) {
+                AsyncImage(model = uri, contentDescription = data.optString("caption"), contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxWidth().fillMaxSize().testTag("script_image_fullscreen"))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScriptMusicMessage(data: org.json.JSONObject) {
+    val context = LocalContext.current
+    val stream = data.optString("streamUrl").takeIf(String::isNotBlank)
+    var mediaPlayer by remember(stream) { mutableStateOf<MediaPlayer?>(null) }
+    var playing by remember(stream) { mutableStateOf(false) }
+    var duration by remember(stream) { mutableIntStateOf(0) }
+    var position by remember(stream) { mutableIntStateOf(0) }
+    var showLyrics by remember(stream) { mutableStateOf(false) }
+    androidx.compose.runtime.DisposableEffect(stream) {
+        onDispose { mediaPlayer?.release(); mediaPlayer = null }
+    }
+    LaunchedEffect(playing, mediaPlayer) {
+        while (playing) {
+            mediaPlayer?.let { player ->
+                if (runCatching { player.isPlaying }.getOrDefault(false)) {
+                    position = runCatching { player.currentPosition }.getOrDefault(position)
+                    duration = runCatching { player.duration }.getOrDefault(duration)
+                } else playing = false
+            }
+            delay(350)
+        }
+    }
+    fun startPlayback() {
+        if (stream == null) return
+        val player = mediaPlayer ?: MediaPlayer().also { mediaPlayer = it }
+        runCatching {
+            player.reset()
+            player.setOnPreparedListener { prepared -> duration = prepared.duration; prepared.start(); playing = true }
+            player.setOnCompletionListener { playing = false; position = 0 }
+            player.setOnErrorListener { _, _, _ -> playing = false; true }
+            player.setDataSource(context, Uri.parse(stream))
+            player.prepareAsync()
+        }.onFailure { playing = false }
+    }
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)).background(Bubble).padding(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            AsyncImage(model = data.optString("artwork").takeIf(String::isNotBlank), contentDescription = null,
+                contentScale = ContentScale.Crop, modifier = Modifier.size(60.dp).clip(RoundedCornerShape(12.dp)))
+            Column(Modifier.weight(1f)) {
+                Text(data.optString("title", "Untitled track"), color = BrightText, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(data.optString("artist"), color = SoftText, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Text(if (playing) "Ⅱ" else "▶", color = BrightText, fontSize = 20.sp,
+                modifier = Modifier.clip(CircleShape).background(Blue).clickable { if (playing) { mediaPlayer?.pause(); playing = false } else startPlayback() }.padding(horizontal = 14.dp, vertical = 10.dp).testTag("script_music_play"))
+        }
+        Slider(value = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f,
+            onValueChange = { value -> if (duration > 0) { position = (duration * value).toInt(); runCatching { mediaPlayer?.seekTo(position) } } },
+            enabled = stream != null && duration > 0, modifier = Modifier.height(30.dp).testTag("script_music_seek"))
+        val lyrics = data.optString("lyrics")
+        if (lyrics.isNotBlank()) {
+            Text(if (showLyrics) "Hide lyrics" else "Lyrics", color = Color(0xFF42B9F5), fontSize = 13.sp,
+                modifier = Modifier.clickable { showLyrics = !showLyrics }.padding(vertical = 4.dp))
+            if (showLyrics) Text(lyrics, color = BrightText, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 6.dp))
+        }
+    }
+}
+
+@Composable
+private fun ScriptVideoMessage(data: org.json.JSONObject) {
+    val context = LocalContext.current
+    val title = data.optString("title").ifBlank { "Video" }
+    val uri = data.optString("uri").takeIf(String::isNotBlank)
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)).background(Bubble).padding(8.dp)) {
+        Box(Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF030811))
+            .clickable(enabled = uri != null) {
+                val item = CatalogItem(0, "VIDEO", title, data.optString("thumbnail"), null, "", null, null)
+                launchPlayer(context, item, uri)
+            }, contentAlignment = Alignment.Center) {
+            AsyncImage(model = data.optString("thumbnail").takeIf(String::isNotBlank), contentDescription = title,
+                contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            Text("▶", color = Color.White, fontSize = 26.sp, modifier = Modifier.clip(CircleShape).background(Color(0xBB07111E)).padding(16.dp))
+        }
+        Text(title, color = BrightText, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 9.dp))
+    }
+}
+
+@Composable
+private fun ScriptOptionsMessage(data: org.json.JSONObject) {
+    val rows = data.optJSONArray("options") ?: org.json.JSONArray()
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)).background(Bubble).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        data.optString("title").takeIf(String::isNotBlank)?.let { Text(it, color = BrightText, fontWeight = FontWeight.SemiBold) }
+        for (index in 0 until rows.length()) {
+            val option = rows.optJSONObject(index) ?: continue
+            Surface(color = Color(0xFF10263D), shape = RoundedCornerShape(13.dp), border = BorderStroke(1.dp, Color(0xFF294562))) {
+                Text(option.optString("label", option.optString("id")), color = BrightText,
+                    modifier = Modifier.fillMaxWidth().clickable { }.padding(horizontal = 13.dp, vertical = 12.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScriptProgressMessage(data: org.json.JSONObject) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)).background(Bubble).padding(14.dp)) {
+        Text(data.optString("text", "Working…"), color = BrightText)
+        if (data.has("progress")) {
+            val value = data.optDouble("progress", 0.0).toFloat().coerceIn(0f, 1f)
+            Spacer(Modifier.height(7.dp))
+            androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(5.dp)) {
+                drawRoundRect(Color(0xFF26384B), cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height))
+                drawRoundRect(Blue, size = androidx.compose.ui.geometry.Size(size.width * value, size.height), cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height))
+            }
         }
     }
 }
@@ -1138,7 +1333,7 @@ private fun statusLabel(status: String): String = when (status) {
 }
 
 @Composable
-internal fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
+internal fun CommandSuggestions(value: String, onSelect: (String) -> Unit, scriptCommands: List<ScriptCommand> = emptyList()) {
     val commands = listOf(
         "/anime" to "Browse anime",
         "/anime search" to "Search the catalog",
@@ -1163,7 +1358,7 @@ internal fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
         "/downloads" to "Downloads",
         "/extensions" to "Extensions",
         "/help" to "Help"
-    )
+    ) + scriptCommands.map { "/${it.name}" to it.description.ifBlank { "JavaScript command" } }
     val raw = value.trimStart()
     if (!raw.startsWith("/") || raw.contains("\n")) return
     val matches = if (raw == "/") {
@@ -1194,9 +1389,9 @@ internal fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
 }
 
 @Composable
-internal fun Composer(value: TextFieldValue, onValueChange: (TextFieldValue) -> Unit, onSuggestionSelected: (String) -> Unit = {}, onSend: () -> Unit, onMenu: () -> Unit) {
+internal fun Composer(value: TextFieldValue, onValueChange: (TextFieldValue) -> Unit, onSuggestionSelected: (String) -> Unit = {}, onSend: () -> Unit, onMenu: () -> Unit, scriptCommands: List<ScriptCommand> = emptyList()) {
     Column(Modifier.fillMaxWidth().imePadding().navigationBarsPadding().testTag("composer")) {
-        CommandSuggestions(value.text, onSuggestionSelected)
+        CommandSuggestions(value.text, onSuggestionSelected, scriptCommands)
         Row(
         modifier = Modifier.fillMaxWidth()
             .background(Night).padding(start = 12.dp, end = 12.dp, bottom = 8.dp),

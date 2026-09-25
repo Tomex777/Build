@@ -43,9 +43,17 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation("io.github.dokar3:quickjs-kt:1.0.15")
     implementation("io.coil-kt:coil-compose:2.7.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
+    configurations.matching { it.name.endsWith("UnitTestRuntimeClasspath") }.configureEach {
+        resolutionStrategy.dependencySubstitution {
+            substitute(module("io.github.dokar3:quickjs-kt-android"))
+                .using(module("io.github.dokar3:quickjs-kt-jvm:1.0.15"))
+        }
+    }
     testImplementation("org.json:json:20240303")
     androidTestImplementation(platform("androidx.compose:compose-bom:2025.01.00"))
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
