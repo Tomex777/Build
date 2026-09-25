@@ -332,7 +332,7 @@ else
 fi
 tap "Movies & TV"
 tap Music
-wait_for_any 50 "Fresh picks" "Music sources could not load right now." "No Music items were returned by the installed source feed."
+wait_for_any 50 "For you" "Music sources could not load right now." "No Music items were returned by the installed source feed."
 if node_exists "Music sources could not load right now."; then
   wait_for "Retry"
   wait_for "Manage sources"
