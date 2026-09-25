@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import app.nami.compat.aniyomi.AniyomiExtensionRegistry
 import app.nami.data.local.NamiDatabase
 
 class MainActivity : ComponentActivity() {
@@ -13,7 +12,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val database = NamiDatabase(applicationContext)
-        val sourceRegistry = AniyomiExtensionRegistry(applicationContext)
+        val sourceRegistry = (application as NamiApplication).sourceRegistry
         val downloadManager = NamiDownloadManager(applicationContext, database)
 
         setContent {
