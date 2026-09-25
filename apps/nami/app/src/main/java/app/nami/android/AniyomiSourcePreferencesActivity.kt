@@ -38,7 +38,7 @@ class AniyomiSourcePreferencesActivity : FragmentActivity() {
 
         lifecycleScope.launch {
             val source = (application as NamiApplication)
-                .sourceRegistry
+                .installedSourceRegistry
                 .installedSources()
                 .firstOrNull { it.metadata.id == sourceId }
 

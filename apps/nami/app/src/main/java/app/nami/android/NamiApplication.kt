@@ -9,10 +9,18 @@ import android.os.Build
 import app.nami.compat.aniyomi.AniyomiExtensionRegistry
 import app.nami.data.local.NamiDatabase
 import app.nami.runtime.CachingNamiSourceRegistry
+import app.nami.runtime.EnabledNamiSourceRegistry
+import app.nami.runtime.NamiSourceRegistry
 
 class NamiApplication : Application() {
 
-    lateinit var sourceRegistry: CachingNamiSourceRegistry
+    lateinit var installedSourceRegistry: CachingNamiSourceRegistry
+        private set
+
+    lateinit var sourceEnablementStore: NamiSourceEnablementStore
+        private set
+
+    lateinit var sourceRegistry: NamiSourceRegistry
         private set
 
     lateinit var database: NamiDatabase
@@ -23,16 +31,21 @@ class NamiApplication : Application() {
 
     private val packageChangeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            sourceRegistry.invalidate()
+            installedSourceRegistry.invalidate()
         }
     }
 
     override fun onCreate() {
         super.onCreate()
 
-        sourceRegistry = CachingNamiSourceRegistry(
+        installedSourceRegistry = CachingNamiSourceRegistry(
             delegate = AniyomiExtensionRegistry(this),
             ttlMillis = SOURCE_SNAPSHOT_TTL_MILLIS,
+        )
+        sourceEnablementStore = NamiSourceEnablementStore(this)
+        sourceRegistry = EnabledNamiSourceRegistry(
+            installedRegistry = installedSourceRegistry,
+            enablementStore = sourceEnablementStore,
         )
         database = NamiDatabase(this)
         downloadManager = NamiDownloadManager(

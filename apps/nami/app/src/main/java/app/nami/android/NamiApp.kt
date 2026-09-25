@@ -82,6 +82,7 @@ import app.nami.runtime.GlobalSearchState
 import app.nami.runtime.NamiSourceRegistry
 import app.nami.runtime.SourceSearchPager
 import app.nami.runtime.SourceSearchState
+import app.nami.runtime.SourceEnablementStore
 import app.nami.source.NamiAnimeSource
 import app.nami.source.SourceOrigin
 import coil.compose.AsyncImage
@@ -113,6 +114,8 @@ private sealed interface NamiRoute {
 @Composable
 fun NamiApp(
     sourceRegistry: NamiSourceRegistry,
+    installedSourceRegistry: NamiSourceRegistry,
+    sourceEnablementStore: SourceEnablementStore,
     database: NamiDatabase,
     downloadManager: NamiDownloadManager,
 ) {
@@ -212,9 +215,9 @@ fun NamiApp(
                     }
 
                     NamiRoute.Settings -> {
-                        SimpleDestination(
-                            title = "Settings",
-                            body = "Nami settings live inside Library. Source, download, and player settings will be added here.",
+                        NamiSettingsScreen(
+                            installedSourceRegistry = installedSourceRegistry,
+                            sourceEnablementStore = sourceEnablementStore,
                             onBack = { stack.removeAt(stack.lastIndex) },
                         )
                     }

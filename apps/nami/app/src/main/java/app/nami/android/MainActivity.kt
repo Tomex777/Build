@@ -15,6 +15,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             NamiApp(
                 sourceRegistry = app.sourceRegistry,
+                installedSourceRegistry = app.installedSourceRegistry,
+                sourceEnablementStore = app.sourceEnablementStore,
                 database = app.database,
                 downloadManager = app.downloadManager,
             )
