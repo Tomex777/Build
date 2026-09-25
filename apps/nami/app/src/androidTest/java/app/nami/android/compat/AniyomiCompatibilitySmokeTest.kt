@@ -21,7 +21,7 @@ import org.junit.runner.RunWith
 class AniyomiCompatibilitySmokeTest {
 
     @Test
-    fun realAnimeSogoExtensionAndNativeJikanUseNamiContracts() = runBlocking {
+    fun realAnimeSogoExtensionAndNativeJikanUseNamiContracts() = runBlocking<Unit> {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val start = System.nanoTime()
         val installed = AniyomiExtensionRegistry(context).installedSources()
