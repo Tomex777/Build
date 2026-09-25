@@ -59,16 +59,20 @@ class NamiUiScreenshotTest {
         waitForDescription("Pause", timeoutMillis = 30_000)
         composeRule.onNodeWithContentDescription("Seek forward 10 seconds").performClick()
 
-        composeRule.onNodeWithText("Subtitles").performClick()
-        waitForText("Off", timeoutMillis = 20_000)
-        assertTrue(
-            "AnimeSogo player did not expose subtitle choices",
-            composeRule.onAllNodesWithText("Subtitle", substring = true)
+        composeRule.onNodeWithContentDescription("Subtitles").performClick()
+        waitUntil(20_000, "real AnimeSogo subtitle choices") {
+            composeRule.onAllNodesWithTag("subtitle-external-option")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false)
-                .isNotEmpty(),
+                .isNotEmpty()
+        }
+        val subtitleChoices = composeRule.onAllNodesWithTag("subtitle-external-option")
+            .fetchSemanticsNodes(atLeastOneRootRequired = false)
+        assertTrue(
+            "AnimeSogo player did not expose its real external subtitle choices",
+            subtitleChoices.isNotEmpty(),
         )
-        device.pressBack()
-        composeRule.waitForIdle()
+        composeRule.onAllNodesWithTag("subtitle-external-option")[0].performClick()
+        waitForDescription("Subtitles active", timeoutMillis = 30_000)
 
         showPlayerControls()
         composeRule.onNodeWithContentDescription("Nami player video output active").performClick()

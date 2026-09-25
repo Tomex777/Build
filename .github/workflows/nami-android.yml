@@ -394,45 +394,9 @@ jobs:
           emulator-boot-timeout: 900
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 3072 -cores 2
           disable-animations: true
-          script: |
-            set -eu
+          script: >-
+            bash -euo pipefail -c 'install_apk() { apk="$1"; label="$2"; for attempt in 1 2 3; do echo "NAMI_INSTALL=$label attempt=$attempt"; timeout 90s adb wait-for-device || true; if timeout 300s adb install -r "$apk"; then return 0; fi; echo "NAMI_INSTALL_RETRY=$label attempt=$attempt"; adb kill-server || true; sleep 3; adb start-server || true; timeout 90s adb wait-for-device || true; done; return 1; }; install_apk apps/nami/extensions/kayoanime/build/outputs/apk/debug/kayoanime-debug.apk kayoanime; install_apk apps/nami/app/build/outputs/apk/debug/app-x86_64-debug.apk nami; install_apk apps/nami/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk instrumentation; timeout 30s adb shell am start -W -n app.nami.android/.MainActivity; sleep 8; test -n "$(timeout 60s adb shell pidof app.nami.android || true)"; set +e; output=$(timeout 1200s adb shell am instrument -w -r -e class app.nami.android.compat.KayoAnimeRealSourceSmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); result=$?; set -e; printf "%s\n" "$output" | tee "$GITHUB_WORKSPACE/nami-kayo-instrumentation.txt"; timeout 60s adb logcat -d -v time | tee "$GITHUB_WORKSPACE/nami-kayo-logcat.txt" >/dev/null || true; timeout 60s adb logcat -d -s NamiKayoSmoke:I NamiAniyomiCompat:W AndroidRuntime:E || true; if [ "$result" -ne 0 ]; then exit "$result"; fi; echo "$output" | grep -Eq "OK .+ tests?"'
 
-            install_apk() {
-              apk="$1"
-              label="$2"
-              for attempt in 1 2 3; do
-                echo "NAMI_INSTALL=$label attempt=$attempt"
-                timeout 90s adb wait-for-device || true
-                if timeout 300s adb install -r "$apk"; then
-                  return 0
-                fi
-                adb kill-server || true
-                sleep 3
-                adb start-server || true
-                timeout 90s adb wait-for-device || true
-              done
-              return 1
-            }
-
-            install_apk apps/nami/extensions/kayoanime/build/outputs/apk/debug/kayoanime-debug.apk kayoanime
-            install_apk apps/nami/app/build/outputs/apk/debug/app-x86_64-debug.apk nami
-            install_apk apps/nami/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk instrumentation
-
-            timeout 30s adb shell am start -W -n app.nami.android/.MainActivity
-            sleep 8
-            test -n "$(timeout 60s adb shell pidof app.nami.android || true)"
-
-            set +e
-            output=$(timeout 1200s adb shell am instrument -w -r -e class app.nami.android.compat.KayoAnimeRealSourceSmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1)
-            result=$?
-            set -e
-            printf "%s\n" "$output" | tee "$GITHUB_WORKSPACE/nami-kayo-instrumentation.txt"
-            timeout 60s adb logcat -d -v time | tee "$GITHUB_WORKSPACE/nami-kayo-logcat.txt" >/dev/null || true
-            timeout 60s adb logcat -d -s NamiKayoSmoke:I NamiAniyomiCompat:W AndroidRuntime:E || true
-            if [ "$result" -ne 0 ]; then
-              exit "$result"
-            fi
-            echo "$output" | grep -Eq "OK .+ tests?"
       - name: Upload KayoAnime real-source evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -499,17 +463,14 @@ jobs:
           set -euo pipefail
 
           ADB_SERIAL="emulator-5554"
-          adb_for_device() {
-            adb -s "$ADB_SERIAL" "$@"
-          }
 
           collect_evidence() {
             echo NAMI_API36_EVIDENCE
-            timeout 20s adb_for_device get-state || true
-            timeout 20s adb_for_device shell getprop > "$GITHUB_WORKSPACE/nami-api36-getprop.txt" 2>&1 || true
-            timeout 20s adb_for_device shell service check package > "$GITHUB_WORKSPACE/nami-api36-package-service.txt" 2>&1 || true
-            timeout 60s adb_for_device logcat -d -v time > "$GITHUB_WORKSPACE/nami-api36-logcat.txt" 2>&1 || true
-            adb_for_device emu kill >/dev/null 2>&1 || true
+            timeout 20s adb -s "$ADB_SERIAL" get-state || true
+            timeout 20s adb -s "$ADB_SERIAL" shell getprop > "$GITHUB_WORKSPACE/nami-api36-getprop.txt" 2>&1 || true
+            timeout 20s adb -s "$ADB_SERIAL" shell service check package > "$GITHUB_WORKSPACE/nami-api36-package-service.txt" 2>&1 || true
+            timeout 60s adb -s "$ADB_SERIAL" logcat -d -v time > "$GITHUB_WORKSPACE/nami-api36-logcat.txt" 2>&1 || true
+            adb -s "$ADB_SERIAL" emu kill >/dev/null 2>&1 || true
           }
           trap collect_evidence EXIT
 
@@ -542,13 +503,13 @@ jobs:
 
           wait_for_framework() {
             for attempt in $(seq 1 180); do
-              state=$(timeout 10s adb_for_device get-state 2>/dev/null || true)
-              boot=$(timeout 10s adb_for_device shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)
-              package_state=$(timeout 10s adb_for_device shell service check package 2>/dev/null || true)
+              state=$(timeout 10s adb -s "$ADB_SERIAL" get-state 2>/dev/null || true)
+              boot=$(timeout 10s adb -s "$ADB_SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)
+              package_state=$(timeout 10s adb -s "$ADB_SERIAL" shell service check package 2>/dev/null || true)
               if [ "$state" = "device" ] &&
                  [ "$boot" = "1" ] &&
                  echo "$package_state" | grep -q "found" &&
-                 timeout 20s adb_for_device shell cmd package list packages >/dev/null 2>&1; then
+                 timeout 20s adb -s "$ADB_SERIAL" shell cmd package list packages >/dev/null 2>&1; then
                 echo "NAMI_FRAMEWORK_READY attempt=$attempt"
                 return 0
               fi
@@ -569,7 +530,7 @@ jobs:
             for attempt in 1 2 3 4 5; do
               wait_for_framework || return 1
               echo "NAMI_INSTALL=$label attempt=$attempt"
-              if timeout 300s adb_for_device install --no-streaming -r "$apk"; then
+              if timeout 300s adb -s "$ADB_SERIAL" install --no-streaming -r "$apk"; then
                 return 0
               fi
               echo "NAMI_INSTALL_RETRY=$label attempt=$attempt"
@@ -584,18 +545,18 @@ jobs:
           install_apk apps/nami/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk instrumentation
 
           wait_for_framework
-          timeout 30s adb_for_device shell am force-stop app.nami.android >/dev/null 2>&1 || true
-          timeout 45s adb_for_device shell am start -W -n app.nami.android/.MainActivity \
+          timeout 30s adb -s "$ADB_SERIAL" shell am force-stop app.nami.android >/dev/null 2>&1 || true
+          timeout 45s adb -s "$ADB_SERIAL" shell am start -W -n app.nami.android/.MainActivity \
             | tee "$GITHUB_WORKSPACE/nami-api36-start.txt"
           sleep 15
-          app_pid=$(timeout 20s adb_for_device shell pidof app.nami.android 2>/dev/null || true)
+          app_pid=$(timeout 20s adb -s "$ADB_SERIAL" shell pidof app.nami.android 2>/dev/null || true)
           test -n "$app_pid"
           echo "NAMI_APP_PID=$app_pid"
-          timeout 60s adb_for_device exec-out screencap -p > "$GITHUB_WORKSPACE/nami-api36-launch.png" || true
+          timeout 60s adb -s "$ADB_SERIAL" exec-out screencap -p > "$GITHUB_WORKSPACE/nami-api36-launch.png" || true
 
           wait_for_framework
           set +e
-          output=$(timeout 480s adb_for_device shell am instrument -w -r \
+          output=$(timeout 480s adb -s "$ADB_SERIAL" shell am instrument -w -r \
             -e class app.nami.android.compat.Api36SmokeTest \
             app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1)
           result=$?

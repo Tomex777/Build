@@ -60,6 +60,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -117,6 +118,7 @@ internal fun NamiPlayerScreen(
     var resolveVersion by remember { mutableIntStateOf(0) }
     var pendingResumePositionMs by remember { mutableLongStateOf(-1L) }
     var resumeAfterBackground by remember { mutableStateOf(false) }
+    var activeExternalSubtitle by remember(session) { mutableStateOf<String?>(null) }
 
     fun currentEpisode(): AnimeEpisode? = when (session) {
         is NamiPlaybackSession.Streaming -> session.episodes.getOrNull(currentIndex)
@@ -231,6 +233,7 @@ internal fun NamiPlayerScreen(
         resolveError = null
         resolved = emptyList()
         selectedMedia = null
+        activeExternalSubtitle = null
 
         runCatching {
             when (session) {
@@ -404,6 +407,8 @@ internal fun NamiPlayerScreen(
                         }
                     },
                     onQuality = { sheet = PlayerSheet.QUALITY },
+                    subtitlesActive = activeExternalSubtitle != null ||
+                        playerState.selectedSubtitleTrack >= 0,
                     onSubtitles = { sheet = PlayerSheet.SUBTITLES },
                     onAudio = { sheet = PlayerSheet.AUDIO },
                     onSpeed = { sheet = PlayerSheet.SPEED },
@@ -456,22 +461,41 @@ internal fun NamiPlayerScreen(
             title = "Subtitles",
             onDismiss = { sheet = null },
         ) {
-            ChoiceRow("Off", playerState.selectedSubtitleTrack < 0) {
+            ChoiceRow(
+                label = "Off",
+                selected = playerState.selectedSubtitleTrack < 0 && activeExternalSubtitle == null,
+                modifier = Modifier.testTag("subtitle-off-option"),
+            ) {
                 engine.selectSubtitleTrack(-1)
+                activeExternalSubtitle = null
                 sheet = null
             }
             selectedMedia?.subtitles.orEmpty().forEach { track ->
-                ChoiceRow(track.displayName("Subtitle"), false) {
-                    engine.addExternalSubtitle(
-                        track.url,
-                        selectedMedia?.headers.orEmpty(),
-                    )
-                    sheet = null
+                val label = track.displayName("Subtitle")
+                ChoiceRow(
+                    label = label,
+                    selected = label == activeExternalSubtitle,
+                    modifier = Modifier.testTag("subtitle-external-option"),
+                ) {
+                    if (engine.addExternalSubtitle(
+                            track.url,
+                            selectedMedia?.headers.orEmpty(),
+                        )
+                    ) {
+                        activeExternalSubtitle = label
+                        sheet = null
+                    }
                 }
             }
             playerState.subtitleTracks.filter { it.id >= 0 }.forEach { track ->
-                ChoiceRow(track.name, track.id == playerState.selectedSubtitleTrack) {
+                ChoiceRow(
+                    label = track.name,
+                    selected = track.id == playerState.selectedSubtitleTrack &&
+                        activeExternalSubtitle == null,
+                    modifier = Modifier.testTag("subtitle-vlc-option"),
+                ) {
                     engine.selectSubtitleTrack(track.id)
+                    activeExternalSubtitle = null
                     sheet = null
                 }
             }
@@ -519,6 +543,7 @@ private fun PlayerControls(
     canPrevious: Boolean,
     canNext: Boolean,
     qualityLabel: String,
+    subtitlesActive: Boolean,
     onBack: () -> Unit,
     onToggle: () -> Unit,
     onSeekBack: () -> Unit,
@@ -633,7 +658,12 @@ private fun PlayerControls(
                     qualityLabel.ifBlank { "Quality" },
                     onQuality,
                 )
-                PlayerAction(Icons.Outlined.Subtitles, "Subtitles", onSubtitles)
+                PlayerAction(
+                    Icons.Outlined.Subtitles,
+                    "Subtitles",
+                    onSubtitles,
+                    contentDescription = if (subtitlesActive) "Subtitles active" else "Subtitles",
+                )
                 PlayerAction(Icons.Outlined.Audiotrack, "Audio", onAudio)
                 PlayerAction(Icons.Outlined.Speed, state.rate.toString() + "×", onSpeed)
                 PlayerAction(Icons.Outlined.Fullscreen, "Fullscreen", onFullscreen)
@@ -647,8 +677,14 @@ private fun PlayerAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     onClick: () -> Unit,
+    contentDescription: String = label,
 ) {
-    TextButton(onClick = onClick) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.semantics {
+            this.contentDescription = contentDescription
+        },
+    ) {
         Icon(
             icon,
             contentDescription = null,
@@ -679,7 +715,12 @@ private fun ChoiceSheet(
 }
 
 @Composable
-private fun ChoiceRow(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun ChoiceRow(
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     ListItem(
         headlineContent = { Text(label) },
         trailingContent = {
@@ -687,7 +728,7 @@ private fun ChoiceRow(label: String, selected: Boolean, onClick: () -> Unit) {
                 Text("Selected", color = MaterialTheme.colorScheme.primary)
             }
         },
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = modifier.clickable(onClick = onClick),
     )
 }
 
