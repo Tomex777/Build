@@ -65,6 +65,7 @@ class LocalVideoPlaybackTest {
             compose.onAllNodesWithText("00:00").fetchSemanticsNodes().isEmpty()
         }
         saveEmulatorScreenshot("annie-vlc-visible-frame")
+        compose.onNodeWithTag("media_player").performClick()
         compose.onNodeWithTag("player_play_pause").performClick()
         compose.waitUntil(5_000) {
             compose.onAllNodesWithText("▶").fetchSemanticsNodes().isNotEmpty()

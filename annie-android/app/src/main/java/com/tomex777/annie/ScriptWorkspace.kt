@@ -375,7 +375,7 @@ internal class ScriptRuntime(
         }
         runtime.asyncFunction("annieHttpRequest") { args ->
             val request = JSONObject(args.firstOrNull() as? String ?: "{}")
-            requestHttp(request)
+            JSONObject(requestHttp(request)).toString()
         }
         runtime.function("annieLog") { args ->
             val level = args.getOrNull(0)?.toString()?.uppercase()?.take(8) ?: "INFO"
@@ -442,7 +442,7 @@ internal class ScriptRuntime(
     private suspend fun evaluateModuleResult(expression: String, filename: String): String {
         capturedModuleResult = null
         runtime.evaluate<JsObject>(
-            "annieCaptureModuleResult(JSON.stringify($expression))",
+            "annieCaptureModuleResult($expression)",
             filename = filename,
             asModule = true,
         )
@@ -551,7 +551,7 @@ internal class ScriptRuntime(
             |    if (!definition || !definition.name || typeof definition.onMessage !== "function") throw new TypeError("Session requires name and onMessage(ctx)");
             |    globalThis.__annieSessionHandlers[String(definition.name)] = definition.onMessage;
             |  }},
-            |  http: { request: request => annieHttpRequest(JSON.stringify(request)) },
+            |  http: { request: async request => JSON.parse(await annieHttpRequest(JSON.stringify(request))) },
             |  image: { chess: fen => annieRenderChess(String(fen)) },
             |  files: {
             |    readText: path => annieFileReadText(String(path)),
