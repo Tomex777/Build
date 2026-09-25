@@ -193,40 +193,65 @@ internal class AnnieMediaDownloader(
     private val state = context.getSharedPreferences("annie_download_transfer_v1", Context.MODE_PRIVATE)
 
     fun enqueue(item: DownloadItem) {
-        if (item.sourceUrl.isBlank() || jobs[item.id]?.isActive == true) return
+        if (item.sourceUrl.isBlank()) return
         val queued = item.copy(state = DownloadState.QUEUED, failureReason = "")
-        publish(queued)
-        val job = scope.launch {
-            publish(queued.copy(state = DownloadState.DOWNLOADING))
-            try {
-                download(queued)
-            } catch (_: CancellationException) {
-                // pause/cancel decides the persisted state.
-            } catch (failure: Throwable) {
-                publish(
-                    queued.copy(
-                        state = DownloadState.FAILED,
-                        failureReason = failure.message ?: failure.javaClass.simpleName,
+        val job = synchronized(jobs) {
+            val previous = jobs[item.id]
+            if (previous != null && !previous.isCompleted) return
+            publish(queued)
+            scope.launch(start = CoroutineStart.LAZY) {
+                publish(queued.copy(state = DownloadState.DOWNLOADING))
+                try {
+                    download(queued)
+                } catch (_: CancellationException) {
+                    // pause/cancel decides the persisted state.
+                } catch (failure: Throwable) {
+                    publish(
+                        queued.copy(
+                            state = DownloadState.FAILED,
+                            failureReason = failure.message ?: failure.javaClass.simpleName,
+                        )
                     )
-                )
-            } finally {
-                jobs.remove(item.id)
-            }
+                } finally {
+                    val self = currentCoroutineContext()[Job]
+                    if (self != null) jobs.remove(item.id, self)
+                }
+            }.also { jobs[item.id] = it }
         }
-        jobs[item.id] = job
+        job.start()
     }
 
     fun pause(item: DownloadItem) {
-        jobs.remove(item.id)?.cancel()
+        jobs[item.id]?.cancel()
         publish(item.copy(state = DownloadState.PAUSED, failureReason = ""))
     }
 
     fun resume(item: DownloadItem) {
-        enqueue(item.copy(state = DownloadState.QUEUED, failureReason = ""))
+        val queued = item.copy(state = DownloadState.QUEUED, failureReason = "")
+        val previous = jobs[item.id]
+        if (previous == null || previous.isCompleted) {
+            enqueue(queued)
+        } else {
+            scope.launch {
+                previous.cancelAndJoin()
+                enqueue(queued)
+            }
+        }
     }
 
     fun remove(item: DownloadItem) {
-        jobs.remove(item.id)?.cancel()
+        val previous = jobs[item.id]
+        if (previous == null || previous.isCompleted) {
+            removeFiles(item)
+        } else {
+            scope.launch {
+                previous.cancelAndJoin()
+                removeFiles(item)
+            }
+        }
+    }
+
+    private fun removeFiles(item: DownloadItem) {
         tempFile(item).delete()
         state.edit().remove(hlsIndexKey(item.id)).apply()
         item.localPath.takeIf(String::isNotBlank)?.let { runCatching { File(it).delete() } }
