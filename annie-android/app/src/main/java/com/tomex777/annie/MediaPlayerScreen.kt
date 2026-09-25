@@ -1,6 +1,9 @@
 package com.tomex777.annie
 
 import android.app.Activity
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
@@ -45,6 +48,42 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import coil.compose.AsyncImage
+
+internal class AnniePlayerActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        val title = intent.getStringExtra(EXTRA_TITLE)?.takeIf(String::isNotBlank) ?: "Video"
+        val item = CatalogItem(
+            id = intent.getIntExtra(EXTRA_ID, 0),
+            mediaType = intent.getStringExtra(EXTRA_MEDIA_TYPE).orEmpty(),
+            title = title,
+            image = intent.getStringExtra(EXTRA_IMAGE).orEmpty(),
+            year = intent.getIntExtra(EXTRA_YEAR, -1).takeIf { it >= 0 },
+            status = "",
+            episodes = null,
+            chapters = null,
+        )
+        setContent {
+            AnnieTheme {
+                MediaPlayerScreen(
+                    item = item,
+                    mode = PlayerMode.STREAMING,
+                    sourceAvailable = false,
+                    onBack = { finish() },
+                )
+            }
+        }
+    }
+
+    companion object {
+        const val EXTRA_ID = "annie.player.id"
+        const val EXTRA_MEDIA_TYPE = "annie.player.media_type"
+        const val EXTRA_TITLE = "annie.player.title"
+        const val EXTRA_IMAGE = "annie.player.image"
+        const val EXTRA_YEAR = "annie.player.year"
+    }
+}
 
 internal enum class PlayerMode { STREAMING, OFFLINE }
 

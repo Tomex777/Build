@@ -1,7 +1,7 @@
 package com.tomex777.annie
 
+import android.content.Context
 import android.content.Intent
-import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -51,7 +51,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -97,7 +96,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun AnnieTheme(content: @Composable () -> Unit) {
+internal fun AnnieTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = darkColorScheme(
             primary = Color(0xFF36A8F4),
@@ -128,7 +127,6 @@ internal data class ChatEntry(
 @Composable
 internal fun AnnieChat() {
     val context = LocalContext.current
-    val activity = remember(context) { context.findActivity() }
     val chats = remember {
         mutableStateListOf<ChatSession>().apply {
             addAll(ChatHistoryStore.read(context))
@@ -141,7 +139,6 @@ internal fun AnnieChat() {
     var draft by remember { mutableStateOf("") }
     var activeSheet by remember { mutableStateOf<String?>(null) }
     val listState = remember(activeChatId) { LazyListState() }
-    var playerItem by remember { mutableStateOf<CatalogItem?>(null) }
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val keyboardVisible = WindowInsets.ime.getBottom(density) > 0
@@ -153,13 +150,6 @@ internal fun AnnieChat() {
         if (messages.size > 1) listState.animateScrollToItem(messages.lastIndex)
     }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    DisposableEffect(playerItem, activity) {
-        val previousOrientation = activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        if (playerItem != null) activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-        onDispose {
-            if (playerItem != null) activity?.requestedOrientation = previousOrientation
-        }
-    }
 
     fun persistHistory() {
         val activeIndex = chats.indexOfFirst { it.id == activeChatId }
@@ -297,14 +287,6 @@ internal fun AnnieChat() {
         }
     }
 
-    if (playerItem != null) {
-        MediaPlayerScreen(
-            item = playerItem!!,
-            mode = PlayerMode.STREAMING,
-            sourceAvailable = false,
-            onBack = { playerItem = null },
-        )
-    } else {
     Surface(modifier = Modifier.fillMaxSize(), color = Night) {
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding().testTag("chat_root")) {
             AnnieTopBar(onHistory = { activeSheet = "Chat history" })
@@ -324,7 +306,7 @@ internal fun AnnieChat() {
                         },
                         onSeriesAction = { item, stage, season ->
                             if (stage == "play") {
-                                playerItem = season?.asCatalogItem() ?: item
+                                launchPlayer(context, season?.asCatalogItem() ?: item)
                             } else {
                                 addAnnie("", selectedItem = season?.asCatalogItem() ?: item, selectedStage = stage)
                             }
@@ -340,7 +322,6 @@ internal fun AnnieChat() {
                 onMenu = { activeSheet = "Attachments" }
             )
         }
-    }
     }
 
     if (activeSheet != null) {
@@ -412,6 +393,17 @@ internal fun AnnieChat() {
             }
         }
     }
+}
+
+private fun launchPlayer(context: Context, item: CatalogItem) {
+    context.startActivity(
+        Intent(context, AnniePlayerActivity::class.java)
+            .putExtra(AnniePlayerActivity.EXTRA_ID, item.id)
+            .putExtra(AnniePlayerActivity.EXTRA_MEDIA_TYPE, item.mediaType)
+            .putExtra(AnniePlayerActivity.EXTRA_TITLE, item.title)
+            .putExtra(AnniePlayerActivity.EXTRA_IMAGE, item.image)
+            .putExtra(AnniePlayerActivity.EXTRA_YEAR, item.year ?: -1),
+    )
 }
 
 private fun newWelcomeChat(): ChatSession {
