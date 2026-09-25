@@ -239,6 +239,22 @@ class AniyomiCompatibilitySmokeTest {
             "v17 fixture should expose configurable source preferences",
             fixture.metadata.capabilities.configurable,
         )
+        assertTrue("v17 fixture should expose Popular", fixture.metadata.capabilities.popular)
+        assertTrue("v17 fixture should expose Latest", fixture.metadata.capabilities.latest)
+
+        val popular = withTimeout(10_000) { fixture.popular().items.single() }
+        assertEquals("Fixture Popular", popular.title)
+        assertTrue(
+            "v17 Popular result did not preserve opaque source state",
+            !popular.sourceState.isNullOrBlank(),
+        )
+
+        val latest = withTimeout(10_000) { fixture.latest().items.single() }
+        assertEquals("Fixture Latest", latest.title)
+        assertTrue(
+            "v17 Latest result did not preserve opaque source state",
+            !latest.sourceState.isNullOrBlank(),
+        )
 
         val result = withTimeout(10_000) { fixture.search("Bleach").items.single() }
         assertTrue(result.title.contains("Bleach", ignoreCase = true))
@@ -401,6 +417,14 @@ class AniyomiCompatibilitySmokeTest {
         assertNotNull("The separately installed v14 fixture APK must be discovered", fixture)
         fixture!!
         assertEquals(14, fixture.metadata.extensionApiVersion)
+        assertTrue("v14 fixture should expose Popular", fixture.metadata.capabilities.popular)
+        assertTrue("v14 fixture should expose Latest", fixture.metadata.capabilities.latest)
+
+        val popular = withTimeout(10_000) { fixture.popular().items.single() }
+        assertEquals("Fixture14 Popular", popular.title)
+
+        val latest = withTimeout(10_000) { fixture.latest().items.single() }
+        assertEquals("Fixture14 Latest", latest.title)
 
         val result = withTimeout(10_000) { fixture.search("Bleach").items.single() }
         assertEquals("Fixture14 Bleach", result.title)

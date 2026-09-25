@@ -19,7 +19,7 @@ class V17FixtureSource : AnimeSource, ConfigurableAnimeSource {
     override val id: Long = 17_000_001L
     override val name: String = "Nami V17 Fixture"
     override val lang: String = "en"
-
+    override val supportsLatest: Boolean = true
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         screen.addPreference(
@@ -30,6 +30,32 @@ class V17FixtureSource : AnimeSource, ConfigurableAnimeSource {
             },
         )
     }
+
+    override suspend fun getPopularAnime(page: Int): AnimesPage =
+        AnimesPage(
+            animes = listOf(
+                SAnime.create().apply {
+                    url = "/fixture/popular"
+                    title = "Fixture Popular"
+                    initialized = true
+                    memo = JsonObject(mapOf("token" to JsonPrimitive(REQUIRED_TOKEN)))
+                },
+            ),
+            hasNextPage = false,
+        )
+
+    override suspend fun getLatestUpdates(page: Int): AnimesPage =
+        AnimesPage(
+            animes = listOf(
+                SAnime.create().apply {
+                    url = "/fixture/latest"
+                    title = "Fixture Latest"
+                    initialized = true
+                    memo = JsonObject(mapOf("token" to JsonPrimitive(REQUIRED_TOKEN)))
+                },
+            ),
+            hasNextPage = false,
+        )
 
     override suspend fun getSearchAnime(
         page: Int,

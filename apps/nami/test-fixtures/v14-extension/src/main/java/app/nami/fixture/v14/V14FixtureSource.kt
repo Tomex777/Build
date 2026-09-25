@@ -12,6 +12,37 @@ class V14FixtureSource : AnimeCatalogueSource {
     override val id: Long = 14_000_001L
     override val name: String = "Nami V14 Fixture"
     override val lang: String = "en"
+    override val supportsLatest: Boolean = true
+
+    @Deprecated("Legacy fixture path")
+    override fun fetchPopularAnime(page: Int): Observable<AnimesPage> =
+        Observable.just(
+            AnimesPage(
+                listOf(
+                    SAnime.create().apply {
+                        url = "/fixture14/popular"
+                        title = "Fixture14 Popular"
+                        initialized = true
+                    },
+                ),
+                false,
+            ),
+        )
+
+    @Deprecated("Legacy fixture path")
+    override fun fetchLatestUpdates(page: Int): Observable<AnimesPage> =
+        Observable.just(
+            AnimesPage(
+                listOf(
+                    SAnime.create().apply {
+                        url = "/fixture14/latest"
+                        title = "Fixture14 Latest"
+                        initialized = true
+                    },
+                ),
+                false,
+            ),
+        )
 
     @Deprecated("Legacy fixture path")
     override fun fetchSearchAnime(
