@@ -334,9 +334,13 @@ internal fun MediaPlayerScreen(
                         layout.post {
                             if (attachedPlayer !== player) {
                                 runCatching { attachedPlayer?.detachViews() }
-                                // TextureView keeps Compose controls above video on every device.
+                                val emulator = Build.FINGERPRINT.contains("generic", ignoreCase = true) ||
+                                    Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
+                                    Build.MODEL.contains("Emulator", ignoreCase = true)
+                                // The emulator's software decoder is tested with SurfaceView; phones use
+                                // TextureView so Compose controls can stay layered over the video.
                                 val attached = runCatching {
-                                    player.attachViews(layout, null, true, true)
+                                    player.attachViews(layout, null, true, !emulator)
                                 }.isSuccess
                                 if (attached) {
                                     attachedPlayer = player
