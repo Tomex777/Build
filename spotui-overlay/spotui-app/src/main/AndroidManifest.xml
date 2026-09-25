@@ -12,7 +12,7 @@
 
     <application
         android:allowBackup="false"
-        android:label="SpotUI"
+        android:label="Auri"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
 
