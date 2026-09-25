@@ -13,6 +13,10 @@ on:
       - '.github/workflows/annie-android-ci.yml'
   workflow_dispatch:
 
+concurrency:
+  group: annie-android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
