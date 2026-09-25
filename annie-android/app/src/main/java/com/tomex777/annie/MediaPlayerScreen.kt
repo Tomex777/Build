@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
+import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -190,7 +191,9 @@ internal fun MediaPlayerScreen(
                 "--network-caching=1500",
                 "--no-video-title-show",
             )
-            if (BuildConfig.DEBUG && emulator) options += "-vvv"
+            val isDebuggable =
+                (appContext.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+            if (isDebuggable && emulator) options += "-vvv"
             LibVLC(
                 appContext,
                 options,
