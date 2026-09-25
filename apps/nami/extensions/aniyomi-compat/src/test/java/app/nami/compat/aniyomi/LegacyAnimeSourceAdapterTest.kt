@@ -284,30 +284,6 @@ class LegacyAnimeSourceAdapterTest {
             return AnimesPage(listOf(anime("/v16/latest", "Latest v16")), false)
         }
 
-        override suspend fun getPopularAnime(page: Int): AnimesPage {
-            popularCalls++
-            return AnimesPage(
-                listOf(
-                    anime("/v17/popular", "Popular v17").apply {
-                        memo = JsonObject(mapOf("token" to JsonPrimitive("stateful-v17")))
-                    },
-                ),
-                false,
-            )
-        }
-
-        override suspend fun getLatestUpdates(page: Int): AnimesPage {
-            latestCalls++
-            return AnimesPage(
-                listOf(
-                    anime("/v17/latest", "Latest v17").apply {
-                        memo = JsonObject(mapOf("token" to JsonPrimitive("stateful-v17")))
-                    },
-                ),
-                false,
-            )
-        }
-
         override suspend fun getSearchAnime(
             page: Int,
             query: String,
@@ -361,6 +337,30 @@ class LegacyAnimeSourceAdapterTest {
         var searchCalls = 0
         var detailUpdateCalls = 0
         var episodeUpdateCalls = 0
+
+        override suspend fun getPopularAnime(page: Int): AnimesPage {
+            popularCalls++
+            return AnimesPage(
+                listOf(
+                    anime("/v17/popular", "Popular v17").apply {
+                        memo = JsonObject(mapOf("token" to JsonPrimitive("stateful-v17")))
+                    },
+                ),
+                false,
+            )
+        }
+
+        override suspend fun getLatestUpdates(page: Int): AnimesPage {
+            latestCalls++
+            return AnimesPage(
+                listOf(
+                    anime("/v17/latest", "Latest v17").apply {
+                        memo = JsonObject(mapOf("token" to JsonPrimitive("stateful-v17")))
+                    },
+                ),
+                false,
+            )
+        }
 
         override suspend fun getSearchAnime(
             page: Int,
