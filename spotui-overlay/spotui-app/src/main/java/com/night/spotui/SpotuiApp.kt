@@ -517,8 +517,10 @@ private fun HomeScreen(
 private fun SearchScreen(
     modifier: Modifier,
     query: String,
+    submittedQuery: String,
     onQuery: (String) -> Unit,
     suggestions: List<String>,
+    recentSearches: List<String>,
     tracks: List<Track>,
     loading: Boolean,
     error: String?,
@@ -526,9 +528,10 @@ private fun SearchScreen(
     onSearch: (String) -> Unit,
     onPlay: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
-    onArtist: (String) -> Unit,
+    onArtist: (String, String?) -> Unit,
     onSuggestion: (String) -> Unit,
 ) {
+    val showingResults = submittedQuery.isNotBlank() && query.trim() == submittedQuery
     LazyColumn(modifier.fillMaxSize().background(SpotBlack)) {
         item {
             Column(Modifier.statusBarsPadding().padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 8.dp)) {
@@ -563,29 +566,11 @@ private fun SearchScreen(
                                 inner()
                             },
                         )
-                    }
-                }
-            }
-        }
-
-        if (query.isNotBlank() && suggestions.isNotEmpty()) {
-            item {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp)) {
-                    suggestions.forEach { suggestion ->
-                        Row(
-                            Modifier.fillMaxWidth()
-                                .clickable { onSuggestion(suggestion) }
-                                .padding(horizontal = 4.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(Icons.Rounded.Search, null, tint = SpotMuted, modifier = Modifier.size(17.dp))
-                            Text(
-                                suggestion,
-                                color = SpotText,
-                                fontSize = 13.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(start = 12.dp).weight(1f),
+                        if (loading && showingResults) {
+                            CircularProgressIndicator(
+                                color = SpotMuted,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(17.dp),
                             )
                         }
                     }
@@ -593,10 +578,53 @@ private fun SearchScreen(
             }
         }
 
-        if (loading && tracks.isEmpty()) item { LoadingBlock("Searching…") }
-        error?.let { item { ErrorBlock(it) { onSearch(query) } } }
-        items(tracks, key = { "search-" + it.id }) { track ->
-            TrackRow(track, liked.contains(track.id), { onPlay(track) }, { onToggleLike(track) }, { onArtist(track.artist) })
+        if (query.isBlank() && recentSearches.isNotEmpty()) {
+            item { MusicSectionTitle("Recent searches", "Pick up where you left off") }
+            items(recentSearches, key = { "recent-" + it.lowercase() }) { recent ->
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clickable { onSuggestion(recent) }
+                        .padding(horizontal = 20.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Rounded.Search, null, tint = SpotMuted, modifier = Modifier.size(18.dp))
+                    Text(recent, color = SpotText, fontSize = 14.sp, modifier = Modifier.padding(start = 13.dp))
+                }
+            }
+        }
+
+        if (query.isNotBlank() && suggestions.isNotEmpty() && !showingResults) {
+            items(suggestions, key = { "suggest-" + it.lowercase() }) { suggestion ->
+                Row(
+                    Modifier.fillMaxWidth()
+                        .clickable { onSuggestion(suggestion) }
+                        .padding(horizontal = 20.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Rounded.Search, null, tint = SpotMuted, modifier = Modifier.size(18.dp))
+                    Text(
+                        suggestion,
+                        color = SpotText,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 13.dp).weight(1f),
+                    )
+                }
+            }
+        }
+
+        if (showingResults) {
+            error?.let { item { ErrorBlock(it) { onSearch(query) } } }
+            items(tracks, key = { "search-" + it.id }) { track ->
+                TrackRow(
+                    track,
+                    liked.contains(track.id),
+                    { onPlay(track) },
+                    { onToggleLike(track) },
+                    { onArtist(track.artist, track.artistId.takeIf(String::isNotBlank)) },
+                )
+            }
         }
     }
 }
@@ -605,9 +633,11 @@ private fun SearchScreen(
 private fun LibraryScreen(
     modifier: Modifier,
     tracks: List<Track>,
+    albums: List<AlbumSummary>,
     onPlay: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
-    onArtist: (String) -> Unit,
+    onArtist: (String, String?) -> Unit,
+    onAlbum: (AlbumSummary) -> Unit,
 ) {
     LazyColumn(modifier.fillMaxSize().background(SpotBlack)) {
         item {
@@ -615,27 +645,49 @@ private fun LibraryScreen(
                 Text("YOUR MUSIC", color = SpotGreen, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
                 Text("Everything you kept.", color = SpotText, fontSize = 25.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 3.dp))
                 Text(
-                    if (tracks.isEmpty()) "Saved songs will appear here." else tracks.size.toString() + " saved " + if (tracks.size == 1) "song" else "songs",
+                    tracks.size.toString() + " songs · " + albums.size + " albums",
                     color = SpotMuted,
                     fontSize = 11.sp,
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
         }
-        if (tracks.isEmpty()) {
+
+        if (tracks.isEmpty() && albums.isEmpty()) {
             item {
                 Column(
                     Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 72.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Icon(Icons.Rounded.FavoriteBorder, null, tint = SpotMuted, modifier = Modifier.size(48.dp))
-                    Text("Like a song and it will stay here.", color = SpotMuted, modifier = Modifier.padding(top = 14.dp))
+                    Text("Songs and albums you save will live here.", color = SpotMuted, modifier = Modifier.padding(top = 14.dp))
                 }
             }
         } else {
-            item { MusicSectionTitle("Saved songs", "Stored on this phone") }
-            items(tracks, key = { "liked-" + it.id }) { track ->
-                TrackRow(track, true, { onPlay(track) }, { onToggleLike(track) }, { onArtist(track.artist) })
+            if (albums.isNotEmpty()) {
+                item { MusicSectionTitle("Saved albums", "Albums in your library") }
+                item {
+                    LazyRow(
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(albums, key = { "saved-album-" + it.id }) { album ->
+                            AlbumCard(album = album, onClick = { onAlbum(album) })
+                        }
+                    }
+                }
+            }
+            if (tracks.isNotEmpty()) {
+                item { MusicSectionTitle("Saved songs", "Stored on this phone") }
+                items(tracks, key = { "liked-" + it.id }) { track ->
+                    TrackRow(
+                        track,
+                        true,
+                        { onPlay(track) },
+                        { onToggleLike(track) },
+                        { onArtist(track.artist, track.artistId.takeIf(String::isNotBlank)) },
+                    )
+                }
             }
         }
     }
@@ -645,21 +697,19 @@ private fun LibraryScreen(
 private fun ArtistScreen(
     modifier: Modifier,
     artist: String,
+    artworkUrl: String?,
     tracks: List<Track>,
+    releases: List<AlbumSummary>,
     loading: Boolean,
     error: String?,
     liked: Set<String>,
     onBack: () -> Unit,
     onPlay: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
+    onAlbum: (AlbumSummary) -> Unit,
     onRetry: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
-    val representative = tracks.firstOrNull()
-    val albums = tracks
-        .filter { it.album.isNotBlank() }
-        .distinctBy { it.album.lowercase() }
-        .take(12)
 
     LazyColumn(
         modifier.fillMaxSize().background(SpotBlack),
@@ -673,12 +723,12 @@ private fun ArtistScreen(
                     Icon(Icons.Rounded.KeyboardArrowDown, "Back", tint = SpotText)
                 }
                 Box(
-                    Modifier.size(132.dp).clip(CircleShape).background(SpotRaised).align(Alignment.CenterHorizontally),
+                    Modifier.size(144.dp).clip(CircleShape).background(SpotRaised).align(Alignment.CenterHorizontally),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (!representative?.artworkUrl.isNullOrBlank()) {
+                    if (!artworkUrl.isNullOrBlank()) {
                         AsyncImage(
-                            representative?.artworkUrl,
+                            artworkUrl,
                             artist,
                             Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
@@ -700,48 +750,195 @@ private fun ArtistScreen(
 
         if (tracks.isEmpty() && loading) {
             item { LoadingBlock("Loading artist…") }
-        } else if (tracks.isEmpty()) {
+        } else if (tracks.isEmpty() && releases.isEmpty()) {
             item { ErrorBlock(error ?: "Artist page didn’t load.", onRetry) }
         } else {
-            item { MusicSectionTitle("Popular", "Songs from " + artist) }
-            items(tracks.take(10), key = { "artist-track-" + it.id }) { track ->
-                TrackRow(
-                    track = track,
-                    liked = liked.contains(track.id),
-                    onPlay = { onPlay(track) },
-                    onToggleLike = { onToggleLike(track) },
-                    onArtist = {},
-                )
+            if (tracks.isNotEmpty()) {
+                item { MusicSectionTitle("Popular", "Top songs") }
+                items(tracks.take(10), key = { "artist-popular-" + it.id }) { track ->
+                    TrackRow(
+                        track = track,
+                        liked = liked.contains(track.id),
+                        onPlay = { onPlay(track) },
+                        onToggleLike = { onToggleLike(track) },
+                        onArtist = {},
+                    )
+                }
             }
 
-            if (albums.isNotEmpty()) {
-                item { MusicSectionTitle("Releases", "Albums and projects") }
+            if (releases.isNotEmpty()) {
+                item { MusicSectionTitle("Discography", "Albums, EPs and singles") }
                 item {
                     LazyRow(
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        items(albums, key = { "album-" + it.album.lowercase() }) { albumTrack ->
-                            Column(Modifier.width(146.dp)) {
-                                Artwork(albumTrack, Modifier.size(146.dp))
-                                Text(
-                                    albumTrack.album,
-                                    color = SpotText,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(top = 7.dp),
-                                )
-                                Text(artist, color = SpotMuted, fontSize = 9.sp, maxLines = 1)
-                            }
+                        items(releases, key = { "album-" + it.id }) { release ->
+                            AlbumCard(release, onClick = { onAlbum(release) })
                         }
                     }
                 }
             }
 
+            if (tracks.size > 10) {
+                item { MusicSectionTitle("All songs", tracks.size.toString() + " songs from the catalog") }
+                items(tracks, key = { "artist-all-" + it.id }) { track ->
+                    TrackRow(
+                        track = track,
+                        liked = liked.contains(track.id),
+                        onPlay = { onPlay(track) },
+                        onToggleLike = { onToggleLike(track) },
+                        onArtist = {},
+                    )
+                }
+            }
+
             if (loading) item { LoadingBlock("Refreshing artist…") }
         }
+    }
+}
+
+@Composable
+private fun AlbumScreen(
+    modifier: Modifier,
+    summary: AlbumSummary,
+    album: AlbumCatalog?,
+    loading: Boolean,
+    error: String?,
+    saved: Boolean,
+    liked: Set<String>,
+    onBack: () -> Unit,
+    onPlay: (Track) -> Unit,
+    onToggleLike: (Track) -> Unit,
+    onToggleAlbum: (AlbumCatalog) -> Unit,
+    onArtist: (String, String?) -> Unit,
+    onRetry: () -> Unit,
+) {
+    BackHandler(onBack = onBack)
+    val title = album?.title?.ifBlank { summary.title } ?: summary.title
+    val artist = album?.artist?.ifBlank { summary.artist } ?: summary.artist
+    val artwork = album?.artworkUrl ?: summary.artworkUrl
+    val year = album?.year?.takeIf { it > 0 } ?: summary.year
+
+    LazyColumn(
+        modifier.fillMaxSize().background(SpotBlack),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 30.dp),
+    ) {
+        item {
+            Column(
+                Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp),
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Rounded.KeyboardArrowDown, "Back", tint = SpotText)
+                }
+                Box(
+                    Modifier.size(220.dp).clip(RoundedCornerShape(12.dp)).background(SpotRaised).align(Alignment.CenterHorizontally),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (!artwork.isNullOrBlank()) {
+                        AsyncImage(artwork, title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    } else {
+                        Icon(Icons.Rounded.LibraryMusic, null, tint = SpotMuted, modifier = Modifier.size(64.dp))
+                    }
+                }
+                Text(title, color = SpotText, fontSize = 27.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 18.dp))
+                Text(
+                    artist,
+                    color = SpotText,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 5.dp).clickable {
+                        onArtist(artist, album?.artistId?.takeIf(String::isNotBlank) ?: summary.artistId.takeIf(String::isNotBlank))
+                    },
+                )
+                Text(
+                    listOfNotNull(summary.type.takeIf(String::isNotBlank), year.takeIf { it > 0 }?.toString()).joinToString(" · "),
+                    color = SpotMuted,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Surface(
+                        color = SpotText,
+                        shape = RoundedCornerShape(22.dp),
+                        modifier = Modifier.clickable(enabled = album?.songs?.isNotEmpty() == true) {
+                            album?.songs?.firstOrNull()?.let(onPlay)
+                        },
+                    ) {
+                        Text("Play", color = SpotBlack, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp))
+                    }
+                    Surface(
+                        color = SpotRaised,
+                        shape = RoundedCornerShape(22.dp),
+                        modifier = Modifier.clickable(enabled = album != null) { album?.let(onToggleAlbum) },
+                    ) {
+                        Text(
+                            if (saved) "Saved" else "Save album",
+                            color = if (saved) SpotGreen else SpotText,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                        )
+                    }
+                }
+            }
+        }
+
+        when {
+            album == null && loading -> item { LoadingBlock("Loading album…") }
+            album == null -> item { ErrorBlock(error ?: "Album didn’t load.", onRetry) }
+            else -> {
+                item { MusicSectionTitle("Tracks", album.songs.size.toString() + " songs") }
+                items(album.songs, key = { "album-track-" + it.id }) { track ->
+                    TrackRow(
+                        track = track,
+                        liked = liked.contains(track.id),
+                        onPlay = { onPlay(track) },
+                        onToggleLike = { onToggleLike(track) },
+                        onArtist = { onArtist(track.artist, track.artistId.takeIf(String::isNotBlank)) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlbumCard(
+    album: AlbumSummary,
+    onClick: () -> Unit,
+) {
+    Column(
+        Modifier.width(148.dp).clickable(onClick = onClick),
+    ) {
+        Box(
+            Modifier.size(148.dp).clip(RoundedCornerShape(8.dp)).background(SpotRaised),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (!album.artworkUrl.isNullOrBlank()) {
+                AsyncImage(album.artworkUrl, album.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            } else {
+                Icon(Icons.Rounded.LibraryMusic, null, tint = SpotMuted, modifier = Modifier.size(42.dp))
+            }
+        }
+        Text(
+            album.title,
+            color = SpotText,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 7.dp),
+        )
+        Text(
+            listOfNotNull(album.type.takeIf(String::isNotBlank), album.year.takeIf { it > 0 }?.toString()).joinToString(" · "),
+            color = SpotMuted,
+            fontSize = 9.sp,
+            maxLines = 1,
+        )
     }
 }
 
