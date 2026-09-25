@@ -123,6 +123,7 @@ fun SpotuiApp() {
     val player = remember { SpotRuntime.player(context) }
     val taste = remember { SpotRuntime.taste(context) }
     val library = remember { LibraryStore(context) }
+    val homeCache = remember { HomeCacheStore(context) }
     val lyricsRepository = remember { LyricsRepository() }
     val soundCloudSuggestions = remember {
         SoundCloudSuggestions(BuildConfig.SOUNDCLOUD_SUGGEST_PROXY)
@@ -130,42 +131,60 @@ fun SpotuiApp() {
     val scope = rememberCoroutineScope()
 
     var tab by remember { mutableStateOf(SpotTab.HOME) }
-    var homeTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var homeTracks by remember { mutableStateOf(homeCache.load()) }
     var searchTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var likedTracks by remember { mutableStateOf(library.all()) }
+    var likedAlbums by remember { mutableStateOf(library.albums()) }
     var query by remember { mutableStateOf("") }
+    var submittedQuery by remember { mutableStateOf("") }
     var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var recentSearches by remember { mutableStateOf(taste.recentQueries()) }
+    var homeLoading by remember { mutableStateOf(homeTracks.isEmpty()) }
+    var searchLoading by remember { mutableStateOf(false) }
+    var homeError by remember { mutableStateOf<String?>(null) }
+    var searchError by remember { mutableStateOf<String?>(null) }
     var showPlayer by remember { mutableStateOf(false) }
     var showSignIn by remember { mutableStateOf(false) }
     var homeReloadEpoch by remember { mutableIntStateOf(0) }
     var searchEpoch by remember { mutableIntStateOf(0) }
     var selectedArtist by remember { mutableStateOf<String?>(null) }
+    var selectedArtistId by remember { mutableStateOf<String?>(null) }
     var artistTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var artistReleases by remember { mutableStateOf<List<AlbumSummary>>(emptyList()) }
+    var artistArtwork by remember { mutableStateOf<String?>(null) }
     var artistLoading by remember { mutableStateOf(false) }
     var artistError by remember { mutableStateOf<String?>(null) }
     var artistEpoch by remember { mutableIntStateOf(0) }
+    var selectedAlbum by remember { mutableStateOf<AlbumCatalog?>(null) }
+    var pendingAlbum by remember { mutableStateOf<AlbumSummary?>(null) }
+    var albumLoading by remember { mutableStateOf(false) }
+    var albumError by remember { mutableStateOf<String?>(null) }
+    var albumEpoch by remember { mutableIntStateOf(0) }
 
-    fun openArtist(name: String) {
+    fun openArtist(name: String, artistId: String? = null) {
         val clean = name.trim()
         if (clean.isBlank()) return
         selectedArtist = clean
+        selectedArtistId = artistId
+        selectedAlbum = null
+        pendingAlbum = null
         artistTracks = (homeTracks + searchTracks + likedTracks)
             .filter { it.artist.equals(clean, ignoreCase = true) }
             .distinctBy(Track::id)
+        artistReleases = emptyList()
+        artistArtwork = artistTracks.firstOrNull()?.artworkUrl
         artistError = null
         val requestEpoch = ++artistEpoch
         scope.launch {
             artistLoading = true
-            source.search(clean)
-                .onSuccess { results ->
+            source.artist(clean, artistId)
+                .onSuccess { catalog ->
                     if (requestEpoch != artistEpoch) return@onSuccess
-                    val exact = results.filter {
-                        it.artist.equals(clean, ignoreCase = true) ||
-                            it.artist.split(',').any { part -> part.trim().equals(clean, ignoreCase = true) }
-                    }
-                    artistTracks = taste.rank((exact.ifEmpty { results } + artistTracks).distinctBy(Track::id))
+                    selectedArtist = catalog.name.ifBlank { clean }
+                    selectedArtistId = catalog.id.ifBlank { artistId }
+                    artistTracks = catalog.songs
+                    artistReleases = catalog.releases
+                    artistArtwork = catalog.artworkUrl ?: artistTracks.firstOrNull()?.artworkUrl
                 }
                 .onFailure {
                     if (requestEpoch == artistEpoch) artistError = "Artist page didn’t load."
@@ -174,41 +193,69 @@ fun SpotuiApp() {
         }
     }
 
+    fun openAlbum(summary: AlbumSummary) {
+        pendingAlbum = summary
+        selectedAlbum = null
+        albumError = null
+        val requestEpoch = ++albumEpoch
+        scope.launch {
+            albumLoading = true
+            source.album(summary.title + " " + summary.artist, summary.id)
+                .onSuccess { catalog ->
+                    if (requestEpoch != albumEpoch) return@onSuccess
+                    selectedAlbum = catalog
+                }
+                .onFailure {
+                    if (requestEpoch == albumEpoch) albumError = "Album didn’t load."
+                }
+            if (requestEpoch == albumEpoch) albumLoading = false
+        }
+    }
+
+    fun toggleAlbum(album: AlbumSummary) {
+        library.toggleAlbum(album)
+        likedAlbums = library.albums()
+    }
+
     fun toggleLike(track: Track) {
         val wasLiked = likedTracks.any { it.id == track.id }
         library.toggle(track)
         likedTracks = library.all()
         taste.recordLike(track, liked = !wasLiked)
         homeTracks = taste.rank(homeTracks)
+        homeCache.save(homeTracks)
     }
 
     fun runSearch(term: String = query) {
         val clean = term.trim()
         if (clean.isBlank()) return
         query = clean
+        submittedQuery = clean
         suggestions = emptyList()
         searchTracks = emptyList()
         val requestEpoch = ++searchEpoch
         scope.launch {
-            loading = true
-            error = null
+            searchLoading = true
+            searchError = null
             source.search(clean)
                 .onSuccess { results ->
                     if (requestEpoch != searchEpoch) return@onSuccess
                     searchTracks = taste.rank(results)
                     taste.recordSearch(clean, results)
+                    recentSearches = taste.recentQueries()
                     homeTracks = taste.rank((results.take(8) + homeTracks).distinctBy(Track::id))
+                    homeCache.save(homeTracks)
                 }
                 .onFailure {
-                    if (requestEpoch == searchEpoch) error = "Search didn’t load. Try again."
+                    if (requestEpoch == searchEpoch) searchError = "Search didn’t load. Try again."
                 }
-            if (requestEpoch == searchEpoch) loading = false
+            if (requestEpoch == searchEpoch) searchLoading = false
         }
     }
 
     LaunchedEffect(homeReloadEpoch) {
-        loading = true
-        error = null
+        homeLoading = homeTracks.isEmpty()
+        homeError = null
         source.home()
             .onSuccess { base ->
                 val personal = buildList {
@@ -217,9 +264,12 @@ fun SpotuiApp() {
                     }
                 }
                 homeTracks = taste.homeMix(personal, base)
+                homeCache.save(homeTracks)
             }
-            .onFailure { error = it.message ?: "Could not load music" }
-        loading = false
+            .onFailure {
+                if (homeTracks.isEmpty()) homeError = "Home didn’t refresh."
+            }
+        homeLoading = false
     }
 
     LaunchedEffect(player.currentTrack?.id) {
@@ -235,16 +285,13 @@ fun SpotuiApp() {
             suggestions = emptyList()
             return@LaunchedEffect
         }
-        delay(240)
+        delay(140)
         val local = taste.querySuggestions(clean)
-        val soundCloud = soundCloudSuggestions.suggest(clean)
-        // Autocomplete must never consume the playback/search extension. A previous
-        // implementation issued a real YouTube Music search while the user typed,
-        // which could leave source workers occupied and make the next explicit
-        // search appear permanently stuck.
-        suggestions = (local + soundCloud)
+        val network = source.suggestions(clean).getOrDefault(emptyList())
+        val soundCloud = if (network.isEmpty()) soundCloudSuggestions.suggest(clean) else emptyList()
+        suggestions = (local + network + soundCloud)
             .distinctBy { it.lowercase() }
-            .take(8)
+            .take(10)
     }
 
     MaterialTheme(
