@@ -30,3 +30,5 @@ include(":extensions:nami-jikan")
 
 
 include(":test-fixtures:v17-extension")
+
+include(":test-fixtures:v14-extension")

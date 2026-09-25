@@ -266,4 +266,41 @@ class AniyomiCompatibilitySmokeTest {
     }
 
 
+    @Test
+    fun installedV14FixtureCrossesLegacyRxBoundary() = runBlocking<Unit> {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val fixture = AniyomiExtensionRegistry(context)
+            .installedSources()
+            .firstOrNull { it.metadata.extensionPackage == "app.nami.fixture.v14" }
+
+        assertNotNull("The separately installed v14 fixture APK must be discovered", fixture)
+        fixture!!
+        assertEquals(14, fixture.metadata.extensionApiVersion)
+
+        val result = withTimeout(10_000) { fixture.search("Bleach").items.single() }
+        assertEquals("Fixture14 Bleach", result.title)
+
+        val details = withTimeout(10_000) {
+            fixture.details(result.ref, result.sourceState)
+        }
+        assertEquals("Fixture14 Details", details.title)
+
+        val episodes = withTimeout(10_000) {
+            fixture.episodes(details.ref, details.sourceState ?: result.sourceState)
+        }
+        assertEquals(1, episodes.size)
+        assertEquals("Fixture14 Episode 1", episodes.single().title)
+
+        val media = withTimeout(10_000) { fixture.resolve(episodes.single().ref) }
+        assertEquals(1, media.size)
+        assertEquals("https://example.invalid/fixture-v14.mp4", media.single().url)
+        assertEquals("720p", media.single().quality)
+
+        Log.i(
+            "NamiSourceSmoke",
+            "v14Fixture source=${fixture.metadata.id} results=1 episodes=${episodes.size} media=${media.size}",
+        )
+    }
+
+
 }
