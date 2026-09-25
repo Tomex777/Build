@@ -222,12 +222,8 @@ internal fun MediaPlayerScreen(
         if (player != null && libVlc != null && activeUri != null) {
             surfaceCallback?.let { player.vlcVout.addCallback(it) }
             val media = Media(libVlc, activeUri).apply {
-                val emulator = Build.FINGERPRINT.contains("generic", ignoreCase = true) ||
-                    Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
-                    Build.MODEL.contains("Emulator", ignoreCase = true)
-                // Emulator codec surfaces often cannot hand VLC an opaque output surface.
-                // Decode in software there; keep hardware decoding on physical phones.
-                setHWDecoderEnabled(!emulator, false)
+                // Keep VLC on Android's hardware video decoder, including emulator SurfaceViews.
+                setHWDecoderEnabled(true, false)
                 addOption(":network-caching=1500")
                 activeSource?.headers?.forEach { (name, value) ->
                     when (name.lowercase()) {

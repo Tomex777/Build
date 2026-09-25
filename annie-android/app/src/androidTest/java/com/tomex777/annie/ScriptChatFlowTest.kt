@@ -66,10 +66,15 @@ class ScriptChatFlowTest {
             compose.waitUntil(10_000) {
                 compose.onAllNodesWithTag("script_option_yes").fetchSemanticsNodes().isNotEmpty()
             }
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitForIdle()
+            compose.onNodeWithTag("script_option_yes").assertIsDisplayed()
             compose.onNodeWithTag("script_option_yes").performClick()
             compose.waitUntil(10_000) {
                 compose.onAllNodesWithText("confirmed yes", substring = false).fetchSemanticsNodes().isNotEmpty()
             }
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitForIdle()
             compose.onNodeWithText("confirmed yes", substring = false).assertIsDisplayed()
         } finally {
             runCatching { files.deleteProject(name) }
@@ -200,6 +205,8 @@ class ScriptChatFlowTest {
             compose.waitUntil(10_000) {
                 compose.onAllNodesWithText("Inline music proof", substring = false).fetchSemanticsNodes().isNotEmpty()
             }
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitForIdle()
             compose.onNodeWithText("Inline music proof", substring = false).assertIsDisplayed()
             compose.onNodeWithText("Lyrics", substring = false).performClick()
             compose.onNodeWithText("First lyric line", substring = false).assertIsDisplayed()
