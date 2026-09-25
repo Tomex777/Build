@@ -41,6 +41,17 @@ internal data class ScriptLog(
     val message: String,
 )
 
+internal data class ScriptDispatch(
+    val scriptId: String,
+    val channel: String,
+    val resultJson: String,
+)
+
+private data class ActiveScriptSession(
+    val scriptId: String,
+    val sessionName: String,
+)
+
 /** Private, app-local JavaScript project files. No script path can escape this workspace. */
 internal class ScriptFiles(context: Context) {
     val root: File = File(context.filesDir, "annie-scripts").apply { mkdirs() }
@@ -290,6 +301,19 @@ internal class ScriptRuntime(
             context.getSharedPreferences(storageName(project.id), Context.MODE_PRIVATE).edit().putString(key, value).apply()
             null
         }
+        runtime.function("annieSessionSet") { args ->
+            val chatId = args.getOrNull(0)?.toString().orEmpty()
+            val sessionName = args.getOrNull(1)?.toString().orEmpty()
+            require(chatId.isNotBlank()) { "Session requires a chat id" }
+            require(sessionName.matches(Regex("[A-Za-z][A-Za-z0-9_.:-]{0,63}"))) { "Invalid session name" }
+            writeActiveSession(context, chatId, ActiveScriptSession(project.id, sessionName))
+            null
+        }
+        runtime.function("annieSessionClear") { args ->
+            val chatId = args.getOrNull(0)?.toString().orEmpty()
+            if (chatId.isNotBlank()) clearActiveSession(context, chatId)
+            null
+        }
         runtime.asyncFunction("annieHttpRequest") { args ->
             val request = JSONObject(args.firstOrNull() as? String ?: "{}")
             requestHttp(request)
@@ -319,8 +343,33 @@ internal class ScriptRuntime(
             .put("command", commandName)
             .put("chatId", chatId)
             .put("messageId", messageId)
+            .put("replyTo", JSONObject.NULL)
         val source = "await globalThis.__annieRun(${JSONObject.quote(commandName)}, ${JSONObject.quote(invocation.toString())})"
         runtime.evaluate<String>(source, filename = "annie-invocation.js", asModule = true)
+    }
+
+    suspend fun executeSession(sessionName: String, text: String, chatId: String, messageId: Long): String = lock.withLock {
+        val invocation = JSONObject()
+            .put("text", text)
+            .put("args", JSONArray())
+            .put("command", "")
+            .put("chatId", chatId)
+            .put("messageId", messageId)
+            .put("replyTo", JSONObject.NULL)
+        val source = "await globalThis.__annieSession(${JSONObject.quote(sessionName)}, ${JSONObject.quote(invocation.toString())})"
+        runtime.evaluate<String>(source, filename = "annie-session.js", asModule = true)
+    }
+
+    suspend fun executeAction(actionId: String, payloadJson: String, chatId: String, messageId: Long): String = lock.withLock {
+        val invocation = JSONObject()
+            .put("text", "")
+            .put("args", JSONArray())
+            .put("command", "")
+            .put("chatId", chatId)
+            .put("messageId", messageId)
+            .put("replyTo", JSONObject.NULL)
+        val source = "await globalThis.__annieAction(${JSONObject.quote(actionId)}, ${JSONObject.quote(payloadJson)}, ${JSONObject.quote(invocation.toString())})"
+        runtime.evaluate<String>(source, filename = "annie-action.js", asModule = true)
     }
 
     override fun close() { runtime.close() }
@@ -382,6 +431,16 @@ internal class ScriptRuntime(
 
         private val BOOTSTRAP = """
             |globalThis.__annieCommandHandlers = Object.create(null);
+            |globalThis.__annieActionHandlers = Object.create(null);
+            |globalThis.__annieSessionHandlers = Object.create(null);
+            |const __annieContext = rawContext => {
+            |  const ctx = JSON.parse(rawContext);
+            |  ctx.session = {
+            |    start: name => annieSessionSet(String(ctx.chatId), String(name)),
+            |    end: () => annieSessionClear(String(ctx.chatId))
+            |  };
+            |  return ctx;
+            |};
             |globalThis.annie = {
             |  commands: { register(definition) {
             |    if (!definition || typeof definition.execute !== "function") throw new TypeError("Command requires execute(ctx)");
@@ -391,6 +450,14 @@ internal class ScriptRuntime(
             |    annieRegisterCommand(JSON.stringify({name, aliases, description: definition.description || "", usage: definition.usage || "/" + name}));
             |    globalThis.__annieCommandHandlers[name] = definition.execute;
             |    for (const alias of aliases) globalThis.__annieCommandHandlers[alias.toLowerCase()] = definition.execute;
+            |  }},
+            |  actions: { register(name, handler) {
+            |    if (typeof handler !== "function") throw new TypeError("Action requires a handler");
+            |    globalThis.__annieActionHandlers[String(name)] = handler;
+            |  }},
+            |  sessions: { register(definition) {
+            |    if (!definition || !definition.name || typeof definition.onMessage !== "function") throw new TypeError("Session requires name and onMessage(ctx)");
+            |    globalThis.__annieSessionHandlers[String(definition.name)] = definition.onMessage;
             |  }},
             |  http: { request: request => annieHttpRequest(JSON.stringify(request)) },
             |  storage: {
@@ -403,7 +470,20 @@ internal class ScriptRuntime(
             |globalThis.__annieRun = async (name, rawContext) => {
             |  const execute = globalThis.__annieCommandHandlers[String(name).toLowerCase()];
             |  if (!execute) throw new Error("Command not registered: " + name);
-            |  const result = await execute(JSON.parse(rawContext));
+            |  const result = await execute(__annieContext(rawContext));
+            |  return JSON.stringify(result === undefined ? null : result);
+            |};
+            |globalThis.__annieSession = async (name, rawContext) => {
+            |  const handler = globalThis.__annieSessionHandlers[String(name)];
+            |  if (!handler) throw new Error("Session not registered: " + name);
+            |  const result = await handler(__annieContext(rawContext));
+            |  return JSON.stringify(result === undefined ? null : result);
+            |};
+            |globalThis.__annieAction = async (name, rawPayload, rawContext) => {
+            |  const handler = globalThis.__annieActionHandlers[String(name)];
+            |  if (!handler) throw new Error("Action not registered: " + name);
+            |  const payload = rawPayload ? JSON.parse(rawPayload) : null;
+            |  const result = await handler(payload, __annieContext(rawContext));
             |  return JSON.stringify(result === undefined ? null : result);
             |};
         """.trimMargin()
@@ -457,6 +537,39 @@ internal class ScriptWorkspace(context: Context) : AutoCloseable {
         }.getOrElse { JSONObject().put("type", "error").put("text", it.message ?: "Script failed").toString() }
     }
 
+    suspend fun executeSession(text: String, chatId: String, messageId: Long): ScriptDispatch? {
+        val active = readActiveSession(appContext, chatId) ?: return null
+        val runtime = runtimes[active.scriptId]
+        if (runtime == null) {
+            clearActiveSession(appContext, chatId)
+            return null
+        }
+        val json = runCatching {
+            appendLog(ScriptLog(System.currentTimeMillis(), active.scriptId, "INFO", "Session ${active.sessionName}"))
+            runtime.executeSession(active.sessionName, text, chatId, messageId)
+        }.onFailure { error ->
+            appendLog(ScriptLog(System.currentTimeMillis(), active.scriptId, "ERROR", error.message ?: "Session execution failed"))
+        }.getOrElse { JSONObject().put("type", "error").put("text", it.message ?: "Session failed").toString() }
+        return ScriptDispatch(active.scriptId, active.sessionName, json)
+    }
+
+    suspend fun executeAction(
+        scriptId: String,
+        actionId: String,
+        payloadJson: String,
+        chatId: String,
+        messageId: Long,
+    ): ScriptDispatch? {
+        val runtime = runtimes[scriptId] ?: return null
+        val json = runCatching {
+            appendLog(ScriptLog(System.currentTimeMillis(), scriptId, "INFO", "Action $actionId"))
+            runtime.executeAction(actionId, payloadJson, chatId, messageId)
+        }.onFailure { error ->
+            appendLog(ScriptLog(System.currentTimeMillis(), scriptId, "ERROR", error.message ?: "Action execution failed"))
+        }.getOrElse { JSONObject().put("type", "error").put("text", it.message ?: "Action failed").toString() }
+        return ScriptDispatch(scriptId, actionId, json)
+    }
+
     private fun appendLog(row: ScriptLog) = synchronized(logLock) {
         logs += row
         while (logs.size > 1_000) logs.removeAt(0)
@@ -468,5 +581,24 @@ internal class ScriptWorkspace(context: Context) : AutoCloseable {
 private fun JSONArray?.toStringList(): List<String> = this?.let { array ->
     buildList { for (index in 0 until array.length()) array.optString(index).trim().takeIf(String::isNotBlank)?.let(::add) }
 }.orEmpty()
+
+private const val SESSION_PREFS = "annie_script_sessions"
+
+private fun writeActiveSession(context: Context, chatId: String, session: ActiveScriptSession) {
+    val raw = JSONObject().put("scriptId", session.scriptId).put("sessionName", session.sessionName).toString()
+    context.getSharedPreferences(SESSION_PREFS, Context.MODE_PRIVATE).edit().putString(chatId, raw).apply()
+}
+
+private fun readActiveSession(context: Context, chatId: String): ActiveScriptSession? {
+    val raw = context.getSharedPreferences(SESSION_PREFS, Context.MODE_PRIVATE).getString(chatId, null) ?: return null
+    return runCatching {
+        val json = JSONObject(raw)
+        ActiveScriptSession(json.getString("scriptId"), json.getString("sessionName"))
+    }.getOrNull()
+}
+
+private fun clearActiveSession(context: Context, chatId: String) {
+    context.getSharedPreferences(SESSION_PREFS, Context.MODE_PRIVATE).edit().remove(chatId).apply()
+}
 
 private fun JSONObject.toMap(): Map<String, Any?> = keys().asSequence().associateWith { key -> opt(key).takeUnless { it == JSONObject.NULL } }
