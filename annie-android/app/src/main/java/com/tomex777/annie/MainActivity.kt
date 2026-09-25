@@ -312,7 +312,10 @@ internal fun AnnieChat() {
             }
             Composer(
                 value = draft,
-                onValueChange = { draft = it },
+                onValueChange = {
+                    draft = it
+                    if (messages.size <= 1) scope.launch { listState.scrollToItem(0) }
+                },
                 onSuggestionSelected = { draft = "$it " },
                 onSend = { submit() },
                 onMenu = { activeSheet = "Attachments" }
