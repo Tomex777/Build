@@ -11,6 +11,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -122,5 +123,89 @@ class ScriptChatFlowTest {
             compose.onAllNodesWithTag("script_image_fullscreen", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithTag("script_image_fullscreen", useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test fun scriptVideoMessageOpensTheStandalonePlayerWithItsSourceConfig() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val name = "videoproof${System.nanoTime().toString().takeLast(8)}"
+        val files = ScriptFiles(context)
+        val script = files.createScript(name)
+        val videoUrl = "http://127.0.0.1:1/annie-test.mp4"
+        files.writeFile(
+            name, script.name, """
+                |annie.commands.register({
+                |  name: "$name",
+                |  async execute() {
+                |    return { type: "video", title: "Script video proof", uri: "$videoUrl", quality: "Test" };
+                |  }
+                |});
+            """.trimMargin()
+        )
+        val monitor = instrumentation.addMonitor(AnniePlayerActivity::class.java.name, null, false)
+        var playerActivity: AnniePlayerActivity? = null
+        try {
+            compose.setContent { AnnieTheme { AnnieChat() } }
+            compose.onNodeWithTag("composer_input").performTextInput("/$name")
+            compose.waitUntil(8_000) {
+                compose.onAllNodesWithTag("slash_command_/$name").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("slash_command_/$name").performClick()
+            compose.onNodeWithTag("send_message").performClick()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithTag("script_video_message").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("script_video_message").performClick()
+
+            playerActivity = instrumentation.waitForMonitorWithTimeout(monitor, 8_000) as? AnniePlayerActivity
+            val player = checkNotNull(playerActivity) { "Tapping the script video did not open Annie's standalone player" }
+            assertEquals("Script video proof", player.intent.getStringExtra(AnniePlayerActivity.EXTRA_TITLE))
+            assertEquals(videoUrl, player.intent.getStringExtra(AnniePlayerActivity.EXTRA_MEDIA_URI))
+            val config = org.json.JSONObject(
+                player.intent.getStringExtra(AnniePlayerActivity.EXTRA_VIDEO_CONFIG).orEmpty()
+            )
+            assertEquals("Test", config.optString("quality"))
+            instrumentation.waitForIdleSync()
+            saveEmulatorScreenshot("annie-script-video-player")
+        } finally {
+            playerActivity?.finish()
+            instrumentation.removeMonitor(monitor)
+            runCatching { files.deleteProject(name) }
+        }
+    }
+
+    @Test fun scriptMusicMessageKeepsItsLyricsInsideTheChatCard() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = "musicproof${System.nanoTime().toString().takeLast(8)}"
+        val files = ScriptFiles(context)
+        val script = files.createScript(name)
+        files.writeFile(
+            name, script.name, """
+                |annie.commands.register({
+                |  name: "$name",
+                |  async execute() {
+                |    return { type: "music", title: "Inline music proof", artist: "Annie", lyrics: "First lyric line" };
+                |  }
+                |});
+            """.trimMargin()
+        )
+        try {
+            compose.setContent { AnnieTheme { AnnieChat() } }
+            compose.onNodeWithTag("composer_input").performTextInput("/$name")
+            compose.waitUntil(8_000) {
+                compose.onAllNodesWithTag("slash_command_/$name").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("slash_command_/$name").performClick()
+            compose.onNodeWithTag("send_message").performClick()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithText("Inline music proof", substring = false).fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithText("Inline music proof", substring = false).assertIsDisplayed()
+            compose.onNodeWithText("Lyrics", substring = false).performClick()
+            compose.onNodeWithText("First lyric line", substring = false).assertIsDisplayed()
+            saveEmulatorScreenshot("annie-script-music-lyrics")
+        } finally {
+            runCatching { files.deleteProject(name) }
+        }
     }
 }

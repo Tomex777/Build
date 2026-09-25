@@ -48,17 +48,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          script: |
-            TEST_STATUS=0
-            gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest || TEST_STATUS=$?
-            echo "===== Android instrumented test XML ====="
-            find annie-android/app/build/outputs/androidTest-results -type f -name '*.xml' -print -exec cat {} \; 2>/dev/null || true
-            mkdir -p annie-android/build/emulator-screenshots
-            echo "===== Screenshot MediaStore diagnostics ====="
-            adb shell ls -la /sdcard/Pictures/AnnieCI || true
-            adb pull /sdcard/Pictures/AnnieCI annie-android/build/emulator-screenshots || true
-            adb shell rm -rf /sdcard/Pictures/AnnieCI || true
-            exit $TEST_STATUS
+          script: bash annie-android/ci/run-emulator-tests.sh
       - name: Upload emulator visual proofs
         if: always()
         uses: actions/upload-artifact@v4

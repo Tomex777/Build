@@ -896,7 +896,7 @@ private fun ScriptVideoMessage(data: org.json.JSONObject) {
             .clickable(enabled = uri != null) {
                 val item = CatalogItem(0, "VIDEO", title, data.optString("thumbnail"), null, "", null, null)
                 launchPlayer(context, item, uri, videoConfigJson = data.toString())
-            }, contentAlignment = Alignment.Center) {
+            }.testTag("script_video_message"), contentAlignment = Alignment.Center) {
             AsyncImage(model = data.optString("thumbnail").takeIf(String::isNotBlank), contentDescription = title,
                 contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             Text("▶", color = Color.White, fontSize = 26.sp, modifier = Modifier.clip(CircleShape).background(Color(0xBB07111E)).padding(16.dp))
