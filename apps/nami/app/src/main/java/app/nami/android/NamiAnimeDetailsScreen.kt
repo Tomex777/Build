@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -57,6 +58,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -90,6 +92,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import app.nami.data.local.NamiDatabase
+import app.nami.data.local.StoredWatchProgress
 import app.nami.domain.AnimeDetails
 import app.nami.domain.AnimeEpisode
 import coil.compose.AsyncImage
@@ -113,13 +116,17 @@ fun NamiAnimeDetailsScreen(
     onLibraryChanged: () -> Unit,
     onOpenWeb: (String, String) -> Unit,
     downloadManager: NamiDownloadManager,
+    onPlayEpisode: (AnimeDetails, List<AnimeEpisode>, Int) -> Unit,
+    onPlayDownloaded: (NamiDownloadStatus) -> Unit,
 ) {
     var details by remember { mutableStateOf<AnimeDetails?>(null) }
     var episodes by remember { mutableStateOf<List<AnimeEpisode>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     var inLibrary by remember { mutableStateOf(false) }
-    var resolvingEpisodeId by remember { mutableStateOf<String?>(null) }
+    var watchProgress by remember {
+        mutableStateOf<Map<String, StoredWatchProgress>>(emptyMap())
+    }
     var pendingLegacyDownloads by remember {
         mutableStateOf<Pair<AnimeDetails, List<AnimeEpisode>>?>(null)
     }
@@ -203,6 +210,18 @@ fun NamiAnimeDetailsScreen(
         loading = false
     }
 
+    LaunchedEffect(details?.ref, episodes) {
+        val ref = details?.ref
+        watchProgress = if (ref != null && episodes.isNotEmpty()) {
+            withContext(Dispatchers.IO) {
+                database.getWatchProgressForAnime(ref.sourceId, ref.sourceAnimeId)
+                    .associateBy { it.sourceEpisodeId }
+            }
+        } else {
+            emptyMap()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -260,9 +279,31 @@ fun NamiAnimeDetailsScreen(
                             sourceName = source.metadata.name,
                             topPadding = padding.calculateTopPadding(),
                         )
+                        val resumeProgress = watchProgress.values
+                            .filter { !it.completed && it.positionMs > 10_000L }
+                            .maxByOrNull { it.lastWatchedAtEpochMillis }
+                        val resumeIndex = resumeProgress?.let { progress ->
+                            episodes.indexOfFirst {
+                                it.ref.sourceEpisodeId == progress.sourceEpisodeId
+                            }.takeIf { it >= 0 }
+                        }
+                        val startIndex = episodes.indices.minByOrNull { index ->
+                            episodes[index].number ?: Double.MAX_VALUE
+                        } ?: 0
                         AnimeActionRow(
                             inLibrary = inLibrary,
                             hasWebView = anime.webUrl != null,
+                            watchActionTitle = when {
+                                resumeIndex != null -> "Resume"
+                                episodes.isNotEmpty() -> "Watch"
+                                else -> null
+                            },
+                            onWatchClick = {
+                                val target = resumeIndex ?: startIndex
+                                if (target in episodes.indices) {
+                                    onPlayEpisode(anime, episodes, target)
+                                }
+                            },
                             onLibraryClick = {
                                 scope.launch {
                                     withContext(Dispatchers.IO) {
@@ -342,12 +383,13 @@ fun NamiAnimeDetailsScreen(
                             )
                         }
                     } else {
-                        items(
+                        itemsIndexed(
                             items = episodes,
-                            key = {
-                                it.ref.sourceId + "|" + it.ref.sourceAnimeId + "|" + it.ref.sourceEpisodeId
+                            key = { _, episode ->
+                                episode.ref.sourceId + "|" + episode.ref.sourceAnimeId + "|" +
+                                    episode.ref.sourceEpisodeId
                             },
-                        ) { episode ->
+                        ) { episodeIndex, episode ->
                             val downloadStatus = downloadStatuses[
                                 downloadManager.key(episode.ref.sourceId, episode.ref.sourceEpisodeId)
                             ]
@@ -356,41 +398,15 @@ fun NamiAnimeDetailsScreen(
                                 status = downloadStatus,
                                 downloadEnabled = source.metadata.capabilities.downloadable,
                                 playEnabled = source.metadata.capabilities.streamable,
-                                playLoading = resolvingEpisodeId == episode.ref.sourceEpisodeId,
+                                progress = watchProgress[episode.ref.sourceEpisodeId],
                                 onPlay = {
-                                    if (resolvingEpisodeId == null) {
-                                        resolvingEpisodeId = episode.ref.sourceEpisodeId
-                                        scope.launch {
-                                            runCatching {
-                                                source.resolve(episode.ref, episode.sourceState)
-                                                    .firstOrNull { it.url.isNotBlank() }
-                                                    ?: error("This source did not return a playable video.")
-                                            }.onSuccess { media ->
-                                                runCatching {
-                                                    ExternalPlayerLauncher.open(context, media)
-                                                }.onFailure { failure ->
-                                                    Toast.makeText(
-                                                        context,
-                                                        failure.message ?: "No compatible player was found.",
-                                                        Toast.LENGTH_LONG,
-                                                    ).show()
-                                                }
-                                            }.onFailure { failure ->
-                                                Toast.makeText(
-                                                    context,
-                                                    failure.message ?: "Could not resolve this episode.",
-                                                    Toast.LENGTH_LONG,
-                                                ).show()
-                                            }
-                                            resolvingEpisodeId = null
-                                        }
-                                    }
+                                    onPlayEpisode(anime, episodes, episodeIndex)
                                 },
                                 onDownload = {
                                     requestDownloads(anime, listOf(episode))
                                 },
                                 onOpen = {
-                                    downloadStatus?.let { downloadManager.openDownloaded(context, it) }
+                                    downloadStatus?.let(onPlayDownloaded)
                                 },
                                 onCancel = {
                                     downloadStatus?.let { downloadManager.cancel(it) }
@@ -531,6 +547,8 @@ private fun InfoLine(
 private fun AnimeActionRow(
     inLibrary: Boolean,
     hasWebView: Boolean,
+    watchActionTitle: String?,
+    onWatchClick: () -> Unit,
     onLibraryClick: () -> Unit,
     onWebViewClick: () -> Unit,
 ) {
@@ -545,12 +563,14 @@ private fun AnimeActionRow(
             color = if (inLibrary) MaterialTheme.colorScheme.primary else defaultColor,
             onClick = onLibraryClick,
         )
-        ActionButton(
-            title = "N/A",
-            icon = Icons.Filled.HourglassEmpty,
-            color = defaultColor,
-            onClick = {},
-        )
+        if (watchActionTitle != null) {
+            ActionButton(
+                title = watchActionTitle,
+                icon = Icons.Filled.PlayArrow,
+                color = MaterialTheme.colorScheme.primary,
+                onClick = onWatchClick,
+            )
+        }
         if (hasWebView) {
             ActionButton(
                 title = "Web view",
@@ -664,7 +684,7 @@ private fun AniyomiEpisodeRow(
     status: NamiDownloadStatus?,
     downloadEnabled: Boolean,
     playEnabled: Boolean,
-    playLoading: Boolean,
+    progress: StoredWatchProgress?,
     onPlay: () -> Unit,
     onDownload: () -> Unit,
     onOpen: () -> Unit,
@@ -700,26 +720,49 @@ private fun AniyomiEpisodeRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            if (progress != null && progress.positionMs > 0L) {
+                Spacer(Modifier.height(5.dp))
+                val progressText = when {
+                    progress.completed -> "Watched"
+                    progress.durationMs > 0L -> {
+                        val percent = (
+                            (progress.positionMs.toDouble() / progress.durationMs) * 100
+                        ).toInt().coerceIn(0, 100)
+                        "$percent% watched"
+                    }
+                    else -> "In progress"
+                }
+                Text(
+                    text = progressText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (progress.completed) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        LocalContentColor.current.copy(alpha = 0.72f)
+                    },
+                )
+                if (!progress.completed && progress.durationMs > 0L) {
+                    LinearProgressIndicator(
+                        progress = {
+                            (progress.positionMs.toFloat() / progress.durationMs.toFloat())
+                                .coerceIn(0f, 1f)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp, end = 8.dp),
+                    )
+                }
+            }
         }
 
         if (playEnabled) {
-            IconButton(
-                onClick = onPlay,
-                enabled = !playLoading,
-            ) {
-                if (playLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp,
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Filled.PlayArrow,
-                        contentDescription = "Play",
-                        modifier = Modifier.size(26.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            IconButton(onClick = onPlay) {
+                Icon(
+                    imageVector = Icons.Filled.PlayArrow,
+                    contentDescription = "Play " + episode.title,
+                    modifier = Modifier.size(26.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
 

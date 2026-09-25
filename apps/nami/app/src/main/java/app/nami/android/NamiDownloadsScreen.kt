@@ -32,7 +32,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
@@ -41,9 +40,9 @@ import androidx.compose.ui.unit.dp
 fun NamiDownloadsScreen(
     downloadManager: NamiDownloadManager,
     onBack: () -> Unit,
+    onPlayDownloaded: (NamiDownloadStatus) -> Unit,
 ) {
     val statuses by downloadManager.statuses.collectAsState()
-    val context = LocalContext.current
     val downloads = statuses.values.sortedWith(
         compareBy<NamiDownloadStatus>(
             { it.extensionName.lowercase() },
@@ -88,7 +87,7 @@ fun NamiDownloadsScreen(
                             .fillMaxWidth()
                             .clickable(
                                 enabled = status.state == NamiDownloadState.DOWNLOADED,
-                                onClick = { downloadManager.openDownloaded(context, status) },
+                                onClick = { onPlayDownloaded(status) },
                             )
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,

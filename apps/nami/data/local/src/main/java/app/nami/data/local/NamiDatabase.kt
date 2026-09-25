@@ -37,6 +37,20 @@ data class StoredDownload(
     val updatedAtEpochMillis: Long,
 )
 
+data class StoredWatchProgress(
+    val sourceId: String,
+    val sourceAnimeId: String?,
+    val sourceEpisodeId: String,
+    val animeTitle: String?,
+    val episodeTitle: String?,
+    val animeSourceState: String?,
+    val episodeSourceState: String?,
+    val positionMs: Long,
+    val durationMs: Long,
+    val completed: Boolean,
+    val lastWatchedAtEpochMillis: Long,
+)
+
 /** Nami-owned local store. */
 class NamiDatabase(
     context: Context,
@@ -74,6 +88,16 @@ class NamiDatabase(
             addColumnIfMissing(db, "downloads", "episode_title", "TEXT")
             addColumnIfMissing(db, "downloads", "anime_source_state", "TEXT")
             addColumnIfMissing(db, "downloads", "episode_source_state", "TEXT")
+        }
+        if (oldVersion < 6) {
+            createWatchProgressTable(db)
+            addColumnIfMissing(db, "watch_progress", "source_anime_id", "TEXT")
+            addColumnIfMissing(db, "watch_progress", "anime_title", "TEXT")
+            addColumnIfMissing(db, "watch_progress", "episode_title", "TEXT")
+            addColumnIfMissing(db, "watch_progress", "anime_source_state", "TEXT")
+            addColumnIfMissing(db, "watch_progress", "episode_source_state", "TEXT")
+            addColumnIfMissing(db, "watch_progress", "duration_ms", "INTEGER NOT NULL DEFAULT 0")
+            addColumnIfMissing(db, "watch_progress", "last_watched_at", "INTEGER NOT NULL DEFAULT 0")
         }
     }
 
@@ -240,6 +264,114 @@ class NamiDatabase(
         )
     }
 
+    fun upsertWatchProgress(
+        sourceId: String,
+        sourceAnimeId: String,
+        sourceEpisodeId: String,
+        animeTitle: String?,
+        episodeTitle: String?,
+        animeSourceState: String?,
+        episodeSourceState: String?,
+        positionMs: Long,
+        durationMs: Long,
+        completed: Boolean,
+    ) {
+        val values = ContentValues().apply {
+            put("source_id", sourceId)
+            put("source_anime_id", sourceAnimeId)
+            put("source_episode_id", sourceEpisodeId)
+            put("anime_title", animeTitle)
+            put("episode_title", episodeTitle)
+            put("anime_source_state", animeSourceState)
+            put("episode_source_state", episodeSourceState)
+            put("position_ms", positionMs.coerceAtLeast(0L))
+            put("duration_ms", durationMs.coerceAtLeast(0L))
+            put("completed", if (completed) 1 else 0)
+            put("last_watched_at", System.currentTimeMillis())
+        }
+        writableDatabase.insertWithOnConflict(
+            "watch_progress",
+            null,
+            values,
+            SQLiteDatabase.CONFLICT_REPLACE,
+        )
+    }
+
+    fun getWatchProgress(
+        sourceId: String,
+        sourceEpisodeId: String,
+    ): StoredWatchProgress? {
+        readableDatabase.query(
+            "watch_progress",
+            WATCH_PROGRESS_COLUMNS,
+            "source_id = ? AND source_episode_id = ?",
+            arrayOf(sourceId, sourceEpisodeId),
+            null,
+            null,
+            null,
+            "1",
+        ).use { cursor ->
+            return if (cursor.moveToFirst()) readWatchProgress(cursor) else null
+        }
+    }
+
+    fun getWatchProgressForAnime(
+        sourceId: String,
+        sourceAnimeId: String,
+    ): List<StoredWatchProgress> {
+        readableDatabase.query(
+            "watch_progress",
+            WATCH_PROGRESS_COLUMNS,
+            "source_id = ? AND source_anime_id = ?",
+            arrayOf(sourceId, sourceAnimeId),
+            null,
+            null,
+            "last_watched_at DESC",
+        ).use { cursor ->
+            val items = ArrayList<StoredWatchProgress>(cursor.count)
+            while (cursor.moveToNext()) items += readWatchProgress(cursor)
+            return items
+        }
+    }
+
+    fun getContinueWatching(limit: Int = 20): List<StoredWatchProgress> {
+        readableDatabase.query(
+            "watch_progress",
+            WATCH_PROGRESS_COLUMNS,
+            "completed = 0 AND position_ms > 0 AND source_anime_id IS NOT NULL",
+            null,
+            null,
+            null,
+            "last_watched_at DESC",
+            limit.coerceAtLeast(1).toString(),
+        ).use { cursor ->
+            val items = ArrayList<StoredWatchProgress>(cursor.count)
+            while (cursor.moveToNext()) items += readWatchProgress(cursor)
+            return items
+        }
+    }
+
+    private fun readWatchProgress(cursor: android.database.Cursor): StoredWatchProgress =
+        StoredWatchProgress(
+            sourceId = cursor.getString(cursor.getColumnIndexOrThrow("source_id")),
+            sourceAnimeId = cursor.getString(cursor.getColumnIndexOrThrow("source_anime_id")),
+            sourceEpisodeId = cursor.getString(cursor.getColumnIndexOrThrow("source_episode_id")),
+            animeTitle = cursor.getString(cursor.getColumnIndexOrThrow("anime_title")),
+            episodeTitle = cursor.getString(cursor.getColumnIndexOrThrow("episode_title")),
+            animeSourceState = cursor.getString(
+                cursor.getColumnIndexOrThrow("anime_source_state"),
+            ),
+            episodeSourceState = cursor.getString(
+                cursor.getColumnIndexOrThrow("episode_source_state"),
+            ),
+            positionMs = cursor.getLong(cursor.getColumnIndexOrThrow("position_ms")),
+            durationMs = cursor.getLong(cursor.getColumnIndexOrThrow("duration_ms")),
+            completed = cursor.getInt(cursor.getColumnIndexOrThrow("completed")) != 0,
+            lastWatchedAtEpochMillis = cursor.getLong(
+                cursor.getColumnIndexOrThrow("last_watched_at"),
+            ),
+        )
+
     private fun readDownload(cursor: android.database.Cursor): StoredDownload {
         return StoredDownload(
             id = cursor.getLong(cursor.getColumnIndexOrThrow("id")),
@@ -290,16 +422,30 @@ class NamiDatabase(
                 PRIMARY KEY(library_entry_id, category_id)
             )""".trimIndent(),
         )
-        db.execSQL(
-            "CREATE TABLE watch_progress (" +
-                "source_id TEXT NOT NULL, source_episode_id TEXT NOT NULL, " +
-                "position_ms INTEGER NOT NULL DEFAULT 0, completed INTEGER NOT NULL DEFAULT 0, " +
-                "PRIMARY KEY(source_id, source_episode_id))",
-        )
+        createWatchProgressTable(db)
         db.execSQL(
             "CREATE TABLE history (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, source_id TEXT NOT NULL, " +
                 "source_episode_id TEXT NOT NULL, played_at INTEGER NOT NULL)",
+        )
+    }
+
+    private fun createWatchProgressTable(db: SQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS watch_progress (
+                source_id TEXT NOT NULL,
+                source_anime_id TEXT,
+                source_episode_id TEXT NOT NULL,
+                anime_title TEXT,
+                episode_title TEXT,
+                anime_source_state TEXT,
+                episode_source_state TEXT,
+                position_ms INTEGER NOT NULL DEFAULT 0,
+                duration_ms INTEGER NOT NULL DEFAULT 0,
+                completed INTEGER NOT NULL DEFAULT 0,
+                last_watched_at INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY(source_id, source_episode_id)
+            )""".trimIndent(),
         )
     }
 
@@ -353,7 +499,21 @@ class NamiDatabase(
 
     companion object {
         private const val DATABASE_NAME = "nami.db"
-        private const val VERSION = 5
+        private const val VERSION = 6
+
+        private val WATCH_PROGRESS_COLUMNS = arrayOf(
+            "source_id",
+            "source_anime_id",
+            "source_episode_id",
+            "anime_title",
+            "episode_title",
+            "anime_source_state",
+            "episode_source_state",
+            "position_ms",
+            "duration_ms",
+            "completed",
+            "last_watched_at",
+        )
 
         private val DOWNLOAD_COLUMNS = arrayOf(
             "id",

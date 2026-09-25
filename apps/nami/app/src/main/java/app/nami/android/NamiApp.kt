@@ -105,6 +105,10 @@ private sealed interface NamiRoute {
     data object Downloads : NamiRoute
     data object Settings : NamiRoute
 
+    data class Player(
+        val session: NamiPlaybackSession,
+    ) : NamiRoute
+
     data class Browser(
         val title: String,
         val url: String,
@@ -123,7 +127,9 @@ fun NamiApp(
     var libraryRevision by remember { mutableIntStateOf(0) }
     val stack = remember { mutableStateListOf<NamiRoute>() }
 
-    BackHandler(enabled = stack.isNotEmpty()) {
+    BackHandler(
+        enabled = stack.isNotEmpty() && stack.lastOrNull() !is NamiRoute.Player,
+    ) {
         stack.removeAt(stack.lastIndex)
     }
 
@@ -204,6 +210,21 @@ fun NamiApp(
                                 stack += NamiRoute.Browser(title, url)
                             },
                             downloadManager = downloadManager,
+                            onPlayEpisode = { anime, episodes, index ->
+                                stack += NamiRoute.Player(
+                                    NamiPlaybackSession.Streaming(
+                                        source = current.source,
+                                        anime = anime,
+                                        episodes = episodes,
+                                        initialEpisodeIndex = index,
+                                    ),
+                                )
+                            },
+                            onPlayDownloaded = { status ->
+                                stack += NamiRoute.Player(
+                                    downloadedPlaybackSession(downloadManager, status),
+                                )
+                            },
                         )
                     }
 
@@ -211,6 +232,11 @@ fun NamiApp(
                         NamiDownloadsScreen(
                             downloadManager = downloadManager,
                             onBack = { stack.removeAt(stack.lastIndex) },
+                            onPlayDownloaded = { status ->
+                                stack += NamiRoute.Player(
+                                    downloadedPlaybackSession(downloadManager, status),
+                                )
+                            },
                         )
                     }
 
@@ -218,6 +244,14 @@ fun NamiApp(
                         NamiSettingsScreen(
                             installedSourceRegistry = installedSourceRegistry,
                             sourceEnablementStore = sourceEnablementStore,
+                            onBack = { stack.removeAt(stack.lastIndex) },
+                        )
+                    }
+
+                    is NamiRoute.Player -> {
+                        NamiPlayerScreen(
+                            session = current.session,
+                            database = database,
                             onBack = { stack.removeAt(stack.lastIndex) },
                         )
                     }
@@ -233,6 +267,32 @@ fun NamiApp(
             }
         }
     }
+}
+
+private fun downloadedPlaybackSession(
+    downloadManager: NamiDownloadManager,
+    selected: NamiDownloadStatus,
+): NamiPlaybackSession.Downloaded {
+    val episodeNumber = Regex("""(\d+(?:\.\d+)?)""")
+    val items = downloadManager.statuses.value.values
+        .filter {
+            it.state == NamiDownloadState.DOWNLOADED &&
+                !it.contentUri.isNullOrBlank() &&
+                it.sourceId == selected.sourceId &&
+                it.sourceAnimeId == selected.sourceAnimeId
+        }
+        .sortedWith(
+            compareBy<NamiDownloadStatus> {
+                episodeNumber.find(it.episodeTitle)?.value?.toDoubleOrNull()
+                    ?: Double.MAX_VALUE
+            }.thenBy { it.episodeTitle.lowercase() },
+        )
+        .ifEmpty { listOf(selected) }
+    val index = items.indexOfFirst {
+        it.sourceId == selected.sourceId &&
+            it.sourceEpisodeId == selected.sourceEpisodeId
+    }.coerceAtLeast(0)
+    return NamiPlaybackSession.Downloaded(items, index)
 }
 
 @Composable
