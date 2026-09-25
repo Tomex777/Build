@@ -341,7 +341,7 @@ fun MediaScreen(
                 failures[index] = result.exceptionOrNull()?.message
                 collected[index] = result.getOrNull()?.let { parseBrowse(it, source.id, ext.packageName) }.orEmpty()
                 completed++
-                if (completed == providers.size) {
+                if (completed == providerRequests.size) {
                     val fresh = collected.flatten().distinctBy { it.title.trim().lowercase() }
                     if (requestQuery.isBlank() && requestType != ContentType.MUSIC && fresh.isNotEmpty()) {
                         mediaCache.write(requestType, fresh.map { it.toCachedRecord() })
