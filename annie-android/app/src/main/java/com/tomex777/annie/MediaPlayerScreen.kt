@@ -319,9 +319,14 @@ internal fun MediaPlayerScreen(
                         layout.post {
                             if (attachedPlayer !== player) {
                                 runCatching { attachedPlayer?.detachViews() }
-                                // TextureView composes inside Annie's full-screen controls layer and
-                                // avoids SurfaceView's separate-window ordering with Compose overlays.
-                                val attached = runCatching { player.attachViews(layout, null, true, true) }.isSuccess
+                                // The emulator's software decoder needs a SurfaceView vout;
+                                // physical devices use TextureView so Compose controls layer cleanly.
+                                val emulator = Build.FINGERPRINT.contains("generic", ignoreCase = true) ||
+                                    Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
+                                    Build.MODEL.contains("Emulator", ignoreCase = true)
+                                val attached = runCatching {
+                                    player.attachViews(layout, null, true, !emulator)
+                                }.isSuccess
                                 if (attached) {
                                     attachedPlayer = player
                                     runCatching { player.setVideoScale(scaleMode.scale) }
