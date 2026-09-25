@@ -38,3 +38,5 @@ rerun 50 - patch both deterministic Bible API endpoints in CI
 rerun 51 - rerun API 36 Bible fixture health check and next chapter top navigation
 
 rerun 52 - keep Bible API fixture alive through API 36 emulator reader test
+
+rerun 53 - use POSIX shell for Bible fixture inside API 36 emulator step
