@@ -39,14 +39,20 @@ jobs:
         run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
       - name: Test source runtimes and build debug APK
         working-directory: apps/nami
-        run: gradle :core:source-runtime:test :extensions:aniyomi-compat:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug
+        run: gradle :core:source-runtime:test :extensions:aniyomi-compat:testDebugUnitTest :extensions:aniyomi-compat:assembleDebug :app:testDebugUnitTest :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: nami-debug-apk
           path: apps/nami/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nami-aniyomi-compat-api
+          path: apps/nami/extensions/aniyomi-compat/build/outputs/aar/aniyomi-compat-debug.aar
+          if-no-files-found: error
 
   build-animesogo-v17:
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -69,11 +75,43 @@ jobs:
           packages: platform-tools
       - name: Install Android SDK platform
         run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
-      - name: Build real AnimeSogo source against extensions-lib v17
+      - name: Download Nami extensions-lib v17 compatibility API
+        uses: actions/download-artifact@v4
+        with:
+          name: nami-aniyomi-compat-api
+          path: /tmp/nami-aniyomi-compat
+      - name: Build maintained AnimeSogo source against Nami's v17 contract
         working-directory: v17-source
         shell: bash
         run: |
           set -euo pipefail
+          cp /tmp/nami-aniyomi-compat/aniyomi-compat-debug.aar nami-aniyomi-compat.aar
+          python3 - <<'PY'
+          from pathlib import Path
+
+          catalog = Path("gradle/libs.versions.toml")
+          text = catalog.read_text()
+          text = text.replace('"okhttp", "aniyomi-lib", "quickjs"', '"okhttp", "quickjs"')
+          if '"aniyomi-lib"' in next(line for line in text.splitlines() if line.startswith("common =")):
+              raise SystemExit("legacy extensions-lib is still in the common compile bundle")
+          catalog.write_text(text)
+
+          for file in [
+              Path("core/build.gradle.kts"),
+              Path("gradle/build-logic/src/main/kotlin/PluginExtensionLegacy.kt"),
+              Path("gradle/build-logic/src/main/kotlin/PluginMultiSrc.kt"),
+          ]:
+              source = file.read_text()
+              marker = "compileOnly(libs.bundles.common)"
+              if marker not in source:
+                  raise SystemExit(f"Could not patch compile classpath in {file}")
+              source = source.replace(
+                  marker,
+                  marker + '\\n            compileOnly(files(rootProject.file("nami-aniyomi-compat.aar")))',
+                  1,
+              )
+              file.write_text(source)
+          PY
           cp -R src/en/animesogo src/en/animesogov17
           find src/en/animesogov17 -type f -print0 | xargs -0 sed -i \
             -e 's/libVersion = 16/libVersion = 17/' \
