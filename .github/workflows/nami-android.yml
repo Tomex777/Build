@@ -66,17 +66,17 @@ jobs:
         run: |
           set -euo pipefail
           packages=(
-            "platforms;android-35"
+            "platforms;android-30"
             "platforms;android-36"
             "build-tools;35.0.0"
-            "system-images;android-35;default;x86_64"
+            "system-images;android-30;default;x86_64"
           )
           for attempt in 1 2 3; do
             if sdkmanager "${packages[@]}"; then
               exit 0
             fi
             echo "SDK install attempt ${attempt} failed; clearing the partial system image before retry."
-            rm -rf "${ANDROID_SDK_ROOT}/system-images/android-35/default/x86_64" || true
+            rm -rf "${ANDROID_SDK_ROOT}/system-images/android-30/default/x86_64" || true
             sleep 10
           done
           exit 1
@@ -88,7 +88,7 @@ jobs:
       - name: Run real extension and native-source smoke test
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: 30
           target: default
           arch: x86_64
           emulator-boot-timeout: 900
