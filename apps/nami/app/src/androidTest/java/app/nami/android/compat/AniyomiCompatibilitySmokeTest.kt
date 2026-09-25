@@ -780,16 +780,19 @@ class AniyomiCompatibilitySmokeTest {
             manager.enqueue(source, anime, episode)
             val key = manager.key(source.metadata.id, episode.ref.sourceEpisodeId)
             val active = withTimeout(15_000) {
-                while (true) {
+                var activeStatus: app.nami.android.NamiDownloadStatus? = null
+                while (activeStatus == null) {
                     val status = manager.statuses.value[key]
                     if (
                         status?.state == NamiDownloadState.DOWNLOADING &&
                         !status.contentUri.isNullOrBlank()
                     ) {
-                        break status
+                        activeStatus = status
+                    } else {
+                        delay(50)
                     }
-                    delay(50)
                 }
+                activeStatus
             }
             val partialUri = android.net.Uri.parse(active.contentUri)
 
