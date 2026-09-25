@@ -1,5 +1,10 @@
 package com.tomex777.annie
 
+import android.content.Intent
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -32,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -40,7 +46,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import io.github.dingyi222666.monarch.languages.TypescriptLanguage
 import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.event.SelectionChangeEvent
@@ -76,6 +84,7 @@ internal fun ScriptStudioSheet(
     onCommandsReloaded: (List<ScriptCommand>) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var projects by remember { mutableStateOf(workspace.files.listProjects()) }
     var selectedProjectId by remember { mutableStateOf(projects.firstOrNull()?.id) }
     var selectedPath by remember {
@@ -97,6 +106,7 @@ internal fun ScriptStudioSheet(
     var replacement by remember { mutableStateOf("") }
     var codeEditor by remember { mutableStateOf<CodeEditor?>(null) }
     var logVersion by remember { mutableStateOf(0) }
+    var pendingExport by remember { mutableStateOf<String?>(null) }
 
     fun refreshProjects(preferredProject: String? = selectedProjectId, preferredPath: String? = selectedPath) {
         projects = workspace.files.listProjects()
@@ -120,6 +130,49 @@ internal fun ScriptStudioSheet(
         renameDraft = project.name
         filePathDraft = path
         status = "Opened $path"
+    }
+
+    val importScript = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            runCatching {
+                val source = withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+                        ?: error("Could not read the selected JavaScript file")
+                }
+                val displayName = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                    ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+                    ?: uri.lastPathSegment.orEmpty().substringAfterLast('/')
+                val base = displayName.substringAfterLast(':').substringAfterLast('/').removeSuffix(".js")
+                    .replace(Regex("[^A-Za-z0-9_-]"), "_").trim('_').take(48).ifBlank { "imported" }
+                var candidate = base
+                var suffix = 2
+                while (File(workspace.files.root, "$candidate.js").exists() || File(workspace.files.root, candidate).exists()) {
+                    candidate = "${base}_$suffix"
+                    suffix++
+                }
+                val file = workspace.files.createScript(candidate)
+                workspace.files.writeFile(file.nameWithoutExtension, file.name, source)
+                onCommandsReloaded(workspace.reload())
+                refreshProjects(file.nameWithoutExtension, file.name)
+                tab = "Files"
+                "Imported ${file.name}"
+            }.onSuccess { status = it; logVersion++ }
+                .onFailure { status = it.message ?: "Import failed" }
+        }
+    }
+
+    val exportScript = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/javascript")) { uri ->
+        val source = pendingExport
+        pendingExport = null
+        if (uri != null && source != null) scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openOutputStream(uri)?.bufferedWriter(Charsets.UTF_8)?.use { it.write(source) }
+                        ?: error("Could not write the JavaScript file")
+                }
+            }.onSuccess { status = "Exported JavaScript file" }
+                .onFailure { status = it.message ?: "Export failed" }
+        }
     }
 
     val selectedProject = projects.firstOrNull { it.id == selectedProjectId }
@@ -229,6 +282,9 @@ internal fun ScriptStudioSheet(
                             }
                             .onFailure { status = it.message ?: "Create failed" }
                     }
+                    StudioAction("Import .js") {
+                        importScript.launch(arrayOf("application/javascript", "text/javascript", "application/x-javascript", "text/plain"))
+                    }
                     StudioAction("+ Folder") {
                         runCatching { workspace.files.createFolder(newProjectName) }
                             .onSuccess { folder ->
@@ -241,6 +297,29 @@ internal fun ScriptStudioSheet(
                 }
 
                 if (selectedProject != null) {
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        StudioAction("Export .js", enabled = selectedPath != null) {
+                            val name = selectedPath?.substringAfterLast('/') ?: return@StudioAction
+                            pendingExport = editorValue.text
+                            exportScript.launch(name)
+                        }
+                        StudioAction("Share .js", enabled = selectedPath != null) {
+                            val name = selectedPath?.substringAfterLast('/') ?: return@StudioAction
+                            runCatching {
+                                val directory = File(context.cacheDir, "shared-scripts").apply { mkdirs() }
+                                val sharedFile = File(directory, name).apply { writeText(editorValue.text) }
+                                val sharedUri = FileProvider.getUriForFile(context, "${context.packageName}.script-files", sharedFile)
+                                val send = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/javascript"
+                                    putExtra(Intent.EXTRA_STREAM, sharedUri)
+                                    clipData = android.content.ClipData.newUri(context.contentResolver, name, sharedUri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(Intent.createChooser(send, "Share JavaScript file").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                                status = "Sharing $name"
+                            }.onFailure { status = it.message ?: "Could not share script" }
+                        }
+                    }
                     Row(
                         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(7.dp),
