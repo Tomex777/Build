@@ -67,7 +67,7 @@ class LocalVideoPlaybackTest {
         saveEmulatorScreenshot("annie-vlc-visible-frame")
         compose.onNodeWithTag("media_player").performClick()
         compose.onNodeWithTag("player_play_pause").performClick()
-        compose.waitUntil(5_000) {
+        compose.waitUntil(2_500) {
             compose.onAllNodesWithText("▶").fetchSemanticsNodes().isNotEmpty()
         }
         assertTrue("Player never exposed its offline mode",

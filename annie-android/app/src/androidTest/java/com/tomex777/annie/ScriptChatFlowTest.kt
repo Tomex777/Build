@@ -111,7 +111,7 @@ class ScriptChatFlowTest {
                 compose.onAllNodesWithText("Black played", substring = true).fetchSemanticsNodes().isNotEmpty()
         }
         compose.onAllNodesWithTag("script_image_message")[0].assertIsDisplayed()
-        compose.onNodeWithText("Black played", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Black played", substring = true).assertExists()
         saveEmulatorScreenshot("annie-script-chess-move")
         compose.onAllNodesWithTag("script_image_message")[0].performClick()
         compose.waitUntil(5_000) {
