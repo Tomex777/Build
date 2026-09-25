@@ -1,15 +1,17 @@
 package com.tomex777.annie
 
 import android.app.Activity
-import android.os.Bundle
-import android.net.Uri
-import android.widget.VideoView
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
+import android.net.Uri
+import android.os.Bundle
+import android.view.View
+import android.view.ViewGroup
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +26,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,7 +37,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -45,16 +50,24 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import org.videolan.libvlc.LibVLC
+import org.videolan.libvlc.Media
+import org.videolan.libvlc.MediaPlayer
+import org.videolan.libvlc.util.VLCVideoLayout
 
 class AnniePlayerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -62,7 +75,8 @@ class AnniePlayerActivity : ComponentActivity() {
         enableEdgeToEdge()
         val title = intent.getStringExtra(EXTRA_TITLE)?.takeIf(String::isNotBlank) ?: "Video"
         val mediaUri = intent.getStringExtra(EXTRA_MEDIA_URI)?.let(Uri::parse)
-        val mode = intent.getStringExtra(EXTRA_MODE)?.let { runCatching { PlayerMode.valueOf(it) }.getOrNull() } ?: PlayerMode.STREAMING
+        val mode = intent.getStringExtra(EXTRA_MODE)?.let { runCatching { PlayerMode.valueOf(it) }.getOrNull() }
+            ?: PlayerMode.STREAMING
         val item = CatalogItem(
             id = intent.getIntExtra(EXTRA_ID, 0),
             mediaType = intent.getStringExtra(EXTRA_MEDIA_TYPE).orEmpty(),
@@ -99,6 +113,20 @@ class AnniePlayerActivity : ComponentActivity() {
 
 internal enum class PlayerMode { STREAMING, OFFLINE }
 
+private enum class AnnieVideoScale(val label: String, val scale: MediaPlayer.ScaleType) {
+    FIT("Fit", MediaPlayer.ScaleType.SURFACE_BEST_FIT),
+    FILL("Fill", MediaPlayer.ScaleType.SURFACE_FILL),
+    STRETCH("Stretch", MediaPlayer.ScaleType.SURFACE_FIT_SCREEN),
+}
+
+private fun View.installPlayerTap(onTap: () -> Unit) {
+    isClickable = true
+    setOnClickListener { onTap() }
+    if (this is ViewGroup) {
+        for (index in 0 until childCount) getChildAt(index).installPlayerTap(onTap)
+    }
+}
+
 @Composable
 internal fun MediaPlayerScreen(
     item: CatalogItem,
@@ -109,66 +137,162 @@ internal fun MediaPlayerScreen(
     immersive: Boolean = true,
 ) {
     val context = LocalContext.current
+    val appContext = context.applicationContext
     val activity = remember(context) { context.findActivity() }
     val view = LocalView.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     BackHandler(onBack = onBack)
+
     DisposableEffect(activity, view, immersive) {
         val controller = if (immersive) activity?.window?.let { WindowCompat.getInsetsController(it, view) } else null
         if (immersive) {
             controller?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             controller?.hide(WindowInsetsCompat.Type.systemBars())
         }
-        onDispose {
-            if (immersive) controller?.show(WindowInsetsCompat.Type.systemBars())
-        }
+        onDispose { if (immersive) controller?.show(WindowInsetsCompat.Type.systemBars()) }
     }
 
-    var playing by remember { mutableStateOf(false) }
-    var progress by remember { mutableFloatStateOf(0f) }
-    var durationMs by remember { mutableIntStateOf(0) }
-    var positionMs by remember { mutableIntStateOf(0) }
-    var videoView by remember { mutableStateOf<VideoView?>(null) }
-    var loadedUri by remember { mutableStateOf<Uri?>(null) }
-    val isOffline = mode == PlayerMode.OFFLINE
     val playable = sourceAvailable
+    val isOffline = mode == PlayerMode.OFFLINE
+    val resumePrefs = remember { appContext.getSharedPreferences("annie_video_resume", Context.MODE_PRIVATE) }
+    val resumeKey = remember(item.id, item.title) { "${item.id}:${item.title}" }
 
-    LaunchedEffect(mediaUri, videoView) {
-        while (mediaUri != null && videoView != null) {
-            val player = videoView
-            if (player != null) {
-                durationMs = player.duration.coerceAtLeast(0)
-                positionMs = player.currentPosition.coerceAtLeast(0)
-                playing = player.isPlaying
-                progress = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
-            }
-            delay(400)
+    val libVlc = remember(mediaUri) {
+        mediaUri?.let {
+            LibVLC(
+                appContext,
+                arrayListOf(
+                    "--audio-time-stretch",
+                    "--network-caching=1500",
+                    "--no-video-title-show",
+                ),
+            )
         }
     }
-    val activeVideoView = videoView
-    DisposableEffect(activeVideoView) {
-        onDispose { activeVideoView?.stopPlayback() }
+    val player = remember(libVlc) { libVlc?.let(::MediaPlayer) }
+    var attachedPlayer by remember(mediaUri) { mutableStateOf<MediaPlayer?>(null) }
+    var playing by remember(mediaUri) { mutableStateOf(false) }
+    var positionMs by remember(mediaUri) { mutableLongStateOf(0L) }
+    var durationMs by remember(mediaUri) { mutableLongStateOf(0L) }
+    var userPaused by remember(mediaUri) { mutableStateOf(false) }
+    var controlsVisible by remember(mediaUri) { mutableStateOf(true) }
+    var wasPlayingBeforeBackground by remember(mediaUri) { mutableStateOf(false) }
+    var scaleMode by remember(mediaUri) { mutableStateOf(AnnieVideoScale.FIT) }
+    var subtitleMenu by remember { mutableStateOf(false) }
+    var audioMenu by remember { mutableStateOf(false) }
+    var speedMenu by remember { mutableStateOf(false) }
+    var qualityMenu by remember { mutableStateOf(false) }
+    var audioTracks by remember(mediaUri) { mutableStateOf<List<Pair<Int, String>>>(emptyList()) }
+    var subtitleTracks by remember(mediaUri) { mutableStateOf<List<Pair<Int, String>>>(emptyList()) }
+    var speed by remember(mediaUri) { mutableFloatStateOf(1f) }
+
+    DisposableEffect(player, libVlc, mediaUri) {
+        if (player != null && libVlc != null && mediaUri != null) {
+            val media = Media(libVlc, mediaUri).apply {
+                setHWDecoderEnabled(true, false)
+                addOption(":network-caching=1500")
+            }
+            player.media = media
+            media.release()
+        }
+        onDispose {
+            if (player != null) {
+                val last = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(positionMs)
+                if (last > 2_000L) resumePrefs.edit().putLong(resumeKey, last).apply()
+                runCatching { player.stop() }
+                runCatching { player.detachViews() }
+                runCatching { player.release() }
+            }
+            runCatching { libVlc?.release() }
+        }
     }
 
-    Box(Modifier.fillMaxSize().background(Color(0xFF030811)).testTag("media_player")) {
-        if (mediaUri != null) {
+    LaunchedEffect(player, attachedPlayer, mediaUri) {
+        if (player == null || mediaUri == null) return@LaunchedEffect
+        var checks = 0
+        while (isActive && attachedPlayer !== player && checks < 120) {
+            delay(50)
+            checks++
+        }
+        if (!isActive || attachedPlayer !== player) return@LaunchedEffect
+        player.play()
+        val resume = resumePrefs.getLong(resumeKey, 0L)
+        if (resume > 0L) runCatching { player.setTime(resume) }
+        runCatching { player.setRate(speed) }
+        playing = true
+        while (isActive) {
+            durationMs = runCatching { player.length.coerceAtLeast(0L) }.getOrDefault(0L)
+            positionMs = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(0L)
+            playing = runCatching { player.isPlaying }.getOrDefault(false)
+            delay(250)
+        }
+    }
+
+    DisposableEffect(lifecycleOwner, player) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> {
+                    if (player != null) {
+                        wasPlayingBeforeBackground = runCatching { player.isPlaying }.getOrDefault(false)
+                        if (wasPlayingBeforeBackground) runCatching { player.pause() }
+                    }
+                }
+                Lifecycle.Event.ON_START -> {
+                    if (player != null && wasPlayingBeforeBackground && !userPaused) {
+                        runCatching { player.play() }
+                        wasPlayingBeforeBackground = false
+                    }
+                }
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(controlsVisible, playing, subtitleMenu, audioMenu, speedMenu, qualityMenu) {
+        if (controlsVisible && playing && !subtitleMenu && !audioMenu && !speedMenu && !qualityMenu) {
+            delay(3_200)
+            controlsVisible = false
+        }
+    }
+
+    fun refreshTracks() {
+        if (player == null) return
+        audioTracks = runCatching {
+            player.audioTracks?.filter { it.id >= 0 }?.map { it.id to it.name.orEmpty().ifBlank { "Audio track" } }
+        }.getOrNull().orEmpty()
+        subtitleTracks = runCatching {
+            player.spuTracks?.filter { it.id >= 0 }?.map { it.id to it.name.orEmpty().ifBlank { "Subtitle track" } }
+        }.getOrNull().orEmpty()
+    }
+
+    Box(
+        Modifier.fillMaxSize().background(Color.Black).clickable { controlsVisible = !controlsVisible }
+            .testTag("media_player"),
+    ) {
+        if (player != null && mediaUri != null) {
             AndroidView(
                 factory = { viewContext ->
-                    VideoView(viewContext).also { video ->
-                        videoView = video
-                        loadedUri = mediaUri
-                        video.setOnPreparedListener { player ->
-                            durationMs = player.duration.coerceAtLeast(0)
-                            player.start()
-                        }
-                        video.setOnCompletionListener { playing = false }
-                        video.setOnErrorListener { _, _, _ -> playing = false; true }
-                        video.setVideoURI(mediaUri)
+                    VLCVideoLayout(viewContext).also { layout ->
+                        layout.installPlayerTap { controlsVisible = !controlsVisible }
                     }
                 },
-                update = { video ->
-                    if (loadedUri != mediaUri) {
-                        loadedUri = mediaUri
-                        video.setVideoURI(mediaUri)
+                update = { layout ->
+                    layout.installPlayerTap { controlsVisible = !controlsVisible }
+                    if (attachedPlayer !== player) {
+                        layout.post {
+                            if (attachedPlayer !== player) {
+                                runCatching { attachedPlayer?.detachViews() }
+                                val attached = runCatching { player.attachViews(layout, null, true, false) }.isSuccess
+                                if (attached) {
+                                    attachedPlayer = player
+                                    runCatching { player.setVideoScale(scaleMode.scale) }
+                                }
+                            }
+                        }
+                    } else {
+                        runCatching { player.setVideoScale(scaleMode.scale) }
                     }
                 },
                 modifier = Modifier.fillMaxSize().testTag("player_video_surface"),
@@ -177,92 +301,267 @@ internal fun MediaPlayerScreen(
             AsyncImage(
                 model = item.image,
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().alpha(0.58f),
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize().alpha(0.42f),
             )
         }
-        Box(
-            Modifier.fillMaxSize().background(
-                Brush.verticalGradient(
-                    listOf(Color(0xA8000813), Color(0x26000813), Color(0x50000813), Color(0xE6000813))
+
+        if (!playable) {
+            Surface(
+                color = Color(0xDD07111E),
+                modifier = Modifier.align(Alignment.Center).testTag("player_source_unavailable"),
+            ) {
+                Text(
+                    if (isOffline) "No offline video file is available for this title."
+                    else "No streaming source is connected for this title.",
+                    color = Color(0xFFE2EAF4),
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
                 )
-            )
-        )
-        Column(Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 18.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(15.dp)) {
-                PlayerTextButton("‹", "player_back", true, onBack, fontSize = 34)
-                Column(Modifier.weight(1f)) {
-                    Text(item.title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("player_title"))
-                    Text(
-                        if (isOffline) "Offline video" else if (playable) "Streaming" else "Streaming · Source unavailable",
-                        color = Color(0xFFB9C9DD), fontSize = 13.sp,
-                    )
-                }
-                PlayerTextButton("▣", "player_subtitles", playable, {}, label = "Subtitles")
-                PlayerTextButton("◖", "player_audio", playable, {}, label = "Audio")
-                PlayerTextButton(if (isOffline) "1080p" else "1080p⌄", "player_quality",
-                    playable && !isOffline, {}, label = if (isOffline) "Quality unavailable offline" else "Quality")
-                PlayerTextButton("⋮", "player_more", playable, {}, label = "More options")
-            }
-            Spacer(Modifier.weight(1f))
-            if (!playable) {
-                Surface(color = Color(0xCC07111E), modifier = Modifier.align(Alignment.CenterHorizontally)
-                    .testTag("player_source_unavailable")) {
-                    Text(
-                        if (isOffline) "No offline video file is available for this title."
-                        else "No streaming source is connected for this title.",
-                        color = Color(0xFFE2EAF4), fontSize = 14.sp,
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
-                    )
-                }
-            }
-            Spacer(Modifier.weight(1f))
-            Slider(
-                value = progress,
-                onValueChange = {
-                    progress = it
-                    if (durationMs > 0) videoView?.seekTo((durationMs * it).toInt())
-                },
-                enabled = playable,
-                modifier = Modifier.fillMaxWidth().testTag("player_seek"),
-            )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(if (playable && durationMs > 0) formatPlayerTime(positionMs) else if (playable) "00:00" else "--:--", color = Color(0xFFE5ECF5), fontSize = 13.sp, modifier = Modifier.testTag("player_position"))
-                Text(if (playable && durationMs > 0) formatPlayerTime(durationMs) else "—:—", color = Color(0xFFE5ECF5), fontSize = 13.sp, modifier = Modifier.testTag("player_duration"))
-            }
-            Spacer(Modifier.size(10.dp))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween) {
-                PlayerTextButton("▱", "player_cast", playable && !isOffline, {}, label = "Cast")
-                PlayerTextButton("◂", "player_previous", playable, {}, label = "Previous")
-                PlayerTextButton("↶ 10", "player_rewind", playable, {}, label = "Rewind 10 seconds")
-                Button(
-                    onClick = {
-                        val player = videoView
-                        if (player != null) {
-                            if (player.isPlaying) player.pause() else player.start()
-                            playing = player.isPlaying
-                        } else {
-                            playing = !playing
-                        }
-                    },
-                    enabled = playable,
-                    modifier = Modifier.size(64.dp).testTag("player_play_pause"),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF08A8E8)),
-                ) {
-                    Text(if (playing) "Ⅱ" else "▶", color = Color.White, fontSize = 21.sp)
-                }
-                PlayerTextButton("↷ 10", "player_forward", playable, {}, label = "Forward 10 seconds")
-                PlayerTextButton("▸", "player_next", playable, {}, label = "Next")
-                PlayerTextButton("☷", "player_tracks", playable, {}, label = "Tracks")
-                PlayerTextButton("⚙", "player_settings", playable, {}, label = "Settings")
             }
         }
+
+        if (mediaUri != null && durationMs == 0L && positionMs == 0L && !userPaused) {
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.Center).size(42.dp).testTag("player_buffering"),
+                color = Color.White,
+            )
+        }
+
+        if (controlsVisible) {
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(
+                        listOf(Color(0xB8000000), Color(0x18000000), Color(0x42000000), Color(0xD9000000))
+                    )
+                )
+            ) {
+                Row(
+                    Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    PlayerTextButton("‹", "player_back", true, onBack, fontSize = 34)
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            item.title,
+                            color = Color.White,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.testTag("player_title"),
+                        )
+                        Text(
+                            if (isOffline) "Offline video" else if (playable) "Streaming" else "Source unavailable",
+                            color = Color(0xFFB9C9DD),
+                            fontSize = 12.sp,
+                        )
+                    }
+
+                    Box {
+                        PlayerTextButton("CC", "player_subtitles", playable, {
+                            refreshTracks()
+                            subtitleMenu = true
+                        }, label = "Subtitles")
+                        DropdownMenu(expanded = subtitleMenu, onDismissRequest = { subtitleMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Off") },
+                                onClick = {
+                                    runCatching { player?.setSpuTrack(-1) }
+                                    subtitleMenu = false
+                                },
+                            )
+                            subtitleTracks.forEach { (id, name) ->
+                                DropdownMenuItem(
+                                    text = { Text(name) },
+                                    onClick = {
+                                        runCatching { player?.setSpuTrack(id) }
+                                        subtitleMenu = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+
+                    Box {
+                        PlayerTextButton("♪", "player_audio", playable, {
+                            refreshTracks()
+                            audioMenu = true
+                        }, label = "Audio")
+                        DropdownMenu(expanded = audioMenu, onDismissRequest = { audioMenu = false }) {
+                            if (audioTracks.isEmpty()) {
+                                DropdownMenuItem(text = { Text("Default audio") }, onClick = { audioMenu = false })
+                            }
+                            audioTracks.forEach { (id, name) ->
+                                DropdownMenuItem(
+                                    text = { Text(name) },
+                                    onClick = {
+                                        runCatching { player?.setAudioTrack(id) }
+                                        audioMenu = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+
+                    Box {
+                        PlayerTextButton(
+                            if (isOffline) "Source" else "Auto⌄",
+                            "player_quality",
+                            playable && !isOffline,
+                            { qualityMenu = true },
+                            label = "Quality",
+                        )
+                        DropdownMenu(expanded = qualityMenu, onDismissRequest = { qualityMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Source quality") },
+                                onClick = { qualityMenu = false },
+                            )
+                        }
+                    }
+                }
+
+                Row(
+                    Modifier.align(Alignment.Center),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(18.dp),
+                ) {
+                    PlayerTextButton("↶ 10", "player_rewind", playable, {
+                        val p = player
+                        if (p != null) {
+                            val target = (p.time - 10_000L).coerceAtLeast(0L)
+                            p.setTime(target)
+                            positionMs = target
+                        }
+                        controlsVisible = true
+                    }, label = "Rewind 10 seconds")
+                    Button(
+                        onClick = {
+                            val p = player
+                            if (p != null) {
+                                if (p.isPlaying) {
+                                    userPaused = true
+                                    p.pause()
+                                } else {
+                                    userPaused = false
+                                    p.play()
+                                }
+                                playing = p.isPlaying
+                            } else {
+                                playing = !playing
+                            }
+                            controlsVisible = true
+                        },
+                        enabled = playable,
+                        modifier = Modifier.size(72.dp).testTag("player_play_pause"),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xCC168EEA)),
+                    ) {
+                        Text(if (playing) "Ⅱ" else "▶", color = Color.White, fontSize = 22.sp)
+                    }
+                    PlayerTextButton("↷ 10", "player_forward", playable, {
+                        val p = player
+                        if (p != null) {
+                            val end = if (durationMs > 0L) durationMs else Long.MAX_VALUE
+                            val target = (p.time + 10_000L).coerceAtMost(end)
+                            p.setTime(target)
+                            positionMs = target
+                        }
+                        controlsVisible = true
+                    }, label = "Forward 10 seconds")
+                }
+
+                Column(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 22.dp, vertical = 14.dp)
+                ) {
+                    val sliderMax = durationMs.coerceAtLeast(1L).toFloat()
+                    Slider(
+                        value = positionMs.toFloat().coerceIn(0f, sliderMax),
+                        onValueChange = { value ->
+                            positionMs = value.toLong()
+                            if (durationMs > 0L) runCatching { player?.setTime(positionMs) }
+                            controlsVisible = true
+                        },
+                        valueRange = 0f..sliderMax,
+                        enabled = playable,
+                        modifier = Modifier.fillMaxWidth().testTag("player_seek"),
+                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(
+                            if (playable && durationMs > 0L) formatPlayerTime(positionMs) else if (playable) "00:00" else "--:--",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            modifier = Modifier.testTag("player_position"),
+                        )
+                        Text(
+                            if (playable && durationMs > 0L) formatPlayerTime(durationMs) else "—:—",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            modifier = Modifier.testTag("player_duration"),
+                        )
+                    }
+                    Spacer(Modifier.size(6.dp))
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        PlayerTextButton("▱", "player_cast", playable && !isOffline, {}, label = "Cast")
+                        PlayerTextButton("◂", "player_previous", playable, {}, label = "Previous")
+                        PlayerTextButton("▸", "player_next", playable, {}, label = "Next")
+
+                        Box {
+                            PlayerTextButton("${formatRate(speed)}×", "player_speed", playable, { speedMenu = true }, label = "Speed")
+                            DropdownMenu(expanded = speedMenu, onDismissRequest = { speedMenu = false }) {
+                                listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f).forEach { rate ->
+                                    DropdownMenuItem(
+                                        text = { Text("${formatRate(rate)}×") },
+                                        onClick = {
+                                            speed = rate
+                                            runCatching { player?.setRate(rate) }
+                                            speedMenu = false
+                                        },
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.weight(1f))
+                        PlayerTextButton(scaleMode.label, "player_aspect", playable, {
+                            scaleMode = when (scaleMode) {
+                                AnnieVideoScale.FIT -> AnnieVideoScale.FILL
+                                AnnieVideoScale.FILL -> AnnieVideoScale.STRETCH
+                                AnnieVideoScale.STRETCH -> AnnieVideoScale.FIT
+                            }
+                            runCatching { player?.setVideoScale(scaleMode.scale) }
+                            controlsVisible = true
+                        }, label = "Aspect")
+                        PlayerTextButton("↻", "player_rotate", true, {
+                            val current = activity?.requestedOrientation
+                            activity?.requestedOrientation =
+                                if (current == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
+                                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                } else {
+                                    ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                                }
+                        }, label = "Rotate")
+                        PlayerTextButton("⋮", "player_more", playable, {}, label = "More options")
+                        PlayerTextButton("☷", "player_tracks", playable, {
+                            refreshTracks()
+                            audioMenu = true
+                        }, label = "Tracks")
+                        PlayerTextButton("⚙", "player_settings", playable, { speedMenu = true }, label = "Settings")
+                    }
+                }
+            }
+        }
+
         Text(
             if (isOffline) "OFFLINE" else "STREAMING",
-            color = Color(0xFFB7D3EF), fontSize = 10.sp, fontWeight = FontWeight.Bold,
-            modifier = Modifier.align(Alignment.TopEnd).padding(18.dp).testTag("player_mode"),
+            color = Color(0xFFB7D3EF),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).testTag("player_mode"),
         )
     }
 }
@@ -274,7 +573,7 @@ private fun PlayerTextButton(
     enabled: Boolean,
     onClick: () -> Unit,
     label: String = text,
-    fontSize: Int = 18,
+    fontSize: Int = 16,
 ) {
     Button(
         onClick = onClick,
@@ -287,15 +586,30 @@ private fun PlayerTextButton(
             disabledContentColor = Color(0xFF758397),
         ),
     ) {
-        Text(text, color = if (enabled) Color.White else Color(0xFF758397), fontSize = fontSize.sp,
-            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            text,
+            color = if (enabled) Color.White else Color(0xFF758397),
+            fontSize = fontSize.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
-private fun formatPlayerTime(milliseconds: Int): String {
-    val totalSeconds = (milliseconds / 1000).coerceAtLeast(0)
-    return "%02d:%02d".format(totalSeconds / 60, totalSeconds % 60)
+private fun formatPlayerTime(milliseconds: Long): String {
+    val totalSeconds = (milliseconds / 1000L).coerceAtLeast(0L)
+    val hours = totalSeconds / 3600L
+    val minutes = (totalSeconds % 3600L) / 60L
+    val seconds = totalSeconds % 60L
+    return if (hours > 0L) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%02d:%02d".format(minutes, seconds)
+    }
 }
+
+private fun formatRate(rate: Float): String =
+    if (rate % 1f == 0f) rate.toInt().toString() else rate.toString()
 
 internal tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
