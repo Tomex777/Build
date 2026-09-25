@@ -45,8 +45,15 @@ class AniyomiCompatibilitySmokeTest {
             "NamiSourceSmoke",
             "globalSearch sources=${search.resultsBySource.keys} " +
                 "counts=${search.resultsBySource.mapValues { it.value.size }} " +
-                "failures=${search.failures.map { it.sourceId + ":" + it.stage + ":" + it.cause.javaClass.simpleName }}",
+                "failures=${search.failures.map { it.sourceId + ":" + it.stage + ":" + it.cause.javaClass.simpleName + ":" + it.cause.message }}",
         )
+        search.failures.forEach { failure ->
+            Log.e(
+                "NamiSourceSmoke",
+                "source=${failure.sourceId} stage=${failure.stage}",
+                failure.cause,
+            )
+        }
         val extensionResults = search.resultsBySource[animeSogo.metadata.id].orEmpty()
         assertTrue("AnimeSogo returned no real results for $query", extensionResults.isNotEmpty())
         assertTrue(
