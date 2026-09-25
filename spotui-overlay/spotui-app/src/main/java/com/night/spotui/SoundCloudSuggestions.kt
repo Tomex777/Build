@@ -60,8 +60,8 @@ class SoundCloudSuggestions(
                 is String -> value.takeIf(String::isNotBlank)?.let(::add)
                 is JSONObject -> {
                     val label = sequenceOf("label", "title", "name", "username", "query")
-                        .map(value::optString)
-                        .firstOrNull(String::isNotBlank)
+                        .map { key -> value.optString(key) }
+                        .firstOrNull { it.isNotBlank() }
                     label?.let(::add)
                 }
             }

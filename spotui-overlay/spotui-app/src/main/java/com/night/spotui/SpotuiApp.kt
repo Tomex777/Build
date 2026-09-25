@@ -174,13 +174,20 @@ fun SpotuiApp() {
             .onSuccess { base ->
                 val personal = buildList {
                     taste.topArtists(4).forEach { artist ->
-                        source.search(artist.name).getOrNull()?.take(6)?.let(::addAll)
+                        source.search(artist.name).getOrNull()?.take(6)?.let { addAll(it) }
                     }
                 }
                 homeTracks = taste.rank((personal + base).distinctBy(Track::id))
             }
             .onFailure { error = it.message ?: "Could not load music" }
         loading = false
+    }
+
+    LaunchedEffect(player.currentTrack?.id) {
+        if (player.currentTrack != null) {
+            delay(250)
+            homeTracks = taste.rank(homeTracks)
+        }
     }
 
     LaunchedEffect(query) {
@@ -195,7 +202,7 @@ fun SpotuiApp() {
         val sourceFallback = if (soundCloud.isEmpty()) {
             source.search(clean).getOrNull().orEmpty()
                 .flatMap { listOf(it.artist, it.title) }
-                .filter(String::isNotBlank)
+                .filter { it.isNotBlank() }
                 .take(10)
         } else {
             emptyList()

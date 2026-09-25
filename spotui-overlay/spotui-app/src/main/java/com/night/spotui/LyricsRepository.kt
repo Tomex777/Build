@@ -50,7 +50,7 @@ class LyricsRepository {
             "artist_name" to track.artist,
         )
         if (track.album.isNotBlank()) params["album_name"] = track.album
-        if (track.durationSeconds in 1..3600) params["duration"] = track.durationSeconds.toString()
+        if (track.durationSeconds in 1L..3600L) params["duration"] = track.durationSeconds.toString()
 
         val url = "https://lrclib.net/api/get?" + params.entries.joinToString("&") {
             encode(it.key) + "=" + encode(it.value)
