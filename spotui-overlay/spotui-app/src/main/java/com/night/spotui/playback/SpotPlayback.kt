@@ -25,6 +25,7 @@ import androidx.media3.session.MediaSessionService
 import com.night.spotui.MainActivity
 import com.night.spotui.MusicSource
 import com.night.spotui.Track
+import com.night.spotui.TasteStore
 import com.night.spotui.YouTubeMusicSource
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
@@ -39,6 +40,7 @@ enum class SpotRepeatMode { OFF, ALL, ONE }
 class SpotPlaybackController(
     context: Context,
     private val source: MusicSource,
+    private val taste: TasteStore,
 ) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -112,6 +114,8 @@ class SpotPlaybackController(
 
     fun play(track: Track, sourceQueue: List<Track>) {
         SpotPlaybackService.ensureStarted(appContext)
+        currentTrack?.takeIf { it.id != track.id }?.let(taste::recordSkip)
+        taste.recordPlay(track)
         baseQueue = sourceQueue.distinctBy(Track::id).let { list ->
             if (list.any { it.id == track.id }) list else listOf(track) + list
         }
@@ -122,7 +126,9 @@ class SpotPlaybackController(
 
     fun selectQueueIndex(index: Int) {
         if (index !in queue.indices || index == currentIndex) return
+        currentTrack?.let(taste::recordSkip)
         currentIndex = index
+        taste.recordPlay(queue[index])
         resolveAndPlay(queue[index])
     }
 
@@ -147,7 +153,9 @@ class SpotPlaybackController(
             else -> -1
         }
         if (next >= 0) {
+            currentTrack?.let(taste::recordSkip)
             currentIndex = next
+            taste.recordPlay(queue[next])
             resolveAndPlay(queue[next])
         }
     }
@@ -163,7 +171,9 @@ class SpotPlaybackController(
             repeatMode == SpotRepeatMode.ALL -> queue.lastIndex
             else -> 0
         }
+        currentTrack?.let(taste::recordSkip)
         currentIndex = previous
+        taste.recordPlay(queue[previous])
         resolveAndPlay(queue[previous])
     }
 
@@ -189,20 +199,24 @@ class SpotPlaybackController(
     }
 
     private fun handleEnded() {
+        currentTrack?.let(taste::recordCompleted)
         when (repeatMode) {
             SpotRepeatMode.ONE -> {
+                currentTrack?.let(taste::recordPlay)
                 player.seekTo(0)
                 player.play()
             }
             SpotRepeatMode.ALL -> {
                 if (queue.isNotEmpty()) {
                     currentIndex = if (currentIndex < queue.lastIndex) currentIndex + 1 else 0
+                    taste.recordPlay(queue[currentIndex])
                     resolveAndPlay(queue[currentIndex])
                 }
             }
             SpotRepeatMode.OFF -> {
                 if (currentIndex < queue.lastIndex) {
                     currentIndex += 1
+                    taste.recordPlay(queue[currentIndex])
                     resolveAndPlay(queue[currentIndex])
                 }
             }
@@ -252,6 +266,7 @@ class SpotPlaybackController(
 
 object SpotRuntime {
     @Volatile private var sourceInstance: YouTubeMusicSource? = null
+    @Volatile private var tasteInstance: TasteStore? = null
     @Volatile private var playerInstance: SpotPlaybackController? = null
 
     fun source(context: Context): YouTubeMusicSource {
@@ -261,10 +276,21 @@ object SpotRuntime {
         }
     }
 
+    fun taste(context: Context): TasteStore {
+        tasteInstance?.let { return it }
+        return synchronized(this) {
+            tasteInstance ?: TasteStore(context.applicationContext).also { tasteInstance = it }
+        }
+    }
+
     fun player(context: Context): SpotPlaybackController {
         playerInstance?.let { return it }
         return synchronized(this) {
-            playerInstance ?: SpotPlaybackController(context.applicationContext, source(context)).also {
+            playerInstance ?: SpotPlaybackController(
+                context.applicationContext,
+                source(context),
+                taste(context),
+            ).also {
                 playerInstance = it
             }
         }

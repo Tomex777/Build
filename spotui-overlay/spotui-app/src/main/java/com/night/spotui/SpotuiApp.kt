@@ -29,15 +29,16 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -59,16 +60,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -76,8 +76,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -86,6 +89,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.viewinterop.AndroidView
 import coil3.compose.AsyncImage
 import com.night.spotui.playback.SpotPlaybackController
@@ -114,7 +120,12 @@ fun SpotuiApp() {
     val context = LocalContext.current
     val source = remember { SpotRuntime.source(context) }
     val player = remember { SpotRuntime.player(context) }
+    val taste = remember { SpotRuntime.taste(context) }
     val library = remember { LibraryStore(context) }
+    val lyricsRepository = remember { LyricsRepository() }
+    val soundCloudSuggestions = remember {
+        SoundCloudSuggestions(BuildConfig.SOUNDCLOUD_SUGGEST_PROXY)
+    }
     val scope = rememberCoroutineScope()
 
     var tab by remember { mutableStateOf(SpotTab.HOME) }
@@ -122,34 +133,76 @@ fun SpotuiApp() {
     var searchTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var likedTracks by remember { mutableStateOf(library.all()) }
     var query by remember { mutableStateOf("") }
+    var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var showPlayer by remember { mutableStateOf(false) }
     var showSignIn by remember { mutableStateOf(false) }
+    var homeReloadEpoch by remember { mutableIntStateOf(0) }
 
     fun toggleLike(track: Track) {
+        val wasLiked = likedTracks.any { it.id == track.id }
         library.toggle(track)
         likedTracks = library.all()
+        taste.recordLike(track, liked = !wasLiked)
+        homeTracks = taste.rank(homeTracks)
     }
 
-    fun runSearch() {
-        val clean = query.trim()
+    fun runSearch(term: String = query) {
+        val clean = term.trim()
         if (clean.isBlank()) return
+        query = clean
+        suggestions = emptyList()
         scope.launch {
             loading = true
             error = null
             source.search(clean)
-                .onSuccess { searchTracks = it }
+                .onSuccess { results ->
+                    searchTracks = taste.rank(results)
+                    taste.recordSearch(clean, results)
+                    homeTracks = taste.rank((results.take(8) + homeTracks).distinctBy(Track::id))
+                }
                 .onFailure { error = it.message ?: "Search failed" }
             loading = false
         }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(homeReloadEpoch) {
+        loading = true
+        error = null
         source.home()
-            .onSuccess { homeTracks = it }
-            .onFailure { error = it.message ?: "Could not load YouTube Music" }
+            .onSuccess { base ->
+                val personal = buildList {
+                    taste.topArtists(4).forEach { artist ->
+                        source.search(artist.name).getOrNull()?.take(6)?.let(::addAll)
+                    }
+                }
+                homeTracks = taste.rank((personal + base).distinctBy(Track::id))
+            }
+            .onFailure { error = it.message ?: "Could not load music" }
         loading = false
+    }
+
+    LaunchedEffect(query) {
+        val clean = query.trim()
+        if (clean.length < 2) {
+            suggestions = emptyList()
+            return@LaunchedEffect
+        }
+        delay(240)
+        val local = taste.querySuggestions(clean)
+        val soundCloud = soundCloudSuggestions.suggest(clean)
+        val sourceFallback = if (soundCloud.isEmpty()) {
+            source.search(clean).getOrNull().orEmpty()
+                .flatMap { listOf(it.artist, it.title) }
+                .filter(String::isNotBlank)
+                .take(10)
+        } else {
+            emptyList()
+        }
+        suggestions = (local + soundCloud + sourceFallback)
+            .distinctBy { it.lowercase() }
+            .take(8)
     }
 
     MaterialTheme(
@@ -206,19 +259,21 @@ fun SpotuiApp() {
                         liked = likedTracks.map(Track::id).toSet(),
                         onPlay = { player.play(it, homeTracks) },
                         onToggleLike = ::toggleLike,
-                        onSignIn = { showSignIn = true },
+                        onRetry = { homeReloadEpoch++ },
                     )
                     SpotTab.SEARCH -> SearchScreen(
                         modifier = Modifier.padding(padding),
                         query = query,
                         onQuery = { query = it },
+                        suggestions = suggestions,
                         tracks = searchTracks,
                         loading = loading,
                         error = error,
                         liked = likedTracks.map(Track::id).toSet(),
-                        onSearch = ::runSearch,
+                        onSearch = { term -> runSearch(term) },
                         onPlay = { player.play(it, searchTracks) },
                         onToggleLike = ::toggleLike,
+                        onSuggestion = { value -> runSearch(value) },
                     )
                     SpotTab.LIBRARY -> LibraryScreen(
                         modifier = Modifier.padding(padding),
@@ -235,6 +290,7 @@ fun SpotuiApp() {
                     liked = likedTracks.any { it.id == player.currentTrack?.id },
                     onToggleLike = { player.currentTrack?.let(::toggleLike) },
                     onSignIn = { showSignIn = true },
+                    lyricsRepository = lyricsRepository,
                     onClose = { showPlayer = false },
                 )
             }
@@ -259,7 +315,7 @@ private fun HomeScreen(
     liked: Set<String>,
     onPlay: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
-    onSignIn: () -> Unit,
+    onRetry: () -> Unit,
 ) {
     LazyColumn(
         modifier.fillMaxSize().background(SpotBlack),
@@ -274,29 +330,26 @@ private fun HomeScreen(
                     Text("SpotUI", color = SpotText, fontSize = 30.sp, fontWeight = FontWeight.Black)
                     Text("Your listening space", color = SpotMuted, fontSize = 11.sp)
                 }
-                IconButton(onClick = onSignIn) {
-                    Icon(Icons.Rounded.AccountCircle, "YouTube Music account", tint = SpotText, modifier = Modifier.size(30.dp))
-                }
             }
         }
 
         if (tracks.isEmpty()) {
             item {
-                if (loading) LoadingBlock("Loading YouTube Music…")
-                else ErrorBlock(error ?: "YouTube Music returned no songs.", onSignIn)
+                if (loading) LoadingBlock("Building your mix…")
+                else ErrorBlock(error ?: "No music was returned.", onRetry)
             }
         } else {
             item { MusicQuickGrid(tracks.take(6), liked, onPlay, onToggleLike) }
-            item { MusicSectionTitle("Made for you", "Fresh music from YouTube Music") }
+            item { MusicSectionTitle("Made for you", "Ordered by what you search, like and replay") }
             item { MusicSquareRail(tracks.take(10), onPlay) }
-            item { MusicSectionTitle("Artists in your mix", "From what is playing right now") }
+            item { MusicSectionTitle("Artists in your mix", "Shaped by your listening") }
             item { ArtistRail(tracks) }
-            item { MusicSectionTitle("Your rotation", "Keep listening") }
+            item { MusicSectionTitle("Your rotation", "Songs and artists you keep coming back to") }
             item { MusicTrackList(tracks.take(10), liked, onPlay, onToggleLike) }
         }
 
         error?.takeIf { tracks.isNotEmpty() }?.let { message ->
-            item { ErrorBlock(message, onSignIn) }
+            item { ErrorBlock(message, onRetry) }
         }
     }
 }
@@ -306,33 +359,82 @@ private fun SearchScreen(
     modifier: Modifier,
     query: String,
     onQuery: (String) -> Unit,
+    suggestions: List<String>,
     tracks: List<Track>,
     loading: Boolean,
     error: String?,
     liked: Set<String>,
-    onSearch: () -> Unit,
+    onSearch: (String) -> Unit,
     onPlay: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
+    onSuggestion: (String) -> Unit,
 ) {
     LazyColumn(modifier.fillMaxSize().background(SpotBlack)) {
         item {
-            Column(Modifier.statusBarsPadding().padding(18.dp)) {
+            Column(Modifier.statusBarsPadding().padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 8.dp)) {
                 Text("Search", color = SpotText, fontSize = 30.sp, fontWeight = FontWeight.Black)
-                Spacer(Modifier.height(14.dp))
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = onQuery,
+                Spacer(Modifier.height(16.dp))
+                Surface(
+                    color = Color(0xFF1F1F1F),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Songs, artists, albums") },
-                    leadingIcon = { Icon(Icons.Rounded.Search, null) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-                )
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Rounded.Search, null, tint = SpotMuted, modifier = Modifier.size(23.dp))
+                        BasicTextField(
+                            value = query,
+                            onValueChange = onQuery,
+                            modifier = Modifier.weight(1f).padding(start = 12.dp),
+                            singleLine = true,
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                color = SpotText,
+                                fontSize = 16.sp,
+                            ),
+                            cursorBrush = SolidColor(SpotGreen),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(onSearch = { onSearch(query) }),
+                            decorationBox = { inner ->
+                                if (query.isBlank()) {
+                                    Text("What do you want to listen to?", color = SpotMuted, fontSize = 15.sp)
+                                }
+                                inner()
+                            },
+                        )
+                    }
+                }
             }
         }
-        if (loading) item { LoadingBlock("Searching…") }
-        error?.let { item { ErrorBlock(it, onSearch) } }
+
+        if (query.isNotBlank() && suggestions.isNotEmpty()) {
+            item {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp)) {
+                    suggestions.forEach { suggestion ->
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .clickable { onSuggestion(suggestion) }
+                                .padding(horizontal = 4.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(Icons.Rounded.Search, null, tint = SpotMuted, modifier = Modifier.size(17.dp))
+                            Text(
+                                suggestion,
+                                color = SpotText,
+                                fontSize = 13.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(start = 12.dp).weight(1f),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (loading && tracks.isEmpty()) item { LoadingBlock("Searching…") }
+        error?.let { item { ErrorBlock(it) { onSearch(query) } } }
         items(tracks, key = { "search-" + it.id }) { track ->
             TrackRow(track, liked.contains(track.id), { onPlay(track) }, { onToggleLike(track) })
         }
@@ -615,10 +717,24 @@ private fun NowPlaying(
     liked: Boolean,
     onToggleLike: () -> Unit,
     onSignIn: () -> Unit,
+    lyricsRepository: LyricsRepository,
     onClose: () -> Unit,
 ) {
     val track = player.currentTrack ?: return
     var queueOpen by remember { mutableStateOf(false) }
+    var lyricsOpen by remember { mutableStateOf(false) }
+    var lyrics by remember(track.id) { mutableStateOf<TrackLyrics?>(null) }
+    var lyricsLoading by remember(track.id) { mutableStateOf(true) }
+    var lyricsError by remember(track.id) { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(track.id) {
+        lyricsLoading = true
+        lyricsError = null
+        lyricsRepository.lyrics(track)
+            .onSuccess { lyrics = it }
+            .onFailure { lyricsError = it.message ?: "Lyrics unavailable" }
+        lyricsLoading = false
+    }
     BackHandler(onBack = onClose)
     Column(
         Modifier.fillMaxSize().background(Color(0xFF11140F)).statusBarsPadding().navigationBarsPadding().padding(20.dp)
@@ -641,10 +757,10 @@ private fun NowPlaying(
         }
         Spacer(Modifier.height(22.dp))
         val progress = if (player.durationMs > 0) player.positionMs.toFloat() / player.durationMs else 0f
-        Slider(
-            value = progress.coerceIn(0f, 1f),
-            onValueChange = player::seekToFraction,
-            colors = SliderDefaults.colors(thumbColor = SpotText, activeTrackColor = SpotText, inactiveTrackColor = SpotRaised),
+        SpotSeekBar(
+            progress = progress,
+            onSeek = player::seekToFraction,
+            modifier = Modifier.fillMaxWidth(),
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(formatTime(player.positionMs), color = SpotMuted, fontSize = 10.sp)
@@ -710,13 +826,42 @@ private fun NowPlaying(
             }
         }
         Row(
-            Modifier.fillMaxWidth().clickable { queueOpen = true }.padding(vertical = 18.dp, horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            Modifier.fillMaxWidth().padding(top = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(Icons.Rounded.QueueMusic, null, tint = SpotMuted)
-            Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                Text("Queue", color = SpotText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Text(player.queue.size.toString() + " tracks", color = SpotMuted, fontSize = 10.sp)
+            Surface(
+                color = SpotSurface,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.weight(1f).clickable { queueOpen = true },
+            ) {
+                Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.QueueMusic, null, tint = SpotMuted)
+                    Column(Modifier.padding(start = 9.dp)) {
+                        Text("Queue", color = SpotText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(player.queue.size.toString() + " tracks", color = SpotMuted, fontSize = 9.sp)
+                    }
+                }
+            }
+            Surface(
+                color = SpotSurface,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.weight(1f).clickable { lyricsOpen = true },
+            ) {
+                Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Lyrics, null, tint = SpotMuted)
+                    Column(Modifier.padding(start = 9.dp)) {
+                        Text("Lyrics", color = SpotText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            when {
+                                lyricsLoading -> "Loading"
+                                lyrics != null -> "Available"
+                                else -> "Not found"
+                            },
+                            color = SpotMuted,
+                            fontSize = 9.sp,
+                        )
+                    }
+                }
             }
         }
     }
@@ -766,6 +911,166 @@ private fun NowPlaying(
                         }
                     }
                 }
+            }
+        }
+    }
+    if (lyricsOpen) {
+        ModalBottomSheet(
+            onDismissRequest = { lyricsOpen = false },
+            containerColor = Color(0xFF161616),
+        ) {
+            val loaded = lyrics
+            Column(
+                Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 18.dp)
+            ) {
+                Text(
+                    track.title,
+                    color = SpotText,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
+                )
+                Text(
+                    "Lyrics",
+                    color = SpotMuted,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 2.dp),
+                )
+
+                when {
+                    lyricsLoading -> LoadingBlock("Loading lyrics…")
+                    loaded?.instrumental == true -> {
+                        Text(
+                            "This track is instrumental.",
+                            color = SpotMuted,
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(18.dp),
+                        )
+                    }
+                    loaded != null && loaded.synced.isNotEmpty() -> {
+                        val activeIndex = loaded.synced.indexOfLast { it.timeMs <= player.positionMs }
+                            .coerceAtLeast(0)
+                        val listState = rememberLazyListState()
+                        LaunchedEffect(activeIndex) {
+                            if (activeIndex in loaded.synced.indices) {
+                                listState.animateScrollToItem((activeIndex - 2).coerceAtLeast(0))
+                            }
+                        }
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxWidth().height(430.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                horizontal = 18.dp,
+                                vertical = 18.dp,
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            items(loaded.synced.size) { index ->
+                                val line = loaded.synced[index]
+                                Text(
+                                    line.text.ifBlank { "♪" },
+                                    color = if (index == activeIndex) SpotText else SpotMuted,
+                                    fontSize = if (index == activeIndex) 22.sp else 17.sp,
+                                    lineHeight = if (index == activeIndex) 27.sp else 22.sp,
+                                    fontWeight = if (index == activeIndex) FontWeight.Black else FontWeight.Medium,
+                                    modifier = Modifier.clickable {
+                                        if (player.durationMs > 0) {
+                                            player.seekToFraction(
+                                                (line.timeMs.toFloat() / player.durationMs).coerceIn(0f, 1f)
+                                            )
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    !loaded?.plain.isNullOrBlank() -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth().height(430.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp),
+                        ) {
+                            items(loaded?.plain.orEmpty().lines()) { line ->
+                                Text(
+                                    line.ifBlank { " " },
+                                    color = SpotText,
+                                    fontSize = 17.sp,
+                                    lineHeight = 24.sp,
+                                    modifier = Modifier.padding(vertical = 4.dp),
+                                )
+                            }
+                        }
+                    }
+                    else -> {
+                        Text(
+                            lyricsError ?: "Lyrics unavailable for this track.",
+                            color = SpotMuted,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(18.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+}
+
+@Composable
+private fun SpotSeekBar(
+    progress: Float,
+    onSeek: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var widthPx by remember { mutableIntStateOf(1) }
+    var dragging by remember { mutableStateOf(false) }
+    var dragProgress by remember { mutableFloatStateOf(progress.coerceIn(0f, 1f)) }
+
+    LaunchedEffect(progress, dragging) {
+        if (!dragging) dragProgress = progress.coerceIn(0f, 1f)
+    }
+
+    val displayed = if (dragging) dragProgress else progress.coerceIn(0f, 1f)
+    Box(
+        modifier
+            .height(22.dp)
+            .onSizeChanged { widthPx = it.width.coerceAtLeast(1) }
+            .pointerInput(widthPx) {
+                detectTapGestures { offset ->
+                    onSeek((offset.x / widthPx.toFloat()).coerceIn(0f, 1f))
+                }
+            }
+            .pointerInput(widthPx) {
+                detectHorizontalDragGestures(
+                    onDragStart = { offset ->
+                        dragging = true
+                        dragProgress = (offset.x / widthPx.toFloat()).coerceIn(0f, 1f)
+                    },
+                    onHorizontalDrag = { change, _ ->
+                        dragProgress = (change.position.x / widthPx.toFloat()).coerceIn(0f, 1f)
+                    },
+                    onDragEnd = {
+                        onSeek(dragProgress)
+                        dragging = false
+                    },
+                    onDragCancel = { dragging = false },
+                )
+            },
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Box(
+            Modifier.fillMaxWidth().height(3.dp)
+                .background(Color(0xFF5A5A5A), RoundedCornerShape(2.dp))
+        )
+        Box(
+            Modifier.fillMaxWidth(displayed.coerceAtLeast(0.001f)).height(3.dp)
+                .background(SpotText, RoundedCornerShape(2.dp))
+        )
+        if (dragging) {
+            Box(
+                Modifier.fillMaxWidth(displayed.coerceAtLeast(0.001f)),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Box(Modifier.size(10.dp).background(SpotText, CircleShape))
             }
         }
     }
