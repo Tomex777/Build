@@ -38,8 +38,12 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
 
     open val versionId: Int = 1
 
-    /** Related-anime lookup is optional and disabled unless a source opts in. */
-    open val disableRelatedAnimesBySearch: Boolean get() = false
+    /** Maintained Komikku/Anikku extensions treat HTTP sources as related-anime capable. */
+    override val supportsRelatedAnimes: Boolean
+        get() = true
+
+    override val disableRelatedAnimesBySearch: Boolean
+        get() = false
 
     override val id: Long by lazy { generateId(name, lang, versionId) }
 
@@ -139,9 +143,16 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
     protected open fun seasonListParse(response: Response): List<SAnime> = emptyList()
 
 
-    open fun relatedAnimeListRequest(anime: SAnime): Request = GET(baseUrl + anime.url, headers)
+    override suspend fun fetchRelatedAnimeList(anime: SAnime): List<SAnime> =
+        client.newCall(relatedAnimeListRequest(anime))
+            .awaitSuccess()
+            .use(::relatedAnimeListParse)
 
-    open fun relatedAnimeListParse(response: Response): List<SAnime> = emptyList()
+    protected open fun relatedAnimeListRequest(anime: SAnime): Request =
+        GET(baseUrl + anime.url, headers)
+
+    protected open fun relatedAnimeListParse(response: Response): List<SAnime> =
+        emptyList()
 
     override suspend fun getHosterList(episode: SEpisode): List<Hoster> =
         client.newCall(hosterListRequest(episode)).awaitSuccess().use(::hosterListParse)
@@ -161,7 +172,11 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
         hoster: Hoster,
     ): List<Video> = hoster.videoList ?: throw UnsupportedOperationException()
 
-    // v14 direct episode -> video path.
+    // v14 direct episode -> video path. Hidden from modern Kotlin source, kept in bytecode.
+    @Deprecated(
+        "Retained only for binary compatibility with legacy extensions",
+        level = DeprecationLevel.HIDDEN,
+    )
     override suspend fun getVideoList(episode: SEpisode): List<Video> =
         client.newCall(videoListRequest(episode)).awaitSuccess().use(::videoListParse)
 
@@ -169,8 +184,19 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
     override fun fetchVideoList(episode: SEpisode): Observable<List<Video>> =
         observableRequest(videoListRequest(episode), ::videoListParse)
 
-    protected open fun videoListRequest(episode: SEpisode): Request = GET(baseUrl + episode.url, headers)
-    protected open fun videoListParse(response: Response): List<Video> = throw UnsupportedOperationException()
+    @Deprecated(
+        "Retained only for binary compatibility with legacy extensions",
+        level = DeprecationLevel.HIDDEN,
+    )
+    protected open fun videoListRequest(episode: SEpisode): Request =
+        GET(baseUrl + episode.url, headers)
+
+    @Deprecated(
+        "Retained only for binary compatibility with legacy extensions",
+        level = DeprecationLevel.HIDDEN,
+    )
+    protected open fun videoListParse(response: Response): List<Video> =
+        throw UnsupportedOperationException()
 
     open suspend fun resolveVideo(video: Video): Video? = video
 

@@ -68,6 +68,31 @@ interface AnimeSource {
 
     suspend fun getRelatedAnimeList(anime: SAnime): List<AnimeRelation> = emptyList()
 
+    /**
+     * Komikku/Anikku related-anime callback ABI used by maintained extensions.
+     */
+    suspend fun getRelatedAnimeList(
+        anime: SAnime,
+        exceptionHandler: (Throwable) -> Unit,
+        pushResults: suspend (relatedAnime: Pair<String, List<SAnime>>, completed: Boolean) -> Unit,
+    ) {
+        try {
+            val relations = getRelatedAnimeList(anime)
+            if (relations.isEmpty()) {
+                pushResults("Related" to emptyList(), true)
+            } else {
+                relations.forEachIndexed { index, relation ->
+                    pushResults(
+                        relation.name to relation.animes,
+                        index == relations.lastIndex,
+                    )
+                }
+            }
+        } catch (throwable: Throwable) {
+            exceptionHandler(throwable)
+        }
+    }
+
     suspend fun getHosterList(episode: SEpisode): List<Hoster> =
         throw UnsupportedOperationException("Hosters are not supported")
 
@@ -87,7 +112,10 @@ interface AnimeSource {
         throw UnsupportedOperationException("Seasons are not supported")
 
     // extensions-lib 14 / legacy direct-video API.
-    @Deprecated("Use the hoster API instead")
+    @Deprecated(
+        "Retained only for binary compatibility with legacy extensions",
+        level = DeprecationLevel.HIDDEN,
+    )
     suspend fun getVideoList(episode: SEpisode): List<Video> =
         fetchVideoList(episode).toBlocking().single()
 
@@ -106,6 +134,80 @@ interface AnimeSource {
 
 interface AnimeCatalogueSource : AnimeSource {
     override val lang: String
+
+    /** Komikku/Anikku extensions-lib compatibility surface. */
+    val supportsRelatedAnimes: Boolean
+        get() = supportsRelatedAnime
+
+    val disableRelatedAnimesBySearch: Boolean
+        get() = false
+
+    val disableRelatedAnimes: Boolean
+        get() = false
+
+    override suspend fun getRelatedAnimeList(
+        anime: SAnime,
+        exceptionHandler: (Throwable) -> Unit,
+        pushResults: suspend (relatedAnime: Pair<String, List<SAnime>>, completed: Boolean) -> Unit,
+    ) {
+        try {
+            val relations = getRelatedAnimeList(anime)
+            if (relations.isNotEmpty()) {
+                relations.forEachIndexed { index, relation ->
+                    pushResults(
+                        relation.name to relation.animes,
+                        index == relations.lastIndex,
+                    )
+                }
+            } else if (!disableRelatedAnimes) {
+                getRelatedAnimeListByExtension(anime, pushResults)
+            }
+        } catch (throwable: Throwable) {
+            exceptionHandler(throwable)
+        }
+    }
+
+    suspend fun getRelatedAnimeListByExtension(
+        anime: SAnime,
+        pushResults: suspend (relatedAnime: Pair<String, List<SAnime>>, completed: Boolean) -> Unit,
+    ) {
+        val related = fetchRelatedAnimeList(anime)
+        pushResults("Related" to related, true)
+    }
+
+    suspend fun fetchRelatedAnimeList(anime: SAnime): List<SAnime> =
+        getRelatedAnimeList(anime).flatMap { it.animes }
+
+    fun String.stripKeywordForRelatedAnimes(): List<String> =
+        lowercase()
+            .replace(Regex("""[^\p{L}\p{N}]+"""), " ")
+            .trim()
+            .split(Regex("""\s+"""))
+            .filter { it.length > 1 }
+            .distinct()
+
+    suspend fun getRelatedAnimeListBySearch(
+        anime: SAnime,
+        pushResults: suspend (relatedAnime: Pair<String, List<SAnime>>, completed: Boolean) -> Unit,
+    ) {
+        val keywords = anime.title.stripKeywordForRelatedAnimes()
+        if (keywords.isEmpty()) {
+            pushResults("Related" to emptyList(), true)
+            return
+        }
+
+        keywords.forEachIndexed { index, keyword ->
+            val page = try {
+                getSearchAnime(1, keyword, getFilterList())
+            } catch (_: Throwable) {
+                AnimesPage(emptyList(), false)
+            }
+            pushResults(
+                keyword to page.animes.filterNot { it.url == anime.url },
+                index == keywords.lastIndex,
+            )
+        }
+    }
 
     @Deprecated("Use the suspend API instead")
     fun fetchPopularAnime(page: Int): Observable<AnimesPage> =
