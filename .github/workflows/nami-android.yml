@@ -290,3 +290,64 @@ jobs:
             nami-api26-instrumentation.txt
             nami-api26-logcat.txt
           if-no-files-found: ignore
+
+  api-36-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install API 36 emulator image and SDK platform
+        shell: bash
+        run: |
+          set -euo pipefail
+          packages=(
+            "emulator"
+            "platforms;android-36"
+            "build-tools;35.0.0"
+            "system-images;android-36;google_apis;x86_64"
+          )
+          for attempt in 1 2 3; do
+            if sdkmanager "${packages[@]}"; then
+              exit 0
+            fi
+            echo "API 36 SDK install attempt ${attempt} failed; clearing partial emulator packages before retry."
+            rm -rf "${ANDROID_SDK_ROOT}/emulator" || true
+            rm -rf "${ANDROID_SDK_ROOT}/system-images/android-36/google_apis/x86_64" || true
+            sleep 10
+          done
+          exit 1
+      - name: Build API 36 smoke APKs
+        working-directory: apps/nami
+        run: gradle --no-daemon --console=plain :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Run Android 16 startup and persistence smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          emulator-boot-timeout: 900
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 3072 -cores 2
+          disable-animations: true
+          script: >-
+            bash -euo pipefail -c 'install_apk() { apk="$1"; for attempt in 1 2 3; do timeout 90s adb wait-for-device || true; if timeout 300s adb install -r "$apk"; then return 0; fi; adb kill-server || true; sleep 3; adb start-server || true; timeout 90s adb wait-for-device || true; done; return 1; }; install_apk apps/nami/app/build/outputs/apk/debug/app-x86_64-debug.apk; install_apk apps/nami/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk; timeout 30s adb shell am start -W -n app.nami.android/.MainActivity; sleep 8; app_pid=$(timeout 60s adb shell pidof app.nami.android || true); test -n "$app_pid"; timeout 60s adb exec-out screencap -p > "$GITHUB_WORKSPACE/nami-api36-launch.png" || true; set +e; output=$(timeout 300s adb shell am instrument -w -r -e class app.nami.android.compat.Api36SmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); result=$?; set -e; printf "%s\n" "$output" | tee "$GITHUB_WORKSPACE/nami-api36-instrumentation.txt"; timeout 60s adb logcat -d -v time | tee "$GITHUB_WORKSPACE/nami-api36-logcat.txt" >/dev/null || true; if [ "$result" -ne 0 ]; then exit "$result"; fi; echo "$output" | grep -Eq "OK .+ tests?"'
+      - name: Upload API 36 smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nami-api36-smoke-evidence
+          path: |
+            nami-api36-launch.png
+            nami-api36-instrumentation.txt
+            nami-api36-logcat.txt
+          if-no-files-found: ignore
+

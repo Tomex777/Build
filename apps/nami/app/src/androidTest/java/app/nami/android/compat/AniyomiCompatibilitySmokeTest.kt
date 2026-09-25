@@ -38,6 +38,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 import java.io.InputStream
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(AndroidJUnit4::class)
 class AniyomiCompatibilitySmokeTest {
@@ -781,6 +783,270 @@ class AniyomiCompatibilitySmokeTest {
         } finally {
             app.sourceEnablementStore.setEnabled(sourceId, originallyEnabled)
         }
+    }
+
+
+    @Test
+    fun completedDownloadSurvivesRestartAndRemovalDeletesMediaAndRecord() = runBlocking<Unit> {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val databaseName = "nami-complete-${System.nanoTime()}.db"
+        context.deleteDatabase(databaseName)
+
+        val payload = ByteArray(384 * 1024) { index -> (index % 251).toByte() }
+        val server = object : NanoHTTPD(0) {
+            override fun serve(session: IHTTPSession): Response =
+                newFixedLengthResponse(
+                    Response.Status.OK,
+                    "video/mp4",
+                    payload.inputStream(),
+                    payload.size.toLong(),
+                )
+        }
+
+        val database = NamiDatabase(context, databaseName)
+        try {
+            server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
+            val mediaUrl = "http://127.0.0.1:${server.listeningPort}/episode.mp4"
+            val source = directDownloadFixtureSource(
+                id = "complete-fixture-source",
+                mediaUrl = mediaUrl,
+            )
+            val registry = NamiSourceRegistry { listOf(source) }
+            val anime = AnimeDetails(
+                ref = AnimeRef(source.metadata.id, "/anime"),
+                title = "Complete Fixture Anime",
+            )
+            val episode = AnimeEpisode(
+                ref = EpisodeRef(
+                    sourceId = source.metadata.id,
+                    sourceAnimeId = anime.ref.sourceAnimeId,
+                    sourceEpisodeId = "/episode-1",
+                ),
+                title = "Episode 1",
+                number = 1.0,
+            )
+
+            val manager = NamiDownloadManager(context, database, registry)
+            manager.enqueue(source, anime, episode)
+            val key = manager.key(source.metadata.id, episode.ref.sourceEpisodeId)
+            val completed = withTimeout(20_000) {
+                var result: app.nami.android.NamiDownloadStatus? = null
+                while (result == null) {
+                    val status = manager.statuses.value[key]
+                    if (status?.state == NamiDownloadState.DOWNLOADED) {
+                        result = status
+                    } else {
+                        delay(50)
+                    }
+                }
+                result
+            }
+            assertEquals(100, completed.progress)
+            assertTrue(!completed.contentUri.isNullOrBlank())
+            assertEquals(
+                NamiDownloadState.DOWNLOADED.name,
+                database.getDownload(source.metadata.id, episode.ref.sourceEpisodeId)?.state,
+            )
+            val mediaUri = android.net.Uri.parse(completed.contentUri)
+            assertTrue(
+                "Completed download could not be reopened from MediaStore",
+                context.contentResolver.openFileDescriptor(mediaUri, "r")?.use { true } == true,
+            )
+
+            val restarted = NamiDownloadManager(context, database, registry)
+            val restored = withTimeout(10_000) {
+                var result: app.nami.android.NamiDownloadStatus? = null
+                while (result == null) {
+                    result = restarted.statuses.value[key]
+                    if (result == null) delay(50)
+                }
+                result
+            }
+            assertEquals(NamiDownloadState.DOWNLOADED, restored.state)
+            assertEquals(completed.contentUri, restored.contentUri)
+
+            restarted.remove(restored)
+            withTimeout(10_000) {
+                while (restarted.statuses.value.containsKey(key)) {
+                    delay(50)
+                }
+            }
+            assertEquals(
+                null,
+                database.getDownload(source.metadata.id, episode.ref.sourceEpisodeId),
+            )
+            val mediaStillExists = runCatching {
+                context.contentResolver.openFileDescriptor(mediaUri, "r")
+                    ?.use { true }
+                    ?: false
+            }.getOrDefault(false)
+            assertTrue(
+                "Removing a completed download left its media file behind",
+                !mediaStillExists,
+            )
+        } finally {
+            server.stop()
+            database.close()
+            context.deleteDatabase(databaseName)
+        }
+    }
+
+    @Test
+    fun batchDownloadsRespectConcurrencyAndDoNotDuplicateCompletedEpisodes() = runBlocking<Unit> {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val databaseName = "nami-batch-${System.nanoTime()}.db"
+        context.deleteDatabase(databaseName)
+
+        val activeRequests = AtomicInteger(0)
+        val maxActiveRequests = AtomicInteger(0)
+        val totalRequests = AtomicInteger(0)
+        val server = object : NanoHTTPD(0) {
+            override fun serve(session: IHTTPSession): Response {
+                totalRequests.incrementAndGet()
+                val active = activeRequests.incrementAndGet()
+                while (true) {
+                    val previous = maxActiveRequests.get()
+                    if (active <= previous || maxActiveRequests.compareAndSet(previous, active)) break
+                }
+                val closed = AtomicBoolean(false)
+                val totalBytes = 512 * 1024
+                val stream = object : InputStream() {
+                    private var remaining = totalBytes
+
+                    override fun read(): Int {
+                        val one = ByteArray(1)
+                        val read = read(one, 0, 1)
+                        return if (read < 0) -1 else one[0].toInt() and 0xff
+                    }
+
+                    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+                        if (remaining <= 0) return -1
+                        Thread.sleep(2)
+                        val count = minOf(length, 4096, remaining)
+                        java.util.Arrays.fill(buffer, offset, offset + count, 0x39.toByte())
+                        remaining -= count
+                        return count
+                    }
+
+                    override fun close() {
+                        if (closed.compareAndSet(false, true)) {
+                            activeRequests.decrementAndGet()
+                        }
+                    }
+                }
+                return newFixedLengthResponse(
+                    Response.Status.OK,
+                    "video/mp4",
+                    stream,
+                    totalBytes.toLong(),
+                )
+            }
+        }
+
+        val database = NamiDatabase(context, databaseName)
+        try {
+            server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
+            val mediaUrl = "http://127.0.0.1:${server.listeningPort}/batch.mp4"
+            val source = directDownloadFixtureSource(
+                id = "batch-fixture-source",
+                mediaUrl = mediaUrl,
+            )
+            val anime = AnimeDetails(
+                ref = AnimeRef(source.metadata.id, "/batch-anime"),
+                title = "Batch Fixture Anime",
+            )
+            val episodes = (1..4).map { number ->
+                AnimeEpisode(
+                    ref = EpisodeRef(
+                        sourceId = source.metadata.id,
+                        sourceAnimeId = anime.ref.sourceAnimeId,
+                        sourceEpisodeId = "/episode-$number",
+                    ),
+                    title = "Episode $number",
+                    number = number.toDouble(),
+                )
+            }
+            val manager = NamiDownloadManager(
+                context,
+                database,
+                NamiSourceRegistry { listOf(source) },
+            )
+
+            manager.enqueueAll(source, anime, episodes)
+            withTimeout(25_000) {
+                while (
+                    episodes.any { episode ->
+                        manager.statuses.value[
+                            manager.key(source.metadata.id, episode.ref.sourceEpisodeId)
+                        ]?.state != NamiDownloadState.DOWNLOADED
+                    }
+                ) {
+                    delay(50)
+                }
+            }
+
+            assertTrue("Batch downloader exceeded its concurrency limit", maxActiveRequests.get() <= 2)
+            assertTrue("Batch downloader never started a request", maxActiveRequests.get() > 0)
+            assertEquals(4, database.getDownloads().count { it.sourceId == source.metadata.id })
+
+            val beforeDuplicateAttempt = totalRequests.get()
+            manager.enqueueAll(source, anime, episodes)
+            delay(750)
+            assertEquals(
+                "Download All started duplicate requests for completed episodes",
+                beforeDuplicateAttempt,
+                totalRequests.get(),
+            )
+
+            manager.statuses.value.values
+                .filter { it.sourceId == source.metadata.id }
+                .forEach(manager::remove)
+            withTimeout(10_000) {
+                while (manager.statuses.value.values.any { it.sourceId == source.metadata.id }) {
+                    delay(50)
+                }
+            }
+            assertTrue(
+                "Batch removal left download records behind",
+                database.getDownloads().none { it.sourceId == source.metadata.id },
+            )
+        } finally {
+            server.stop()
+            database.close()
+            context.deleteDatabase(databaseName)
+        }
+    }
+
+    private fun directDownloadFixtureSource(
+        id: String,
+        mediaUrl: String,
+    ): NamiAnimeSource = object : NamiAnimeSource {
+        override val metadata = SourceMetadata(
+            id = id,
+            name = "Download Fixture",
+            origin = SourceOrigin.NATIVE_NAMI,
+            capabilities = SourceCapabilities(downloadable = true),
+        )
+
+        override suspend fun search(
+            query: String,
+            page: Int,
+        ): SourcePage<AnimeSearchResult> = SourcePage(emptyList(), false)
+
+        override suspend fun details(anime: AnimeRef): AnimeDetails =
+            error("Not used")
+
+        override suspend fun episodes(anime: AnimeRef): List<AnimeEpisode> =
+            error("Not used")
+
+        override suspend fun resolve(episode: EpisodeRef): List<ResolvedMedia> =
+            listOf(
+                ResolvedMedia(
+                    url = mediaUrl,
+                    mimeType = "video/mp4",
+                    quality = "test",
+                ),
+            )
     }
 
 
