@@ -231,7 +231,7 @@ if [[ "$PLAYBACK_OUTCOME" == "playing" ]]; then
   echo "SpotUI core + YouTube Music extension live playback passed anonymously."
 elif [[ "$PLAYBACK_OUTCOME" == "challenged" ]]; then
   shot 02-youtube-challenge
-  tap_text 'Source needs browser session · Sign in'
+  tap_text 'Source needs browser session · Open'
   wait_for_node 'Close source browser' 20
   shot 03-sign-in-flow
   capture_resolver_logs
