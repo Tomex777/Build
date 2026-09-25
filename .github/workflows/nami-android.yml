@@ -89,13 +89,6 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          catalog = Path("gradle/libs.versions.toml")
-          text = catalog.read_text()
-          text = text.replace('"okhttp", "aniyomi-lib", "quickjs"', '"okhttp", "quickjs"')
-          if '"aniyomi-lib"' in next(line for line in text.splitlines() if line.startswith("common =")):
-              raise SystemExit("legacy extensions-lib is still in the common compile bundle")
-          catalog.write_text(text)
-
           for file in [
               Path("core/build.gradle.kts"),
               Path("gradle/build-logic/src/main/kotlin/PluginExtensionLegacy.kt"),
@@ -105,12 +98,24 @@ jobs:
               marker = "compileOnly(libs.bundles.common)"
               if marker not in source:
                   raise SystemExit(f"Could not patch compile classpath in {file}")
-              indent = source[source.rfind("\n", 0, source.index(marker)) + 1:source.index(marker)]
-              source = source.replace(
-                  marker,
-                  marker + '\n' + indent + 'add("compileOnly", files(rootProject.file("nami-aniyomi-compat.aar")))',
-                  1,
-              )
+              indent = source[source.rfind("\\n", 0, source.index(marker)) + 1:source.index(marker)]
+              compat = 'add("compileOnly", files(rootProject.file("nami-aniyomi-compat.aar")))'
+              source = source.replace(marker, indent + compat + "\\n" + indent + marker, 1)
+              file.write_text(source)
+
+          for file in [
+              Path("core/src/main/kotlin/keiyoushi/utils/AnimeHttpLegacySource.kt"),
+              Path("core/src/main/kotlin/keiyoushi/utils/ParsedAnimeHttpLegacySource.kt"),
+          ]:
+              source = file.read_text()
+              for old, new in [
+                  ("open suspend fun getVideoList(episode:", "override suspend fun getVideoList(episode:"),
+                  ("open fun videoListRequest(episode:", "override fun videoListRequest(episode:"),
+                  ("open fun videoListParse(response:", "override fun videoListParse(response:"),
+              ]:
+                  if old not in source:
+                      raise SystemExit(f"Could not apply v17 source compatibility patch {old!r} in {file}")
+                  source = source.replace(old, new, 1)
               file.write_text(source)
           PY
           cp -R src/en/animesogo src/en/animesogov17
