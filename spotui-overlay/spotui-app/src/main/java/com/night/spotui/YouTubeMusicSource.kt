@@ -85,9 +85,13 @@ class ExtensionMusicSource(context: Context) : MusicSource {
         ).getOrThrow()
 
         val array = JSONArray(raw)
-        val item = (0 until array.length())
+        val candidates = (0 until array.length())
             .mapNotNull(array::optJSONObject)
-            .firstOrNull { it.optString("url").startsWith("http") }
+            .filter { it.optString("url").startsWith("http") }
+        val item = candidates.firstOrNull {
+            val mime = it.optString("mimeType")
+            mime.contains("mp4", ignoreCase = true) || mime.contains("aac", ignoreCase = true)
+        } ?: candidates.firstOrNull()
             ?: error("${target.name} returned no playable audio stream")
 
         val headers = buildMap {
@@ -233,8 +237,9 @@ class ExtensionMusicSource(context: Context) : MusicSource {
         component: ComponentName,
         method: String,
         payload: JSONObject,
-    ): Result<String> = withTimeout(CALL_TIMEOUT_MS) {
-        suspendCancellableCoroutine { continuation ->
+    ): Result<String> = try {
+        withTimeout(CALL_TIMEOUT_MS) {
+            suspendCancellableCoroutine { continuation ->
             val requestId = UUID.randomUUID().toString()
             val finished = AtomicBoolean(false)
             var connection: ServiceConnection? = null
@@ -350,6 +355,8 @@ class ExtensionMusicSource(context: Context) : MusicSource {
                 )
             }
         }
+    } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
+        Result.failure(IllegalStateException("Music source is taking too long. Try again."))
     }
 
     private fun parseTracks(raw: String): List<Track> {
