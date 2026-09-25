@@ -4,16 +4,20 @@
 package eu.kanade.tachiyomi.network
 
 import okhttp3.CacheControl
+import okhttp3.FormBody
 import okhttp3.Headers
 import okhttp3.HttpUrl
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.OkHttpClient
+import okhttp3.Response
+import java.util.concurrent.TimeUnit.MINUTES
 
-private val DEFAULT_CACHE_CONTROL = CacheControl.Builder().build()
+private val DEFAULT_CACHE_CONTROL = CacheControl.Builder().maxAge(10, MINUTES).build()
 private val DEFAULT_HEADERS = Headers.Builder().build()
-private val DEFAULT_BODY = ByteArray(0).toRequestBody(null as MediaType?)
+private val DEFAULT_BODY: RequestBody = FormBody.Builder().build()
 
 fun GET(
     url: String,
@@ -48,3 +52,27 @@ fun POST(
     .cacheControl(cache)
     .post(body)
     .build()
+
+
+/**
+ * Compatibility implementation of the Aniyomi extensions-lib 16 OkHttp helpers.
+ * These suspend extension signatures must retain the RequestsKt JVM ABI used by APKs.
+ */
+suspend fun OkHttpClient.get(
+    url: String,
+    headers: Headers = DEFAULT_HEADERS,
+    cache: CacheControl = DEFAULT_CACHE_CONTROL,
+): Response = newCall(GET(url, headers, cache)).awaitSuccess()
+
+suspend fun OkHttpClient.get(
+    url: HttpUrl,
+    headers: Headers = DEFAULT_HEADERS,
+    cache: CacheControl = DEFAULT_CACHE_CONTROL,
+): Response = newCall(GET(url, headers, cache)).awaitSuccess()
+
+suspend fun OkHttpClient.post(
+    url: String,
+    headers: Headers = DEFAULT_HEADERS,
+    body: RequestBody = DEFAULT_BODY,
+    cache: CacheControl = DEFAULT_CACHE_CONTROL,
+): Response = newCall(POST(url, headers, body, cache)).awaitSuccess()
