@@ -24,6 +24,93 @@ class ScriptRuntimeTest {
         }
     }
 
+    @Test fun actionsAndMultiTurnSessionPersistAcrossWorkspaceRestart() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val projectName = "sessionproof${System.nanoTime().toString().takeLast(8)}"
+        val chatId = "session-chat-$projectName"
+        try {
+            workspace.files.createFolder(projectName)
+            workspace.files.writeFile(
+                projectName, "main.js", """
+                    |annie.sessions.register({
+                    |  name: "conversation",
+                    |  async onMessage(ctx) {
+                    |    if (ctx.text === "done") {
+                    |      ctx.session.end();
+                    |      return { type: "text", text: "session ended" };
+                    |    }
+                    |    return { type: "text", text: "session: " + ctx.text };
+                    |  }
+                    |});
+                    |annie.actions.register("pick", async (payload) => ({
+                    |  type: "text",
+                    |  text: "picked " + payload.value
+                    |}));
+                    |annie.commands.register({
+                    |  name: "$projectName",
+                    |  async execute(ctx) {
+                    |    ctx.session.start("conversation");
+                    |    return {
+                    |      type: "options",
+                    |      title: "Pick",
+                    |      options: [{ id: "seven", label: "Seven", action: "pick", payload: { value: 7 } }]
+                    |    };
+                    |  }
+                    |});
+                """.trimMargin()
+            )
+            workspace.reload()
+            val commandResult = JSONObject(workspace.execute(projectName, "/$projectName", chatId, 70L))
+            assertEquals("options", commandResult.getString("type"))
+
+            val action = workspace.executeAction(projectName, "pick", """{"value":7}""", chatId, 71L)
+            assertEquals("picked 7", JSONObject(action!!.resultJson).getString("text"))
+
+            val firstSession = workspace.executeSession("hello", chatId, 72L)
+            assertEquals("session: hello", JSONObject(firstSession!!.resultJson).getString("text"))
+        } finally {
+            workspace.close()
+        }
+
+        val restored = ScriptWorkspace(context)
+        try {
+            restored.reload()
+            val afterRestart = restored.executeSession("again", chatId, 73L)
+            assertEquals("session: again", JSONObject(afterRestart!!.resultJson).getString("text"))
+            val ended = restored.executeSession("done", chatId, 74L)
+            assertEquals("session ended", JSONObject(ended!!.resultJson).getString("text"))
+            assertEquals(null, restored.executeSession("after", chatId, 75L))
+        } finally {
+            runCatching { restored.files.deleteProject(projectName) }
+            restored.close()
+        }
+    }
+
+    @Test fun standaloneScriptCanBeEditedWithoutCreatingABogusDirectory() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val projectName = "editproof${System.nanoTime().toString().takeLast(8)}"
+        try {
+            val file = workspace.files.createScript(projectName)
+            val source = """
+                |annie.commands.register({
+                |  name: "$projectName",
+                |  async execute(ctx) { return { type: "text", text: "edited " + ctx.text }; }
+                |});
+            """.trimMargin()
+            workspace.files.writeFile(projectName, file.name, source)
+            assertEquals(source, workspace.files.readFile(projectName, file.name))
+            assertTrue(!java.io.File(workspace.files.root, projectName).exists())
+            workspace.reload()
+            val response = JSONObject(workspace.execute(projectName, "/$projectName yes", "edit-chat", 80L))
+            assertEquals("edited yes", response.getString("text"))
+        } finally {
+            runCatching { workspace.files.deleteProject(projectName) }
+            workspace.close()
+        }
+    }
+
     @Test fun folderEntryImportsHelperModuleAndKeepsStorageIsolated() = runBlocking {
         val workspace = ScriptWorkspace(InstrumentationRegistry.getInstrumentation().targetContext)
         val projectName = "module-proof-${System.nanoTime()}"
