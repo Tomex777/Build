@@ -92,6 +92,7 @@ internal fun ScriptStudioSheet(
     var newProjectName by remember { mutableStateOf("") }
     var newFileName by remember { mutableStateOf("") }
     var renameDraft by remember { mutableStateOf("") }
+    var filePathDraft by remember { mutableStateOf(selectedPath.orEmpty()) }
     var search by remember { mutableStateOf("") }
     var replacement by remember { mutableStateOf("") }
     var codeEditor by remember { mutableStateOf<CodeEditor?>(null) }
@@ -107,6 +108,7 @@ internal fun ScriptStudioSheet(
         editorValue = TextFieldValue(source, selection = TextRange(source.length))
         savedSource = source
         renameDraft = project?.name.orEmpty()
+        filePathDraft = path.orEmpty()
     }
 
     fun selectFile(project: ScriptProject, path: String) {
@@ -116,6 +118,7 @@ internal fun ScriptStudioSheet(
         editorValue = TextFieldValue(source, selection = TextRange(source.length))
         savedSource = source
         renameDraft = project.name
+        filePathDraft = path
         status = "Opened $path"
     }
 
@@ -312,6 +315,22 @@ internal fun ScriptStudioSheet(
                                     .onFailure { status = it.message ?: "Create file failed" }
                             }
                             if (selectedPath != null && selectedPath != "main.js") {
+                                StudioInput(
+                                    value = filePathDraft,
+                                    onValueChange = { filePathDraft = it },
+                                    hint = "rename/move path",
+                                    modifier = Modifier.weight(1f),
+                                )
+                                StudioAction("Move") {
+                                    val id = selectedProjectId ?: return@StudioAction
+                                    val path = selectedPath ?: return@StudioAction
+                                    runCatching { workspace.files.renameFile(id, path, filePathDraft) }
+                                        .onSuccess { moved ->
+                                            refreshProjects(id, moved)
+                                            status = "Moved to $moved"
+                                        }
+                                        .onFailure { status = it.message ?: "Move failed" }
+                                }
                                 StudioAction("Delete file", danger = true) {
                                     val id = selectedProjectId ?: return@StudioAction
                                     val path = selectedPath ?: return@StudioAction
