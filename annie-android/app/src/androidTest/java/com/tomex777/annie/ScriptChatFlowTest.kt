@@ -102,6 +102,8 @@ class ScriptChatFlowTest {
             compose.onAllNodesWithTag("script_image_message").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onAllNodesWithTag("script_image_message")[0].assertIsDisplayed()
+        compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+        compose.waitForIdle()
         saveEmulatorScreenshot("annie-script-chess-board")
 
         compose.onNodeWithTag("composer_input").performTextInput("e4")
@@ -112,6 +114,8 @@ class ScriptChatFlowTest {
         }
         compose.onAllNodesWithTag("script_image_message")[0].assertIsDisplayed()
         compose.onNodeWithText("Black played", substring = true).assertExists()
+        compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+        compose.waitForIdle()
         saveEmulatorScreenshot("annie-script-chess-move")
         compose.onAllNodesWithTag("script_image_message")[0].performClick()
         compose.waitUntil(5_000) {
