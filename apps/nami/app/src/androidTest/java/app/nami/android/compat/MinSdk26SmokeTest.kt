@@ -22,10 +22,10 @@ class MinSdk26SmokeTest {
         assertEquals("This smoke must run on the minimum supported API", 26, Build.VERSION.SDK_INT)
 
         val context = ApplicationProvider.getApplicationContext<Context>()
-        @Suppress("DEPRECATION")
-        val movies = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+        val movies = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)
+            ?: throw AssertionError("API 26 external Movies directory is unavailable")
         val file = File(movies, "Nami/MinSdk26/Provider smoke.txt")
-        file.parentFile?.mkdirs()
+        assertTrue("Could not create the API 26 smoke directory", file.parentFile?.mkdirs() == true || file.parentFile?.isDirectory == true)
         file.writeText("nami-api-26")
 
         try {

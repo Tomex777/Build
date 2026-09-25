@@ -3,4 +3,7 @@
     <external-path
         name="nami_movies"
         path="Movies/Nami/" />
+    <external-files-path
+        name="nami_app_movies"
+        path="Movies/" />
 </paths>
