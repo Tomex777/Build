@@ -3,10 +3,12 @@ package app.nami.compat.aniyomi
 import android.app.Application
 import dev.mihon.injekt.patchInjekt
 import eu.kanade.tachiyomi.network.NetworkHelper
+import kotlinx.serialization.json.Json
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.InjektModule
 import uy.kohesive.injekt.api.InjektRegistrar
 import uy.kohesive.injekt.api.addSingleton
+import uy.kohesive.injekt.api.addSingletonFactory
 
 object AniyomiExtensionHost {
     @Volatile
@@ -26,6 +28,12 @@ object AniyomiExtensionHost {
                 override fun InjektRegistrar.registerInjectables() {
                     addSingleton(application)
                     addSingleton(network)
+                    addSingletonFactory {
+                        Json {
+                            ignoreUnknownKeys = true
+                            explicitNulls = false
+                        }
+                    }
                 }
             },
         )
