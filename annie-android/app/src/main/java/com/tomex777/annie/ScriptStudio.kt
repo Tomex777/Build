@@ -19,12 +19,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -33,20 +33,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import io.github.dingyi222666.monarch.languages.TypescriptLanguage
+import io.github.rosemoe.sora.event.ContentChangeEvent
+import io.github.rosemoe.sora.event.SelectionChangeEvent
+import io.github.rosemoe.sora.langs.monarch.MonarchLanguage
+import io.github.rosemoe.sora.langs.monarch.registry.MonarchGrammarRegistry
+import io.github.rosemoe.sora.langs.monarch.registry.dsl.monarchLanguages
+import io.github.rosemoe.sora.widget.CodeEditor
+import io.github.rosemoe.sora.widget.EditorSearcher
+import io.github.rosemoe.sora.widget.schemes.SchemeDarcula
+import io.github.rosemoe.sora.widget.subscribeAlways
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -89,9 +93,9 @@ internal fun ScriptStudioSheet(
     var newFileName by remember { mutableStateOf("") }
     var renameDraft by remember { mutableStateOf("") }
     var search by remember { mutableStateOf("") }
+    var replacement by remember { mutableStateOf("") }
+    var codeEditor by remember { mutableStateOf<CodeEditor?>(null) }
     var logVersion by remember { mutableStateOf(0) }
-    val undo = remember { mutableStateListOf<String>() }
-    val redo = remember { mutableStateListOf<String>() }
 
     fun refreshProjects(preferredProject: String? = selectedProjectId, preferredPath: String? = selectedPath) {
         projects = workspace.files.listProjects()
@@ -103,8 +107,6 @@ internal fun ScriptStudioSheet(
         editorValue = TextFieldValue(source, selection = TextRange(source.length))
         savedSource = source
         renameDraft = project?.name.orEmpty()
-        undo.clear()
-        redo.clear()
     }
 
     fun selectFile(project: ScriptProject, path: String) {
@@ -114,8 +116,6 @@ internal fun ScriptStudioSheet(
         editorValue = TextFieldValue(source, selection = TextRange(source.length))
         savedSource = source
         renameDraft = project.name
-        undo.clear()
-        redo.clear()
         status = "Opened $path"
     }
 
@@ -160,6 +160,27 @@ internal fun ScriptStudioSheet(
                     }.onFailure { error ->
                         status = error.message ?: "Save failed"
                     }
+                }
+            }
+            StudioAction("Run/Test", enabled = selectedProject != null) {
+                val project = selectedProject ?: return@StudioAction
+                val path = selectedPath ?: return@StudioAction
+                scope.launch {
+                    runCatching {
+                        workspace.files.writeFile(project.id, path, editorValue.text)
+                        val commands = workspace.reload()
+                        onCommandsReloaded(commands)
+                        val command = commands.firstOrNull { it.scriptId == project.id }
+                            ?: error("This script did not register a command")
+                        workspace.execute(command.name, "/${command.name} test", "script-editor", System.nanoTime())
+                    }.onSuccess { result ->
+                        val response = runCatching { org.json.JSONObject(result.orEmpty()) }.getOrNull()
+                        status = response?.optString("text")?.takeIf(String::isNotBlank)
+                            ?: response?.optString("type")?.let { "Test returned $it" }
+                            ?: "Test completed"
+                        logVersion++
+                        tab = "Console"
+                    }.onFailure { status = it.message ?: "Test failed"; logVersion++ }
                 }
             }
         }
@@ -294,24 +315,20 @@ internal fun ScriptStudioSheet(
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
                     StudioInput(search, { search = it }, "Find in file", Modifier.weight(1f))
+                    StudioInput(replacement, { replacement = it }, "Replace", Modifier.weight(1f))
+                    StudioAction("Find", enabled = search.isNotBlank()) {
+                        codeEditor?.searcher?.search(search, EditorSearcher.SearchOptions(EditorSearcher.SearchOptions.TYPE_NORMAL, true))
+                    }
+                    StudioAction("Replace all", enabled = search.isNotBlank()) {
+                        codeEditor?.searcher?.search(search, EditorSearcher.SearchOptions(EditorSearcher.SearchOptions.TYPE_NORMAL, true))
+                        codeEditor?.searcher?.replaceAll(replacement)
+                    }
                     val matches = remember(search, editorValue.text) {
                         if (search.isBlank()) 0 else Regex(Regex.escape(search), RegexOption.IGNORE_CASE).findAll(editorValue.text).count()
                     }
                     Text(if (search.isBlank()) "" else "$matches match${if (matches == 1) "" else "es"}", color = StudioMuted, fontSize = 11.sp)
-                    StudioAction("Undo", enabled = undo.isNotEmpty()) {
-                        if (undo.isNotEmpty()) {
-                            redo.add(editorValue.text)
-                            val value = undo.removeAt(undo.lastIndex)
-                            editorValue = TextFieldValue(value, selection = TextRange(value.length))
-                        }
-                    }
-                    StudioAction("Redo", enabled = redo.isNotEmpty()) {
-                        if (redo.isNotEmpty()) {
-                            undo.add(editorValue.text)
-                            val value = redo.removeAt(redo.lastIndex)
-                            editorValue = TextFieldValue(value, selection = TextRange(value.length))
-                        }
-                    }
+                    StudioAction("Undo", enabled = codeEditor?.text?.canUndo() == true) { codeEditor?.undo() }
+                    StudioAction("Redo", enabled = codeEditor?.text?.canRedo() == true) { codeEditor?.redo() }
                 }
 
                 if (apiSuggestions.isNotEmpty()) {
@@ -331,14 +348,8 @@ internal fun ScriptStudioSheet(
 
                 ScriptCodeEditor(
                     value = editorValue,
-                    onValueChange = { next ->
-                        if (next.text != editorValue.text) {
-                            undo.add(editorValue.text)
-                            while (undo.size > 30) undo.removeAt(0)
-                            redo.clear()
-                        }
-                        editorValue = next
-                    },
+                    onValueChange = { editorValue = it },
+                    onEditorReady = { codeEditor = it },
                     enabled = selectedProject != null,
                 )
             }
@@ -412,68 +423,70 @@ internal fun ScriptStudioSheet(
 private fun ScriptCodeEditor(
     value: TextFieldValue,
     onValueChange: (TextFieldValue) -> Unit,
+    onEditorReady: (CodeEditor) -> Unit,
     enabled: Boolean,
 ) {
-    val vertical = rememberScrollState()
-    val horizontal = rememberScrollState()
-    Surface(
-        color = Color(0xFF07111E),
-        shape = RoundedCornerShape(14.dp),
+    AndroidView(
         modifier = Modifier.fillMaxWidth().height(360.dp).testTag("script_editor"),
-    ) {
-        Row(
-            Modifier.fillMaxWidth().verticalScroll(vertical).horizontalScroll(horizontal).padding(vertical = 12.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            val lineCount = value.text.count { it == '\n' } + 1
-            Column(Modifier.width(46.dp), horizontalAlignment = Alignment.End) {
-                repeat(lineCount) { index ->
-                    Text(
-                        (index + 1).toString(),
-                        color = Color(0xFF60758E),
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        lineHeight = 20.sp,
-                        modifier = Modifier.padding(end = 10.dp),
-                    )
+        factory = { context ->
+            val registry = MonarchGrammarRegistry()
+            registry.loadGrammars(
+                monarchLanguages {
+                    language("typescript") {
+                        monarchLanguage = TypescriptLanguage
+                        defaultScopeName()
+                        languageConfiguration = "textmate/javascript/language-configuration.json"
+                    }
                 }
-            }
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                enabled = enabled,
-                visualTransformation = JavaScriptHighlightTransformation,
-                textStyle = TextStyle(
-                    color = StudioText,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 13.sp,
-                    lineHeight = 20.sp,
-                ),
-                modifier = Modifier.widthIn(min = 720.dp).padding(end = 20.dp).testTag("script_editor_input"),
-                cursorBrush = androidx.compose.ui.graphics.SolidColor(StudioBlue),
             )
-        }
-    }
-}
-
-private object JavaScriptHighlightTransformation : VisualTransformation {
-    override fun filter(text: AnnotatedString): TransformedText {
-        val raw = text.text
-        val styled = buildAnnotatedString {
-            append(raw)
-            Regex("\\b(?:const|let|var|function|async|await|return|if|else|for|while|class|new|throw|try|catch|import|from|export|true|false|null|undefined)\\b")
-                .findAll(raw).forEach { addStyle(SpanStyle(color = Color(0xFFB68CFF)), it.range.first, it.range.last + 1) }
-            Regex("\\bannie\\.[A-Za-z_][A-Za-z0-9_.]*")
-                .findAll(raw).forEach { addStyle(SpanStyle(color = StudioBlue, fontWeight = FontWeight.SemiBold), it.range.first, it.range.last + 1) }
-            Regex("\\b\\d+(?:\\.\\d+)?\\b")
-                .findAll(raw).forEach { addStyle(SpanStyle(color = Color(0xFFFFC86A)), it.range.first, it.range.last + 1) }
-            Regex("(?m)//.*$")
-                .findAll(raw).forEach { addStyle(SpanStyle(color = Color(0xFF6F879E)), it.range.first, it.range.last + 1) }
-            Regex("\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'")
-                .findAll(raw).forEach { addStyle(SpanStyle(color = StudioGreen), it.range.first, it.range.last + 1) }
-        }
-        return TransformedText(styled, OffsetMapping.Identity)
-    }
+            val grammar = registry.findGrammar("source.typescript")
+                ?: registry.findGrammar("typescript")
+                ?: error("Could not load JavaScript syntax grammar")
+            val language = MonarchLanguage(
+                grammar,
+                registry.findLanguageConfiguration("source.typescript"),
+                registry,
+                true,
+            ).apply {
+                setCompleterKeywords(
+                    arrayOf(
+                        "annie.commands", "annie.commands.register", "annie.http", "annie.http.request",
+                        "annie.storage", "annie.storage.get", "annie.storage.set", "annie.sessions",
+                        "annie.sessions.register", "annie.actions", "annie.actions.register", "annie.messages",
+                        "annie.player", "annie.downloads", "annie.browser", "annie.files", "annie.image",
+                        "annie.crypto", "annie.notifications", "annie.tasks", "annie.log",
+                    )
+                )
+            }
+            CodeEditor(context).apply {
+                setEditorLanguage(language)
+                setColorScheme(SchemeDarcula())
+                setTextSize(14f)
+                setTabWidth(4)
+                isLineNumberEnabled = true
+                isWordwrap = false
+                props.autoIndent = true
+                props.symbolPairAutoCompletion = true
+                setText(value.text)
+                isEnabled = enabled
+                subscribeAlways<ContentChangeEvent> {
+                    val cursor = text.cursor
+                    val offset = text.getCharIndex(cursor.leftLine, cursor.leftColumn).coerceIn(0, text.length)
+                    onValueChange(TextFieldValue(text.toString(), selection = TextRange(offset)))
+                }
+                subscribeAlways<SelectionChangeEvent> {
+                    val cursor = text.cursor
+                    val offset = text.getCharIndex(cursor.leftLine, cursor.leftColumn).coerceIn(0, text.length)
+                    onValueChange(TextFieldValue(text.toString(), selection = TextRange(offset)))
+                }
+                onEditorReady(this)
+            }
+        },
+        update = { editor ->
+            editor.isEnabled = enabled
+            if (editor.text.toString() != value.text) editor.setText(value.text)
+        },
+    )
 }
 
 @Composable
