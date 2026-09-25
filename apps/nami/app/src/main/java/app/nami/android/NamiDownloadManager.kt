@@ -18,9 +18,14 @@ import app.nami.domain.AnimeEpisode
 import app.nami.domain.ResolvedMedia
 import app.nami.runtime.NamiSourceRegistry
 import app.nami.source.NamiAnimeSource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,6 +37,7 @@ import java.io.FileOutputStream
 import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.roundToInt
 
 enum class NamiDownloadState {
@@ -66,6 +72,7 @@ class NamiDownloadManager(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val downloadPermits = Semaphore(MAX_PARALLEL_DOWNLOADS)
+    private val activeJobs = ConcurrentHashMap<String, Job>()
     private val mutableStatuses = MutableStateFlow<Map<String, NamiDownloadStatus>>(emptyMap())
     val statuses: StateFlow<Map<String, NamiDownloadStatus>> = mutableStatuses.asStateFlow()
 
@@ -129,7 +136,7 @@ class NamiDownloadManager(
             state = NamiDownloadState.QUEUED,
         )
         mutableStatuses.value = mutableStatuses.value + (k to queued)
-        scope.launch {
+        val job = scope.launch(start = CoroutineStart.LAZY) {
             persist(
                 status = queued,
                 sourceAnimeId = episode.ref.sourceAnimeId,
@@ -138,6 +145,11 @@ class NamiDownloadManager(
                 runDownload(source, anime, episode, queued)
             }
         }
+        activeJobs[k] = job
+        job.invokeOnCompletion {
+            activeJobs.remove(k, job)
+        }
+        job.start()
     }
 
     fun openDownloaded(context: Context, status: NamiDownloadStatus) {
@@ -147,6 +159,32 @@ class NamiDownloadManager(
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(intent, "Open with"))
+    }
+
+    fun cancel(status: NamiDownloadStatus) {
+        if (status.state != NamiDownloadState.QUEUED &&
+            status.state != NamiDownloadState.DOWNLOADING
+        ) {
+            return
+        }
+
+        val k = key(status.sourceId, status.sourceEpisodeId)
+        activeJobs.remove(k)?.cancel(CancellationException("Cancelled by user"))
+        scope.launch {
+            deleteTarget(status)
+            database.deleteDownloadRecord(status.sourceId, status.sourceEpisodeId)
+            mutableStatuses.value = mutableStatuses.value - k
+        }
+    }
+
+    fun remove(status: NamiDownloadStatus) {
+        val k = key(status.sourceId, status.sourceEpisodeId)
+        activeJobs.remove(k)?.cancel(CancellationException("Removed by user"))
+        scope.launch {
+            deleteTarget(status)
+            database.deleteDownloadRecord(status.sourceId, status.sourceEpisodeId)
+            mutableStatuses.value = mutableStatuses.value - k
+        }
     }
 
     fun retry(status: NamiDownloadStatus) {
@@ -210,6 +248,8 @@ class NamiDownloadManager(
                 episode = episode,
                 initial = queued,
             )
+        } catch (_: CancellationException) {
+            return
         } catch (t: Throwable) {
             val current = mutableStatuses.value[key(queued.sourceId, queued.sourceEpisodeId)] ?: queued
             update(
@@ -336,7 +376,7 @@ class NamiDownloadManager(
                     val connection = openConnection(partUrl, headers)
                     try {
                         connection.inputStream.use { input ->
-                            input.copyTo(output, DEFAULT_BUFFER_SIZE)
+                            copyCancellable(input, output)
                         }
                     } finally {
                         connection.disconnect()
@@ -400,7 +440,7 @@ class NamiDownloadManager(
         return connection
     }
 
-    private fun copyWithProgress(
+    private suspend fun copyWithProgress(
         input: java.io.InputStream,
         output: OutputStream,
         totalBytes: Long?,
@@ -411,6 +451,7 @@ class NamiDownloadManager(
         var copied = 0L
         var lastProgress = -1
         while (true) {
+            currentCoroutineContext().ensureActive()
             val read = input.read(buffer)
             if (read < 0) break
             output.write(buffer, 0, read)
@@ -423,6 +464,19 @@ class NamiDownloadManager(
                 lastProgress = progress
                 update(status.copy(progress = progress), sourceAnimeId)
             }
+        }
+    }
+
+    private suspend fun copyCancellable(
+        input: java.io.InputStream,
+        output: OutputStream,
+    ) {
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            val read = input.read(buffer)
+            if (read < 0) return
+            output.write(buffer, 0, read)
         }
     }
 
@@ -465,10 +519,8 @@ class NamiDownloadManager(
                 },
             )
         } else {
-            @Suppress("DEPRECATION")
-            val root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
-            val directory = File(root, "Nami/" + relativeDirectory).apply { mkdirs() }
-            val file = File(directory, displayName)
+            val file = legacyPublicFile(relativeDirectory, displayName)
+            file.parentFile?.mkdirs()
             val output = FileOutputStream(file)
             val publicUri = FileProvider.getUriForFile(
                 context,
@@ -492,6 +544,39 @@ class NamiDownloadManager(
                 },
             )
         }
+    }
+
+    private fun deleteTarget(status: NamiDownloadStatus) {
+        val uriString = status.contentUri ?: return
+
+        runCatching {
+            if (
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                Uri.parse(uriString).authority == context.packageName + ".downloads"
+            ) {
+                val displayName = status.displayName ?: return@runCatching
+                val file = legacyPublicFile(status.relativePath, displayName)
+                if (file.delete()) {
+                    MediaScannerConnection.scanFile(
+                        context,
+                        arrayOf(file.absolutePath),
+                        arrayOf(status.mimeType ?: "video/*"),
+                        null,
+                    )
+                }
+            } else {
+                context.contentResolver.delete(Uri.parse(uriString), null, null)
+            }
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun legacyPublicFile(
+        relativeDirectory: String,
+        displayName: String,
+    ): File {
+        val root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+        return File(File(root, "Nami/" + relativeDirectory), displayName)
     }
 
     private fun update(status: NamiDownloadStatus, sourceAnimeId: String) {

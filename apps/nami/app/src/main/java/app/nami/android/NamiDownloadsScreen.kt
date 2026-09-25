@@ -14,6 +14,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Schedule
@@ -127,12 +129,40 @@ fun NamiDownloadsScreen(
                             }
                         }
 
-                        if (status.state == NamiDownloadState.ERROR) {
-                            IconButton(onClick = { downloadManager.retry(status) }) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Refresh,
-                                    contentDescription = "Retry download",
-                                )
+                        when (status.state) {
+                            NamiDownloadState.QUEUED,
+                            NamiDownloadState.DOWNLOADING,
+                            -> {
+                                IconButton(onClick = { downloadManager.cancel(status) }) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Close,
+                                        contentDescription = "Cancel download",
+                                    )
+                                }
+                            }
+
+                            NamiDownloadState.ERROR -> {
+                                IconButton(onClick = { downloadManager.retry(status) }) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Refresh,
+                                        contentDescription = "Retry download",
+                                    )
+                                }
+                                IconButton(onClick = { downloadManager.remove(status) }) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.DeleteOutline,
+                                        contentDescription = "Remove download",
+                                    )
+                                }
+                            }
+
+                            NamiDownloadState.DOWNLOADED -> {
+                                IconButton(onClick = { downloadManager.remove(status) }) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.DeleteOutline,
+                                        contentDescription = "Delete downloaded file",
+                                    )
+                                }
                             }
                         }
                     }

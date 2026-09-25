@@ -343,6 +343,9 @@ fun NamiAnimeDetailsScreen(
                                 onOpen = {
                                     downloadStatus?.let { downloadManager.openDownloaded(context, it) }
                                 },
+                                onCancel = {
+                                    downloadStatus?.let { downloadManager.cancel(it) }
+                                },
                             )
                         }
                     }
@@ -616,6 +619,7 @@ private fun AniyomiEpisodeRow(
     onPlay: () -> Unit,
     onDownload: () -> Unit,
     onOpen: () -> Unit,
+    onCancel: () -> Unit,
 ) {
     val downloaded = status?.state == NamiDownloadState.DOWNLOADED
     Row(
@@ -671,18 +675,32 @@ private fun AniyomiEpisodeRow(
         }
 
         if (downloaded || downloadEnabled || status != null) {
-            val action = if (downloaded) onOpen else onDownload
+            val active = status?.state == NamiDownloadState.QUEUED ||
+                status?.state == NamiDownloadState.DOWNLOADING
+            val action = when {
+                downloaded -> onOpen
+                active -> onCancel
+                else -> onDownload
+            }
             IconButton(
                 onClick = action,
-                enabled = downloaded ||
-                    (downloadEnabled && status?.state != NamiDownloadState.QUEUED &&
-                        status?.state != NamiDownloadState.DOWNLOADING),
+                enabled = downloaded || active || downloadEnabled,
             ) {
                 when (status?.state) {
-                    NamiDownloadState.QUEUED -> CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp,
-                    )
+                    NamiDownloadState.QUEUED -> Box(
+                        modifier = Modifier.size(28.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(28.dp),
+                            strokeWidth = 2.dp,
+                        )
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "Cancel queued download",
+                            modifier = Modifier.size(14.dp),
+                        )
+                    }
                     NamiDownloadState.DOWNLOADING -> Box(
                         modifier = Modifier.size(28.dp),
                         contentAlignment = Alignment.Center,
@@ -693,8 +711,8 @@ private fun AniyomiEpisodeRow(
                             strokeWidth = 3.dp,
                         )
                         Icon(
-                            imageVector = Icons.Outlined.ArrowDownward,
-                            contentDescription = "Downloading",
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "Cancel download",
                             modifier = Modifier.size(16.dp),
                         )
                     }
