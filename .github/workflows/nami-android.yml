@@ -107,7 +107,7 @@ jobs:
                   raise SystemExit(f"Could not patch compile classpath in {file}")
               source = source.replace(
                   marker,
-                  marker + '\n            compileOnly(files(rootProject.file("nami-aniyomi-compat.aar")))',
+                  marker + '\n            add("compileOnly", files(rootProject.file("nami-aniyomi-compat.aar")))',
                   1,
               )
               file.write_text(source)
