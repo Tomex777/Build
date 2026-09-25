@@ -182,7 +182,7 @@ internal fun ScriptStudioSheet(
         val cursor = editorValue.selection.end.coerceIn(0, editorValue.text.length)
         val before = editorValue.text.substring(0, cursor)
         if (before.substringAfterLast('\n').endsWith("annie.")) {
-            listOf("commands", "http", "storage", "messages", "actions", "player", "downloads", "browser", "files", "image", "crypto", "notifications", "tasks", "log")
+            listOf("commands", "http", "storage", "sessions", "messages", "actions", "files", "image", "log")
         } else emptyList()
     }
 
@@ -565,8 +565,8 @@ private fun ScriptCodeEditor(
                         "annie.commands", "annie.commands.register", "annie.http", "annie.http.request",
                         "annie.storage", "annie.storage.get", "annie.storage.set", "annie.sessions",
                         "annie.sessions.register", "annie.actions", "annie.actions.register", "annie.messages",
-                        "annie.player", "annie.downloads", "annie.browser", "annie.files", "annie.image",
-                        "annie.crypto", "annie.notifications", "annie.tasks", "annie.log",
+                        "annie.messages.text", "annie.messages.image", "annie.files", "annie.files.readText",
+                        "annie.files.writeText", "annie.files.list", "annie.image.chess", "annie.log",
                     )
                 )
             }
