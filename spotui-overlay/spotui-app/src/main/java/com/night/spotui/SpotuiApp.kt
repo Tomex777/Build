@@ -947,7 +947,14 @@ private fun NowPlaying(
         Spacer(Modifier.height(28.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(track.title, color = SpotText, fontSize = 23.sp, fontWeight = FontWeight.Black, maxLines = 2)
+                Text(
+                    track.title,
+                    color = SpotText,
+                    fontSize = 23.sp,
+                    fontWeight = FontWeight.Black,
+                    maxLines = 2,
+                    modifier = Modifier.semantics { contentDescription = "Now playing " + track.title },
+                )
                 Text(
                     track.artist,
                     color = SpotMuted,
