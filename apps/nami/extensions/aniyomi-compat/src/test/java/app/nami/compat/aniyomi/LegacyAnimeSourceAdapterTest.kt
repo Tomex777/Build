@@ -11,6 +11,9 @@ import eu.kanade.tachiyomi.animesource.model.SAnimeEpisodeUpdate
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonPrimitive
 import rx.Observable
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -90,6 +93,25 @@ class LegacyAnimeSourceAdapterTest {
 
         val media = adapter.resolve(episodes.single().ref)
         assertEquals("https://cdn.example/v17.webm", media.single().url)
+    }
+
+    @Test
+    fun v17OpaqueStateReopensThroughFreshAdapterCache() = runTest {
+        val first = adapter(api = 17, source = V17Source())
+        val result = first.search("dandadan").items.single()
+
+        assertTrue(!result.sourceState.isNullOrBlank())
+
+        val fresh = adapter(api = 17, source = V17Source())
+        val details = fresh.details(result.ref, result.sourceState)
+        assertEquals("Dandadan v17 details", details.title)
+        assertTrue(!details.sourceState.isNullOrBlank())
+
+        val episodes = fresh.episodes(
+            details.ref,
+            details.sourceState ?: result.sourceState,
+        )
+        assertEquals("Episode 7", episodes.single().title)
     }
 
     @Test
@@ -233,7 +255,10 @@ class LegacyAnimeSourceAdapterTest {
             filters: AnimeFilterList,
         ): AnimesPage {
             searchCalls++
-            return AnimesPage(listOf(anime("/v17/dandadan", "Dandadan v17")), false)
+            val result = anime("/v17/dandadan", "Dandadan v17").apply {
+                memo = JsonObject(mapOf("token" to JsonPrimitive("stateful-v17")))
+            }
+            return AnimesPage(listOf(result), false)
         }
 
         override suspend fun getAnimeEpisodeUpdate(
@@ -242,6 +267,9 @@ class LegacyAnimeSourceAdapterTest {
             fetchDetails: Boolean,
             fetchEpisodes: Boolean,
         ): SAnimeEpisodeUpdate {
+            check(anime.memo["token"]?.jsonPrimitive?.content == "stateful-v17") {
+                "v17 memo state was not restored"
+            }
             if (fetchDetails) detailUpdateCalls++
             if (fetchEpisodes) episodeUpdateCalls++
 

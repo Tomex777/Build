@@ -34,7 +34,10 @@ data class StoredDownload(
 )
 
 /** Nami-owned local store. */
-class NamiDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, VERSION) {
+class NamiDatabase(
+    context: Context,
+    databaseName: String = DATABASE_NAME,
+) : SQLiteOpenHelper(context, databaseName, null, VERSION) {
 
     override fun onConfigure(db: SQLiteDatabase) {
         super.onConfigure(db)

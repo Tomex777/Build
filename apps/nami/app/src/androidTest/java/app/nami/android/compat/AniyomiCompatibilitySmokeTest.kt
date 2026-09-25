@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.nami.compat.aniyomi.AniyomiExtensionRegistry
 import app.nami.data.local.NamiDatabase
+import app.nami.domain.AnimeDetails
 import app.nami.domain.AnimeRef
 import app.nami.runtime.GlobalAnimeSearch
 import app.nami.runtime.NamiSourceRegistry
@@ -208,6 +209,60 @@ class AniyomiCompatibilitySmokeTest {
             "v17Fixture persistedState=true source=${fixture.metadata.id} " +
                 "episodes=${episodes.size} reopenedEpisodes=${reopenedEpisodes.size} media=${media.size}",
         )
+    }
+
+
+    @Test
+    fun libraryDatabaseMigratesV3AndPersistsSourceState() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val databaseName = "nami-migration-${System.nanoTime()}.db"
+        context.deleteDatabase(databaseName)
+
+        val legacy = context.openOrCreateDatabase(databaseName, Context.MODE_PRIVATE, null)
+        legacy.execSQL(
+            """CREATE TABLE library_entries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_id TEXT NOT NULL,
+                source_anime_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                cover_url TEXT,
+                added_at INTEGER NOT NULL,
+                UNIQUE(source_id, source_anime_id)
+            )""".trimIndent(),
+        )
+        legacy.version = 3
+        legacy.close()
+
+        val database = NamiDatabase(context, databaseName)
+        try {
+            val columns = database.writableDatabase
+                .rawQuery("PRAGMA table_info(library_entries)", null)
+                .use { cursor ->
+                    val nameIndex = cursor.getColumnIndexOrThrow("name")
+                    buildList {
+                        while (cursor.moveToNext()) add(cursor.getString(nameIndex))
+                    }
+                }
+
+            assertTrue(
+                "v3 -> v4 migration did not add source_state",
+                "source_state" in columns,
+            )
+
+            val expected = AnimeDetails(
+                ref = AnimeRef("fixture-source", "/fixture/anime"),
+                title = "Fixture",
+                sourceState = """{"memo":{"token":"migration-test"}}""",
+            )
+            database.addToLibrary(expected)
+
+            val stored = database.getLibraryEntries().single()
+            assertEquals(expected.ref, stored.ref)
+            assertEquals(expected.sourceState, stored.sourceState)
+        } finally {
+            database.close()
+            context.deleteDatabase(databaseName)
+        }
     }
 
 
