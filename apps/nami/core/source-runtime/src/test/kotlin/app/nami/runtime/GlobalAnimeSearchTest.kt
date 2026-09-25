@@ -83,7 +83,7 @@ class GlobalAnimeSearchTest {
     }
 
     @Test
-    fun nativeSourcesAreExcludedFromExtensionOnlyGlobalSearch() = runBlocking {
+    fun nativeAndAniyomiCompatibleSourcesShareGlobalSearch() = runBlocking {
         val extension = FakeSource(
             id = "extension",
             name = "Extension",
@@ -108,8 +108,10 @@ class GlobalAnimeSearchTest {
             NamiSourceRegistry { listOf(native, extension) },
         ).search("bleach")
 
-        assertEquals(listOf("extension"), final.resultsBySource.keys.toList())
-        assertEquals(listOf("extension"), final.responseOrder)
+        assertEquals(setOf("extension", "native"), final.resultsBySource.keys)
+        assertEquals(setOf("extension", "native"), final.responseOrder.toSet())
+        assertEquals("Extension result", final.resultsBySource.getValue("extension").single().title)
+        assertEquals("Native result", final.resultsBySource.getValue("native").single().title)
     }
 
     @Test
