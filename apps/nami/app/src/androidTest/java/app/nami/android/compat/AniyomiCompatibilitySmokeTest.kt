@@ -6,6 +6,8 @@ import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.nami.android.NamiApplication
+import app.nami.android.NamiSourceEnablementStore
 import app.nami.compat.aniyomi.AniyomiExtensionRegistry
 import app.nami.data.local.NamiDatabase
 import app.nami.domain.AnimeDetails
@@ -105,15 +107,14 @@ class AniyomiCompatibilitySmokeTest {
         val episodes = withTimeout(60_000) { animeSogo.episodes(anime.ref) }
         assertTrue("AnimeSogo returned no episodes", episodes.isNotEmpty())
         assertTrue("AnimeSogo episode identifiers are blank", episodes.all { it.ref.sourceEpisodeId.isNotBlank() })
-        assertEquals(
+        assertTrue(
             "AnimeSogo episode identifiers are not unique",
-            episodes.size,
-            episodes.map { it.ref.sourceEpisodeId }.distinct().size,
+            episodes.size == episodes.map { it.ref.sourceEpisodeId }.distinct().size,
         )
         assertTrue("AnimeSogo episode names did not normalize", episodes.all { it.title.isNotBlank() })
         assertTrue(
             "AnimeSogo episode numbering did not normalize",
-            episodes.any { episode -> episode.number?.let { it >= 0.0 } == true },
+            episodes.any { episode -> (episode.number ?: -1.0) >= 0.0 },
         )
         val episodeIdsAgain = withTimeout(60_000) { animeSogo.episodes(anime.ref) }
             .map { it.ref.sourceEpisodeId }
@@ -594,6 +595,51 @@ class AniyomiCompatibilitySmokeTest {
         assertEquals("""{"memo":{"token":"episode-retry"}}""", stored.episodeSourceState)
 
         context.deleteDatabase(databaseName)
+    }
+
+
+    @Test
+    fun sourceEnablementPersistsAndFiltersRuntimeWithoutHidingInstalledExtension() = runBlocking<Unit> {
+        val app = ApplicationProvider.getApplicationContext<NamiApplication>()
+        val installed = app.installedSourceRegistry.installedSources()
+        val fixture = installed.firstOrNull {
+            it.metadata.extensionPackage == "app.nami.fixture.v17"
+        }
+
+        assertNotNull("The v17 fixture must be installed for enablement smoke", fixture)
+        fixture!!
+        val sourceId = fixture.metadata.id
+        val originallyEnabled = app.sourceEnablementStore.isEnabled(sourceId)
+
+        try {
+            app.sourceEnablementStore.setEnabled(sourceId, false)
+
+            assertTrue(
+                "Disabled extension disappeared from installed-source discovery",
+                app.installedSourceRegistry.installedSources()
+                    .any { it.metadata.id == sourceId },
+            )
+            assertTrue(
+                "Disabled extension still leaked into the runtime registry",
+                app.sourceRegistry.installedSources()
+                    .none { it.metadata.id == sourceId },
+            )
+
+            val reopenedStore = NamiSourceEnablementStore(app)
+            assertTrue(
+                "Disabled extension state did not persist across store recreation",
+                !reopenedStore.isEnabled(sourceId),
+            )
+
+            reopenedStore.setEnabled(sourceId, true)
+            assertTrue(
+                "Re-enabled extension did not return to the runtime registry",
+                app.sourceRegistry.installedSources()
+                    .any { it.metadata.id == sourceId },
+            )
+        } finally {
+            app.sourceEnablementStore.setEnabled(sourceId, originallyEnabled)
+        }
     }
 
 
