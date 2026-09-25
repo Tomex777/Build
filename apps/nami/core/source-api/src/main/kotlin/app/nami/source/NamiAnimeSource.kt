@@ -28,6 +28,11 @@ interface NamiAnimeSource {
     ): List<AnimeEpisode> = episodes(anime)
 
     suspend fun resolve(episode: EpisodeRef): List<ResolvedMedia>
+
+    suspend fun resolve(
+        episode: EpisodeRef,
+        sourceState: String?,
+    ): List<ResolvedMedia> = resolve(episode)
 }
 
 data class SourceCapabilities(

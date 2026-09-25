@@ -132,6 +132,10 @@ class AniyomiCompatibilitySmokeTest {
         assertNotNull("The separately installed v17 fixture APK must be discovered", fixture)
         fixture!!
         assertEquals(17, fixture.metadata.extensionApiVersion)
+        assertTrue(
+            "v17 fixture should expose configurable source preferences",
+            fixture.metadata.capabilities.configurable,
+        )
 
         val result = withTimeout(10_000) { fixture.search("Bleach").items.single() }
         assertTrue(result.title.contains("Bleach", ignoreCase = true))
@@ -155,7 +159,9 @@ class AniyomiCompatibilitySmokeTest {
         assertEquals(1, episodes.size)
         assertEquals("Fixture Episode 1", episodes.single().title)
 
-        val media = withTimeout(10_000) { fixture.resolve(episodes.single().ref) }
+        val media = withTimeout(10_000) {
+            fixture.resolve(episodes.single().ref, episodes.single().sourceState)
+        }
         assertEquals(1, media.size)
         assertEquals("https://example.invalid/fixture-v17.mp4", media.single().url)
         assertEquals("1080p", media.single().quality)
@@ -198,7 +204,22 @@ class AniyomiCompatibilitySmokeTest {
                 reopenedDetails.sourceState ?: reopenedEntry.sourceState,
             )
         }
-        assertEquals("Fixture Episode 1", reopenedEpisodes.single().title)
+        val reopenedEpisode = reopenedEpisodes.single()
+        assertEquals("Fixture Episode 1", reopenedEpisode.title)
+        assertTrue(
+            "v17 episode did not carry opaque source state",
+            !reopenedEpisode.sourceState.isNullOrBlank(),
+        )
+
+        val freshResolver = AniyomiExtensionRegistry(context)
+            .installedSources()
+            .first {
+                it.metadata.extensionPackage == "app.nami.fixture.v17"
+            }
+        val reopenedMedia = withTimeout(10_000) {
+            freshResolver.resolve(reopenedEpisode.ref, reopenedEpisode.sourceState)
+        }
+        assertEquals("https://example.invalid/fixture-v17.mp4", reopenedMedia.single().url)
 
         NamiDatabase(context).use { cleanup ->
             cleanup.removeFromLibrary(reopenedEntry.ref)
@@ -207,7 +228,8 @@ class AniyomiCompatibilitySmokeTest {
         Log.i(
             "NamiSourceSmoke",
             "v17Fixture persistedState=true source=${fixture.metadata.id} " +
-                "episodes=${episodes.size} reopenedEpisodes=${reopenedEpisodes.size} media=${media.size}",
+                "episodes=${episodes.size} reopenedEpisodes=${reopenedEpisodes.size} " +
+                "media=${media.size} reopenedMedia=${reopenedMedia.size}",
         )
     }
 

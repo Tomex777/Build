@@ -147,7 +147,7 @@ class NamiDownloadManager(
         )
 
         try {
-            val media = source.resolve(episode.ref)
+            val media = source.resolve(episode.ref, episode.sourceState)
                 .firstOrNull { it.url.isNotBlank() }
                 ?: error("This source did not return a downloadable video.")
 

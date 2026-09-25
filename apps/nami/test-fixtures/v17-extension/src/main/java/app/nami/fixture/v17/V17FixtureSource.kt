@@ -1,6 +1,9 @@
 package app.nami.fixture.v17
 
 import eu.kanade.tachiyomi.animesource.AnimeSource
+import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
+import androidx.preference.Preference
+import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.Hoster
@@ -12,10 +15,21 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonPrimitive
 
-class V17FixtureSource : AnimeSource {
+class V17FixtureSource : AnimeSource, ConfigurableAnimeSource {
     override val id: Long = 17_000_001L
     override val name: String = "Nami V17 Fixture"
     override val lang: String = "en"
+
+
+    override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        screen.addPreference(
+            Preference(screen.context).apply {
+                key = "fixture_preference"
+                title = "Fixture preference"
+                summary = "Nami configurable-source smoke fixture"
+            },
+        )
+    }
 
     override suspend fun getSearchAnime(
         page: Int,
@@ -63,6 +77,7 @@ class V17FixtureSource : AnimeSource {
                     url = "/fixture/episode-1"
                     name = "Fixture Episode 1"
                     episode_number = 1f
+                    memo = JsonObject(mapOf("episodeToken" to JsonPrimitive(REQUIRED_EPISODE_TOKEN)))
                 },
             )
         } else {
@@ -73,6 +88,10 @@ class V17FixtureSource : AnimeSource {
     }
 
     override suspend fun getHosterList(episode: SEpisode): List<Hoster> {
+        check(episode.memo["episodeToken"]?.jsonPrimitive?.content == REQUIRED_EPISODE_TOKEN) {
+            "Fixture episode memo token was not restored"
+        }
+
         val base = Video(
             videoUrl = "https://example.invalid/fixture-v17.mp4",
             videoTitle = "base",
@@ -90,5 +109,6 @@ class V17FixtureSource : AnimeSource {
 
     companion object {
         private const val REQUIRED_TOKEN = "nami-v17-state"
+        private const val REQUIRED_EPISODE_TOKEN = "nami-v17-episode-state"
     }
 }

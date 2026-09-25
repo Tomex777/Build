@@ -111,7 +111,13 @@ class LegacyAnimeSourceAdapterTest {
             details.ref,
             details.sourceState ?: result.sourceState,
         )
-        assertEquals("Episode 7", episodes.single().title)
+        val episode = episodes.single()
+        assertEquals("Episode 7", episode.title)
+        assertTrue(!episode.sourceState.isNullOrBlank())
+
+        val resolver = adapter(api = 17, source = V17Source())
+        val media = resolver.resolve(episode.ref, episode.sourceState)
+        assertEquals("https://cdn.example/v17.webm", media.single().url)
     }
 
     @Test
@@ -277,15 +283,22 @@ class LegacyAnimeSourceAdapterTest {
                 if (fetchDetails) title = "Dandadan v17 details"
             }
             val updatedEpisodes = if (fetchEpisodes) {
-                listOf(episode("/v17/e7", "Episode 7", 7f))
+                listOf(
+                    episode("/v17/e7", "Episode 7", 7f).apply {
+                        memo = JsonObject(mapOf("episodeToken" to JsonPrimitive("episode-v17")))
+                    },
+                )
             } else {
                 episodes
             }
             return SAnimeEpisodeUpdate(updatedAnime, updatedEpisodes)
         }
 
-        override suspend fun getHosterList(episode: SEpisode): List<Hoster> =
-            listOf(
+        override suspend fun getHosterList(episode: SEpisode): List<Hoster> {
+            check(episode.memo["episodeToken"]?.jsonPrimitive?.content == "episode-v17") {
+                "v17 episode memo state was not restored"
+            }
+            return listOf(
                 Hoster(
                     hosterName = "Embedded v17",
                     videoList = listOf(
@@ -297,6 +310,7 @@ class LegacyAnimeSourceAdapterTest {
                     ),
                 ),
             )
+        }
     }
 
     companion object {

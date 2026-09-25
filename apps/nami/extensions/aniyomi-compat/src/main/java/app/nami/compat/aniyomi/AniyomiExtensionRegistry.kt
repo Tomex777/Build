@@ -366,12 +366,20 @@ internal class LegacyAnimeSourceAdapter(
                 title = episode.name,
                 number = episode.episode_number.takeIf { it >= 0f }?.toDouble(),
                 uploadedAtEpochMillis = episode.date_upload.takeIf { it > 0L },
+                sourceState = LegacyEpisodeStateCodec.encode(episode),
             )
         }
     }
 
-    override suspend fun resolve(episode: EpisodeRef): List<ResolvedMedia> {
+    override suspend fun resolve(episode: EpisodeRef): List<ResolvedMedia> =
+        resolve(episode, sourceState = null)
+
+    override suspend fun resolve(
+        episode: EpisodeRef,
+        sourceState: String?,
+    ): List<ResolvedMedia> {
         val legacyEpisode = episodeCache[episodeKey(episode.sourceAnimeId, episode.sourceEpisodeId)]
+            ?: LegacyEpisodeStateCodec.decode(sourceState)
             ?: SEpisode.create().apply {
                 url = episode.sourceEpisodeId
                 name = episode.sourceEpisodeId

@@ -295,7 +295,7 @@ fun NamiAnimeDetailsScreen(
                                         resolvingEpisodeId = episode.ref.sourceEpisodeId
                                         scope.launch {
                                             runCatching {
-                                                source.resolve(episode.ref)
+                                                source.resolve(episode.ref, episode.sourceState)
                                                     .firstOrNull { it.url.isNotBlank() }
                                                     ?: error("This source did not return a playable video.")
                                             }.onSuccess { media ->

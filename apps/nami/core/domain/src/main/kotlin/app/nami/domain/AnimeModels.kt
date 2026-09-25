@@ -37,6 +37,8 @@ data class AnimeEpisode(
     val title: String,
     val number: Double? = null,
     val uploadedAtEpochMillis: Long? = null,
+    /** Opaque source-owned state needed to resolve this episode after adapter recreation. */
+    val sourceState: String? = null,
 )
 
 data class MediaTrack(val url: String, val language: String? = null)
