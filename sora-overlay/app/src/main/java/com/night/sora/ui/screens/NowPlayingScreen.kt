@@ -11,6 +11,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,6 +61,16 @@ fun NowPlayingScreen(
     val progress = if (player.durationMs > 0L) {
         (player.positionMs.toFloat() / player.durationMs.toFloat()).coerceIn(0f, 1f)
     } else 0f
+    var scrubbing by remember(track.id) { mutableStateOf(false) }
+    var scrubPreview by remember(track.id) { mutableFloatStateOf(progress) }
+    val easedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(durationMillis = 260, easing = LinearEasing),
+        label = "music-progress",
+    )
+    LaunchedEffect(progress, scrubbing) {
+        if (!scrubbing) scrubPreview = progress
+    }
     val saved = isSaved(track)
 
     Column(
@@ -128,12 +141,19 @@ fun NowPlayingScreen(
 
         Spacer(Modifier.height(18.dp))
         Slider(
-            value = progress,
-            onValueChange = player::seekToFraction,
+            value = if (scrubbing) scrubPreview else easedProgress,
+            onValueChange = {
+                scrubbing = true
+                scrubPreview = it
+            },
+            onValueChangeFinished = {
+                player.seekToFraction(scrubPreview)
+                scrubbing = false
+            },
             enabled = player.durationMs > 0L,
             colors = SliderDefaults.colors(
-                thumbColor = SoraText,
-                activeTrackColor = SoraText,
+                thumbColor = SoraAccent,
+                activeTrackColor = SoraAccent,
                 inactiveTrackColor = SoraSurfaceRaised,
             ),
         )
