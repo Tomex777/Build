@@ -73,6 +73,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.nami.data.local.NamiDatabase
 import app.nami.data.local.StoredLibraryEntry
+import app.nami.data.local.StoredWatchProgress
+import app.nami.domain.AnimeRef
 import app.nami.domain.AnimeSearchResult
 import app.nami.runtime.AnimeSearchItemResult
 import app.nami.runtime.GlobalAnimeSearch
@@ -871,12 +873,39 @@ private fun LibraryScreen(
     onOpenAnime: (NamiAnimeSource, AnimeSearchResult) -> Unit,
 ) {
     var entries by remember { mutableStateOf<List<StoredLibraryEntry>>(emptyList()) }
+    var continueWatching by remember {
+        mutableStateOf<List<StoredWatchProgress>>(emptyList())
+    }
     var sources by remember { mutableStateOf<List<NamiAnimeSource>>(emptyList()) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(revision, sourceRegistry) {
-        entries = withContext(Dispatchers.IO) { database.getLibraryEntries() }
+        val local = withContext(Dispatchers.IO) {
+            database.getLibraryEntries() to database.getContinueWatching()
+        }
+        entries = local.first
+        continueWatching = local.second
         sources = runCatching { sourceRegistry.installedSources() }.getOrDefault(emptyList())
+    }
+
+    fun openProgress(progress: StoredWatchProgress) {
+        val animeId = progress.sourceAnimeId ?: return
+        val source = sources.firstOrNull { it.metadata.id == progress.sourceId }
+        if (source != null) {
+            onOpenAnime(
+                source,
+                AnimeSearchResult(
+                    ref = AnimeRef(progress.sourceId, animeId),
+                    title = progress.animeTitle ?: "Anime",
+                    sourceState = progress.animeSourceState,
+                ),
+            )
+        } else {
+            scope.launch {
+                sources = runCatching { sourceRegistry.installedSources() }
+                    .getOrDefault(emptyList())
+            }
+        }
     }
 
     Scaffold(
@@ -894,7 +923,7 @@ private fun LibraryScreen(
             )
         },
     ) { padding ->
-        if (entries.isEmpty()) {
+        if (entries.isEmpty() && continueWatching.isEmpty()) {
             EmptyCenter(
                 modifier = Modifier.padding(padding),
                 text = "Your anime library is empty.",
@@ -912,6 +941,50 @@ private fun LibraryScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
+                if (continueWatching.isNotEmpty()) {
+                    item(
+                        key = "continue-watching",
+                        span = { GridItemSpan(maxLineSpan) },
+                    ) {
+                        Column {
+                            Text(
+                                text = "Continue watching",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                            )
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                contentPadding = PaddingValues(vertical = 4.dp),
+                            ) {
+                                lazyItems(
+                                    items = continueWatching,
+                                    key = {
+                                        it.sourceId + "|" + it.sourceEpisodeId
+                                    },
+                                ) { progress ->
+                                    ContinueWatchingCard(
+                                        progress = progress,
+                                        onClick = { openProgress(progress) },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (entries.isNotEmpty()) {
+                    item(
+                        key = "library-heading",
+                        span = { GridItemSpan(maxLineSpan) },
+                    ) {
+                        Text(
+                            text = "My library",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                        )
+                    }
+                }
+
                 gridItems(entries, key = { it.id }) { entry ->
                     AnimeCard(
                         item = AnimeSearchResult(
@@ -944,6 +1017,72 @@ private fun LibraryScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ContinueWatchingCard(
+    progress: StoredWatchProgress,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .width(230.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick),
+        tonalElevation = 2.dp,
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Text(
+                text = progress.animeTitle ?: "Anime",
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                text = progress.episodeTitle ?: "Continue episode",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (progress.durationMs > 0L) {
+                Spacer(Modifier.height(10.dp))
+                LinearProgressIndicator(
+                    progress = {
+                        (progress.positionMs.toFloat() / progress.durationMs.toFloat())
+                            .coerceIn(0f, 1f)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    text = formatWatchTime(progress.positionMs) + " watched",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Resume",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+
+private fun formatWatchTime(positionMs: Long): String {
+    val seconds = positionMs.coerceAtLeast(0L) / 1_000L
+    val hours = seconds / 3_600L
+    val minutes = (seconds % 3_600L) / 60L
+    return if (hours > 0L) {
+        "${hours}h ${minutes}m"
+    } else {
+        "${minutes}m"
     }
 }
 

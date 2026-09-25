@@ -23,13 +23,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Audiotrack
 import androidx.compose.material.icons.outlined.Fullscreen
-import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Replay
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Subtitles
@@ -115,6 +115,8 @@ internal fun NamiPlayerScreen(
     var preferredHost by remember { mutableStateOf<String?>(null) }
     var landscape by remember { mutableStateOf(false) }
     var resolveVersion by remember { mutableIntStateOf(0) }
+    var pendingResumePositionMs by remember { mutableLongStateOf(-1L) }
+    var resumeAfterBackground by remember { mutableStateOf(false) }
 
     fun currentEpisode(): AnimeEpisode? = when (session) {
         is NamiPlaybackSession.Streaming -> session.episodes.getOrNull(currentIndex)
@@ -198,11 +200,22 @@ internal fun NamiPlayerScreen(
         }
     }
 
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, currentIndex) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) {
-                saveProgress()
-                engine.pause()
+            when (event) {
+                Lifecycle.Event.ON_STOP -> {
+                    val state = engine.state.value
+                    resumeAfterBackground = state.isPlaying
+                    saveProgress(state.positionMs, state.durationMs)
+                    engine.pause()
+                }
+                Lifecycle.Event.ON_START -> {
+                    if (resumeAfterBackground) {
+                        engine.resume()
+                        resumeAfterBackground = false
+                    }
+                }
+                else -> Unit
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -237,7 +250,9 @@ internal fun NamiPlayerScreen(
                     Triple(
                         candidates,
                         chosen,
-                        progress?.positionMs?.takeUnless { progress.completed } ?: 0L,
+                        pendingResumePositionMs.takeIf { it >= 0L }
+                            ?: progress?.positionMs?.takeUnless { progress.completed }
+                            ?: 0L,
                     )
                 }
                 is NamiPlaybackSession.Downloaded -> {
@@ -255,7 +270,9 @@ internal fun NamiPlayerScreen(
                     Triple(
                         listOf(local),
                         local,
-                        progress?.positionMs?.takeUnless { progress.completed } ?: 0L,
+                        pendingResumePositionMs.takeIf { it >= 0L }
+                            ?: progress?.positionMs?.takeUnless { progress.completed }
+                            ?: 0L,
                     )
                 }
             }
@@ -263,6 +280,7 @@ internal fun NamiPlayerScreen(
             resolved = candidates
             selectedMedia = chosen
             engine.play(chosen, position)
+            pendingResumePositionMs = -1L
             loading = false
         }.onFailure { failure ->
             resolveError = failure.message ?: "Could not resolve this episode."
@@ -374,6 +392,7 @@ internal fun NamiPlayerScreen(
                             currentIndex = next
                             preferredHeight = null
                             preferredHost = null
+                            pendingResumePositionMs = -1L
                         }
                     },
                     onNext = {
@@ -412,6 +431,8 @@ internal fun NamiPlayerScreen(
             onDismiss = { sheet = null },
         ) {
             ChoiceRow("Auto", preferredHeight == null && preferredHost == null) {
+                pendingResumePositionMs = playerState.positionMs
+                saveProgress()
                 preferredHeight = null
                 preferredHost = null
                 sheet = null
@@ -422,9 +443,12 @@ internal fun NamiPlayerScreen(
                     PlaybackMediaSelector.label(media),
                     selected = media.url == selectedMedia?.url,
                 ) {
+                    pendingResumePositionMs = playerState.positionMs
+                    saveProgress()
                     preferredHeight = PlaybackMediaSelector.height(media)
                     preferredHost = media.hosterName
                     sheet = null
+                    resolveVersion++
                 }
             }
         }
@@ -534,7 +558,7 @@ private fun PlayerControls(
                 )
             }
             IconButton(onClick = onOpenExternal) {
-                Icon(Icons.Outlined.OpenInNew, "Open externally", tint = Color.White)
+                Icon(Icons.AutoMirrored.Outlined.OpenInNew, "Open externally", tint = Color.White)
             }
         }
 
