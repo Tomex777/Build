@@ -159,7 +159,7 @@ class AniyomiCompatibilitySmokeTest {
         assertTrue("AnimeSogo v17 episode names were not normalized", episodes.all { it.title.isNotBlank() })
         assertTrue(
             "AnimeSogo v17 episode numbering did not map into Nami models",
-            episodes.any { it.number != null && it.number >= 0.0 },
+            episodes.any { episode -> episode.number?.let { it >= 0.0 } == true },
         )
 
         var resolvedEpisode = episodes.first()
@@ -442,9 +442,9 @@ class AniyomiCompatibilitySmokeTest {
 
             val refreshed = database.getLibraryEntries().single()
             assertEquals(
+                "Refreshing library metadata must update in place instead of replacing the row",
                 original.id,
                 refreshed.id,
-                "Refreshing library metadata must update in place instead of replacing the row",
             )
             assertEquals("Refreshed title", refreshed.title)
             assertEquals("""{"token":"second"}""", refreshed.sourceState)
@@ -458,9 +458,9 @@ class AniyomiCompatibilitySmokeTest {
                 cursor.getInt(0)
             }
             assertEquals(
+                "Refreshing a library entry must not cascade-delete its category membership",
                 1,
                 membershipCount,
-                "Refreshing a library entry must not cascade-delete its category membership",
             )
         } finally {
             database.close()
