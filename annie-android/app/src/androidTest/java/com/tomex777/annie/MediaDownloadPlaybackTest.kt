@@ -284,9 +284,15 @@ class MediaDownloadPlaybackTest {
             output.write(body, 0, first)
             output.flush()
             secondSegmentStarted.countDown()
-            Thread.sleep(3_000)
-            output.write(body, first, body.size - first)
-            output.flush()
+            try {
+                Thread.sleep(3_000)
+            } catch (_: InterruptedException) {
+                return
+            }
+            runCatching {
+                output.write(body, first, body.size - first)
+                output.flush()
+            }
         }
 
         private fun writeResponse(socket: Socket, code: Int, mime: String, body: ByteArray, extraHeaders: Map<String, String> = emptyMap()) {
