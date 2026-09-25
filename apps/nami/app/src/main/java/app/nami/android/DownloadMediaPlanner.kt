@@ -164,3 +164,11 @@ internal object DownloadRecoveryPolicy {
     fun shouldDiscardPartialTarget(state: NamiDownloadState): Boolean =
         state == NamiDownloadState.QUEUED || state == NamiDownloadState.DOWNLOADING
 }
+
+
+internal object DownloadStoragePolicy {
+    fun requiresLegacyWritePermission(
+        sdkInt: Int,
+        permissionGranted: Boolean,
+    ): Boolean = sdkInt <= 28 && !permissionGranted
+}

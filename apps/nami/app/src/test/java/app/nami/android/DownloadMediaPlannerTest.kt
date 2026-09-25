@@ -174,4 +174,33 @@ class DownloadMediaPlannerTest {
             ),
         )
     }
+    @Test
+    fun legacyPublicMoviesRequiresPermissionOnlyThroughApi28() {
+        assertTrue(
+            DownloadStoragePolicy.requiresLegacyWritePermission(
+                sdkInt = 26,
+                permissionGranted = false,
+            ),
+        )
+        assertFalse(
+            DownloadStoragePolicy.requiresLegacyWritePermission(
+                sdkInt = 28,
+                permissionGranted = true,
+            ),
+        )
+        assertFalse(
+            DownloadStoragePolicy.requiresLegacyWritePermission(
+                sdkInt = 29,
+                permissionGranted = false,
+            ),
+        )
+        assertFalse(
+            DownloadStoragePolicy.requiresLegacyWritePermission(
+                sdkInt = 36,
+                permissionGranted = false,
+            ),
+        )
+    }
+
+
 }

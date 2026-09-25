@@ -5,6 +5,11 @@
 
 package app.nami.android
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -115,9 +120,28 @@ fun NamiAnimeDetailsScreen(
     var loading by remember { mutableStateOf(true) }
     var inLibrary by remember { mutableStateOf(false) }
     var resolvingEpisodeId by remember { mutableStateOf<String?>(null) }
+    var pendingLegacyDownload by remember {
+        mutableStateOf<Pair<AnimeDetails, AnimeEpisode>?>(null)
+    }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val downloadStatuses by downloadManager.statuses.collectAsState()
+    val legacyStoragePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        val pending = pendingLegacyDownload
+        pendingLegacyDownload = null
+
+        if (granted && pending != null) {
+            downloadManager.enqueue(source, pending.first, pending.second)
+        } else if (!granted) {
+            Toast.makeText(
+                context,
+                "Storage permission is required to save downloads on Android 8 and 9.",
+                Toast.LENGTH_LONG,
+            ).show()
+        }
+    }
     val listState = rememberLazyListState()
     val showToolbarTitle by remember {
         derivedStateOf {
@@ -295,7 +319,27 @@ fun NamiAnimeDetailsScreen(
                                         }
                                     }
                                 },
-                                onDownload = { downloadManager.enqueue(source, anime, episode) },
+                                onDownload = {
+                                    val permissionGranted =
+                                        Build.VERSION.SDK_INT > 28 ||
+                                            context.checkSelfPermission(
+                                                Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                                            ) == PackageManager.PERMISSION_GRANTED
+
+                                    if (
+                                        DownloadStoragePolicy.requiresLegacyWritePermission(
+                                            sdkInt = Build.VERSION.SDK_INT,
+                                            permissionGranted = permissionGranted,
+                                        )
+                                    ) {
+                                        pendingLegacyDownload = anime to episode
+                                        legacyStoragePermissionLauncher.launch(
+                                            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                                        )
+                                    } else {
+                                        downloadManager.enqueue(source, anime, episode)
+                                    }
+                                },
                                 onOpen = {
                                     downloadStatus?.let { downloadManager.openDownloaded(context, it) }
                                 },
