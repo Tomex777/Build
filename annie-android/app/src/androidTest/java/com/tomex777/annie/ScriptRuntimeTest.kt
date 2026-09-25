@@ -4,9 +4,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
 import android.net.Uri
+import android.os.SystemClock
 import java.io.File
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -22,6 +24,94 @@ class ScriptRuntimeTest {
             assertEquals("text", response.getString("type"))
             assertEquals("hello from JavaScript", response.getString("text"))
         } finally {
+            workspace.close()
+        }
+    }
+
+    @Test fun disablingScriptRemovesItsCommandWithoutDeletingSource() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val name = "toggleproof${System.nanoTime().toString().takeLast(8)}"
+        try {
+            workspace.files.createScript(name)
+            assertTrue(workspace.reload().any { it.name == name })
+            workspace.files.setEnabled(name, false)
+            assertFalse(workspace.reload().any { it.name == name })
+            assertTrue(workspace.files.listProjects().first { it.id == name }.files.isNotEmpty())
+            workspace.files.setEnabled(name, true)
+            assertTrue(workspace.reload().any { it.name == name })
+        } finally {
+            runCatching { workspace.files.deleteProject(name) }
+            workspace.close()
+        }
+    }
+
+    @Test fun syntaxRuntimeAndInfiniteLoopFailuresStayInsideScriptRuntime() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val syntax = "syntaxproof${System.nanoTime().toString().takeLast(8)}"
+        val boom = "boomproof${System.nanoTime().toString().takeLast(8)}"
+        val spin = "spinproof${System.nanoTime().toString().takeLast(8)}"
+        try {
+            val syntaxFile = workspace.files.createScript(syntax)
+            workspace.files.writeFile(syntax, syntaxFile.name, "annie.commands.register({ name: \"$syntax\", execute( {")
+            assertFalse(workspace.reload().any { it.name == syntax })
+            assertTrue(workspace.logs().any { it.scriptId == syntax && it.level == "ERROR" })
+
+            val boomFile = workspace.files.createScript(boom)
+            workspace.files.writeFile(
+                boom, boomFile.name,
+                """annie.commands.register({ name: "$boom", execute() { throw new Error("boom"); } });"""
+            )
+            val spinFile = workspace.files.createScript(spin)
+            workspace.files.writeFile(
+                spin, spinFile.name,
+                """annie.commands.register({ name: "$spin", execute() { while (true) {} } });"""
+            )
+            workspace.reload()
+            val thrown = JSONObject(workspace.execute(boom, "/$boom", "error-chat", 90L))
+            assertEquals("error", thrown.getString("type"))
+
+            val started = SystemClock.elapsedRealtime()
+            val interrupted = JSONObject(workspace.execute(spin, "/$spin", "error-chat", 91L))
+            val elapsed = SystemClock.elapsedRealtime() - started
+            assertEquals("error", interrupted.getString("type"))
+            assertTrue("Infinite loop was not interrupted promptly: ${elapsed}ms", elapsed < 12_000L)
+        } finally {
+            runCatching { workspace.files.deleteProject(syntax) }
+            runCatching { workspace.files.deleteProject(boom) }
+            runCatching { workspace.files.deleteProject(spin) }
+            workspace.close()
+        }
+    }
+
+    @Test fun asyncHttpBridgeReturnsNativeResponseWithoutBlockingComposeRuntime() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val name = "httpproof${System.nanoTime().toString().takeLast(8)}"
+        try {
+            val file = workspace.files.createScript(name)
+            workspace.files.writeFile(
+                name, file.name, """
+                    |annie.commands.register({
+                    |  name: "$name",
+                    |  async execute() {
+                    |    const response = await annie.http.request({
+                    |      url: "https://example.com/",
+                    |      method: "GET",
+                    |      timeoutMs: 15000
+                    |    });
+                    |    return { type: "text", text: String(response.status) };
+                    |  }
+                    |});
+                """.trimMargin()
+            )
+            workspace.reload()
+            val response = JSONObject(workspace.execute(name, "/$name", "http-chat", 92L))
+            assertEquals("text", response.getString("type"))
+            assertEquals("200", response.getString("text"))
+        } finally {
+            runCatching { workspace.files.deleteProject(name) }
             workspace.close()
         }
     }
