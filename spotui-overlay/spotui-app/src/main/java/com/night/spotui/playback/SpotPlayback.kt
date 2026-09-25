@@ -45,12 +45,20 @@ class SpotPlaybackController(
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val streamHeaders = ConcurrentHashMap<String, Map<String, String>>()
-    private val upstream = DefaultDataSource.Factory(appContext, DefaultHttpDataSource.Factory())
+    @Volatile private var activeStreamHeaders: Map<String, String> = emptyMap()
+    private val upstream = DefaultDataSource.Factory(
+        appContext,
+        DefaultHttpDataSource.Factory()
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(15_000)
+            .setReadTimeoutMs(20_000),
+    )
     private val resolving = ResolvingDataSource.Factory(
         upstream,
         object : ResolvingDataSource.Resolver {
             override fun resolveDataSpec(dataSpec: DataSpec): DataSpec {
                 val headers = streamHeaders[dataSpec.uri.toString()].orEmpty()
+                    .ifEmpty { activeStreamHeaders }
                 return if (headers.isEmpty()) dataSpec else dataSpec.withAdditionalHeaders(headers)
             }
         },
@@ -241,6 +249,7 @@ class SpotPlaybackController(
                 .onSuccess { stream ->
                     if (serial != requestSerial) return@onSuccess
                     streamHeaders.clear()
+                    activeStreamHeaders = stream.headers
                     if (stream.headers.isNotEmpty()) streamHeaders[stream.url] = stream.headers
                     streamLabel = stream.label
                     val metadata = MediaMetadata.Builder()
