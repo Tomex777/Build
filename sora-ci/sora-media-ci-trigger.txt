@@ -45,3 +45,4 @@ rerun 55 - capture Bible request parsing and Compose load lifecycle in API 36 fa
 rerun 56 - retain complete filtered Bible trace on the next API 36 reader failure
 rerun 57 - fetch Bible chapter before scrolling the attached LazyColumn
 rerun 58 - scroll to the attached Bible chapter footer before tapping Next
+rerun 59 - scroll to Bible chapter footer before reverse navigation

@@ -305,7 +305,7 @@ if not (header[1] <= verse[1] < 1200):
     raise SystemExit(f'Genesis 2 verse 1 is not near the top after Next: header={header}, verse1={verse}')
 PYASSERT
   shot bible-next-chapter-top
-  tap "Previous"
+  tap_scrolling "Previous"
   wait_for "Genesis 1" 20
   wait_for "In the beginning" 20
 elif ! wait_for "Couldn’t load this passage" 5; then
