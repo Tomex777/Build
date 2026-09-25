@@ -1,12 +1,14 @@
 package com.tomex777.annie
 
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onNodeWithText
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -47,7 +49,7 @@ class PlayerScreenTest {
             MediaPlayerScreen(item, PlayerMode.OFFLINE, sourceAvailable = true, onBack = {})
         }
         compose.onNodeWithText("OFFLINE").assertIsDisplayed()
-        compose.onNodeWithText("No offline video file is available for this title.").assertDoesNotExist()
+        assertTrue(compose.onAllNodesWithText("No offline video file is available for this title.").fetchSemanticsNodes().isEmpty())
         compose.onNodeWithTag("player_cast").assertIsNotEnabled()
         compose.onNodeWithTag("player_quality").assertIsNotEnabled()
         compose.onNodeWithTag("player_subtitles").assertIsEnabled()
