@@ -155,12 +155,32 @@ object YouTubeMusicCatalog {
                         .put("id", song.id)
                         .put("title", song.title)
                         .put("subtitle", subtitle)
+                        .put("artistId", song.artists.firstOrNull()?.id.orEmpty())
+                        .put("albumId", song.album?.id.orEmpty())
                         .put("artworkUrl", song.thumbnail)
                         .put("durationSeconds", song.duration ?: 0)
                         .put("explicit", song.explicit)
                 )
             }
         }.toString()
+    }
+
+    suspend fun suggestions(sourceId: String, query: String): String {
+        requireSource(sourceId)
+        ensureVisitorData()
+        return YouTubeMusicBrowseApi.suggestions(query)
+    }
+
+    suspend fun artist(sourceId: String, query: String, artistId: String?): String {
+        requireSource(sourceId)
+        ensureVisitorData()
+        return YouTubeMusicBrowseApi.artist(query, artistId)
+    }
+
+    suspend fun album(sourceId: String, query: String, albumId: String?): String {
+        requireSource(sourceId)
+        ensureVisitorData()
+        return YouTubeMusicBrowseApi.album(query, albumId)
     }
 
     suspend fun details(sourceId: String, id: String): String {
