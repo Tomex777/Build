@@ -337,7 +337,7 @@ internal fun MediaPlayerScreen(
                                     Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
                                     Build.MODEL.contains("Emulator", ignoreCase = true)
                                 val attached = runCatching {
-                                    player.attachViews(layout, null, true, !emulator)
+                                    player.attachViews(layout, null, true, true)
                                 }.isSuccess
                                 if (attached) {
                                     attachedPlayer = player

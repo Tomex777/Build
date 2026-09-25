@@ -163,6 +163,8 @@ class ScriptChatFlowTest {
             }
             compose.onNodeWithTag("slash_command_/$name").performClick()
             compose.onNodeWithTag("send_message").performClick()
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitForIdle()
             compose.waitUntil(10_000) {
                 compose.onAllNodesWithTag("script_video_message").fetchSemanticsNodes().isNotEmpty()
             }
@@ -208,6 +210,8 @@ class ScriptChatFlowTest {
             }
             compose.onNodeWithTag("slash_command_/$name").performClick()
             compose.onNodeWithTag("send_message").performClick()
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitForIdle()
             compose.waitUntil(10_000) {
                 compose.onAllNodesWithText("Inline music proof", substring = false).fetchSemanticsNodes().isNotEmpty()
             }
