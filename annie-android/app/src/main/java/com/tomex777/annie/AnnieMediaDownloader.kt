@@ -233,7 +233,7 @@ internal class AnnieMediaDownloader(
     }
 
     fun close() {
-        jobs.values.forEach(Job::cancel)
+        jobs.values.forEach { it.cancel() }
         jobs.clear()
         scope.cancel()
     }
