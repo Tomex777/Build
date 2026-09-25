@@ -328,9 +328,9 @@ private fun BibleReader(
 
     LaunchedEffect(book, chapter, selectedTranslation.id, refreshNonce) {
         if (com.night.sora.BuildConfig.DEBUG) Log.d("SoraBible", "Reader effect start ${book.name} $chapter (${selectedTranslation.id})")
-        // Start a new chapter at its first verse. Saved-position routes can still
-        // jump to initialVerse after the new passage has loaded.
-        listState.scrollToItem(0)
+        // Keep loading independent from LazyListState. The loading branch below
+        // has no LazyColumn attached, so scrolling here would suspend this effect
+        // before the chapter request ever starts.
         passage = null
         loading = true
         error = null
