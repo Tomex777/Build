@@ -669,9 +669,11 @@ private fun parsePlayerSources(config: JSONObject?, fallback: Uri?): List<Player
         if (qualities != null) {
             for (index in 0 until qualities.length()) {
                 val row = qualities.optJSONObject(index) ?: continue
-                val address = sequenceOf("uri", "url", "streamUrl")
-                    .map(row::optString)
-                    .firstOrNull(String::isNotBlank) ?: continue
+                val address = listOf(
+                    row.optString("uri"),
+                    row.optString("url"),
+                    row.optString("streamUrl"),
+                ).firstOrNull(String::isNotBlank) ?: continue
                 val label = row.optString("label")
                     .ifBlank { row.optString("quality") }
                     .ifBlank { "Source ${index + 1}" }
