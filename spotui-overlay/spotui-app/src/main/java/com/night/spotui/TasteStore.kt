@@ -112,6 +112,41 @@ class TasteStore(context: Context) {
             .map { it.value }
     }
 
+    /**
+     * Build the home feed from listening evidence first, while leaving a smaller
+     * discovery lane so the model can learn new artists. Once taste exists the
+     * feed is intentionally not just a reordered generic chart.
+     */
+    @Synchronized
+    fun homeMix(
+        personalCandidates: List<Track>,
+        discoveryCandidates: List<Track>,
+        limit: Int = 36,
+    ): List<Track> {
+        val personal = rank(personalCandidates.distinctBy(Track::id)).toMutableList()
+        val discovery = rank(discoveryCandidates.distinctBy(Track::id))
+            .filterNot { candidate -> personal.any { it.id == candidate.id } }
+            .toMutableList()
+
+        if (!hasTaste() || personal.isEmpty()) {
+            return discovery.take(limit)
+        }
+
+        val mixed = mutableListOf<Track>()
+        var personalSinceDiscovery = 0
+        while (mixed.size < limit && (personal.isNotEmpty() || discovery.isNotEmpty())) {
+            val takeDiscovery = personalSinceDiscovery >= 3 && discovery.isNotEmpty()
+            val next = when {
+                takeDiscovery -> discovery.removeAt(0).also { personalSinceDiscovery = 0 }
+                personal.isNotEmpty() -> personal.removeAt(0).also { personalSinceDiscovery += 1 }
+                discovery.isNotEmpty() -> discovery.removeAt(0).also { personalSinceDiscovery = 0 }
+                else -> break
+            }
+            if (mixed.none { it.id == next.id }) mixed += next
+        }
+        return mixed
+    }
+
     @Synchronized
     fun querySuggestions(query: String, limit: Int = 8): List<String> {
         val needle = query.trim().lowercase()
