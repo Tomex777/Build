@@ -141,6 +141,38 @@ fun SpotuiApp() {
     var showSignIn by remember { mutableStateOf(false) }
     var homeReloadEpoch by remember { mutableIntStateOf(0) }
     var searchEpoch by remember { mutableIntStateOf(0) }
+    var selectedArtist by remember { mutableStateOf<String?>(null) }
+    var artistTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var artistLoading by remember { mutableStateOf(false) }
+    var artistError by remember { mutableStateOf<String?>(null) }
+    var artistEpoch by remember { mutableIntStateOf(0) }
+
+    fun openArtist(name: String) {
+        val clean = name.trim()
+        if (clean.isBlank()) return
+        selectedArtist = clean
+        artistTracks = (homeTracks + searchTracks + likedTracks)
+            .filter { it.artist.equals(clean, ignoreCase = true) }
+            .distinctBy(Track::id)
+        artistError = null
+        val requestEpoch = ++artistEpoch
+        scope.launch {
+            artistLoading = true
+            source.search(clean)
+                .onSuccess { results ->
+                    if (requestEpoch != artistEpoch) return@onSuccess
+                    val exact = results.filter {
+                        it.artist.equals(clean, ignoreCase = true) ||
+                            it.artist.split(',').any { part -> part.trim().equals(clean, ignoreCase = true) }
+                    }
+                    artistTracks = taste.rank((exact.ifEmpty { results } + artistTracks).distinctBy(Track::id))
+                }
+                .onFailure {
+                    if (requestEpoch == artistEpoch) artistError = "Artist page didn’t load."
+                }
+            if (requestEpoch == artistEpoch) artistLoading = false
+        }
+    }
 
     fun toggleLike(track: Track) {
         val wasLiked = likedTracks.any { it.id == track.id }
@@ -260,37 +292,56 @@ fun SpotuiApp() {
                     }
                 },
             ) { padding ->
-                when (tab) {
-                    SpotTab.HOME -> HomeScreen(
+                val artist = selectedArtist
+                if (artist != null) {
+                    ArtistScreen(
                         modifier = Modifier.padding(padding),
-                        tracks = homeTracks,
-                        loading = loading,
-                        error = error,
+                        artist = artist,
+                        tracks = artistTracks,
+                        loading = artistLoading,
+                        error = artistError,
                         liked = likedTracks.map(Track::id).toSet(),
-                        onPlay = { player.play(it, homeTracks) },
+                        onBack = { selectedArtist = null },
+                        onPlay = { player.play(it, artistTracks) },
                         onToggleLike = ::toggleLike,
-                        onRetry = { homeReloadEpoch++ },
+                        onRetry = { openArtist(artist) },
                     )
-                    SpotTab.SEARCH -> SearchScreen(
-                        modifier = Modifier.padding(padding),
-                        query = query,
-                        onQuery = { query = it },
-                        suggestions = suggestions,
-                        tracks = searchTracks,
-                        loading = loading,
-                        error = error,
-                        liked = likedTracks.map(Track::id).toSet(),
-                        onSearch = { term -> runSearch(term) },
-                        onPlay = { player.play(it, searchTracks) },
-                        onToggleLike = ::toggleLike,
-                        onSuggestion = { value -> runSearch(value) },
-                    )
-                    SpotTab.LIBRARY -> LibraryScreen(
-                        modifier = Modifier.padding(padding),
-                        tracks = likedTracks,
-                        onPlay = { player.play(it, likedTracks) },
-                        onToggleLike = ::toggleLike,
-                    )
+                } else {
+                    when (tab) {
+                        SpotTab.HOME -> HomeScreen(
+                            modifier = Modifier.padding(padding),
+                            tracks = homeTracks,
+                            loading = loading,
+                            error = error,
+                            liked = likedTracks.map(Track::id).toSet(),
+                            onPlay = { player.play(it, homeTracks) },
+                            onToggleLike = ::toggleLike,
+                            onArtist = ::openArtist,
+                            onRetry = { homeReloadEpoch++ },
+                        )
+                        SpotTab.SEARCH -> SearchScreen(
+                            modifier = Modifier.padding(padding),
+                            query = query,
+                            onQuery = { query = it },
+                            suggestions = suggestions,
+                            tracks = searchTracks,
+                            loading = loading,
+                            error = error,
+                            liked = likedTracks.map(Track::id).toSet(),
+                            onSearch = { term -> runSearch(term) },
+                            onPlay = { player.play(it, searchTracks) },
+                            onToggleLike = ::toggleLike,
+                            onArtist = ::openArtist,
+                            onSuggestion = { value -> runSearch(value) },
+                        )
+                        SpotTab.LIBRARY -> LibraryScreen(
+                            modifier = Modifier.padding(padding),
+                            tracks = likedTracks,
+                            onPlay = { player.play(it, likedTracks) },
+                            onToggleLike = ::toggleLike,
+                            onArtist = ::openArtist,
+                        )
+                    }
                 }
             }
 
@@ -301,6 +352,10 @@ fun SpotuiApp() {
                     onToggleLike = { player.currentTrack?.let(::toggleLike) },
                     onSignIn = { showSignIn = true },
                     lyricsRepository = lyricsRepository,
+                    onArtist = { artist ->
+                        showPlayer = false
+                        openArtist(artist)
+                    },
                     onClose = { showPlayer = false },
                 )
             }
@@ -325,6 +380,7 @@ private fun HomeScreen(
     liked: Set<String>,
     onPlay: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
+    onArtist: (String) -> Unit,
     onRetry: () -> Unit,
 ) {
     LazyColumn(
@@ -351,11 +407,11 @@ private fun HomeScreen(
         } else {
             item { MusicQuickGrid(tracks.take(6), liked, onPlay, onToggleLike) }
             item { MusicSectionTitle("Made for you", "Ordered by what you search, like and replay") }
-            item { MusicSquareRail(tracks.take(10), onPlay) }
+            item { MusicSquareRail(tracks.take(10), onPlay, onArtist) }
             item { MusicSectionTitle("Artists in your mix", "Shaped by your listening") }
-            item { ArtistRail(tracks) }
+            item { ArtistRail(tracks, onArtist) }
             item { MusicSectionTitle("Your rotation", "Songs and artists you keep coming back to") }
-            item { MusicTrackList(tracks.take(10), liked, onPlay, onToggleLike) }
+            item { MusicTrackList(tracks.take(10), liked, onPlay, onToggleLike, onArtist) }
         }
 
         error?.takeIf { tracks.isNotEmpty() }?.let { message ->
@@ -377,6 +433,7 @@ private fun SearchScreen(
     onSearch: (String) -> Unit,
     onPlay: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
+    onArtist: (String) -> Unit,
     onSuggestion: (String) -> Unit,
 ) {
     LazyColumn(modifier.fillMaxSize().background(SpotBlack)) {
@@ -446,7 +503,7 @@ private fun SearchScreen(
         if (loading && tracks.isEmpty()) item { LoadingBlock("Searching…") }
         error?.let { item { ErrorBlock(it) { onSearch(query) } } }
         items(tracks, key = { "search-" + it.id }) { track ->
-            TrackRow(track, liked.contains(track.id), { onPlay(track) }, { onToggleLike(track) })
+            TrackRow(track, liked.contains(track.id), { onPlay(track) }, { onToggleLike(track) }, { onArtist(track.artist) })
         }
     }
 }
@@ -457,6 +514,7 @@ private fun LibraryScreen(
     tracks: List<Track>,
     onPlay: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
+    onArtist: (String) -> Unit,
 ) {
     LazyColumn(modifier.fillMaxSize().background(SpotBlack)) {
         item {
@@ -484,8 +542,112 @@ private fun LibraryScreen(
         } else {
             item { MusicSectionTitle("Saved songs", "Stored on this phone") }
             items(tracks, key = { "liked-" + it.id }) { track ->
-                TrackRow(track, true, { onPlay(track) }, { onToggleLike(track) })
+                TrackRow(track, true, { onPlay(track) }, { onToggleLike(track) }, { onArtist(track.artist) })
             }
+        }
+    }
+}
+
+@Composable
+private fun ArtistScreen(
+    modifier: Modifier,
+    artist: String,
+    tracks: List<Track>,
+    loading: Boolean,
+    error: String?,
+    liked: Set<String>,
+    onBack: () -> Unit,
+    onPlay: (Track) -> Unit,
+    onToggleLike: (Track) -> Unit,
+    onRetry: () -> Unit,
+) {
+    BackHandler(onBack = onBack)
+    val representative = tracks.firstOrNull()
+    val albums = tracks
+        .filter { it.album.isNotBlank() }
+        .distinctBy { it.album.lowercase() }
+        .take(12)
+
+    LazyColumn(
+        modifier.fillMaxSize().background(SpotBlack),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 28.dp),
+    ) {
+        item {
+            Column(
+                Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 18.dp, vertical = 14.dp),
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Rounded.KeyboardArrowDown, "Back", tint = SpotText)
+                }
+                Box(
+                    Modifier.size(132.dp).clip(CircleShape).background(SpotRaised).align(Alignment.CenterHorizontally),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (!representative?.artworkUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            representative?.artworkUrl,
+                            artist,
+                            Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                        )
+                    } else {
+                        Text(artist.take(1), color = SpotText, fontSize = 42.sp, fontWeight = FontWeight.Black)
+                    }
+                }
+                Text(
+                    artist,
+                    color = SpotText,
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.padding(top = 18.dp),
+                )
+                Text("Artist", color = SpotMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
+            }
+        }
+
+        if (tracks.isEmpty() && loading) {
+            item { LoadingBlock("Loading artist…") }
+        } else if (tracks.isEmpty()) {
+            item { ErrorBlock(error ?: "Artist page didn’t load.", onRetry) }
+        } else {
+            item { MusicSectionTitle("Popular", "Songs from " + artist) }
+            items(tracks.take(10), key = { "artist-track-" + it.id }) { track ->
+                TrackRow(
+                    track = track,
+                    liked = liked.contains(track.id),
+                    onPlay = { onPlay(track) },
+                    onToggleLike = { onToggleLike(track) },
+                    onArtist = {},
+                )
+            }
+
+            if (albums.isNotEmpty()) {
+                item { MusicSectionTitle("Releases", "Albums and projects") }
+                item {
+                    LazyRow(
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(albums, key = { "album-" + it.album.lowercase() }) { albumTrack ->
+                            Column(Modifier.width(146.dp)) {
+                                Artwork(albumTrack, Modifier.size(146.dp))
+                                Text(
+                                    albumTrack.album,
+                                    color = SpotText,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(top = 7.dp),
+                                )
+                                Text(artist, color = SpotMuted, fontSize = 9.sp, maxLines = 1)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (loading) item { LoadingBlock("Refreshing artist…") }
         }
     }
 }
@@ -551,6 +713,7 @@ private fun MusicSectionTitle(title: String, subtitle: String) {
 private fun MusicSquareRail(
     tracks: List<Track>,
     onPlay: (Track) -> Unit,
+    onArtist: (String) -> Unit,
 ) {
     LazyRow(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp),
@@ -572,14 +735,21 @@ private fun MusicSquareRail(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 7.dp),
                 )
-                Text(track.artist, color = SpotMuted, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    track.artist,
+                    color = SpotMuted,
+                    fontSize = 9.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.clickable { onArtist(track.artist) },
+                )
             }
         }
     }
 }
 
 @Composable
-private fun ArtistRail(tracks: List<Track>) {
+private fun ArtistRail(tracks: List<Track>, onArtist: (String) -> Unit) {
     val artists = tracks
         .map { it.artist.trim() }
         .filter { it.isNotBlank() }
@@ -591,7 +761,10 @@ private fun ArtistRail(tracks: List<Track>) {
     ) {
         items(artists, key = { "artist-" + it }) { artist ->
             val representative = tracks.firstOrNull { it.artist.trim() == artist }
-            Column(Modifier.width(94.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(
+                Modifier.width(94.dp).clickable { onArtist(artist) },
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
                 Box(
                     Modifier.size(86.dp).clip(CircleShape).background(SpotRaised),
                     contentAlignment = Alignment.Center,
@@ -627,6 +800,7 @@ private fun MusicTrackList(
     liked: Set<String>,
     onPlay: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
+    onArtist: (String) -> Unit,
 ) {
     Column {
         tracks.forEach { track ->
@@ -635,6 +809,7 @@ private fun MusicTrackList(
                 liked = liked.contains(track.id),
                 onPlay = { onPlay(track) },
                 onToggleLike = { onToggleLike(track) },
+                onArtist = { onArtist(track.artist) },
             )
         }
     }
@@ -646,6 +821,7 @@ private fun TrackRow(
     liked: Boolean,
     onPlay: () -> Unit,
     onToggleLike: () -> Unit,
+    onArtist: () -> Unit,
 ) {
     Row(
         Modifier.fillMaxWidth().semantics { contentDescription = "Play " + track.title }.clickable(onClick = onPlay).padding(horizontal = 18.dp, vertical = 8.dp),
@@ -654,7 +830,19 @@ private fun TrackRow(
         Artwork(track, Modifier.size(56.dp))
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
             Text(track.title, color = SpotText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(track.subtitle, color = SpotMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    track.artist,
+                    color = SpotMuted,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.clickable(onClick = onArtist),
+                )
+                if (track.album.isNotBlank()) {
+                    Text(" · " + track.album, color = SpotMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
         }
         IconButton(onClick = onToggleLike) {
             Icon(
@@ -728,6 +916,7 @@ private fun NowPlaying(
     onToggleLike: () -> Unit,
     onSignIn: () -> Unit,
     lyricsRepository: LyricsRepository,
+    onArtist: (String) -> Unit,
     onClose: () -> Unit,
 ) {
     val track = player.currentTrack ?: return
@@ -759,7 +948,12 @@ private fun NowPlaying(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(track.title, color = SpotText, fontSize = 23.sp, fontWeight = FontWeight.Black, maxLines = 2)
-                Text(track.artist, color = SpotMuted, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
+                Text(
+                    track.artist,
+                    color = SpotMuted,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(top = 4.dp).clickable { onArtist(track.artist) },
+                )
             }
             IconButton(onClick = onToggleLike) {
                 Icon(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, "Like", tint = if (liked) SpotGreen else SpotText)
