@@ -41,6 +41,10 @@ class SourceSearchPagerTest {
             listOf("extension", "extension", "extension"),
             second.items.map { it.ref.sourceId },
         )
+        assertEquals(
+            listOf("state-one", "state-two", "state-three"),
+            second.items.map { it.sourceState },
+        )
     }
 
     @Test
@@ -108,6 +112,7 @@ class SourceSearchPagerTest {
         private fun item(sourceId: String, animeId: String) = AnimeSearchResult(
             ref = AnimeRef(sourceId, animeId),
             title = animeId,
+            sourceState = "state-" + animeId,
         )
     }
 }

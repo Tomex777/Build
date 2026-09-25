@@ -198,4 +198,29 @@ class GlobalAnimeSearchTest {
         override suspend fun resolve(episode: EpisodeRef): List<ResolvedMedia> =
             error("Not used by this test")
     }
+    @Test
+    fun globalSearchPreservesOpaqueSourceStateWhileNormalizingIdentity() = runBlocking {
+        val source = FakeSource(
+            id = "extension",
+            name = "Extension",
+            delayMillis = 0,
+            results = listOf(
+                AnimeSearchResult(
+                    ref = AnimeRef("wrong-source-id", "anime-1"),
+                    title = "Stateful",
+                    sourceState = """{"memo":{"token":"global"}}""",
+                ),
+            ),
+        )
+
+        val final = GlobalAnimeSearch(
+            NamiSourceRegistry { listOf(source) },
+        ).search("stateful")
+
+        val item = final.resultsBySource.getValue("extension").single()
+        assertEquals("extension", item.ref.sourceId)
+        assertEquals("""{"memo":{"token":"global"}}""", item.sourceState)
+    }
+
+
 }
