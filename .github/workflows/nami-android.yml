@@ -292,7 +292,7 @@ jobs:
             nami-api26-logcat.txt
           if-no-files-found: ignore
 
-kayo-real-source-smoke:
+  kayo-real-source-smoke:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 50
