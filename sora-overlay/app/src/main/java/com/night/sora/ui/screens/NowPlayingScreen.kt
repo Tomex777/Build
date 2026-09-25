@@ -1,8 +1,11 @@
 package com.night.sora.ui.screens
 
 import android.content.Intent
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,6 +21,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -61,16 +72,6 @@ fun NowPlayingScreen(
     val progress = if (player.durationMs > 0L) {
         (player.positionMs.toFloat() / player.durationMs.toFloat()).coerceIn(0f, 1f)
     } else 0f
-    var scrubbing by remember(track.id) { mutableStateOf(false) }
-    var scrubPreview by remember(track.id) { mutableFloatStateOf(progress) }
-    val easedProgress by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = tween(durationMillis = 260, easing = LinearEasing),
-        label = "music-progress",
-    )
-    LaunchedEffect(progress, scrubbing) {
-        if (!scrubbing) scrubPreview = progress
-    }
     val saved = isSaved(track)
 
     Column(
@@ -140,22 +141,11 @@ fun NowPlayingScreen(
         }
 
         Spacer(Modifier.height(18.dp))
-        Slider(
-            value = if (scrubbing) scrubPreview else easedProgress,
-            onValueChange = {
-                scrubbing = true
-                scrubPreview = it
-            },
-            onValueChangeFinished = {
-                player.seekToFraction(scrubPreview)
-                scrubbing = false
-            },
+        MusicSeekBar(
+            progress = progress,
+            durationMs = player.durationMs,
             enabled = player.durationMs > 0L,
-            colors = SliderDefaults.colors(
-                thumbColor = SoraAccent,
-                activeTrackColor = SoraAccent,
-                inactiveTrackColor = SoraSurfaceRaised,
-            ),
+            onSeek = player::seekToFraction,
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(formatMusicTime(player.positionMs), color = SoraMuted, fontSize = 9.sp)
@@ -288,6 +278,97 @@ fun NowPlayingScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MusicSeekBar(
+    progress: Float,
+    durationMs: Long,
+    enabled: Boolean,
+    onSeek: (Float) -> Unit,
+) {
+    var dragging by remember { mutableStateOf(false) }
+    var previewActive by remember { mutableStateOf(false) }
+    var preview by remember { mutableFloatStateOf(progress) }
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(durationMillis = 280, easing = LinearEasing),
+        label = "music-progress",
+    )
+    LaunchedEffect(progress) {
+        if (!dragging) {
+            preview = progress
+            previewActive = false
+        }
+    }
+    val displayedProgress = (if (dragging || previewActive) preview else animatedProgress).coerceIn(0f, 1f)
+
+    Canvas(
+        Modifier.fillMaxWidth()
+            .height(40.dp)
+            .semantics {
+                contentDescription = "Playback position"
+                stateDescription = "${formatMusicTime((durationMs * displayedProgress).toLong())} of ${formatMusicTime(durationMs)}"
+                progressBarRangeInfo = ProgressBarRangeInfo(displayedProgress, 0f..1f)
+            }
+            .pointerInput(enabled, onSeek) {
+                detectTapGestures { point ->
+                    if (enabled && size.width > 0) {
+                        preview = (point.x / size.width).coerceIn(0f, 1f)
+                        previewActive = true
+                        onSeek(preview)
+                    }
+                }
+            }
+            .pointerInput(enabled, onSeek) {
+                detectDragGestures(
+                    onDragStart = { point ->
+                        if (enabled && size.width > 0) {
+                            dragging = true
+                            previewActive = false
+                            preview = (point.x / size.width).coerceIn(0f, 1f)
+                        }
+                    },
+                    onDragEnd = {
+                        dragging = false
+                        previewActive = true
+                        onSeek(preview)
+                    },
+                    onDragCancel = { dragging = false },
+                    onDrag = { change, _ ->
+                        change.consume()
+                        if (enabled && size.width > 0) {
+                            preview = (change.position.x / size.width).coerceIn(0f, 1f)
+                        }
+                    },
+                )
+            },
+    ) {
+        val radius = 6.dp.toPx()
+        val centerY = size.height / 2f
+        val startX = radius
+        val endX = (size.width - radius).coerceAtLeast(startX)
+        val thumbX = startX + (endX - startX) * displayedProgress
+        val center = Offset(thumbX, centerY)
+        drawLine(
+            color = SoraSurfaceRaised,
+            start = Offset(startX, centerY),
+            end = Offset(endX, centerY),
+            strokeWidth = 4.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        if (displayedProgress > 0f) {
+            drawLine(
+                color = SoraAccent,
+                start = Offset(startX, centerY),
+                end = center,
+                strokeWidth = 4.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+        }
+        if (dragging) drawCircle(SoraAccent.copy(alpha = .22f), radius = radius * 2.1f, center = center)
+        drawCircle(SoraAccent, radius = radius, center = center)
     }
 }
 
