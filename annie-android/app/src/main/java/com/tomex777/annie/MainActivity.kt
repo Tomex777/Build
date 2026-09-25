@@ -509,7 +509,13 @@ internal fun AnnieChat() {
     }
 }
 
-private fun launchPlayer(context: Context, item: CatalogItem, mediaUri: String? = null, mode: PlayerMode = PlayerMode.STREAMING) {
+private fun launchPlayer(
+    context: Context,
+    item: CatalogItem,
+    mediaUri: String? = null,
+    mode: PlayerMode = PlayerMode.STREAMING,
+    videoConfigJson: String? = null,
+) {
     context.startActivity(
         Intent(context, AnniePlayerActivity::class.java)
             .putExtra(AnniePlayerActivity.EXTRA_ID, item.id)
@@ -518,7 +524,8 @@ private fun launchPlayer(context: Context, item: CatalogItem, mediaUri: String? 
             .putExtra(AnniePlayerActivity.EXTRA_IMAGE, item.image)
             .putExtra(AnniePlayerActivity.EXTRA_YEAR, item.year ?: -1)
             .putExtra(AnniePlayerActivity.EXTRA_MODE, mode.name)
-            .putExtra(AnniePlayerActivity.EXTRA_MEDIA_URI, mediaUri),
+            .putExtra(AnniePlayerActivity.EXTRA_MEDIA_URI, mediaUri)
+            .putExtra(AnniePlayerActivity.EXTRA_VIDEO_CONFIG, videoConfigJson),
     )
 }
 
@@ -888,7 +895,7 @@ private fun ScriptVideoMessage(data: org.json.JSONObject) {
         Box(Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF030811))
             .clickable(enabled = uri != null) {
                 val item = CatalogItem(0, "VIDEO", title, data.optString("thumbnail"), null, "", null, null)
-                launchPlayer(context, item, uri)
+                launchPlayer(context, item, uri, videoConfigJson = data.toString())
             }, contentAlignment = Alignment.Center) {
             AsyncImage(model = data.optString("thumbnail").takeIf(String::isNotBlank), contentDescription = title,
                 contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
