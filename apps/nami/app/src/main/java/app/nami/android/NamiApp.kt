@@ -285,7 +285,15 @@ private fun GlobalSearchHome(
                 Column {
                     OutlinedTextField(
                         value = query,
-                        onValueChange = { query = it },
+                        onValueChange = { value ->
+                            query = value
+                            if (value.isBlank()) {
+                                searchJob?.cancel()
+                                searchJob = null
+                                searchState = GlobalSearchState()
+                                hasSearched = false
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp, vertical = 8.dp),
