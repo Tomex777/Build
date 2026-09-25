@@ -38,7 +38,7 @@ class NamiUiScreenshotTest {
         waitForAnimeCard(TARGET_ANIME, timeoutMillis = 150_000)
         capture("03-search-results-bleach.png")
 
-        composeRule.onNodeWithContentDescription("Open anime: $TARGET_ANIME").performClick()
+        composeRule.onAllNodesWithContentDescription("Open anime: $TARGET_ANIME")[0].performClick()
         waitForText("Episodes", timeoutMillis = 120_000)
         capture("04-anime-details.png")
 
@@ -191,8 +191,7 @@ class NamiUiScreenshotTest {
 
     private fun capture(name: String) {
         composeRule.waitForIdle()
-        val root = composeRule.activity.getExternalFilesDir(null)
-            ?: error("Nami external files directory is unavailable")
+        val root = InstrumentationRegistry.getInstrumentation().context.filesDir
         val directory = File(root, "nami-screenshots")
         assertTrue(
             "Could not create screenshot directory",
