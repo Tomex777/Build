@@ -31,6 +31,12 @@ internal data class NamiVlcState(
 )
 
 internal class NamiVlcPlayer(context: Context) {
+    private companion object {
+        // libVLC media-slave ABI: subtitle=0, generic/audio=1.
+        const val SLAVE_TYPE_SUBTITLE = 0
+        const val SLAVE_TYPE_AUDIO = 1
+    }
+
     private val libVlc = LibVLC(
         context.applicationContext,
         arrayListOf("--audio-time-stretch", "--network-caching=2500"),
@@ -176,7 +182,7 @@ internal class NamiVlcPlayer(context: Context) {
 
     fun addExternalSubtitle(uri: String): Boolean {
         if (uri.isBlank()) return false
-        val added = player.addSlave(Media.Slave.Type.Subtitle, Uri.parse(uri), true)
+        val added = player.addSlave(SLAVE_TYPE_SUBTITLE, Uri.parse(uri), true)
         if (added) refreshTracks()
         return added
     }
@@ -188,7 +194,7 @@ internal class NamiVlcPlayer(context: Context) {
 
     fun addExternalAudio(uri: String): Boolean {
         if (uri.isBlank()) return false
-        val added = player.addSlave(Media.Slave.Type.Audio, Uri.parse(uri), true)
+        val added = player.addSlave(SLAVE_TYPE_AUDIO, Uri.parse(uri), true)
         if (added) refreshTracks()
         return added
     }
