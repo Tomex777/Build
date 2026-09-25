@@ -33,7 +33,11 @@ interface MusicSource {
     suspend fun suggestions(query: String): Result<List<String>>
     suspend fun artist(query: String, artistId: String? = null): Result<ArtistCatalog>
     suspend fun album(query: String, albumId: String? = null): Result<AlbumCatalog>
-    suspend fun resolve(track: Track): Result<ResolvedAudio>
+    suspend fun resolveCandidates(track: Track): Result<List<ResolvedAudio>>
+    suspend fun resolve(track: Track): Result<ResolvedAudio> =
+        resolveCandidates(track).map { candidates ->
+            candidates.firstOrNull() ?: error("No playable audio stream")
+        }
     suspend fun browserSession(): Result<BrowserSessionSpec>
     suspend fun storeBrowserSession(
         cookieHeader: String,
@@ -120,7 +124,7 @@ class ExtensionMusicSource(context: Context) : MusicSource {
         parseAlbum(JSONObject(raw))
     }
 
-    override suspend fun resolve(track: Track): Result<ResolvedAudio> = runCatching {
+    override suspend fun resolveCandidates(track: Track): Result<List<ResolvedAudio>> = runCatching {
         val target = target()
         val raw = call(
             target.component,
@@ -134,31 +138,38 @@ class ExtensionMusicSource(context: Context) : MusicSource {
         val candidates = (0 until array.length())
             .mapNotNull(array::optJSONObject)
             .filter { it.optString("url").startsWith("http") }
-        val item = candidates.firstOrNull {
-            val mime = it.optString("mimeType")
-            mime.contains("mp4", ignoreCase = true) || mime.contains("aac", ignoreCase = true)
-        } ?: candidates.firstOrNull()
-            ?: error("${target.name} returned no playable audio stream")
-
-        val headers = buildMap {
-            val objectHeaders = item.optJSONObject("headers")
-            if (objectHeaders != null) {
-                val keys = objectHeaders.keys()
-                while (keys.hasNext()) {
-                    val key = keys.next()
-                    objectHeaders.optString(key)
-                        .takeIf(String::isNotBlank)
-                        ?.let { put(key, it) }
+            .map { item ->
+                val headers = buildMap {
+                    val objectHeaders = item.optJSONObject("headers")
+                    if (objectHeaders != null) {
+                        val keys = objectHeaders.keys()
+                        while (keys.hasNext()) {
+                            val key = keys.next()
+                            objectHeaders.optString(key)
+                                .takeIf(String::isNotBlank)
+                                ?.let { put(key, it) }
+                        }
+                    }
                 }
+                ResolvedAudio(
+                    url = item.getString("url"),
+                    label = item.optString("label", "Audio"),
+                    mimeType = item.optString("mimeType").takeIf(String::isNotBlank),
+                    headers = headers,
+                )
             }
-        }
+            .sortedWith(
+                compareByDescending<ResolvedAudio> {
+                    val mime = it.mimeType.orEmpty()
+                    mime.contains("mp4", true) || mime.contains("aac", true)
+                }.thenByDescending {
+                    Regex("""(\d+)\s*kbps""", RegexOption.IGNORE_CASE)
+                        .find(it.label)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
+                }
+            )
 
-        ResolvedAudio(
-            url = item.getString("url"),
-            label = item.optString("label", "Audio"),
-            mimeType = item.optString("mimeType").takeIf(String::isNotBlank),
-            headers = headers,
-        )
+        if (candidates.isEmpty()) error("${target.name} returned no playable audio stream")
+        candidates
     }
 
     override suspend fun browserSession(): Result<BrowserSessionSpec> = runCatching {
