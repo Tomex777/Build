@@ -47,8 +47,9 @@ object YouTubeMusicBrowseApi {
     }
 
     suspend fun artist(query: String, requestedId: String?): String = withContext(Dispatchers.IO) {
-        val artist = resolveArtist(query, requestedId)
-        val root = browse(artist.id)
+        val artist = if (requestedId.isNullOrBlank()) resolveArtist(query) else null
+        val artistId = requestedId?.takeIf(String::isNotBlank) ?: artist?.id ?: error("Artist not found")
+        val root = browse(artistId)
         val songObjects = LinkedHashMap<String, JSONObject>()
         collectSongs(root).forEach { songObjects[it.getString("id")] = it }
 
@@ -76,48 +77,45 @@ object YouTubeMusicBrowseApi {
         }
 
         JSONObject()
-            .put("id", artist.id)
-            .put("name", artist.title)
-            .put("artworkUrl", artist.thumbnail.orEmpty())
+            .put("id", artistId)
+            .put("name", headerTitle(root).ifBlank { artist?.title ?: query })
+            .put("artworkUrl", headerArtwork(root).ifBlank { artist?.thumbnail.orEmpty() })
             .put("songs", JSONArray(songObjects.values.toList()))
             .put("releases", JSONArray(releases.values.toList()))
             .toString()
     }
 
     suspend fun album(query: String, requestedId: String?): String = withContext(Dispatchers.IO) {
-        val album = resolveAlbum(query, requestedId)
-        val root = browse(album.id)
+        val album = if (requestedId.isNullOrBlank()) resolveAlbum(query) else null
+        val albumId = requestedId?.takeIf(String::isNotBlank) ?: album?.id ?: error("Album not found")
+        val root = browse(albumId)
         val songs = collectSongs(root)
 
         JSONObject()
-            .put("id", album.id)
-            .put("title", headerTitle(root).ifBlank { album.title })
+            .put("id", albumId)
+            .put("title", headerTitle(root).ifBlank { album?.title ?: query })
             .put("artist", headerArtist(root).ifBlank {
-                album.artists?.joinToString(", ") { it.name }.orEmpty()
+                album?.artists?.joinToString(", ") { it.name }.orEmpty()
             })
-            .put("artistId", album.artists?.firstOrNull()?.id.orEmpty())
-            .put("year", album.year ?: headerYear(root))
-            .put("artworkUrl", headerArtwork(root).ifBlank { album.thumbnail })
+            .put("artistId", album?.artists?.firstOrNull()?.id.orEmpty())
+            .put("year", album?.year ?: headerYear(root))
+            .put("artworkUrl", headerArtwork(root).ifBlank { album?.thumbnail.orEmpty() })
             .put("songs", JSONArray(songs))
             .toString()
     }
 
-    private suspend fun resolveArtist(query: String, requestedId: String?): ArtistItem {
-        val id = requestedId?.takeIf(String::isNotBlank)
+    private suspend fun resolveArtist(query: String): ArtistItem {
         val result = YouTube.search(query.ifBlank { "artist" }, YouTube.SearchFilter(ARTIST_FILTER)).getOrThrow()
         val items = result.items.filterIsInstance<ArtistItem>()
-        return items.firstOrNull { id != null && it.id == id }
-            ?: items.firstOrNull { it.title.equals(query, ignoreCase = true) }
+        return items.firstOrNull { it.title.equals(query, ignoreCase = true) }
             ?: items.firstOrNull()
             ?: error("Artist not found")
     }
 
-    private suspend fun resolveAlbum(query: String, requestedId: String?): AlbumItem {
-        val id = requestedId?.takeIf(String::isNotBlank)
+    private suspend fun resolveAlbum(query: String): AlbumItem {
         val result = YouTube.search(query.ifBlank { "album" }, YouTube.SearchFilter(ALBUM_FILTER)).getOrThrow()
         val items = result.items.filterIsInstance<AlbumItem>()
-        return items.firstOrNull { id != null && it.id == id }
-            ?: items.firstOrNull { it.title.equals(query, ignoreCase = true) }
+        return items.firstOrNull { it.title.equals(query, ignoreCase = true) }
             ?: items.firstOrNull()
             ?: error("Album not found")
     }
