@@ -324,8 +324,9 @@ internal fun AnnieChat() {
             "/downloads" -> openDownloads()
             "/continue" -> addAnnie("Nothing to continue watching yet.", menuTitle = "Continue watching")
             "/extensions", "/settings" -> openCategory("Extensions")
-            "/help" -> addAnnie("Try /anime, /movie, /tv, /manga, /music, /downloads, or /extensions.")
-            else -> addAnnie("Try a slash command: /anime, /movie, /tv, /manga, /music, or /downloads.")
+            "/scripts" -> activeSheet = "Scripts"
+            "/help" -> addAnnie("Try /anime, /movie, /tv, /manga, /music, /downloads, /scripts, or /extensions.")
+            else -> addAnnie("Try a slash command: /anime, /movie, /tv, /manga, /music, /downloads, or /scripts.")
         }
     }
 
@@ -410,6 +411,11 @@ internal fun AnnieChat() {
                     onExtensions = {
                         activeSheet = "Extensions"
                     },
+                )
+            } else if (category == "Scripts") {
+                ScriptStudioSheet(
+                    workspace = scriptWorkspace,
+                    onCommandsReloaded = { commands -> scriptCommands = commands },
                 )
             } else if (category.startsWith("Downloads:")) {
                 DownloadsManagerContent(
@@ -1356,6 +1362,7 @@ internal fun CommandSuggestions(value: String, onSelect: (String) -> Unit, scrip
         "/music" to "Music",
         "/continue" to "Continue watching",
         "/downloads" to "Downloads",
+        "/scripts" to "JavaScript projects",
         "/extensions" to "Extensions",
         "/help" to "Help"
     ) + scriptCommands.map { "/${it.name}" to it.description.ifBlank { "JavaScript command" } }
