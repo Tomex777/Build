@@ -3,7 +3,6 @@ package com.tomex777.annie
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.content.pm.ActivityInfo
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -55,22 +54,20 @@ internal fun MediaPlayerScreen(
     mode: PlayerMode,
     sourceAvailable: Boolean,
     onBack: () -> Unit,
+    immersive: Boolean = true,
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
     val view = LocalView.current
-    val previousOrientation = remember(activity) {
-        activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-    }
     BackHandler(onBack = onBack)
-    DisposableEffect(activity, view) {
-        val controller = activity?.window?.let { WindowCompat.getInsetsController(it, view) }
-        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-        controller?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        controller?.hide(WindowInsetsCompat.Type.systemBars())
+    DisposableEffect(activity, view, immersive) {
+        val controller = if (immersive) activity?.window?.let { WindowCompat.getInsetsController(it, view) } else null
+        if (immersive) {
+            controller?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller?.hide(WindowInsetsCompat.Type.systemBars())
+        }
         onDispose {
-            controller?.show(WindowInsetsCompat.Type.systemBars())
-            activity?.requestedOrientation = previousOrientation
+            if (immersive) controller?.show(WindowInsetsCompat.Type.systemBars())
         }
     }
 
@@ -188,7 +185,7 @@ private fun PlayerTextButton(
     }
 }
 
-private tailrec fun Context.findActivity(): Activity? = when (this) {
+internal tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null

@@ -6,8 +6,8 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -22,7 +22,7 @@ class PlayerScreenTest {
 
     @Test fun streamingPlayerShowsLandscapeControlsAndUnavailableSourceState() {
         compose.setContent {
-            MediaPlayerScreen(item, PlayerMode.STREAMING, sourceAvailable = false, onBack = {})
+            MediaPlayerScreen(item, PlayerMode.STREAMING, sourceAvailable = false, onBack = {}, immersive = false)
         }
         compose.onNodeWithTag("media_player").assertIsDisplayed()
         compose.onNodeWithText("Blue Abroad Days").assertIsDisplayed()
@@ -35,7 +35,7 @@ class PlayerScreenTest {
 
     @Test fun streamingPlayerEnablesTransportAndPlaybackControlsWhenSourceExists() {
         compose.setContent {
-            MediaPlayerScreen(item, PlayerMode.STREAMING, sourceAvailable = true, onBack = {})
+            MediaPlayerScreen(item, PlayerMode.STREAMING, sourceAvailable = true, onBack = {}, immersive = false)
         }
         compose.onNodeWithTag("player_cast").assertIsEnabled()
         compose.onNodeWithTag("player_quality").assertIsEnabled()
@@ -46,7 +46,7 @@ class PlayerScreenTest {
 
     @Test fun offlinePlayerDisablesStreamingOnlyControls() {
         compose.setContent {
-            MediaPlayerScreen(item, PlayerMode.OFFLINE, sourceAvailable = true, onBack = {})
+            MediaPlayerScreen(item, PlayerMode.OFFLINE, sourceAvailable = true, onBack = {}, immersive = false)
         }
         compose.onNodeWithText("OFFLINE").assertIsDisplayed()
         assertTrue(compose.onAllNodesWithText("No offline video file is available for this title.").fetchSemanticsNodes().isEmpty())

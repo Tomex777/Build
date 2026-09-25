@@ -1,6 +1,7 @@
 package com.tomex777.annie
 
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -50,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -126,6 +128,7 @@ internal data class ChatEntry(
 @Composable
 internal fun AnnieChat() {
     val context = LocalContext.current
+    val activity = remember(context) { context.findActivity() }
     val chats = remember {
         mutableStateListOf<ChatSession>().apply {
             addAll(ChatHistoryStore.read(context))
@@ -150,6 +153,13 @@ internal fun AnnieChat() {
         if (messages.size > 1) listState.animateScrollToItem(messages.lastIndex)
     }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    DisposableEffect(playerItem, activity) {
+        val previousOrientation = activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        if (playerItem != null) activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        onDispose {
+            if (playerItem != null) activity?.requestedOrientation = previousOrientation
+        }
+    }
 
     fun persistHistory() {
         val activeIndex = chats.indexOfFirst { it.id == activeChatId }
