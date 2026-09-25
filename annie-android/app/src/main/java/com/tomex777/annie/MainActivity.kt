@@ -63,6 +63,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -766,7 +767,14 @@ internal fun ChatBubble(
 @Composable
 private fun ScriptMessageCard(payload: String, onAction: (String, String) -> Unit) {
     val data = remember(payload) { runCatching { org.json.JSONObject(payload) }.getOrNull() }
-    val type = data?.optString("type").orEmpty()
+        ?: run {
+            Surface(color = Bubble, shape = RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)) {
+                Text("Script response could not be read.", color = SoftText,
+                    fontSize = 15.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp))
+            }
+            return
+        }
+    val type = data.optString("type")
     when (type) {
         "image" -> ScriptImageMessage(data)
         "music" -> ScriptMusicMessage(data)
@@ -775,7 +783,7 @@ private fun ScriptMessageCard(payload: String, onAction: (String, String) -> Uni
         "progress" -> ScriptProgressMessage(data)
         "text" -> Text(data.optString("text"), color = BrightText, fontSize = 15.sp)
         else -> Surface(color = Bubble, shape = RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)) {
-            Text(data?.optString("text")?.takeIf(String::isNotBlank) ?: "Script response", color = BrightText,
+            Text(data.optString("text").takeIf(String::isNotBlank) ?: "Script response", color = BrightText,
                 fontSize = 15.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp))
         }
     }
