@@ -214,6 +214,7 @@ internal class ScriptFiles(context: Context) {
     fun renameFile(projectId: String, relativePath: String, newRelativePath: String): String {
         val project = resolveProjectContainer(projectId)
         require(project.isDirectory) { "Rename the standalone project instead" }
+        require(relativePath != "main.js") { "main.js is the folder entry point and cannot be moved" }
         val source = resolveProjectFile(projectId, relativePath)
         require(source.isFile) { "Script file does not exist" }
         val safeTarget = validateRelativeJsPath(newRelativePath)
