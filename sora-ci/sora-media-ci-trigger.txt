@@ -23,3 +23,6 @@ rerun 42 - verify chapter-top navigation with seeded Bible cache
 rerun 43 - rerun hub with the corrected seeded Bible smoke script
 rerun 44 - verify chapter-top navigation with run-as cache fixture
 rerun 45 - check deterministic Bible cache reaches app preferences
+
+
+rerun 46 - assert Bible chapter Next resets from a scrolled prior chapter
