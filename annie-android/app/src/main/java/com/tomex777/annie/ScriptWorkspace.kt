@@ -336,6 +336,35 @@ internal class ScriptRuntime(
             val fen = args.firstOrNull()?.toString().orEmpty()
             ChessBoardRenderer.render(context, fen)
         }
+        runtime.function("annieFileReadText") { args ->
+            val path = args.firstOrNull()?.toString().orEmpty()
+            val file = resolveDataFile(path, allowMissing = false)
+            require(file.isFile) { "Script data file does not exist" }
+            require(file.length() <= MAX_SCRIPT_DATA_FILE_BYTES) { "Script data file is too large" }
+            file.readText()
+        }
+        runtime.function("annieFileWriteText") { args ->
+            val path = args.getOrNull(0)?.toString().orEmpty()
+            val text = args.getOrNull(1)?.toString().orEmpty()
+            require(text.toByteArray().size <= MAX_SCRIPT_DATA_FILE_BYTES) { "Script data file is too large" }
+            val file = resolveDataFile(path, allowMissing = true)
+            file.parentFile?.mkdirs()
+            file.writeText(text)
+            file.length()
+        }
+        runtime.function("annieFileDelete") { args ->
+            val path = args.firstOrNull()?.toString().orEmpty()
+            val file = resolveDataFile(path, allowMissing = false)
+            if (file.isDirectory) file.deleteRecursively() else file.delete()
+        }
+        runtime.function("annieFileList") { args ->
+            val path = args.firstOrNull()?.toString().orEmpty()
+            val directory = if (path.isBlank()) scriptDataRoot() else resolveDataFile(path, allowMissing = false)
+            require(directory.isDirectory) { "Script data path is not a directory" }
+            directory.listFiles().orEmpty().sortedBy { it.name.lowercase() }.map {
+                mapOf("name" to it.name, "directory" to it.isDirectory, "size" to if (it.isFile) it.length() else 0L)
+            }
+        }
         runtime.asyncFunction("annieHttpRequest") { args ->
             val request = JSONObject(args.firstOrNull() as? String ?: "{}")
             requestHttp(request)
@@ -396,6 +425,20 @@ internal class ScriptRuntime(
 
     override fun close() { runtime.close() }
 
+    private fun scriptDataRoot(): File =
+        File(context.filesDir, "annie-script-data/${project.id}").canonicalFile.apply { mkdirs() }
+
+    private fun resolveDataFile(relativePath: String, allowMissing: Boolean): File {
+        val normalized = relativePath.trim().replace('\\', '/').removePrefix("/")
+        require(normalized.isNotBlank()) { "Script data path is required" }
+        require(!normalized.split('/').any { it == ".." || it.isBlank() }) { "Invalid script data path" }
+        val root = scriptDataRoot()
+        val file = File(root, normalized).canonicalFile
+        require(file.toPath().startsWith(root.toPath())) { "Script data path escapes sandbox" }
+        if (!allowMissing) require(file.exists()) { "Script data path does not exist" }
+        return file
+    }
+
     private suspend fun requestHttp(request: JSONObject): Map<String, Any?> = withContext(Dispatchers.IO) {
         val address = request.optString("url")
         val url = URL(address)
@@ -442,6 +485,7 @@ internal class ScriptRuntime(
 
     companion object {
         private const val MAX_RUNTIME_BYTES = 32L * 1024L * 1024L
+        private const val MAX_SCRIPT_DATA_FILE_BYTES = 2L * 1024L * 1024L
         private const val EVALUATION_TIMEOUT_MS = 8_000L
         private const val DEFAULT_HTTP_TIMEOUT_MS = 20_000
         private const val MAX_HTTP_TIMEOUT_MS = 120_000
@@ -483,6 +527,20 @@ internal class ScriptRuntime(
             |  }},
             |  http: { request: request => annieHttpRequest(JSON.stringify(request)) },
             |  image: { chess: fen => annieRenderChess(String(fen)) },
+            |  files: {
+            |    readText: path => annieFileReadText(String(path)),
+            |    writeText: (path, text) => annieFileWriteText(String(path), String(text)),
+            |    delete: path => annieFileDelete(String(path)),
+            |    list: (path = "") => annieFileList(String(path))
+            |  },
+            |  messages: {
+            |    text: text => ({type: "text", text: String(text)}),
+            |    image: value => Object.assign({type: "image"}, value || {}),
+            |    music: value => Object.assign({type: "music"}, value || {}),
+            |    video: value => Object.assign({type: "video"}, value || {}),
+            |    options: value => Object.assign({type: "options"}, value || {}),
+            |    progress: value => Object.assign({type: "progress"}, value || {})
+            |  },
             |  storage: {
             |    get: key => { const raw = annieStoreGet(String(key)); return raw == null ? null : JSON.parse(raw); },
             |    set: (key, value) => annieStoreSet(String(key), JSON.stringify(value))
