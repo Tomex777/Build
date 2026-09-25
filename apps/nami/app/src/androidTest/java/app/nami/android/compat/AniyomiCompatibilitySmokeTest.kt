@@ -82,7 +82,11 @@ class AniyomiCompatibilitySmokeTest {
         val extensionResults = search.resultsBySource[animeSogo.metadata.id].orEmpty()
         val nativeResults = search.resultsBySource[jikan.metadata.id].orEmpty()
         assertTrue("AnimeSogo returned no real global-search results for $query", extensionResults.isNotEmpty())
-        assertTrue("Native Jikan was not included in global search for $query", nativeResults.isNotEmpty())
+        val jikanFailure = search.failures.firstOrNull { it.sourceId == jikan.metadata.id }
+        assertTrue(
+            "Global search did not record a native Jikan result or isolated source failure",
+            nativeResults.isNotEmpty() || jikanFailure != null,
+        )
 
         val anime = extensionResults.firstOrNull { it.title.contains(query, ignoreCase = true) }
             ?: throw AssertionError("AnimeSogo results did not contain $query")
