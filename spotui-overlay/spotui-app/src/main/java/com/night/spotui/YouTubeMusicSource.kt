@@ -30,6 +30,9 @@ interface MusicSource {
     val name: String
     suspend fun home(): Result<List<Track>>
     suspend fun search(query: String): Result<List<Track>>
+    suspend fun suggestions(query: String): Result<List<String>>
+    suspend fun artist(query: String, artistId: String? = null): Result<ArtistCatalog>
+    suspend fun album(query: String, albumId: String? = null): Result<AlbumCatalog>
     suspend fun resolve(track: Track): Result<ResolvedAudio>
     suspend fun browserSession(): Result<BrowserSessionSpec>
     suspend fun storeBrowserSession(
@@ -72,6 +75,49 @@ class ExtensionMusicSource(context: Context) : MusicSource {
                     .put("query", query),
             ).getOrThrow()
         )
+    }
+
+    override suspend fun suggestions(query: String): Result<List<String>> = runCatching {
+        val target = target()
+        val raw = call(
+            target.component,
+            MusicSourceContract.Method.SUGGESTIONS,
+            JSONObject()
+                .put("sourceId", target.sourceId)
+                .put("query", query),
+        ).getOrThrow()
+        val array = JSONArray(raw)
+        buildList {
+            for (index in 0 until array.length()) {
+                array.optString(index).trim().takeIf(String::isNotBlank)?.let(::add)
+            }
+        }
+    }
+
+    override suspend fun artist(query: String, artistId: String?): Result<ArtistCatalog> = runCatching {
+        val target = target()
+        val raw = call(
+            target.component,
+            MusicSourceContract.Method.ARTIST,
+            JSONObject()
+                .put("sourceId", target.sourceId)
+                .put("query", query)
+                .put("artistId", artistId.orEmpty()),
+        ).getOrThrow()
+        parseArtist(JSONObject(raw))
+    }
+
+    override suspend fun album(query: String, albumId: String?): Result<AlbumCatalog> = runCatching {
+        val target = target()
+        val raw = call(
+            target.component,
+            MusicSourceContract.Method.ALBUM,
+            JSONObject()
+                .put("sourceId", target.sourceId)
+                .put("query", query)
+                .put("albumId", albumId.orEmpty()),
+        ).getOrThrow()
+        parseAlbum(JSONObject(raw))
     }
 
     override suspend fun resolve(track: Track): Result<ResolvedAudio> = runCatching {
@@ -375,9 +421,12 @@ class ExtensionMusicSource(context: Context) : MusicSource {
                     Track(
                         id = id,
                         title = title,
-                        artist = parts.getOrNull(0).orEmpty()
-                            .ifBlank { name },
-                        album = parts.getOrNull(1).orEmpty(),
+                        artist = item.optString("artist").ifBlank {
+                            parts.getOrNull(0).orEmpty().ifBlank { name }
+                        },
+                        artistId = item.optString("artistId"),
+                        album = item.optString("album").ifBlank { parts.getOrNull(1).orEmpty() },
+                        albumId = item.optString("albumId"),
                         artworkUrl = item.optString("artworkUrl")
                             .takeIf(String::isNotBlank),
                         durationSeconds = item.optLong("durationSeconds"),
@@ -385,6 +434,66 @@ class ExtensionMusicSource(context: Context) : MusicSource {
                     )
                 )
             }
+        }
+    }
+
+    private fun parseArtist(root: JSONObject): ArtistCatalog = ArtistCatalog(
+        id = root.optString("id"),
+        name = root.optString("name"),
+        artworkUrl = root.optString("artworkUrl").takeIf(String::isNotBlank),
+        songs = parseTrackArray(root.optJSONArray("songs") ?: JSONArray()),
+        releases = parseAlbumSummaries(root.optJSONArray("releases") ?: JSONArray()),
+    )
+
+    private fun parseAlbum(root: JSONObject): AlbumCatalog = AlbumCatalog(
+        id = root.optString("id"),
+        title = root.optString("title"),
+        artist = root.optString("artist"),
+        artistId = root.optString("artistId"),
+        year = root.optInt("year"),
+        artworkUrl = root.optString("artworkUrl").takeIf(String::isNotBlank),
+        songs = parseTrackArray(root.optJSONArray("songs") ?: JSONArray()),
+    )
+
+    private fun parseTrackArray(array: JSONArray): List<Track> = buildList {
+        for (index in 0 until array.length()) {
+            val item = array.optJSONObject(index) ?: continue
+            val id = item.optString("id")
+            val title = item.optString("title")
+            if (id.isBlank() || title.isBlank()) continue
+            add(
+                Track(
+                    id = id,
+                    title = title,
+                    artist = item.optString("artist").ifBlank { name },
+                    artistId = item.optString("artistId"),
+                    album = item.optString("album"),
+                    albumId = item.optString("albumId"),
+                    artworkUrl = item.optString("artworkUrl").takeIf(String::isNotBlank),
+                    durationSeconds = item.optLong("durationSeconds"),
+                    explicit = item.optBoolean("explicit"),
+                )
+            )
+        }
+    }
+
+    private fun parseAlbumSummaries(array: JSONArray): List<AlbumSummary> = buildList {
+        for (index in 0 until array.length()) {
+            val item = array.optJSONObject(index) ?: continue
+            val id = item.optString("id")
+            val title = item.optString("title")
+            if (id.isBlank() || title.isBlank()) continue
+            add(
+                AlbumSummary(
+                    id = id,
+                    title = title,
+                    artist = item.optString("artist"),
+                    artistId = item.optString("artistId"),
+                    year = item.optInt("year"),
+                    type = item.optString("type", "Album"),
+                    artworkUrl = item.optString("artworkUrl").takeIf(String::isNotBlank),
+                )
+            )
         }
     }
 
