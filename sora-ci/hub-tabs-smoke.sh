@@ -97,7 +97,7 @@ wait_for() {
     sleep 1
   done
   shot "failure-$label"
-  adb logcat -d -t 600 | grep -Ei 'com\.night\.sora|AndroidRuntime|FATAL EXCEPTION' | tail -n 120 >&2 || true
+  adb logcat -d | grep -Ei 'SoraBible|com\.night\.sora|AndroidRuntime|FATAL EXCEPTION' | tail -n 160 >&2 || true
   echo "Timed out waiting for '$label'" >&2
   return 1
 }

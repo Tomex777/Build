@@ -42,3 +42,4 @@ rerun 52 - keep Bible API fixture alive through API 36 emulator reader test
 rerun 53 - use POSIX shell for Bible fixture inside API 36 emulator step
 rerun 54 - invoke Bible fixture emulator harness as a single script process
 rerun 55 - capture Bible request parsing and Compose load lifecycle in API 36 failure logs
+rerun 56 - retain complete filtered Bible trace on the next API 36 reader failure

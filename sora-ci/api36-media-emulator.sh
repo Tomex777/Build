@@ -13,7 +13,7 @@ finish_bible_fixture() {
     cat "$OUT" || true
     if command -v adb >/dev/null 2>&1; then
       echo 'Bible reader logcat:'
-      adb logcat -d -t 1500 2>/dev/null | grep -E 'SoraBible|AndroidRuntime|FATAL EXCEPTION' || true
+      adb logcat -d -s 'SoraBible:D' 'AndroidRuntime:E' 'System.err:E' '*:S' 2>/dev/null || true
     fi
   fi
   kill "$bible_fixture_pid" 2>/dev/null || true
