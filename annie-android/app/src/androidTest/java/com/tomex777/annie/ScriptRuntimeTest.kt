@@ -3,6 +3,8 @@ package com.tomex777.annie
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
+import android.net.Uri
+import java.io.File
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -19,6 +21,31 @@ class ScriptRuntimeTest {
             val response = JSONObject(workspace.execute("echo", "/echo hello from JavaScript", "test-chat", 42L))
             assertEquals("text", response.getString("type"))
             assertEquals("hello from JavaScript", response.getString("text"))
+        } finally {
+            workspace.close()
+        }
+    }
+
+    @Test fun chessScriptGeneratesPersistentImageAndHandlesPlainTextMove() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val chatId = "chess-proof-${System.nanoTime()}"
+        try {
+            val commands = workspace.reload()
+            assertTrue(commands.any { it.name == "chess" })
+
+            val opening = JSONObject(workspace.execute("chess", "/chess new", chatId, 60L))
+            assertEquals("image", opening.getString("type"))
+            val openingFile = File(requireNotNull(Uri.parse(opening.getString("uri")).path))
+            assertTrue("Generated opening board does not exist", openingFile.isFile && openingFile.length() > 10_000)
+
+            val response = workspace.executeSession("e4", chatId, 61L)
+            val board = JSONObject(response!!.resultJson)
+            assertEquals("image", board.getString("type"))
+            assertTrue(board.getString("caption").startsWith("Black played "))
+            val replyFile = File(requireNotNull(Uri.parse(board.getString("uri")).path))
+            assertTrue("Generated reply board does not exist", replyFile.isFile && replyFile.length() > 10_000)
+            assertTrue("Board image did not change after moves", opening.getString("uri") != board.getString("uri"))
         } finally {
             workspace.close()
         }
