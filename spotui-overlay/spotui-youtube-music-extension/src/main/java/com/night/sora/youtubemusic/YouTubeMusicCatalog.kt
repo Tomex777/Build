@@ -131,7 +131,10 @@ object YouTubeMusicCatalog {
 
     suspend fun browse(sourceId: String): String {
         requireSource(sourceId)
-        return search(sourceId, "top songs")
+        // Cold start should be broad rather than silently inheriting a
+        // region-specific chart. SpotUI's core replaces most of this lane with
+        // learned artist candidates as soon as the user searches/listens/likes.
+        return search(sourceId, "global hits")
     }
 
     suspend fun search(sourceId: String, query: String): String {
