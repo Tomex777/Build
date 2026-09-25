@@ -21,43 +21,12 @@ import org.junit.runner.RunWith
 class AniyomiCompatibilitySmokeTest {
 
     @Test
-    fun realAnimeSogoExtensionAndNativeJikanUseNamiContracts() = runBlocking<Unit> {
-        val context = ApplicationProvider.getApplicationContext<Context>()
+    fun nativeJikanSearchDetailsAndEpisodesUseNamiContracts() = runBlocking<Unit> {
         val start = System.nanoTime()
-        val installed = AniyomiExtensionRegistry(context).installedSources()
-
-        val animeSogo = installed.firstOrNull {
-            it.metadata.extensionPackage == "eu.kanade.tachiyomi.animeextension.en.animesogo"
-        }
-        assertNotNull("AnimeSogo v16.8 must be discovered from its installed APK", animeSogo)
-        animeSogo!!
-        assertEquals("16.8", animeSogo.metadata.extensionVersion)
-        assertEquals(16, animeSogo.metadata.extensionApiVersion)
-        println("NamiSourceSmoke: discovered ${installed.size} sources; v16=${animeSogo.metadata.id}")
-
         val jikan = JikanAnimeSource()
         val query = "Bleach"
-        println("NamiSourceSmoke: native Jikan search started separately")
         val nativeResults = withTimeout(60_000) { jikan.search(query).items }
         assertTrue("Jikan returned no real results for $query", nativeResults.isNotEmpty())
-
-        val anime = extensionResults.firstOrNull { it.title.contains(query, ignoreCase = true) }
-            ?: throw AssertionError("AnimeSogo results did not contain $query")
-        println("NamiSourceSmoke: AnimeSogo result selected: ${anime.title}; loading details")
-        val details = withTimeout(60_000) { animeSogo.details(anime.ref) }
-        println("NamiSourceSmoke: details loaded: ${details.title}; loading episodes")
-        assertTrue("Anime details title is empty", details.title.isNotBlank())
-
-        val episodes = withTimeout(60_000) { animeSogo.episodes(anime.ref) }
-        println("NamiSourceSmoke: episodes loaded: ${episodes.size}; resolving first three")
-        assertTrue("AnimeSogo returned no episodes", episodes.isNotEmpty())
-        var resolvedCount = 0
-        for (episode in episodes.take(3)) {
-            resolvedCount = withTimeout(60_000) { animeSogo.resolve(episode.ref).size }
-            if (resolvedCount > 0) break
-        }
-        assertTrue("AnimeSogo did not resolve a stream from the first three episodes", resolvedCount > 0)
-        println("NamiSourceSmoke: v16 resolved stream count=$resolvedCount")
 
         val nativeAnime = nativeResults.firstOrNull { it.title.contains(query, ignoreCase = true) }
             ?: throw AssertionError("Jikan results did not contain $query")
@@ -68,40 +37,80 @@ class AniyomiCompatibilitySmokeTest {
         assertTrue("Jikan details did not normalize into Nami models", nativeDetails.title.isNotBlank())
         assertTrue("Jikan did not return episode metadata", nativeEpisodes.isNotEmpty())
 
+        val elapsed = (System.nanoTime() - start) / 1_000_000
+        Log.i(
+            "NamiSourceSmoke",
+            "native=\${jikan.metadata.id} query=$query results=\${nativeResults.size} " +
+                "episodes=\${nativeEpisodes.size} elapsedMs=$elapsed",
+        )
+    }
 
-        println("NamiSourceSmoke: extension-only global search started for $query")
-        val search = withTimeout(90_000) {
-            GlobalAnimeSearch(NamiSourceRegistry { installed }).search(query)
+    @Test
+    fun realAnimeSogoAndNativeJikanShareGlobalSearch() = runBlocking<Unit> {
+        val start = System.nanoTime()
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val installed = AniyomiExtensionRegistry(context).installedSources()
+        val animeSogo = installed.firstOrNull {
+            it.metadata.extensionPackage == "eu.kanade.tachiyomi.animeextension.en.animesogo"
+        }
+        assertNotNull("AnimeSogo v16.8 must be discovered from its installed APK", animeSogo)
+        animeSogo!!
+        assertEquals("16.8", animeSogo.metadata.extensionVersion)
+        assertEquals(16, animeSogo.metadata.extensionApiVersion)
+        println("NamiSourceSmoke: discovered \${installed.size} sources; v16=\${animeSogo.metadata.id}")
+
+        val jikan = JikanAnimeSource()
+        val query = "Bleach"
+        println("NamiSourceSmoke: combined global search started for $query")
+        val search = withTimeout(120_000) {
+            GlobalAnimeSearch(NamiSourceRegistry { installed + jikan }).search(query)
         }
         Log.i(
             "NamiSourceSmoke",
-            "globalSearch sources=${search.resultsBySource.keys} " +
-                "counts=${search.resultsBySource.mapValues { it.value.size }} " +
-                "failures=${search.failures.map { it.sourceId + ":" + it.stage + ":" + it.cause.javaClass.simpleName + ":" + it.cause.message }}",
+            "globalSearch sources=\${search.resultsBySource.keys} " +
+                "counts=\${search.resultsBySource.mapValues { it.value.size }} " +
+                "failures=\${search.failures.map { it.sourceId + ":" + it.stage + ":" + it.cause.javaClass.simpleName + ":" + it.cause.message }}",
         )
         search.failures.forEach { failure ->
             Log.e(
                 "NamiSourceSmoke",
-                "source=${failure.sourceId} stage=${failure.stage}",
+                "source=\${failure.sourceId} stage=\${failure.stage}",
                 failure.cause,
             )
         }
+
         val extensionResults = search.resultsBySource[animeSogo.metadata.id].orEmpty()
-        assertTrue("AnimeSogo returned no real results for $query", extensionResults.isNotEmpty())
-        assertTrue(
-            "Extension-only global search leaked a native source",
-            search.resultsBySource.keys.none { it == jikan.metadata.id },
-        )
+        val nativeResults = search.resultsBySource[jikan.metadata.id].orEmpty()
+        assertTrue("AnimeSogo returned no real global-search results for $query", extensionResults.isNotEmpty())
+        assertTrue("Native Jikan was not included in global search for $query", nativeResults.isNotEmpty())
+
+        val anime = extensionResults.firstOrNull { it.title.contains(query, ignoreCase = true) }
+            ?: throw AssertionError("AnimeSogo results did not contain $query")
+        println("NamiSourceSmoke: AnimeSogo result selected: \${anime.title}; loading details")
+        val details = withTimeout(60_000) { animeSogo.details(anime.ref) }
+        assertTrue("Anime details title is empty", details.title.isNotBlank())
+        println("NamiSourceSmoke: details loaded: \${details.title}; loading episodes")
+
+        val episodes = withTimeout(60_000) { animeSogo.episodes(anime.ref) }
+        assertTrue("AnimeSogo returned no episodes", episodes.isNotEmpty())
+        println("NamiSourceSmoke: episodes loaded: \${episodes.size}; resolving first three")
+        var resolvedCount = 0
+        for (episode in episodes.take(3)) {
+            resolvedCount = withTimeout(60_000) { animeSogo.resolve(episode.ref).size }
+            if (resolvedCount > 0) break
+        }
+        assertTrue("AnimeSogo did not resolve a stream from the first three episodes", resolvedCount > 0)
 
         val elapsed = (System.nanoTime() - start) / 1_000_000
         Log.i(
             "NamiSourceSmoke",
-            "query=$query extensionV16=${animeSogo.metadata.extensionPackage} " +
-                "extensionResults=${extensionResults.size} nativeResults=${nativeResults.size} " +
-                "episodes=${episodes.size} resolvedStreams=$resolvedCount " +
-                "nativeEpisodes=${nativeEpisodes.size} " +
-                "failures=${search.failures.map { it.sourceId + ":" + it.cause.javaClass.simpleName }} " +
+            "query=$query extensionV16=\${animeSogo.metadata.extensionPackage} " +
+                "extensionResults=\${extensionResults.size} nativeResults=\${nativeResults.size} " +
+                "episodes=\${episodes.size} resolvedStreams=$resolvedCount " +
+                "failures=\${search.failures.map { it.sourceId + ":" + it.cause.javaClass.simpleName }} " +
                 "elapsedMs=$elapsed",
         )
+        Unit
     }
+
 }
