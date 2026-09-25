@@ -157,6 +157,27 @@ PY
   sleep 1
 }
 
+replace_search_text() {
+  local value="$1"
+  tap_search_field
+  # Move to the end and clear enough characters for every smoke query.
+  adb shell input keyevent KEYCODE_MOVE_END >/dev/null 2>&1 || true
+  for _ in $(seq 1 48); do
+    adb shell input keyevent KEYCODE_DEL >/dev/null 2>&1 || true
+  done
+  adb shell input text "$value"
+  adb shell input keyevent KEYCODE_ENTER
+}
+
+assert_no_raw_timeout() {
+  dump_ui
+  if grep -Eqi 'Timed out awaiting|30000 ms|TimeoutCancellationException' /tmp/spotui.xml; then
+    shot failure-raw-timeout
+    echo "Raw timeout text leaked into SpotUI UI." >&2
+    return 1
+  fi
+}
+
 tap_first_adele_result() {
   dump_ui
   python3 <<'PY'
@@ -190,11 +211,24 @@ shot 00-home
 
 tap_text Search
 wait_for_node Search 15
-tap_search_field
-adb shell input text Adele
-adb shell input keyevent KEYCODE_ENTER
+
+# Regression proof: explicit searches must remain reusable. Autocomplete used to
+# consume source workers, which made the first search succeed and later searches
+# hang until the raw 30 second IPC timeout surfaced.
+replace_search_text Adele
 wait_for_contains Adele 35
+assert_no_raw_timeout
 shot 01-search-adele
+
+replace_search_text Coldplay
+wait_for_contains Coldplay 35
+assert_no_raw_timeout
+shot 02-search-coldplay
+
+replace_search_text Adele
+wait_for_node 'Play Easy On Me' 35
+assert_no_raw_timeout
+shot 03-search-adele-again
 
 adb shell input keyevent KEYCODE_BACK || true
 sleep 2
@@ -218,22 +252,46 @@ for _ in $(seq 1 50); do
 done
 
 if [[ "$PLAYBACK_OUTCOME" == "playing" ]]; then
-  shot 02-playing
+  shot 04-playing
   adb shell dumpsys activity services com.night.spotui | grep -q 'SpotPlaybackService'
   adb shell dumpsys media_session | grep -q 'com.night.spotui'
+
+  # Open the player and verify the production-facing layout no longer exposes
+  # source/codec diagnostics. The lyrics entry should be the primary card.
+  tap_text 'Mini player'
+  wait_for_node 'NOW PLAYING' 12
+  wait_for_node 'Lyrics' 12
+  if node_exists 'SOURCE'; then
+    shot failure-source-card
+    echo "Legacy SOURCE diagnostic card is still visible." >&2
+    exit 1
+  fi
+  shot 05-now-playing
+
+  # Regression proof for the user's Hear Me Calling -> Fast symptom: moving to
+  # the next queue item must update the selected track immediately rather than
+  # leaving/reopening the old item while a new stream resolves.
+  tap_text 'Next'
+  sleep 2
+  if node_exists 'Easy On Me'; then
+    shot failure-stale-next-track
+    echo "Next kept the old Now Playing title." >&2
+    exit 1
+  fi
+  shot 06-next-transition
 
   adb shell am start -W -a android.settings.SETTINGS >/dev/null
   sleep 3
   adb shell dumpsys activity services com.night.spotui | grep -q 'SpotPlaybackService'
   adb shell dumpsys media_session | grep -q 'com.night.spotui'
-  shot 03-background
+  shot 07-background
   touch "$OUT/FULL_ANONYMOUS_PLAYBACK_PASS"
-  echo "SpotUI core + YouTube Music extension live playback passed anonymously."
+  echo "SpotUI core + YouTube Music extension live playback, repeated search, and queue transition passed anonymously."
 elif [[ "$PLAYBACK_OUTCOME" == "challenged" ]]; then
-  shot 02-youtube-challenge
+  shot 04-youtube-challenge
   tap_text 'Source needs browser session · Open'
   wait_for_node 'Close source browser' 20
-  shot 03-sign-in-flow
+  shot 05-sign-in-flow
   capture_resolver_logs
   grep -Eqi 'LOGIN_REQUIRED|sign in to confirm|not a bot' "$OUT/resolver-summary.txt"
   touch "$OUT/SOURCE_BROWSER_SESSION_REQUIRED"
