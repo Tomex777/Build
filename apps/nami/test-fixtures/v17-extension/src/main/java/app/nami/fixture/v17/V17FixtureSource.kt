@@ -10,7 +10,6 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.content
 import kotlinx.serialization.json.jsonPrimitive
 
 class V17FixtureSource : AnimeSource {
@@ -88,6 +87,7 @@ class V17FixtureSource : AnimeSource {
             ),
         )
     }
+
     companion object {
         private const val REQUIRED_TOKEN = "nami-v17-state"
     }
