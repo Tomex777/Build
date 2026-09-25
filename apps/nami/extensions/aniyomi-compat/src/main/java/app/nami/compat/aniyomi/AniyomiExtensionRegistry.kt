@@ -414,7 +414,7 @@ internal class LegacyAnimeSourceAdapter(
                 } else {
                     video
                 }
-                resolved?.toNamiMedia()
+                resolved?.toNamiMedia(hoster.hosterName)
             }
         }
     }
@@ -462,7 +462,7 @@ internal class LegacyAnimeSourceAdapter(
         }
     }
 
-    private fun Video.toNamiMedia(): ResolvedMedia {
+    private fun Video.toNamiMedia(hosterName: String? = null): ResolvedMedia {
         val videoHeaders = headers
         val headerMap = videoHeaders?.names()?.associateWith { name -> videoHeaders[name].orEmpty() }.orEmpty()
         return ResolvedMedia(
@@ -471,6 +471,7 @@ internal class LegacyAnimeSourceAdapter(
             headers = headerMap,
             subtitles = subtitleTracks.map { MediaTrack(it.url, it.lang) },
             audioTracks = audioTracks.map { MediaTrack(it.url, it.lang) },
+            hosterName = hosterName?.takeUnless { it == eu.kanade.tachiyomi.animesource.model.Hoster.NO_HOSTER_LIST },
         )
     }
 }

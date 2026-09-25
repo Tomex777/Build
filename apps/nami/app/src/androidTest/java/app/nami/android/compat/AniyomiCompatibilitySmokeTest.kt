@@ -122,6 +122,73 @@ class AniyomiCompatibilitySmokeTest {
     }
 
     @Test
+    fun realAnimeSogoV17SearchDetailsEpisodesAndMediaNormalizeIntoNami() = runBlocking<Unit> {
+        val startedAt = System.nanoTime()
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val source = AniyomiExtensionRegistry(context)
+            .installedSources()
+            .firstOrNull {
+                it.metadata.extensionApiVersion == 17 &&
+                    it.metadata.extensionPackage?.endsWith(".animesogov17") == true
+            }
+        assertNotNull("Source-built maintained AnimeSogo extensions-lib v17 APK must be discovered", source)
+        source!!
+        assertEquals(17, source.metadata.extensionApiVersion)
+
+        val query = "Bleach"
+        val page = withTimeout(90_000) { source.search(query).items }
+        assertTrue("AnimeSogo v17 returned no real results for $query", page.isNotEmpty())
+        val result = page.firstOrNull { it.title.contains(query, ignoreCase = true) }
+            ?: throw AssertionError("AnimeSogo v17 search did not contain $query")
+        val details = withTimeout(60_000) { source.details(result.ref, result.sourceState) }
+        assertTrue("AnimeSogo v17 details title is empty", details.title.isNotBlank())
+
+        val episodes = withTimeout(60_000) { source.episodes(details.ref, details.sourceState) }
+        assertTrue("AnimeSogo v17 returned no real episodes", episodes.isNotEmpty())
+        assertTrue("AnimeSogo v17 episode identifiers are blank", episodes.all {
+            it.ref.sourceEpisodeId.isNotBlank()
+        })
+        assertEquals(
+            "AnimeSogo v17 episode identifiers are not stable/unique",
+            episodes.size,
+            episodes.map { it.ref.sourceEpisodeId }.distinct().size,
+        )
+        assertTrue("AnimeSogo v17 episode names were not normalized", episodes.all { it.title.isNotBlank() })
+        assertTrue(
+            "AnimeSogo v17 episode numbering did not map into Nami models",
+            episodes.any { it.number != null && it.number >= 0.0 },
+        )
+
+        var resolvedEpisode = episodes.first()
+        var streams = emptyList<app.nami.domain.ResolvedMedia>()
+        for (episode in episodes.take(5)) {
+            val candidates = withTimeout(60_000) {
+                source.resolve(episode.ref, episode.sourceState)
+            }
+            if (candidates.any { it.url.startsWith("http") }) {
+                resolvedEpisode = episode
+                streams = candidates.filter { it.url.startsWith("http") }
+                break
+            }
+        }
+        assertTrue("AnimeSogo v17 did not resolve any final HTTP stream", streams.isNotEmpty())
+
+        val elapsed = (System.nanoTime() - startedAt) / 1_000_000
+        Log.i(
+            "NamiSourceSmoke",
+            "realV17 package=${source.metadata.extensionPackage} version=${source.metadata.extensionVersion} " +
+                "source=${source.metadata.name} api=17 query=$query results=${page.size} " +
+                "anime=${details.title} episodes=${episodes.size} " +
+                "episode=${resolvedEpisode.title} number=${resolvedEpisode.number} " +
+                "streams=${streams.size} hosters=${streams.mapNotNull { it.hosterName }.distinct()} " +
+                "quality=${streams.mapNotNull { it.quality }.distinct()} mediaTypes=${streams.mapNotNull { it.mimeType }.distinct()} " +
+                "headerNames=${streams.flatMap { it.headers.keys }.distinct()} " +
+                "subtitles=${streams.sumOf { it.subtitles.size }} audioTracks=${streams.sumOf { it.audioTracks.size }} " +
+                "elapsedMs=$elapsed",
+        )
+    }
+
+    @Test
     fun installedV17FixturePersistsOpaqueStateAcrossAdapterAndDatabaseRecreation() = runBlocking<Unit> {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val installed = AniyomiExtensionRegistry(context).installedSources()

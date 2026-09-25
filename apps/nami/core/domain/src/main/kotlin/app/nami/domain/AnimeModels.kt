@@ -53,4 +53,6 @@ data class ResolvedMedia(
     val expiresAtEpochMillis: Long? = null,
     /** Opaque source-owned data that may be used to refresh a temporary URL later. */
     val refreshToken: String? = null,
+    /** Hoster label reported by a compatible extension, when available. */
+    val hosterName: String? = null,
 )
