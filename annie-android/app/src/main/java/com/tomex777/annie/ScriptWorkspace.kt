@@ -140,14 +140,98 @@ internal class ScriptFiles(context: Context) {
         }
     }
 
+    fun readFile(projectId: String, relativePath: String): String {
+        val target = resolveProjectFile(projectId, relativePath)
+        require(target.isFile) { "Script file does not exist" }
+        return target.readText()
+    }
+
     fun writeFile(projectId: String, relativePath: String, source: String) {
         require(source.length <= MAX_SOURCE_CHARS) { "Script file is too large" }
-        val project = File(root, projectId).canonicalFile
-        val target = File(project, relativePath).canonicalFile
-        require(target.toPath().startsWith(root.canonicalFile.toPath())) { "Invalid script path" }
+        val target = resolveProjectFile(projectId, relativePath, allowMissing = true)
         require(target.extension.equals("js", ignoreCase = true)) { "Only JavaScript files are supported" }
         target.parentFile?.mkdirs()
         target.writeText(source)
+    }
+
+    fun createFile(projectId: String, relativePath: String): File {
+        val project = resolveProjectContainer(projectId)
+        require(project.isDirectory) { "Standalone scripts cannot contain helper files" }
+        val safeRelative = validateRelativeJsPath(relativePath)
+        val target = resolveProjectFile(projectId, safeRelative, allowMissing = true)
+        require(!target.exists()) { "A script file with this name already exists" }
+        target.parentFile?.mkdirs()
+        target.writeText("// Annie JavaScript module\n")
+        return target
+    }
+
+    fun renameProject(projectId: String, newName: String): String {
+        val source = resolveProjectContainer(projectId)
+        val normalized = validateName(newName, "")
+        val destination = if (source.isDirectory) File(root, normalized) else File(root, "$normalized.js")
+        require(!destination.exists()) { "A script project with this name already exists" }
+        require(source.renameTo(destination)) { "Could not rename script project" }
+        return normalized
+    }
+
+    fun deleteProject(projectId: String) {
+        val source = resolveProjectContainer(projectId)
+        if (source.isDirectory) {
+            require(source.deleteRecursively()) { "Could not delete script project" }
+        } else {
+            require(source.delete()) { "Could not delete script file" }
+        }
+    }
+
+    fun renameFile(projectId: String, relativePath: String, newRelativePath: String): String {
+        val project = resolveProjectContainer(projectId)
+        require(project.isDirectory) { "Rename the standalone project instead" }
+        val source = resolveProjectFile(projectId, relativePath)
+        require(source.isFile) { "Script file does not exist" }
+        val safeTarget = validateRelativeJsPath(newRelativePath)
+        val destination = resolveProjectFile(projectId, safeTarget, allowMissing = true)
+        require(!destination.exists()) { "A script file with this name already exists" }
+        destination.parentFile?.mkdirs()
+        require(source.renameTo(destination)) { "Could not rename script file" }
+        return safeTarget
+    }
+
+    fun deleteFile(projectId: String, relativePath: String) {
+        val project = resolveProjectContainer(projectId)
+        require(project.isDirectory) { "Delete the standalone project instead" }
+        require(relativePath != "main.js") { "main.js is the folder entry point and cannot be deleted" }
+        val target = resolveProjectFile(projectId, relativePath)
+        require(target.isFile && target.delete()) { "Could not delete script file" }
+    }
+
+    private fun resolveProjectContainer(projectId: String): File {
+        require(projectId.matches(Regex("[A-Za-z0-9_-]{1,48}"))) { "Invalid project id" }
+        val directory = File(root, projectId).canonicalFile
+        if (directory.isDirectory) return directory
+        val standalone = File(root, "$projectId.js").canonicalFile
+        if (standalone.isFile) return standalone
+        throw IllegalArgumentException("Script project does not exist")
+    }
+
+    private fun resolveProjectFile(projectId: String, relativePath: String, allowMissing: Boolean = false): File {
+        val project = resolveProjectContainer(projectId)
+        if (project.isFile) {
+            require(relativePath == project.name) { "Standalone scripts have a single file" }
+            return project
+        }
+        val safeRelative = validateRelativeJsPath(relativePath)
+        val target = File(project, safeRelative).canonicalFile
+        require(target.toPath().startsWith(project.canonicalFile.toPath())) { "Invalid script path" }
+        if (!allowMissing) require(target.exists()) { "Script file does not exist" }
+        return target
+    }
+
+    private fun validateRelativeJsPath(path: String): String {
+        val normalized = path.trim().replace('\\', '/').removePrefix("/")
+        require(normalized.matches(Regex("(?:[A-Za-z0-9_-]{1,48}/)*[A-Za-z0-9_-]{1,48}\\.js"))) {
+            "Use JavaScript paths such as helper.js or lib/parser.js"
+        }
+        return normalized
     }
 
     private fun validateName(name: String, suffix: String): String {
