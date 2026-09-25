@@ -191,7 +191,7 @@ class NamiUiScreenshotTest {
 
     private fun capture(name: String) {
         composeRule.waitForIdle()
-        val root = InstrumentationRegistry.getInstrumentation().context.filesDir
+        val root = composeRule.activity.filesDir
         val directory = File(root, "nami-screenshots")
         assertTrue(
             "Could not create screenshot directory",
