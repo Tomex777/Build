@@ -1,6 +1,7 @@
 package com.tomex777.annie
 
 import android.net.Uri
+import android.graphics.BitmapFactory
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -64,7 +65,33 @@ class LocalVideoPlaybackTest {
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("00:00").fetchSemanticsNodes().isEmpty()
         }
-        saveEmulatorScreenshot("annie-vlc-visible-frame")
+        val screenshotUri = saveEmulatorScreenshot("annie-vlc-visible-frame")
+        val screenshot = checkNotNull(context.contentResolver.openInputStream(screenshotUri)?.use(BitmapFactory::decodeStream)) {
+            "Could not reopen VLC playback screenshot"
+        }
+        val left = screenshot.width / 4
+        val right = screenshot.width * 3 / 4
+        val top = screenshot.height / 4
+        val bottom = screenshot.height * 3 / 4
+        var sampledPixels = 0
+        var visibleVideoPixels = 0
+        for (y in top until bottom step 8) {
+            for (x in left until right step 8) {
+                val pixel = screenshot.getPixel(x, y)
+                val red = android.graphics.Color.red(pixel)
+                val green = android.graphics.Color.green(pixel)
+                val blue = android.graphics.Color.blue(pixel)
+                sampledPixels++
+                if (maxOf(red, green, blue) > 60 && maxOf(red, green, blue) - minOf(red, green, blue) > 12) {
+                    visibleVideoPixels++
+                }
+            }
+        }
+        screenshot.recycle()
+        assertTrue(
+            "VLC advanced but the captured video surface stayed black ($visibleVideoPixels/$sampledPixels colored samples)",
+            visibleVideoPixels > sampledPixels / 100,
+        )
         compose.onNodeWithTag("media_player").performClick()
         compose.onNodeWithTag("player_play_pause").performClick()
         compose.waitUntil(2_500) {
