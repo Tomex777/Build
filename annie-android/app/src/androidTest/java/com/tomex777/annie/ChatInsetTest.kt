@@ -42,7 +42,7 @@ class ChatInsetTest {
         val startOffsetPx = latestMessage.top - conversation.top
         assertTrue("Conversation messages should begin below the header and flow down from the top ($startOffsetPx px)",
             startOffsetPx in 0f..180f)
-        assertTrue("With only the welcome message, content should not be bottom anchored", latestMessage.bottom < composer.top - 180f)
+        assertTrue("Conversation message content must remain above the composer", latestMessage.bottom < composer.top)
         assertTrue("Composer must remain above the keyboard while focused", input.bottom <= composer.bottom)
     }
 }

@@ -24,6 +24,7 @@ class PlayerScreenTest {
         compose.setContent {
             MediaPlayerScreen(item, PlayerMode.STREAMING, sourceAvailable = false, onBack = {}, immersive = false)
         }
+        compose.waitForIdle()
         compose.onNodeWithTag("media_player").assertIsDisplayed()
         compose.onNodeWithTag("player_title").assertExists()
         compose.onNodeWithTag("player_mode").assertExists()
