@@ -140,6 +140,23 @@ internal object DownloadMediaNaming {
         }
     }
 
+    fun videoMimeFor(
+        reportedMime: String,
+        extension: String,
+    ): String {
+        val normalized = reportedMime.substringBefore(';').trim().lowercase()
+        if (normalized.startsWith("video/")) return normalized
+
+        return when (extension.lowercase()) {
+            "mkv" -> "video/x-matroska"
+            "mp4", "m4v" -> "video/mp4"
+            "webm" -> "video/webm"
+            "ts" -> "video/mp2t"
+            "avi" -> "video/x-msvideo"
+            else -> normalized
+        }
+    }
+
     fun episodeFileName(
         episode: AnimeEpisode,
         extension: String,

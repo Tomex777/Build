@@ -318,11 +318,15 @@ class NamiDownloadManager(
                     initial = initial,
                 )
             } else {
-                val mime = media.mimeType ?: responseMime ?: "application/octet-stream"
+                val reportedMime = media.mimeType ?: responseMime ?: "application/octet-stream"
                 val extension = DownloadMediaNaming.extensionFor(
-                    mimeType = mime,
+                    mimeType = reportedMime,
                     url = firstConnection.url.toString(),
                     contentDisposition = firstConnection.getHeaderField("Content-Disposition"),
+                )
+                val mime = DownloadMediaNaming.videoMimeFor(
+                    reportedMime = reportedMime,
+                    extension = extension,
                 )
                 val displayName = DownloadMediaNaming.episodeFileName(episode, extension)
                 val target = createTarget(
