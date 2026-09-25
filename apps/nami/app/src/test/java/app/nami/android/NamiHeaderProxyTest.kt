@@ -43,7 +43,7 @@ class NamiHeaderProxyTest {
                 }
             }
         }
-        upstream.start(SOCKET_READ_TIMEOUT, true)
+        upstream.start()
 
         val proxy = NamiHeaderProxy()
         try {
