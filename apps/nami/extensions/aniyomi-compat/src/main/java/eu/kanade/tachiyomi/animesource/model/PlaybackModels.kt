@@ -289,48 +289,7 @@ class Video(
             initialized = if (mask and 0x2000 != 0) self.initialized else initialized,
         )
 
-        /**
-         * Kotlin-generated extensions-lib 17 data-class ABI:
-         * Video + 15 fields + mask + marker.
-         */
-        @JvmStatic
-        @Suppress("UNUSED_PARAMETER")
-        fun `copy$default`(
-            self: Video,
-            videoUrl: String?,
-            videoTitle: String?,
-            resolution: Int?,
-            bitrate: Int?,
-            headers: Headers?,
-            preferred: Boolean,
-            subtitleTracks: List<Track>?,
-            audioTracks: List<Track>?,
-            timestamps: List<TimeStamp>?,
-            mpvArgs: List<Pair<String, String>>?,
-            ffmpegStreamArgs: List<Pair<String, String>>?,
-            ffmpegVideoArgs: List<Pair<String, String>>?,
-            internalData: String?,
-            initialized: Boolean,
-            memo: JsonObject?,
-            mask: Int,
-            marker: Any?,
-        ): Video = self.copy(
-            videoUrl = if (mask and 0x1 != 0) self.videoUrl else videoUrl.orEmpty(),
-            videoTitle = if (mask and 0x2 != 0) self.videoTitle else videoTitle.orEmpty(),
-            resolution = if (mask and 0x4 != 0) self.resolution else resolution,
-            bitrate = if (mask and 0x8 != 0) self.bitrate else bitrate,
-            headers = if (mask and 0x10 != 0) self.headers else headers,
-            preferred = if (mask and 0x20 != 0) self.preferred else preferred,
-            subtitleTracks = if (mask and 0x40 != 0) self.subtitleTracks else subtitleTracks.orEmpty(),
-            audioTracks = if (mask and 0x80 != 0) self.audioTracks else audioTracks.orEmpty(),
-            timestamps = if (mask and 0x100 != 0) self.timestamps else timestamps.orEmpty(),
-            mpvArgs = if (mask and 0x200 != 0) self.mpvArgs else mpvArgs.orEmpty(),
-            ffmpegStreamArgs = if (mask and 0x400 != 0) self.ffmpegStreamArgs else ffmpegStreamArgs.orEmpty(),
-            ffmpegVideoArgs = if (mask and 0x800 != 0) self.ffmpegVideoArgs else ffmpegVideoArgs.orEmpty(),
-            internalData = if (mask and 0x1000 != 0) self.internalData else internalData.orEmpty(),
-            initialized = if (mask and 0x2000 != 0) self.initialized else initialized,
-            memo = if (mask and 0x4000 != 0) self.memo else memo ?: JsonObject(emptyMap()),
-        )
+
     }
 }
 
