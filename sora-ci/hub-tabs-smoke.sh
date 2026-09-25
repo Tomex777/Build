@@ -280,6 +280,13 @@ if wait_for "In the beginning" 30; then
   adb shell input text "checked%20in%20emulator"
   tap Save
   wait_for "Verse has a note"
+  tap "Next"
+  wait_for "Genesis 2" 20
+  wait_for "The heavens and the earth were finished" 20
+  shot bible-next-chapter-top
+  tap "Previous"
+  wait_for "Genesis 1" 20
+  wait_for "In the beginning" 20
 elif ! wait_for "Couldn’t load this passage" 5; then
   echo 'Bible reader showed neither loaded scripture nor a truthful network error.' >&2
   exit 1
@@ -292,6 +299,7 @@ wait_for "Books"
 if [[ "$bible_loaded" == "1" ]] && wait_for "Continue reading" 8; then
   tap "Continue reading"
   wait_for "Genesis 1"
+  wait_for "In the beginning"
   shot bible-exact-reading-resume
   adb shell input keyevent 4
   wait_for "Choose a chapter"
