@@ -40,7 +40,8 @@ for chapter, verses in chapters.items():
     item.text = json.dumps(payload, separators=(",", ":"))
 ET.ElementTree(root).write("/tmp/sora-bible-ci-prefs.xml", encoding="utf-8", xml_declaration=True)
 PY
-adb shell run-as com.night.sora sh -c 'mkdir -p shared_prefs && cat > shared_prefs/sora_bible.xml' < /tmp/sora-bible-ci-prefs.xml
+adb shell run-as com.night.sora mkdir -p shared_prefs
+adb shell run-as com.night.sora tee shared_prefs/sora_bible.xml < /tmp/sora-bible-ci-prefs.xml >/dev/null
 adb shell am force-stop com.night.sora
 adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
 sleep 3
