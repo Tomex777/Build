@@ -68,6 +68,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -287,7 +289,9 @@ internal fun AnnieChat() {
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding().testTag("chat_root")) {
             AnnieTopBar(onHistory = { activeSheet = "Chat history" })
             LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth().testTag("conversation"),
+                modifier = Modifier.weight(1f).fillMaxWidth().testTag("conversation").semantics {
+                    stateDescription = "messages=${messages.size}; index=${listState.firstVisibleItemIndex}; offset=${listState.firstVisibleItemScrollOffset}; keyboard=$keyboardVisible"
+                },
                 state = listState,
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.Top)
