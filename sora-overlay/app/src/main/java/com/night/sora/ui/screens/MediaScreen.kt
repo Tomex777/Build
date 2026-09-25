@@ -577,7 +577,6 @@ private fun AnimeMangaSurface(
     val currentLabel = if (type == ContentType.ANIME) "Airing now" else "Publishing now"
     val notice = when {
         error != null && rows.isNotEmpty() -> "Could not refresh. Showing saved catalog data${cacheAgeSuffix(cacheFetchedAt)}."
-        loading && rows.isNotEmpty() -> "Refreshing saved catalog data${cacheAgeSuffix(cacheFetchedAt)}…"
         feedFailures > 0 && selected != null -> "Some discovery sections couldn't refresh. Showing the catalog data currently available."
         else -> null
     }
