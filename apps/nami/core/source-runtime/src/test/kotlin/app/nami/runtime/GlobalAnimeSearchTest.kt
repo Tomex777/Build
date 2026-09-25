@@ -83,7 +83,7 @@ class GlobalAnimeSearchTest {
     }
 
     @Test
-    fun nativeSourcesAreExcludedFromExtensionOnlyGlobalSearch() = runBlocking {
+    fun nativeAndCompatibleSourcesShareGlobalSearch() = runBlocking {
         val extension = FakeSource(
             id = "extension",
             name = "Extension",
@@ -108,8 +108,35 @@ class GlobalAnimeSearchTest {
             NamiSourceRegistry { listOf(native, extension) },
         ).search("bleach")
 
-        assertEquals(listOf("extension"), final.resultsBySource.keys.toList())
-        assertEquals(listOf("extension"), final.responseOrder)
+        assertEquals(setOf("extension", "native"), final.resultsBySource.keys.toSet())
+        assertEquals(setOf("extension", "native"), final.responseOrder.toSet())
+    }
+
+    @Test
+    fun oneSourceFailureDoesNotDiscardOtherSources() = runBlocking {
+        val healthy = FakeSource(
+            id = "healthy",
+            name = "Healthy",
+            delayMillis = 0,
+            results = listOf(result("healthy", "Healthy result")),
+        )
+        val broken = object : NamiAnimeSource by FakeSource(
+            id = "broken",
+            name = "Broken",
+            delayMillis = 0,
+            results = emptyList(),
+        ) {
+            override suspend fun search(query: String, page: Int): SourcePage<AnimeSearchResult> =
+                error("Expected source failure")
+        }
+
+        val final = GlobalAnimeSearch(
+            NamiSourceRegistry { listOf(broken, healthy) },
+        ).search("bleach")
+
+        assertEquals(listOf("healthy"), final.resultsBySource.keys.toList())
+        assertEquals(listOf("broken"), final.failures.map { it.sourceId })
+        assertTrue(final.failures.single().cause.message.orEmpty().contains("Expected source failure"))
     }
 
     @Test
