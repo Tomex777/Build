@@ -190,6 +190,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setRedditClientId(value: String) = viewModelScope.launch { store.setRedditClientId(value) }
     fun clearSeen() = viewModelScope.launch { store.clearSeen(); reload(); postMessage("Seen history cleared") }
 
+    fun refreshFeed() = reload()
+
+    fun surprise() {
+        val categories = _state.value.categories
+        if (categories.isEmpty()) return
+        val category = categories.random()
+        val sort = SortMode.entries.random()
+        viewModelScope.launch {
+            store.setSelectedCategory(category.id)
+            store.setSortMode(sort)
+            postMessage("✦ ${category.name} · ${sort.name}")
+        }
+    }
+
     fun saveCategory(category: FeedCategory) {
         viewModelScope.launch {
             val cats = _state.value.categories.toMutableList()

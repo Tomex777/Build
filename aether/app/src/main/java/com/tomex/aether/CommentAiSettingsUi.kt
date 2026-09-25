@@ -164,6 +164,8 @@ internal fun SettingsSheet(
     onSort: (SortMode) -> Unit,
     onAiBaseUrl: (String) -> Unit,
     onRedditClientId: (String) -> Unit,
+    onRefresh: () -> Unit,
+    onSurprise: () -> Unit,
     onClearSeen: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -205,7 +207,12 @@ internal fun SettingsSheet(
             )
             Text("Reddit browsing, comments and downloads work without the AI server.", color = Color(0xFF777777), fontSize = 10.sp, modifier = Modifier.padding(top = 5.dp))
             Spacer(Modifier.height(20.dp))
-            TextButton(onClick = onClearSeen) { Text("Clear seen history") }
+            Text("Actions", color = AetherMuted, fontSize = 11.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                OutlinedButton(onClick = onRefresh) { Text("Refresh") }
+                OutlinedButton(onClick = onSurprise) { Text("✦ Surprise me") }
+            }
+            TextButton(onClick = onClearSeen, modifier = Modifier.padding(top = 4.dp)) { Text("Clear seen history") }
         }
     }
 }

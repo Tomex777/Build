@@ -230,6 +230,8 @@ fun AetherApp(vm: MainViewModel = viewModel()) {
             onSort = vm::setSortMode,
             onAiBaseUrl = vm::setAiBaseUrl,
             onRedditClientId = vm::setRedditClientId,
+            onRefresh = vm::refreshFeed,
+            onSurprise = vm::surprise,
             onClearSeen = vm::clearSeen,
             onDismiss = { showSettings = false },
         )

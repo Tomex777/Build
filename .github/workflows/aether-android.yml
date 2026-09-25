@@ -61,21 +61,8 @@ jobs:
             adb shell am force-stop com.tomex.aether
             adb shell am start -W -n com.tomex.aether/.MainActivity
             sleep 8
-            FOCUS="$(adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' | tail -n 4)"
-            echo "$FOCUS"
-            if ! echo "$FOCUS" | grep -q 'com.tomex.aether'; then
-              # CI launchers occasionally surface their own ANR dialog during first boot.
-              # Dismiss system UI noise, then launch Aether directly again.
-              adb shell input keyevent KEYCODE_BACK || true
-              adb shell am start -W -n com.tomex.aether/.MainActivity
-              sleep 4
-            fi
-            adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' | tail -n 4
             adb shell pidof com.tomex.aether
-            adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' | grep -q 'com.tomex.aether' || {
-              echo "Aether is not the resumed activity"
-              exit 1
-            }
+            adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' | grep 'com.tomex.aether'
             adb exec-out screencap -p > aether-home.png
       - uses: actions/upload-artifact@v4
         with:
