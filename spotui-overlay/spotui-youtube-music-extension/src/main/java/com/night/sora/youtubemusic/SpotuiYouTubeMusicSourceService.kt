@@ -56,6 +56,20 @@ class SpotuiYouTubeMusicSourceService : Service() {
                             MusicSourceContract.Method.BROWSE -> YouTubeMusicCatalog.browse(sourceId)
                             MusicSourceContract.Method.SEARCH ->
                                 YouTubeMusicCatalog.search(sourceId, payload.optString("query"))
+                            MusicSourceContract.Method.SUGGESTIONS ->
+                                YouTubeMusicCatalog.suggestions(sourceId, payload.optString("query"))
+                            MusicSourceContract.Method.ARTIST ->
+                                YouTubeMusicCatalog.artist(
+                                    sourceId,
+                                    payload.optString("query"),
+                                    payload.optString("artistId").takeIf(String::isNotBlank),
+                                )
+                            MusicSourceContract.Method.ALBUM ->
+                                YouTubeMusicCatalog.album(
+                                    sourceId,
+                                    payload.optString("query"),
+                                    payload.optString("albumId").takeIf(String::isNotBlank),
+                                )
                             MusicSourceContract.Method.STREAMS -> resolveStreams(sourceId, id)
                             MusicSourceContract.Method.BROWSER_SESSION -> {
                                 require(sourceId == SOURCE_ID) { "Unsupported source: $sourceId" }
@@ -129,6 +143,9 @@ class SpotuiYouTubeMusicSourceService : Service() {
             JSONArray()
                 .put("browse")
                 .put("search")
+                .put("suggestions")
+                .put("artist")
+                .put("album")
                 .put("streams")
                 .put("browserSession"),
         )
@@ -144,6 +161,9 @@ class SpotuiYouTubeMusicSourceService : Service() {
                         JSONArray()
                             .put("browse")
                             .put("search")
+                            .put("suggestions")
+                            .put("artist")
+                            .put("album")
                             .put("streams")
                             .put("browserSession"),
                     )
