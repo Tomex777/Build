@@ -231,7 +231,7 @@ internal fun NamiSettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Text(
-                                text = "Downloaded files open with your installed video player.",
+                                text = "Downloaded episodes play in Nami's built-in VLC player.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
