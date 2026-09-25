@@ -42,6 +42,7 @@ internal class NamiVlcPlayer(context: Context) {
         arrayListOf("--audio-time-stretch", "--network-caching=2500"),
     )
     private val player = MediaPlayer(libVlc)
+    private val headerProxy = NamiHeaderProxy()
     private val mutableState = MutableStateFlow(NamiVlcState())
     val state: StateFlow<NamiVlcState> = mutableState.asStateFlow()
     private var pendingSeekMs: Long? = null
@@ -129,23 +130,10 @@ internal class NamiVlcPlayer(context: Context) {
             positionMs = startPositionMs.coerceAtLeast(0L),
             rate = mutableState.value.rate,
         )
-        val vlcMedia = Media(libVlc, Uri.parse(media.url)).apply {
+        val playbackUrl = headerProxy.wrap(media.url, media.headers)
+        val vlcMedia = Media(libVlc, Uri.parse(playbackUrl)).apply {
             setHWDecoderEnabled(true, false)
             addOption(":network-caching=2500")
-            media.headers.forEach { (rawName, rawValue) ->
-                val value = rawValue.replace("\r", "").replace("\n", "")
-                if (value.isBlank()) return@forEach
-                when (rawName.lowercase()) {
-                    "referer", "referrer" -> addOption(":http-referrer=$value")
-                    "user-agent" -> addOption(":http-user-agent=$value")
-                    "origin" -> addOption(":http-origin=$value")
-                    "cookie" -> addOption(":http-cookie=$value")
-                    else -> {
-                        val name = rawName.replace("\r", "").replace("\n", "")
-                        if (name.isNotBlank()) addOption(":http-header=$name: $value")
-                    }
-                }
-            }
         }
         player.setMedia(vlcMedia)
         vlcMedia.release()
@@ -180,9 +168,13 @@ internal class NamiVlcPlayer(context: Context) {
         mutableState.value = mutableState.value.copy(selectedSubtitleTrack = id)
     }
 
-    fun addExternalSubtitle(uri: String): Boolean {
+    fun addExternalSubtitle(
+        uri: String,
+        headers: Map<String, String> = emptyMap(),
+    ): Boolean {
         if (uri.isBlank()) return false
-        val added = player.addSlave(SLAVE_TYPE_SUBTITLE, Uri.parse(uri), true)
+        val playbackUri = headerProxy.wrap(uri, headers)
+        val added = player.addSlave(SLAVE_TYPE_SUBTITLE, Uri.parse(playbackUri), true)
         if (added) refreshTracks()
         return added
     }
@@ -192,9 +184,13 @@ internal class NamiVlcPlayer(context: Context) {
         mutableState.value = mutableState.value.copy(selectedAudioTrack = id)
     }
 
-    fun addExternalAudio(uri: String): Boolean {
+    fun addExternalAudio(
+        uri: String,
+        headers: Map<String, String> = emptyMap(),
+    ): Boolean {
         if (uri.isBlank()) return false
-        val added = player.addSlave(SLAVE_TYPE_AUDIO, Uri.parse(uri), true)
+        val playbackUri = headerProxy.wrap(uri, headers)
+        val added = player.addSlave(SLAVE_TYPE_AUDIO, Uri.parse(playbackUri), true)
         if (added) refreshTracks()
         return added
     }
@@ -204,18 +200,19 @@ internal class NamiVlcPlayer(context: Context) {
         runCatching { player.stop() }
         runCatching { detach() }
         runCatching { player.release() }
+        runCatching { headerProxy.stop() }
         runCatching { libVlc.release() }
     }
 
     private fun refreshTracks() {
         val subtitles = runCatching {
             player.spuTracks?.map {
-                VlcTrackOption(it.id, it.name ?: "Subtitle \${it.id}")
+                VlcTrackOption(it.id, it.name ?: "Subtitle ${it.id}")
             }.orEmpty()
         }.getOrDefault(emptyList())
         val audio = runCatching {
             player.audioTracks?.map {
-                VlcTrackOption(it.id, it.name ?: "Audio \${it.id}")
+                VlcTrackOption(it.id, it.name ?: "Audio ${it.id}")
             }.orEmpty()
         }.getOrDefault(emptyList())
         mutableState.value = mutableState.value.copy(

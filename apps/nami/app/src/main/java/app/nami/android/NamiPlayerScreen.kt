@@ -462,7 +462,10 @@ internal fun NamiPlayerScreen(
             }
             selectedMedia?.subtitles.orEmpty().forEach { track ->
                 ChoiceRow(track.displayName("Subtitle"), false) {
-                    engine.addExternalSubtitle(track.url)
+                    engine.addExternalSubtitle(
+                        track.url,
+                        selectedMedia?.headers.orEmpty(),
+                    )
                     sheet = null
                 }
             }
@@ -479,7 +482,10 @@ internal fun NamiPlayerScreen(
         ) {
             selectedMedia?.audioTracks.orEmpty().forEach { track ->
                 ChoiceRow(track.displayName("Audio"), false) {
-                    engine.addExternalAudio(track.url)
+                    engine.addExternalAudio(
+                        track.url,
+                        selectedMedia?.headers.orEmpty(),
+                    )
                     sheet = null
                 }
             }
