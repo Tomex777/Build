@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -139,6 +140,7 @@ fun SpotuiApp() {
     var showPlayer by remember { mutableStateOf(false) }
     var showSignIn by remember { mutableStateOf(false) }
     var homeReloadEpoch by remember { mutableIntStateOf(0) }
+    var searchEpoch by remember { mutableIntStateOf(0) }
 
     fun toggleLike(track: Track) {
         val wasLiked = likedTracks.any { it.id == track.id }
@@ -153,17 +155,22 @@ fun SpotuiApp() {
         if (clean.isBlank()) return
         query = clean
         suggestions = emptyList()
+        searchTracks = emptyList()
+        val requestEpoch = ++searchEpoch
         scope.launch {
             loading = true
             error = null
             source.search(clean)
                 .onSuccess { results ->
+                    if (requestEpoch != searchEpoch) return@onSuccess
                     searchTracks = taste.rank(results)
                     taste.recordSearch(clean, results)
                     homeTracks = taste.rank((results.take(8) + homeTracks).distinctBy(Track::id))
                 }
-                .onFailure { error = it.message ?: "Search failed" }
-            loading = false
+                .onFailure {
+                    if (requestEpoch == searchEpoch) error = "Search didn’t load. Try again."
+                }
+            if (requestEpoch == searchEpoch) loading = false
         }
     }
 
@@ -199,15 +206,11 @@ fun SpotuiApp() {
         delay(240)
         val local = taste.querySuggestions(clean)
         val soundCloud = soundCloudSuggestions.suggest(clean)
-        val sourceFallback = if (soundCloud.isEmpty()) {
-            source.search(clean).getOrNull().orEmpty()
-                .flatMap { listOf(it.artist, it.title) }
-                .filter { it.isNotBlank() }
-                .take(10)
-        } else {
-            emptyList()
-        }
-        suggestions = (local + soundCloud + sourceFallback)
+        // Autocomplete must never consume the playback/search extension. A previous
+        // implementation issued a real YouTube Music search while the user typed,
+        // which could leave source workers occupied and make the next explicit
+        // search appear permanently stuck.
+        suggestions = (local + soundCloud)
             .distinctBy { it.lowercase() }
             .take(8)
     }
@@ -786,7 +789,12 @@ private fun NowPlaying(
                     }
                 }
             } else {
-                Text(message, color = Color(0xFFFF9D92), fontSize = 11.sp, modifier = Modifier.padding(top = 10.dp))
+                Text(
+                    "Playback didn’t start. Tap play to retry.",
+                    color = SpotMuted,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 10.dp),
+                )
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -825,49 +833,53 @@ private fun NowPlaying(
             }
         }
         Spacer(Modifier.height(22.dp))
-        Surface(color = SpotSurface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(18.dp)) {
-                Text("SOURCE", color = SpotMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                Text(player.sourceName, color = SpotText, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
-                if (player.streamLabel.isNotBlank()) Text(player.streamLabel, color = SpotMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
+        val loadedLyrics = lyrics
+        val previewLines = when {
+            lyricsLoading -> listOf("Loading lyrics…")
+            loadedLyrics?.instrumental == true -> listOf("♪ Instrumental")
+            loadedLyrics != null && loadedLyrics.synced.isNotEmpty() -> {
+                val active = loadedLyrics.synced.indexOfLast { it.timeMs <= player.positionMs }.coerceAtLeast(0)
+                loadedLyrics.synced.drop(active).map { it.text }.filter { it.isNotBlank() }.take(3)
             }
+            !loadedLyrics?.plain.isNullOrBlank() ->
+                loadedLyrics?.plain.orEmpty().lines().filter { it.isNotBlank() }.take(3)
+            else -> listOf("Lyrics unavailable")
         }
-        Row(
-            Modifier.fillMaxWidth().padding(top = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        Surface(
+            color = Color(0xFF244B37),
+            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier.fillMaxWidth().clickable { lyricsOpen = true },
         ) {
-            Surface(
-                color = SpotSurface,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.weight(1f).clickable { queueOpen = true },
-            ) {
-                Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.QueueMusic, null, tint = SpotMuted)
-                    Column(Modifier.padding(start = 9.dp)) {
-                        Text("Queue", color = SpotText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Text(player.queue.size.toString() + " tracks", color = SpotMuted, fontSize = 9.sp)
-                    }
+            Column(Modifier.padding(18.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Lyrics", color = SpotText, fontSize = 16.sp, fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
+                    Text("Open", color = SpotText.copy(alpha = 0.72f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.height(14.dp))
+                previewLines.forEachIndexed { index, line ->
+                    Text(
+                        line,
+                        color = if (index == 0) SpotText else SpotText.copy(alpha = 0.48f),
+                        fontSize = if (index == 0) 20.sp else 16.sp,
+                        lineHeight = if (index == 0) 25.sp else 21.sp,
+                        fontWeight = if (index == 0) FontWeight.Black else FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(bottom = 5.dp),
+                    )
                 }
             }
-            Surface(
-                color = SpotSurface,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.weight(1f).clickable { lyricsOpen = true },
-            ) {
-                Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Lyrics, null, tint = SpotMuted)
-                    Column(Modifier.padding(start = 9.dp)) {
-                        Text("Lyrics", color = SpotText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Text(
-                            when {
-                                lyricsLoading -> "Loading"
-                                lyrics != null -> "Available"
-                                else -> "Not found"
-                            },
-                            color = SpotMuted,
-                            fontSize = 9.sp,
-                        )
-                    }
+        }
+        Surface(
+            color = SpotSurface,
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp).clickable { queueOpen = true },
+        ) {
+            Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.QueueMusic, null, tint = SpotMuted)
+                Column(Modifier.padding(start = 9.dp)) {
+                    Text("Queue", color = SpotText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(player.queue.size.toString() + " tracks", color = SpotMuted, fontSize = 9.sp)
                 }
             }
         }
@@ -924,11 +936,11 @@ private fun NowPlaying(
     if (lyricsOpen) {
         ModalBottomSheet(
             onDismissRequest = { lyricsOpen = false },
-            containerColor = Color(0xFF161616),
+            containerColor = Color(0xFF244B37),
         ) {
             val loaded = lyrics
             Column(
-                Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 18.dp)
+                Modifier.fillMaxWidth().fillMaxHeight(0.90f).navigationBarsPadding().padding(bottom = 18.dp)
             ) {
                 Text(
                     track.title,
@@ -938,9 +950,9 @@ private fun NowPlaying(
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
                 )
                 Text(
-                    "Lyrics",
-                    color = SpotMuted,
-                    fontSize = 11.sp,
+                    track.artist,
+                    color = SpotText.copy(alpha = 0.66f),
+                    fontSize = 12.sp,
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 2.dp),
                 )
 
@@ -965,7 +977,7 @@ private fun NowPlaying(
                         }
                         LazyColumn(
                             state = listState,
-                            modifier = Modifier.fillMaxWidth().height(430.dp),
+                            modifier = Modifier.fillMaxWidth().weight(1f),
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(
                                 horizontal = 18.dp,
                                 vertical = 18.dp,
@@ -976,10 +988,10 @@ private fun NowPlaying(
                                 val line = loaded.synced[index]
                                 Text(
                                     line.text.ifBlank { "♪" },
-                                    color = if (index == activeIndex) SpotText else SpotMuted,
-                                    fontSize = if (index == activeIndex) 22.sp else 17.sp,
-                                    lineHeight = if (index == activeIndex) 27.sp else 22.sp,
-                                    fontWeight = if (index == activeIndex) FontWeight.Black else FontWeight.Medium,
+                                    color = if (index == activeIndex) SpotText else SpotText.copy(alpha = 0.34f),
+                                    fontSize = if (index == activeIndex) 29.sp else 24.sp,
+                                    lineHeight = if (index == activeIndex) 34.sp else 30.sp,
+                                    fontWeight = FontWeight.Black,
                                     modifier = Modifier.clickable {
                                         if (player.durationMs > 0) {
                                             player.seekToFraction(
@@ -993,15 +1005,16 @@ private fun NowPlaying(
                     }
                     !loaded?.plain.isNullOrBlank() -> {
                         LazyColumn(
-                            modifier = Modifier.fillMaxWidth().height(430.dp),
+                            modifier = Modifier.fillMaxWidth().weight(1f),
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp),
                         ) {
                             items(loaded?.plain.orEmpty().lines()) { line ->
                                 Text(
                                     line.ifBlank { " " },
                                     color = SpotText,
-                                    fontSize = 17.sp,
-                                    lineHeight = 24.sp,
+                                    fontSize = 24.sp,
+                                    lineHeight = 31.sp,
+                                    fontWeight = FontWeight.Black,
                                     modifier = Modifier.padding(vertical = 4.dp),
                                 )
                             }
@@ -1246,17 +1259,25 @@ private fun LoadingBlock(label: String) {
 @Composable
 private fun ErrorBlock(message: String, action: () -> Unit) {
     Surface(
-        color = Color(0xFF2A1C1C),
+        color = SpotSurface,
         shape = RoundedCornerShape(14.dp),
         modifier = Modifier.fillMaxWidth().padding(18.dp),
     ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(message, color = SpotText, fontSize = 12.sp)
+        Row(
+            Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                if (message.contains("search", ignoreCase = true)) "Search didn’t load." else "This section didn’t load.",
+                color = SpotMuted,
+                fontSize = 12.sp,
+                modifier = Modifier.weight(1f),
+            )
             Text(
                 "Try again",
-                color = SpotGreen,
+                color = SpotText,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable(onClick = action).padding(top = 10.dp),
+                modifier = Modifier.clickable(onClick = action).padding(start = 14.dp),
             )
         }
     }
