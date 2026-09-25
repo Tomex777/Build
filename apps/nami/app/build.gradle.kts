@@ -42,7 +42,7 @@ dependencies {
     implementation(project(":data:local"))
     implementation(project(":extensions:aniyomi-compat"))
 
-    implementation(platform("androidx.compose:compose-bom:2025.02.00"))
+    implementation(platform("androidx.compose:compose-bom:2026.04.01"))
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.fragment:fragment-ktx:1.8.6")
@@ -65,7 +65,7 @@ dependencies {
 }
 
 dependencies {
-    androidTestImplementation(platform("androidx.compose:compose-bom:2025.02.00"))
+    androidTestImplementation(platform("androidx.compose:compose-bom:2026.04.01"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
     androidTestImplementation("androidx.test:runner:1.6.2")
