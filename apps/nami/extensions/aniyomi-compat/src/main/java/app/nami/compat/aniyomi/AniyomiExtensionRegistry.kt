@@ -35,7 +35,7 @@ private const val METADATA_SOURCE_CLASS = "tachiyomi.animeextension.class"
 private const val METADATA_NAME = "aniyomix.name"
 private const val METADATA_EXTENSION_LIB = "aniyomix.extensionLib"
 private const val LOG_TAG = "NamiAniyomiCompat"
-private val SUPPORTED_EXTENSION_LIB_VERSIONS = setOf(16.0)
+private val SUPPORTED_EXTENSION_LIB_VERSIONS = setOf(14.0, 16.0, 17.0)
 private const val LEGACY_LABEL_PREFIX = "Aniyomi: "
 
 /**
@@ -163,12 +163,13 @@ private class LegacyAnimeSourceAdapter(
     override val metadata: SourceMetadata = SourceMetadata(
         id = packageName + ":" + source.id,
         name = source.name,
-        language = (source as? eu.kanade.tachiyomi.animesource.AnimeCatalogueSource)?.lang,
+        language = source.lang.takeIf { it.isNotBlank() },
         origin = SourceOrigin.ANIYOMI_COMPATIBLE,
         extensionName = extensionName,
         homeUrl = (source as? AnimeHttpSource)?.getHomeUrl(),
         capabilities = SourceCapabilities(
-            searchable = source is eu.kanade.tachiyomi.animesource.AnimeCatalogueSource,
+            searchable = extensionApiVersion >= 17 ||
+                source is eu.kanade.tachiyomi.animesource.AnimeCatalogueSource,
             browsable = source is AnimeHttpSource,
             details = true,
             episodes = true,
@@ -182,9 +183,17 @@ private class LegacyAnimeSourceAdapter(
     )
 
     override suspend fun search(query: String, page: Int): SourcePage<AnimeSearchResult> {
-        val catalogue = source as? eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
-            ?: return SourcePage(emptyList(), false)
-        val result = catalogue.getSearchAnime(page, query, catalogue.getFilterList())
+        val result = when {
+            extensionApiVersion <= 14 -> {
+                val catalogue = source as? eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
+                    ?: return SourcePage(emptyList(), false)
+                @Suppress("DEPRECATION")
+                catalogue.fetchSearchAnime(page, query, catalogue.getFilterList())
+                    .toBlocking()
+                    .single()
+            }
+            else -> source.getSearchAnime(page, query, source.getFilterList())
+        }
         val mapped = result.animes.map { anime ->
             animeCache[anime.url] = anime
             AnimeSearchResult(
@@ -199,7 +208,22 @@ private class LegacyAnimeSourceAdapter(
 
     override suspend fun details(anime: AnimeRef): AnimeDetails {
         val sourceAnime = animeCache[anime.sourceAnimeId] ?: restoreAnime(anime.sourceAnimeId)
-        val updated = source.getAnimeDetails(sourceAnime)
+        val updated = when {
+            extensionApiVersion >= 17 -> source.getAnimeEpisodeUpdate(
+                anime = sourceAnime,
+                episodes = emptyList(),
+                fetchDetails = true,
+                fetchEpisodes = false,
+            ).anime
+            extensionApiVersion <= 14 -> {
+                @Suppress("DEPRECATION")
+                source.fetchAnimeDetails(sourceAnime).toBlocking().single()
+            }
+            else -> {
+                @Suppress("DEPRECATION")
+                source.getAnimeDetails(sourceAnime)
+            }
+        }
         animeCache[updated.url] = updated
         if (updated.url != anime.sourceAnimeId) {
             animeCache[anime.sourceAnimeId] = updated
@@ -227,7 +251,23 @@ private class LegacyAnimeSourceAdapter(
 
     override suspend fun episodes(anime: AnimeRef): List<AnimeEpisode> {
         val sourceAnime = animeCache[anime.sourceAnimeId] ?: restoreAnime(anime.sourceAnimeId)
-        return source.getEpisodeList(sourceAnime).map { episode ->
+        val sourceEpisodes = when {
+            extensionApiVersion >= 17 -> source.getAnimeEpisodeUpdate(
+                anime = sourceAnime,
+                episodes = emptyList(),
+                fetchDetails = false,
+                fetchEpisodes = true,
+            ).episodes
+            extensionApiVersion <= 14 -> {
+                @Suppress("DEPRECATION")
+                source.fetchEpisodeList(sourceAnime).toBlocking().single()
+            }
+            else -> {
+                @Suppress("DEPRECATION")
+                source.getEpisodeList(sourceAnime)
+            }
+        }
+        return sourceEpisodes.map { episode ->
             val key = episodeKey(anime.sourceAnimeId, episode.url)
             episodeCache[key] = episode
             AnimeEpisode(
@@ -250,14 +290,26 @@ private class LegacyAnimeSourceAdapter(
                 name = episode.sourceEpisodeId
             }
 
-        var hosters = source.getHosterList(legacyEpisode)
         val http = source as? AnimeHttpSource
+
+        if (extensionApiVersion <= 14) {
+            @Suppress("DEPRECATION")
+            var videos = source.getVideoList(legacyEpisode)
+            if (http != null) {
+                videos = http.sortVideosForNami(videos)
+            }
+            return videos.mapNotNull { video ->
+                video.resolveLegacyVideo(http)?.toNamiMedia()
+            }
+        }
+
+        var hosters = source.getHosterList(legacyEpisode)
         if (http != null) {
             hosters = with(http) { hosters.sortHosters() }
         }
 
         return hosters.flatMap { hoster ->
-            var videos = source.getVideoList(hoster)
+            var videos = hoster.videoList ?: source.getVideoList(hoster)
             if (http != null) {
                 videos = http.sortVideosForNami(videos)
             }
@@ -295,6 +347,24 @@ private class LegacyAnimeSourceAdapter(
         SAnime.CANCELLED -> "Cancelled"
         SAnime.ON_HIATUS -> "On hiatus"
         else -> "Unknown"
+    }
+
+    private suspend fun Video.resolveLegacyVideo(http: AnimeHttpSource?): Video? {
+        if (http == null) return this
+
+        if (videoUrl.isBlank() || videoUrl == "null") {
+            @Suppress("DEPRECATION")
+            val resolvedUrl = runCatching { http.getVideoUrl(this) }.getOrNull()
+            if (!resolvedUrl.isNullOrBlank()) {
+                videoUrl = resolvedUrl
+            }
+        }
+
+        return if (!initialized) {
+            http.resolveVideo(this) ?: this
+        } else {
+            this
+        }
     }
 
     private fun Video.toNamiMedia(): ResolvedMedia {
