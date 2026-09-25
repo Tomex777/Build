@@ -54,7 +54,9 @@ private data class ActiveScriptSession(
 
 /** Private, app-local JavaScript project files. No script path can escape this workspace. */
 internal class ScriptFiles(context: Context) {
-    val root: File = File(context.filesDir, "annie-scripts").apply { mkdirs() }
+    private val appContext = context.applicationContext
+    private val enabledPrefs = appContext.getSharedPreferences("annie_script_enabled", Context.MODE_PRIVATE)
+    val root: File = File(appContext.filesDir, "annie-scripts").apply { mkdirs() }
 
     fun ensureStarterScript() {
         val echo = File(root, "echo.js")
@@ -93,11 +95,13 @@ internal class ScriptFiles(context: Context) {
             sourceFiles[entry.name] = entry.readText()
         }
         val entryRelative = if (file.isDirectory) "main.js" else file.name
+        val id = relative.removeSuffix(".js")
         ScriptProject(
-            id = relative.removeSuffix(".js"),
+            id = id,
             name = file.nameWithoutExtension,
             entryPath = entryRelative,
             files = sourceFiles,
+            enabled = enabledPrefs.getBoolean(id, true),
         )
     }.getOrNull()
 
@@ -159,6 +163,14 @@ internal class ScriptFiles(context: Context) {
         return target.readText()
     }
 
+    fun setEnabled(projectId: String, enabled: Boolean) {
+        resolveProjectContainer(projectId)
+        enabledPrefs.edit().putBoolean(projectId, enabled).apply()
+    }
+
+    fun isEnabled(projectId: String): Boolean =
+        enabledPrefs.getBoolean(projectId, true)
+
     fun writeFile(projectId: String, relativePath: String, source: String) {
         require(source.length <= MAX_SOURCE_CHARS) { "Script file is too large" }
         val target = resolveProjectFile(projectId, relativePath, allowMissing = true)
@@ -183,7 +195,9 @@ internal class ScriptFiles(context: Context) {
         val normalized = validateName(newName, "")
         val destination = if (source.isDirectory) File(root, normalized) else File(root, "$normalized.js")
         require(!destination.exists()) { "A script project with this name already exists" }
+        val wasEnabled = isEnabled(projectId)
         require(source.renameTo(destination)) { "Could not rename script project" }
+        enabledPrefs.edit().remove(projectId).putBoolean(normalized, wasEnabled).apply()
         return normalized
     }
 
@@ -194,6 +208,7 @@ internal class ScriptFiles(context: Context) {
         } else {
             require(source.delete()) { "Could not delete script file" }
         }
+        enabledPrefs.edit().remove(projectId).apply()
     }
 
     fun renameFile(projectId: String, relativePath: String, newRelativePath: String): String {
@@ -513,11 +528,12 @@ internal class ScriptWorkspace(context: Context) : AutoCloseable {
 
     suspend fun reload(): List<ScriptCommand> = withContext(Dispatchers.IO) {
         val projects = files.listProjects()
+        val enabledProjects = projects.filter { it.enabled }
         val old = runtimes.values.toList()
         runtimes.clear()
         old.forEach(ScriptRuntime::close)
         val nextCommands = mutableListOf<ScriptCommand>()
-        for (project in projects) {
+        for (project in enabledProjects) {
             runCatching {
                 val engine = ScriptRuntime(appContext, project, files, ::appendLog)
                 val loadedCommands = engine.load()
