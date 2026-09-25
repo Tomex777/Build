@@ -13,6 +13,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -58,6 +59,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import org.json.JSONArray
 import org.json.JSONObject
+
+private val BrowserNight = Color(0xFF07111E)
+private val BrowserBubble = Color(0xFF13243A)
+private val BrowserBlue = Color(0xFF168EEA)
+private val BrowserSoftText = Color(0xFF9CB2CC)
+private val BrowserBrightText = Color(0xFFEEF5FF)
+private val BrowserTeal = Color(0xFF54D6AE)
 
 internal class AnnieBrowserController {
     internal var webView: WebView? = null
@@ -205,13 +213,13 @@ internal fun AnnieBrowserMessage(
     var verifyMessage by remember(safe.sessionId) { mutableStateOf("") }
     Column(
         Modifier.fillMaxWidth().testTag("annie_browser_message")
-            .background(Bubble, RoundedCornerShape(8.dp, 20.dp, 20.dp, 20.dp)).padding(10.dp),
+            .background(BrowserBubble, RoundedCornerShape(8.dp, 20.dp, 20.dp, 20.dp)).padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Column(Modifier.weight(1f)) {
-                Text(safe.title, color = BrightText, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(Uri.parse(controller.currentUrl.ifBlank { safe.url }).host.orEmpty(), color = SoftText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(safe.title, color = BrowserBrightText, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(Uri.parse(controller.currentUrl.ifBlank { safe.url }).host.orEmpty(), color = BrowserSoftText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Text(
                 when (status) {
@@ -220,18 +228,18 @@ internal fun AnnieBrowserMessage(
                     AnnieBrowserVerificationState.Failed -> "Verification failed"
                     else -> if (safe.verifyAction.isNullOrBlank()) "Session ready" else "Verification needed"
                 },
-                color = if (status == AnnieBrowserVerificationState.Verified) Teal else SoftText,
+                color = if (status == AnnieBrowserVerificationState.Verified) BrowserTeal else BrowserSoftText,
                 fontSize = 11.sp,
             )
         }
         if (controller.loading) LinearProgressIndicator(
             progress = { controller.progress / 100f },
             modifier = Modifier.fillMaxWidth(),
-            color = Blue,
+            color = BrowserBlue,
         )
         AnnieBrowserWebView(safe, controller, Modifier.fillMaxWidth().height(230.dp))
         controller.message?.let { Text(it, color = Color(0xFFFF9B91), fontSize = 12.sp) }
-        if (verifyMessage.isNotBlank()) Text(verifyMessage, color = SoftText, fontSize = 12.sp)
+        if (verifyMessage.isNotBlank()) Text(verifyMessage, color = BrowserSoftText, fontSize = 12.sp)
         Row(
             Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -262,7 +270,7 @@ internal fun AnnieBrowserMessage(
                         }
                     },
                     enabled = status != AnnieBrowserVerificationState.Verifying,
-                    colors = ButtonDefaults.buttonColors(containerColor = Blue),
+                    colors = ButtonDefaults.buttonColors(containerColor = BrowserBlue),
                     modifier = Modifier.testTag("annie_browser_verify"),
                 ) { Text(if (status == AnnieBrowserVerificationState.Verifying) "Verifying…" else safe.verifyLabel) }
             }
@@ -296,7 +304,7 @@ internal object AnnieBrowserVerification {
 internal class AnnieBrowserActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val spec = AnnieBrowserSpec.decode(intent.getStringExtra(EXTRA_SPEC))
+        val spec = intent.getStringExtra(EXTRA_SPEC)?.let(AnnieBrowserSpec::decode)
         if (spec == null) { finish(); return }
         setContent { AnnieTheme { AnnieFullBrowser(spec) { finish() } } }
     }
@@ -318,10 +326,10 @@ private fun AnnieFullBrowser(spec: AnnieBrowserSpec, onClose: () -> Unit) {
         if (controller.currentUrl.isNotBlank()) address = controller.currentUrl
     }
     BackHandler(controller.canGoBack) { controller.goBack() }
-    Column(Modifier.fillMaxSize().testTag("annie_full_browser").background(Night).statusBarsPadding().navigationBarsPadding()) {
+    Column(Modifier.fillMaxSize().testTag("annie_full_browser").background(BrowserNight).statusBarsPadding().navigationBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onClose) { Text("Close") }
-            Text(safe.title, Modifier.weight(1f), color = BrightText, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(safe.title, Modifier.weight(1f), color = BrowserBrightText, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             OutlinedTextField(
@@ -352,7 +360,7 @@ private fun AnnieFullBrowser(spec: AnnieBrowserSpec, onClose: () -> Unit) {
         if (controller.loading) LinearProgressIndicator(
             progress = { controller.progress / 100f },
             modifier = Modifier.fillMaxWidth(),
-            color = Blue,
+            color = BrowserBlue,
         )
         controller.message?.let { Text(it, Modifier.padding(horizontal = 14.dp, vertical = 6.dp), color = Color(0xFFFF9B91), fontSize = 12.sp) }
         AnnieBrowserWebView(safe, controller, Modifier.fillMaxSize())
