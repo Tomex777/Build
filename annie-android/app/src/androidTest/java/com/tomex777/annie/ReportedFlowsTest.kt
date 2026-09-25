@@ -2,9 +2,12 @@ package com.tomex777.annie
 
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -32,7 +35,7 @@ class ReportedFlowsTest {
     @Test fun slashAutocompleteAppearsAsTheUserTypesAndCanFillTheComposer() {
         var selected = ""
         compose.setContent {
-            Composer(value = "/ani", onValueChange = {}, onSuggestionSelected = { selected = it }, onSend = {}, onMenu = {})
+            Composer(value = TextFieldValue("/ani"), onValueChange = {}, onSuggestionSelected = { selected = it }, onSend = {}, onMenu = {})
         }
         compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
         compose.onNodeWithTag("slash_command_/anime").assertIsDisplayed()
@@ -49,21 +52,40 @@ class ReportedFlowsTest {
     }
 
     @Test fun slashAutocompleteOffersEveryMediaRootAndSharedContinueCommand() {
-        val typedCommand = mutableStateOf("/anime")
+        val typedCommand = mutableStateOf(TextFieldValue("/anime"))
         compose.setContent {
             Composer(value = typedCommand.value, onValueChange = {}, onSuggestionSelected = {}, onSend = {}, onMenu = {})
         }
         for (command in listOf("/anime", "/manga", "/tv", "/tv series", "/movie", "/music", "/continue", "/anime continue")) {
-            typedCommand.value = command
+            typedCommand.value = TextFieldValue(command, selection = TextRange(command.length))
             compose.waitForIdle()
             compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
             compose.onNodeWithTag("slash_command_$command").assertIsDisplayed()
         }
-        typedCommand.value = "/"
+        typedCommand.value = TextFieldValue("/")
         compose.waitForIdle()
         for (root in listOf("/anime", "/manga", "/movie", "/tv", "/music", "/continue")) {
             compose.onNodeWithText(root, substring = false).assertExists()
         }
+    }
+
+    @Test fun selectingSlashSuggestionPlacesCaretAfterInsertedCommand() {
+        val typedCommand = mutableStateOf(TextFieldValue("/"))
+        compose.setContent {
+            Composer(
+                value = typedCommand.value,
+                onValueChange = { typedCommand.value = it },
+                onSuggestionSelected = { command ->
+                    val selected = "$command "
+                    typedCommand.value = TextFieldValue(selected, selection = TextRange(selected.length))
+                },
+                onSend = {},
+                onMenu = {},
+            )
+        }
+        compose.onNodeWithTag("slash_command_/anime").performClick()
+        compose.onNodeWithTag("composer_input").performTextInput("search")
+        compose.onNodeWithTag("composer_input").assertTextEquals("/anime search")
     }
 
     @Test fun animeDetailsOfferBeginningPlaybackAndSeasonListActions() {

@@ -47,7 +47,7 @@ jobs:
           script: gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest
       - uses: actions/upload-artifact@v4
         with:
-          name: annie-android-debug-apk
-          path: annie-android/app/build/outputs/apk/debug/app-debug.apk
+          name: annie-android-arm64-debug-apk
+          path: annie-android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
           if-no-files-found: error
           retention-days: 7

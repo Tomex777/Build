@@ -36,6 +36,7 @@ class ChatHistoryTest {
 
         compose.onNodeWithTag("composer_input").performTextInput("My saved conversation")
         compose.onNodeWithTag("send_message").performClick()
+        compose.onNodeWithTag("sent_message_animation").assertIsDisplayed()
         val saved = ChatHistoryStore.read(context).first { it.title == "My saved conversation" }
         assertTrue(saved.messages.any { it.fromUser && it.text == "My saved conversation" })
 

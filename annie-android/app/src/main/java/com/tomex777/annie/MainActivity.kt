@@ -13,6 +13,11 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,8 +76,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -137,7 +144,8 @@ internal fun AnnieChat() {
     var activeChatId by remember { mutableStateOf(chats.first().id) }
     val activeChat = chats.firstOrNull { it.id == activeChatId } ?: chats.first()
     val messages = activeChat.messages
-    var draft by remember { mutableStateOf("") }
+    var draft by remember { mutableStateOf(TextFieldValue("")) }
+    var lastSentMessageId by remember { mutableStateOf<Long?>(null) }
     var activeSheet by remember { mutableStateOf<String?>(null) }
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val listState = remember(activeChatId) { LazyListState() }
@@ -215,7 +223,7 @@ internal fun AnnieChat() {
             "Manga" to "Continue reading" -> addAnnie("Nothing to continue reading yet.", menuTitle = "Continue reading")
             "Manga" to "Downloads" -> openDownloads("Manga")
             "Music" to "Search music" -> openSearch("music")
-            "Music" to "Open YouTube link" -> draft = "/music "
+            "Music" to "Open YouTube link" -> draft = TextFieldValue("/music ", selection = TextRange(7))
             "New anime episodes" to "Today", "New anime episodes" to "This week", "New anime episodes" to "All" ->
                 addAnnie(recentEpisodesUnavailableMessage(action))
             else -> openDownloads()
@@ -227,11 +235,13 @@ internal fun AnnieChat() {
     }
 
     fun submit() {
-        val value = draft.trim()
+        val value = draft.text.trim()
         if (value.isEmpty()) return
-        messages.add(ChatEntry(System.nanoTime(), true, value))
+        val sentMessage = ChatEntry(System.nanoTime(), true, value)
+        lastSentMessageId = sentMessage.id
+        messages.add(sentMessage)
         persistHistory()
-        draft = ""
+        draft = TextFieldValue("")
         val parts = value.split(Regex("\\s+"), limit = 2)
         val command = parts.firstOrNull()?.lowercase().orEmpty()
         val query = parts.getOrNull(1)?.trim().orEmpty()
@@ -294,21 +304,31 @@ internal fun AnnieChat() {
                 verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.Top)
             ) {
                 items(messages, key = { it.id }) { entry ->
-                    ChatBubble(
-                        entry,
-                        onCatalogClick = ::openSelectedTitle,
-                        onActionClick = ::handleMenuAction,
-                        onOpenSource = { sourceUrl ->
-                            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(sourceUrl))) }
-                        },
-                        onSeriesAction = { item, stage, season ->
-                            if (stage == "play") {
-                                launchPlayer(context, season?.asCatalogItem() ?: item)
-                            } else {
-                                addAnnie("", selectedItem = season?.asCatalogItem() ?: item, selectedStage = stage)
+                    val bubbleContent: @Composable () -> Unit = {
+                        ChatBubble(
+                            entry,
+                            onCatalogClick = ::openSelectedTitle,
+                            onActionClick = ::handleMenuAction,
+                            onOpenSource = { sourceUrl ->
+                                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(sourceUrl))) }
+                            },
+                            onSeriesAction = { item, stage, season ->
+                                if (stage == "play") {
+                                    launchPlayer(context, season?.asCatalogItem() ?: item)
+                                } else {
+                                    addAnnie("", selectedItem = season?.asCatalogItem() ?: item, selectedStage = stage)
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
+                    if (entry.id == lastSentMessageId) {
+                        AnimatedVisibility(
+                            visible = true,
+                            modifier = Modifier.testTag("sent_message_animation"),
+                            enter = fadeIn(tween(220)) + expandVertically(tween(220)) +
+                                slideInVertically(tween(220)) { it / 7 },
+                        ) { bubbleContent() }
+                    } else bubbleContent()
                 }
             }
             Composer(
@@ -316,7 +336,10 @@ internal fun AnnieChat() {
                 onValueChange = {
                     draft = it
                 },
-                onSuggestionSelected = { draft = "$it " },
+                onSuggestionSelected = {
+                    val selected = "$it "
+                    draft = TextFieldValue(selected, selection = TextRange(selected.length))
+                },
                 onSend = { submit() },
                 onMenu = { activeSheet = "Attachments" }
             )
@@ -339,13 +362,13 @@ internal fun AnnieChat() {
                         val newChat = newWelcomeChat()
                         chats.add(0, newChat)
                         activeChatId = newChat.id
-                        draft = ""
+                        draft = TextFieldValue("")
                         persistHistory()
                         activeSheet = null
                     },
                     onSelectChat = { id ->
                         activeChatId = id
-                        draft = ""
+                        draft = TextFieldValue("")
                         activeSheet = null
                     },
                     onExtensions = {
@@ -506,10 +529,6 @@ private fun AnnieTopBar(onHistory: () -> Unit) {
         ) { Text("A", fontWeight = FontWeight.Bold, color = BrightText, fontSize = 18.sp) }
         Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
             Text("Annie", color = BrightText, fontWeight = FontWeight.Bold, fontSize = 19.sp)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(7.dp).clip(CircleShape).background(Teal))
-                Text("  Ready when you are", color = SoftText, fontSize = 12.sp)
-            }
         }
         Text(
             "⋮",
@@ -1175,9 +1194,9 @@ internal fun CommandSuggestions(value: String, onSelect: (String) -> Unit) {
 }
 
 @Composable
-internal fun Composer(value: String, onValueChange: (String) -> Unit, onSuggestionSelected: (String) -> Unit = {}, onSend: () -> Unit, onMenu: () -> Unit) {
+internal fun Composer(value: TextFieldValue, onValueChange: (TextFieldValue) -> Unit, onSuggestionSelected: (String) -> Unit = {}, onSend: () -> Unit, onMenu: () -> Unit) {
     Column(Modifier.fillMaxWidth().imePadding().navigationBarsPadding().testTag("composer")) {
-        CommandSuggestions(value, onSuggestionSelected)
+        CommandSuggestions(value.text, onSuggestionSelected)
         Row(
         modifier = Modifier.fillMaxWidth()
             .background(Night).padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
@@ -1201,7 +1220,7 @@ internal fun Composer(value: String, onValueChange: (String) -> Unit, onSuggesti
                 keyboardActions = KeyboardActions(onSend = { onSend() }),
                 decorationBox = { inner ->
                     Box {
-                        if (value.isEmpty()) Text("Message Annie…", color = SoftText, fontSize = 15.sp)
+                        if (value.text.isEmpty()) Text("Message Annie…", color = SoftText, fontSize = 15.sp)
                         inner()
                     }
                 }
