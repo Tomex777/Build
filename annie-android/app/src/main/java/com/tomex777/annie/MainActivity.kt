@@ -249,6 +249,29 @@ internal fun AnnieChat() {
         openSearch(media, query)
     }
 
+    fun addScriptResult(resultJson: String?, scriptId: String, channel: String) {
+        val result = resultJson?.let { runCatching { org.json.JSONObject(it) }.getOrNull() }
+        if (result == null) {
+            addAnnie("The script returned a result Annie could not read.")
+        } else if (result.optString("type") == "error") {
+            addAnnie("Script error\n${result.optString("text", "Script failed").take(300)}")
+        } else if (result.optString("type") == "text") {
+            addAnnie(
+                result.optString("text"),
+                scriptMessageJson = resultJson,
+                scriptId = scriptId,
+                scriptCommandName = channel,
+            )
+        } else {
+            addAnnie(
+                "",
+                scriptMessageJson = resultJson,
+                scriptId = scriptId,
+                scriptCommandName = channel,
+            )
+        }
+    }
+
     fun submit() {
         val value = draft.text.trim()
         if (value.isEmpty()) return
@@ -267,15 +290,18 @@ internal fun AnnieChat() {
             val chatId = activeChatId
             scope.launch {
                 val resultJson = scriptWorkspace.execute(dynamicCommand.name, value, chatId, sentMessage.id)
-                val result = runCatching { org.json.JSONObject(resultJson) }.getOrNull()
-                if (result == null) {
-                    addAnnie("The script returned a result Annie could not read.")
-                } else if (result.optString("type") == "error") {
-                    addAnnie("Script error\n${result.optString("text", "Script failed").take(300)}")
-                } else if (result.optString("type") == "text") {
-                    addAnnie(result.optString("text"), scriptMessageJson = resultJson, scriptId = dynamicCommand.scriptId, scriptCommandName = dynamicCommand.name)
+                addScriptResult(resultJson, dynamicCommand.scriptId, dynamicCommand.name)
+            }
+            return
+        }
+        if (!value.startsWith("/")) {
+            val chatId = activeChatId
+            scope.launch {
+                val dispatch = scriptWorkspace.executeSession(value, chatId, sentMessage.id)
+                if (dispatch != null) {
+                    addScriptResult(dispatch.resultJson, dispatch.scriptId, dispatch.channel)
                 } else {
-                    addAnnie("", scriptMessageJson = resultJson, scriptId = dynamicCommand.scriptId, scriptCommandName = dynamicCommand.name)
+                    addAnnie("Try a slash command: /anime, /movie, /tv, /manga, /music, /downloads, or /scripts.")
                 }
             }
             return
@@ -354,7 +380,24 @@ internal fun AnnieChat() {
                                 } else {
                                     addAnnie("", selectedItem = season?.asCatalogItem() ?: item, selectedStage = stage)
                                 }
-                            }
+                            },
+                            onScriptAction = { actionId, payloadJson ->
+                                val owner = entry.scriptId
+                                if (owner != null) {
+                                    scope.launch {
+                                        val dispatch = scriptWorkspace.executeAction(
+                                            scriptId = owner,
+                                            actionId = actionId,
+                                            payloadJson = payloadJson,
+                                            chatId = activeChatId,
+                                            messageId = entry.id,
+                                        )
+                                        if (dispatch != null) {
+                                            addScriptResult(dispatch.resultJson, dispatch.scriptId, dispatch.channel)
+                                        }
+                                    }
+                                }
+                            },
                         )
                     }
                     if (entry.id == lastSentMessageId) {
@@ -620,7 +663,8 @@ internal fun ChatBubble(
     onCatalogClick: (CatalogItem) -> Unit,
     onActionClick: (String, String) -> Unit,
     onOpenSource: (String) -> Unit,
-    onSeriesAction: (CatalogItem, String, SeasonItem?) -> Unit
+    onSeriesAction: (CatalogItem, String, SeasonItem?) -> Unit,
+    onScriptAction: (String, String) -> Unit = { _, _ -> },
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -658,7 +702,7 @@ internal fun ChatBubble(
                     }
                 }
             } else if (entry.scriptMessageJson != null) {
-                ScriptMessageCard(entry.scriptMessageJson)
+                ScriptMessageCard(entry.scriptMessageJson, onScriptAction)
             } else if (entry.menuTitle != null) {
                 Column(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
@@ -720,14 +764,14 @@ internal fun ChatBubble(
 }
 
 @Composable
-private fun ScriptMessageCard(payload: String) {
+private fun ScriptMessageCard(payload: String, onAction: (String, String) -> Unit) {
     val data = remember(payload) { runCatching { org.json.JSONObject(payload) }.getOrNull() }
     val type = data?.optString("type").orEmpty()
     when (type) {
         "image" -> ScriptImageMessage(data)
         "music" -> ScriptMusicMessage(data)
         "video" -> ScriptVideoMessage(data)
-        "options" -> ScriptOptionsMessage(data)
+        "options" -> ScriptOptionsMessage(data, onAction)
         "progress" -> ScriptProgressMessage(data)
         "text" -> Text(data.optString("text"), color = BrightText, fontSize = 15.sp)
         else -> Surface(color = Bubble, shape = RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)) {
@@ -847,15 +891,25 @@ private fun ScriptVideoMessage(data: org.json.JSONObject) {
 }
 
 @Composable
-private fun ScriptOptionsMessage(data: org.json.JSONObject) {
+private fun ScriptOptionsMessage(data: org.json.JSONObject, onAction: (String, String) -> Unit) {
     val rows = data.optJSONArray("options") ?: org.json.JSONArray()
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)).background(Bubble).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         data.optString("title").takeIf(String::isNotBlank)?.let { Text(it, color = BrightText, fontWeight = FontWeight.SemiBold) }
         for (index in 0 until rows.length()) {
             val option = rows.optJSONObject(index) ?: continue
+            val optionId = option.optString("id").ifBlank { index.toString() }
+            val label = option.optString("label", optionId)
+            val actionId = option.optString("action", optionId)
+            val payloadValue = option.opt("payload")
+            val payloadJson = when (payloadValue) {
+                is org.json.JSONObject, is org.json.JSONArray -> payloadValue.toString()
+                null, org.json.JSONObject.NULL -> org.json.JSONObject().put("id", optionId).put("label", label).toString()
+                else -> org.json.JSONObject().put("id", optionId).put("label", label).put("value", payloadValue).toString()
+            }
             Surface(color = Color(0xFF10263D), shape = RoundedCornerShape(13.dp), border = BorderStroke(1.dp, Color(0xFF294562))) {
-                Text(option.optString("label", option.optString("id")), color = BrightText,
-                    modifier = Modifier.fillMaxWidth().clickable { }.padding(horizontal = 13.dp, vertical = 12.dp))
+                Text(label, color = BrightText,
+                    modifier = Modifier.fillMaxWidth().clickable { onAction(actionId, payloadJson) }
+                        .padding(horizontal = 13.dp, vertical = 12.dp).testTag("script_option_$optionId"))
             }
         }
     }
