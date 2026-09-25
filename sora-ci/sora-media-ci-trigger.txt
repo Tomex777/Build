@@ -30,3 +30,5 @@ rerun 46 - assert Bible chapter Next resets from a scrolled prior chapter
 rerun 47 - prove Core music UI works without extensions and Bible Next resets after scrolling
 
 rerun 48 - verify extension-free Music through switcher and read back Bible cache fixture
+
+rerun 49 - route Bible navigation through local deterministic API fixture
