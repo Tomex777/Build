@@ -60,7 +60,24 @@ jobs:
         with:
           packages: platform-tools emulator
       - name: Install Android emulator image and SDK platform
-        run: sdkmanager "platforms;android-35" "platforms;android-36" "build-tools;35.0.0" "system-images;android-35;google_apis;x86_64"
+        shell: bash
+        run: |
+          set -euo pipefail
+          packages=(
+            "platforms;android-35"
+            "platforms;android-36"
+            "build-tools;35.0.0"
+            "system-images;android-35;google_apis;x86_64"
+          )
+          for attempt in 1 2 3; do
+            if sdkmanager "${packages[@]}"; then
+              exit 0
+            fi
+            echo "SDK install attempt ${attempt} failed; clearing the partial system image before retry."
+            rm -rf "${ANDROID_SDK_ROOT}/system-images/android-35/google_apis/x86_64" || true
+            sleep 10
+          done
+          exit 1
       - name: Download real Aniyomi-compatible AnimeSogo extension
         run: curl --fail --location --retry 3 --output /tmp/animesogo.apk https://raw.githubusercontent.com/mojuru/anime-repo/ae5dcf8f2c6adc32735f818fc9a3eb051b06c5c6/apk/aniyomi-en.animesogo-v16.8.apk
       - name: Run real extension and native-source smoke test
