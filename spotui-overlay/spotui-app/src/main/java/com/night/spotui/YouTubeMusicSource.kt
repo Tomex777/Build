@@ -355,6 +355,7 @@ class ExtensionMusicSource(context: Context) : MusicSource {
                 )
             }
         }
+        }
     } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
         Result.failure(IllegalStateException("Music source is taking too long. Try again."))
     }
