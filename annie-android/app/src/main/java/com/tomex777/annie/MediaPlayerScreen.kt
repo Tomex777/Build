@@ -68,6 +68,7 @@ import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.util.VLCVideoLayout
+import org.json.JSONObject
 
 class AnniePlayerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,6 +76,9 @@ class AnniePlayerActivity : ComponentActivity() {
         enableEdgeToEdge()
         val title = intent.getStringExtra(EXTRA_TITLE)?.takeIf(String::isNotBlank) ?: "Video"
         val mediaUri = intent.getStringExtra(EXTRA_MEDIA_URI)?.let(Uri::parse)
+        val videoConfig = intent.getStringExtra(EXTRA_VIDEO_CONFIG)
+            ?.let { runCatching { JSONObject(it) }.getOrNull() }
+        val sources = parsePlayerSources(videoConfig, mediaUri)
         val mode = intent.getStringExtra(EXTRA_MODE)?.let { runCatching { PlayerMode.valueOf(it) }.getOrNull() }
             ?: PlayerMode.STREAMING
         val item = CatalogItem(
@@ -92,8 +96,9 @@ class AnniePlayerActivity : ComponentActivity() {
                 MediaPlayerScreen(
                     item = item,
                     mode = mode,
-                    sourceAvailable = mediaUri != null,
+                    sourceAvailable = mediaUri != null || sources.isNotEmpty(),
                     mediaUri = mediaUri,
+                    sources = sources,
                     onBack = { finish() },
                 )
             }
@@ -107,11 +112,18 @@ class AnniePlayerActivity : ComponentActivity() {
         const val EXTRA_IMAGE = "annie.player.image"
         const val EXTRA_YEAR = "annie.player.year"
         const val EXTRA_MEDIA_URI = "annie.player.media_uri"
+        const val EXTRA_VIDEO_CONFIG = "annie.player.video_config"
         const val EXTRA_MODE = "annie.player.mode"
     }
 }
 
 internal enum class PlayerMode { STREAMING, OFFLINE }
+
+internal data class PlayerSource(
+    val label: String,
+    val uri: Uri,
+    val headers: Map<String, String> = emptyMap(),
+)
 
 private enum class AnnieVideoScale(val label: String, val scale: MediaPlayer.ScaleType) {
     FIT("Fit", MediaPlayer.ScaleType.SURFACE_BEST_FIT),
@@ -133,6 +145,7 @@ internal fun MediaPlayerScreen(
     mode: PlayerMode,
     sourceAvailable: Boolean,
     mediaUri: Uri? = null,
+    sources: List<PlayerSource> = emptyList(),
     onBack: () -> Unit,
     immersive: Boolean = true,
 ) {
@@ -152,13 +165,20 @@ internal fun MediaPlayerScreen(
         onDispose { if (immersive) controller?.show(WindowInsetsCompat.Type.systemBars()) }
     }
 
-    val playable = sourceAvailable
+    val sourceChoices = remember(mediaUri, sources) {
+        if (sources.isNotEmpty()) sources else mediaUri?.let { listOf(PlayerSource("Source", it)) }.orEmpty()
+    }
+    var sourceIndex by remember(sourceChoices) { mutableStateOf(0) }
+    var switchResumePosition by remember { mutableLongStateOf(0L) }
+    val activeSource = sourceChoices.getOrNull(sourceIndex)
+    val activeUri = activeSource?.uri
+    val playable = sourceAvailable || activeUri != null
     val isOffline = mode == PlayerMode.OFFLINE
     val resumePrefs = remember { appContext.getSharedPreferences("annie_video_resume", Context.MODE_PRIVATE) }
     val resumeKey = remember(item.id, item.title) { "${item.id}:${item.title}" }
 
-    val libVlc = remember(mediaUri) {
-        mediaUri?.let {
+    val libVlc = remember(activeUri) {
+        activeUri?.let {
             LibVLC(
                 appContext,
                 arrayListOf(
@@ -170,27 +190,34 @@ internal fun MediaPlayerScreen(
         }
     }
     val player = remember(libVlc) { libVlc?.let(::MediaPlayer) }
-    var attachedPlayer by remember(mediaUri) { mutableStateOf<MediaPlayer?>(null) }
-    var playing by remember(mediaUri) { mutableStateOf(false) }
-    var positionMs by remember(mediaUri) { mutableLongStateOf(0L) }
-    var durationMs by remember(mediaUri) { mutableLongStateOf(0L) }
-    var userPaused by remember(mediaUri) { mutableStateOf(false) }
-    var controlsVisible by remember(mediaUri) { mutableStateOf(true) }
-    var wasPlayingBeforeBackground by remember(mediaUri) { mutableStateOf(false) }
-    var scaleMode by remember(mediaUri) { mutableStateOf(AnnieVideoScale.FIT) }
+    var attachedPlayer by remember(activeUri) { mutableStateOf<MediaPlayer?>(null) }
+    var playing by remember(activeUri) { mutableStateOf(false) }
+    var positionMs by remember(activeUri) { mutableLongStateOf(0L) }
+    var durationMs by remember(activeUri) { mutableLongStateOf(0L) }
+    var userPaused by remember(activeUri) { mutableStateOf(false) }
+    var controlsVisible by remember(activeUri) { mutableStateOf(true) }
+    var wasPlayingBeforeBackground by remember(activeUri) { mutableStateOf(false) }
+    var scaleMode by remember(activeUri) { mutableStateOf(AnnieVideoScale.FIT) }
     var subtitleMenu by remember { mutableStateOf(false) }
     var audioMenu by remember { mutableStateOf(false) }
     var speedMenu by remember { mutableStateOf(false) }
     var qualityMenu by remember { mutableStateOf(false) }
-    var audioTracks by remember(mediaUri) { mutableStateOf<List<Pair<Int, String>>>(emptyList()) }
-    var subtitleTracks by remember(mediaUri) { mutableStateOf<List<Pair<Int, String>>>(emptyList()) }
+    var audioTracks by remember(activeUri) { mutableStateOf<List<Pair<Int, String>>>(emptyList()) }
+    var subtitleTracks by remember(activeUri) { mutableStateOf<List<Pair<Int, String>>>(emptyList()) }
     var speed by remember(mediaUri) { mutableFloatStateOf(1f) }
 
-    DisposableEffect(player, libVlc, mediaUri) {
-        if (player != null && libVlc != null && mediaUri != null) {
-            val media = Media(libVlc, mediaUri).apply {
+    DisposableEffect(player, libVlc, activeUri) {
+        if (player != null && libVlc != null && activeUri != null) {
+            val media = Media(libVlc, activeUri).apply {
                 setHWDecoderEnabled(true, false)
                 addOption(":network-caching=1500")
+                activeSource?.headers?.forEach { (name, value) ->
+                    when (name.lowercase()) {
+                        "user-agent" -> addOption(":http-user-agent=$value")
+                        "referer", "referrer" -> addOption(":http-referrer=$value")
+                        "cookie" -> addOption(":http-cookie=$value")
+                    }
+                }
             }
             player.media = media
             media.release()
@@ -207,8 +234,8 @@ internal fun MediaPlayerScreen(
         }
     }
 
-    LaunchedEffect(player, attachedPlayer, mediaUri) {
-        if (player == null || mediaUri == null) return@LaunchedEffect
+    LaunchedEffect(player, attachedPlayer, activeUri) {
+        if (player == null || activeUri == null) return@LaunchedEffect
         var checks = 0
         while (isActive && attachedPlayer !== player && checks < 120) {
             delay(50)
@@ -216,7 +243,9 @@ internal fun MediaPlayerScreen(
         }
         if (!isActive || attachedPlayer !== player) return@LaunchedEffect
         player.play()
-        val resume = resumePrefs.getLong(resumeKey, 0L)
+        val persistedResume = resumePrefs.getLong(resumeKey, 0L)
+        val resume = switchResumePosition.takeIf { it > 0L } ?: persistedResume
+        switchResumePosition = 0L
         if (resume > 0L) runCatching { player.setTime(resume) }
         runCatching { player.setRate(speed) }
         playing = true
@@ -271,7 +300,7 @@ internal fun MediaPlayerScreen(
         Modifier.fillMaxSize().background(Color.Black).clickable { controlsVisible = !controlsVisible }
             .testTag("media_player"),
     ) {
-        if (player != null && mediaUri != null) {
+        if (player != null && activeUri != null) {
             AndroidView(
                 factory = { viewContext ->
                     VLCVideoLayout(viewContext).also { layout ->
@@ -321,7 +350,7 @@ internal fun MediaPlayerScreen(
             }
         }
 
-        if (mediaUri != null && durationMs == 0L && positionMs == 0L && !userPaused) {
+        if (activeUri != null && durationMs == 0L && positionMs == 0L && !userPaused) {
             CircularProgressIndicator(
                 modifier = Modifier.align(Alignment.Center).size(42.dp).testTag("player_buffering"),
                 color = Color.White,
@@ -406,18 +435,39 @@ internal fun MediaPlayerScreen(
                     }
 
                     Box {
+                        val qualityLabel = when {
+                            isOffline -> "Source"
+                            sourceChoices.size > 1 -> activeSource?.label?.ifBlank { "Auto" } ?: "Auto"
+                            else -> "Auto⌄"
+                        }
                         PlayerTextButton(
-                            if (isOffline) "Source" else "Auto⌄",
+                            qualityLabel,
                             "player_quality",
                             playable && !isOffline,
                             { qualityMenu = true },
                             label = "Quality",
                         )
                         DropdownMenu(expanded = qualityMenu, onDismissRequest = { qualityMenu = false }) {
-                            DropdownMenuItem(
-                                text = { Text("Source quality") },
-                                onClick = { qualityMenu = false },
-                            )
+                            if (sourceChoices.isEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("Source quality") },
+                                    onClick = { qualityMenu = false },
+                                )
+                            } else {
+                                sourceChoices.forEachIndexed { index, source ->
+                                    DropdownMenuItem(
+                                        text = { Text(source.label.ifBlank { "Source ${index + 1}" }) },
+                                        onClick = {
+                                            if (index != sourceIndex) {
+                                                switchResumePosition = positionMs
+                                                sourceIndex = index
+                                                controlsVisible = true
+                                            }
+                                            qualityMenu = false
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -610,6 +660,43 @@ private fun formatPlayerTime(milliseconds: Long): String {
 
 private fun formatRate(rate: Float): String =
     if (rate % 1f == 0f) rate.toInt().toString() else rate.toString()
+
+private fun parsePlayerSources(config: JSONObject?, fallback: Uri?): List<PlayerSource> {
+    if (config == null) return fallback?.let { listOf(PlayerSource("Source", it)) }.orEmpty()
+    val topHeaders = config.optJSONObject("headers").stringMap()
+    val qualities = config.optJSONArray("qualities")
+    val parsed = buildList {
+        if (qualities != null) {
+            for (index in 0 until qualities.length()) {
+                val row = qualities.optJSONObject(index) ?: continue
+                val address = sequenceOf("uri", "url", "streamUrl")
+                    .map(row::optString)
+                    .firstOrNull(String::isNotBlank) ?: continue
+                val label = row.optString("label")
+                    .ifBlank { row.optString("quality") }
+                    .ifBlank { "Source ${index + 1}" }
+                val headers = topHeaders + row.optJSONObject("headers").stringMap()
+                add(PlayerSource(label, Uri.parse(address), headers))
+            }
+        }
+    }
+    if (parsed.isNotEmpty()) return parsed
+    val direct = config.optString("uri").takeIf(String::isNotBlank)?.let(Uri::parse) ?: fallback
+    return direct?.let { listOf(PlayerSource(config.optString("quality", "Source"), it, topHeaders)) }.orEmpty()
+}
+
+private fun JSONObject?.stringMap(): Map<String, String> {
+    if (this == null) return emptyMap()
+    val objectValue = this
+    return buildMap {
+        val iterator = objectValue.keys()
+        while (iterator.hasNext()) {
+            val key = iterator.next()
+            val value = objectValue.optString(key)
+            if (key.isNotBlank() && value.isNotBlank()) put(key, value)
+        }
+    }
+}
 
 internal tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
