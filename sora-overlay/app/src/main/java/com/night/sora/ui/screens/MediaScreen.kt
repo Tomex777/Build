@@ -126,6 +126,27 @@ fun MediaScreen(
 
     val engine = remember { MusicTasteEngine() }
     val rankedTaste = remember(listeningSignals) { engine.ranked(listeningSignals, System.currentTimeMillis()) }
+    val musicTastePreferences = remember(context) {
+        context.getSharedPreferences("sora_music_taste_v1", android.content.Context.MODE_PRIVATE)
+    }
+    var favoriteArtists by remember(musicTastePreferences) {
+        val stored = musicTastePreferences.getStringSet("favorite_artists", null)
+        mutableStateOf(stored?.toList()?.sorted() ?: listOf("Juice WRLD"))
+    }
+    val musicTasteArtists = remember(favoriteArtists, rankedTaste) {
+        (favoriteArtists + rankedTaste.map { it.artistName })
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase() }
+            .take(4)
+    }
+    fun updateMusicTaste(artists: List<String>) {
+        val normalized = artists.map { it.trim() }.filter { it.isNotBlank() }
+            .distinctBy { it.lowercase() }.take(8)
+        favoriteArtists = normalized
+        musicTastePreferences.edit().putStringSet("favorite_artists", normalized.toSet()).apply()
+        refreshEpoch++
+    }
 
     DisposableEffect(context) {
         val connectivity = context.getSystemService(ConnectivityManager::class.java)
@@ -265,7 +286,11 @@ fun MediaScreen(
 
         primaryLoading = false
         primaryError = null
-        val cached = if (requestQuery.isBlank()) mediaCache.read(requestType) else mediaCache.search(requestType, requestQuery)
+        val cached = if (requestType == ContentType.MUSIC) emptyList() else if (requestQuery.isBlank()) {
+            mediaCache.read(requestType)
+        } else {
+            mediaCache.search(requestType, requestQuery)
+        }
         rows = cached.map { it.toBrowseCard() }
         val key = typeKey(requestType)
         val providers = extensions.flatMap { ext ->
@@ -278,16 +303,29 @@ fun MediaScreen(
             return
         }
 
-        val method = if (requestQuery.isBlank()) ExtensionContract.Method.BROWSE else ExtensionContract.Method.SEARCH
+        val providerQueries = if (requestType == ContentType.MUSIC && requestQuery.isBlank()) {
+            musicTasteArtists
+        } else {
+            listOf(requestQuery)
+        }
+        val providerRequests = providers.flatMap { (ext, source) ->
+            providerQueries.map { providerQuery -> Triple(ext, source, providerQuery) }
+        }
+        if (providerRequests.isEmpty()) {
+            primaryLoading = false
+            primaryError = "Choose artists you like in Music → Tune your taste to build your personal feed."
+            return
+        }
+        val method = if (requestQuery.isBlank() && requestType != ContentType.MUSIC) ExtensionContract.Method.BROWSE else ExtensionContract.Method.SEARCH
         primaryLoading = rows.isEmpty()
-        val failures = MutableList<String?>(providers.size) { null }
-        val collected = MutableList(providers.size) { emptyList<BrowseCard>() }
+        val failures = MutableList<String?>(providerRequests.size) { null }
+        val collected = MutableList(providerRequests.size) { emptyList<BrowseCard>() }
         var completed = 0
-        providers.forEachIndexed { index, (ext, source) ->
+        providerRequests.forEachIndexed { index, (ext, source, providerQuery) ->
             val payload = JSONObject()
                 .put("sourceId", source.id)
                 .put("type", key)
-                .put("query", requestQuery)
+                .put("query", providerQuery)
                 .put(
                     "redditClientId",
                     if (ext.packageName == "com.night.sora.ext.memes.reddit" && source.id == "reddit.memes")
@@ -305,7 +343,9 @@ fun MediaScreen(
                 completed++
                 if (completed == providers.size) {
                     val fresh = collected.flatten().distinctBy { it.title.trim().lowercase() }
-                    if (requestQuery.isBlank() && fresh.isNotEmpty()) mediaCache.write(requestType, fresh.map { it.toCachedRecord() })
+                    if (requestQuery.isBlank() && requestType != ContentType.MUSIC && fresh.isNotEmpty()) {
+                        mediaCache.write(requestType, fresh.map { it.toCachedRecord() })
+                    }
                     if (selectedType == requestType && destination == requestDestination && query.trim() == requestQuery) {
                         primaryLoading = false
                         if (fresh.isNotEmpty()) {
@@ -415,6 +455,7 @@ fun MediaScreen(
             )
             destination == MediaDestination.MUSIC -> MusicSurface(
                 panel = musicLocal, rows = rows, libraryEntries = libraryEntries, rankedTaste = rankedTaste,
+                tasteArtists = musicTasteArtists, onUpdateTaste = ::updateMusicTaste,
                 selection = ::selection, onPlay = onPlayMusic, onOpen = onOpenDetails,
                 onOpenExtensions = onOpenExtensions, onSelectPanel = { musicLocal = it },
                 loading = primaryLoading, error = primaryError, onRetry = { refreshEpoch++ },
@@ -667,6 +708,8 @@ private fun MusicSurface(
     rows: List<BrowseCard>,
     libraryEntries: List<LibraryEntry>,
     rankedTaste: List<ListeningSignal>,
+    tasteArtists: List<String>,
+    onUpdateTaste: (List<String>) -> Unit,
     selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
     onPlay: (ExtensionMediaSelection, List<ExtensionMediaSelection>) -> Unit,
     onOpen: (ExtensionMediaSelection) -> Unit,
@@ -679,7 +722,7 @@ private fun MusicSurface(
     val queue = remember(rows) { rows.map { selection(it, ContentType.MUSIC) } }
     val playFromQueue: (ExtensionMediaSelection) -> Unit = { track -> onPlay(track, queue) }
     when (panel) {
-        MusicLocal.HOME -> MusicHome(rows, rankedTaste, selection, playFromQueue, onOpen, onOpenExtensions, onSelectPanel, loading, error, onRetry)
+        MusicLocal.HOME -> MusicHome(rows, rankedTaste, tasteArtists, onUpdateTaste, selection, playFromQueue, onOpen, onOpenExtensions, onSelectPanel, loading, error, onRetry)
         MusicLocal.DISCOVER -> MusicDiscover(rows, selection, playFromQueue, onOpenExtensions, loading, error, onRetry)
         MusicLocal.LIBRARY -> MusicLibrary(libraryEntries, playFromQueue)
     }
@@ -688,12 +731,15 @@ private fun MusicSurface(
 @Composable
 private fun MusicHome(
     rows: List<BrowseCard>, rankedTaste: List<ListeningSignal>,
+    tasteArtists: List<String>, onUpdateTaste: (List<String>) -> Unit,
     selection: (BrowseCard, ContentType) -> ExtensionMediaSelection,
     onPlay: (ExtensionMediaSelection) -> Unit, onOpen: (ExtensionMediaSelection) -> Unit,
     onOpenExtensions: () -> Unit, onSelectPanel: (MusicLocal) -> Unit,
     loading: Boolean, error: String?, onRetry: () -> Unit,
 ) {
     var optionsOpen by remember { mutableStateOf(false) }
+    var tasteDialogOpen by remember { mutableStateOf(false) }
+    var tasteDraft by remember { mutableStateOf("") }
     val rankedRows = remember(rows, rankedTaste) {
         val order = rankedTaste.mapIndexed { index, signal -> signal.artistName.trim().lowercase() to index }.toMap()
         rows.sortedBy { card -> order[card.subtitle.substringBefore(" · ").trim().lowercase()] ?: Int.MAX_VALUE }
@@ -727,6 +773,15 @@ private fun MusicHome(
                             leadingIcon = { Icon(Icons.Rounded.LibraryMusic, null) },
                             onClick = { optionsOpen = false; onSelectPanel(MusicLocal.LIBRARY) },
                         )
+                        DropdownMenuItem(
+                            text = { Text("Tune your taste") },
+                            leadingIcon = { Icon(Icons.Rounded.Tune, null) },
+                            onClick = {
+                                optionsOpen = false
+                                tasteDraft = tasteArtists.joinToString(", ")
+                                tasteDialogOpen = true
+                            },
+                        )
                         HorizontalDivider()
                         DropdownMenuItem(
                             text = { Text("Music sources") },
@@ -737,10 +792,18 @@ private fun MusicHome(
                 }
             }
         }
+        item {
+            MusicSectionTitle(
+                "For you",
+                if (tasteArtists.isEmpty()) "Add artists you like to shape your music feed."
+                else "Built around " + tasteArtists.take(3).joinToString(", "),
+                null,
+            )
+        }
         if (rows.isEmpty()) item { CatalogSourceState("Music", loading, error, onRetry, onOpenExtensions) }
-        item { MusicQuickGrid(rows.take(6), selection, onPlay) }
+        if (rows.isNotEmpty()) item { MusicQuickGrid(rows.take(6), selection, onPlay) }
         if (rankedRows.isNotEmpty()) {
-            item { MusicSectionTitle(if (rankedTaste.isEmpty()) "Fresh picks" else "Made for you", if (rankedTaste.isEmpty()) "From installed Music sources" else "Ordered from your listening history", null) }
+            item { MusicSectionTitle("Your rotation", "Songs from artists you follow, refined by listening history", null) }
             item { MusicSquareRail(rankedRows.take(8), selection, onPlay) }
         }
         if (recentRows.isNotEmpty()) {
@@ -751,6 +814,31 @@ private fun MusicHome(
             item { MusicSectionTitle("Your top artists", "Based on your listening history", null); ArtistRail(rankedRows) }
             item { MusicSectionTitle("Your rotation", "Artists and songs you return to", null); MusicTrackList(rankedRows.take(8), selection, onPlay) }
         }
+    }
+    if (tasteDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { tasteDialogOpen = false },
+            title = { Text("Tune your music taste") },
+            text = {
+                Column {
+                    Text("Add artists you want Sora to look for across your installed music sources.")
+                    OutlinedTextField(
+                        value = tasteDraft,
+                        onValueChange = { tasteDraft = it },
+                        label = { Text("Favorite artists") },
+                        placeholder = { Text("Juice WRLD, ...") },
+                    )
+                    Text("Separate names with commas. Sora keeps these preferences on this device.", color = SoraMuted, fontSize = 10.sp)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onUpdateTaste(tasteDraft.split(","))
+                    tasteDialogOpen = false
+                }) { Text("Save") }
+            },
+            dismissButton = { TextButton(onClick = { tasteDialogOpen = false }) { Text("Cancel") } },
+        )
     }
 }
 
@@ -770,7 +858,7 @@ private fun MusicDiscover(
                 Column(Modifier.padding(20.dp)) {
                     Text("DISCOVER", color = SoraAccent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
                     Text("Something new for tonight.", fontSize = 27.sp, lineHeight = 29.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 16.dp))
-                    Text("Fresh music from your installed source, ready to explore.", color = SoraMuted, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 8.dp))
+                    Text("Explore songs from your favorite artists across your installed sources.", color = SoraMuted, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 8.dp))
                     Button(onClick = { rows.firstOrNull()?.let { onPlay(selection(it, ContentType.MUSIC)) } }, enabled = rows.isNotEmpty(), shape = RoundedCornerShape(10.dp), modifier = Modifier.padding(top = 18.dp)) {
                         Icon(Icons.Rounded.PlayArrow, null); Spacer(Modifier.width(5.dp)); Text("Play from Discover")
                     }
@@ -780,7 +868,7 @@ private fun MusicDiscover(
         if (rows.isEmpty()) {
             item { CatalogSourceState("Music", loading, error, onRetry, onOpenExtensions) }
         } else {
-            item { MusicSectionTitle("Fresh picks", "Music returned by installed sources", null); MusicSquareRail(rows, selection, onPlay) }
+            item { MusicSectionTitle("From your artists", "Results come from sources and are chosen using your Sora taste profile", null); MusicSquareRail(rows, selection, onPlay) }
             item { MusicSectionTitle("More tracks", "Continue through the current feed", null); MusicTrackList(rows.take(10), selection, onPlay) }
         }
     }
