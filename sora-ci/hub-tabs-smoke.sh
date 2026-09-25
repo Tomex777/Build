@@ -147,7 +147,7 @@ PY
 
 tap_scrolling() {
   local label="$1"
-  for _ in 1 2 3 4 5; do
+  for _ in $(seq 1 12); do
     dump_ui
     if node_exists "$label"; then tap "$label"; return 0; fi
     adb shell input swipe 540 1850 540 650 350
@@ -285,7 +285,9 @@ if wait_for "In the beginning" 30; then
   # a retained LazyListState offset observable instead of letting a tiny fixture
   # fit entirely onscreen.
   for _ in 1 2 3 4 5; do adb shell input swipe 950 1450 950 420 350; done
-  tap "Next"
+  # The fixture uses deliberately long verse text; keep scrolling until the
+  # chapter footer is attached to the UI tree before tapping it.
+  tap_scrolling "Next"
   wait_for "Genesis 2" 20
   wait_for "The heavens and the earth were finished" 20
   python3 - <<'PYASSERT'
