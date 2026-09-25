@@ -183,22 +183,36 @@ class NamiDownloadManager(
             return
         }
 
-        val k = key(status.sourceId, status.sourceEpisodeId)
-        activeJobs.remove(k)?.cancel(CancellationException("Cancelled by user"))
-        scope.launch {
-            deleteTarget(status)
-            database.deleteDownloadRecord(status.sourceId, status.sourceEpisodeId)
-            mutableStatuses.value = mutableStatuses.value - k
-        }
+        cancelAndCleanup(status, "Cancelled by user")
     }
 
     fun remove(status: NamiDownloadStatus) {
+        cancelAndCleanup(status, "Removed by user")
+    }
+
+    private fun cancelAndCleanup(
+        status: NamiDownloadStatus,
+        reason: String,
+    ) {
         val k = key(status.sourceId, status.sourceEpisodeId)
-        activeJobs.remove(k)?.cancel(CancellationException("Removed by user"))
+        val job = activeJobs[k]
+        job?.cancel(CancellationException(reason))
+
         scope.launch {
-            deleteTarget(status)
+            // Do not race MediaStore/file deletion against a writer that still owns the
+            // stream. Waiting for the cancelled job lets runDownload unwind its use/finally
+            // blocks, close the output, abort the pending target and disconnect HTTP first.
+            job?.join()
+
+            // Progress updates can replace the status object after the caller captured it.
+            // Use the latest value so cleanup always sees the final target URI/name.
+            val latest = mutableStatuses.value[k] ?: status
+            deleteTarget(latest)
             database.deleteDownloadRecord(status.sourceId, status.sourceEpisodeId)
             mutableStatuses.value = mutableStatuses.value - k
+            if (job != null) {
+                activeJobs.remove(k, job)
+            }
         }
     }
 
