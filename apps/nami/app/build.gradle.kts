@@ -32,7 +32,6 @@ dependencies {
     implementation(project(":core:source-runtime"))
     implementation(project(":data:local"))
     implementation(project(":extensions:aniyomi-compat"))
-    implementation(project(":extensions:nami-jikan"))
 
     implementation(platform("androidx.compose:compose-bom:2025.02.00"))
     implementation("androidx.activity:activity-compose:1.10.1")
@@ -47,6 +46,7 @@ dependencies {
 }
 
 dependencies {
+    androidTestImplementation(project(":extensions:nami-jikan"))
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:core:1.6.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

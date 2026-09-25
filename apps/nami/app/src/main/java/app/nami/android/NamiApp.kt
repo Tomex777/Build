@@ -246,7 +246,6 @@ private fun GlobalSearchHome(
     var searchState by remember { mutableStateOf(GlobalSearchState()) }
     var searchJob by remember { mutableStateOf<Job?>(null) }
     var hasSearched by rememberSaveable { mutableStateOf(false) }
-    var onlyHasResults by rememberSaveable { mutableStateOf(false) }
     var sourceCount by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(sourceRegistry) {
@@ -266,16 +265,7 @@ private fun GlobalSearchHome(
         }
     }
 
-    val shownSections = remember(searchState, onlyHasResults) {
-        if (!onlyHasResults) {
-            searchState.sections
-        } else {
-            searchState.sections.filter {
-                val result = it.result as? AnimeSearchItemResult.Success
-                result != null && result.result.isNotEmpty()
-            }
-        }
-    }
+    val shownSections = searchState.sections
 
     Scaffold(
         topBar = {
@@ -308,11 +298,6 @@ private fun GlobalSearchHome(
                                 )
                             },
                             label = { Text("All") },
-                        )
-                        FilterChip(
-                            selected = onlyHasResults,
-                            onClick = { onlyHasResults = !onlyHasResults },
-                            label = { Text("Has results") },
                         )
                     }
                     if (searchState.total > 0 && searchState.progress in 1 until searchState.total) {

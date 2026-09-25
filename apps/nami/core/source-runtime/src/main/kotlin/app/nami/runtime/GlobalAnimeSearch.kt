@@ -143,13 +143,23 @@ class GlobalAnimeSearch(private val registry: NamiSourceRegistry) {
     }
 
     private fun sortSections(sections: Collection<GlobalSearchSection>): List<GlobalSearchSection> =
-        sections.sortedWith(
-            compareBy<GlobalSearchSection>(
-                { if ((it.result as? AnimeSearchItemResult.Success)?.isEmpty == false) 0 else 1 },
-                { it.completedOrder ?: Long.MAX_VALUE },
-                { it.source.metadata.name.lowercase() + " (" + it.source.metadata.language.orEmpty() + ")" },
-            ),
-        )
+        sections.sortedWith { left, right ->
+            val leftHasResults = (left.result as? AnimeSearchItemResult.Success)?.isEmpty == false
+            val rightHasResults = (right.result as? AnimeSearchItemResult.Success)?.isEmpty == false
+
+            when {
+                leftHasResults && !rightHasResults -> -1
+                !leftHasResults && rightHasResults -> 1
+                leftHasResults && rightHasResults -> compareValues(
+                    left.completedOrder ?: Long.MAX_VALUE,
+                    right.completedOrder ?: Long.MAX_VALUE,
+                )
+                else -> sourceSortName(left).compareTo(sourceSortName(right))
+            }
+        }
+
+    private fun sourceSortName(section: GlobalSearchSection): String =
+        section.source.metadata.name.lowercase() + " (" + section.source.metadata.language.orEmpty() + ")"
 
     private fun elapsedMillis(startedAtNanos: Long): Long =
         ((System.nanoTime() - startedAtNanos) / 1_000_000).coerceAtLeast(0)
