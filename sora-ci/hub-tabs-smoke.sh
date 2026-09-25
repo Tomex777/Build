@@ -7,44 +7,7 @@ adb wait-for-device
 adb install -r "$SORA_ROOT/live-extension/build/outputs/apk/debug/live-extension-debug.apk" >/dev/null
 adb install -r "$SORA_ROOT/meme-extension/build/outputs/apk/debug/meme-extension-debug.apk" >/dev/null
 adb install -r "$SORA_ROOT/app/build/outputs/apk/debug/app-debug.apk" >/dev/null
-# Seed only this CI emulator's Bible cache so chapter navigation is independent
-# of bible-api.com availability and the smoke test exercises the actual reader.
-python3 - <<'PY'
-import json
-import xml.etree.ElementTree as ET
-
-root = ET.Element("map")
-chapters = {
-    1: [(1, "In the beginning God created the heavens and the earth.")] + [
-        (number, f"Genesis 1 fixture verse {number} keeps the reader list long enough to scroll.")
-        for number in range(2, 36)
-    ],
-    2: [(1, "The heavens and the earth were finished, and all their vast array.")] + [
-        (number, f"Genesis 2 fixture verse {number} keeps the next chapter long enough to verify its start.")
-        for number in range(2, 36)
-    ],
-}
-for chapter, verses in chapters.items():
-    payload = {
-        "reference": f"Genesis {chapter}",
-        "translation_name": "World English Bible",
-        "translation_id": "web",
-        "verses": [
-            {"book_name": "Genesis", "chapter": chapter, "verse": number, "text": text}
-            for number, text in verses
-        ],
-    }
-    item = ET.SubElement(root, "string", name=f"chapter_web_genesis_{chapter}")
-    item.text = json.dumps(payload, separators=(",", ":"))
-ET.ElementTree(root).write("/tmp/sora-bible-ci-prefs.xml", encoding="utf-8", xml_declaration=True)
-PY
-adb shell run-as com.night.sora mkdir -p /data/user/0/com.night.sora/shared_prefs
-adb shell run-as com.night.sora tee /data/user/0/com.night.sora/shared_prefs/sora_bible.xml < /tmp/sora-bible-ci-prefs.xml >/dev/null
-adb shell run-as com.night.sora test -s /data/user/0/com.night.sora/shared_prefs/sora_bible.xml
-# Read the cache back through the app UID and compare it byte-for-byte before
-# launch; a present but malformed/unreadable preference file must fail setup.
-adb shell run-as com.night.sora cat /data/user/0/com.night.sora/shared_prefs/sora_bible.xml > /tmp/sora-bible-ci-prefs-readback.xml
-cmp /tmp/sora-bible-ci-prefs.xml /tmp/sora-bible-ci-prefs-readback.xml
+# Bible requests are served by the deterministic local fixture configured by CI.
 adb shell am force-stop com.night.sora
 adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
 sleep 3
