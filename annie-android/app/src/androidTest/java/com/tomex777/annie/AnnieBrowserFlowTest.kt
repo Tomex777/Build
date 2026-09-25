@@ -1,6 +1,6 @@
 package com.tomex777.annie
 
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -8,6 +8,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.activity.ComponentActivity
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.InetAddress
@@ -26,7 +27,7 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AnnieBrowserFlowTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
     @Test fun browserMessageVerifiesCookieBackedHttpSessionAndExpandsToFullBrowser() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
