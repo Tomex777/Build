@@ -1,5 +1,6 @@
 package app.nami.compat.aniyomi
 
+import android.app.Application
 import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
@@ -49,6 +50,10 @@ class AniyomiExtensionRegistry(
     private val signaturePins = ExtensionSignaturePins(context)
 
     override suspend fun installedSources(): List<NamiAnimeSource> = withContext(Dispatchers.IO) {
+        val application = context.applicationContext as? Application
+            ?: error("An Android Application is required to load Aniyomi extensions")
+        AniyomiExtensionHost.initialize(application)
+
         val packages = installedExtensionPackages()
         Log.i(LOG_TAG, "Found ${packages.size} installed anime extension package(s)")
         packages

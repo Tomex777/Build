@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
-import app.nami.compat.aniyomi.AniyomiExtensionHost
 import app.nami.compat.aniyomi.AniyomiExtensionRegistry
 import app.nami.data.local.NamiDatabase
 import app.nami.runtime.CachingNamiSourceRegistry
@@ -30,8 +29,6 @@ class NamiApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-
-        AniyomiExtensionHost.initialize(this)
 
         database = NamiDatabase(this)
         downloadManager = NamiDownloadManager(
