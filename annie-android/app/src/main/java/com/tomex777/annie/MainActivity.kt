@@ -908,7 +908,7 @@ private fun ScriptVideoMessage(data: org.json.JSONObject) {
 @Composable
 private fun ScriptOptionsMessage(data: org.json.JSONObject, onAction: (String, String) -> Unit) {
     val rows = data.optJSONArray("options") ?: org.json.JSONArray()
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)).background(Bubble).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)).background(Bubble).padding(14.dp).testTag("script_options_message"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         data.optString("title").takeIf(String::isNotBlank)?.let { Text(it, color = BrightText, fontWeight = FontWeight.SemiBold) }
         for (index in 0 until rows.length()) {
             val option = rows.optJSONObject(index) ?: continue

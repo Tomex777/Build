@@ -222,8 +222,11 @@ internal fun MediaPlayerScreen(
         if (player != null && libVlc != null && activeUri != null) {
             surfaceCallback?.let { player.vlcVout.addCallback(it) }
             val media = Media(libVlc, activeUri).apply {
-                // Keep VLC on Android's hardware video decoder, including emulator SurfaceViews.
-                setHWDecoderEnabled(true, false)
+                val emulator = Build.FINGERPRINT.contains("generic", ignoreCase = true) ||
+                    Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
+                    Build.MODEL.contains("Emulator", ignoreCase = true)
+                // Software decoding keeps the emulator playing; hardware decoding is preferred on phones.
+                setHWDecoderEnabled(!emulator, false)
                 addOption(":network-caching=1500")
                 activeSource?.headers?.forEach { (name, value) ->
                     when (name.lowercase()) {
@@ -338,12 +341,18 @@ internal fun MediaPlayerScreen(
                                 }.isSuccess
                                 if (attached) {
                                     attachedPlayer = player
-                                    runCatching { player.setVideoScale(scaleMode.scale) }
+                                    runCatching {
+                                        player.setVideoScale(scaleMode.scale)
+                                        player.updateVideoSurfaces()
+                                    }
                                 }
                             }
                         }
                     } else {
-                        runCatching { player.setVideoScale(scaleMode.scale) }
+                        runCatching {
+                            player.setVideoScale(scaleMode.scale)
+                            player.updateVideoSurfaces()
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxSize().testTag("player_video_surface"),

@@ -63,6 +63,12 @@ class ScriptChatFlowTest {
             }
             compose.onNodeWithTag("slash_command_/$name").performClick()
             compose.onNodeWithTag("send_message").performClick()
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitForIdle()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithTag("script_options_message").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("script_options_message").assertIsDisplayed()
             compose.waitUntil(10_000) {
                 compose.onAllNodesWithTag("script_option_yes").fetchSemanticsNodes().isNotEmpty()
             }
