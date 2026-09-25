@@ -190,7 +190,6 @@ internal fun NamiPlayerScreen(
                 .hide(WindowInsetsCompat.Type.systemBars())
         }
         onDispose {
-            saveProgress()
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             activity?.let { host ->
                 WindowCompat.getInsetsController(host.window, host.window.decorView)
@@ -401,6 +400,7 @@ internal fun NamiPlayerScreen(
                             currentIndex = next
                             preferredHeight = null
                             preferredHost = null
+                            pendingResumePositionMs = -1L
                         }
                     },
                     onQuality = { sheet = PlayerSheet.QUALITY },
