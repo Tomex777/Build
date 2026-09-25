@@ -173,10 +173,7 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
     ): List<Video> = hoster.videoList ?: throw UnsupportedOperationException()
 
     // v14 direct episode -> video path. Hidden from modern Kotlin source, kept in bytecode.
-    @Deprecated(
-        "Retained only for binary compatibility with legacy extensions",
-        level = DeprecationLevel.HIDDEN,
-    )
+    @Deprecated("Use the hoster API instead")
     override suspend fun getVideoList(episode: SEpisode): List<Video> =
         client.newCall(videoListRequest(episode)).awaitSuccess().use(::videoListParse)
 
@@ -184,17 +181,11 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
     override fun fetchVideoList(episode: SEpisode): Observable<List<Video>> =
         observableRequest(videoListRequest(episode), ::videoListParse)
 
-    @Deprecated(
-        "Retained only for binary compatibility with legacy extensions",
-        level = DeprecationLevel.HIDDEN,
-    )
+    @Deprecated("Use the hoster API instead")
     protected open fun videoListRequest(episode: SEpisode): Request =
         GET(baseUrl + episode.url, headers)
 
-    @Deprecated(
-        "Retained only for binary compatibility with legacy extensions",
-        level = DeprecationLevel.HIDDEN,
-    )
+    @Deprecated("Use the hoster API instead")
     protected open fun videoListParse(response: Response): List<Video> =
         throw UnsupportedOperationException()
 

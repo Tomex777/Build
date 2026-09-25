@@ -112,10 +112,7 @@ interface AnimeSource {
         throw UnsupportedOperationException("Seasons are not supported")
 
     // extensions-lib 14 / legacy direct-video API.
-    @Deprecated(
-        "Retained only for binary compatibility with legacy extensions",
-        level = DeprecationLevel.HIDDEN,
-    )
+    @Deprecated("Use the hoster API instead")
     suspend fun getVideoList(episode: SEpisode): List<Video> =
         fetchVideoList(episode).toBlocking().single()
 
