@@ -15,7 +15,10 @@ import app.nami.data.local.NamiDatabase
 import app.nami.data.local.StoredDownload
 import app.nami.domain.AnimeDetails
 import app.nami.domain.AnimeEpisode
+import app.nami.domain.AnimeRef
+import app.nami.domain.EpisodeRef
 import app.nami.domain.ResolvedMedia
+import app.nami.runtime.NamiSourceRegistry
 import app.nami.source.NamiAnimeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,10 +45,13 @@ enum class NamiDownloadState {
 
 data class NamiDownloadStatus(
     val sourceId: String,
+    val sourceAnimeId: String,
     val sourceEpisodeId: String,
     val extensionName: String,
     val animeTitle: String,
     val episodeTitle: String,
+    val animeSourceState: String? = null,
+    val episodeSourceState: String? = null,
     val relativePath: String,
     val displayName: String? = null,
     val contentUri: String? = null,
@@ -58,6 +64,7 @@ data class NamiDownloadStatus(
 class NamiDownloadManager(
     private val context: Context,
     private val database: NamiDatabase,
+    private val sourceRegistry: NamiSourceRegistry,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val downloadPermits = Semaphore(MAX_PARALLEL_DOWNLOADS)
@@ -85,6 +92,23 @@ class NamiDownloadManager(
             title = anime.title,
             season = season,
         )
+        enqueueInternal(
+            source = source,
+            anime = anime,
+            episode = episode,
+            relativeDirectory = relativeDirectory,
+        )
+    }
+
+    private fun enqueueInternal(
+        source: NamiAnimeSource,
+        anime: AnimeDetails,
+        episode: AnimeEpisode,
+        relativeDirectory: String,
+    ) {
+        val extensionName = source.metadata.extensionName
+            ?.takeIf { it.isNotBlank() }
+            ?: source.metadata.name
         val k = key(source.metadata.id, episode.ref.sourceEpisodeId)
         if (mutableStatuses.value[k]?.state in setOf(
                 NamiDownloadState.QUEUED,
@@ -96,10 +120,13 @@ class NamiDownloadManager(
 
         val queued = NamiDownloadStatus(
             sourceId = source.metadata.id,
+            sourceAnimeId = episode.ref.sourceAnimeId,
             sourceEpisodeId = episode.ref.sourceEpisodeId,
             extensionName = extensionName,
             animeTitle = anime.title,
             episodeTitle = episode.title,
+            animeSourceState = anime.sourceState,
+            episodeSourceState = episode.sourceState,
             relativePath = relativeDirectory,
             state = NamiDownloadState.QUEUED,
         )
@@ -110,7 +137,6 @@ class NamiDownloadManager(
                 sourceAnimeId = episode.ref.sourceAnimeId,
             )
             downloadPermits.withPermit {
-                // QUEUED is now a real queue state: only permit holders enter DOWNLOADING.
                 runDownload(source, anime, episode, queued)
             }
         }
@@ -125,12 +151,45 @@ class NamiDownloadManager(
         context.startActivity(Intent.createChooser(intent, "Open with"))
     }
 
-    fun retry(
-        source: NamiAnimeSource,
-        anime: AnimeDetails,
-        episode: AnimeEpisode,
-    ) {
-        enqueue(source, anime, episode)
+    fun retry(status: NamiDownloadStatus) {
+        if (status.state != NamiDownloadState.ERROR) return
+
+        scope.launch {
+            val source = runCatching {
+                sourceRegistry.installedSources()
+                    .firstOrNull { it.metadata.id == status.sourceId }
+            }.getOrNull()
+
+            if (source == null) {
+                update(
+                    status.copy(errorMessage = "The source for this download is not installed."),
+                    status.sourceAnimeId,
+                )
+                return@launch
+            }
+
+            val anime = AnimeDetails(
+                ref = AnimeRef(status.sourceId, status.sourceAnimeId),
+                title = status.animeTitle,
+                sourceState = status.animeSourceState,
+            )
+            val episode = AnimeEpisode(
+                ref = EpisodeRef(
+                    sourceId = status.sourceId,
+                    sourceAnimeId = status.sourceAnimeId,
+                    sourceEpisodeId = status.sourceEpisodeId,
+                ),
+                title = status.episodeTitle,
+                sourceState = status.episodeSourceState,
+            )
+
+            enqueueInternal(
+                source = source,
+                anime = anime,
+                episode = episode,
+                relativeDirectory = status.relativePath,
+            )
+        }
     }
 
     private suspend fun runDownload(
@@ -456,6 +515,10 @@ class NamiDownloadManager(
             sourceAnimeId = sourceAnimeId,
             sourceEpisodeId = status.sourceEpisodeId,
             relativePath = status.relativePath,
+            animeTitle = status.animeTitle,
+            episodeTitle = status.episodeTitle,
+            animeSourceState = status.animeSourceState,
+            episodeSourceState = status.episodeSourceState,
             displayName = status.displayName,
             contentUri = status.contentUri,
             mimeType = status.mimeType,
@@ -497,6 +560,10 @@ class NamiDownloadManager(
             sourceAnimeId = stored.sourceAnimeId,
             sourceEpisodeId = stored.sourceEpisodeId,
             relativePath = stored.relativePath,
+            animeTitle = stored.animeTitle,
+            episodeTitle = stored.episodeTitle,
+            animeSourceState = stored.animeSourceState,
+            episodeSourceState = stored.episodeSourceState,
             displayName = stored.displayName,
             contentUri = null,
             mimeType = stored.mimeType,
@@ -522,10 +589,16 @@ class NamiDownloadManager(
 
     private fun StoredDownload.toStatus(): NamiDownloadStatus = NamiDownloadStatus(
         sourceId = sourceId,
+        sourceAnimeId = sourceAnimeId,
         sourceEpisodeId = sourceEpisodeId,
         extensionName = extensionName,
-        animeTitle = relativePath.substringAfter('/').substringBefore('/'),
-        episodeTitle = displayName?.substringBeforeLast('.') ?: sourceEpisodeId,
+        animeTitle = animeTitle
+            ?: relativePath.substringAfter('/').substringBefore('/'),
+        episodeTitle = episodeTitle
+            ?: displayName?.substringBeforeLast('.')
+            ?: sourceEpisodeId,
+        animeSourceState = animeSourceState,
+        episodeSourceState = episodeSourceState,
         relativePath = relativePath,
         displayName = displayName,
         contentUri = contentUri,

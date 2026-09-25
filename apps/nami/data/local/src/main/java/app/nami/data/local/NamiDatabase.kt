@@ -22,6 +22,10 @@ data class StoredDownload(
     val extensionName: String,
     val sourceAnimeId: String,
     val sourceEpisodeId: String,
+    val animeTitle: String?,
+    val episodeTitle: String?,
+    val animeSourceState: String?,
+    val episodeSourceState: String?,
     val relativePath: String,
     val displayName: String?,
     val contentUri: String?,
@@ -63,6 +67,13 @@ class NamiDatabase(
         }
         if (oldVersion < 4) {
             addColumnIfMissing(db, "library_entries", "source_state", "TEXT")
+        }
+        if (oldVersion < 5) {
+            createDownloadTable(db)
+            addColumnIfMissing(db, "downloads", "anime_title", "TEXT")
+            addColumnIfMissing(db, "downloads", "episode_title", "TEXT")
+            addColumnIfMissing(db, "downloads", "anime_source_state", "TEXT")
+            addColumnIfMissing(db, "downloads", "episode_source_state", "TEXT")
         }
     }
 
@@ -149,6 +160,10 @@ class NamiDatabase(
         sourceEpisodeId: String,
         relativePath: String,
         state: String,
+        animeTitle: String? = null,
+        episodeTitle: String? = null,
+        animeSourceState: String? = null,
+        episodeSourceState: String? = null,
         progress: Int,
         displayName: String? = null,
         contentUri: String? = null,
@@ -162,6 +177,10 @@ class NamiDatabase(
             put("extension_name", extensionName)
             put("source_anime_id", sourceAnimeId)
             put("source_episode_id", sourceEpisodeId)
+            put("anime_title", animeTitle)
+            put("episode_title", episodeTitle)
+            put("anime_source_state", animeSourceState)
+            put("episode_source_state", episodeSourceState)
             put("relative_path", relativePath)
             put("state", state)
             put("progress", progress.coerceIn(0, 100))
@@ -228,6 +247,10 @@ class NamiDatabase(
             extensionName = cursor.getString(cursor.getColumnIndexOrThrow("extension_name")),
             sourceAnimeId = cursor.getString(cursor.getColumnIndexOrThrow("source_anime_id")),
             sourceEpisodeId = cursor.getString(cursor.getColumnIndexOrThrow("source_episode_id")),
+            animeTitle = cursor.getString(cursor.getColumnIndexOrThrow("anime_title")),
+            episodeTitle = cursor.getString(cursor.getColumnIndexOrThrow("episode_title")),
+            animeSourceState = cursor.getString(cursor.getColumnIndexOrThrow("anime_source_state")),
+            episodeSourceState = cursor.getString(cursor.getColumnIndexOrThrow("episode_source_state")),
             relativePath = cursor.getString(cursor.getColumnIndexOrThrow("relative_path")),
             displayName = cursor.getString(cursor.getColumnIndexOrThrow("display_name")),
             contentUri = cursor.getString(cursor.getColumnIndexOrThrow("content_uri")),
@@ -288,6 +311,10 @@ class NamiDatabase(
                 extension_name TEXT NOT NULL,
                 source_anime_id TEXT NOT NULL,
                 source_episode_id TEXT NOT NULL,
+                anime_title TEXT,
+                episode_title TEXT,
+                anime_source_state TEXT,
+                episode_source_state TEXT,
                 relative_path TEXT NOT NULL,
                 display_name TEXT,
                 content_uri TEXT,
@@ -326,7 +353,7 @@ class NamiDatabase(
 
     companion object {
         private const val DATABASE_NAME = "nami.db"
-        private const val VERSION = 4
+        private const val VERSION = 5
 
         private val DOWNLOAD_COLUMNS = arrayOf(
             "id",
@@ -334,6 +361,10 @@ class NamiDatabase(
             "extension_name",
             "source_anime_id",
             "source_episode_id",
+            "anime_title",
+            "episode_title",
+            "anime_source_state",
+            "episode_source_state",
             "relative_path",
             "display_name",
             "content_uri",

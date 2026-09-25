@@ -491,4 +491,80 @@ class AniyomiCompatibilitySmokeTest {
     }
 
 
+    @Test
+    fun downloadDatabaseMigratesV4AndPersistsRestartRetryState() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val databaseName = "nami-download-migration-${System.nanoTime()}.db"
+        context.deleteDatabase(databaseName)
+
+        val legacy = context.openOrCreateDatabase(databaseName, Context.MODE_PRIVATE, null)
+        legacy.execSQL(
+            """CREATE TABLE downloads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_id TEXT NOT NULL,
+                extension_name TEXT NOT NULL,
+                source_anime_id TEXT NOT NULL,
+                source_episode_id TEXT NOT NULL,
+                relative_path TEXT NOT NULL,
+                display_name TEXT,
+                content_uri TEXT,
+                mime_type TEXT,
+                state TEXT NOT NULL,
+                progress INTEGER NOT NULL DEFAULT 0,
+                error_message TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(source_id, source_episode_id)
+            )""".trimIndent(),
+        )
+        legacy.version = 4
+        legacy.close()
+
+        val database = NamiDatabase(context, databaseName)
+        try {
+            val columns = database.writableDatabase
+                .rawQuery("PRAGMA table_info(downloads)", null)
+                .use { cursor ->
+                    val nameIndex = cursor.getColumnIndexOrThrow("name")
+                    buildSet {
+                        while (cursor.moveToNext()) add(cursor.getString(nameIndex))
+                    }
+                }
+
+            assertTrue("v4 -> v5 migration did not add anime_title", "anime_title" in columns)
+            assertTrue("v4 -> v5 migration did not add episode_title", "episode_title" in columns)
+            assertTrue("v4 -> v5 migration did not add anime_source_state", "anime_source_state" in columns)
+            assertTrue("v4 -> v5 migration did not add episode_source_state", "episode_source_state" in columns)
+
+            database.upsertDownload(
+                sourceId = "fixture-source",
+                extensionName = "Fixture extension",
+                sourceAnimeId = "/fixture/anime",
+                sourceEpisodeId = "/fixture/episode-1",
+                relativePath = "Fixture extension/Fixture title/Season 01",
+                state = "ERROR",
+                progress = 0,
+                animeTitle = "Fixture title",
+                episodeTitle = "Fixture Episode 1",
+                animeSourceState = """{"memo":{"token":"anime-retry"}}""",
+                episodeSourceState = """{"memo":{"token":"episode-retry"}}""",
+                errorMessage = "Interrupted",
+            )
+        } finally {
+            database.close()
+        }
+
+        val stored = NamiDatabase(context, databaseName).use { reopened ->
+            reopened.getDownloads().single()
+        }
+
+        assertEquals("Fixture title", stored.animeTitle)
+        assertEquals("Fixture Episode 1", stored.episodeTitle)
+        assertEquals("""{"memo":{"token":"anime-retry"}}""", stored.animeSourceState)
+        assertEquals("""{"memo":{"token":"episode-retry"}}""", stored.episodeSourceState)
+
+        context.deleteDatabase(databaseName)
+    }
+
+
 }

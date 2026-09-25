@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -122,6 +123,15 @@ fun NamiDownloadsScreen(
                                     color = MaterialTheme.colorScheme.error,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+
+                        if (status.state == NamiDownloadState.ERROR) {
+                            IconButton(onClick = { downloadManager.retry(status) }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Refresh,
+                                    contentDescription = "Retry download",
                                 )
                             }
                         }

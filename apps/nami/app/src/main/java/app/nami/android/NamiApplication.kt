@@ -30,14 +30,15 @@ class NamiApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
+        sourceRegistry = CachingNamiSourceRegistry(
+            delegate = AniyomiExtensionRegistry(this),
+            ttlMillis = SOURCE_SNAPSHOT_TTL_MILLIS,
+        )
         database = NamiDatabase(this)
         downloadManager = NamiDownloadManager(
             context = this,
             database = database,
-        )
-        sourceRegistry = CachingNamiSourceRegistry(
-            delegate = AniyomiExtensionRegistry(this),
-            ttlMillis = SOURCE_SNAPSHOT_TTL_MILLIS,
+            sourceRegistry = sourceRegistry,
         )
 
         val packageFilter = IntentFilter().apply {
