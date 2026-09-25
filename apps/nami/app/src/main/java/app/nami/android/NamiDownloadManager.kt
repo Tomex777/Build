@@ -26,7 +26,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
 import java.net.HttpURLConnection
-import java.net.URI
 import java.net.URL
 import kotlin.math.roundToInt
 
@@ -177,7 +176,7 @@ class NamiDownloadManager(
                 ?.substringBefore(';')
                 ?.trim()
                 ?.lowercase()
-            val isHls = isHls(media.url, media.mimeType ?: responseMime)
+            val isHls = DownloadMediaNaming.isHls(media.url, media.mimeType ?: responseMime)
 
             if (isHls) {
                 val playlist = firstConnection.inputStream.bufferedReader().use { it.readText() }
@@ -191,8 +190,8 @@ class NamiDownloadManager(
                 )
             } else {
                 val mime = media.mimeType ?: responseMime ?: "application/octet-stream"
-                val extension = extensionFor(mime, firstConnection.url.toString())
-                val displayName = episodeFileName(episode, extension)
+                val extension = DownloadMediaNaming.extensionFor(mime, firstConnection.url.toString())
+                val displayName = DownloadMediaNaming.episodeFileName(episode, extension)
                 val target = createTarget(
                     relativeDirectory = initial.relativePath,
                     displayName = displayName,
@@ -249,7 +248,7 @@ class NamiDownloadManager(
         var playlistUrl = initialPlaylistUrl
         var playlist = initialPlaylist
 
-        val variant = selectMasterVariant(playlistUrl, playlist)
+        val variant = HlsPlaylistPlanner.selectMasterVariant(playlistUrl, playlist)
         if (variant != null) {
             playlistUrl = variant
             val connection = openConnection(playlistUrl, headers)
@@ -261,27 +260,10 @@ class NamiDownloadManager(
             }
         }
 
-        val lines = playlist.lineSequence().map(String::trim).filter(String::isNotEmpty).toList()
-        if (lines.any { it.startsWith("#EXT-X-KEY:") && !it.contains("METHOD=NONE") }) {
-            error("Encrypted HLS downloads are not supported yet.")
-        }
-
-        val mapUri = lines.firstOrNull { it.startsWith("#EXT-X-MAP:") }
-            ?.let(::extractQuotedUri)
-            ?.let { resolveUrl(playlistUrl, it) }
-        val segments = lines
-            .filter { !it.startsWith('#') }
-            .map { resolveUrl(playlistUrl, it) }
-
-        if (segments.isEmpty()) {
-            error("The HLS playlist did not contain any media segments.")
-        }
-
-        val looksFragmentedMp4 = mapUri != null ||
-            segments.first().substringBefore('?').endsWith(".m4s", ignoreCase = true)
-        val mime = if (looksFragmentedMp4) "video/mp4" else "video/mp2t"
-        val extension = if (looksFragmentedMp4) "mp4" else "ts"
-        val displayName = episodeFileName(episode, extension)
+        val plan = HlsPlaylistPlanner.mediaPlan(playlistUrl, playlist)
+        val mime = plan.mimeType
+        val extension = plan.extension
+        val displayName = DownloadMediaNaming.episodeFileName(episode, extension)
         val target = createTarget(
             relativeDirectory = initial.relativePath,
             displayName = displayName,
@@ -290,10 +272,7 @@ class NamiDownloadManager(
 
         try {
             target.output.use { output ->
-                val allParts = buildList {
-                    mapUri?.let(::add)
-                    addAll(segments)
-                }
+                val allParts = plan.allPartUrls
                 allParts.forEachIndexed { index, partUrl ->
                     val connection = openConnection(partUrl, headers)
                     try {
@@ -334,31 +313,6 @@ class NamiDownloadManager(
             throw t
         }
     }
-
-    private fun selectMasterVariant(baseUrl: String, playlist: String): String? {
-        val lines = playlist.lineSequence().map(String::trim).toList()
-        val candidates = mutableListOf<Pair<Long, String>>()
-        lines.forEachIndexed { index, line ->
-            if (!line.startsWith("#EXT-X-STREAM-INF:")) return@forEachIndexed
-            val bandwidth = Regex("""BANDWIDTH=(\d+)""")
-                .find(line)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.toLongOrNull()
-                ?: 0L
-            val next = lines.drop(index + 1)
-                .firstOrNull { it.isNotBlank() && !it.startsWith('#') }
-                ?: return@forEachIndexed
-            candidates += bandwidth to resolveUrl(baseUrl, next)
-        }
-        return candidates.maxByOrNull { it.first }?.second
-    }
-
-    private fun extractQuotedUri(line: String): String? =
-        Regex("""URI="([^"]+)"""").find(line)?.groupValues?.getOrNull(1)
-
-    private fun resolveUrl(baseUrl: String, value: String): String =
-        runCatching { URI(baseUrl).resolve(value).toString() }.getOrDefault(value)
 
     private fun openConnection(
         url: String,
@@ -410,48 +364,6 @@ class NamiDownloadManager(
                 lastProgress = progress
                 update(status.copy(progress = progress), sourceAnimeId)
             }
-        }
-    }
-
-    private fun episodeFileName(
-        episode: AnimeEpisode,
-        extension: String,
-    ): String {
-        val numberPrefix = episode.number?.let {
-            if (it % 1.0 == 0.0) {
-                "Episode " + it.toInt().toString().padStart(3, '0')
-            } else {
-                "Episode " + it
-            }
-        }
-        val base = if (numberPrefix != null && !episode.title.contains(numberPrefix, ignoreCase = true)) {
-            numberPrefix + " - " + episode.title
-        } else {
-            episode.title
-        }
-        return DownloadDirectoryLayout.sanitize(base) + "." + extension
-    }
-
-    private fun isHls(url: String, mimeType: String?): Boolean {
-        val mime = mimeType?.lowercase().orEmpty()
-        return url.substringBefore('?').endsWith(".m3u8", ignoreCase = true) ||
-            mime.contains("mpegurl") ||
-            mime.contains("m3u8")
-    }
-
-    private fun extensionFor(mimeType: String, url: String): String {
-        val fromUrl = runCatching {
-            URI(url).path.substringAfterLast('.', "").lowercase()
-        }.getOrDefault("")
-        if (fromUrl in setOf("mp4", "mkv", "webm", "ts", "m4v", "avi")) {
-            return fromUrl
-        }
-        return when (mimeType.lowercase()) {
-            "video/mp4" -> "mp4"
-            "video/x-matroska", "video/mkv" -> "mkv"
-            "video/webm" -> "webm"
-            "video/mp2t" -> "ts"
-            else -> "video"
         }
     }
 
