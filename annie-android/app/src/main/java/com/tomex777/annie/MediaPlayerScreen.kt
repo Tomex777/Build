@@ -228,8 +228,8 @@ internal fun MediaPlayerScreen(
                 modifier = Modifier.fillMaxWidth().testTag("player_seek"),
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(if (playable && durationMs > 0) formatPlayerTime(positionMs) else if (playable) "00:00" else "--:--", color = Color(0xFFE5ECF5), fontSize = 13.sp)
-                Text(if (playable && durationMs > 0) formatPlayerTime(durationMs) else "—:—", color = Color(0xFFE5ECF5), fontSize = 13.sp)
+                Text(if (playable && durationMs > 0) formatPlayerTime(positionMs) else if (playable) "00:00" else "--:--", color = Color(0xFFE5ECF5), fontSize = 13.sp, modifier = Modifier.testTag("player_position"))
+                Text(if (playable && durationMs > 0) formatPlayerTime(durationMs) else "—:—", color = Color(0xFFE5ECF5), fontSize = 13.sp, modifier = Modifier.testTag("player_duration"))
             }
             Spacer(Modifier.size(10.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
