@@ -303,7 +303,7 @@ fun SpotuiApp() {
             }
 
             if (showSignIn) {
-                YouTubeSignIn(
+                SourceSessionBrowser(
                     source = source,
                     onConnected = player::retryCurrent,
                     onClose = { showSignIn = false },
@@ -690,9 +690,9 @@ private fun MiniPlayer(
             Artwork(track, Modifier.size(46.dp))
             Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
                 Text(track.title, color = SpotText, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (requiresYouTubeSignIn(player.errorMessage)) {
+                if (requiresSourceSessionBrowser(player.errorMessage)) {
                     Text(
-                        "YouTube needs sign-in · Sign in",
+                        "Source needs browser session · Open",
                         color = SpotGreen,
                         fontSize = 10.sp,
                         maxLines = 1,
@@ -774,15 +774,15 @@ private fun NowPlaying(
             Text(formatTime(player.durationMs), color = SpotMuted, fontSize = 10.sp)
         }
         player.errorMessage?.let { message ->
-            if (requiresYouTubeSignIn(message)) {
+            if (requiresSourceSessionBrowser(message)) {
                 Surface(
                     color = Color(0xFF19271E),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth().padding(top = 10.dp).clickable(onClick = onSignIn),
                 ) {
                     Column(Modifier.padding(12.dp)) {
-                        Text("YouTube needs sign-in on this network.", color = SpotText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        Text("Open YouTube Music sign-in", color = SpotGreen, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                        Text("This source needs a browser session on this network.", color = SpotText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Open source browser", color = SpotGreen, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
                     }
                 }
             } else {
@@ -828,7 +828,7 @@ private fun NowPlaying(
         Surface(color = SpotSurface, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(18.dp)) {
                 Text("SOURCE", color = SpotMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                Text("YouTube Music", color = SpotText, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+                Text(player.sourceName, color = SpotText, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
                 if (player.streamLabel.isNotBlank()) Text(player.streamLabel, color = SpotMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
             }
         }
@@ -1085,44 +1085,26 @@ private fun SpotSeekBar(
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun YouTubeSignIn(
-    source: YouTubeMusicSource,
+private fun SourceSessionBrowser(
+    source: MusicSource,
     onConnected: () -> Unit,
     onClose: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val session = remember(source) { source.browserSession() }
+    var session by remember(source) { mutableStateOf<BrowserSessionSpec?>(null) }
     var webView by remember { mutableStateOf<WebView?>(null) }
-    var status by remember { mutableStateOf("Sign in to YouTube Music") }
+    var status by remember { mutableStateOf("Opening source browser…") }
     var saving by remember { mutableStateOf(false) }
 
-    LaunchedEffect(webView) {
-        val view = webView ?: return@LaunchedEffect
-        while (true) {
-            delay(750)
-            if (saving || !view.url.orEmpty().startsWith("https://music.youtube.com")) continue
-            val cookie = CookieManager.getInstance().getCookie("https://music.youtube.com/").orEmpty()
-            if (!hasYouTubeAccountCookie(cookie)) continue
-
-            saving = true
-            status = "Connecting YouTube Music…"
-            persistYouTubeBrowserSession(view, source, session)
-                .onSuccess { signed ->
-                    if (signed) {
-                        status = "YouTube Music connected"
-                        onConnected()
-                        delay(350)
-                        onClose()
-                    } else {
-                        status = "YouTube sign-in was not detected."
-                        saving = false
-                    }
-                }
-                .onFailure {
-                    status = it.message ?: "Could not save YouTube session."
-                    saving = false
-                }
-        }
+    LaunchedEffect(source) {
+        source.browserSession()
+            .onSuccess {
+                session = it
+                status = "Complete the source page, then tap Done."
+            }
+            .onFailure {
+                status = it.message ?: "This source did not provide a browser session."
+            }
     }
 
     BackHandler(onBack = onClose)
@@ -1132,26 +1114,32 @@ private fun YouTubeSignIn(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onClose) {
-                Icon(Icons.Rounded.KeyboardArrowDown, "Close sign in", tint = SpotText)
+                Icon(Icons.Rounded.KeyboardArrowDown, "Close source browser", tint = SpotText)
             }
             Column(Modifier.weight(1f)) {
-                Text(session.title, color = SpotText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    session?.title ?: source.name,
+                    color = SpotText,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                )
                 Text(status, color = SpotMuted, fontSize = 10.sp)
             }
             Text(
                 "Done",
-                color = SpotGreen,
+                color = if (session != null && !saving) SpotGreen else SpotMuted,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable {
+                modifier = Modifier.clickable(enabled = session != null && !saving) {
                     val view = webView ?: return@clickable
-                    if (saving) return@clickable
+                    val spec = session ?: return@clickable
                     scope.launch {
                         saving = true
-                        status = "Connecting YouTube Music…"
-                        persistYouTubeBrowserSession(view, source, session)
-                            .onSuccess { signed ->
-                                status = if (signed) "YouTube Music connected" else "No signed-in YouTube session found."
-                                if (signed) {
+                        status = "Connecting source…"
+                        persistSourceBrowserSession(view, source, spec)
+                            .onSuccess { connected ->
+                                status = if (connected) "Source connected"
+                                else "The source did not detect a completed session."
+                                if (connected) {
                                     onConnected()
                                     delay(350)
                                     onClose()
@@ -1160,43 +1148,61 @@ private fun YouTubeSignIn(
                                 }
                             }
                             .onFailure {
-                                status = it.message ?: "Could not save YouTube session."
+                                status = it.message ?: "Could not save source session."
                                 saving = false
                             }
                     }
                 }.padding(12.dp),
             )
         }
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = { context ->
-                WebView(context).apply {
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    settings.databaseEnabled = true
-                    settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-                    CookieManager.getInstance().setAcceptCookie(true)
-                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                    webViewClient = WebViewClient()
-                    webChromeClient = WebChromeClient()
-                    loadUrl(session.url)
-                    webView = this
+
+        val spec = session
+        if (spec == null) {
+            Column(
+                Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                if (status == "Opening source browser…") {
+                    CircularProgressIndicator(color = SpotGreen)
+                    Text(status, color = SpotMuted, modifier = Modifier.padding(top = 12.dp))
+                } else {
+                    Text(status, color = SpotMuted, modifier = Modifier.padding(24.dp))
                 }
-            },
-        )
+            }
+        } else {
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { context ->
+                    WebView(context).apply {
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        settings.databaseEnabled = true
+                        settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+                        CookieManager.getInstance().setAcceptCookie(true)
+                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                        webViewClient = WebViewClient()
+                        webChromeClient = WebChromeClient()
+                        loadUrl(spec.url)
+                        webView = this
+                    }
+                },
+            )
+        }
     }
 }
 
-private suspend fun persistYouTubeBrowserSession(
+private suspend fun persistSourceBrowserSession(
     view: WebView,
-    source: YouTubeMusicSource,
+    source: MusicSource,
     session: BrowserSessionSpec,
 ): Result<Boolean> {
     CookieManager.getInstance().flush()
     val visitorData = evaluateSessionScript(view, session.scripts["visitorData"])
     val dataSyncId = evaluateSessionScript(view, session.scripts["dataSyncId"])
     val authUser = evaluateSessionScript(view, session.scripts["authUser"]).ifBlank { "0" }
-    val cookie = CookieManager.getInstance().getCookie("https://music.youtube.com/").orEmpty()
+    val cookieUrl = view.url.orEmpty().ifBlank { session.url }
+    val cookie = CookieManager.getInstance().getCookie(cookieUrl).orEmpty()
     val agent = view.settings.userAgentString.orEmpty()
     return source.storeBrowserSession(
         cookieHeader = cookie,
@@ -1205,11 +1211,6 @@ private suspend fun persistYouTubeBrowserSession(
         dataSyncId = dataSyncId,
         authUser = authUser,
     )
-}
-
-private fun hasYouTubeAccountCookie(cookie: String): Boolean {
-    val names = cookie.split(';').map { it.substringBefore('=').trim() }.toSet()
-    return "SAPISID" in names || "__Secure-3PAPISID" in names || "__Secure-1PAPISID" in names
 }
 
 private suspend fun evaluateSessionScript(view: WebView, script: String?): String {
@@ -1225,7 +1226,7 @@ private suspend fun evaluateSessionScript(view: WebView, script: String?): Strin
     }
 }
 
-private fun requiresYouTubeSignIn(message: String?): Boolean {
+private fun requiresSourceSessionBrowser(message: String?): Boolean {
     val text = message.orEmpty()
     return text.contains("LOGIN_REQUIRED", ignoreCase = true) ||
         text.contains("sign in", ignoreCase = true) ||

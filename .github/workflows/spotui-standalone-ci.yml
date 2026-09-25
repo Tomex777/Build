@@ -38,20 +38,17 @@ jobs:
           cp -R sora-overlay/. "$ROOT/"
           cp -R spotui-overlay/. "$ROOT/"
 
-          mkdir -p "$ROOT/spotui-app/src/main/java/com/night/sora/youtubemusic"
-          cp "$ROOT/youtube-music-extension/src/main/java/com/night/sora/youtubemusic/YouTubeMusicCatalog.kt" "$ROOT/spotui-app/src/main/java/com/night/sora/youtubemusic/"
-          cp "$ROOT/youtube-music-extension/src/main/java/com/night/sora/youtubemusic/YouTubeMusicSession.kt" "$ROOT/spotui-app/src/main/java/com/night/sora/youtubemusic/"
-          cp "$ROOT/youtube-music-extension/src/main/java/com/night/sora/youtubemusic/YouTubePoToken.kt" "$ROOT/spotui-app/src/main/java/com/night/sora/youtubemusic/"
-          cp "$ROOT/youtube-music-extension/src/main/java/com/night/sora/youtubemusic/YouTubeSessionCookies.kt" "$ROOT/spotui-app/src/main/java/com/night/sora/youtubemusic/"
-          mkdir -p "$ROOT/spotui-app/src/main/assets"
-          cp "$ROOT/youtube-music-extension/src/main/assets/po_token.html" "$ROOT/spotui-app/src/main/assets/po_token.html"
-
           python3 - "$ROOT/settings.gradle.kts" <<'PY'
           from pathlib import Path
           import sys
           p = Path(sys.argv[1])
           text = p.read_text()
-          for line in ['include(":youtube-innertube")', 'include(":spotui-app")']:
+          for line in [
+              'include(":youtube-innertube")',
+              'include(":spotui-source-api")',
+              'include(":spotui-app")',
+              'include(":spotui-youtube-music-extension")',
+          ]:
               if line not in text:
                   text += "\n" + line + "\n"
           p.write_text(text)
@@ -75,9 +72,24 @@ jobs:
         with:
           gradle-version: '9.5.0'
 
-      - name: Build standalone APK
+      - name: Build core and YouTube Music source APKs
         working-directory: ${{ env.SPOTUI_ROOT }}
-        run: gradle --stacktrace :spotui-app:assembleDebug
+        run: gradle --stacktrace :spotui-app:assembleDebug :spotui-youtube-music-extension:assembleDebug
+
+      - name: Prove source isolation
+        working-directory: ${{ env.SPOTUI_ROOT }}
+        run: |
+          set -euo pipefail
+          CORE_DEPS="$(gradle -q :spotui-app:dependencies --configuration debugRuntimeClasspath)"
+          EXT_DEPS="$(gradle -q :spotui-youtube-music-extension:dependencies --configuration debugRuntimeClasspath)"
+          if grep -q 'project :youtube-innertube' <<<"$CORE_DEPS"; then
+            echo "SpotUI core still depends on youtube-innertube" >&2
+            exit 1
+          fi
+          grep -q 'project :spotui-source-api' <<<"$CORE_DEPS"
+          grep -q 'project :youtube-innertube' <<<"$EXT_DEPS"
+          grep -q 'project :spotui-source-api' <<<"$EXT_DEPS"
+          echo "Source isolation verified."
 
       - name: Enable KVM
         run: |
@@ -100,6 +112,7 @@ jobs:
         if: always()
         run: |
           cp "$SPOTUI_ROOT/spotui-app/build/outputs/apk/debug/spotui-app-debug.apk" /tmp/spotui-artifacts/SpotUI-debug.apk || true
+          cp "$SPOTUI_ROOT/spotui-youtube-music-extension/build/outputs/apk/debug/spotui-youtube-music-extension-debug.apk" /tmp/spotui-artifacts/SpotUI-YouTube-Music-source-debug.apk || true
           ls -lh /tmp/spotui-artifacts || true
 
       - uses: actions/upload-artifact@v4

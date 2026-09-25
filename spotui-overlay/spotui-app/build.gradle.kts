@@ -39,7 +39,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":youtube-innertube"))
+    implementation(project(":spotui-source-api"))
 
     val composeBom = platform("androidx.compose:compose-bom:2026.04.01")
     implementation(composeBom)

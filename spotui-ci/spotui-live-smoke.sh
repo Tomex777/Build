@@ -7,7 +7,7 @@ LIVE_LOGCAT_PID=""
 
 capture_resolver_logs() {
   if [[ -f "$OUT/resolver-live-logcat.txt" ]]; then
-    grep -Ei 'SoraYouTubeMusic|player start|player result|resolved|signature timestamp|potoken|newpipe|PlaybackException|ExoPlayer|HttpDataSource|googlevideo' "$OUT/resolver-live-logcat.txt" \
+    grep -Ei 'SpotuiYouTubeMusic|player start|player result|resolved|signature timestamp|potoken|newpipe|PlaybackException|ExoPlayer|HttpDataSource|googlevideo' "$OUT/resolver-live-logcat.txt" \
       | tail -n 260 > "$OUT/resolver-summary.txt" || true
   fi
 }
@@ -23,8 +23,12 @@ cleanup() {
 trap cleanup EXIT
 
 APK="$SPOTUI_ROOT/spotui-app/build/outputs/apk/debug/spotui-app-debug.apk"
+SOURCE_APK="$SPOTUI_ROOT/spotui-youtube-music-extension/build/outputs/apk/debug/spotui-youtube-music-extension-debug.apk"
 adb uninstall com.night.spotui >/dev/null 2>&1 || true
+adb uninstall com.night.spotui.ext.youtube.music >/dev/null 2>&1 || true
+adb install -r "$SOURCE_APK"
 adb install -r "$APK"
+adb shell dumpsys package com.night.spotui.ext.youtube.music | grep -q 'SpotuiYouTubeMusicSourceService'
 
 adb shell am force-stop com.android.launcher3 >/dev/null 2>&1 || true
 adb shell pm disable-user --user 0 com.android.launcher3 >/dev/null 2>&1 || true
@@ -140,7 +144,7 @@ candidates=[]
 for node in root.iter('node'):
     cls=node.attrib.get('class','')
     text=(node.attrib.get('text') or '').strip()
-    if cls != 'android.widget.EditText' and text != 'Songs, artists, albums':
+    if cls != 'android.widget.EditText' and text != 'What do you want to listen to?':
         continue
     m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
     if not m: continue
@@ -206,7 +210,7 @@ for _ in $(seq 1 50); do
     PLAYBACK_OUTCOME="playing"
     break
   fi
-  if node_contains 'YouTube needs sign-in' >/dev/null 2>&1; then
+  if node_contains 'Source needs browser session' >/dev/null 2>&1; then
     PLAYBACK_OUTCOME="challenged"
     break
   fi
@@ -224,16 +228,16 @@ if [[ "$PLAYBACK_OUTCOME" == "playing" ]]; then
   adb shell dumpsys media_session | grep -q 'com.night.spotui'
   shot 03-background
   touch "$OUT/FULL_ANONYMOUS_PLAYBACK_PASS"
-  echo "SpotUI standalone live playback passed anonymously."
+  echo "SpotUI core + YouTube Music extension live playback passed anonymously."
 elif [[ "$PLAYBACK_OUTCOME" == "challenged" ]]; then
   shot 02-youtube-challenge
-  tap_text 'YouTube needs sign-in · Sign in'
-  wait_for_node 'Close sign in' 20
+  tap_text 'Source needs browser session · Sign in'
+  wait_for_node 'Close source browser' 20
   shot 03-sign-in-flow
   capture_resolver_logs
   grep -Eqi 'LOGIN_REQUIRED|sign in to confirm|not a bot' "$OUT/resolver-summary.txt"
-  touch "$OUT/YOUTUBE_SIGN_IN_REQUIRED"
-  echo "YouTube challenged the CI runner; SpotUI surfaced and opened the signed-in fallback correctly."
+  touch "$OUT/SOURCE_BROWSER_SESSION_REQUIRED"
+  echo "The source hit a YouTube challenge; SpotUI crossed the extension boundary and opened the source-owned browser-session fallback correctly."
 else
   capture_resolver_logs
   echo "Neither playback nor the explicit YouTube sign-in fallback appeared." >&2
@@ -241,4 +245,4 @@ else
   exit 1
 fi
 
-echo "SpotUI standalone smoke passed."
+echo "SpotUI core + extension smoke passed."

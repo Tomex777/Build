@@ -26,7 +26,7 @@ import com.night.spotui.MainActivity
 import com.night.spotui.MusicSource
 import com.night.spotui.Track
 import com.night.spotui.TasteStore
-import com.night.spotui.YouTubeMusicSource
+import com.night.spotui.ExtensionMusicSource
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -109,6 +109,9 @@ class SpotPlaybackController(
             }
         }
     }
+
+    val sourceName: String
+        get() = source.name
 
     fun sessionPlayer(): Player = player
 
@@ -265,14 +268,14 @@ class SpotPlaybackController(
 }
 
 object SpotRuntime {
-    @Volatile private var sourceInstance: YouTubeMusicSource? = null
+    @Volatile private var sourceInstance: ExtensionMusicSource? = null
     @Volatile private var tasteInstance: TasteStore? = null
     @Volatile private var playerInstance: SpotPlaybackController? = null
 
-    fun source(context: Context): YouTubeMusicSource {
+    fun source(context: Context): ExtensionMusicSource {
         sourceInstance?.let { return it }
         return synchronized(this) {
-            sourceInstance ?: YouTubeMusicSource(context.applicationContext).also { sourceInstance = it }
+            sourceInstance ?: ExtensionMusicSource(context.applicationContext).also { sourceInstance = it }
         }
     }
 
