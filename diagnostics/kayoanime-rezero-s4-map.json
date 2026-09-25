@@ -1,13 +1,82 @@
 {
-  "page": {
-    "status": 403,
-    "finalUrl": "https://kayoanime.com/rezero-starting-life-in-another-world-season-4-episode-4-english-subbed/",
-    "contentType": "text/html; charset=UTF-8",
-    "bytes": 5876,
-    "declaredType": null,
-    "seasonLinks": [],
-    "hasSeason4": false
+  "sourcePage": "https://kayoanime.com/rezero-starting-life-in-another-world-season-4-episode-4-english-subbed/",
+  "declaredType": "TV",
+  "season4": {
+    "verifiedDriveTarget": true,
+    "listingExit": 0,
+    "listingStderr": "warning: `--json` is in beta and its output format may change in a future release\n",
+    "fileCount": 11,
+    "files": [
+      {
+        "name": "ReZero - S04E01.mkv",
+        "path": "ReZero - S04E01.mkv"
+      },
+      {
+        "name": "ReZero - S04E02.mkv",
+        "path": "ReZero - S04E02.mkv"
+      },
+      {
+        "name": "ReZero - S04E03.mkv",
+        "path": "ReZero - S04E03.mkv"
+      },
+      {
+        "name": "ReZero - S04E04.mkv",
+        "path": "ReZero - S04E04.mkv"
+      },
+      {
+        "name": "ReZero - S04E05.mkv",
+        "path": "ReZero - S04E05.mkv"
+      },
+      {
+        "name": "ReZero - S04E06.mkv",
+        "path": "ReZero - S04E06.mkv"
+      },
+      {
+        "name": "ReZero - S04E07.mkv",
+        "path": "ReZero - S04E07.mkv"
+      },
+      {
+        "name": "ReZero - S04E08.mkv",
+        "path": "ReZero - S04E08.mkv"
+      },
+      {
+        "name": "ReZero - S04E09.mkv",
+        "path": "ReZero - S04E09.mkv"
+      },
+      {
+        "name": "ReZero - S04E10.mkv",
+        "path": "ReZero - S04E10.mkv"
+      },
+      {
+        "name": "ReZero - S04E11.mkv",
+        "path": "ReZero - S04E11.mkv"
+      }
+    ],
+    "episode4CandidateCount": 11
   },
-  "season4": {},
-  "episode4": {}
+  "episode4": {
+    "name": "ReZero - S04E01.mkv",
+    "path": "ReZero - S04E01.mkv",
+    "extension": ".mkv",
+    "listedHost": "drive.google.com",
+    "listedPath": "/uc",
+    "head": {
+      "status": 200,
+      "finalHost": "drive.usercontent.google.com",
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "0",
+      "contentDisposition": null,
+      "acceptRanges": null
+    },
+    "range": {
+      "status": 200,
+      "finalHost": "drive.usercontent.google.com",
+      "contentType": "text/html; charset=utf-8",
+      "contentLength": "2384",
+      "contentRange": null,
+      "contentDisposition": null,
+      "prefixBytesRead": 2384,
+      "firstBytes": "3c21444f43545950452068746d6c3e3c"
+    }
+  }
 }
