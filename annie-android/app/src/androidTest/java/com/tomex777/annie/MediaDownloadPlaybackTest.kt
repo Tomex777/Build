@@ -67,7 +67,7 @@ class MediaDownloadPlaybackTest {
         }.also { downloaders += it }
 
         downloader.enqueue(item)
-        assertTrue("Direct MKV download did not complete", complete.await(20, TimeUnit.SECONDS))
+        assertTrue("Direct MKV download did not complete: ${latest.get().state} · ${latest.get().failureReason}", complete.await(20, TimeUnit.SECONDS))
         val finished = latest.get()
         assertEquals(DownloadState.COMPLETE, finished.state)
         assertTrue("Redirected MKV lost its .mkv extension: ${finished.localPath}", finished.localPath.endsWith(".mkv"))
@@ -103,7 +103,7 @@ class MediaDownloadPlaybackTest {
 
         downloader.enqueue(item)
         assertTrue(
-            "HLS did not reach the throttled second segment",
+            "HLS did not reach the throttled second segment: ${latest.get().state} · ${latest.get().failureReason}",
             server.secondSegmentStarted.await(15, TimeUnit.SECONDS),
         )
         downloader.pause(latest.get())
