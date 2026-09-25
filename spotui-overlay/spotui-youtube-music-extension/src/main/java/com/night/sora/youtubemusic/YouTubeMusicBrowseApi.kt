@@ -321,14 +321,21 @@ object YouTubeMusicBrowseApi {
             val title = shelfTitle(shelf).lowercase()
             if (acceptedTitles.none { title == it || title.contains(it) }) return@walk
 
-            var endpoint: JSONObject? = null
-            walk(shelf) { inner ->
-                if (endpoint == null) {
-                    val candidate = inner.optJSONObject("browseEndpoint")
-                    if (candidate?.optString("browseId").orEmpty().isNotBlank()) endpoint = candidate
-                }
-            }
-            val chosen = endpoint ?: return@walk
+            val chosen = shelf
+                .optJSONObject("title")
+                ?.optJSONArray("runs")
+                ?.optJSONObject(0)
+                ?.optJSONObject("navigationEndpoint")
+                ?.optJSONObject("browseEndpoint")
+                ?: shelf
+                    .optJSONObject("header")
+                    ?.optJSONObject("musicCarouselShelfBasicHeaderRenderer")
+                    ?.optJSONObject("moreContentButton")
+                    ?.optJSONObject("buttonRenderer")
+                    ?.optJSONObject("navigationEndpoint")
+                    ?.optJSONObject("browseEndpoint")
+                ?: return@walk
+            if (chosen.optString("browseId").isBlank()) return@walk
             answer = chosen.optString("browseId") to chosen.optString("params").takeIf(String::isNotBlank)
         }
         return answer
