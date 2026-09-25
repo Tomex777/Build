@@ -326,6 +326,10 @@ private fun BibleReader(
     val listState = rememberLazyListState()
 
     LaunchedEffect(book, chapter, selectedTranslation.id, refreshNonce) {
+        // Start a new chapter at its first verse. Saved-position routes can still
+        // jump to initialVerse after the new passage has loaded.
+        listState.scrollToItem(0)
+        passage = null
         loading = true
         error = null
         val result = withContext(Dispatchers.IO) {
@@ -337,7 +341,7 @@ private fun BibleReader(
         passage?.let {
             val index = it.verses.indexOfFirst { verse -> verse.number >= initialVerse }.coerceAtLeast(0)
             // LazyColumn item 0 is the chapter header; verse rows start at 1.
-            if (index > 0) listState.scrollToItem(index + 1)
+            listState.scrollToItem(if (index > 0) index + 1 else 0)
         }
     }
 
