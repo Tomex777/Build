@@ -26,11 +26,13 @@ class LocalVideoPlaybackTest {
             "https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4"
         ).openConnection() as HttpURLConnection
         connection.connectTimeout = 20_000
-        connection.readTimeout = 30_000
+        connection.readTimeout = 90_000
         connection.instanceFollowRedirects = true
         try {
             assertTrue("Test video request failed: HTTP ${connection.responseCode}", connection.responseCode == 200)
-            connection.inputStream.use { input -> fixture.outputStream().use(input::copyTo) }
+            connection.inputStream.use { input ->
+                fixture.outputStream().use { output -> input.copyTo(output) }
+            }
         } finally {
             connection.disconnect()
         }
@@ -58,6 +60,9 @@ class LocalVideoPlaybackTest {
         }
         compose.waitUntil(15_000) {
             compose.onAllNodesWithText("Ⅱ").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("00:00").fetchSemanticsNodes().isEmpty()
         }
         compose.onNodeWithTag("player_play_pause").performClick()
         compose.waitUntil(5_000) {
