@@ -12,6 +12,7 @@ import app.nami.source.SourceMetadata
 import app.nami.source.SourceOrigin
 import app.nami.source.SourcePage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -24,6 +25,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.io.IOException
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
@@ -134,14 +136,28 @@ class JikanAnimeSource(
             .header("Accept", "application/json")
             .header("User-Agent", "Nami/0.1 (Android anime source)")
             .build()
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                throw IllegalStateException("Jikan request failed with HTTP ${response.code}")
+        var attempt = 0
+        var lastFailure: Exception? = null
+        while (attempt < MAX_ATTEMPTS) {
+            attempt++
+            try {
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        val failure = IllegalStateException("Jikan request failed with HTTP ${response.code}")
+                        if (response.code != 429 && response.code < 500) throw failure
+                        lastFailure = failure
+                    } else {
+                        val body = response.body?.string()
+                            ?: throw IllegalStateException("Jikan returned an empty response")
+                        return@withContext JSON.parseToJsonElement(body).jsonObject
+                    }
+                }
+            } catch (failure: IOException) {
+                lastFailure = failure
             }
-            val body = response.body?.string()
-                ?: throw IllegalStateException("Jikan returned an empty response")
-            JSON.parseToJsonElement(body).jsonObject
+            if (attempt < MAX_ATTEMPTS) delay(attempt * RETRY_DELAY_MS)
         }
+        throw lastFailure ?: IllegalStateException("Jikan request failed after retries")
     }
 
     private fun JsonObject.imageUrl(): String? =
@@ -161,6 +177,8 @@ class JikanAnimeSource(
     companion object {
         const val SOURCE_ID = "native:jikan"
         private const val API_BASE = "https://api.jikan.moe/v4"
+        private const val MAX_ATTEMPTS = 3
+        private const val RETRY_DELAY_MS = 1_000L
         private val JSON = Json { ignoreUnknownKeys = true }
     }
 }
