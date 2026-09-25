@@ -15,8 +15,6 @@ import app.nami.data.local.NamiDatabase
 import app.nami.data.local.StoredDownload
 import app.nami.domain.AnimeDetails
 import app.nami.domain.AnimeEpisode
-import app.nami.domain.AnimeRef
-import app.nami.domain.EpisodeRef
 import app.nami.domain.ResolvedMedia
 import app.nami.runtime.NamiSourceRegistry
 import app.nami.source.NamiAnimeSource
@@ -168,26 +166,20 @@ class NamiDownloadManager(
                 return@launch
             }
 
-            val anime = AnimeDetails(
-                ref = AnimeRef(status.sourceId, status.sourceAnimeId),
-                title = status.animeTitle,
-                sourceState = status.animeSourceState,
-            )
-            val episode = AnimeEpisode(
-                ref = EpisodeRef(
-                    sourceId = status.sourceId,
-                    sourceAnimeId = status.sourceAnimeId,
-                    sourceEpisodeId = status.sourceEpisodeId,
-                ),
-                title = status.episodeTitle,
-                sourceState = status.episodeSourceState,
-            )
+            val request = DownloadRetryPlanner.create(status)
+            if (request == null) {
+                update(
+                    status.copy(errorMessage = "This download record cannot be retried."),
+                    status.sourceAnimeId,
+                )
+                return@launch
+            }
 
             enqueueInternal(
                 source = source,
-                anime = anime,
-                episode = episode,
-                relativeDirectory = status.relativePath,
+                anime = request.anime,
+                episode = request.episode,
+                relativeDirectory = request.relativeDirectory,
             )
         }
     }

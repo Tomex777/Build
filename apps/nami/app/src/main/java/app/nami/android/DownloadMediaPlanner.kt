@@ -1,7 +1,10 @@
 package app.nami.android
 
 import app.nami.data.local.DownloadDirectoryLayout
+import app.nami.domain.AnimeDetails
 import app.nami.domain.AnimeEpisode
+import app.nami.domain.AnimeRef
+import app.nami.domain.EpisodeRef
 import java.net.URI
 
 internal data class HlsMediaPlan(
@@ -149,7 +152,7 @@ internal object DownloadMediaNaming {
 
 
 internal object DownloadRecoveryPolicy {
-    const val INTERRUPTED_MESSAGE = "Download was interrupted. Open the anime to retry."
+    const val INTERRUPTED_MESSAGE = "Download was interrupted. Tap retry to continue."
 
     fun recoverState(state: NamiDownloadState): NamiDownloadState = when (state) {
         NamiDownloadState.QUEUED,
@@ -171,4 +174,41 @@ internal object DownloadStoragePolicy {
         sdkInt: Int,
         permissionGranted: Boolean,
     ): Boolean = sdkInt <= 28 && !permissionGranted
+}
+
+
+internal data class RetryDownloadRequest(
+    val anime: AnimeDetails,
+    val episode: AnimeEpisode,
+    val relativeDirectory: String,
+)
+
+internal object DownloadRetryPlanner {
+    fun create(status: NamiDownloadStatus): RetryDownloadRequest? {
+        if (status.state != NamiDownloadState.ERROR) return null
+        if (status.sourceId.isBlank() || status.sourceAnimeId.isBlank() || status.sourceEpisodeId.isBlank()) {
+            return null
+        }
+
+        return RetryDownloadRequest(
+            anime = AnimeDetails(
+                ref = AnimeRef(
+                    sourceId = status.sourceId,
+                    sourceAnimeId = status.sourceAnimeId,
+                ),
+                title = status.animeTitle,
+                sourceState = status.animeSourceState,
+            ),
+            episode = AnimeEpisode(
+                ref = EpisodeRef(
+                    sourceId = status.sourceId,
+                    sourceAnimeId = status.sourceAnimeId,
+                    sourceEpisodeId = status.sourceEpisodeId,
+                ),
+                title = status.episodeTitle,
+                sourceState = status.episodeSourceState,
+            ),
+            relativeDirectory = status.relativePath,
+        )
+    }
 }

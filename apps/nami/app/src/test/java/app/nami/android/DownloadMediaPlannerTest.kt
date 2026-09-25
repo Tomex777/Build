@@ -203,4 +203,61 @@ class DownloadMediaPlannerTest {
     }
 
 
+    @Test
+    fun retryPlannerReconstructsStatefulRequestFromPersistedStatus() {
+        val status = NamiDownloadStatus(
+            sourceId = "source",
+            sourceAnimeId = "/anime",
+            sourceEpisodeId = "/episode-7",
+            extensionName = "Fixture",
+            animeTitle = "Fixture Anime",
+            episodeTitle = "Episode 7",
+            animeSourceState = """{"memo":{"token":"anime"}}""",
+            episodeSourceState = """{"memo":{"token":"episode"}}""",
+            relativePath = "Fixture/Fixture Anime/Season 01",
+            state = NamiDownloadState.ERROR,
+            errorMessage = "Interrupted",
+        )
+
+        val request = DownloadRetryPlanner.create(status)
+            ?: error("Expected retry request")
+
+        assertEquals(status.sourceId, request.anime.ref.sourceId)
+        assertEquals(status.sourceAnimeId, request.anime.ref.sourceAnimeId)
+        assertEquals(status.animeTitle, request.anime.title)
+        assertEquals(status.animeSourceState, request.anime.sourceState)
+        assertEquals(status.sourceId, request.episode.ref.sourceId)
+        assertEquals(status.sourceAnimeId, request.episode.ref.sourceAnimeId)
+        assertEquals(status.sourceEpisodeId, request.episode.ref.sourceEpisodeId)
+        assertEquals(status.episodeTitle, request.episode.title)
+        assertEquals(status.episodeSourceState, request.episode.sourceState)
+        assertEquals(status.relativePath, request.relativeDirectory)
+    }
+
+    @Test
+    fun retryPlannerRejectsNonErrorAndMalformedRecords() {
+        val base = NamiDownloadStatus(
+            sourceId = "source",
+            sourceAnimeId = "anime",
+            sourceEpisodeId = "episode",
+            extensionName = "Fixture",
+            animeTitle = "Anime",
+            episodeTitle = "Episode",
+            relativePath = "Fixture/Anime",
+            state = NamiDownloadState.DOWNLOADED,
+        )
+
+        assertEquals(null, DownloadRetryPlanner.create(base))
+        assertEquals(
+            null,
+            DownloadRetryPlanner.create(
+                base.copy(
+                    state = NamiDownloadState.ERROR,
+                    sourceEpisodeId = "",
+                ),
+            ),
+        )
+    }
+
+
 }
