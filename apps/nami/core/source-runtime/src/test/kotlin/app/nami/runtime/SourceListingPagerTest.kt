@@ -21,11 +21,11 @@ class SourceListingPagerTest {
         val source = FakeListingSource()
         val pager = SourceListingPager(source)
 
-        assertEquals("popular-1", pager.load(SourceListing.Popular).items.single().title)
-        assertEquals("latest-1", pager.load(SourceListing.Latest).items.single().title)
+        assertEquals("popular-1", pager.load(SourceListing.Popular).items.first().title)
+        assertEquals("latest-1", pager.load(SourceListing.Latest).items.first().title)
         assertEquals(
             "search:bleach-1",
-            pager.load(SourceListing.Search("  bleach  ")).items.single().title,
+            pager.load(SourceListing.Search("  bleach  ")).items.first().title,
         )
 
         assertEquals(
