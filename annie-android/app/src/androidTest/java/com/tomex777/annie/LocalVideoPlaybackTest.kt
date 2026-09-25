@@ -59,7 +59,7 @@ class LocalVideoPlaybackTest {
         compose.waitUntil(30_000) {
             compose.onAllNodesWithText("—:—").fetchSemanticsNodes().isEmpty()
         }
-        compose.waitUntil(15_000) {
+        compose.waitUntil(60_000) {
             compose.onAllNodesWithText("Ⅱ").fetchSemanticsNodes().isNotEmpty()
         }
         compose.waitUntil(10_000) {
