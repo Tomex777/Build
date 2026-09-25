@@ -88,10 +88,6 @@ class LocalVideoPlaybackTest {
             }
         }
         screenshot.recycle()
-        assertTrue(
-            "VLC advanced but the captured video surface stayed black ($visibleVideoPixels/$sampledPixels colored samples)",
-            visibleVideoPixels > sampledPixels / 100,
-        )
         compose.onNodeWithTag("media_player").performClick()
         compose.onNodeWithTag("player_play_pause").performClick()
         compose.waitUntil(2_500) {
@@ -99,5 +95,9 @@ class LocalVideoPlaybackTest {
         }
         assertTrue("Player never exposed its offline mode",
             compose.onAllNodesWithText("OFFLINE").fetchSemanticsNodes().isNotEmpty())
+        assertTrue(
+            "VLC advanced but the captured video surface stayed black ($visibleVideoPixels/$sampledPixels colored samples)",
+            visibleVideoPixels > sampledPixels / 100,
+        )
     }
 }
