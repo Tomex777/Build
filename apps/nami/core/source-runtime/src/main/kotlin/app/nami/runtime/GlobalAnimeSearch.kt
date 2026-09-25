@@ -59,8 +59,8 @@ data class GlobalSearchResult(
 /**
  * Aniyomi-style global search over the Nami source contract.
  *
- * Initial sections appear alphabetically. Non-empty results then rise in the order each
- * source finishes, while a slow or failed source remains isolated to its own section.
+ * Initial sections appear alphabetically. As each source finishes, its section rises above
+ * sources that are still searching, preserving response-arrival order for all completed sections.
  */
 class GlobalAnimeSearch(private val registry: NamiSourceRegistry) {
 
@@ -148,13 +148,13 @@ class GlobalAnimeSearch(private val registry: NamiSourceRegistry) {
 
     private fun sortSections(sections: Collection<GlobalSearchSection>): List<GlobalSearchSection> =
         sections.sortedWith { left, right ->
-            val leftHasResults = (left.result as? AnimeSearchItemResult.Success)?.isEmpty == false
-            val rightHasResults = (right.result as? AnimeSearchItemResult.Success)?.isEmpty == false
+            val leftCompleted = left.result !is AnimeSearchItemResult.Loading
+            val rightCompleted = right.result !is AnimeSearchItemResult.Loading
 
             when {
-                leftHasResults && !rightHasResults -> -1
-                !leftHasResults && rightHasResults -> 1
-                leftHasResults && rightHasResults -> compareValues(
+                leftCompleted && !rightCompleted -> -1
+                !leftCompleted && rightCompleted -> 1
+                leftCompleted && rightCompleted -> compareValues(
                     left.completedOrder ?: Long.MAX_VALUE,
                     right.completedOrder ?: Long.MAX_VALUE,
                 )

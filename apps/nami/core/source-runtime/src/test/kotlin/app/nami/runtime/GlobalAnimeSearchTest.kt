@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
 class GlobalAnimeSearchTest {
 
     @Test
-    fun nonEmptyResultsRiseByArrivalWhileEverythingElseStaysAlphabetical() = runBlocking {
+    fun everyCompletedSourceRisesByArrivalWhileLoadingSourcesStayAlphabetical() = runBlocking {
         val alpha = FakeSource(
             id = "alpha",
             name = "Alpha",
@@ -50,27 +50,36 @@ class GlobalAnimeSearchTest {
         assertEquals(
             listOf("Alpha", "Beta", "Zulu"),
             states.first().sections.map { it.source.metadata.name },
-            "Before any source returns a real result, sections must be alphabetical.",
+            "Before any source finishes, loading sections must be alphabetical.",
         )
 
-        val zuluFirst = states.first { state ->
+        val betaCompleted = states.first { state ->
+            val betaSection = state.sections.first { it.source.metadata.id == "beta" }
+            val zuluSection = state.sections.first { it.source.metadata.id == "zulu" }
+            betaSection.result is AnimeSearchItemResult.Success &&
+                zuluSection.result is AnimeSearchItemResult.Loading
+        }
+        assertEquals(
+            listOf("Beta", "Alpha", "Zulu"),
+            betaCompleted.sections.map { it.source.metadata.name },
+            "Even an empty completed response must rise above sources still searching.",
+        )
+
+        val betaThenZulu = states.first { state ->
             val zuluSection = state.sections.first { it.source.metadata.id == "zulu" }
             val alphaSection = state.sections.first { it.source.metadata.id == "alpha" }
             zuluSection.result is AnimeSearchItemResult.Success &&
-                !(zuluSection.result as AnimeSearchItemResult.Success).isEmpty &&
                 alphaSection.result is AnimeSearchItemResult.Loading
         }
-
         assertEquals(
-            listOf("Zulu", "Alpha", "Beta"),
-            zuluFirst.sections.map { it.source.metadata.name },
-            "Zulu returned a non-empty result first, so it must rise above Alpha. " +
-                "Alpha and Beta remain alphabetical underneath.",
+            listOf("Beta", "Zulu", "Alpha"),
+            betaThenZulu.sections.map { it.source.metadata.name },
+            "Completed sections must accumulate in response-arrival order.",
         )
 
         val finalState = states.last()
         assertEquals(
-            listOf("Zulu", "Alpha", "Beta"),
+            listOf("Beta", "Zulu", "Alpha"),
             finalState.sections.map { it.source.metadata.name },
         )
         assertIs<AnimeSearchItemResult.Success>(
