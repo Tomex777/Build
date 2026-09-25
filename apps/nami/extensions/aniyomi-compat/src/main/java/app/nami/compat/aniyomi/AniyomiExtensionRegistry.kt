@@ -46,6 +46,8 @@ class AniyomiExtensionRegistry(
     private val context: Context,
 ) : NamiSourceRegistry {
 
+    private val signaturePins = ExtensionSignaturePins(context)
+
     override suspend fun installedSources(): List<NamiAnimeSource> = withContext(Dispatchers.IO) {
         val packages = installedExtensionPackages()
         Log.i(LOG_TAG, "Found ${packages.size} installed anime extension package(s)")
@@ -62,7 +64,15 @@ class AniyomiExtensionRegistry(
     }
 
     private fun installedExtensionPackages(): List<PackageInfo> {
-        val flags = PackageManager.GET_CONFIGURATIONS or PackageManager.GET_META_DATA
+        @Suppress("DEPRECATION")
+        val flags = PackageManager.GET_CONFIGURATIONS or
+            PackageManager.GET_META_DATA or
+            PackageManager.GET_SIGNATURES or
+            (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                PackageManager.GET_SIGNING_CERTIFICATES
+            } else {
+                0
+            })
         val packageManager = context.packageManager
         val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(flags.toLong()))
@@ -77,7 +87,37 @@ class AniyomiExtensionRegistry(
         info.reqFeatures.orEmpty().any { it.name == EXTENSION_FEATURE } &&
             info.applicationInfo?.metaData?.getString(METADATA_SOURCE_CLASS).isNullOrBlank().not()
 
+    private fun instantiateSources(
+        className: String,
+        loader: ClassLoader,
+    ): List<AnimeSource> {
+        val instance = Class.forName(className, false, loader)
+            .getDeclaredConstructor()
+            .newInstance()
+
+        return when (instance) {
+            is AnimeSource -> listOf(instance)
+            is AnimeSourceFactory -> instance.createSources()
+            else -> error("Declared class is neither AnimeSource nor AnimeSourceFactory")
+        }
+    }
+
     private fun loadPackage(packageInfo: PackageInfo): List<NamiAnimeSource> {
+        when (val signerDecision = signaturePins.verify(packageInfo)) {
+            ExtensionSignerDecision.UNSIGNED -> {
+                Log.w(LOG_TAG, "Skipping ${packageInfo.packageName}: extension APK is unsigned")
+                return emptyList()
+            }
+            ExtensionSignerDecision.REJECTED -> {
+                Log.w(LOG_TAG, "Skipping ${packageInfo.packageName}: signer does not match the pinned identity")
+                return emptyList()
+            }
+            ExtensionSignerDecision.FIRST_SEEN_PINNED -> {
+                Log.i(LOG_TAG, "Pinned signer identity for ${packageInfo.packageName}")
+            }
+            ExtensionSignerDecision.TRUSTED -> Unit
+        }
+
         val applicationInfo = packageInfo.applicationInfo ?: return emptyList()
         val metadata = applicationInfo.metaData ?: run {
             Log.w(LOG_TAG, "Skipping ${packageInfo.packageName}: extension metadata is missing")
@@ -107,7 +147,16 @@ class AniyomiExtensionRegistry(
                 .toString()
                 .removePrefix(LEGACY_LABEL_PREFIX)
 
-        val loader = PathClassLoader(applicationInfo.sourceDir, context.classLoader)
+        val childFirstLoader = ChildFirstPathClassLoader(
+            applicationInfo.sourceDir,
+            null,
+            context.classLoader,
+        )
+        val fallbackLoader = PathClassLoader(
+            applicationInfo.sourceDir,
+            null,
+            context.classLoader,
+        )
 
         return declaredClasses.flatMap { declaredName ->
             val className = if (declaredName.startsWith('.')) {
@@ -116,19 +165,28 @@ class AniyomiExtensionRegistry(
                 declaredName
             }
 
-            val loadedSources = runCatching {
-                val instance = Class.forName(className, false, loader)
-                    .getDeclaredConstructor()
-                    .newInstance()
-
-                when (instance) {
-                    is AnimeSource -> listOf(instance)
-                    is AnimeSourceFactory -> instance.createSources()
-                    else -> error("Declared class is neither AnimeSource nor AnimeSourceFactory")
-                }
-            }.onFailure {
-                Log.w(LOG_TAG, "Failed loading ${packageInfo.packageName}:$className (${it.javaClass.simpleName})")
-            }.getOrDefault(emptyList())
+            val loadedSources = try {
+                instantiateSources(className, childFirstLoader)
+            } catch (linkage: LinkageError) {
+                Log.w(
+                    LOG_TAG,
+                    "Child-first load failed for ${packageInfo.packageName}:$className; retrying parent-first",
+                )
+                runCatching { instantiateSources(className, fallbackLoader) }
+                    .onFailure {
+                        Log.w(
+                            LOG_TAG,
+                            "Fallback load failed for ${packageInfo.packageName}:$className (${it.javaClass.simpleName})",
+                        )
+                    }
+                    .getOrDefault(emptyList())
+            } catch (failure: Throwable) {
+                Log.w(
+                    LOG_TAG,
+                    "Failed loading ${packageInfo.packageName}:$className (${failure.javaClass.simpleName})",
+                )
+                emptyList()
+            }
 
             if (loadedSources.isEmpty()) {
                 Log.w(LOG_TAG, "No sources produced by ${packageInfo.packageName}:$className")
