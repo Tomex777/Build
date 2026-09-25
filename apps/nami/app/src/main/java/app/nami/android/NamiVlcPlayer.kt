@@ -2,7 +2,7 @@ package app.nami.android
 
 import android.content.Context
 import android.net.Uri
-import android.view.SurfaceView
+import android.view.TextureView
 import app.nami.domain.ResolvedMedia
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,7 +46,7 @@ internal class NamiVlcPlayer(context: Context) {
     private val mutableState = MutableStateFlow(NamiVlcState())
     val state: StateFlow<NamiVlcState> = mutableState.asStateFlow()
     private var pendingSeekMs: Long? = null
-    private var attachedSurface: SurfaceView? = null
+    private var attachedSurface: TextureView? = null
 
     init {
         player.setEventListener { event ->
@@ -110,7 +110,7 @@ internal class NamiVlcPlayer(context: Context) {
         }
     }
 
-    fun attach(surfaceView: SurfaceView) {
+    fun attach(surfaceView: TextureView) {
         if (attachedSurface === surfaceView && player.vlcVout.areViewsAttached()) return
         detach()
         attachedSurface = surfaceView

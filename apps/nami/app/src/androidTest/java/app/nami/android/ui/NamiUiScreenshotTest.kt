@@ -27,15 +27,15 @@ class NamiUiScreenshotTest {
         waitForText("Sources", timeoutMillis = 90_000)
         capture("01-home.png")
 
-        composeRule.onNodeWithText("Search anime").performTextInput("Bleach")
+        composeRule.onNodeWithTag("global-search-field").performTextInput("Bleach")
         composeRule.waitForIdle()
         capture("02-search.png")
 
-        composeRule.onNodeWithText("Bleach").performImeAction()
+        composeRule.onNodeWithTag("global-search-field").performImeAction()
         waitForText(TARGET_ANIME, substring = true, timeoutMillis = 150_000)
         capture("03-search-results-bleach.png")
 
-        composeRule.onAllNodesWithText(TARGET_ANIME, substring = true)[0].performClick()
+        composeRule.onAllNodesWithContentDescription("Open anime: $TARGET_ANIME")[0].performClick()
         waitForText("Episodes", timeoutMillis = 120_000)
         capture("04-anime-details.png")
 

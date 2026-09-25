@@ -6,7 +6,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
-import android.view.SurfaceView
+import android.view.TextureView
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -320,7 +320,7 @@ internal fun NamiPlayerScreen(
                 },
         ) {
             AndroidView(
-                factory = { SurfaceView(it).also(engine::attach) },
+                factory = { TextureView(it).also(engine::attach) },
                 update = { engine.attach(it) },
                 modifier = Modifier.fillMaxSize(),
             )

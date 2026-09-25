@@ -68,6 +68,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -135,7 +138,7 @@ fun NamiApp(
         stack.removeAt(stack.lastIndex)
     }
 
-    MaterialTheme {
+    NamiTheme {
         Scaffold(
             bottomBar = {
                 if (stack.isEmpty()) {
@@ -358,7 +361,9 @@ private fun GlobalSearchHome(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .testTag("global-search-field"),
+                        shape = RoundedCornerShape(28.dp),
                         placeholder = { Text("Search anime") },
                         leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                         singleLine = true,
@@ -609,6 +614,9 @@ private fun AnimeCard(
     Column(
         modifier = modifier
             .width(96.dp)
+            .semantics {
+                contentDescription = "Open anime: " + item.title
+            }
             .clickable(onClick = onClick),
     ) {
         Cover(
