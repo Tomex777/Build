@@ -100,7 +100,7 @@ jobs:
                   raise SystemExit(f"Could not patch compile classpath in {file}")
               indent = source[source.rfind("\n", 0, source.index(marker)) + 1:source.index(marker)]
               compat = 'add("compileOnly", files(rootProject.file("nami-aniyomi-compat.aar")))'
-              source = source.replace(marker, indent + compat + "\n" + indent + marker, 1)
+              source = source.replace(marker, compat + "\n" + indent + marker, 1)
               file.write_text(source)
 
           for file in [
