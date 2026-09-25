@@ -138,8 +138,8 @@ internal fun AnnieChat() {
     val messages = activeChat.messages
     var draft by remember { mutableStateOf("") }
     var activeSheet by remember { mutableStateOf<String?>(null) }
-    val listState = remember(activeChatId) { LazyListState() }
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val listState = remember(activeChatId, keyboardVisible.takeIf { messages.size <= 1 }) { LazyListState() }
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { ChatHistoryStore.write(context, chats) }
     LaunchedEffect(activeChatId, messages.size, keyboardVisible) {
