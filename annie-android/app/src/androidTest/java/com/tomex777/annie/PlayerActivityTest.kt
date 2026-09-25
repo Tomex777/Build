@@ -14,6 +14,6 @@ class PlayerActivityTest {
     @Test fun playerActivityLaunchesInLandscapeWithThePlayerSurface() {
         assertEquals(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE, compose.activity.requestedOrientation)
         compose.onNodeWithTag("media_player").assertIsDisplayed()
-        compose.onNodeWithTag("player_source_unavailable").assertIsDisplayed()
+        compose.onNodeWithTag("player_source_unavailable", useUnmergedTree = true).assertIsDisplayed()
     }
 }

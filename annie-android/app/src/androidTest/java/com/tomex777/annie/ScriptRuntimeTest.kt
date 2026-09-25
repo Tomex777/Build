@@ -19,7 +19,7 @@ class ScriptRuntimeTest {
         val workspace = ScriptWorkspace(InstrumentationRegistry.getInstrumentation().targetContext)
         try {
             val commands = workspace.reload()
-            assertTrue(commands.any { it.name == "echo" })
+            assertTrue("Echo script did not register: ${workspace.logs()}", commands.any { it.name == "echo" })
             val response = JSONObject(workspace.execute("echo", "/echo hello from JavaScript", "test-chat", 42L))
             assertEquals("text", response.getString("type"))
             assertEquals("hello from JavaScript", response.getString("text"))
@@ -34,7 +34,8 @@ class ScriptRuntimeTest {
         val name = "toggleproof${System.nanoTime().toString().takeLast(8)}"
         try {
             workspace.files.createScript(name)
-            assertTrue(workspace.reload().any { it.name == name })
+            val enabledCommands = workspace.reload()
+            assertTrue("Created script did not register: ${workspace.logs()}", enabledCommands.any { it.name == name })
             workspace.files.setEnabled(name, false)
             assertFalse(workspace.reload().any { it.name == name })
             assertTrue(workspace.files.listProjects().first { it.id == name }.files.isNotEmpty())
@@ -122,7 +123,7 @@ class ScriptRuntimeTest {
         val chatId = "chess-proof-${System.nanoTime()}"
         try {
             val commands = workspace.reload()
-            assertTrue(commands.any { it.name == "chess" })
+            assertTrue("Chess script did not register: ${workspace.logs()}", commands.any { it.name == "chess" })
 
             val opening = JSONObject(workspace.execute("chess", "/chess new", chatId, 60L))
             assertEquals("image", opening.getString("type"))
@@ -247,7 +248,7 @@ class ScriptRuntimeTest {
                 """.trimMargin()
             )
             val commands = workspace.reload()
-            assertTrue(commands.any { it.name == projectName })
+            assertTrue("Project entry did not register: ${workspace.logs()}", commands.any { it.name == projectName })
             val response = JSONObject(workspace.execute(projectName, "/$projectName import works", "test-chat", 44L))
             assertEquals("from helper: import works", response.getString("text"))
         } finally {

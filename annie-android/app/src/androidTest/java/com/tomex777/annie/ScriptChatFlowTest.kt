@@ -89,4 +89,34 @@ class ScriptChatFlowTest {
         }
         compose.onNodeWithText("hello from the real chat", substring = false).assertIsDisplayed()
     }
+
+    @Test fun chessBoardAndPlainTextMoveUseTheRealChatPipeline() {
+        compose.setContent { AnnieTheme { AnnieChat() } }
+        compose.onNodeWithTag("composer_input").performTextInput("/chess")
+        compose.waitUntil(8_000) {
+            compose.onAllNodesWithTag("slash_command_/chess").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("slash_command_/chess").performClick()
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(12_000) {
+            compose.onAllNodesWithTag("script_image_message").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onAllNodesWithTag("script_image_message")[0].assertIsDisplayed()
+        saveEmulatorScreenshot("annie-script-chess-board")
+
+        compose.onNodeWithTag("composer_input").performTextInput("e4")
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(12_000) {
+            compose.onAllNodesWithTag("script_image_message").fetchSemanticsNodes().isNotEmpty() &&
+                compose.onAllNodesWithText("Black played", substring = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onAllNodesWithTag("script_image_message")[0].assertIsDisplayed()
+        compose.onNodeWithText("Black played", substring = true).assertIsDisplayed()
+        saveEmulatorScreenshot("annie-script-chess-move")
+        compose.onAllNodesWithTag("script_image_message")[0].performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("script_image_fullscreen").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("script_image_fullscreen").assertIsDisplayed()
+    }
 }

@@ -26,10 +26,10 @@ class PlayerScreenTest {
         }
         compose.waitForIdle()
         compose.onNodeWithTag("media_player").assertIsDisplayed()
-        compose.onNodeWithTag("player_title").assertExists()
-        compose.onNodeWithTag("player_mode").assertExists()
-        compose.onNodeWithText("STREAMING").assertExists()
-        compose.onNodeWithTag("player_source_unavailable").assertExists()
+        compose.onNodeWithTag("player_title", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("player_mode", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("STREAMING", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("player_source_unavailable", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("player_play_pause").assertIsNotEnabled()
         compose.onNodeWithTag("player_seek").assertIsNotEnabled()
     }

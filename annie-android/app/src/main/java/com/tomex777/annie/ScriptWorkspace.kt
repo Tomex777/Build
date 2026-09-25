@@ -282,6 +282,7 @@ internal class ScriptRuntime(
     private val lock = Mutex()
     private val registered = linkedMapOf<String, ScriptCommand>()
     private val runtime: QuickJs
+    private var capturedModuleResult: String? = null
 
     init {
         val modulePrefix = "${project.id}/"
@@ -307,6 +308,12 @@ internal class ScriptRuntime(
             )
             registered[name] = command
             aliases.forEach { registered[it.lowercase()] = command }
+            null
+        }
+        // QuickJS-KT intentionally does not return values from ES module evaluation.
+        // Invocation modules hand their JSON result back through this synchronous bridge.
+        runtime.function("annieCaptureModuleResult") { args ->
+            capturedModuleResult = args.firstOrNull()?.toString()
             null
         }
         runtime.function("annieStoreGet") { args ->
@@ -382,7 +389,7 @@ internal class ScriptRuntime(
         runtime.evaluate<Unit>(BOOTSTRAP, filename = "annie-runtime.js")
         val entryModule = "${project.id}/${project.entryPath}"
         val entry = project.files[project.entryPath] ?: error("Missing script entry: ${project.entryPath}")
-        runtime.evaluate<Unit>(entry, filename = entryModule, asModule = true)
+        runtime.evaluate<Any?>(entry, filename = entryModule, asModule = true)
         registered.values.distinctBy { it.name }
     }
 
@@ -395,8 +402,10 @@ internal class ScriptRuntime(
             .put("chatId", chatId)
             .put("messageId", messageId)
             .put("replyTo", JSONObject.NULL)
-        val source = "await globalThis.__annieRun(${JSONObject.quote(commandName)}, ${JSONObject.quote(invocation.toString())})"
-        runtime.evaluate<String>(source, filename = "annie-invocation.js", asModule = true)
+        evaluateModuleResult(
+            "await globalThis.__annieRun(${JSONObject.quote(commandName)}, ${JSONObject.quote(invocation.toString())})",
+            "annie-invocation.js",
+        )
     }
 
     suspend fun executeSession(sessionName: String, text: String, chatId: String, messageId: Long): String = lock.withLock {
@@ -407,8 +416,10 @@ internal class ScriptRuntime(
             .put("chatId", chatId)
             .put("messageId", messageId)
             .put("replyTo", JSONObject.NULL)
-        val source = "await globalThis.__annieSession(${JSONObject.quote(sessionName)}, ${JSONObject.quote(invocation.toString())})"
-        runtime.evaluate<String>(source, filename = "annie-session.js", asModule = true)
+        evaluateModuleResult(
+            "await globalThis.__annieSession(${JSONObject.quote(sessionName)}, ${JSONObject.quote(invocation.toString())})",
+            "annie-session.js",
+        )
     }
 
     suspend fun executeAction(actionId: String, payloadJson: String, chatId: String, messageId: Long): String = lock.withLock {
@@ -419,8 +430,20 @@ internal class ScriptRuntime(
             .put("chatId", chatId)
             .put("messageId", messageId)
             .put("replyTo", JSONObject.NULL)
-        val source = "await globalThis.__annieAction(${JSONObject.quote(actionId)}, ${JSONObject.quote(payloadJson)}, ${JSONObject.quote(invocation.toString())})"
-        runtime.evaluate<String>(source, filename = "annie-action.js", asModule = true)
+        evaluateModuleResult(
+            "await globalThis.__annieAction(${JSONObject.quote(actionId)}, ${JSONObject.quote(payloadJson)}, ${JSONObject.quote(invocation.toString())})",
+            "annie-action.js",
+        )
+    }
+
+    private suspend fun evaluateModuleResult(expression: String, filename: String): String {
+        capturedModuleResult = null
+        runtime.evaluate<Any?>(
+            "annieCaptureModuleResult(JSON.stringify($expression))",
+            filename = filename,
+            asModule = true,
+        )
+        return capturedModuleResult ?: error("Script module did not return a message")
     }
 
     override fun close() { runtime.close() }
