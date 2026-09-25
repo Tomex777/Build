@@ -74,6 +74,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.nami.compat.aniyomi.AniyomiBrowserSourceHandle
 import app.nami.data.local.NamiDatabase
 import app.nami.data.local.StoredLibraryEntry
 import app.nami.data.local.StoredWatchProgress
@@ -117,6 +118,8 @@ private sealed interface NamiRoute {
     data class Browser(
         val title: String,
         val url: String,
+        val sourceId: String?,
+        val headers: Map<String, String>,
     ) : NamiRoute
 }
 
@@ -196,7 +199,11 @@ fun NamiApp(
                             route = current,
                             onBack = { stack.removeAt(stack.lastIndex) },
                             onOpenWeb = { url ->
-                                stack += NamiRoute.Browser(current.source.metadata.name, url)
+                                stack += browserRoute(
+                                    source = current.source,
+                                    title = current.source.metadata.name,
+                                    url = url,
+                                )
                             },
                             onOpenAnime = { item ->
                                 stack += NamiRoute.Details(current.source, item)
@@ -212,7 +219,11 @@ fun NamiApp(
                             onBack = { stack.removeAt(stack.lastIndex) },
                             onLibraryChanged = { libraryRevision++ },
                             onOpenWeb = { title, url ->
-                                stack += NamiRoute.Browser(title, url)
+                                stack += browserRoute(
+                                    source = current.source,
+                                    title = title,
+                                    url = url,
+                                )
                             },
                             downloadManager = downloadManager,
                             onPlayEpisode = { anime, episodes, index ->
@@ -265,6 +276,8 @@ fun NamiApp(
                         NamiWebViewScreen(
                             title = current.title,
                             url = current.url,
+                            sourceId = current.sourceId,
+                            headers = current.headers,
                             onClose = { stack.removeAt(stack.lastIndex) },
                         )
                     }
@@ -272,6 +285,22 @@ fun NamiApp(
             }
         }
     }
+}
+
+private fun browserRoute(
+    source: NamiAnimeSource,
+    title: String,
+    url: String,
+): NamiRoute.Browser {
+    val headers = (source as? AniyomiBrowserSourceHandle)
+        ?.browserHeaders(url)
+        .orEmpty()
+    return NamiRoute.Browser(
+        title = title,
+        url = url,
+        sourceId = source.metadata.id,
+        headers = headers,
+    )
 }
 
 private fun downloadedPlaybackSession(
@@ -384,7 +413,9 @@ private fun GlobalSearchHome(
         when {
             shownSections.isNotEmpty() -> {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag("global-search-results"),
                     contentPadding = padding,
                 ) {
                     lazyItems(

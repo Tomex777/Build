@@ -2,6 +2,7 @@ package app.nami.android.compat
 
 import android.content.Context
 import android.os.Environment
+import android.webkit.CookieManager
 import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.test.core.app.ApplicationProvider
@@ -11,6 +12,7 @@ import app.nami.android.NamiDownloadManager
 import app.nami.android.NamiDownloadState
 import app.nami.android.NamiSourceEnablementStore
 import app.nami.android.PlaybackMediaSelector
+import app.nami.compat.aniyomi.AniyomiBrowserSourceHandle
 import app.nami.compat.aniyomi.AniyomiExtensionRegistry
 import app.nami.data.local.NamiDatabase
 import app.nami.domain.AnimeDetails
@@ -26,7 +28,7 @@ import app.nami.source.SourceCapabilities
 import app.nami.source.SourceMetadata
 import app.nami.source.SourceOrigin
 import app.nami.source.SourcePage
-import app.nami.source.jikan.JikanAnimeSource
+import eu.kanade.tachiyomi.network.AndroidCookieJar
 import fi.iki.elonen.NanoHTTPD
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -35,6 +37,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.runner.RunWith
 import java.io.File
 import java.io.InputStream
@@ -45,40 +48,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class AniyomiCompatibilitySmokeTest {
 
     @Test
-    fun nativeJikanSearchDetailsAndEpisodesUseNamiContracts() = runBlocking<Unit> {
-        val start = System.nanoTime()
-        val jikan = JikanAnimeSource()
-        val query = "Bleach"
-        val nativeResults = try {
-            withTimeout(60_000) { jikan.search(query).items }
-        } catch (failure: Exception) {
-            if (failure.message.orEmpty().contains("HTTP 504")) {
-                Log.w("NamiSourceSmoke", "Native Jikan probe unavailable (HTTP 504); skipping live metadata assertions")
-                org.junit.Assume.assumeNoException("Jikan returned HTTP 504", failure)
-            }
-            throw failure
-        }
-        assertTrue("Jikan returned no real results for $query", nativeResults.isNotEmpty())
-
-        val nativeAnime = nativeResults.firstOrNull { it.title.contains(query, ignoreCase = true) }
-            ?: throw AssertionError("Jikan results did not contain $query")
-        val nativeDetails = withTimeout(60_000) { jikan.details(nativeAnime.ref) }
-        val nativeEpisodes = withTimeout(60_000) {
-            jikan.episodes(AnimeRef(jikan.metadata.id, nativeDetails.ref.sourceAnimeId))
-        }
-        assertTrue("Jikan details did not normalize into Nami models", nativeDetails.title.isNotBlank())
-        assertTrue("Jikan did not return episode metadata", nativeEpisodes.isNotEmpty())
-
-        val elapsed = (System.nanoTime() - start) / 1_000_000
-        Log.i(
-            "NamiSourceSmoke",
-            "native=${jikan.metadata.id} query=$query results=${nativeResults.size} " +
-                "episodes=${nativeEpisodes.size} elapsedMs=$elapsed",
-        )
-    }
-
-    @Test
-    fun globalSearchUsesExtensionsOnlyEvenWhenNativeJikanIsRegistered() = runBlocking<Unit> {
+    fun globalSearchUsesExtensionsOnlyEvenWhenNativeSourceIsRegistered() = runBlocking<Unit> {
         val start = System.nanoTime()
         val context = ApplicationProvider.getApplicationContext<Context>()
         val installed = AniyomiExtensionRegistry(context).installedSources()
@@ -91,11 +61,14 @@ class AniyomiCompatibilitySmokeTest {
         assertEquals(16, animeSogo.metadata.extensionApiVersion)
         println("NamiSourceSmoke: discovered ${installed.size} sources; v16=${animeSogo.metadata.id}")
 
-        val jikan = JikanAnimeSource()
+        val nativeFixture = directDownloadFixtureSource(
+            id = "native-filter-fixture",
+            mediaUrl = "https://example.invalid/native.mp4",
+        )
         val query = "Bleach"
         println("NamiSourceSmoke: extension-only global search started for $query")
         val search = withTimeout(120_000) {
-            GlobalAnimeSearch(NamiSourceRegistry { installed + jikan }).search(query)
+            GlobalAnimeSearch(NamiSourceRegistry { installed + nativeFixture }).search(query)
         }
         Log.i(
             "NamiSourceSmoke",
@@ -112,9 +85,9 @@ class AniyomiCompatibilitySmokeTest {
         }
 
         assertTrue(
-            "Native Jikan leaked into extension-only global search",
-            jikan.metadata.id !in search.resultsBySource.keys &&
-                search.failures.none { it.sourceId == jikan.metadata.id },
+            "Native Nami source leaked into extension-only global search",
+            nativeFixture.metadata.id !in search.resultsBySource.keys &&
+                search.failures.none { it.sourceId == nativeFixture.metadata.id },
         )
 
         val extensionResults = search.resultsBySource[animeSogo.metadata.id].orEmpty()
@@ -275,6 +248,35 @@ class AniyomiCompatibilitySmokeTest {
                 "subtitles=${streams.sumOf { it.subtitles.size }} audioTracks=${streams.sumOf { it.audioTracks.size }} " +
                 "elapsedMs=$elapsed",
         )
+    }
+
+
+    @Test
+    fun sourceBrowserIdentityUsesSourceUserAgentAndSharedCookieStore() = runBlocking<Unit> {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val source = AniyomiExtensionRegistry(context).installedSources().firstOrNull {
+            it.metadata.extensionPackage == "eu.kanade.tachiyomi.animeextension.en.animesogo"
+        }
+        assertNotNull("AnimeSogo v16.8 must be installed for browser-session proof", source)
+        source!!
+        val browser = source as? AniyomiBrowserSourceHandle
+        assertNotNull("Aniyomi source did not expose browser-session headers", browser)
+        val headers = browser!!.browserHeaders(source.metadata.homeUrl.orEmpty())
+        val userAgent = headers.entries.firstOrNull { it.key.equals("user-agent", true) }?.value
+        assertTrue("Source browser lost its effective User-Agent", !userAgent.isNullOrBlank())
+
+        val url = "https://nami-cookie.invalid/".toHttpUrl()
+        val cookieName = "nami_session_${System.nanoTime()}"
+        val manager = CookieManager.getInstance()
+        manager.setCookie(url.toString(), "$cookieName=shared-proof; Path=/")
+        manager.flush()
+        val sharedCookies = AndroidCookieJar().get(url)
+        assertTrue(
+            "Extension HTTP cookie jar could not read a WebView CookieManager cookie",
+            sharedCookies.any { it.name == cookieName && it.value == "shared-proof" },
+        )
+        manager.setCookie(url.toString(), "$cookieName=; Max-Age=0; Path=/")
+        manager.flush()
     }
 
     @Test

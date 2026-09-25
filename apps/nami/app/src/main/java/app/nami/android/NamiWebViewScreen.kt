@@ -49,6 +49,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 fun NamiWebViewScreen(
     title: String,
     url: String,
+    sourceId: String? = null,
     onClose: () -> Unit,
     headers: Map<String, String> = emptyMap(),
 ) {
@@ -60,6 +61,7 @@ fun NamiWebViewScreen(
     var canGoBack by remember { mutableStateOf(false) }
     var canGoForward by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
+    val cookieManager = remember { CookieManager.getInstance() }
 
     fun updateNavigation(view: WebView) {
         canGoBack = view.canGoBack()
@@ -68,8 +70,9 @@ fun NamiWebViewScreen(
         pageTitle = view.title
     }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(sourceId, url) {
         onDispose {
+            cookieManager.flush()
             webView?.stopLoading()
             webView?.destroy()
             webView = null
@@ -171,8 +174,8 @@ fun NamiWebViewScreen(
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
                     settings.databaseEnabled = true
-                    CookieManager.getInstance().setAcceptCookie(true)
-                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                    cookieManager.setAcceptCookie(true)
+                    cookieManager.setAcceptThirdPartyCookies(this, true)
 
                     headers.entries
                         .firstOrNull { it.key.equals("user-agent", ignoreCase = true) }
@@ -199,6 +202,7 @@ fun NamiWebViewScreen(
 
                         override fun onPageFinished(view: WebView, url: String?) {
                             url?.let { currentUrl = it }
+                            cookieManager.flush()
                             updateNavigation(view)
                         }
 
@@ -218,7 +222,9 @@ fun NamiWebViewScreen(
                             val next = request.url.toString()
                             if (next.startsWith("intent://")) return true
                             if (next.startsWith("blob:http")) return false
-                            view.loadUrl(next, headers)
+                            if (next.startsWith("http://") || next.startsWith("https://")) {
+                                return false
+                            }
                             return true
                         }
                     }

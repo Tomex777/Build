@@ -218,7 +218,11 @@ internal class LegacyAnimeSourceAdapter(
     private val extensionVersion: String,
     private val extensionApiVersion: Int,
     private val source: AnimeSource,
-) : NamiAnimeSource, AniyomiConfigurableSourceHandle {
+) : NamiAnimeSource, AniyomiConfigurableSourceHandle, AniyomiBrowserSourceHandle {
+
+    init {
+        AniyomiBrowserSessionRegistry.register(source)
+    }
 
     private val animeCache = ConcurrentHashMap<String, SAnime>()
     private val episodeCache = ConcurrentHashMap<String, SEpisode>()
@@ -253,6 +257,9 @@ internal class LegacyAnimeSourceAdapter(
         extensionVersion = extensionVersion,
         extensionApiVersion = extensionApiVersion,
     )
+
+    override fun browserHeaders(url: String): Map<String, String> =
+        AniyomiBrowserSessionRegistry.headers(source.id)
 
     override fun setupPreferenceScreen(screen: androidx.preference.PreferenceScreen) {
         val configurable = source as? eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource

@@ -2,8 +2,10 @@ package app.nami.android.ui
 
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import android.os.SystemClock
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import app.nami.android.MainActivity
 import org.junit.Assert.assertTrue
@@ -24,6 +26,7 @@ class NamiUiScreenshotTest {
 
     @Test
     fun realAnimeSogoFlowRendersPlayerAndScreenshots() {
+        dismissSystemUiAnrIfPresent()
         waitForText("Sources", timeoutMillis = 90_000)
         capture("01-home.png")
 
@@ -32,10 +35,10 @@ class NamiUiScreenshotTest {
         capture("02-search.png")
 
         composeRule.onNodeWithTag("global-search-field").performImeAction()
-        waitForText(TARGET_ANIME, substring = true, timeoutMillis = 150_000)
+        waitForAnimeCard(TARGET_ANIME, timeoutMillis = 150_000)
         capture("03-search-results-bleach.png")
 
-        composeRule.onAllNodesWithContentDescription("Open anime: $TARGET_ANIME")[0].performClick()
+        composeRule.onNodeWithContentDescription("Open anime: $TARGET_ANIME").performClick()
         waitForText("Episodes", timeoutMillis = 120_000)
         capture("04-anime-details.png")
 
@@ -108,6 +111,33 @@ class NamiUiScreenshotTest {
         composeRule.onNodeWithContentDescription("Settings").performClick()
         waitForText("Extensions", timeoutMillis = 60_000)
         capture("09-sources.png")
+    }
+
+    private fun waitForAnimeCard(title: String, timeoutMillis: Long) {
+        val description = "Open anime: $title"
+        val deadline = SystemClock.elapsedRealtime() + timeoutMillis
+        var lastScrollFailure: Throwable? = null
+        while (SystemClock.elapsedRealtime() < deadline) {
+            dismissSystemUiAnrIfPresent()
+            if (hasDescription(description)) return
+            runCatching {
+                composeRule.onNodeWithTag("global-search-results")
+                    .performScrollToNode(hasContentDescription(description))
+            }.onFailure { lastScrollFailure = it }
+            composeRule.waitForIdle()
+            if (hasDescription(description)) return
+            SystemClock.sleep(750)
+        }
+        runCatching { capture("99-ui-timeout.png") }
+        composeRule.onRoot(useUnmergedTree = true).printToLog("NamiUiSmoke")
+        throw AssertionError("Timed out waiting for anime card '$title' after scrolling global results", lastScrollFailure)
+    }
+
+    private fun dismissSystemUiAnrIfPresent() {
+        if (device.hasObject(By.textContains("System UI"))) {
+            device.findObject(By.text("Wait"))?.click()
+            device.waitForIdle()
+        }
     }
 
     private fun showPlayerControls() {

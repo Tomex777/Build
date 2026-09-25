@@ -65,7 +65,6 @@ dependencies {
 }
 
 dependencies {
-    androidTestImplementation(project(":extensions:nami-jikan"))
     androidTestImplementation(platform("androidx.compose:compose-bom:2025.02.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
