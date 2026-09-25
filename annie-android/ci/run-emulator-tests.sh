@@ -17,7 +17,7 @@ adb shell ls -la /sdcard/Pictures/AnnieCI || true
 adb pull /sdcard/Pictures/AnnieCI "$SCREENSHOT_DIR" || true
 
 if [ "$TEST_STATUS" -ne 0 ]; then
-    adb logcat -d | grep -Ei 'libvlc|vlc|vout|video output|get_buffer|decoder|h264|surface|texture|android_display' > "$SCREENSHOT_DIR/vlc-logcat.txt" || true
+    adb logcat -d | grep -Ei 'libvlc|vlc|vout|video output|get_buffer|decoder|h264|android_display|AnnieVLC|VideoHelper|Invalid surface size|can.t get Video Surface' > "$SCREENSHOT_DIR/vlc-logcat.txt" || true
 fi
 
 if [ "$TEST_STATUS" -eq 0 ] && [ -z "$(find "$SCREENSHOT_DIR" -type f -name '*.png' -print -quit)" ]; then

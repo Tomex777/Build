@@ -96,10 +96,13 @@ class ScriptChatFlowTest {
         compose.onNodeWithTag("slash_command_/echo").performClick()
         compose.onNodeWithTag("composer_input").performTextInput(" hello from the real chat")
         compose.onNodeWithTag("send_message").performClick()
+        compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+        compose.waitForIdle()
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("hello from the real chat", substring = false).fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText("hello from the real chat", substring = false).assertIsDisplayed()
+        saveEmulatorScreenshot("annie-script-echo-chat")
     }
 
     @Test fun chessBoardAndPlainTextMoveUseTheRealChatPipeline() {

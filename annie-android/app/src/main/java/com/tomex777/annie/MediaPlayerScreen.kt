@@ -7,6 +7,7 @@ import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
@@ -181,13 +182,18 @@ internal fun MediaPlayerScreen(
 
     val libVlc = remember(activeUri) {
         activeUri?.let {
+            val emulator = Build.FINGERPRINT.contains("generic", ignoreCase = true) ||
+                Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
+                Build.MODEL.contains("Emulator", ignoreCase = true)
+            val options = arrayListOf(
+                "--audio-time-stretch",
+                "--network-caching=1500",
+                "--no-video-title-show",
+            )
+            if (BuildConfig.DEBUG && emulator) options += "-vvv"
             LibVLC(
                 appContext,
-                arrayListOf(
-                    "--audio-time-stretch",
-                    "--network-caching=1500",
-                    "--no-video-title-show",
-                ),
+                options,
             )
         }
     }
@@ -212,10 +218,12 @@ internal fun MediaPlayerScreen(
     DisposableEffect(player, libVlc, activeUri) {
         val surfaceCallback = if (player != null) object : IVLCVout.Callback {
             override fun onSurfacesCreated(vlcVout: IVLCVout) {
+                Log.i("AnnieVLC", "Surfaces created; viewsAttached=${vlcVout.areViewsAttached()}")
                 videoSurfacesReady = true
             }
 
             override fun onSurfacesDestroyed(vlcVout: IVLCVout) {
+                Log.i("AnnieVLC", "Surfaces destroyed")
                 videoSurfacesReady = false
             }
         } else null
@@ -344,6 +352,20 @@ internal fun MediaPlayerScreen(
                                 }.isSuccess
                                 if (attached) {
                                     attachedPlayer = player
+                                    val width = layout.width
+                                    val height = layout.height
+                                    Log.i(
+                                        "AnnieVLC",
+                                        "Attached ${if (emulator) "SurfaceView" else "TextureView"} at ${width}x$height",
+                                    )
+                                    if (width > 0 && height > 0) {
+                                        runCatching { player.vlcVout.setWindowSize(width, height) }
+                                            .onFailure { Log.e("AnnieVLC", "Could not set VLC window size", it) }
+                                        runCatching { player.setVideoScale(scaleMode.scale) }
+                                            .onFailure { Log.e("AnnieVLC", "Could not set VLC video scale", it) }
+                                    }
+                                } else {
+                                    Log.e("AnnieVLC", "Could not attach VLC video views")
                                 }
                             }
                         }
