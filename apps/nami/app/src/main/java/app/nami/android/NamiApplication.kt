@@ -8,11 +8,18 @@ import android.content.IntentFilter
 import android.os.Build
 import app.nami.compat.aniyomi.AniyomiExtensionHost
 import app.nami.compat.aniyomi.AniyomiExtensionRegistry
+import app.nami.data.local.NamiDatabase
 import app.nami.runtime.CachingNamiSourceRegistry
 
 class NamiApplication : Application() {
 
     lateinit var sourceRegistry: CachingNamiSourceRegistry
+        private set
+
+    lateinit var database: NamiDatabase
+        private set
+
+    lateinit var downloadManager: NamiDownloadManager
         private set
 
     private val packageChangeReceiver = object : BroadcastReceiver() {
@@ -25,6 +32,12 @@ class NamiApplication : Application() {
         super.onCreate()
 
         AniyomiExtensionHost.initialize(this)
+
+        database = NamiDatabase(this)
+        downloadManager = NamiDownloadManager(
+            context = this,
+            database = database,
+        )
         sourceRegistry = CachingNamiSourceRegistry(
             delegate = AniyomiExtensionRegistry(this),
             ttlMillis = SOURCE_SNAPSHOT_TTL_MILLIS,
