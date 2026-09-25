@@ -339,54 +339,100 @@ fun SpotuiApp() {
                     }
                 },
             ) { padding ->
+                val albumRequest = pendingAlbum
                 val artist = selectedArtist
-                if (artist != null) {
-                    ArtistScreen(
+                when {
+                    albumRequest != null -> AlbumScreen(
+                        modifier = Modifier.padding(padding),
+                        summary = albumRequest,
+                        album = selectedAlbum,
+                        loading = albumLoading,
+                        error = albumError,
+                        saved = likedAlbums.any { it.id == albumRequest.id },
+                        liked = likedTracks.map(Track::id).toSet(),
+                        onBack = {
+                            pendingAlbum = null
+                            selectedAlbum = null
+                        },
+                        onPlay = { track ->
+                            val queue = selectedAlbum?.songs.orEmpty().ifEmpty { listOf(track) }
+                            player.play(track, queue)
+                        },
+                        onToggleLike = ::toggleLike,
+                        onToggleAlbum = { catalog ->
+                            toggleAlbum(
+                                AlbumSummary(
+                                    id = catalog.id,
+                                    title = catalog.title,
+                                    artist = catalog.artist,
+                                    artistId = catalog.artistId,
+                                    year = catalog.year,
+                                    artworkUrl = catalog.artworkUrl,
+                                )
+                            )
+                        },
+                        onArtist = { name, id ->
+                            pendingAlbum = null
+                            selectedAlbum = null
+                            openArtist(name, id)
+                        },
+                        onRetry = { openAlbum(albumRequest) },
+                    )
+                    artist != null -> ArtistScreen(
                         modifier = Modifier.padding(padding),
                         artist = artist,
+                        artworkUrl = artistArtwork,
                         tracks = artistTracks,
+                        releases = artistReleases,
                         loading = artistLoading,
                         error = artistError,
                         liked = likedTracks.map(Track::id).toSet(),
-                        onBack = { selectedArtist = null },
+                        onBack = {
+                            selectedArtist = null
+                            selectedArtistId = null
+                        },
                         onPlay = { player.play(it, artistTracks) },
                         onToggleLike = ::toggleLike,
-                        onRetry = { openArtist(artist) },
+                        onAlbum = ::openAlbum,
+                        onRetry = { openArtist(artist, selectedArtistId) },
                     )
-                } else {
-                    when (tab) {
+                    else -> when (tab) {
                         SpotTab.HOME -> HomeScreen(
                             modifier = Modifier.padding(padding),
                             tracks = homeTracks,
-                            loading = loading,
-                            error = error,
+                            loading = homeLoading,
+                            error = homeError,
                             liked = likedTracks.map(Track::id).toSet(),
                             onPlay = { player.play(it, homeTracks) },
                             onToggleLike = ::toggleLike,
-                            onArtist = ::openArtist,
+                            onArtist = { name, id -> openArtist(name, id) },
                             onRetry = { homeReloadEpoch++ },
                         )
                         SpotTab.SEARCH -> SearchScreen(
                             modifier = Modifier.padding(padding),
                             query = query,
+                            submittedQuery = submittedQuery,
                             onQuery = { query = it },
                             suggestions = suggestions,
+                            recentSearches = recentSearches,
                             tracks = searchTracks,
-                            loading = loading,
-                            error = error,
+                            loading = searchLoading,
+                            error = searchError,
                             liked = likedTracks.map(Track::id).toSet(),
                             onSearch = { term -> runSearch(term) },
                             onPlay = { player.play(it, searchTracks) },
                             onToggleLike = ::toggleLike,
-                            onArtist = ::openArtist,
+                            onArtist = { name, id -> openArtist(name, id) },
                             onSuggestion = { value -> runSearch(value) },
                         )
                         SpotTab.LIBRARY -> LibraryScreen(
                             modifier = Modifier.padding(padding),
                             tracks = likedTracks,
+                            albums = likedAlbums,
                             onPlay = { player.play(it, likedTracks) },
                             onToggleLike = ::toggleLike,
-                            onArtist = ::openArtist,
+                            onArtist = { name, id -> openArtist(name, id) },
+                            onAlbum = ::openAlbum,
                         )
                     }
                 }
@@ -399,9 +445,9 @@ fun SpotuiApp() {
                     onToggleLike = { player.currentTrack?.let(::toggleLike) },
                     onSignIn = { showSignIn = true },
                     lyricsRepository = lyricsRepository,
-                    onArtist = { artist ->
+                    onArtist = { artist, artistId ->
                         showPlayer = false
-                        openArtist(artist)
+                        openArtist(artist, artistId)
                     },
                     onClose = { showPlayer = false },
                 )
