@@ -4,6 +4,7 @@ import android.content.Context
 import com.dokar.quickjs.ModuleContent
 import com.dokar.quickjs.ModuleLoader
 import com.dokar.quickjs.QuickJs
+import com.dokar.quickjs.binding.JsObject
 import com.dokar.quickjs.binding.asyncFunction
 import com.dokar.quickjs.binding.define
 import com.dokar.quickjs.binding.function
@@ -386,10 +387,12 @@ internal class ScriptRuntime(
 
     suspend fun load(): List<ScriptCommand> = lock.withLock {
         registered.clear()
-        runtime.evaluate<Unit>(BOOTSTRAP, filename = "annie-runtime.js")
+        // The bootstrap's final assignment evaluates to an object. Keep that value
+        // inside an IIFE so Unit receives JavaScript undefined instead.
+        runtime.evaluate<Unit>("(() => {\n$BOOTSTRAP\n})()", filename = "annie-runtime.js")
         val entryModule = "${project.id}/${project.entryPath}"
         val entry = project.files[project.entryPath] ?: error("Missing script entry: ${project.entryPath}")
-        runtime.evaluate<Any?>(entry, filename = entryModule, asModule = true)
+        runtime.evaluate<JsObject>(entry, filename = entryModule, asModule = true)
         registered.values.distinctBy { it.name }
     }
 
@@ -438,7 +441,7 @@ internal class ScriptRuntime(
 
     private suspend fun evaluateModuleResult(expression: String, filename: String): String {
         capturedModuleResult = null
-        runtime.evaluate<Any?>(
+        runtime.evaluate<JsObject>(
             "annieCaptureModuleResult(JSON.stringify($expression))",
             filename = filename,
             asModule = true,

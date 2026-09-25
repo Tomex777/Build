@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -209,7 +210,12 @@ internal fun MediaPlayerScreen(
     DisposableEffect(player, libVlc, activeUri) {
         if (player != null && libVlc != null && activeUri != null) {
             val media = Media(libVlc, activeUri).apply {
-                setHWDecoderEnabled(true, false)
+                val emulator = Build.FINGERPRINT.contains("generic", ignoreCase = true) ||
+                    Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
+                    Build.MODEL.contains("Emulator", ignoreCase = true)
+                // Emulator codec surfaces often cannot hand VLC an opaque output surface.
+                // Decode in software there; keep hardware decoding on physical phones.
+                setHWDecoderEnabled(!emulator, false)
                 addOption(":network-caching=1500")
                 activeSource?.headers?.forEach { (name, value) ->
                     when (name.lowercase()) {

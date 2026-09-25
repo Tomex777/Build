@@ -1,6 +1,7 @@
 package com.tomex777.annie
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -299,26 +300,37 @@ private fun cleanSummary(value: String): String = value
 
 private fun urlPathSegment(value: String): String = URLEncoder.encode(value, Charsets.UTF_8.name()).replace("+", "%20")
 
-private fun httpJson(url: String, method: String = "GET", body: String? = null): String {
-    val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-        requestMethod = method
-        connectTimeout = 12_000
-        readTimeout = 15_000
-        setRequestProperty("Accept", "application/json")
-        if (url.contains("wikidata.org")) setRequestProperty("User-Agent", "AnnieAndroid/0.1 (https://github.com/Tomex777/Build)")
-        if (body != null) {
-            doOutput = true
-            setRequestProperty("Content-Type", "application/json")
+private suspend fun httpJson(url: String, method: String = "GET", body: String? = null): String {
+    var attempt = 0
+    while (true) {
+        var retryAfterMillis: Long? = null
+        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+            requestMethod = method
+            connectTimeout = 12_000
+            readTimeout = 15_000
+            setRequestProperty("Accept", "application/json")
+            if (url.contains("wikidata.org")) setRequestProperty("User-Agent", "AnnieAndroid/0.1 (https://github.com/Tomex777/Build)")
+            if (body != null) {
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json")
+            }
         }
-    }
-    try {
-        if (body != null) connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-        val code = connection.responseCode
-        val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-        val response = stream.bufferedReader().use { it.readText() }
-        if (code !in 200..299) error("Catalog API HTTP $code")
-        return response
-    } finally {
-        connection.disconnect()
+        try {
+            if (body != null) connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+            val code = connection.responseCode
+            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+            val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            if (code == 429 && attempt < 2) {
+                val serverDelay = connection.getHeaderField("Retry-After")?.toLongOrNull()
+                retryAfterMillis = (serverDelay?.coerceIn(1, 8) ?: (1L shl attempt)).times(1_000L)
+            } else {
+                if (code !in 200..299) error("Catalog API HTTP $code")
+                return response
+            }
+        } finally {
+            connection.disconnect()
+        }
+        delay(requireNotNull(retryAfterMillis))
+        attempt++
     }
 }
