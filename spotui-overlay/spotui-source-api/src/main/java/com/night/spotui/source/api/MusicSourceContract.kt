@@ -1,7 +1,7 @@
 package com.night.spotui.source.api
 
 object MusicSourceContract {
-    const val API_VERSION = 1
+    const val API_VERSION = 2
 
     const val ACTION_BIND_SOURCE = "com.night.spotui.source.BIND"
 
@@ -23,6 +23,9 @@ object MusicSourceContract {
         const val MANIFEST = "manifest"
         const val BROWSE = "browse"
         const val SEARCH = "search"
+        const val SUGGESTIONS = "suggestions"
+        const val ARTIST = "artist"
+        const val ALBUM = "album"
         const val STREAMS = "streams"
         const val BROWSER_SESSION = "browserSession"
         const val STORE_SESSION = "storeSession"
