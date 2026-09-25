@@ -57,11 +57,11 @@ jobs:
             mkdir -p annie-android/build/emulator-screenshots
             echo "===== Screenshot app/package diagnostics ====="
             adb shell pm list packages | grep 'com.tomex777.annie' || true
-            adb shell run-as com.tomex777.annie.test sh -c 'find files/ci-screenshots -type f -print' || true
-            adb shell run-as com.tomex777.annie.test sh -c 'find files/ci-screenshots -type f -print' | tr -d '\r' | while read -r screenshot; do
+            adb shell run-as com.tomex777.annie sh -c 'find files -maxdepth 1 -type f -name 'ci-screenshot-*.png' -print' || true
+            adb shell run-as com.tomex777.annie sh -c 'find files -maxdepth 1 -type f -name 'ci-screenshot-*.png' -print' | tr -d '\r' | while read -r screenshot; do
               [ -n "$screenshot" ] || continue
               name="${screenshot##*/}"
-              adb exec-out run-as com.tomex777.annie.test cat "$screenshot" > "annie-android/build/emulator-screenshots/$name"
+              adb exec-out run-as com.tomex777.annie cat "$screenshot" > "annie-android/build/emulator-screenshots/$name"
               test -s "annie-android/build/emulator-screenshots/$name"
             done
             if [ "$TEST_STATUS" -eq 0 ] && [ -z "$(find annie-android/build/emulator-screenshots -type f -print -quit)" ]; then
