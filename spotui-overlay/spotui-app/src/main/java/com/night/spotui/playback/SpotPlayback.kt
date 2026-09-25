@@ -24,6 +24,7 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.night.spotui.MainActivity
 import com.night.spotui.MusicSource
+import com.night.spotui.ResolvedAudio
 import com.night.spotui.Track
 import com.night.spotui.TasteStore
 import com.night.spotui.ExtensionMusicSource
@@ -63,11 +64,15 @@ class SpotPlaybackController(
             }
         },
     )
+    private val mediaDataSource = ChunkedDataSource.Factory(resolving)
     private val player = ExoPlayer.Builder(appContext)
-        .setMediaSourceFactory(DefaultMediaSourceFactory(resolving))
+        .setMediaSourceFactory(DefaultMediaSourceFactory(mediaDataSource))
         .build()
     private var requestSerial = 0L
     private var baseQueue: List<Track> = emptyList()
+    private var activeCandidates: List<ResolvedAudio> = emptyList()
+    private var activeCandidateIndex = -1
+    private var refreshingAfterPlayerError = false
 
     var currentTrack by mutableStateOf<Track?>(null)
         private set
@@ -105,8 +110,22 @@ class SpotPlaybackController(
             }
 
             override fun onPlayerError(error: PlaybackException) {
+                val track = currentTrack
+                val nextIndex = activeCandidateIndex + 1
+                if (track != null && nextIndex in activeCandidates.indices) {
+                    activeCandidateIndex = nextIndex
+                    errorMessage = null
+                    isLoading = true
+                    prepareStream(track, activeCandidates[nextIndex], requestSerial)
+                    return
+                }
+                if (track != null && !refreshingAfterPlayerError && error.errorCode in 2000..2999) {
+                    refreshingAfterPlayerError = true
+                    resolveAndPlay(track, preserveRefreshGuard = true)
+                    return
+                }
                 isLoading = false
-                errorMessage = error.message ?: "Playback failed"
+                errorMessage = "Playback couldn’t start. Tap play to retry."
             }
         })
         scope.launch {
@@ -237,15 +256,15 @@ class SpotPlaybackController(
     private fun shuffledAround(track: Track, values: List<Track>): List<Track> =
         listOf(track) + values.filterNot { it.id == track.id }.shuffled()
 
-    private fun resolveAndPlay(track: Track) {
-        // Invalidate any older resolver first, then detach the previous media item.
-        // This keeps a slow/failed old stream from remaining visible or audible
-        // while the newly selected queue item is being resolved.
+    private fun resolveAndPlay(track: Track, preserveRefreshGuard: Boolean = false) {
         val serial = ++requestSerial
         player.stop()
         player.clearMediaItems()
         streamHeaders.clear()
         activeStreamHeaders = emptyMap()
+        activeCandidates = emptyList()
+        activeCandidateIndex = -1
+        if (!preserveRefreshGuard) refreshingAfterPlayerError = false
         currentTrack = track
         isPlaying = false
         isLoading = true
@@ -253,35 +272,47 @@ class SpotPlaybackController(
         streamLabel = ""
         positionMs = 0
         durationMs = 0
+
         scope.launch {
-            source.resolve(track)
-                .onSuccess { stream ->
+            source.resolveCandidates(track)
+                .onSuccess { streams ->
                     if (serial != requestSerial) return@onSuccess
-                    streamHeaders.clear()
-                    activeStreamHeaders = stream.headers
-                    if (stream.headers.isNotEmpty()) streamHeaders[stream.url] = stream.headers
-                    streamLabel = stream.label
-                    val metadata = MediaMetadata.Builder()
-                        .setTitle(track.title)
-                        .setArtist(track.artist)
-                        .apply { track.artworkUrl?.let { setArtworkUri(Uri.parse(it)) } }
-                        .build()
-                    val item = MediaItem.Builder()
-                        .setUri(stream.url)
-                        .setMediaId(track.id)
-                        .setMediaMetadata(metadata)
-                        .apply { stream.mimeType?.let(::setMimeType) }
-                        .build()
-                    player.setMediaItem(item)
-                    player.prepare()
-                    player.playWhenReady = true
+                    activeCandidates = streams
+                    activeCandidateIndex = 0
+                    prepareStream(track, streams.first(), serial)
                 }
-                .onFailure { error ->
+                .onFailure {
                     if (serial != requestSerial) return@onFailure
                     isLoading = false
-                    errorMessage = error.message ?: "Could not play this track"
+                    errorMessage = "Playback couldn’t start. Tap play to retry."
                 }
         }
+    }
+
+    private fun prepareStream(track: Track, stream: ResolvedAudio, serial: Long) {
+        if (serial != requestSerial || currentTrack?.id != track.id) return
+        player.stop()
+        player.clearMediaItems()
+        streamHeaders.clear()
+        activeStreamHeaders = stream.headers
+        if (stream.headers.isNotEmpty()) streamHeaders[stream.url] = stream.headers
+        streamLabel = stream.label
+
+        val metadata = MediaMetadata.Builder()
+            .setTitle(track.title)
+            .setArtist(track.artist)
+            .apply { track.artworkUrl?.let { setArtworkUri(Uri.parse(it)) } }
+            .build()
+        val item = MediaItem.Builder()
+            .setUri(stream.url)
+            .setMediaId(track.id)
+            .setMediaMetadata(metadata)
+            .apply { stream.mimeType?.let(::setMimeType) }
+            .build()
+
+        player.setMediaItem(item)
+        player.prepare()
+        player.playWhenReady = true
     }
 }
 
