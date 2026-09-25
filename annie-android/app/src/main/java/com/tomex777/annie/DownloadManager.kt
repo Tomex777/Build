@@ -76,6 +76,9 @@ internal data class DownloadItem(
     val localPath: String = "",
     val failureReason: String = "",
     val quality: String = "",
+    val sourceUrl: String = "",
+    val headersJson: String = "{}",
+    val sourceMimeType: String? = null,
 )
 
 internal data class ChapterBatch(val first: Int, val last: Int) {
@@ -146,6 +149,9 @@ internal object DownloadStore {
                         localPath = json.optString("localPath"),
                         failureReason = json.optString("failureReason"),
                         quality = json.optString("quality"),
+                        sourceUrl = json.optString("sourceUrl"),
+                        headersJson = json.optString("headersJson", "{}"),
+                        sourceMimeType = json.optString("sourceMimeType").takeIf { it.isNotBlank() },
                     )
                 )
             }
@@ -175,6 +181,9 @@ internal object DownloadStore {
                     .put("localPath", item.localPath)
                     .put("failureReason", item.failureReason)
                     .put("quality", item.quality)
+                    .put("sourceUrl", item.sourceUrl)
+                    .put("headersJson", item.headersJson)
+                    .put("sourceMimeType", item.sourceMimeType ?: "")
             )
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
