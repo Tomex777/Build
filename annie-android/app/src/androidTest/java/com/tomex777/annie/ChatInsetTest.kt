@@ -1,7 +1,6 @@
 package com.tomex777.annie
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -9,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -28,7 +28,7 @@ class ChatInsetTest {
         compose.onNodeWithText("/anime", substring = false).performClick()
         compose.onNodeWithTag("composer_input").performTextInput("search")
         compose.onNodeWithTag("composer_input").assertTextEquals("/anime search")
-        compose.onNodeWithText("Ready when you are").assertDoesNotExist()
+        assertEquals(0, compose.onAllNodesWithText("Ready when you are").fetchSemanticsNodes().size)
 
         val top = compose.onNodeWithTag("top_bar").fetchSemanticsNode().boundsInRoot
         val conversation = compose.onNodeWithTag("conversation").fetchSemanticsNode().boundsInRoot
