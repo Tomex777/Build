@@ -251,12 +251,9 @@ internal fun MediaPlayerScreen(
             checks++
         }
         if (!isActive || attachedPlayer !== player || !videoSurfacesReady) return@LaunchedEffect
-        val emulator = Build.FINGERPRINT.contains("generic", ignoreCase = true) ||
-            Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
-            Build.MODEL.contains("Emulator", ignoreCase = true)
         val media = Media(libVlc, activeUri).apply {
-            // Software decoding keeps the emulator playing; hardware decoding is preferred on phones.
-            setHWDecoderEnabled(!emulator, false)
+            // Let Android's hardware decoder render into the surface now that it is attached.
+            setHWDecoderEnabled(true, false)
             addOption(":network-caching=1500")
             activeSource?.headers?.forEach { (name, value) ->
                 when (name.lowercase()) {
