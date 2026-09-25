@@ -115,8 +115,8 @@ class ScriptChatFlowTest {
         saveEmulatorScreenshot("annie-script-chess-move")
         compose.onAllNodesWithTag("script_image_message")[0].performClick()
         compose.waitUntil(5_000) {
-            compose.onAllNodesWithTag("script_image_fullscreen").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithTag("script_image_fullscreen", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithTag("script_image_fullscreen").assertIsDisplayed()
+        compose.onNodeWithTag("script_image_fullscreen", useUnmergedTree = true).assertIsDisplayed()
     }
 }

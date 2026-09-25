@@ -55,10 +55,10 @@ jobs:
             echo "===== Android instrumented test XML ====="
             find annie-android/app/build/outputs/androidTest-results -type f -name '*.xml' -print -exec cat {} \; 2>/dev/null || true
             mkdir -p annie-android/build/emulator-screenshots
-            adb shell run-as com.tomex777.annie find files/ci-screenshots -type f 2>/dev/null | tr -d '\r' | while read -r screenshot; do
+            adb shell run-as com.tomex777.annie.test find files/ci-screenshots -type f 2>/dev/null | tr -d '\r' | while read -r screenshot; do
               [ -n "$screenshot" ] || continue
               name="${screenshot##*/}"
-              adb exec-out run-as com.tomex777.annie cat "$screenshot" > "annie-android/build/emulator-screenshots/$name" || true
+              adb exec-out run-as com.tomex777.annie.test cat "$screenshot" > "annie-android/build/emulator-screenshots/$name" || true
             done
             exit $TEST_STATUS
       - name: Upload emulator visual proofs
