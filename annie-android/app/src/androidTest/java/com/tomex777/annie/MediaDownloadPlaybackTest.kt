@@ -262,4 +262,53 @@ class MediaDownloadPlaybackTest {
 
                 when (path) {
                     "/direct.mkv" -> writeResponse(client, 200, "video/x-matroska", DIRECT_MKV)
-                    "/master.m3u8" -> writeResponse(client, 20
+                    "/master.m3u8" -> writeResponse(client, 200, "application/vnd.apple.mpegurl", MASTER.toByteArray())
+                    "/720/index.m3u8" -> writeResponse(client, 200, "application/vnd.apple.mpegurl", MEDIA.toByteArray())
+                    "/1080/index.m3u8" -> writeResponse(client, 200, "application/vnd.apple.mpegurl", MEDIA.toByteArray())
+                    "/1080/seg000.ts" -> writeResponse(client, 200, "video/mp2t", SEGMENTS[0])
+                    "/1080/seg001.ts" -> if (count == 1) writeSlowSegment(client, SEGMENTS[1]) else writeResponse(client, 200, "video/mp2t", SEGMENTS[1])
+                    "/1080/seg002.ts" -> writeResponse(client, 200, "video/mp2t", SEGMENTS[2])
+                    else -> writeResponse(client, 404, "text/plain", "missing".toByteArray())
+                }
+            }
+        }
+
+        private fun authorized(headers: Map<String, String>): Boolean =
+            headers["referer"] == REQUIRED_REFERER && headers["cookie"].orEmpty().contains("annie_session=ok")
+
+        private fun writeSlowSegment(socket: Socket, body: ByteArray) {
+            val output = socket.getOutputStream()
+            val header = "HTTP/1.1 200 OK\r\nContent-Type: video/mp2t\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n"
+            output.write(header.toByteArray(StandardCharsets.ISO_8859_1))
+            val first = minOf(512, body.size)
+            output.write(body, 0, first)
+            output.flush()
+            secondSegmentStarted.countDown()
+            Thread.sleep(3_000)
+            output.write(body, first, body.size - first)
+            output.flush()
+        }
+
+        private fun writeResponse(socket: Socket, code: Int, mime: String, body: ByteArray, extraHeaders: Map<String, String> = emptyMap()) {
+            val reason = when (code) { 200 -> "OK"; 302 -> "Found"; 403 -> "Forbidden"; else -> "Not Found" }
+            val output = socket.getOutputStream()
+            val header = buildString {
+                append("HTTP/1.1 $code $reason\r\n")
+                append("Content-Type: $mime\r\n")
+                append("Content-Length: ${body.size}\r\n")
+                extraHeaders.forEach { (name, value) -> append(name).append(": ").append(value).append("\r\n") }
+                append("Connection: close\r\n\r\n")
+            }
+            output.write(header.toByteArray(StandardCharsets.ISO_8859_1))
+            output.write(body)
+            output.flush()
+        }
+
+        override fun close() {
+            running.set(false)
+            runCatching { server.close() }
+            pool.shutdownNow()
+        }
+
+        companion object {
+            val DIRECT_MKV: ByteArray = Base64.decode("GkXfo6NChoEBQveBAULygQRC84EIQoKIbWF0cm9za2FCh4EEQoWBAhhTgGcBAAAAAAAFIRFNm3TAv4TOEY9yTbuLU6uEFUmpZlOsgaFNu4tTq4QWVK5rU6yB7027jFOrhBJUw2dTrIIBhk27jFOrhBxTu2tTrIIFBewBAAAAAAAAUwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFUmpZsm/hNaCgswq17GDD0JATYCMTGF2ZjYxLjcuMTAzV0GMTGF2ZjYxLjcuMTAzc6SQwrxBGMJqlbAN5E7O7QnEkkSJiECPQAAAAAAAFlSua0CRv4RG4qlBrgEAAAAAAACC14EBc8WID8N1wHyUU5qcgQAitZyDdW5kiIEAho9WX01QRUc0L0lTTy9BVkODgQEj44OEC+vCAOCQsIFguoE2moECVbCEVbmBAVXugQDsAQAAAAAAAAIAAGOipwFCwAr/4QAXZ0LACtoYn5sBEAAAAwAQAAADAKDxImoBAAVozgOcgBJUw2dAgr+ErxZq6XNzn2PAgGfImUWjh0VOQ09ERVJEh4xMYXZmNjEuNy4xMDNzc9djwItjxYgPw3XAfJRTmmfIokWjh0VOQ09ERVJEh5VMYXZjNjEuMTkuMTAxIGxpYngyNjRnyKFFo4hEVVJBVElPTkSHkzAwOjAwOjAxLjAwMDAwMDAwMAAfQ7Z1QvG/hKkFXzjngQCjQoOBAACAAAACUwYF//9P3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE2NCByMzEwOCAzMWUxOWY5IC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAyMyAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTAgcmVmPTEgZGVibG9jaz0wOjA6MCBhbmFseXNlPTA6MCBtZT1kaWEgc3VibWU9MCBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0wIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MCA4eDhkY3Q9MCBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0wIHRocmVhZHM9MiBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0
