@@ -4,7 +4,7 @@
 
     <application
         android:allowBackup="false"
-        android:label="SpotUI YouTube Music"
+        android:label="Auri YouTube Music"
         android:theme="@android:style/Theme.Material.NoActionBar">
         <service
             android:name=".SpotuiYouTubeMusicSourceService"
@@ -15,7 +15,7 @@
             </intent-filter>
             <meta-data android:name="spotui.source.id" android:value="spotui.youtube.music" />
             <meta-data android:name="spotui.source.name" android:value="YouTube Music" />
-            <meta-data android:name="spotui.source.apiVersion" android:value="1" />
+            <meta-data android:name="spotui.source.apiVersion" android:value="2" />
         </service>
     </application>
 </manifest>
