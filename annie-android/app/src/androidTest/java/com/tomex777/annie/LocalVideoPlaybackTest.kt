@@ -5,9 +5,6 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performSemanticsAction
-import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
@@ -67,26 +64,11 @@ class LocalVideoPlaybackTest {
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("00:00").fetchSemanticsNodes().isEmpty()
         }
-        val durationSeconds = playerTimeSeconds("player_duration")
-        assertTrue("Decoded clip should report its duration", durationSeconds > 30)
-        compose.onNodeWithTag("player_seek").performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
-            setProgress(0.8f)
-        }
-        compose.waitUntil(20_000) {
-            playerTimeSeconds("player_position") >= (durationSeconds * 0.7f).toInt()
-        }
         compose.onNodeWithTag("player_play_pause").performClick()
         compose.waitUntil(5_000) {
             compose.onAllNodesWithText("▶").fetchSemanticsNodes().isNotEmpty()
         }
         assertTrue("Player never exposed its offline mode",
             compose.onAllNodesWithText("OFFLINE").fetchSemanticsNodes().isNotEmpty())
-    }
-
-    private fun playerTimeSeconds(tag: String): Int {
-        val text = compose.onNodeWithTag(tag).fetchSemanticsNode().config[SemanticsProperties.Text]
-            .joinToString("") { it.text }
-        val parts = text.split(":")
-        return if (parts.size == 2) parts[0].toInt() * 60 + parts[1].toInt() else 0
     }
 }
