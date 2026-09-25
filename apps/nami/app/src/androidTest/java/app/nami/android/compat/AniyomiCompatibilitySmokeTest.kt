@@ -40,8 +40,8 @@ class AniyomiCompatibilitySmokeTest {
         val elapsed = (System.nanoTime() - start) / 1_000_000
         Log.i(
             "NamiSourceSmoke",
-            "native=\${jikan.metadata.id} query=$query results=\${nativeResults.size} " +
-                "episodes=\${nativeEpisodes.size} elapsedMs=$elapsed",
+            "native=${jikan.metadata.id} query=$query results=${nativeResults.size} " +
+                "episodes=${nativeEpisodes.size} elapsedMs=$elapsed",
         )
     }
 
@@ -57,7 +57,7 @@ class AniyomiCompatibilitySmokeTest {
         animeSogo!!
         assertEquals("16.8", animeSogo.metadata.extensionVersion)
         assertEquals(16, animeSogo.metadata.extensionApiVersion)
-        println("NamiSourceSmoke: discovered \${installed.size} sources; v16=\${animeSogo.metadata.id}")
+        println("NamiSourceSmoke: discovered ${installed.size} sources; v16=${animeSogo.metadata.id}")
 
         val jikan = JikanAnimeSource()
         val query = "Bleach"
@@ -67,14 +67,14 @@ class AniyomiCompatibilitySmokeTest {
         }
         Log.i(
             "NamiSourceSmoke",
-            "globalSearch sources=\${search.resultsBySource.keys} " +
-                "counts=\${search.resultsBySource.mapValues { it.value.size }} " +
-                "failures=\${search.failures.map { it.sourceId + ":" + it.stage + ":" + it.cause.javaClass.simpleName + ":" + it.cause.message }}",
+            "globalSearch sources=${search.resultsBySource.keys} " +
+                "counts=${search.resultsBySource.mapValues { it.value.size }} " +
+                "failures=${search.failures.map { it.sourceId + ":" + it.stage + ":" + it.cause.javaClass.simpleName + ":" + it.cause.message }}",
         )
         search.failures.forEach { failure ->
             Log.e(
                 "NamiSourceSmoke",
-                "source=\${failure.sourceId} stage=\${failure.stage}",
+                "source=${failure.sourceId} stage=${failure.stage}",
                 failure.cause,
             )
         }
@@ -90,14 +90,14 @@ class AniyomiCompatibilitySmokeTest {
 
         val anime = extensionResults.firstOrNull { it.title.contains(query, ignoreCase = true) }
             ?: throw AssertionError("AnimeSogo results did not contain $query")
-        println("NamiSourceSmoke: AnimeSogo result selected: \${anime.title}; loading details")
+        println("NamiSourceSmoke: AnimeSogo result selected: ${anime.title}; loading details")
         val details = withTimeout(60_000) { animeSogo.details(anime.ref) }
         assertTrue("Anime details title is empty", details.title.isNotBlank())
-        println("NamiSourceSmoke: details loaded: \${details.title}; loading episodes")
+        println("NamiSourceSmoke: details loaded: ${details.title}; loading episodes")
 
         val episodes = withTimeout(60_000) { animeSogo.episodes(anime.ref) }
         assertTrue("AnimeSogo returned no episodes", episodes.isNotEmpty())
-        println("NamiSourceSmoke: episodes loaded: \${episodes.size}; resolving first three")
+        println("NamiSourceSmoke: episodes loaded: ${episodes.size}; resolving first three")
         var resolvedCount = 0
         for (episode in episodes.take(3)) {
             resolvedCount = withTimeout(60_000) { animeSogo.resolve(episode.ref).size }
@@ -108,10 +108,10 @@ class AniyomiCompatibilitySmokeTest {
         val elapsed = (System.nanoTime() - start) / 1_000_000
         Log.i(
             "NamiSourceSmoke",
-            "query=$query extensionV16=\${animeSogo.metadata.extensionPackage} " +
-                "extensionResults=\${extensionResults.size} nativeResults=\${nativeResults.size} " +
-                "episodes=\${episodes.size} resolvedStreams=$resolvedCount " +
-                "failures=\${search.failures.map { it.sourceId + ":" + it.cause.javaClass.simpleName }} " +
+            "query=$query extensionV16=${animeSogo.metadata.extensionPackage} " +
+                "extensionResults=${extensionResults.size} nativeResults=${nativeResults.size} " +
+                "episodes=${episodes.size} resolvedStreams=$resolvedCount " +
+                "failures=${search.failures.map { it.sourceId + ":" + it.cause.javaClass.simpleName }} " +
                 "elapsedMs=$elapsed",
         )
         Unit
