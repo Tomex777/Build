@@ -263,6 +263,20 @@ internal fun ScriptStudioSheet(
                                 }
                                 .onFailure { status = it.message ?: "Rename failed" }
                         }
+                        StudioAction(if (selectedProject.enabled) "Disable" else "Enable") {
+                            val id = selectedProjectId ?: return@StudioAction
+                            val next = !selectedProject.enabled
+                            runCatching { workspace.files.setEnabled(id, next) }
+                                .onSuccess {
+                                    scope.launch {
+                                        onCommandsReloaded(workspace.reload())
+                                        refreshProjects(id, selectedPath)
+                                        status = if (next) "Script enabled" else "Script disabled"
+                                        logVersion++
+                                    }
+                                }
+                                .onFailure { status = it.message ?: "Could not change script state" }
+                        }
                         StudioAction("Delete", danger = true) {
                             val id = selectedProjectId ?: return@StudioAction
                             runCatching { workspace.files.deleteProject(id) }
