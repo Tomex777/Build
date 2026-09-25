@@ -1,5 +1,7 @@
 /*
- * Nami host implementation for extensions-lib request helpers.
+ * ABI-compatible request helper overloads adapted from Aniyomi v0.18.2.1
+ * core/common/.../eu/kanade/tachiyomi/network/Requests.kt (Apache-2.0).
+ * See apps/nami/licenses/ANIYOMI-APACHE-2.0.txt and THIRD_PARTY_NOTICES.md.
  */
 package eu.kanade.tachiyomi.network
 
@@ -7,10 +9,8 @@ import okhttp3.CacheControl
 import okhttp3.FormBody
 import okhttp3.Headers
 import okhttp3.HttpUrl
-import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.OkHttpClient
 import okhttp3.Response
 import java.util.concurrent.TimeUnit.MINUTES
