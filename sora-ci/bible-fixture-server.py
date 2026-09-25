@@ -68,6 +68,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+        print(f"[bible-fixture] sent {len(body)} response bytes", flush=True)
 
 
 if __name__ == "__main__":

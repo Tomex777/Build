@@ -1,6 +1,7 @@
 package com.night.sora.data
 
 import android.content.Context
+import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -51,8 +52,11 @@ class BibleRepository(context: Context) {
         }
 
         val raw = fetchReference("${book.name} $chapter", translation)
+        debugLog("Received ${raw.length} chars for ${book.name} $chapter (${translation.id})")
         prefs.edit().putString(cacheKey, raw).apply()
-        parsePassage(raw, fromCache = false, requestedTranslation = translation)
+        parsePassage(raw, fromCache = false, requestedTranslation = translation).also {
+            debugLog("Parsed ${it.verses.size} verses for ${it.reference}")
+        }
     }
 
     fun lookup(
@@ -290,9 +294,11 @@ class BibleRepository(context: Context) {
         connection.setRequestProperty("Accept", "application/json")
         connection.setRequestProperty("User-Agent", "Sora/0.1 Android Bible Reader")
         return try {
+            debugLog("Starting Bible request to ${connection.url.host}${connection.url.path}")
             val code = connection.responseCode
             val stream = if (code in 200..299) connection.inputStream else connection.errorStream
             val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            debugLog("Bible response HTTP $code, ${body.length} chars")
             if (code !in 200..299) {
                 val message = runCatching { JSONObject(body).optString("error") }.getOrNull().orEmpty()
                 error(message.ifBlank { "Bible service returned HTTP $code." })
@@ -301,6 +307,10 @@ class BibleRepository(context: Context) {
         } finally {
             connection.disconnect()
         }
+    }
+
+    private fun debugLog(message: String) {
+        if (com.night.sora.BuildConfig.DEBUG) Log.d("SoraBible", message)
     }
 
     private fun parseTranslations(raw: String): List<BibleTranslation> = runCatching {

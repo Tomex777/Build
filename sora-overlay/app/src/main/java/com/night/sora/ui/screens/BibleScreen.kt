@@ -2,6 +2,7 @@
 
 package com.night.sora.ui.screens
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -326,6 +327,7 @@ private fun BibleReader(
     val listState = rememberLazyListState()
 
     LaunchedEffect(book, chapter, selectedTranslation.id, refreshNonce) {
+        if (com.night.sora.BuildConfig.DEBUG) Log.d("SoraBible", "Reader effect start ${book.name} $chapter (${selectedTranslation.id})")
         // Start a new chapter at its first verse. Saved-position routes can still
         // jump to initialVerse after the new passage has loaded.
         listState.scrollToItem(0)
@@ -334,6 +336,9 @@ private fun BibleReader(
         error = null
         val result = withContext(Dispatchers.IO) {
             repository.loadChapter(book, chapter, selectedTranslation, forceRefresh = refreshNonce > 0)
+        }
+        if (com.night.sora.BuildConfig.DEBUG) {
+            Log.d("SoraBible", "Reader effect result success=${result.isSuccess}, error=${result.exceptionOrNull()?.message}")
         }
         passage = result.getOrNull()
         error = result.exceptionOrNull()?.message
