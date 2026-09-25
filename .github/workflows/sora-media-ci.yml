@@ -135,18 +135,6 @@ jobs:
         working-directory: /tmp/sora-src/Sora_Android_v0_1
         run: gradle --stacktrace :app:assembleDebug :live-extension:assembleDebug :meme-extension:assembleDebug
 
-      - name: Start deterministic Bible API fixture
-        run: |
-          set -euo pipefail
-          nohup python3 "$GITHUB_WORKSPACE/sora-ci/bible-fixture-server.py" > /tmp/sora-bible-fixture.log 2>&1 &
-          echo $! > /tmp/sora-bible-fixture.pid
-          for attempt in {1..20}; do
-            if curl -fsS http://127.0.0.1:8765/health | grep -q '"status": "ok"'; then break; fi
-            sleep 1
-          done
-          curl -fsS http://127.0.0.1:8765/health | grep -q '"status": "ok"'
-          curl -fsS 'http://127.0.0.1:8765/Genesis+1?translation=web' | python3 -c 'import json,sys; assert json.load(sys.stdin)["verses"][0]["text"].startswith("In the beginning")'
-
       - name: Probe AniList availability
         id: anilist_probe
         run: |
@@ -196,6 +184,26 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
+            set -euo pipefail
+            python3 "$GITHUB_WORKSPACE/sora-ci/bible-fixture-server.py" > /tmp/sora-bible-fixture.log 2>&1 &
+            bible_fixture_pid=$!
+            finish_bible_fixture() {
+              status=$?
+              trap - EXIT
+              if (( status != 0 )); then
+                echo 'Bible fixture access log:'
+                cat /tmp/sora-bible-fixture.log || true
+              fi
+              kill "$bible_fixture_pid" 2>/dev/null || true
+              exit "$status"
+            }
+            trap finish_bible_fixture EXIT
+            for attempt in {1..20}; do
+              if curl -fsS http://127.0.0.1:8765/health | grep -q '"status": "ok"'; then break; fi
+              sleep 1
+            done
+            curl -fsS http://127.0.0.1:8765/health | grep -q '"status": "ok"'
+            curl -fsS 'http://127.0.0.1:8765/Genesis+1?translation=web' | python3 -c 'import json,sys; assert json.load(sys.stdin)["verses"][0]["text"].startswith("In the beginning")'
             bash "$GITHUB_WORKSPACE/sora-ci/anime-manga-live-smoke.sh"
             bash "$GITHUB_WORKSPACE/sora-ci/hub-tabs-smoke.sh"
 

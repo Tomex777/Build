@@ -36,3 +36,5 @@ rerun 49 - route Bible navigation through local deterministic API fixture
 rerun 50 - patch both deterministic Bible API endpoints in CI
 
 rerun 51 - rerun API 36 Bible fixture health check and next chapter top navigation
+
+rerun 52 - keep Bible API fixture alive through API 36 emulator reader test
