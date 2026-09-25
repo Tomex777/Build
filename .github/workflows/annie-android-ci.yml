@@ -44,7 +44,21 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          script: gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest
+          script: |
+            set +e
+            gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest
+            TEST_STATUS=$?
+            mkdir -p annie-android/build/emulator-screenshots
+            adb pull /sdcard/Android/data/com.tomex777.annie/files/screenshots/. annie-android/build/emulator-screenshots/ || true
+            exit $TEST_STATUS
+      - name: Upload emulator visual proofs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: annie-emulator-screenshots
+          path: annie-android/build/emulator-screenshots/
+          if-no-files-found: warn
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
           name: annie-android-arm64-debug-apk
