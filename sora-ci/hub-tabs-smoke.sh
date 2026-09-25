@@ -15,15 +15,13 @@ import xml.etree.ElementTree as ET
 
 root = ET.Element("map")
 chapters = {
-    1: [
-        (1, "In the beginning God created the heavens and the earth."),
-        (2, "The earth was formless and empty. Darkness was on the surface of the deep."),
-        (3, "God said, \"Let there be light,\" and there was light."),
+    1: [(1, "In the beginning God created the heavens and the earth.")] + [
+        (number, f"Genesis 1 fixture verse {number} keeps the reader list long enough to scroll.")
+        for number in range(2, 36)
     ],
-    2: [
-        (1, "The heavens and the earth were finished, and all their vast array."),
-        (2, "On the seventh day God finished his work which he had made."),
-        (3, "God blessed the seventh day, and made it holy."),
+    2: [(1, "The heavens and the earth were finished, and all their vast array.")] + [
+        (number, f"Genesis 2 fixture verse {number} keeps the next chapter long enough to verify its start.")
+        for number in range(2, 36)
     ],
 }
 for chapter, verses in chapters.items():
@@ -316,9 +314,27 @@ if wait_for "In the beginning" 30; then
   adb shell input text "checked%20in%20emulator"
   tap Save
   wait_for "Verse has a note"
+  # Start chapter navigation from the bottom of a long chapter. This makes
+  # a retained LazyListState offset observable instead of letting a tiny fixture
+  # fit entirely onscreen.
+  for _ in 1 2 3 4 5; do adb shell input swipe 950 1450 950 420 350; done
   tap "Next"
   wait_for "Genesis 2" 20
   wait_for "The heavens and the earth were finished" 20
+  python3 - <<'PYASSERT'
+import re, xml.etree.ElementTree as ET
+root=ET.parse('/tmp/sora-hub-window.xml').getroot()
+nodes=list(root.iter('node'))
+def bounds(node):
+    match=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+    return tuple(map(int,match.groups())) if match else None
+header=next((bounds(n) for n in nodes if n.attrib.get('text','').strip() == 'Genesis 2' and bounds(n)),None)
+verse=next((bounds(n) for n in nodes if n.attrib.get('text','').startswith('The heavens and the earth were finished') and bounds(n)),None)
+if header is None or verse is None:
+    raise SystemExit('Could not locate Genesis 2 header and verse 1 after Next.')
+if not (header[1] <= verse[1] < 1200):
+    raise SystemExit(f'Genesis 2 verse 1 is not near the top after Next: header={header}, verse1={verse}')
+PYASSERT
   shot bible-next-chapter-top
   tap "Previous"
   wait_for "Genesis 1" 20
