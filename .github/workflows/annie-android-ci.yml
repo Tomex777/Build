@@ -49,9 +49,8 @@ jobs:
           arch: x86_64
           profile: pixel_2
           script: |
-            set +e
-            gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest
-            TEST_STATUS=$?
+            TEST_STATUS=0
+            gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest || TEST_STATUS=$?
             echo "===== Android instrumented test XML ====="
             find annie-android/app/build/outputs/androidTest-results -type f -name '*.xml' -print -exec cat {} \; 2>/dev/null || true
             mkdir -p annie-android/build/emulator-screenshots
