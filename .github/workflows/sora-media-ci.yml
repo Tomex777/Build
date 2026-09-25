@@ -100,9 +100,9 @@ jobs:
           repository = root / 'app/src/main/java/com/night/sora/data/BibleRepository.kt'
           text = repository.read_text()
           old = 'https://bible-api.com/'
-          if text.count(old) != 1:
-              raise SystemExit('Bible API fixture endpoint marker mismatch')
-          repository.write_text(text.replace(old, 'http://10.0.2.2:8765/', 1))
+          if text.count(old) != 2:
+              raise SystemExit('Bible API fixture endpoint markers mismatch')
+          repository.write_text(text.replace(old, 'http://10.0.2.2:8765/'))
 
           manifest = root / 'app/src/main/AndroidManifest.xml'
           text = manifest.read_text()
