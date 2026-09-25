@@ -105,6 +105,21 @@ class NamiDownloadManager(
         )
     }
 
+    fun enqueueAll(
+        source: NamiAnimeSource,
+        anime: AnimeDetails,
+        episodes: List<AnimeEpisode>,
+    ) {
+        episodes.forEach { episode ->
+            val existing = mutableStatuses.value[
+                key(source.metadata.id, episode.ref.sourceEpisodeId)
+            ]
+            if (DownloadBatchPolicy.shouldEnqueue(existing?.state)) {
+                enqueue(source, anime, episode)
+            }
+        }
+    }
+
     private fun enqueueInternal(
         source: NamiAnimeSource,
         anime: AnimeDetails,

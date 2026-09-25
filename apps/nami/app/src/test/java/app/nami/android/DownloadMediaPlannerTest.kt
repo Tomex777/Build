@@ -260,4 +260,14 @@ class DownloadMediaPlannerTest {
     }
 
 
+    @Test
+    fun batchPolicyOnlyQueuesNewOrFailedEpisodes() {
+        assertTrue(DownloadBatchPolicy.shouldEnqueue(null))
+        assertTrue(DownloadBatchPolicy.shouldEnqueue(NamiDownloadState.ERROR))
+        assertFalse(DownloadBatchPolicy.shouldEnqueue(NamiDownloadState.QUEUED))
+        assertFalse(DownloadBatchPolicy.shouldEnqueue(NamiDownloadState.DOWNLOADING))
+        assertFalse(DownloadBatchPolicy.shouldEnqueue(NamiDownloadState.DOWNLOADED))
+    }
+
+
 }

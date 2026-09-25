@@ -7,14 +7,27 @@ import androidx.core.content.FileProvider
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.nami.android.NamiApplication
+import app.nami.android.NamiDownloadManager
+import app.nami.android.NamiDownloadState
 import app.nami.android.NamiSourceEnablementStore
 import app.nami.compat.aniyomi.AniyomiExtensionRegistry
 import app.nami.data.local.NamiDatabase
 import app.nami.domain.AnimeDetails
+import app.nami.domain.AnimeEpisode
 import app.nami.domain.AnimeRef
+import app.nami.domain.AnimeSearchResult
+import app.nami.domain.EpisodeRef
+import app.nami.domain.ResolvedMedia
 import app.nami.runtime.GlobalAnimeSearch
 import app.nami.runtime.NamiSourceRegistry
+import app.nami.source.NamiAnimeSource
+import app.nami.source.SourceCapabilities
+import app.nami.source.SourceMetadata
+import app.nami.source.SourceOrigin
+import app.nami.source.SourcePage
 import app.nami.source.jikan.JikanAnimeSource
+import fi.iki.elonen.NanoHTTPD
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
@@ -23,6 +36,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.io.InputStream
 
 @RunWith(AndroidJUnit4::class)
 class AniyomiCompatibilitySmokeTest {
@@ -61,7 +75,7 @@ class AniyomiCompatibilitySmokeTest {
     }
 
     @Test
-    fun realAnimeSogoAndNativeJikanShareGlobalSearch() = runBlocking<Unit> {
+    fun globalSearchUsesExtensionsOnlyEvenWhenNativeJikanIsRegistered() = runBlocking<Unit> {
         val start = System.nanoTime()
         val context = ApplicationProvider.getApplicationContext<Context>()
         val installed = AniyomiExtensionRegistry(context).installedSources()
@@ -76,9 +90,9 @@ class AniyomiCompatibilitySmokeTest {
 
         val jikan = JikanAnimeSource()
         val query = "Bleach"
-        println("NamiSourceSmoke: combined global search started for $query")
+        println("NamiSourceSmoke: extension-only global search started for $query")
         val search = withTimeout(120_000) {
-            GlobalAnimeSearch(NamiSourceRegistry { installed }).search(query)
+            GlobalAnimeSearch(NamiSourceRegistry { installed + jikan }).search(query)
         }
         Log.i(
             "NamiSourceSmoke",
@@ -93,6 +107,12 @@ class AniyomiCompatibilitySmokeTest {
                 failure.cause,
             )
         }
+
+        assertTrue(
+            "Native Jikan leaked into extension-only global search",
+            jikan.metadata.id !in search.resultsBySource.keys &&
+                search.failures.none { it.sourceId == jikan.metadata.id },
+        )
 
         val extensionResults = search.resultsBySource[animeSogo.metadata.id].orEmpty()
         assertTrue("AnimeSogo returned no real global-search results for $query", extensionResults.isNotEmpty())
@@ -663,6 +683,141 @@ class AniyomiCompatibilitySmokeTest {
             )
         } finally {
             app.sourceEnablementStore.setEnabled(sourceId, originallyEnabled)
+        }
+    }
+
+
+    @Test
+    fun cancellingActiveDownloadRemovesPartialMediaAndDatabaseRecord() = runBlocking<Unit> {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val databaseName = "nami-cancel-${System.nanoTime()}.db"
+        context.deleteDatabase(databaseName)
+
+        val server = object : NanoHTTPD(0) {
+            override fun serve(session: IHTTPSession): Response {
+                val totalBytes = 8 * 1024 * 1024
+                val stream = object : InputStream() {
+                    private var remaining = totalBytes
+
+                    override fun read(): Int {
+                        val one = ByteArray(1)
+                        val read = read(one, 0, 1)
+                        return if (read < 0) -1 else one[0].toInt() and 0xff
+                    }
+
+                    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+                        if (remaining <= 0) return -1
+                        Thread.sleep(4)
+                        val count = minOf(length, 4096, remaining)
+                        java.util.Arrays.fill(buffer, offset, offset + count, 0x5a.toByte())
+                        remaining -= count
+                        return count
+                    }
+                }
+
+                return newFixedLengthResponse(
+                    Response.Status.OK,
+                    "video/mp4",
+                    stream,
+                    totalBytes.toLong(),
+                )
+            }
+        }
+
+        val database = NamiDatabase(context, databaseName)
+        try {
+            server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
+            val mediaUrl = "http://127.0.0.1:${server.listeningPort}/video.mp4"
+
+            val source = object : NamiAnimeSource {
+                override val metadata = SourceMetadata(
+                    id = "cancel-fixture-source",
+                    name = "Cancel Fixture",
+                    origin = SourceOrigin.NATIVE_NAMI,
+                    capabilities = SourceCapabilities(downloadable = true),
+                )
+
+                override suspend fun search(
+                    query: String,
+                    page: Int,
+                ): SourcePage<AnimeSearchResult> = SourcePage(emptyList(), false)
+
+                override suspend fun details(anime: AnimeRef): AnimeDetails =
+                    error("Not used")
+
+                override suspend fun episodes(anime: AnimeRef): List<AnimeEpisode> =
+                    error("Not used")
+
+                override suspend fun resolve(episode: EpisodeRef): List<ResolvedMedia> =
+                    listOf(
+                        ResolvedMedia(
+                            url = mediaUrl,
+                            mimeType = "video/mp4",
+                            quality = "test",
+                        ),
+                    )
+            }
+
+            val manager = NamiDownloadManager(
+                context = context,
+                database = database,
+                sourceRegistry = NamiSourceRegistry { listOf(source) },
+            )
+            val anime = AnimeDetails(
+                ref = AnimeRef(source.metadata.id, "/anime"),
+                title = "Cancel Fixture Anime",
+            )
+            val episode = AnimeEpisode(
+                ref = EpisodeRef(
+                    sourceId = source.metadata.id,
+                    sourceAnimeId = anime.ref.sourceAnimeId,
+                    sourceEpisodeId = "/episode-1",
+                ),
+                title = "Episode 1",
+                number = 1.0,
+            )
+
+            manager.enqueue(source, anime, episode)
+            val key = manager.key(source.metadata.id, episode.ref.sourceEpisodeId)
+            val active = withTimeout(15_000) {
+                while (true) {
+                    val status = manager.statuses.value[key]
+                    if (
+                        status?.state == NamiDownloadState.DOWNLOADING &&
+                        !status.contentUri.isNullOrBlank()
+                    ) {
+                        break status
+                    }
+                    delay(50)
+                }
+            }
+            val partialUri = android.net.Uri.parse(active.contentUri)
+
+            manager.cancel(active)
+
+            withTimeout(10_000) {
+                while (manager.statuses.value.containsKey(key)) {
+                    delay(50)
+                }
+            }
+
+            assertEquals(
+                null,
+                database.getDownload(source.metadata.id, episode.ref.sourceEpisodeId),
+            )
+            val partialStillExists = runCatching {
+                context.contentResolver.openFileDescriptor(partialUri, "r")
+                    ?.use { true }
+                    ?: false
+            }.getOrDefault(false)
+            assertTrue(
+                "Cancelling a download left its partial MediaStore target behind",
+                !partialStillExists,
+            )
+        } finally {
+            server.stop()
+            database.close()
+            context.deleteDatabase(databaseName)
         }
     }
 

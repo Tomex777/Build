@@ -212,3 +212,9 @@ internal object DownloadRetryPlanner {
         )
     }
 }
+
+
+internal object DownloadBatchPolicy {
+    fun shouldEnqueue(state: NamiDownloadState?): Boolean =
+        state == null || state == NamiDownloadState.ERROR
+}
