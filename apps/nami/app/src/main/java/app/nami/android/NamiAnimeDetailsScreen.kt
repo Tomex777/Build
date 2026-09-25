@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.PersonOutline
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Done
@@ -82,6 +83,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
 import app.nami.data.local.NamiDatabase
 import app.nami.domain.AnimeDetails
 import app.nami.domain.AnimeEpisode
@@ -112,6 +114,7 @@ fun NamiAnimeDetailsScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     var inLibrary by remember { mutableStateOf(false) }
+    var resolvingEpisodeId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val downloadStatuses by downloadManager.statuses.collectAsState()
@@ -255,6 +258,37 @@ fun NamiAnimeDetailsScreen(
                                 episode = episode,
                                 status = downloadStatus,
                                 downloadEnabled = source.metadata.capabilities.downloadable,
+                                playEnabled = source.metadata.capabilities.streamable,
+                                playLoading = resolvingEpisodeId == episode.ref.sourceEpisodeId,
+                                onPlay = {
+                                    if (resolvingEpisodeId == null) {
+                                        resolvingEpisodeId = episode.ref.sourceEpisodeId
+                                        scope.launch {
+                                            runCatching {
+                                                source.resolve(episode.ref)
+                                                    .firstOrNull { it.url.isNotBlank() }
+                                                    ?: error("This source did not return a playable video.")
+                                            }.onSuccess { media ->
+                                                runCatching {
+                                                    ExternalPlayerLauncher.open(context, media)
+                                                }.onFailure { failure ->
+                                                    Toast.makeText(
+                                                        context,
+                                                        failure.message ?: "No compatible player was found.",
+                                                        Toast.LENGTH_LONG,
+                                                    ).show()
+                                                }
+                                            }.onFailure { failure ->
+                                                Toast.makeText(
+                                                    context,
+                                                    failure.message ?: "Could not resolve this episode.",
+                                                    Toast.LENGTH_LONG,
+                                                ).show()
+                                            }
+                                            resolvingEpisodeId = null
+                                        }
+                                    }
+                                },
                                 onDownload = { downloadManager.enqueue(source, anime, episode) },
                                 onOpen = {
                                     downloadStatus?.let { downloadManager.openDownloaded(context, it) }
@@ -527,6 +561,9 @@ private fun AniyomiEpisodeRow(
     episode: AnimeEpisode,
     status: NamiDownloadStatus?,
     downloadEnabled: Boolean,
+    playEnabled: Boolean,
+    playLoading: Boolean,
+    onPlay: () -> Unit,
     onDownload: () -> Unit,
     onOpen: () -> Unit,
 ) {
@@ -559,6 +596,27 @@ private fun AniyomiEpisodeRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+            }
+        }
+
+        if (playEnabled) {
+            IconButton(
+                onClick = onPlay,
+                enabled = !playLoading,
+            ) {
+                if (playLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.PlayArrow,
+                        contentDescription = "Play",
+                        modifier = Modifier.size(26.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 
