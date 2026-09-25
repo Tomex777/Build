@@ -82,20 +82,21 @@ class NamiDatabase(
     }
 
     fun addToLibrary(details: AnimeDetails) {
+        val db = writableDatabase
+        val where = "source_id = ? AND source_anime_id = ?"
+        val args = arrayOf(details.ref.sourceId, details.ref.sourceAnimeId)
         val values = ContentValues().apply {
-            put("source_id", details.ref.sourceId)
-            put("source_anime_id", details.ref.sourceAnimeId)
             put("title", details.title)
             put("cover_url", details.coverUrl)
             put("source_state", details.sourceState)
-            put("added_at", System.currentTimeMillis())
         }
-        writableDatabase.insertWithOnConflict(
-            "library_entries",
-            null,
-            values,
-            SQLiteDatabase.CONFLICT_REPLACE,
-        )
+
+        if (db.update("library_entries", values, where, args) > 0) return
+
+        values.put("source_id", details.ref.sourceId)
+        values.put("source_anime_id", details.ref.sourceAnimeId)
+        values.put("added_at", System.currentTimeMillis())
+        db.insertOrThrow("library_entries", null, values)
     }
 
     fun removeFromLibrary(ref: AnimeRef) {

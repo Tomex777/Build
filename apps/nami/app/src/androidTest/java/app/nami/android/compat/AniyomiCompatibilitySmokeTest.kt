@@ -325,4 +325,78 @@ class AniyomiCompatibilitySmokeTest {
     }
 
 
+    @Test
+    fun libraryRefreshPreservesRowIdentityAndCategoryMembership() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val databaseName = "nami-library-integrity-${System.nanoTime()}.db"
+        context.deleteDatabase(databaseName)
+
+        val database = NamiDatabase(context, databaseName)
+        try {
+            val ref = AnimeRef("fixture-source", "/fixture/library")
+            database.addToLibrary(
+                AnimeDetails(
+                    ref = ref,
+                    title = "Original title",
+                    coverUrl = "https://example.invalid/original.jpg",
+                    sourceState = """{"token":"first"}""",
+                ),
+            )
+
+            val original = database.getLibraryEntries().single()
+            val sqlite = database.writableDatabase
+            sqlite.execSQL(
+                "INSERT INTO categories(name, sort_order) VALUES(?, ?)",
+                arrayOf("Favorites", 0),
+            )
+            val categoryId = sqlite.rawQuery(
+                "SELECT id FROM categories WHERE name = ?",
+                arrayOf("Favorites"),
+            ).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                cursor.getLong(0)
+            }
+            sqlite.execSQL(
+                "INSERT INTO library_category_membership(library_entry_id, category_id) VALUES(?, ?)",
+                arrayOf(original.id, categoryId),
+            )
+
+            database.addToLibrary(
+                AnimeDetails(
+                    ref = ref,
+                    title = "Refreshed title",
+                    coverUrl = "https://example.invalid/refreshed.jpg",
+                    sourceState = """{"token":"second"}""",
+                ),
+            )
+
+            val refreshed = database.getLibraryEntries().single()
+            assertEquals(
+                original.id,
+                refreshed.id,
+                "Refreshing library metadata must update in place instead of replacing the row",
+            )
+            assertEquals("Refreshed title", refreshed.title)
+            assertEquals("""{"token":"second"}""", refreshed.sourceState)
+
+            val membershipCount = sqlite.rawQuery(
+                "SELECT COUNT(*) FROM library_category_membership " +
+                    "WHERE library_entry_id = ? AND category_id = ?",
+                arrayOf(original.id.toString(), categoryId.toString()),
+            ).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                cursor.getInt(0)
+            }
+            assertEquals(
+                1,
+                membershipCount,
+                "Refreshing a library entry must not cascade-delete its category membership",
+            )
+        } finally {
+            database.close()
+            context.deleteDatabase(databaseName)
+        }
+    }
+
+
 }
