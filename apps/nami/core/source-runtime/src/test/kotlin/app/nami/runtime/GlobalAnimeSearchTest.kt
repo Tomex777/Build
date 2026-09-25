@@ -232,4 +232,63 @@ class GlobalAnimeSearchTest {
     }
 
 
+    @Test
+    fun failedSourceAlsoRisesInCompletionOrderAheadOfLoadingSources() = runBlocking {
+        val alpha = FakeSource(
+            id = "alpha",
+            name = "Alpha",
+            delayMillis = 100,
+            results = listOf(result("alpha", "Alpha result")),
+        )
+        val broken = object : NamiAnimeSource by FakeSource(
+            id = "broken",
+            name = "Broken",
+            delayMillis = 0,
+            results = emptyList(),
+        ) {
+            override suspend fun search(
+                query: String,
+                page: Int,
+            ): SourcePage<AnimeSearchResult> {
+                delay(5)
+                error("Expected failure")
+            }
+        }
+        val zulu = FakeSource(
+            id = "zulu",
+            name = "Zulu",
+            delayMillis = 30,
+            results = listOf(result("zulu", "Zulu result")),
+        )
+
+        val states = GlobalAnimeSearch(
+            NamiSourceRegistry { listOf(zulu, broken, alpha) },
+        ).searchFlow("bleach", timeoutMillis = 2_000).toList()
+
+        val brokenFirst = states.first { state ->
+            val brokenSection = state.sections.first { it.source.metadata.id == "broken" }
+            val zuluSection = state.sections.first { it.source.metadata.id == "zulu" }
+            brokenSection.result is AnimeSearchItemResult.Error &&
+                zuluSection.result is AnimeSearchItemResult.Loading
+        }
+
+        assertEquals(
+            listOf("Broken", "Alpha", "Zulu"),
+            brokenFirst.sections.map { it.source.metadata.name },
+        )
+
+        val zuluNext = states.first { state ->
+            val zuluSection = state.sections.first { it.source.metadata.id == "zulu" }
+            val alphaSection = state.sections.first { it.source.metadata.id == "alpha" }
+            zuluSection.result is AnimeSearchItemResult.Success &&
+                alphaSection.result is AnimeSearchItemResult.Loading
+        }
+
+        assertEquals(
+            listOf("Broken", "Zulu", "Alpha"),
+            zuluNext.sections.map { it.source.metadata.name },
+        )
+    }
+
+
 }
