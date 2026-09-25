@@ -6,8 +6,10 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.media.MediaScannerConnection
 import android.provider.MediaStore
 import android.webkit.CookieManager
+import androidx.core.content.FileProvider
 import app.nami.data.local.DownloadDirectoryLayout
 import app.nami.data.local.NamiDatabase
 import app.nami.data.local.StoredDownload
@@ -417,10 +419,22 @@ class NamiDownloadManager(
             val directory = File(root, "Nami/" + relativeDirectory).apply { mkdirs() }
             val file = File(directory, displayName)
             val output = FileOutputStream(file)
+            val publicUri = FileProvider.getUriForFile(
+                context,
+                context.packageName + ".downloads",
+                file,
+            ).toString()
             DownloadTarget(
                 output = output,
-                publicUri = Uri.fromFile(file).toString(),
-                finish = {},
+                publicUri = publicUri,
+                finish = {
+                    MediaScannerConnection.scanFile(
+                        context,
+                        arrayOf(file.absolutePath),
+                        arrayOf(mimeType),
+                        null,
+                    )
+                },
                 abort = {
                     runCatching { output.close() }
                     file.delete()

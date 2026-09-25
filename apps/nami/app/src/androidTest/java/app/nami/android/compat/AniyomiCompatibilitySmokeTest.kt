@@ -1,7 +1,9 @@
 package app.nami.android.compat
 
 import android.content.Context
+import android.os.Environment
 import android.util.Log
+import androidx.core.content.FileProvider
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.nami.compat.aniyomi.AniyomiExtensionRegistry
@@ -18,6 +20,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class AniyomiCompatibilitySmokeTest {
@@ -463,6 +466,28 @@ class AniyomiCompatibilitySmokeTest {
             database.close()
             context.deleteDatabase(databaseName)
         }
+    }
+
+
+    @Test
+    fun legacyDownloadProviderProducesGrantableContentUriInsideNamiMovies() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        @Suppress("DEPRECATION")
+        val root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+        val file = File(root, "Nami/Fixture/Show/Episode 001.mkv")
+
+        val uri = FileProvider.getUriForFile(
+            context,
+            context.packageName + ".downloads",
+            file,
+        )
+
+        assertEquals("content", uri.scheme)
+        assertEquals(context.packageName + ".downloads", uri.authority)
+        assertTrue(
+            "Legacy download FileProvider should expose only the configured Nami Movies subtree",
+            uri.path.orEmpty().contains("nami_movies"),
+        )
     }
 
 
