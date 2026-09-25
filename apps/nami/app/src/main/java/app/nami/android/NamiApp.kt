@@ -87,6 +87,7 @@ import app.nami.runtime.NamiSourceRegistry
 import app.nami.runtime.SourceSearchPager
 import app.nami.runtime.SourceSearchState
 import app.nami.source.NamiAnimeSource
+import app.nami.source.SourceOrigin
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -253,7 +254,10 @@ private fun GlobalSearchHome(
 
     LaunchedEffect(sourceRegistry) {
         sourceCount = runCatching {
-            sourceRegistry.installedSources().count { it.metadata.capabilities.searchable }
+            sourceRegistry.installedSources().count { source ->
+                source.metadata.origin == SourceOrigin.ANIYOMI_COMPATIBLE &&
+                    source.metadata.capabilities.searchable
+            }
         }.getOrNull()
     }
 
@@ -340,9 +344,9 @@ private fun GlobalSearchHome(
                 EmptyCenter(
                     modifier = Modifier.padding(padding),
                     text = when (sourceCount) {
-                        0 -> "No searchable anime sources are available yet."
-                        null -> "Search across your anime sources."
-                        else -> "Search across " + sourceCount + " anime source" +
+                        0 -> "No anime extensions are available yet."
+                        null -> "Search across your anime extensions."
+                        else -> "Search across " + sourceCount + " anime extension" +
                             if (sourceCount == 1) "." else "s."
                     },
                 )
@@ -351,7 +355,7 @@ private fun GlobalSearchHome(
             searchState.total == 0 -> {
                 EmptyCenter(
                     modifier = Modifier.padding(padding),
-                    text = "No searchable anime sources were found.",
+                    text = "No enabled anime extensions were found.",
                 )
             }
 

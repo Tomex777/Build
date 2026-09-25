@@ -6,7 +6,6 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.nami.compat.aniyomi.AniyomiExtensionRegistry
 import app.nami.domain.AnimeRef
-import app.nami.runtime.CompositeNamiSourceRegistry
 import app.nami.runtime.GlobalAnimeSearch
 import app.nami.runtime.NamiSourceRegistry
 import app.nami.source.jikan.JikanAnimeSource
@@ -36,17 +35,21 @@ class AniyomiCompatibilitySmokeTest {
         assertEquals(16, animeSogo.metadata.extensionApiVersion)
 
         val jikan = JikanAnimeSource()
-        val combined = CompositeNamiSourceRegistry(
-            NamiSourceRegistry { installed },
-            NamiSourceRegistry { listOf(jikan) },
-        )
         val query = "Bleach"
-        println("NamiSourceSmoke: global search started for $query")
-        val search = withTimeout(90_000) { GlobalAnimeSearch(combined).search(query) }
+        println("NamiSourceSmoke: extension-only global search started for $query")
+        val search = withTimeout(90_000) {
+            GlobalAnimeSearch(NamiSourceRegistry { installed }).search(query)
+        }
         println("NamiSourceSmoke: global search completed; sources=${search.resultsBySource.keys}; failures=${search.failures.map { it.sourceId + ":" + it.cause.javaClass.simpleName }}")
         val extensionResults = search.resultsBySource[animeSogo.metadata.id].orEmpty()
-        val nativeResults = search.resultsBySource[jikan.metadata.id].orEmpty()
         assertTrue("AnimeSogo returned no real results for $query", extensionResults.isNotEmpty())
+        assertTrue(
+            "Extension-only global search leaked a native source",
+            search.resultsBySource.keys.none { it == jikan.metadata.id },
+        )
+
+        println("NamiSourceSmoke: native Jikan search started separately")
+        val nativeResults = withTimeout(60_000) { jikan.search(query).items }
         assertTrue("Jikan returned no real results for $query", nativeResults.isNotEmpty())
 
         val anime = extensionResults.firstOrNull { it.title.contains(query, ignoreCase = true) }
