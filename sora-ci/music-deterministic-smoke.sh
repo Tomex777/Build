@@ -126,6 +126,32 @@ PY
   sleep 2
 }
 
+seek_fraction() {
+  local label="$1"
+  local fraction="$2"
+  dump_ui
+  python3 - "$label" "$fraction" <<'PY'
+import re, subprocess, sys, xml.etree.ElementTree as ET
+label=sys.argv[1]
+fraction=max(0.0,min(1.0,float(sys.argv[2])))
+root=ET.parse('/tmp/sora-music-window.xml').getroot()
+for node in root.iter('node'):
+    if (node.attrib.get('content-desc') or '').strip() != label:
+        continue
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+    if not m:
+        continue
+    left,top,right,bottom=map(int,m.groups())
+    y=(top+bottom)//2
+    start=left+max(6,(right-left)//30)
+    target=left+int((right-left)*fraction)
+    subprocess.check_call(['adb','shell','input','swipe',str(start),str(y),str(target),str(y),'700'])
+    raise SystemExit(0)
+raise SystemExit(f'UI seek bar not found: {label}')
+PY
+  sleep 1
+}
+
 rapid_double_tap_text() {
   local label="$1"
   dismiss_system_dialogs
@@ -209,7 +235,9 @@ shot 05-now-playing
 tap_text Next
 wait_for_node 'Wake Slowly' 20
 wait_for_node Pause 20
-shot 06-next-track
+wait_for_node 'Playback position' 10
+seek_fraction 'Playback position' 0.5
+shot 06-next-track-seeked
 
 # Standard music-player semantics: Previous after >3s restarts the current
 # track. The second press must land inside the 3s threshold so it moves to the
