@@ -27,3 +27,5 @@ include(":core:source-runtime")
 include(":data:local")
 include(":extensions:aniyomi-compat")
 include(":extensions:nami-jikan")
+
+include(":test-fixtures:v17-extension")
