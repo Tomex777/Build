@@ -13,3 +13,5 @@ rerun 46 - retest source resume against restored MediaScreen
 Revalidate source resume after shared catalog UI changes
 Revalidate source resume after final hub integrations
 rerun 39 - validate current Manga reader and video player exact source resume
+
+Rerun with visible synthetic Manga page fixture
