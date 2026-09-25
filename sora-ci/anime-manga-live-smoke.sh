@@ -196,11 +196,16 @@ shot 01-anime-initial
 # Core owns the Music screen and recommendation layout. With all external
 # providers removed, verify the screen is still present and renders its own
 # taste-led empty/loading state before any source is installed.
+# Media destinations live in the switcher menu beside the selected label.
+tap_text 'Anime & Manga'
+wait_for_node Music 12
 tap_text Music
 wait_for_node 'For you' 25
 shot 01b-core-music-without-extensions
-tap_text 'Anime & Manga'
+tap_text Music
 wait_for_node 'Anime & Manga' 12
+tap_text 'Anime & Manga'
+wait_for_node Anime 12
 
 # The curl probe is diagnostic only. When it reports degraded AniList, first
 # verify each tab independently. If both tabs have recovered by emulator time,
