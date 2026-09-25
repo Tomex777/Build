@@ -104,20 +104,52 @@ class AniyomiCompatibilitySmokeTest {
 
         val episodes = withTimeout(60_000) { animeSogo.episodes(anime.ref) }
         assertTrue("AnimeSogo returned no episodes", episodes.isNotEmpty())
+        assertTrue("AnimeSogo episode identifiers are blank", episodes.all { it.ref.sourceEpisodeId.isNotBlank() })
+        assertEquals(
+            "AnimeSogo episode identifiers are not unique",
+            episodes.size,
+            episodes.map { it.ref.sourceEpisodeId }.distinct().size,
+        )
+        assertTrue("AnimeSogo episode names did not normalize", episodes.all { it.title.isNotBlank() })
+        assertTrue(
+            "AnimeSogo episode numbering did not normalize",
+            episodes.any { episode -> episode.number?.let { it >= 0.0 } == true },
+        )
+        val episodeIdsAgain = withTimeout(60_000) { animeSogo.episodes(anime.ref) }
+            .map { it.ref.sourceEpisodeId }
+        assertEquals("AnimeSogo episode IDs changed between fetches", episodes.map { it.ref.sourceEpisodeId }, episodeIdsAgain)
         println("NamiSourceSmoke: episodes loaded: ${episodes.size}; resolving first three")
-        var resolvedCount = 0
+
+        var resolvedEpisode: app.nami.domain.AnimeEpisode? = null
+        var resolvedStreams = emptyList<app.nami.domain.ResolvedMedia>()
         for (episode in episodes.take(3)) {
-            resolvedCount = withTimeout(60_000) { animeSogo.resolve(episode.ref).size }
-            if (resolvedCount > 0) break
+            val candidates = withTimeout(60_000) { animeSogo.resolve(episode.ref) }
+            if (candidates.any { it.url.startsWith("http://") || it.url.startsWith("https://") }) {
+                resolvedEpisode = episode
+                resolvedStreams = candidates
+                break
+            }
         }
-        assertTrue("AnimeSogo did not resolve a stream from the first three episodes", resolvedCount > 0)
+        assertTrue("AnimeSogo did not resolve a stream from the first three episodes", resolvedStreams.isNotEmpty())
+        assertTrue(
+            "Resolved stream candidate did not contain an HTTP URL",
+            resolvedStreams.any { it.url.startsWith("http://") || it.url.startsWith("https://") },
+        )
 
         val elapsed = (System.nanoTime() - start) / 1_000_000
         Log.i(
             "NamiSourceSmoke",
             "query=$query extensionV16=${animeSogo.metadata.extensionPackage} " +
-                "extensionResults=${extensionResults.size} nativeSearchDisabled=true " +
-                "episodes=${episodes.size} resolvedStreams=$resolvedCount " +
+                "extensionResults=${extensionResults.size} anime=${details.title} " +
+                "episodes=${episodes.size} firstEpisode=${episodes.first().title} " +
+                "firstNumber=${episodes.first().number} firstId=${episodes.first().ref.sourceEpisodeId} " +
+                "resolvedEpisode=${resolvedEpisode?.title} resolvedNumber=${resolvedEpisode?.number} " +
+                "resolvedStreams=${resolvedStreams.size} hosters=${resolvedStreams.mapNotNull { it.hosterName }.distinct()} " +
+                "quality=${resolvedStreams.mapNotNull { it.quality }.distinct()} " +
+                "mediaTypes=${resolvedStreams.mapNotNull { it.mimeType }.distinct()} " +
+                "headerNames=${resolvedStreams.flatMap { it.headers.keys }.distinct()} " +
+                "subtitles=${resolvedStreams.sumOf { it.subtitles.size }} " +
+                "audioTracks=${resolvedStreams.sumOf { it.audioTracks.size }} " +
                 "failures=${search.failures.map { it.sourceId + ":" + it.cause.javaClass.simpleName }} " +
                 "elapsedMs=$elapsed",
         )
