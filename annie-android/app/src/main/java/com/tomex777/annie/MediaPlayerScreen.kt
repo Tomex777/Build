@@ -221,23 +221,6 @@ internal fun MediaPlayerScreen(
         } else null
         if (player != null && libVlc != null && activeUri != null) {
             surfaceCallback?.let { player.vlcVout.addCallback(it) }
-            val media = Media(libVlc, activeUri).apply {
-                val emulator = Build.FINGERPRINT.contains("generic", ignoreCase = true) ||
-                    Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
-                    Build.MODEL.contains("Emulator", ignoreCase = true)
-                // Software decoding keeps the emulator playing; hardware decoding is preferred on phones.
-                setHWDecoderEnabled(!emulator, false)
-                addOption(":network-caching=1500")
-                activeSource?.headers?.forEach { (name, value) ->
-                    when (name.lowercase()) {
-                        "user-agent" -> addOption(":http-user-agent=$value")
-                        "referer", "referrer" -> addOption(":http-referrer=$value")
-                        "cookie" -> addOption(":http-cookie=$value")
-                    }
-                }
-            }
-            player.media = media
-            media.release()
         }
         onDispose {
             if (player != null) {
@@ -252,14 +235,34 @@ internal fun MediaPlayerScreen(
         }
     }
 
-    LaunchedEffect(player, attachedPlayer, videoSurfacesReady, activeUri) {
-        if (player == null || activeUri == null) return@LaunchedEffect
+    LaunchedEffect(player, libVlc, attachedPlayer, videoSurfacesReady, activeUri, activeSource) {
+        if (player == null || libVlc == null || activeUri == null) return@LaunchedEffect
         var checks = 0
         while (isActive && (attachedPlayer !== player || !videoSurfacesReady) && checks < 120) {
             delay(50)
             checks++
         }
         if (!isActive || attachedPlayer !== player || !videoSurfacesReady) return@LaunchedEffect
+        val emulator = Build.FINGERPRINT.contains("generic", ignoreCase = true) ||
+            Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
+            Build.MODEL.contains("Emulator", ignoreCase = true)
+        val media = Media(libVlc, activeUri).apply {
+            // Software decoding keeps the emulator playing; hardware decoding is preferred on phones.
+            setHWDecoderEnabled(!emulator, false)
+            addOption(":network-caching=1500")
+            activeSource?.headers?.forEach { (name, value) ->
+                when (name.lowercase()) {
+                    "user-agent" -> addOption(":http-user-agent=$value")
+                    "referer", "referrer" -> addOption(":http-referrer=$value")
+                    "cookie" -> addOption(":http-cookie=$value")
+                }
+            }
+        }
+        try {
+            player.media = media
+        } finally {
+            media.release()
+        }
         player.play()
         val persistedResume = resumePrefs.getLong(resumeKey, 0L)
         val resume = switchResumePosition.takeIf { it > 0L } ?: persistedResume
@@ -331,11 +334,6 @@ internal fun MediaPlayerScreen(
                         layout.post {
                             if (attachedPlayer !== player) {
                                 runCatching { attachedPlayer?.detachViews() }
-                                // The emulator's software decoder needs a SurfaceView vout;
-                                // physical devices use TextureView so Compose controls layer cleanly.
-                                val emulator = Build.FINGERPRINT.contains("generic", ignoreCase = true) ||
-                                    Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
-                                    Build.MODEL.contains("Emulator", ignoreCase = true)
                                 val attached = runCatching {
                                     player.attachViews(layout, null, true, true)
                                 }.isSuccess
