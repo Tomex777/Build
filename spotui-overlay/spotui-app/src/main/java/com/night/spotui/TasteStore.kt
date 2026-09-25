@@ -148,6 +148,16 @@ class TasteStore(context: Context) {
     }
 
     @Synchronized
+    fun recentQueries(limit: Int = 8): List<String> {
+        val array = readArray(KEY_RECENT_QUERIES)
+        return buildList {
+            for (index in 0 until array.length()) {
+                array.optString(index).takeIf(String::isNotBlank)?.let(::add)
+            }
+        }.take(limit)
+    }
+
+    @Synchronized
     fun querySuggestions(query: String, limit: Int = 8): List<String> {
         val needle = query.trim().lowercase()
         if (needle.length < 2) return emptyList()
