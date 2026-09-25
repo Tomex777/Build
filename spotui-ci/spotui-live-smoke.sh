@@ -271,13 +271,15 @@ if [[ "$PLAYBACK_OUTCOME" == "playing" ]]; then
   # Regression proof for the user's Hear Me Calling -> Fast symptom: moving to
   # the next queue item must update the selected track immediately rather than
   # leaving/reopening the old item while a new stream resolves.
+  wait_for_node 'Now playing Easy On Me' 8
   tap_text 'Next'
   sleep 2
-  if node_exists 'Easy On Me'; then
+  if node_exists 'Now playing Easy On Me'; then
     shot failure-stale-next-track
     echo "Next kept the old Now Playing title." >&2
     exit 1
   fi
+  wait_for_contains 'Now playing' 8
   shot 06-next-transition
 
   adb shell am start -W -a android.settings.SETTINGS >/dev/null
