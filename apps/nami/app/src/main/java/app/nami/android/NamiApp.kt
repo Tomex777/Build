@@ -84,6 +84,7 @@ import app.nami.runtime.GlobalSearchSection
 import app.nami.runtime.GlobalSearchState
 import app.nami.runtime.NamiSourceRegistry
 import app.nami.source.NamiAnimeSource
+import app.nami.source.SourceOrigin
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -249,7 +250,12 @@ private fun GlobalSearchHome(
     var sourceCount by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(sourceRegistry) {
-        sourceCount = runCatching { sourceRegistry.installedSources().size }.getOrNull()
+        sourceCount = runCatching {
+            sourceRegistry.installedSources().count { source ->
+                source.metadata.origin == SourceOrigin.ANIYOMI_COMPATIBLE &&
+                    source.metadata.capabilities.searchable
+            }
+        }.getOrNull()
     }
 
     fun submitSearch() {

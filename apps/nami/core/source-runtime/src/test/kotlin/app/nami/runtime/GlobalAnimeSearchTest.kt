@@ -83,6 +83,36 @@ class GlobalAnimeSearchTest {
     }
 
     @Test
+    fun nativeSourcesAreExcludedFromExtensionOnlyGlobalSearch() = runBlocking {
+        val extension = FakeSource(
+            id = "extension",
+            name = "Extension",
+            delayMillis = 0,
+            results = listOf(result("extension", "Extension result")),
+        )
+        val native = object : NamiAnimeSource by FakeSource(
+            id = "native",
+            name = "Native",
+            delayMillis = 0,
+            results = listOf(result("native", "Native result")),
+        ) {
+            override val metadata = SourceMetadata(
+                id = "native",
+                name = "Native",
+                language = "en",
+                origin = SourceOrigin.NATIVE_NAMI,
+            )
+        }
+
+        val final = GlobalAnimeSearch(
+            NamiSourceRegistry { listOf(native, extension) },
+        ).search("bleach")
+
+        assertEquals(listOf("extension"), final.resultsBySource.keys.toList())
+        assertEquals(listOf("extension"), final.responseOrder)
+    }
+
+    @Test
     fun nonSearchableSourcesAreNotIncluded() = runBlocking {
         val searchable = FakeSource(
             id = "searchable",
@@ -122,7 +152,7 @@ class GlobalAnimeSearchTest {
             id = id,
             name = name,
             language = "en",
-            origin = SourceOrigin.NATIVE_NAMI,
+            origin = SourceOrigin.ANIYOMI_COMPATIBLE,
             capabilities = app.nami.source.SourceCapabilities(searchable = searchable),
         )
 
