@@ -12,6 +12,7 @@ data class StoredLibraryEntry(
     val ref: AnimeRef,
     val title: String,
     val coverUrl: String?,
+    val sourceState: String?,
     val addedAtEpochMillis: Long,
 )
 
@@ -57,6 +58,9 @@ class NamiDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
             addColumnIfMissing(db, "downloads", "error_message", "TEXT")
             addColumnIfMissing(db, "downloads", "updated_at", "INTEGER NOT NULL DEFAULT 0")
         }
+        if (oldVersion < 4) {
+            addColumnIfMissing(db, "library_entries", "source_state", "TEXT")
+        }
     }
 
     fun isInLibrary(ref: AnimeRef): Boolean {
@@ -80,6 +84,7 @@ class NamiDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
             put("source_anime_id", details.ref.sourceAnimeId)
             put("title", details.title)
             put("cover_url", details.coverUrl)
+            put("source_state", details.sourceState)
             put("added_at", System.currentTimeMillis())
         }
         writableDatabase.insertWithOnConflict(
@@ -101,7 +106,7 @@ class NamiDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
     fun getLibraryEntries(): List<StoredLibraryEntry> {
         readableDatabase.query(
             "library_entries",
-            arrayOf("id", "source_id", "source_anime_id", "title", "cover_url", "added_at"),
+            arrayOf("id", "source_id", "source_anime_id", "title", "cover_url", "source_state", "added_at"),
             null,
             null,
             null,
@@ -114,6 +119,7 @@ class NamiDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
             val animeIdIndex = cursor.getColumnIndexOrThrow("source_anime_id")
             val titleIndex = cursor.getColumnIndexOrThrow("title")
             val coverIndex = cursor.getColumnIndexOrThrow("cover_url")
+            val sourceStateIndex = cursor.getColumnIndexOrThrow("source_state")
             val addedIndex = cursor.getColumnIndexOrThrow("added_at")
             while (cursor.moveToNext()) {
                 items += StoredLibraryEntry(
@@ -124,6 +130,7 @@ class NamiDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
                     ),
                     title = cursor.getString(titleIndex),
                     coverUrl = cursor.getString(coverIndex),
+                    sourceState = cursor.getString(sourceStateIndex),
                     addedAtEpochMillis = cursor.getLong(addedIndex),
                 )
             }
@@ -237,6 +244,7 @@ class NamiDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
                 source_anime_id TEXT NOT NULL,
                 title TEXT NOT NULL,
                 cover_url TEXT,
+                source_state TEXT,
                 added_at INTEGER NOT NULL,
                 UNIQUE(source_id, source_anime_id)
             )""".trimIndent(),
@@ -314,7 +322,7 @@ class NamiDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, 
 
     companion object {
         private const val DATABASE_NAME = "nami.db"
-        private const val VERSION = 3
+        private const val VERSION = 4
 
         private val DOWNLOAD_COLUMNS = arrayOf(
             "id",

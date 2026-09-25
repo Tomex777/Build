@@ -8,6 +8,8 @@ data class AnimeSearchResult(
     val title: String,
     val coverUrl: String? = null,
     val description: String? = null,
+    /** Opaque source-owned state used to reopen this item after process death. */
+    val sourceState: String? = null,
 )
 
 data class AnimeDetails(
@@ -20,6 +22,8 @@ data class AnimeDetails(
     val genres: List<String> = emptyList(),
     /** Source page used by the Aniyomi-style WebView action. */
     val webUrl: String? = null,
+    /** Updated opaque source-owned state to persist with a library entry. */
+    val sourceState: String? = null,
 )
 
 data class EpisodeRef(

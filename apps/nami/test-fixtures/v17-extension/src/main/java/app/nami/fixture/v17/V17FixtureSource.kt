@@ -8,6 +8,10 @@ import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SAnimeEpisodeUpdate
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.content
+import kotlinx.serialization.json.jsonPrimitive
 
 class V17FixtureSource : AnimeSource {
     override val id: Long = 17_000_001L
@@ -29,6 +33,7 @@ class V17FixtureSource : AnimeSource {
                     genre = "Action, Test"
                     status = SAnime.ONGOING
                     initialized = true
+                    memo = JsonObject(mapOf("token" to JsonPrimitive(REQUIRED_TOKEN)))
                 },
             ),
             hasNextPage = false,
@@ -41,6 +46,10 @@ class V17FixtureSource : AnimeSource {
         fetchDetails: Boolean,
         fetchEpisodes: Boolean,
     ): SAnimeEpisodeUpdate {
+        check(anime.memo["token"]?.jsonPrimitive?.content == REQUIRED_TOKEN) {
+            "Fixture memo token was not restored"
+        }
+
         val updatedAnime = anime.copy().apply {
             if (fetchDetails) {
                 title = "Fixture Details"
@@ -78,5 +87,8 @@ class V17FixtureSource : AnimeSource {
                 videoList = listOf(copied),
             ),
         )
+    }
+    companion object {
+        private const val REQUIRED_TOKEN = "nami-v17-state"
     }
 }

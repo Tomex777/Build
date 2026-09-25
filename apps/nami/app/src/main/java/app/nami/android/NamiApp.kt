@@ -745,6 +745,7 @@ private fun LibraryScreen(
                             ref = entry.ref,
                             title = entry.title,
                             coverUrl = entry.coverUrl,
+                            sourceState = entry.sourceState,
                         ),
                         onClick = {
                             val source = sources.firstOrNull { it.metadata.id == entry.ref.sourceId }
@@ -755,6 +756,7 @@ private fun LibraryScreen(
                                         ref = entry.ref,
                                         title = entry.title,
                                         coverUrl = entry.coverUrl,
+                                        sourceState = entry.sourceState,
                                     ),
                                 )
                             } else {

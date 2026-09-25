@@ -12,8 +12,21 @@ interface NamiAnimeSource {
     val metadata: SourceMetadata
 
     suspend fun search(query: String, page: Int = 1): SourcePage<AnimeSearchResult>
+
     suspend fun details(anime: AnimeRef): AnimeDetails
+
+    suspend fun details(
+        anime: AnimeRef,
+        sourceState: String?,
+    ): AnimeDetails = details(anime)
+
     suspend fun episodes(anime: AnimeRef): List<AnimeEpisode>
+
+    suspend fun episodes(
+        anime: AnimeRef,
+        sourceState: String?,
+    ): List<AnimeEpisode> = episodes(anime)
+
     suspend fun resolve(episode: EpisodeRef): List<ResolvedMedia>
 }
 

@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.nami.compat.aniyomi.AniyomiExtensionRegistry
+import app.nami.data.local.NamiDatabase
 import app.nami.domain.AnimeRef
 import app.nami.runtime.GlobalAnimeSearch
 import app.nami.runtime.NamiSourceRegistry
@@ -120,7 +121,7 @@ class AniyomiCompatibilitySmokeTest {
     }
 
     @Test
-    fun installedV17FixtureCrossesClassloaderBoundary() = runBlocking<Unit> {
+    fun installedV17FixturePersistsOpaqueStateAcrossAdapterAndDatabaseRecreation() = runBlocking<Unit> {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val installed = AniyomiExtensionRegistry(context).installedSources()
         val fixture = installed.firstOrNull {
@@ -131,14 +132,25 @@ class AniyomiCompatibilitySmokeTest {
         fixture!!
         assertEquals(17, fixture.metadata.extensionApiVersion)
 
-        val results = withTimeout(10_000) { fixture.search("Bleach").items }
-        assertEquals(1, results.size)
-        assertTrue(results.single().title.contains("Bleach", ignoreCase = true))
+        val result = withTimeout(10_000) { fixture.search("Bleach").items.single() }
+        assertTrue(result.title.contains("Bleach", ignoreCase = true))
+        assertTrue(
+            "v17 search result did not expose opaque source state",
+            !result.sourceState.isNullOrBlank(),
+        )
 
-        val details = withTimeout(10_000) { fixture.details(results.single().ref) }
+        val details = withTimeout(10_000) {
+            fixture.details(result.ref, result.sourceState)
+        }
         assertEquals("Fixture Details", details.title)
+        assertTrue(
+            "v17 details did not carry updated opaque source state",
+            !details.sourceState.isNullOrBlank(),
+        )
 
-        val episodes = withTimeout(10_000) { fixture.episodes(results.single().ref) }
+        val episodes = withTimeout(10_000) {
+            fixture.episodes(details.ref, details.sourceState)
+        }
         assertEquals(1, episodes.size)
         assertEquals("Fixture Episode 1", episodes.single().title)
 
@@ -147,10 +159,54 @@ class AniyomiCompatibilitySmokeTest {
         assertEquals("https://example.invalid/fixture-v17.mp4", media.single().url)
         assertEquals("1080p", media.single().quality)
 
+        val database = NamiDatabase(context)
+        try {
+            database.removeFromLibrary(details.ref)
+            database.addToLibrary(details)
+        } finally {
+            database.close()
+        }
+
+        val reopenedEntry = NamiDatabase(context).use { reopened ->
+            reopened.getLibraryEntries().first {
+                it.ref.sourceId == details.ref.sourceId &&
+                    it.ref.sourceAnimeId == details.ref.sourceAnimeId
+            }
+        }
+        assertTrue(
+            "Library database did not persist opaque source state",
+            !reopenedEntry.sourceState.isNullOrBlank(),
+        )
+
+        // Fresh registry => fresh adapter caches. Details/episodes can only succeed if DB state
+        // reconstructs SAnime.memo correctly.
+        val freshFixture = AniyomiExtensionRegistry(context)
+            .installedSources()
+            .first {
+                it.metadata.extensionPackage == "app.nami.fixture.v17"
+            }
+
+        val reopenedDetails = withTimeout(10_000) {
+            freshFixture.details(reopenedEntry.ref, reopenedEntry.sourceState)
+        }
+        assertEquals("Fixture Details", reopenedDetails.title)
+
+        val reopenedEpisodes = withTimeout(10_000) {
+            freshFixture.episodes(
+                reopenedDetails.ref,
+                reopenedDetails.sourceState ?: reopenedEntry.sourceState,
+            )
+        }
+        assertEquals("Fixture Episode 1", reopenedEpisodes.single().title)
+
+        NamiDatabase(context).use { cleanup ->
+            cleanup.removeFromLibrary(reopenedEntry.ref)
+        }
+
         Log.i(
             "NamiSourceSmoke",
-            "v17Fixture source=${fixture.metadata.id} results=${results.size} " +
-                "episodes=${episodes.size} media=${media.size}",
+            "v17Fixture persistedState=true source=${fixture.metadata.id} " +
+                "episodes=${episodes.size} reopenedEpisodes=${reopenedEpisodes.size} media=${media.size}",
         )
     }
 

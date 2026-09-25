@@ -270,13 +270,22 @@ internal class LegacyAnimeSourceAdapter(
                 title = anime.title,
                 coverUrl = anime.thumbnail_url,
                 description = anime.description,
+                sourceState = LegacyAnimeStateCodec.encode(anime),
             )
         }
         return SourcePage(mapped, result.hasNextPage)
     }
 
-    override suspend fun details(anime: AnimeRef): AnimeDetails {
-        val sourceAnime = animeCache[anime.sourceAnimeId] ?: restoreAnime(anime.sourceAnimeId)
+    override suspend fun details(anime: AnimeRef): AnimeDetails =
+        details(anime, sourceState = null)
+
+    override suspend fun details(
+        anime: AnimeRef,
+        sourceState: String?,
+    ): AnimeDetails {
+        val sourceAnime = animeCache[anime.sourceAnimeId]
+            ?: LegacyAnimeStateCodec.decode(sourceState)
+            ?: restoreAnime(anime.sourceAnimeId)
         val updated = when {
             extensionApiVersion >= 17 -> source.getAnimeEpisodeUpdate(
                 anime = sourceAnime,
@@ -315,11 +324,20 @@ internal class LegacyAnimeSourceAdapter(
                 ?.filter(String::isNotEmpty)
                 .orEmpty(),
             webUrl = (source as? AnimeHttpSource)?.getAnimeUrl(updated),
+            sourceState = LegacyAnimeStateCodec.encode(updated),
         )
     }
 
-    override suspend fun episodes(anime: AnimeRef): List<AnimeEpisode> {
-        val sourceAnime = animeCache[anime.sourceAnimeId] ?: restoreAnime(anime.sourceAnimeId)
+    override suspend fun episodes(anime: AnimeRef): List<AnimeEpisode> =
+        episodes(anime, sourceState = null)
+
+    override suspend fun episodes(
+        anime: AnimeRef,
+        sourceState: String?,
+    ): List<AnimeEpisode> {
+        val sourceAnime = animeCache[anime.sourceAnimeId]
+            ?: LegacyAnimeStateCodec.decode(sourceState)
+            ?: restoreAnime(anime.sourceAnimeId)
         val sourceEpisodes = when {
             extensionApiVersion >= 17 -> source.getAnimeEpisodeUpdate(
                 anime = sourceAnime,

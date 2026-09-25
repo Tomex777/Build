@@ -125,16 +125,22 @@ fun NamiAnimeDetailsScreen(
         }
     }
 
-    LaunchedEffect(item.ref) {
+    LaunchedEffect(item.ref, item.sourceState) {
         loading = true
         error = null
         runCatching {
-            val loadedDetails = source.details(item.ref)
-            val loadedEpisodes = source.episodes(item.ref)
+            val loadedDetails = source.details(item.ref, item.sourceState)
+            val loadedEpisodes = source.episodes(
+                loadedDetails.ref,
+                loadedDetails.sourceState ?: item.sourceState,
+            )
             Triple(
                 loadedDetails,
                 loadedEpisodes,
-                withContext(Dispatchers.IO) { database.isInLibrary(item.ref) },
+                withContext(Dispatchers.IO) {
+                    database.isInLibrary(item.ref) ||
+                        (loadedDetails.ref != item.ref && database.isInLibrary(loadedDetails.ref))
+                },
             )
         }.onSuccess {
             details = it.first
