@@ -1,0 +1,136 @@
+name: KayoAnime ReZero S4 map
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/kayoanime-rezero-s4-map.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install probe deps
+        run: |
+          python3 -m pip install --quiet requests beautifulsoup4 gdown
+
+      - name: Trace KayoAnime to Drive file
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          python3 - <<'PY'
+          import requests, json, re, html, os, urllib.parse
+          from bs4 import BeautifulSoup
+          import gdown
+
+          PAGE="https://kayoanime.com/rezero-starting-life-in-another-world-season-4-episode-4-english-subbed/"
+          UA="Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
+          sess=requests.Session()
+          sess.headers.update({"User-Agent":UA,"Accept-Language":"en-US,en;q=0.9"})
+          out={"page":{},"season4":{},"episode4":{}}
+
+          r=sess.get(PAGE,timeout=30)
+          out["page"]={"status":r.status_code,"finalUrl":r.url,"contentType":r.headers.get("content-type"),"bytes":len(r.content)}
+          soup=BeautifulSoup(r.text,"html.parser")
+
+          # Type field and all season drive links.
+          text=soup.get_text(" ",strip=True)
+          tm=re.search(r"Type:\s*([^\n]+?)(?:Episodes:|Status:|Aired:)",text,re.I)
+          out["page"]["declaredType"]=tm.group(1).strip() if tm else None
+          seasons=[]
+          s4=None
+          for a in soup.find_all("a",href=True):
+              label=" ".join(a.stripped_strings)
+              href=a["href"]
+              if "drive.google.com" in href and re.fullmatch(r"Season\s*\d+",label,re.I):
+                  item={"label":label,"host":urllib.parse.urlparse(href).netloc,"path":urllib.parse.urlparse(href).path}
+                  seasons.append(item)
+                  if re.fullmatch(r"Season\s*4",label,re.I):
+                      s4=href
+          out["page"]["seasonLinks"]=seasons
+          out["page"]["hasSeason4"]=bool(s4)
+          if not s4:
+              json.dump(out,open("diagnostics/kayoanime-rezero-s4-map.json","w"),indent=2)
+              print(json.dumps(out,indent=2))
+              raise SystemExit(2)
+
+          # Parse the public Drive folder without downloading the media.
+          gd_sess=gdown._get_session(proxy=None,use_cookies=False,user_agent=UA)
+          try:
+              rc, root = gdown._download_and_parse_google_drive_link(gd_sess,s4)
+              tree=gdown._get_directory_structure(root,os.getcwd())
+          except Exception as e:
+              out["season4"]["parseError"]=repr(e)
+              json.dump(out,open("diagnostics/kayoanime-rezero-s4-map.json","w"),indent=2)
+              print(json.dumps(out,indent=2))
+              raise
+
+          files=[]
+          for item in tree:
+              # gdown currently returns tuples whose first two values are id and path/name.
+              fid=item[0] if len(item)>0 else None
+              fname=None
+              for v in item[1:]:
+                  if isinstance(v,str) and (".mkv" in v.lower() or ".mp4" in v.lower() or "episode" in v.lower() or "s04e" in v.lower()):
+                      fname=v
+                      break
+              if fname is None and len(item)>1:
+                  fname=str(item[1])
+              files.append({"idPresent":bool(fid),"name":os.path.basename(fname or "")})
+
+          out["season4"]["fileCount"]=len(files)
+          out["season4"]["files"]=[{"name":x["name"]} for x in files]
+
+          candidates=[]
+          for i,x in enumerate(files):
+              n=x["name"].lower()
+              if re.search(r"(s0?4e0?4|episode\s*0?4|\b0?4\b)",n):
+                  candidates.append((i,x))
+          if not candidates and len(files)>=4:
+              candidates=[(3,files[3])]
+          out["season4"]["episode4CandidateCount"]=len(candidates)
+
+          if candidates:
+              idx,x=candidates[0]
+              fid=tree[idx][0]
+              out["episode4"]["name"]=x["name"]
+              out["episode4"]["extension"]=os.path.splitext(x["name"])[1].lower()
+
+              # Resolve Drive's public download route but only fetch a tiny prefix.
+              # gdown handles the confirm/download URL generation; we cap at 64 KiB.
+              url=f"https://drive.google.com/uc?id={fid}&export=download"
+              rr=gd_sess.get(url,stream=True,allow_redirects=True,timeout=40)
+              out["episode4"]["httpStatus"]=rr.status_code
+              out["episode4"]["finalHost"]=urllib.parse.urlparse(rr.url).netloc
+              out["episode4"]["contentType"]=rr.headers.get("Content-Type")
+              out["episode4"]["contentLength"]=rr.headers.get("Content-Length")
+              out["episode4"]["contentDisposition"]=rr.headers.get("Content-Disposition")
+              first=b""
+              try:
+                  for chunk in rr.iter_content(65536):
+                      first+=chunk
+                      if len(first)>=65536: break
+              finally:
+                  rr.close()
+              out["episode4"]["firstBytes"]=first[:16].hex()
+              out["episode4"]["prefixBytesRead"]=len(first)
+
+          json.dump(out,open("diagnostics/kayoanime-rezero-s4-map.json","w"),indent=2)
+          print(json.dumps(out,indent=2))
+          PY
+
+      - name: Commit result
+        if: always()
+        run: |
+          test -f diagnostics/kayoanime-rezero-s4-map.json || echo '{"error":"no result"}' > diagnostics/kayoanime-rezero-s4-map.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/kayoanime-rezero-s4-map.json
+          git commit -m "record KayoAnime ReZero S4 resolver map" || true
+          git push || true
