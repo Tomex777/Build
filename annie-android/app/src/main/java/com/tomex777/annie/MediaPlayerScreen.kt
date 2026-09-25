@@ -313,7 +313,9 @@ internal fun MediaPlayerScreen(
                         layout.post {
                             if (attachedPlayer !== player) {
                                 runCatching { attachedPlayer?.detachViews() }
-                                val attached = runCatching { player.attachViews(layout, null, true, false) }.isSuccess
+                                // TextureView composes inside Annie's full-screen controls layer and
+                                // avoids SurfaceView's separate-window ordering with Compose overlays.
+                                val attached = runCatching { player.attachViews(layout, null, true, true) }.isSuccess
                                 if (attached) {
                                     attachedPlayer = player
                                     runCatching { player.setVideoScale(scaleMode.scale) }
