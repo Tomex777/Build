@@ -140,11 +140,11 @@ internal fun AnnieChat() {
     var draft by remember { mutableStateOf("") }
     var activeSheet by remember { mutableStateOf<String?>(null) }
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-    val listState = remember(activeChatId, keyboardVisible.takeIf { messages.size <= 1 }) { LazyListState() }
+    val listState = remember(activeChatId) { LazyListState() }
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { ChatHistoryStore.write(context, chats) }
-    LaunchedEffect(activeChatId, messages.size, keyboardVisible) {
-        if (messages.size <= 1) listState.scrollToItem(0)
+    LaunchedEffect(activeChatId) {
+        if (messages.isNotEmpty()) listState.scrollToItem(messages.lastIndex)
     }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -315,7 +315,6 @@ internal fun AnnieChat() {
                 value = draft,
                 onValueChange = {
                     draft = it
-                    if (messages.size <= 1) scope.launch { listState.scrollToItem(0) }
                 },
                 onSuggestionSelected = { draft = "$it " },
                 onSend = { submit() },
