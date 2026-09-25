@@ -20,3 +20,4 @@ Add TMDB movie discovery with explicit API-token configuration
 rerun 40 - verify personalized music feed and chapter-top navigation on current UI fixes
 rerun 41 - validate Bible Next starts at verse one using deterministic cached chapters
 rerun 42 - verify chapter-top navigation with seeded Bible cache
+rerun 43 - rerun hub with the corrected seeded Bible smoke script
