@@ -83,6 +83,7 @@ jobs:
           source_file=src/en/animesogov17/src/eu/kanade/tachiyomi/animeextension/en/animesogo/AnimeSogo.kt
           test -f "$source_file"
           grep -q "package eu.kanade.tachiyomi.animeextension.en.animesogov17" "$source_file"
+          gradle --no-daemon --console=plain :src:en:animesogov17:assembleDebug
           find src/en/animesogov17/build/outputs/apk/debug -maxdepth 1 -name '*.apk' -print -quit | grep -q .
       - uses: actions/upload-artifact@v4
         with:
