@@ -21,8 +21,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -69,7 +67,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -140,15 +137,7 @@ internal fun AnnieChat() {
     var activeSheet by remember { mutableStateOf<String?>(null) }
     val listState = remember(activeChatId) { LazyListState() }
     val scope = rememberCoroutineScope()
-    val density = LocalDensity.current
-    val keyboardVisible = WindowInsets.ime.getBottom(density) > 0
     LaunchedEffect(Unit) { ChatHistoryStore.write(context, chats) }
-    LaunchedEffect(activeChatId) {
-        if (messages.size <= 1) listState.scrollToItem(0)
-    }
-    LaunchedEffect(activeChatId, messages.size, keyboardVisible) {
-        if (messages.size > 1) listState.animateScrollToItem(messages.lastIndex)
-    }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     fun persistHistory() {
