@@ -216,7 +216,7 @@ fun SpotuiApp() {
                         source.search(artist.name).getOrNull()?.take(6)?.let { addAll(it) }
                     }
                 }
-                homeTracks = taste.rank((personal + base).distinctBy(Track::id))
+                homeTracks = taste.homeMix(personal, base)
             }
             .onFailure { error = it.message ?: "Could not load music" }
         loading = false
