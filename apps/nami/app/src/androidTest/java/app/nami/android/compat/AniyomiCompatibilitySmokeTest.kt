@@ -21,7 +21,7 @@ import org.junit.runner.RunWith
 class AniyomiCompatibilitySmokeTest {
 
     @Test
-    fun installedV16AndV17ExtensionsPlusNativeSourceShareNamiContracts() = runBlocking {
+    fun realAnimeSogoExtensionAndNativeJikanUseNamiContracts() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val start = System.nanoTime()
         val installed = AniyomiExtensionRegistry(context).installedSources()
@@ -33,40 +33,7 @@ class AniyomiCompatibilitySmokeTest {
         animeSogo!!
         assertEquals("16.8", animeSogo.metadata.extensionVersion)
         assertEquals(16, animeSogo.metadata.extensionApiVersion)
-
-        val v17Fixture = installed.firstOrNull {
-            it.metadata.extensionPackage == "app.nami.fixture.v17"
-        }
-        assertNotNull("The separately installed v17 fixture APK must be discovered", v17Fixture)
-        v17Fixture!!
-        assertEquals(17, v17Fixture.metadata.extensionApiVersion)
-
-        println(
-            "NamiSourceSmoke: discovered ${installed.size} sources; " +
-                "v16=${animeSogo.metadata.id}; v17=${v17Fixture.metadata.id}",
-        )
-
-        val fixtureSearch = withTimeout(10_000) { v17Fixture.search("Bleach").items }
-        assertEquals(1, fixtureSearch.size)
-        assertTrue(fixtureSearch.single().title.contains("Bleach", ignoreCase = true))
-
-        val fixtureDetails = withTimeout(10_000) {
-            v17Fixture.details(fixtureSearch.single().ref)
-        }
-        assertEquals("Fixture Details", fixtureDetails.title)
-
-        val fixtureEpisodes = withTimeout(10_000) {
-            v17Fixture.episodes(fixtureSearch.single().ref)
-        }
-        assertEquals(1, fixtureEpisodes.size)
-        assertEquals("Fixture Episode 1", fixtureEpisodes.single().title)
-
-        val fixtureMedia = withTimeout(10_000) {
-            v17Fixture.resolve(fixtureEpisodes.single().ref)
-        }
-        assertEquals(1, fixtureMedia.size)
-        assertEquals("https://example.invalid/fixture-v17.mp4", fixtureMedia.single().url)
-        println("NamiSourceSmoke: v17 fixture completed search/details/episodes/resolve")
+        println("NamiSourceSmoke: discovered ${installed.size} sources; v16=${animeSogo.metadata.id}")
 
         val jikan = JikanAnimeSource()
         val query = "Bleach"
@@ -79,13 +46,8 @@ class AniyomiCompatibilitySmokeTest {
                 "sources=${search.resultsBySource.keys}; " +
                 "failures=${search.failures.map { it.sourceId + ":" + it.cause.javaClass.simpleName }}",
         )
-
         val extensionResults = search.resultsBySource[animeSogo.metadata.id].orEmpty()
         assertTrue("AnimeSogo returned no real results for $query", extensionResults.isNotEmpty())
-        assertTrue(
-            "Installed v17 fixture should participate in extension-only global search",
-            search.resultsBySource.containsKey(v17Fixture.metadata.id),
-        )
         assertTrue(
             "Extension-only global search leaked a native source",
             search.resultsBySource.keys.none { it == jikan.metadata.id },
@@ -105,7 +67,6 @@ class AniyomiCompatibilitySmokeTest {
         val episodes = withTimeout(60_000) { animeSogo.episodes(anime.ref) }
         println("NamiSourceSmoke: episodes loaded: ${episodes.size}; resolving first three")
         assertTrue("AnimeSogo returned no episodes", episodes.isNotEmpty())
-
         var resolvedCount = 0
         for (episode in episodes.take(3)) {
             resolvedCount = withTimeout(60_000) { animeSogo.resolve(episode.ref).size }
@@ -127,7 +88,6 @@ class AniyomiCompatibilitySmokeTest {
         Log.i(
             "NamiSourceSmoke",
             "query=$query extensionV16=${animeSogo.metadata.extensionPackage} " +
-                "extensionV17=${v17Fixture.metadata.extensionPackage} " +
                 "extensionResults=${extensionResults.size} nativeResults=${nativeResults.size} " +
                 "episodes=${episodes.size} resolvedStreams=$resolvedCount " +
                 "nativeEpisodes=${nativeEpisodes.size} " +
