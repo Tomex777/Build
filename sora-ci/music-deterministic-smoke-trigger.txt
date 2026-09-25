@@ -11,3 +11,4 @@ rerun 46 - retest Music against restored MediaScreen
 Revalidate music after shared catalog UI changes
 Revalidate Music after final shared app changes
 rerun 36 - validate Juice WRLD taste search and smooth playback seeking
+rerun 37 - verify next-track and seek with the full Juice WRLD demo queue
