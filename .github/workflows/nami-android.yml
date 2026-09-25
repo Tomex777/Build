@@ -80,7 +80,83 @@ jobs:
             -e "s/extName = 'AnimeSogo'/extName = 'AnimeSogo v17 compatibility probe'/" \
             -e 's/eu.kanade.tachiyomi.animeextension.en.animesogo/eu.kanade.tachiyomi.animeextension.en.animesogov17/g'
           test "$(grep -c 'libVersion = 17' src/en/animesogov17/build.gradle)" -eq 1
-          test -f src/en/animesogov17/src/eu/kanade/tachiyomi/animeextension/en/animesogov17/AnimeSogo.kt
+          source_file=src/en/animesogov17/src/eu/kanade/tachiyomi/animeextension/en/animesogo/AnimeSogo.kt
+          test -f "$source_file"
+          grep -q '^package eu\.kanade\.tachiyomi\.animeextension\.en\.animesogov17
+          find src/en/animesogov17/build/outputs/apk/debug -maxdepth 1 -name '*.apk' -print -quit | grep -q .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nami-animesogo-v17-extension
+          path: v17-source/src/en/animesogov17/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+  extension-compat-smoke:
+    needs: build-animesogo-v17
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools emulator
+      - name: Install Android emulator image and SDK platform
+        shell: bash
+        run: |
+          set -euo pipefail
+          packages=(
+            "platforms;android-30"
+            "platforms;android-36"
+            "build-tools;35.0.0"
+            "system-images;android-30;default;x86_64"
+          )
+          for attempt in 1 2 3; do
+            if sdkmanager "${packages[@]}"; then
+              exit 0
+            fi
+            echo "SDK install attempt ${attempt} failed; clearing the partial system image before retry."
+            rm -rf "${ANDROID_SDK_ROOT}/system-images/android-30/default/x86_64" || true
+            sleep 10
+          done
+          exit 1
+      - name: Download real Aniyomi-compatible AnimeSogo extension
+        run: curl --fail --location --retry 3 --output /tmp/animesogo.apk https://raw.githubusercontent.com/mojuru/anime-repo/ae5dcf8f2c6adc32735f818fc9a3eb051b06c5c6/apk/aniyomi-en.animesogo-v16.8.apk
+      - name: Download source-built real v17 extension
+        uses: actions/download-artifact@v4
+        with:
+          name: nami-animesogo-v17-extension
+          path: /tmp/nami-animesogo-v17
+      - name: Build extension smoke-test APKs before emulator startup
+        working-directory: apps/nami
+        run: gradle --no-daemon --console=plain :app:assembleDebug :app:assembleDebugAndroidTest :test-fixtures:v17-extension:assembleDebug :test-fixtures:v14-extension:assembleDebug
+      - name: Run real extension and native-source smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: default
+          arch: x86_64
+          emulator-boot-timeout: 900
+          disable-animations: true
+          script: >-
+            bash -euo pipefail -c 'echo NAMI_STAGE=install_extension_v14; timeout 300s adb install -r apps/nami/test-fixtures/v14-extension/build/outputs/apk/debug/v14-extension-debug.apk; echo NAMI_STAGE=install_extension_v16; timeout 300s adb install -r /tmp/animesogo.apk; echo NAMI_STAGE=install_extension_v17_real; timeout 300s adb install -r /tmp/nami-animesogo-v17/*.apk; echo NAMI_STAGE=install_extension_v17_fixture; timeout 300s adb install -r apps/nami/test-fixtures/v17-extension/build/outputs/apk/debug/v17-extension-debug.apk; echo NAMI_STAGE=install_nami; timeout 300s adb install -r apps/nami/app/build/outputs/apk/debug/app-debug.apk; echo NAMI_STAGE=install_instrumentation; timeout 300s adb install -r apps/nami/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk; echo NAMI_STAGE=launch_app; launch_result=0; timeout 30s adb shell am start -n app.nami.android/.MainActivity || launch_result=$?; sleep 5; app_pid=$(timeout 90s adb shell pidof app.nami.android || true); echo NAMI_APP_PID=$app_pid; if [ -z "$app_pid" ] || [ "$launch_result" -ne 0 ]; then echo NAMI_LAUNCH_FAILURE=$launch_result; timeout 60s adb logcat -d -v time -t 500 *:E; exit 1; fi; echo NAMI_STAGE=capture_launch; timeout 60s adb exec-out screencap -p > "$GITHUB_WORKSPACE/nami-emulator-launch.png" || true; echo NAMI_STAGE=run_instrumentation; set +e; output=$(timeout 600s adb shell am instrument -w -r -e class app.nami.android.compat.AniyomiCompatibilitySmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1); result=$?; set -e; printf "%s\n" "$output" | tee "$GITHUB_WORKSPACE/nami-instrumentation.txt"; timeout 60s adb logcat -d -v time | tee "$GITHUB_WORKSPACE/nami-smoke-logcat.txt" >/dev/null || true; timeout 60s adb logcat -d -s NamiAniyomiCompat:W NamiSourceSmoke:I AndroidRuntime:E ActivityManager:E; if [ "$result" -ne 0 ]; then exit "$result"; fi; echo "$output" | grep -Eq 'OK .+ tests?' || { echo Instrumentation_did_not_report_a_passing_test; exit 1; }'
+
+      - name: Upload emulator smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nami-emulator-smoke-evidence
+          path: |
+            nami-emulator-launch.png
+            nami-instrumentation.txt
+            nami-smoke-logcat.txt
+          if-no-files-found: ignore
+ "$source_file"
           gradle --no-daemon --console=plain :src:en:animesogov17:assembleDebug
           find src/en/animesogov17/build/outputs/apk/debug -maxdepth 1 -name '*.apk' -print -quit | grep -q .
       - uses: actions/upload-artifact@v4
