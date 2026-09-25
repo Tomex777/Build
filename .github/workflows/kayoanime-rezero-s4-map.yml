@@ -63,14 +63,96 @@ jobs:
               s4=S4_DIRECT
               out["page"]["usedVerifiedSeason4Direct"]=True
 
-          # Parse the public Drive folder without downloading the media.
-          gd_sess=gdown._get_session(proxy=None,use_cookies=False,user_agent=UA)
-          try:
-              rc, root = gdown._download_and_parse_google_drive_link(gd_sess,s4)
-              tree=gdown._get_directory_structure(root,os.getcwd())
-          except Exception as e:
-              out["season4"]["parseError"]=repr(e)
+          # List the public Drive folder without downloading file bodies.
+          import subprocess
+          listing_cmd=["gdown",s4,"--json","--no-cookies"]
+          lp=subprocess.run(listing_cmd,capture_output=True,text=True,timeout=90)
+          out["season4"]["listingExit"]=lp.returncode
+          out["season4"]["listingStderr"]=lp.stderr[-3000:]
+          if lp.returncode!=0:
               json.dump(out,open("diagnostics/kayoanime-rezero-s4-map.json","w"),indent=2)
+              print(json.dumps(out,indent=2))
+              raise SystemExit(3)
+
+          try:
+              listing=json.loads(lp.stdout)
+          except Exception as e:
+              out["season4"]["listingParseError"]=repr(e)
+              out["season4"]["listingPreview"]=lp.stdout[:2000]
+              json.dump(out,open("diagnostics/kayoanime-rezero-s4-map.json","w"),indent=2)
+              print(json.dumps(out,indent=2))
+              raise
+
+          files=[]
+          for item in listing:
+              path=item.get("path") or ""
+              url=item.get("url") or ""
+              files.append({
+                  "name":os.path.basename(path),
+                  "path":path,
+                  "url":url
+              })
+          out["season4"]["fileCount"]=len(files)
+          out["season4"]["files"]=[{"name":x["name"],"path":x["path"]} for x in files]
+
+          candidates=[]
+          for x in files:
+              n=x["name"].lower()
+              if re.search(r"(s0?4e0?4|episode\s*0?4|(?:^|[^0-9])0?4(?:[^0-9]|$))",n):
+                  candidates.append(x)
+          if not candidates and len(files)>=4:
+              candidates=[files[3]]
+          out["season4"]["episode4CandidateCount"]=len(candidates)
+
+          if candidates:
+              x=candidates[0]
+              out["episode4"]["name"]=x["name"]
+              out["episode4"]["path"]=x["path"]
+              out["episode4"]["extension"]=os.path.splitext(x["name"])[1].lower()
+
+              # The listing URL is the file target gdown would download.
+              # Test Drive's public download response with HEAD + small byte range.
+              furl=x["url"]
+              pu=urllib.parse.urlparse(furl)
+              out["episode4"]["listedHost"]=pu.netloc
+              out["episode4"]["listedPath"]=pu.path
+
+              rs=requests.Session()
+              rs.headers.update({"User-Agent":UA})
+              try:
+                  hr=rs.head(furl,allow_redirects=True,timeout=40)
+                  out["episode4"]["head"]={
+                      "status":hr.status_code,
+                      "finalHost":urllib.parse.urlparse(hr.url).netloc,
+                      "contentType":hr.headers.get("Content-Type"),
+                      "contentLength":hr.headers.get("Content-Length"),
+                      "contentDisposition":hr.headers.get("Content-Disposition"),
+                      "acceptRanges":hr.headers.get("Accept-Ranges")
+                  }
+              except Exception as e:
+                  out["episode4"]["headError"]=repr(e)
+
+              try:
+                  rr=rs.get(furl,headers={"Range":"bytes=0-65535"},stream=True,allow_redirects=True,timeout=50)
+                  first=b""
+                  for chunk in rr.iter_content(65536):
+                      first+=chunk
+                      if len(first)>=65536: break
+                  out["episode4"]["range"]={
+                      "status":rr.status_code,
+                      "finalHost":urllib.parse.urlparse(rr.url).netloc,
+                      "contentType":rr.headers.get("Content-Type"),
+                      "contentLength":rr.headers.get("Content-Length"),
+                      "contentRange":rr.headers.get("Content-Range"),
+                      "contentDisposition":rr.headers.get("Content-Disposition"),
+                      "prefixBytesRead":len(first),
+                      "firstBytes":first[:16].hex()
+                  }
+                  rr.close()
+              except Exception as e:
+                  out["episode4"]["rangeError"]=repr(e)
+
+          json.dump(out,open("diagnostics/kayoanime-rezero-s4-map.json","w"),indent=2)
               print(json.dumps(out,indent=2))
               raise
 
