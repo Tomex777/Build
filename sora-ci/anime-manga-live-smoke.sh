@@ -7,6 +7,11 @@ mkdir -p "$OUT"
 rm -f "$FULL_LIVE_MARKER"
 
 adb uninstall com.night.sora >/dev/null 2>&1 || true
+# Keep this architecture check genuinely extension-free even if a runner image
+# ever reuses an emulator that had providers installed by another workflow.
+for package in com.night.sora.ext.live com.night.sora.ext.memes.reddit com.night.sora.ext.youtube.music com.night.sora.ext.demo; do
+  adb uninstall "$package" >/dev/null 2>&1 || true
+done
 adb install -r "$SORA_ROOT/app/build/outputs/apk/debug/app-debug.apk"
 adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
 sleep 2
@@ -187,6 +192,15 @@ wait_for_node Media 20
 tap_text Media
 wait_for_node 'Anime & Manga' 12
 shot 01-anime-initial
+
+# Core owns the Music screen and recommendation layout. With all external
+# providers removed, verify the screen is still present and renders its own
+# taste-led empty/loading state before any source is installed.
+tap_text Music
+wait_for_node 'For you' 25
+shot 01b-core-music-without-extensions
+tap_text 'Anime & Manga'
+wait_for_node 'Anime & Manga' 12
 
 # The curl probe is diagnostic only. When it reports degraded AniList, first
 # verify each tab independently. If both tabs have recovered by emulator time,
