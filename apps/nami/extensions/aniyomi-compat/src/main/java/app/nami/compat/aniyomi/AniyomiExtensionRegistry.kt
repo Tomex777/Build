@@ -149,7 +149,7 @@ class AniyomiExtensionRegistry(
     }
 }
 
-private class LegacyAnimeSourceAdapter(
+internal class LegacyAnimeSourceAdapter(
     private val packageName: String,
     private val extensionName: String,
     private val extensionVersion: String,
