@@ -146,3 +146,21 @@ internal object DownloadMediaNaming {
         return DownloadDirectoryLayout.sanitize(base) + "." + extension
     }
 }
+
+
+internal object DownloadRecoveryPolicy {
+    const val INTERRUPTED_MESSAGE = "Download was interrupted. Open the anime to retry."
+
+    fun recoverState(state: NamiDownloadState): NamiDownloadState = when (state) {
+        NamiDownloadState.QUEUED,
+        NamiDownloadState.DOWNLOADING,
+        -> NamiDownloadState.ERROR
+
+        NamiDownloadState.DOWNLOADED,
+        NamiDownloadState.ERROR,
+        -> state
+    }
+
+    fun shouldDiscardPartialTarget(state: NamiDownloadState): Boolean =
+        state == NamiDownloadState.QUEUED || state == NamiDownloadState.DOWNLOADING
+}

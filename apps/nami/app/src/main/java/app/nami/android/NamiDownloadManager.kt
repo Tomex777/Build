@@ -447,7 +447,56 @@ class NamiDownloadManager(
 
     private fun reloadFromDatabase() {
         mutableStatuses.value = database.getDownloads().associate { stored ->
-            key(stored.sourceId, stored.sourceEpisodeId) to stored.toStatus()
+            val persisted = stored.toStatus()
+            val recovered = recoverPersistedDownload(stored, persisted)
+            key(stored.sourceId, stored.sourceEpisodeId) to recovered
+        }
+    }
+
+    private fun recoverPersistedDownload(
+        stored: StoredDownload,
+        status: NamiDownloadStatus,
+    ): NamiDownloadStatus {
+        val recoveredState = DownloadRecoveryPolicy.recoverState(status.state)
+        if (recoveredState == status.state) return status
+
+        if (DownloadRecoveryPolicy.shouldDiscardPartialTarget(status.state)) {
+            discardPartialTarget(status.contentUri)
+        }
+
+        val recovered = status.copy(
+            contentUri = null,
+            state = recoveredState,
+            progress = 0,
+            errorMessage = DownloadRecoveryPolicy.INTERRUPTED_MESSAGE,
+        )
+
+        database.upsertDownload(
+            sourceId = stored.sourceId,
+            extensionName = stored.extensionName,
+            sourceAnimeId = stored.sourceAnimeId,
+            sourceEpisodeId = stored.sourceEpisodeId,
+            relativePath = stored.relativePath,
+            displayName = stored.displayName,
+            contentUri = null,
+            mimeType = stored.mimeType,
+            state = recovered.state.name,
+            progress = recovered.progress,
+            errorMessage = recovered.errorMessage,
+        )
+
+        return recovered
+    }
+
+    private fun discardPartialTarget(uriString: String?) {
+        if (uriString.isNullOrBlank()) return
+
+        runCatching {
+            val uri = Uri.parse(uriString)
+            when (uri.scheme?.lowercase()) {
+                "content" -> context.contentResolver.delete(uri, null, null)
+                "file" -> uri.path?.let(::File)?.delete()
+            }
         }
     }
 

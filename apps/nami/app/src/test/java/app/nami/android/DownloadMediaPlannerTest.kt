@@ -124,6 +124,33 @@ class DownloadMediaPlannerTest {
     }
 
     @Test
+    fun interruptedTransfersRecoverAsErrorsButTerminalStatesStayStable() {
+        assertEquals(
+            NamiDownloadState.ERROR,
+            DownloadRecoveryPolicy.recoverState(NamiDownloadState.QUEUED),
+        )
+        assertEquals(
+            NamiDownloadState.ERROR,
+            DownloadRecoveryPolicy.recoverState(NamiDownloadState.DOWNLOADING),
+        )
+        assertEquals(
+            NamiDownloadState.DOWNLOADED,
+            DownloadRecoveryPolicy.recoverState(NamiDownloadState.DOWNLOADED),
+        )
+        assertEquals(
+            NamiDownloadState.ERROR,
+            DownloadRecoveryPolicy.recoverState(NamiDownloadState.ERROR),
+        )
+
+        assertTrue(
+            DownloadRecoveryPolicy.shouldDiscardPartialTarget(NamiDownloadState.DOWNLOADING),
+        )
+        assertFalse(
+            DownloadRecoveryPolicy.shouldDiscardPartialTarget(NamiDownloadState.DOWNLOADED),
+        )
+    }
+
+    @Test
     fun episodeFilenameIsStableSanitizedAndContainerPreserving() {
         val episode = AnimeEpisode(
             ref = EpisodeRef(
