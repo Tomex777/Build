@@ -84,8 +84,8 @@ class LocalVideoPlaybackTest {
     }
 
     private fun playerTimeSeconds(tag: String): Int {
-        val text = compose.onNodeWithTag(tag).fetchSemanticsNode().config
-            [SemanticsProperties.Text].joinToString("") { it.text }
+        val text = compose.onNodeWithTag(tag).fetchSemanticsNode().config[SemanticsProperties.Text]
+            .joinToString("") { it.text }
         val parts = text.split(":")
         return if (parts.size == 2) parts[0].toInt() * 60 + parts[1].toInt() else 0
     }
