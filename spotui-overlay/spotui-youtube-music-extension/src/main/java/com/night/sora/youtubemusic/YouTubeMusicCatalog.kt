@@ -27,6 +27,7 @@ object YouTubeMusicCatalog {
     private const val SOURCE_ID = "youtube.music"
     private const val TAG = "SoraYouTubeMusic"
     private const val PLAYER_ATTEMPT_TIMEOUT_MS = 15_000L
+    private const val SEARCH_TIMEOUT_MS = 12_000L
     private const val SESSION_PREFS = "sora_youtube_music_session_v1"
     private const val SESSION_COOKIE = "cookie"
     private const val SESSION_USER_AGENT = "userAgent"
@@ -137,7 +138,9 @@ object YouTubeMusicCatalog {
         requireSource(sourceId)
         ensureVisitorData()
         val clean = query.trim().ifBlank { "top songs" }
-        val result = YouTube.search(clean, YouTube.SearchFilter.FILTER_SONG).getOrThrow()
+        val result = withTimeoutOrNull(SEARCH_TIMEOUT_MS) {
+            YouTube.search(clean, YouTube.SearchFilter.FILTER_SONG).getOrThrow()
+        } ?: error("Search is unavailable right now")
         val songs = result.items.filterIsInstance<SongItem>().take(30)
         return JSONArray().apply {
             songs.forEach { song ->
@@ -391,7 +394,9 @@ object YouTubeMusicCatalog {
                     bitrate = bitrateForAudioItag(itag),
                     durationMs = ((uri.getQueryParameter("dur")?.toDoubleOrNull() ?: 0.0) * 1000.0).toLong(),
                 )
-            }.sortedByDescending { it.bitrate }
+            }.sortedByDescending {
+                it.bitrate + if (it.mimeType.contains("mp4", ignoreCase = true)) 50_000 else 0
+            }
 
             if (audioStreams.isNotEmpty()) {
                 Log.i(TAG, "newpipe resolved id=$id streams=${audioStreams.size} itags=${audioStreams.joinToString { it.itag.toString() }}")
@@ -415,7 +420,7 @@ object YouTubeMusicCatalog {
         .filter { it.isAudio && it.isOriginal && !it.url.isNullOrBlank() }
         .sortedByDescending { format ->
             (format.averageBitrate ?: format.bitrate) +
-                if (format.mimeType.startsWith("audio/webm")) 10_000 else 0
+                if (format.mimeType.contains("mp4", ignoreCase = true)) 50_000 else 0
         }
         .toList()
 
@@ -438,7 +443,7 @@ object YouTubeMusicCatalog {
             )
         }
         .sortedByDescending { stream ->
-            stream.bitrate + if (stream.mimeType.startsWith("audio/webm")) 10_000 else 0
+            stream.bitrate + if (stream.mimeType.contains("mp4", ignoreCase = true)) 50_000 else 0
         }
         .toList()
 
