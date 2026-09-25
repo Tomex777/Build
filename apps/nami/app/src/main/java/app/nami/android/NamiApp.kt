@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items as lazyItems
@@ -83,6 +84,8 @@ import app.nami.runtime.GlobalAnimeSearch
 import app.nami.runtime.GlobalSearchSection
 import app.nami.runtime.GlobalSearchState
 import app.nami.runtime.NamiSourceRegistry
+import app.nami.runtime.SourceSearchPager
+import app.nami.runtime.SourceSearchState
 import app.nami.source.NamiAnimeSource
 import app.nami.source.SourceOrigin
 import coil.compose.AsyncImage
@@ -508,21 +511,39 @@ private fun SourceSearchScreen(
 ) {
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
+    val pager = remember(route.source) { SourceSearchPager(route.source) }
+
     var query by rememberSaveable(route.source.metadata.id) { mutableStateOf(route.query) }
+    var searchState by remember(route.source.metadata.id) { mutableStateOf(SourceSearchState()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var results by remember { mutableStateOf<List<AnimeSearchResult>>(emptyList()) }
 
     fun submitSearch() {
         val submitted = query.trim()
         if (submitted.isEmpty()) return
+
         focusManager.clearFocus()
+        searchState = SourceSearchState(query = submitted)
+        loading = true
+        error = null
+
         scope.launch {
-            loading = true
-            error = null
-            runCatching { route.source.search(submitted).items }
-                .onSuccess { results = it }
+            runCatching { pager.search(submitted) }
+                .onSuccess { searchState = it }
                 .onFailure { error = it.message ?: "Unknown error" }
+            loading = false
+        }
+    }
+
+    fun loadNextPage() {
+        if (loading || !searchState.hasNextPage) return
+
+        loading = true
+        error = null
+        scope.launch {
+            runCatching { pager.next(searchState) }
+                .onSuccess { searchState = it }
+                .onFailure { error = it.message ?: "Unable to load the next page" }
             loading = false
         }
     }
@@ -569,15 +590,17 @@ private fun SourceSearchScreen(
             )
 
             when {
-                loading -> {
+                loading && searchState.items.isEmpty() -> {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
 
-                error != null -> {
+                error != null && searchState.items.isEmpty() -> {
                     EmptyCenter(text = error ?: "Unknown error")
                 }
 
-                results.isEmpty() && query.isNotBlank() -> {
+                searchState.items.isEmpty() &&
+                    searchState.query.isNotBlank() &&
+                    !loading -> {
                     EmptyCenter(text = "No results found.")
                 }
 
@@ -590,7 +613,7 @@ private fun SourceSearchScreen(
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         gridItems(
-                            items = results,
+                            items = searchState.items,
                             key = { it.ref.sourceId + "|" + it.ref.sourceAnimeId },
                         ) { item ->
                             AnimeCard(
@@ -598,6 +621,51 @@ private fun SourceSearchScreen(
                                 onClick = { onOpenAnime(item) },
                                 modifier = Modifier.fillMaxWidth(),
                             )
+                        }
+
+                        if (searchState.hasNextPage || loading || error != null) {
+                            item(
+                                key = "source-search-footer-" + searchState.loadedPage,
+                                span = { GridItemSpan(maxLineSpan) },
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    when {
+                                        loading -> CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp,
+                                        )
+
+                                        error != null -> Text(
+                                            text = "Load more failed — tap to retry",
+                                            color = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier
+                                                .clickable {
+                                                    error = null
+                                                    loadNextPage()
+                                                }
+                                                .padding(8.dp),
+                                        )
+
+                                        searchState.hasNextPage -> {
+                                            LaunchedEffect(
+                                                searchState.loadedPage,
+                                                searchState.items.size,
+                                            ) {
+                                                loadNextPage()
+                                            }
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(24.dp),
+                                                strokeWidth = 2.dp,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
