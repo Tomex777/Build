@@ -238,12 +238,21 @@ class SpotPlaybackController(
         listOf(track) + values.filterNot { it.id == track.id }.shuffled()
 
     private fun resolveAndPlay(track: Track) {
+        // Invalidate any older resolver first, then detach the previous media item.
+        // This keeps a slow/failed old stream from remaining visible or audible
+        // while the newly selected queue item is being resolved.
+        val serial = ++requestSerial
+        player.stop()
+        player.clearMediaItems()
+        streamHeaders.clear()
+        activeStreamHeaders = emptyMap()
         currentTrack = track
+        isPlaying = false
         isLoading = true
         errorMessage = null
+        streamLabel = ""
         positionMs = 0
         durationMs = 0
-        val serial = ++requestSerial
         scope.launch {
             source.resolve(track)
                 .onSuccess { stream ->
