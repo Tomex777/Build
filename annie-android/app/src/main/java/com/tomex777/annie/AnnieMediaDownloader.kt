@@ -120,7 +120,7 @@ internal object AnnieDownloadNaming {
     fun sanitize(value: String): String {
         val cleaned = value
             .replace(Regex("""[\\/:*?"<>|]"""), "_")
-            .replace(Regex("""\\s+"""), " ")
+            .replace(Regex("""\s+"""), " ")
             .trim()
             .trim('.')
         return cleaned.ifBlank { "Video" }
@@ -146,7 +146,7 @@ internal object AnnieHlsPlanner {
         val variants = mutableListOf<Pair<Long, String>>()
         lines.forEachIndexed { index, line ->
             if (!line.startsWith("#EXT-X-STREAM-INF:", ignoreCase = true)) return@forEachIndexed
-            val bandwidth = Regex("""BANDWIDTH=(\\d+)""", RegexOption.IGNORE_CASE)
+            val bandwidth = Regex("""BANDWIDTH=(\d+)""", RegexOption.IGNORE_CASE)
                 .find(line)?.groupValues?.getOrNull(1)?.toLongOrNull() ?: 0L
             val next = lines.drop(index + 1)
                 .firstOrNull { it.isNotBlank() && !it.startsWith('#') }
@@ -270,8 +270,9 @@ internal class AnnieMediaDownloader(
         initial: HttpURLConnection,
         responseMime: String?,
     ) {
+        val resolvedUrl = initial.url.toString()
         initial.disconnect()
-        val extension = AnnieDownloadNaming.extensionFor(item.sourceMimeType ?: responseMime, item.sourceUrl)
+        val extension = AnnieDownloadNaming.extensionFor(item.sourceMimeType ?: responseMime, resolvedUrl)
         val finalFile = finalFile(item, extension)
         val temp = tempFile(item)
         temp.parentFile?.mkdirs()
