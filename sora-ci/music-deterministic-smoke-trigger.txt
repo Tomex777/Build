@@ -12,3 +12,5 @@ Revalidate music after shared catalog UI changes
 Revalidate Music after final shared app changes
 rerun 36 - validate Juice WRLD taste search and smooth playback seeking
 rerun 37 - verify next-track and seek with the full Juice WRLD demo queue
+
+API 36 per-frame seekbar progress check with playback and seek
