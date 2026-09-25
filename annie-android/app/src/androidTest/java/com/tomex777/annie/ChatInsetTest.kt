@@ -25,8 +25,7 @@ class ChatInsetTest {
         compose.onNodeWithTag("slash_suggestions").assertIsDisplayed()
 
         val top = compose.onNodeWithTag("top_bar").fetchSemanticsNode().boundsInRoot
-        val conversationNode = compose.onNodeWithTag("conversation").fetchSemanticsNode()
-        val conversation = conversationNode.boundsInRoot
+        val conversation = compose.onNodeWithTag("conversation").fetchSemanticsNode().boundsInRoot
         val composer = compose.onNodeWithTag("composer").fetchSemanticsNode().boundsInRoot
         val input = compose.onNodeWithTag("composer_input").fetchSemanticsNode().boundsInRoot
         val latestMessage = compose.onNodeWithText("Hi, I’m Annie. What are you in the mood for? Type a command to start. Providers stay separate, and I’ll show clearly when one is unavailable.").fetchSemanticsNode().boundsInRoot
@@ -34,7 +33,7 @@ class ChatInsetTest {
         assertTrue("Conversation must start below the status-bar-safe top bar", conversation.top >= top.bottom)
         assertTrue("Conversation must end at the composer, without a blank gap", kotlin.math.abs(composer.top - conversation.bottom) <= 2f)
         val startOffsetPx = latestMessage.top - conversation.top
-        assertTrue("Conversation messages should begin below the header and flow down from the top ($startOffsetPx px); conversation=${conversationNode.config}",
+        assertTrue("Conversation messages should begin below the header and flow down from the top ($startOffsetPx px)",
             startOffsetPx in 0f..180f)
         assertTrue("With only the welcome message, content should not be bottom anchored", latestMessage.bottom < composer.top - 180f)
         assertTrue("Composer must remain above the keyboard while focused", input.bottom <= composer.bottom)
