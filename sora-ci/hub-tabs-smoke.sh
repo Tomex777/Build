@@ -7,41 +7,41 @@ adb wait-for-device
 adb install -r "$SORA_ROOT/live-extension/build/outputs/apk/debug/live-extension-debug.apk" >/dev/null
 adb install -r "$SORA_ROOT/meme-extension/build/outputs/apk/debug/meme-extension-debug.apk" >/dev/null
 adb install -r "$SORA_ROOT/app/build/outputs/apk/debug/app-debug.apk" >/dev/null
-+# Seed only this CI emulator's Bible cache so chapter navigation is independent
-+# of bible-api.com availability and the smoke test exercises the actual reader.
-+python3 - <<'PY'
-+import json
-+import xml.etree.ElementTree as ET
-+
-+root = ET.Element("map")
-+chapters = {
-+    1: [
-+        (1, "In the beginning God created the heavens and the earth."),
-+        (2, "The earth was formless and empty. Darkness was on the surface of the deep."),
-+        (3, "God said, \\"Let there be light,\\" and there was light."),
-+    ],
-+    2: [
-+        (1, "The heavens and the earth were finished, and all their vast array."),
-+        (2, "On the seventh day God finished his work which he had made."),
-+        (3, "God blessed the seventh day, and made it holy."),
-+    ],
-+}
-+for chapter, verses in chapters.items():
-+    payload = {
-+        "reference": f"Genesis {chapter}",
-+        "translation_name": "World English Bible",
-+        "translation_id": "web",
-+        "verses": [
-+            {"book_name": "Genesis", "chapter": chapter, "verse": number, "text": text}
-+            for number, text in verses
-+        ],
-+    }
-+    item = ET.SubElement(root, "string", name=f"chapter_web_genesis_{chapter}")
-+    item.text = json.dumps(payload, separators=(",", ":"))
-+ET.ElementTree(root).write("/tmp/sora-bible-ci-prefs.xml", encoding="utf-8", xml_declaration=True)
-+PY
-+adb shell run-as com.night.sora sh -c 'mkdir -p shared_prefs && cat > shared_prefs/sora_bible.xml' < /tmp/sora-bible-ci-prefs.xml
-+adb shell am force-stop com.night.sora
+# Seed only this CI emulator's Bible cache so chapter navigation is independent
+# of bible-api.com availability and the smoke test exercises the actual reader.
+python3 - <<'PY'
+import json
+import xml.etree.ElementTree as ET
+
+root = ET.Element("map")
+chapters = {
+    1: [
+        (1, "In the beginning God created the heavens and the earth."),
+        (2, "The earth was formless and empty. Darkness was on the surface of the deep."),
+        (3, "God said, \"Let there be light,\" and there was light."),
+    ],
+    2: [
+        (1, "The heavens and the earth were finished, and all their vast array."),
+        (2, "On the seventh day God finished his work which he had made."),
+        (3, "God blessed the seventh day, and made it holy."),
+    ],
+}
+for chapter, verses in chapters.items():
+    payload = {
+        "reference": f"Genesis {chapter}",
+        "translation_name": "World English Bible",
+        "translation_id": "web",
+        "verses": [
+            {"book_name": "Genesis", "chapter": chapter, "verse": number, "text": text}
+            for number, text in verses
+        ],
+    }
+    item = ET.SubElement(root, "string", name=f"chapter_web_genesis_{chapter}")
+    item.text = json.dumps(payload, separators=(",", ":"))
+ET.ElementTree(root).write("/tmp/sora-bible-ci-prefs.xml", encoding="utf-8", xml_declaration=True)
+PY
+adb shell run-as com.night.sora sh -c 'mkdir -p shared_prefs && cat > shared_prefs/sora_bible.xml' < /tmp/sora-bible-ci-prefs.xml
+adb shell am force-stop com.night.sora
 adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
 sleep 3
 
