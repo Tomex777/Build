@@ -43,6 +43,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("io.github.dokar3:quickjs-kt:1.0.15")
+    implementation("org.videolan.android:libvlc-all:3.7.6")
     implementation("io.github.rosemoe:editor:0.24.6")
     implementation("io.github.rosemoe:language-monarch:0.24.6")
     implementation("io.github.dingyi222666.monarch:monarch-language-pack:1.0.2")
