@@ -48,6 +48,8 @@ jobs:
             set +e
             gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest
             TEST_STATUS=$?
+            echo "===== Android instrumented test XML ====="
+            find annie-android/app/build/outputs/androidTest-results -type f -name '*.xml' -print -exec cat {} \; 2>/dev/null || true
             mkdir -p annie-android/build/emulator-screenshots
             adb pull /sdcard/Android/data/com.tomex777.annie/files/screenshots/. annie-android/build/emulator-screenshots/ || true
             exit $TEST_STATUS
