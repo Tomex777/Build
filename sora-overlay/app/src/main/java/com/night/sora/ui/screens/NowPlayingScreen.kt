@@ -14,9 +14,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,6 +69,7 @@ fun NowPlayingScreen(
     val progress = if (player.durationMs > 0L) {
         (player.positionMs.toFloat() / player.durationMs.toFloat()).coerceIn(0f, 1f)
     } else 0f
+    val sessionPlayer = remember(player) { player.sessionPlayer() }
     val saved = isSaved(track)
 
     Column(
@@ -145,6 +143,8 @@ fun NowPlayingScreen(
             progress = progress,
             durationMs = player.durationMs,
             enabled = player.durationMs > 0L,
+            isPlaying = player.isPlaying,
+            readPositionMs = { sessionPlayer.currentPosition },
             onSeek = player::seekToFraction,
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -286,31 +286,44 @@ private fun MusicSeekBar(
     progress: Float,
     durationMs: Long,
     enabled: Boolean,
+    isPlaying: Boolean,
+    readPositionMs: () -> Long,
     onSeek: (Float) -> Unit,
 ) {
     var dragging by remember { mutableStateOf(false) }
     var previewActive by remember { mutableStateOf(false) }
     var preview by remember { mutableFloatStateOf(progress) }
-    val animatedProgress by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = tween(durationMillis = 280, easing = LinearEasing),
-        label = "music-progress",
-    )
+    var frameProgress by remember { mutableFloatStateOf(progress) }
+    LaunchedEffect(isPlaying, durationMs, progress, enabled) {
+        if (isPlaying && enabled && durationMs > 0L) {
+            // Sample ExoPlayer on Compose frames while the full player is visible.
+            // This keeps the thumb moving at display refresh rate without asking
+            // the process-wide playback controller to recompose every screen.
+            while (true) {
+                withFrameNanos {
+                    frameProgress = (readPositionMs().toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+                }
+            }
+        } else {
+            frameProgress = progress
+        }
+    }
     LaunchedEffect(progress) {
         if (!dragging) {
             preview = progress
             previewActive = false
         }
     }
-    val displayedProgress = (if (dragging || previewActive) preview else animatedProgress).coerceIn(0f, 1f)
+    val displayedProgress = (if (dragging || previewActive) preview else frameProgress).coerceIn(0f, 1f)
+    val semanticProgress = (if (dragging || previewActive) preview else progress).coerceIn(0f, 1f)
 
     Canvas(
         Modifier.fillMaxWidth()
             .height(40.dp)
             .semantics {
                 contentDescription = "Playback position"
-                stateDescription = "${formatMusicTime((durationMs * displayedProgress).toLong())} of ${formatMusicTime(durationMs)}"
-                progressBarRangeInfo = ProgressBarRangeInfo(displayedProgress, 0f..1f)
+                stateDescription = "${formatMusicTime((durationMs * semanticProgress).toLong())} of ${formatMusicTime(durationMs)}"
+                progressBarRangeInfo = ProgressBarRangeInfo(semanticProgress, 0f..1f)
             }
             .pointerInput(enabled, onSeek) {
                 detectTapGestures { point ->
