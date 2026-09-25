@@ -6,6 +6,8 @@ import app.nami.domain.AnimeEpisode
 import app.nami.domain.AnimeRef
 import app.nami.domain.EpisodeRef
 import java.net.URI
+import java.net.URLDecoder
+import java.net.URLEncoder
 
 internal data class HlsMediaPlan(
     val initSegmentUrl: String?,
@@ -107,7 +109,20 @@ internal object DownloadMediaNaming {
             mime.contains("m3u8")
     }
 
-    fun extensionFor(mimeType: String, url: String): String {
+    fun extensionFor(
+        mimeType: String,
+        url: String,
+        contentDisposition: String? = null,
+    ): String {
+        val fromDisposition = contentDisposition
+            ?.let(::fileNameFromContentDisposition)
+            ?.substringAfterLast('.', "")
+            ?.lowercase()
+            .orEmpty()
+        if (fromDisposition in setOf("mp4", "mkv", "webm", "ts", "m4v", "avi")) {
+            return fromDisposition
+        }
+
         val fromUrl = runCatching {
             URI(url).path.substringAfterLast('.', "").lowercase()
         }.getOrDefault("")
@@ -137,17 +152,130 @@ internal object DownloadMediaNaming {
             }
         }
 
+        val titleWithoutExtension = episode.title
+            .removeSuffix("." + extension)
+            .removeSuffix("." + extension.uppercase())
         val base = if (
             numberPrefix != null &&
-            !episode.title.contains(numberPrefix, ignoreCase = true)
+            !titleWithoutExtension.contains(numberPrefix, ignoreCase = true)
         ) {
-            numberPrefix + " - " + episode.title
+            numberPrefix + " - " + titleWithoutExtension
         } else {
-            episode.title
+            titleWithoutExtension
         }
 
         return DownloadDirectoryLayout.sanitize(base) + "." + extension
     }
+
+    internal fun fileNameFromContentDisposition(value: String): String? {
+        val utf8 = Regex("""filename\*=UTF-8''([^;]+)""", RegexOption.IGNORE_CASE)
+            .find(value)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.let { encoded ->
+                runCatching { URLDecoder.decode(encoded, "UTF-8") }.getOrDefault(encoded)
+            }
+        if (!utf8.isNullOrBlank()) return utf8
+
+        return Regex("""filename="?([^";]+)"?""", RegexOption.IGNORE_CASE)
+            .find(value)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+    }
+}
+
+internal object GoogleDriveDownloadPlanner {
+    private val driveHosts = setOf(
+        "drive.google.com",
+        "docs.google.com",
+        "drive.usercontent.google.com",
+    )
+
+    fun isDriveDownload(url: String): Boolean {
+        val uri = runCatching { URI(url) }.getOrNull() ?: return false
+        return uri.host?.lowercase() in driveHosts && fileId(url) != null
+    }
+
+    fun directDownloadUrl(url: String): String {
+        val id = fileId(url) ?: return url
+        return "https://drive.google.com/uc?export=download&id=" +
+            URLEncoder.encode(id, "UTF-8")
+    }
+
+    fun fileId(url: String): String? {
+        val uri = runCatching { URI(url) }.getOrNull() ?: return null
+        Regex("""/file/d/([A-Za-z0-9_-]{10,})""")
+            .find(uri.path.orEmpty())
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.let { return it }
+
+        return uri.rawQuery.orEmpty()
+            .split('&')
+            .mapNotNull { part ->
+                if (part.substringBefore('=') != "id") return@mapNotNull null
+                val value = part.substringAfter('=', "")
+                value.takeIf { it.isNotBlank() }?.let {
+                    runCatching { URLDecoder.decode(it, "UTF-8") }.getOrDefault(it)
+                }
+            }
+            .firstOrNull()
+    }
+
+    fun confirmationUrl(html: String, baseUrl: String): String? {
+        Regex("""href=["']([^"']*/uc\?export=download[^"']+)["']""", RegexOption.IGNORE_CASE)
+            .find(html)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.let { return resolve(baseUrl, decodeHtml(it)) }
+
+        val form = Regex(
+            """<form[^>]+id=["']download-form["'][^>]*action=["']([^"']+)["'][^>]*>(.*?)</form>""",
+            setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+        ).find(html)
+        if (form != null) {
+            val action = decodeHtml(form.groupValues[1])
+            val fields = Regex(
+                """<input[^>]+type=["']hidden["'][^>]*>""",
+                RegexOption.IGNORE_CASE,
+            ).findAll(form.groupValues[2]).mapNotNull { input ->
+                val tag = input.value
+                val name = Regex("""name=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+                    .find(tag)?.groupValues?.getOrNull(1)
+                val value = Regex("""value=["']([^"']*)["']""", RegexOption.IGNORE_CASE)
+                    .find(tag)?.groupValues?.getOrNull(1)
+                if (name.isNullOrBlank() || value == null) {
+                    null
+                } else {
+                    name to decodeHtml(value)
+                }
+            }.toList()
+
+            val separator = if (action.contains('?')) '&' else '?'
+            val query = fields.joinToString("&") { (name, value) ->
+                URLEncoder.encode(name, "UTF-8") + "=" + URLEncoder.encode(value, "UTF-8")
+            }
+            return if (query.isBlank()) action else action + separator + query
+        }
+
+        Regex(""""downloadUrl":"([^"]+)"""")
+            .find(html)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.replace("""\u003d""", "=")
+            ?.replace("""\u0026""", "&")
+            ?.let { return decodeHtml(it) }
+
+        return null
+    }
+
+    private fun decodeHtml(value: String): String =
+        value.replace("&amp;", "&")
+
+    private fun resolve(baseUrl: String, value: String): String =
+        runCatching { URI(baseUrl).resolve(value).toString() }.getOrDefault(value)
 }
 
 

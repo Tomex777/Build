@@ -39,7 +39,7 @@ jobs:
         run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
       - name: Test source runtimes and build debug APK
         working-directory: apps/nami
-        run: gradle :core:source-runtime:test :extensions:aniyomi-compat:testDebugUnitTest :extensions:aniyomi-compat:assembleDebug :app:testDebugUnitTest :app:assembleDebug
+        run: gradle :core:source-runtime:test :extensions:aniyomi-compat:testDebugUnitTest :extensions:aniyomi-compat:assembleDebug :extensions:kayoanime:assembleDebug :app:testDebugUnitTest :app:assembleDebug
       - name: Prepare user APK artifacts
         shell: bash
         run: |
@@ -291,6 +291,103 @@ jobs:
             nami-api26-instrumentation.txt
             nami-api26-logcat.txt
           if-no-files-found: ignore
+
+kayo-real-source-smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - name: Install Android emulator image and SDK platform
+        shell: bash
+        run: |
+          set -euo pipefail
+          packages=(
+            "emulator"
+            "platforms;android-30"
+            "platforms;android-36"
+            "build-tools;35.0.0"
+            "system-images;android-30;default;x86_64"
+          )
+          for attempt in 1 2 3; do
+            if sdkmanager "${packages[@]}"; then
+              exit 0
+            fi
+            rm -rf "${ANDROID_SDK_ROOT}/system-images/android-30/default/x86_64" || true
+            sleep 10
+          done
+          exit 1
+      - name: Build KayoAnime real-source smoke APKs
+        working-directory: apps/nami
+        run: gradle --no-daemon --console=plain :app:assembleDebug :app:assembleDebugAndroidTest :extensions:kayoanime:assembleDebug
+      - name: Run KayoAnime Google Drive MKV download and VLC proof
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: default
+          arch: x86_64
+          emulator-boot-timeout: 900
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 3072 -cores 2
+          disable-animations: true
+          script: |
+            set -euo pipefail
+
+            install_apk() {
+              apk="$1"
+              label="$2"
+              for attempt in 1 2 3; do
+                echo "NAMI_INSTALL=$label attempt=$attempt"
+                timeout 90s adb wait-for-device || true
+                if timeout 300s adb install -r "$apk"; then
+                  return 0
+                fi
+                adb kill-server || true
+                sleep 3
+                adb start-server || true
+                timeout 90s adb wait-for-device || true
+              done
+              return 1
+            }
+
+            install_apk apps/nami/extensions/kayoanime/build/outputs/apk/debug/kayoanime-debug.apk kayoanime
+            install_apk apps/nami/app/build/outputs/apk/debug/app-x86_64-debug.apk nami
+            install_apk apps/nami/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk instrumentation
+
+            timeout 30s adb shell am start -W -n app.nami.android/.MainActivity
+            sleep 8
+            test -n "$(timeout 60s adb shell pidof app.nami.android || true)"
+
+            set +e
+            output=$(timeout 1200s adb shell am instrument -w -r -e class app.nami.android.compat.KayoAnimeRealSourceSmokeTest app.nami.android.test/androidx.test.runner.AndroidJUnitRunner 2>&1)
+            result=$?
+            set -e
+            printf "%s\n" "$output" | tee "$GITHUB_WORKSPACE/nami-kayo-instrumentation.txt"
+            timeout 60s adb logcat -d -v time | tee "$GITHUB_WORKSPACE/nami-kayo-logcat.txt" >/dev/null || true
+            timeout 60s adb logcat -d -s NamiKayoSmoke:I NamiAniyomiCompat:W AndroidRuntime:E || true
+            if [ "$result" -ne 0 ]; then
+              exit "$result"
+            fi
+            echo "$output" | grep -Eq "OK .+ tests?"
+      - name: Upload KayoAnime real-source evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nami-kayo-real-source-evidence
+          path: |
+            nami-kayo-instrumentation.txt
+            nami-kayo-logcat.txt
+          if-no-files-found: ignore
+
 
   api-36-smoke:
     runs-on: ubuntu-latest

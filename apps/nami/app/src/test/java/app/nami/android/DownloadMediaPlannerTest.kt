@@ -173,6 +173,50 @@ class DownloadMediaPlannerTest {
                 url = "https://cdn.example/file.mkv?token=abc",
             ),
         )
+        assertEquals(
+            "mkv",
+            DownloadMediaNaming.extensionFor(
+                mimeType = "application/octet-stream",
+                url = "https://drive.usercontent.google.com/download?id=file",
+                contentDisposition = "attachment; filename=\"ReZero Episode 16.mkv\"",
+            ),
+        )
+        assertEquals(
+            "ReZero Episode 16.mkv",
+            DownloadMediaNaming.fileNameFromContentDisposition(
+                "attachment; filename=\"ReZero Episode 16.mkv\"",
+            ),
+        )
+    }
+
+    @Test
+    fun googleDriveConfirmationFormKeepsIdentityAndConfirmationFields() {
+        val first =
+            "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz/view?usp=sharing"
+        assertTrue(GoogleDriveDownloadPlanner.isDriveDownload(first))
+        assertEquals(
+            "https://drive.google.com/uc?export=download&id=1AbCdEfGhIjKlMnOpQrStUvWxYz",
+            GoogleDriveDownloadPlanner.directDownloadUrl(first),
+        )
+
+        val html = """
+            <form id="download-form" action="https://drive.usercontent.google.com/download" method="get">
+              <input type="hidden" name="id" value="1AbCdEfGhIjKlMnOpQrStUvWxYz">
+              <input type="hidden" name="export" value="download">
+              <input type="hidden" name="confirm" value="t">
+              <input type="hidden" name="uuid" value="drive-confirmation-token">
+            </form>
+        """.trimIndent()
+
+        val confirmed = GoogleDriveDownloadPlanner.confirmationUrl(
+            html,
+            "https://drive.google.com/uc?export=download&id=1AbCdEfGhIjKlMnOpQrStUvWxYz",
+        ) ?: error("Expected confirmation URL")
+
+        assertTrue(confirmed.startsWith("https://drive.usercontent.google.com/download?"))
+        assertTrue(confirmed.contains("id=1AbCdEfGhIjKlMnOpQrStUvWxYz"))
+        assertTrue(confirmed.contains("confirm=t"))
+        assertTrue(confirmed.contains("uuid=drive-confirmation-token"))
     }
     @Test
     fun legacyPublicMoviesRequiresPermissionOnlyThroughApi28() {

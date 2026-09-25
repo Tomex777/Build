@@ -36,6 +36,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.roundToInt
@@ -318,7 +319,11 @@ class NamiDownloadManager(
                 )
             } else {
                 val mime = media.mimeType ?: responseMime ?: "application/octet-stream"
-                val extension = DownloadMediaNaming.extensionFor(mime, firstConnection.url.toString())
+                val extension = DownloadMediaNaming.extensionFor(
+                    mimeType = mime,
+                    url = firstConnection.url.toString(),
+                    contentDisposition = firstConnection.getHeaderField("Content-Disposition"),
+                )
                 val displayName = DownloadMediaNaming.episodeFileName(episode, extension)
                 val target = createTarget(
                     relativeDirectory = initial.relativePath,
@@ -446,8 +451,84 @@ class NamiDownloadManager(
         url: String,
         headers: Map<String, String>,
     ): HttpURLConnection {
+        if (GoogleDriveDownloadPlanner.isDriveDownload(url)) {
+            return openGoogleDriveConnection(url, headers)
+        }
+        return openRawConnection(url, headers, followRedirects = true)
+    }
+
+    private fun openGoogleDriveConnection(
+        sourceUrl: String,
+        headers: Map<String, String>,
+    ): HttpURLConnection {
+        var currentUrl = GoogleDriveDownloadPlanner.directDownloadUrl(sourceUrl)
+
+        repeat(8) {
+            val connection = openRawConnection(
+                currentUrl,
+                headers,
+                followRedirects = false,
+                requireSuccess = false,
+            )
+            saveResponseCookies(currentUrl, connection)
+
+            val code = connection.responseCode
+            if (code in 300..399) {
+                val location = connection.getHeaderField("Location")
+                    ?: run {
+                        connection.disconnect()
+                        error("Google Drive redirect did not include a Location header.")
+                    }
+                connection.disconnect()
+                currentUrl = runCatching { URI(currentUrl).resolve(location).toString() }
+                    .getOrDefault(location)
+                return@repeat
+            }
+
+            if (code !in 200..299) {
+                connection.disconnect()
+                error("Google Drive download failed with HTTP $code.")
+            }
+
+            val contentDisposition = connection.getHeaderField("Content-Disposition")
+            val contentType = connection.contentType.orEmpty()
+            if (!contentDisposition.isNullOrBlank() ||
+                !contentType.contains("text/html", ignoreCase = true)
+            ) {
+                return connection
+            }
+
+            val confirmationPage = connection.inputStream.bufferedReader().use { reader ->
+                val buffer = CharArray(8192)
+                val out = StringBuilder()
+                while (out.length < 512 * 1024) {
+                    val read = reader.read(buffer)
+                    if (read < 0) break
+                    out.append(buffer, 0, read)
+                }
+                out.toString()
+            }
+            connection.disconnect()
+
+            currentUrl = GoogleDriveDownloadPlanner.confirmationUrl(
+                html = confirmationPage,
+                baseUrl = currentUrl,
+            ) ?: error(
+                "Google Drive returned an HTML confirmation page without a usable download link.",
+            )
+        }
+
+        error("Google Drive exceeded the redirect/confirmation limit.")
+    }
+
+    private fun openRawConnection(
+        url: String,
+        headers: Map<String, String>,
+        followRedirects: Boolean,
+        requireSuccess: Boolean = true,
+    ): HttpURLConnection {
         val connection = URL(url).openConnection() as HttpURLConnection
-        connection.instanceFollowRedirects = true
+        connection.instanceFollowRedirects = followRedirects
         connection.connectTimeout = 30_000
         connection.readTimeout = 60_000
         headers.forEach { (name, value) ->
@@ -461,12 +542,25 @@ class NamiDownloadManager(
         }
 
         connection.connect()
-        if (connection.responseCode !in 200..299) {
+        if (requireSuccess && connection.responseCode !in 200..299) {
             val code = connection.responseCode
             connection.disconnect()
             error("Download request failed with HTTP $code.")
         }
         return connection
+    }
+
+    private fun saveResponseCookies(
+        url: String,
+        connection: HttpURLConnection,
+    ) {
+        val manager = CookieManager.getInstance()
+        connection.headerFields
+            .filterKeys { key -> key?.equals("Set-Cookie", ignoreCase = true) == true }
+            .values
+            .flatten()
+            .forEach { cookie -> manager.setCookie(url, cookie) }
+        manager.flush()
     }
 
     private suspend fun copyWithProgress(
