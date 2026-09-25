@@ -69,6 +69,7 @@ import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.util.VLCVideoLayout
+import org.videolan.libvlc.interfaces.IVLCVout
 import org.json.JSONObject
 
 class AnniePlayerActivity : ComponentActivity() {
@@ -192,6 +193,7 @@ internal fun MediaPlayerScreen(
     }
     val player = remember(libVlc) { libVlc?.let(::MediaPlayer) }
     var attachedPlayer by remember(activeUri) { mutableStateOf<MediaPlayer?>(null) }
+    var videoSurfacesReady by remember(activeUri) { mutableStateOf(false) }
     var playing by remember(activeUri) { mutableStateOf(false) }
     var positionMs by remember(activeUri) { mutableLongStateOf(0L) }
     var durationMs by remember(activeUri) { mutableLongStateOf(0L) }
@@ -208,7 +210,17 @@ internal fun MediaPlayerScreen(
     var speed by remember(mediaUri) { mutableFloatStateOf(1f) }
 
     DisposableEffect(player, libVlc, activeUri) {
+        val surfaceCallback = if (player != null) object : IVLCVout.Callback {
+            override fun onSurfacesCreated(vlcVout: IVLCVout) {
+                videoSurfacesReady = true
+            }
+
+            override fun onSurfacesDestroyed(vlcVout: IVLCVout) {
+                videoSurfacesReady = false
+            }
+        } else null
         if (player != null && libVlc != null && activeUri != null) {
+            surfaceCallback?.let { player.vlcVout.addCallback(it) }
             val media = Media(libVlc, activeUri).apply {
                 val emulator = Build.FINGERPRINT.contains("generic", ignoreCase = true) ||
                     Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
@@ -230,6 +242,7 @@ internal fun MediaPlayerScreen(
         }
         onDispose {
             if (player != null) {
+                surfaceCallback?.let { runCatching { player.vlcVout.removeCallback(it) } }
                 val last = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(positionMs)
                 if (last > 2_000L) resumePrefs.edit().putLong(resumeKey, last).apply()
                 runCatching { player.stop() }
@@ -240,14 +253,14 @@ internal fun MediaPlayerScreen(
         }
     }
 
-    LaunchedEffect(player, attachedPlayer, activeUri) {
+    LaunchedEffect(player, attachedPlayer, videoSurfacesReady, activeUri) {
         if (player == null || activeUri == null) return@LaunchedEffect
         var checks = 0
-        while (isActive && attachedPlayer !== player && checks < 120) {
+        while (isActive && (attachedPlayer !== player || !videoSurfacesReady) && checks < 120) {
             delay(50)
             checks++
         }
-        if (!isActive || attachedPlayer !== player) return@LaunchedEffect
+        if (!isActive || attachedPlayer !== player || !videoSurfacesReady) return@LaunchedEffect
         player.play()
         val persistedResume = resumePrefs.getLong(resumeKey, 0L)
         val resume = switchResumePosition.takeIf { it > 0L } ?: persistedResume
