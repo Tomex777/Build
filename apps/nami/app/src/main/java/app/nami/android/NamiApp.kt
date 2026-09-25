@@ -50,6 +50,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -78,8 +79,9 @@ import app.nami.runtime.GlobalAnimeSearch
 import app.nami.runtime.GlobalSearchSection
 import app.nami.runtime.GlobalSearchState
 import app.nami.runtime.NamiSourceRegistry
-import app.nami.runtime.SourceSearchPager
-import app.nami.runtime.SourceSearchState
+import app.nami.runtime.SourceListing
+import app.nami.runtime.SourceListingPager
+import app.nami.runtime.SourceListingState
 import app.nami.runtime.SourceEnablementStore
 import app.nami.source.NamiAnimeSource
 import app.nami.source.SourceOrigin
@@ -92,7 +94,7 @@ import kotlinx.coroutines.withContext
 private sealed interface NamiRoute {
     data class Source(
         val source: NamiAnimeSource,
-        val query: String,
+        val listing: SourceListing,
     ) : NamiRoute
 
     data class Details(
@@ -157,8 +159,8 @@ fun NamiApp(
                         if (rootTab == 0) {
                             GlobalSearchHome(
                                 sourceRegistry = sourceRegistry,
-                                onOpenSource = { source, query ->
-                                    stack += NamiRoute.Source(source, query)
+                                onOpenSource = { source, listing ->
+                                    stack += NamiRoute.Source(source, listing)
                                 },
                                 onOpenAnime = { source, item ->
                                     stack += NamiRoute.Details(source, item)
@@ -179,7 +181,7 @@ fun NamiApp(
                     }
 
                     is NamiRoute.Source -> {
-                        SourceSearchScreen(
+                        SourceBrowseScreen(
                             route = current,
                             onBack = { stack.removeAt(stack.lastIndex) },
                             onOpenWeb = { url ->
@@ -236,7 +238,7 @@ fun NamiApp(
 @Composable
 private fun GlobalSearchHome(
     sourceRegistry: NamiSourceRegistry,
-    onOpenSource: (NamiAnimeSource, String) -> Unit,
+    onOpenSource: (NamiAnimeSource, SourceListing) -> Unit,
     onOpenAnime: (NamiAnimeSource, AnimeSearchResult) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -247,15 +249,19 @@ private fun GlobalSearchHome(
     var searchState by remember { mutableStateOf(GlobalSearchState()) }
     var searchJob by remember { mutableStateOf<Job?>(null) }
     var hasSearched by rememberSaveable { mutableStateOf(false) }
-    var sourceCount by remember { mutableStateOf<Int?>(null) }
+    var enabledSources by remember { mutableStateOf<List<NamiAnimeSource>?>(null) }
 
     LaunchedEffect(sourceRegistry) {
-        sourceCount = runCatching {
-            sourceRegistry.installedSources().count { source ->
-                source.metadata.origin == SourceOrigin.ANIYOMI_COMPATIBLE &&
-                    source.metadata.capabilities.searchable
-            }
-        }.getOrNull()
+        enabledSources = runCatching {
+            sourceRegistry.installedSources()
+                .filter { source ->
+                    source.metadata.origin == SourceOrigin.ANIYOMI_COMPATIBLE
+                }
+                .sortedWith(
+                    compareBy<NamiAnimeSource> { it.metadata.name.lowercase() }
+                        .thenBy { it.metadata.language.orEmpty() },
+                )
+        }.getOrDefault(emptyList())
     }
 
     fun submitSearch() {
@@ -321,15 +327,66 @@ private fun GlobalSearchHome(
             }
 
             !hasSearched -> {
-                EmptyCenter(
-                    modifier = Modifier.padding(padding),
-                    text = when (sourceCount) {
-                        0 -> "No anime extensions are available yet."
-                        null -> "Search across your anime extensions."
-                        else -> "Search across " + sourceCount + " anime extension" +
-                            if (sourceCount == 1) "." else "s."
-                    },
-                )
+                val browsable = enabledSources
+                    ?.filter { it.metadata.capabilities.popular }
+
+                when {
+                    enabledSources == null -> {
+                        EmptyCenter(
+                            modifier = Modifier.padding(padding),
+                            text = "Loading anime extensions…",
+                        )
+                    }
+
+                    browsable.isNullOrEmpty() -> {
+                        EmptyCenter(
+                            modifier = Modifier.padding(padding),
+                            text = if (enabledSources.orEmpty().isEmpty()) {
+                                "No enabled anime extensions were found."
+                            } else {
+                                "Search across your enabled anime extensions."
+                            },
+                        )
+                    }
+
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = padding,
+                        ) {
+                            item(key = "source-header") {
+                                Text(
+                                    text = "Sources",
+                                    modifier = Modifier.padding(
+                                        start = 16.dp,
+                                        top = 14.dp,
+                                        end = 16.dp,
+                                        bottom = 8.dp,
+                                    ),
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                            }
+                            lazyItems(
+                                items = browsable,
+                                key = { it.metadata.id },
+                            ) { source ->
+                                SourceHomeRow(
+                                    source = source,
+                                    onPopular = {
+                                        onOpenSource(source, SourceListing.Popular)
+                                    },
+                                    onLatest = if (source.metadata.capabilities.latest) {
+                                        {
+                                            onOpenSource(source, SourceListing.Latest)
+                                        }
+                                    } else {
+                                        null
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             searchState.total == 0 -> {
@@ -350,17 +407,62 @@ private fun GlobalSearchHome(
 }
 
 @Composable
+private fun SourceHomeRow(
+    source: NamiAnimeSource,
+    onPopular: () -> Unit,
+    onLatest: (() -> Unit)?,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onPopular)
+            .padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = source.metadata.name,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            source.metadata.language?.takeIf { it.isNotBlank() }?.let { language ->
+                Text(
+                    text = language,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        if (onLatest != null) {
+            TextButton(onClick = onLatest) {
+                Text("Latest")
+            }
+        }
+
+        IconButton(onClick = onPopular) {
+            Icon(
+                Icons.AutoMirrored.Outlined.ArrowForward,
+                contentDescription = "Popular",
+            )
+        }
+    }
+    HorizontalDivider()
+}
+
+@Composable
 private fun GlobalSearchSourceSection(
     section: GlobalSearchSection,
     query: String,
-    onOpenSource: (NamiAnimeSource, String) -> Unit,
+    onOpenSource: (NamiAnimeSource, SourceListing) -> Unit,
     onOpenAnime: (NamiAnimeSource, AnimeSearchResult) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onOpenSource(section.source, query) }
+                .clickable { onOpenSource(section.source, SourceListing.Search(query)) }
                 .padding(start = 16.dp, end = 6.dp, top = 10.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -373,7 +475,7 @@ private fun GlobalSearchSourceSection(
                     Text(text = it, style = MaterialTheme.typography.bodyMedium)
                 }
             }
-            IconButton(onClick = { onOpenSource(section.source, query) }) {
+            IconButton(onClick = { onOpenSource(section.source, SourceListing.Search(query)) }) {
                 Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null)
             }
         }
@@ -483,7 +585,7 @@ internal fun Cover(
 }
 
 @Composable
-private fun SourceSearchScreen(
+private fun SourceBrowseScreen(
     route: NamiRoute.Source,
     onBack: () -> Unit,
     onOpenWeb: (String) -> Unit,
@@ -492,45 +594,53 @@ private fun SourceSearchScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    val pager = remember(route.source) { SourceSearchPager(route.source) }
+    val pager = remember(route.source) { SourceListingPager(route.source) }
 
-    var query by rememberSaveable(route.source.metadata.id) { mutableStateOf(route.query) }
-    var searchState by remember(route.source.metadata.id) { mutableStateOf(SourceSearchState()) }
+    var query by remember(route.source.metadata.id, route.listing) {
+        mutableStateOf((route.listing as? SourceListing.Search)?.query.orEmpty())
+    }
+    var listingState by remember(route.source.metadata.id) {
+        mutableStateOf(SourceListingState())
+    }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    fun submitSearch() {
-        val submitted = query.trim()
-        if (submitted.isEmpty()) return
-
-        focusManager.clearFocus()
-        searchState = SourceSearchState(query = submitted)
+    fun loadListing(listing: SourceListing) {
         loading = true
         error = null
+        listingState = SourceListingState(listing = listing)
 
         scope.launch {
-            runCatching { pager.search(submitted) }
-                .onSuccess { searchState = it }
-                .onFailure { error = it.message ?: "Unknown error" }
+            runCatching { pager.load(listing) }
+                .onSuccess { listingState = it }
+                .onFailure { error = it.message ?: "Unable to load this source." }
             loading = false
         }
     }
 
+    fun submitSearch() {
+        val submitted = query.trim()
+        if (submitted.isEmpty()) return
+        focusManager.clearFocus()
+        loadListing(SourceListing.Search(submitted))
+    }
+
     fun loadNextPage() {
-        if (loading || !searchState.hasNextPage) return
+        if (loading || !listingState.hasNextPage) return
 
         loading = true
         error = null
         scope.launch {
-            runCatching { pager.next(searchState) }
-                .onSuccess { searchState = it }
+            runCatching { pager.next(listingState) }
+                .onSuccess { listingState = it }
                 .onFailure { error = it.message ?: "Unable to load the next page" }
             loading = false
         }
     }
 
-    LaunchedEffect(route.source.metadata.id, route.query) {
-        if (route.query.isNotBlank()) submitSearch()
+    LaunchedEffect(route.source.metadata.id, route.listing) {
+        query = (route.listing as? SourceListing.Search)?.query.orEmpty()
+        loadListing(route.listing)
     }
 
     Scaffold(
@@ -579,7 +689,7 @@ private fun SourceSearchScreen(
                 onValueChange = { query = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 placeholder = { Text("Search " + route.source.metadata.name) },
                 leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                 singleLine = true,
@@ -587,18 +697,29 @@ private fun SourceSearchScreen(
                 keyboardActions = KeyboardActions(onSearch = { submitSearch() }),
             )
 
+            val listingLabel = when (listingState.listing) {
+                SourceListing.Popular -> "Popular"
+                SourceListing.Latest -> "Latest"
+                is SourceListing.Search, null -> null
+            }
+            if (listingLabel != null) {
+                Text(
+                    text = listingLabel,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+            }
+
             when {
-                loading && searchState.items.isEmpty() -> {
+                loading && listingState.items.isEmpty() -> {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
 
-                error != null && searchState.items.isEmpty() -> {
+                error != null && listingState.items.isEmpty() -> {
                     EmptyCenter(text = error ?: "Unknown error")
                 }
 
-                searchState.items.isEmpty() &&
-                    searchState.query.isNotBlank() &&
-                    !loading -> {
+                listingState.items.isEmpty() && !loading -> {
                     EmptyCenter(text = "No results found.")
                 }
 
@@ -611,7 +732,7 @@ private fun SourceSearchScreen(
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         gridItems(
-                            items = searchState.items,
+                            items = listingState.items,
                             key = { it.ref.sourceId + "|" + it.ref.sourceAnimeId },
                         ) { item ->
                             AnimeCard(
@@ -621,9 +742,9 @@ private fun SourceSearchScreen(
                             )
                         }
 
-                        if (searchState.hasNextPage || loading || error != null) {
+                        if (listingState.hasNextPage || loading || error != null) {
                             item(
-                                key = "source-search-footer-" + searchState.loadedPage,
+                                key = "source-listing-footer-" + listingState.loadedPage,
                                 span = { GridItemSpan(maxLineSpan) },
                             ) {
                                 Box(
@@ -649,10 +770,10 @@ private fun SourceSearchScreen(
                                                 .padding(8.dp),
                                         )
 
-                                        searchState.hasNextPage -> {
+                                        listingState.hasNextPage -> {
                                             LaunchedEffect(
-                                                searchState.loadedPage,
-                                                searchState.items.size,
+                                                listingState.loadedPage,
+                                                listingState.items.size,
                                             ) {
                                                 loadNextPage()
                                             }

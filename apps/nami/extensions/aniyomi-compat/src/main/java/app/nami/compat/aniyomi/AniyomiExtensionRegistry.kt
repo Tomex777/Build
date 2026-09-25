@@ -222,6 +222,14 @@ internal class LegacyAnimeSourceAdapter(
 
     private val animeCache = ConcurrentHashMap<String, SAnime>()
     private val episodeCache = ConcurrentHashMap<String, SEpisode>()
+    private val catalogue =
+        source as? eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
+    private val supportsPopularListing =
+        extensionApiVersion >= 17 || catalogue != null
+    private val supportsLatestListing = when {
+        extensionApiVersion >= 17 -> source.supportsLatest
+        else -> catalogue?.supportsLatest == true
+    }
 
     override val metadata: SourceMetadata = SourceMetadata(
         id = packageName + ":" + source.id,
@@ -231,9 +239,10 @@ internal class LegacyAnimeSourceAdapter(
         extensionName = extensionName,
         homeUrl = (source as? AnimeHttpSource)?.getHomeUrl(),
         capabilities = SourceCapabilities(
-            searchable = extensionApiVersion >= 17 ||
-                source is eu.kanade.tachiyomi.animesource.AnimeCatalogueSource,
-            browsable = source is AnimeHttpSource,
+            searchable = extensionApiVersion >= 17 || catalogue != null,
+            browsable = supportsPopularListing,
+            popular = supportsPopularListing,
+            latest = supportsLatestListing,
             details = true,
             episodes = true,
             streamable = source is AnimeHttpSource,
@@ -251,18 +260,55 @@ internal class LegacyAnimeSourceAdapter(
         configurable.setupPreferenceScreen(screen)
     }
 
+    override suspend fun popular(page: Int): SourcePage<AnimeSearchResult> {
+        if (!supportsPopularListing) return SourcePage(emptyList(), false)
+
+        val result = when {
+            extensionApiVersion <= 14 -> {
+                val legacyCatalogue = catalogue ?: return SourcePage(emptyList(), false)
+                @Suppress("DEPRECATION")
+                legacyCatalogue.fetchPopularAnime(page)
+                    .toBlocking()
+                    .single()
+            }
+            else -> source.getPopularAnime(page)
+        }
+        return mapAnimePage(result)
+    }
+
+    override suspend fun latest(page: Int): SourcePage<AnimeSearchResult> {
+        if (!supportsLatestListing) return SourcePage(emptyList(), false)
+
+        val result = when {
+            extensionApiVersion <= 14 -> {
+                val legacyCatalogue = catalogue ?: return SourcePage(emptyList(), false)
+                @Suppress("DEPRECATION")
+                legacyCatalogue.fetchLatestUpdates(page)
+                    .toBlocking()
+                    .single()
+            }
+            else -> source.getLatestUpdates(page)
+        }
+        return mapAnimePage(result)
+    }
+
     override suspend fun search(query: String, page: Int): SourcePage<AnimeSearchResult> {
         val result = when {
             extensionApiVersion <= 14 -> {
-                val catalogue = source as? eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
-                    ?: return SourcePage(emptyList(), false)
+                val legacyCatalogue = catalogue ?: return SourcePage(emptyList(), false)
                 @Suppress("DEPRECATION")
-                catalogue.fetchSearchAnime(page, query, catalogue.getFilterList())
+                legacyCatalogue.fetchSearchAnime(page, query, legacyCatalogue.getFilterList())
                     .toBlocking()
                     .single()
             }
             else -> source.getSearchAnime(page, query, source.getFilterList())
         }
+        return mapAnimePage(result)
+    }
+
+    private fun mapAnimePage(
+        result: eu.kanade.tachiyomi.animesource.model.AnimesPage,
+    ): SourcePage<AnimeSearchResult> {
         val mapped = result.animes.map { anime ->
             animeCache[anime.url] = anime
             AnimeSearchResult(

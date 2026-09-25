@@ -27,6 +27,17 @@ class LegacyAnimeSourceAdapterTest {
         val source = V14Source()
         val adapter = adapter(api = 14, source = source)
 
+        assertTrue(adapter.metadata.capabilities.popular)
+        assertTrue(adapter.metadata.capabilities.latest)
+
+        val popular = adapter.popular()
+        assertEquals(listOf("Popular v14"), popular.items.map { it.title })
+        assertEquals(1, source.rxPopularCalls)
+
+        val latest = adapter.latest()
+        assertEquals(listOf("Latest v14"), latest.items.map { it.title })
+        assertEquals(1, source.rxLatestCalls)
+
         val search = adapter.search("bleach")
         assertEquals(listOf("Bleach v14"), search.items.map { it.title })
         assertEquals(1, source.rxSearchCalls)
@@ -49,6 +60,17 @@ class LegacyAnimeSourceAdapterTest {
     fun v16UsesSuspendApiAndEmbeddedHosterVideosWithoutSecondRequest() = runTest {
         val source = V16Source()
         val adapter = adapter(api = 16, source = source)
+
+        assertTrue(adapter.metadata.capabilities.popular)
+        assertTrue(adapter.metadata.capabilities.latest)
+
+        val popular = adapter.popular()
+        assertEquals("Popular v16", popular.items.single().title)
+        assertEquals(1, source.popularCalls)
+
+        val latest = adapter.latest()
+        assertEquals("Latest v16", latest.items.single().title)
+        assertEquals(1, source.latestCalls)
 
         val search = adapter.search("frieren")
         assertEquals("Frieren v16", search.items.single().title)
@@ -76,7 +98,17 @@ class LegacyAnimeSourceAdapterTest {
         val adapter = adapter(api = 17, source = source)
 
         assertTrue(adapter.metadata.capabilities.searchable)
+        assertTrue(adapter.metadata.capabilities.popular)
+        assertTrue(adapter.metadata.capabilities.latest)
         assertEquals(17, adapter.metadata.extensionApiVersion)
+
+        val popular = adapter.popular()
+        assertEquals("Popular v17", popular.items.single().title)
+        assertEquals(1, source.popularCalls)
+
+        val latest = adapter.latest()
+        assertEquals("Latest v17", latest.items.single().title)
+        assertEquals(1, source.latestCalls)
 
         val search = adapter.search("dandadan")
         assertEquals("Dandadan v17", search.items.single().title)
@@ -121,6 +153,14 @@ class LegacyAnimeSourceAdapterTest {
     }
 
     @Test
+    fun latestCapabilityTracksSourceSupport() {
+        val adapter = adapter(api = 16, source = V16Source(latestSupported = false))
+
+        assertTrue(adapter.metadata.capabilities.popular)
+        assertFalse(adapter.metadata.capabilities.latest)
+    }
+
+    @Test
     fun adapterMetadataKeepsStablePackageScopedIdentity() {
         val adapter = adapter(api = 16, source = V16Source())
 
@@ -146,10 +186,35 @@ class LegacyAnimeSourceAdapterTest {
         override val id = 14L
         override val name = "V14"
         override val lang = "en"
+        override val supportsLatest = true
 
+        var rxPopularCalls = 0
+        var rxLatestCalls = 0
         var rxSearchCalls = 0
         var rxDetailsCalls = 0
         var rxEpisodeCalls = 0
+
+        @Deprecated("legacy test")
+        override fun fetchPopularAnime(page: Int): Observable<AnimesPage> {
+            rxPopularCalls++
+            return Observable.just(
+                AnimesPage(
+                    listOf(anime("/v14/popular", "Popular v14")),
+                    false,
+                ),
+            )
+        }
+
+        @Deprecated("legacy test")
+        override fun fetchLatestUpdates(page: Int): Observable<AnimesPage> {
+            rxLatestCalls++
+            return Observable.just(
+                AnimesPage(
+                    listOf(anime("/v14/latest", "Latest v14")),
+                    false,
+                ),
+            )
+        }
 
         @Deprecated("legacy test")
         override fun fetchSearchAnime(
@@ -194,15 +259,54 @@ class LegacyAnimeSourceAdapterTest {
             )
     }
 
-    private class V16Source : AnimeCatalogueSource {
+    private class V16Source(
+        private val latestSupported: Boolean = true,
+    ) : AnimeCatalogueSource {
         override val id = 16L
         override val name = "V16"
         override val lang = "en"
+        override val supportsLatest: Boolean = latestSupported
 
+        var popularCalls = 0
+        var latestCalls = 0
         var searchCalls = 0
         var detailsCalls = 0
         var hosterCalls = 0
         var hosterVideoCalls = 0
+
+        override suspend fun getPopularAnime(page: Int): AnimesPage {
+            popularCalls++
+            return AnimesPage(listOf(anime("/v16/popular", "Popular v16")), false)
+        }
+
+        override suspend fun getLatestUpdates(page: Int): AnimesPage {
+            latestCalls++
+            return AnimesPage(listOf(anime("/v16/latest", "Latest v16")), false)
+        }
+
+        override suspend fun getPopularAnime(page: Int): AnimesPage {
+            popularCalls++
+            return AnimesPage(
+                listOf(
+                    anime("/v17/popular", "Popular v17").apply {
+                        memo = JsonObject(mapOf("token" to JsonPrimitive("stateful-v17")))
+                    },
+                ),
+                false,
+            )
+        }
+
+        override suspend fun getLatestUpdates(page: Int): AnimesPage {
+            latestCalls++
+            return AnimesPage(
+                listOf(
+                    anime("/v17/latest", "Latest v17").apply {
+                        memo = JsonObject(mapOf("token" to JsonPrimitive("stateful-v17")))
+                    },
+                ),
+                false,
+            )
+        }
 
         override suspend fun getSearchAnime(
             page: Int,
@@ -250,7 +354,10 @@ class LegacyAnimeSourceAdapterTest {
         override val id = 17L
         override val name = "V17"
         override val lang = "en"
+        override val supportsLatest = true
 
+        var popularCalls = 0
+        var latestCalls = 0
         var searchCalls = 0
         var detailUpdateCalls = 0
         var episodeUpdateCalls = 0

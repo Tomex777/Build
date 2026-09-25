@@ -13,6 +13,12 @@ interface NamiAnimeSource {
 
     suspend fun search(query: String, page: Int = 1): SourcePage<AnimeSearchResult>
 
+    suspend fun popular(page: Int = 1): SourcePage<AnimeSearchResult> =
+        SourcePage(emptyList(), hasNextPage = false)
+
+    suspend fun latest(page: Int = 1): SourcePage<AnimeSearchResult> =
+        SourcePage(emptyList(), hasNextPage = false)
+
     suspend fun details(anime: AnimeRef): AnimeDetails
 
     suspend fun details(
@@ -38,6 +44,8 @@ interface NamiAnimeSource {
 data class SourceCapabilities(
     val searchable: Boolean = true,
     val browsable: Boolean = false,
+    val popular: Boolean = false,
+    val latest: Boolean = false,
     val details: Boolean = true,
     val episodes: Boolean = true,
     val streamable: Boolean = true,
