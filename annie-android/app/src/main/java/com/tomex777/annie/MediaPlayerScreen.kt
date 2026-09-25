@@ -2,6 +2,8 @@ package com.tomex777.annie
 
 import android.app.Activity
 import android.os.Bundle
+import android.net.Uri
+import android.widget.VideoView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -27,8 +29,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -41,6 +45,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -49,12 +54,15 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import coil.compose.AsyncImage
+import kotlinx.coroutines.delay
 
 class AnniePlayerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val title = intent.getStringExtra(EXTRA_TITLE)?.takeIf(String::isNotBlank) ?: "Video"
+        val mediaUri = intent.getStringExtra(EXTRA_MEDIA_URI)?.let(Uri::parse)
+        val mode = intent.getStringExtra(EXTRA_MODE)?.let { runCatching { PlayerMode.valueOf(it) }.getOrNull() } ?: PlayerMode.STREAMING
         val item = CatalogItem(
             id = intent.getIntExtra(EXTRA_ID, 0),
             mediaType = intent.getStringExtra(EXTRA_MEDIA_TYPE).orEmpty(),
@@ -69,8 +77,9 @@ class AnniePlayerActivity : ComponentActivity() {
             AnnieTheme {
                 MediaPlayerScreen(
                     item = item,
-                    mode = PlayerMode.STREAMING,
-                    sourceAvailable = false,
+                    mode = mode,
+                    sourceAvailable = mediaUri != null,
+                    mediaUri = mediaUri,
                     onBack = { finish() },
                 )
             }
@@ -83,6 +92,8 @@ class AnniePlayerActivity : ComponentActivity() {
         const val EXTRA_TITLE = "annie.player.title"
         const val EXTRA_IMAGE = "annie.player.image"
         const val EXTRA_YEAR = "annie.player.year"
+        const val EXTRA_MEDIA_URI = "annie.player.media_uri"
+        const val EXTRA_MODE = "annie.player.mode"
     }
 }
 
@@ -93,6 +104,7 @@ internal fun MediaPlayerScreen(
     item: CatalogItem,
     mode: PlayerMode,
     sourceAvailable: Boolean,
+    mediaUri: Uri? = null,
     onBack: () -> Unit,
     immersive: Boolean = true,
 ) {
@@ -113,11 +125,55 @@ internal fun MediaPlayerScreen(
 
     var playing by remember { mutableStateOf(false) }
     var progress by remember { mutableFloatStateOf(0f) }
+    var durationMs by remember { mutableIntStateOf(0) }
+    var positionMs by remember { mutableIntStateOf(0) }
+    var videoView by remember { mutableStateOf<VideoView?>(null) }
+    var loadedUri by remember { mutableStateOf<Uri?>(null) }
     val isOffline = mode == PlayerMode.OFFLINE
     val playable = sourceAvailable
 
+    LaunchedEffect(mediaUri, videoView) {
+        while (mediaUri != null && videoView != null) {
+            val player = videoView
+            if (player != null) {
+                durationMs = player.duration.coerceAtLeast(0)
+                positionMs = player.currentPosition.coerceAtLeast(0)
+                playing = player.isPlaying
+                progress = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+            }
+            delay(400)
+        }
+    }
+    val activeVideoView = videoView
+    DisposableEffect(activeVideoView) {
+        onDispose { activeVideoView?.stopPlayback() }
+    }
+
     Box(Modifier.fillMaxSize().background(Color(0xFF030811)).testTag("media_player")) {
-        if (item.image.isNotBlank()) {
+        if (mediaUri != null) {
+            AndroidView(
+                factory = { viewContext ->
+                    VideoView(viewContext).also { video ->
+                        videoView = video
+                        loadedUri = mediaUri
+                        video.setOnPreparedListener { player ->
+                            durationMs = player.duration.coerceAtLeast(0)
+                            player.start()
+                        }
+                        video.setOnCompletionListener { playing = false }
+                        video.setOnErrorListener { _, _, _ -> playing = false; true }
+                        video.setVideoURI(mediaUri)
+                    }
+                },
+                update = { video ->
+                    if (loadedUri != mediaUri) {
+                        loadedUri = mediaUri
+                        video.setVideoURI(mediaUri)
+                    }
+                },
+                modifier = Modifier.fillMaxSize().testTag("player_video_surface"),
+            )
+        } else if (item.image.isNotBlank()) {
             AsyncImage(
                 model = item.image,
                 contentDescription = null,
@@ -139,7 +195,7 @@ internal fun MediaPlayerScreen(
                     Text(item.title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
                         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.testTag("player_title"))
                     Text(
-                        if (isOffline) "Offline video" else "Streaming · Source unavailable",
+                        if (isOffline) "Offline video" else if (playable) "Streaming" else "Streaming · Source unavailable",
                         color = Color(0xFFB9C9DD), fontSize = 13.sp,
                     )
                 }
@@ -164,13 +220,16 @@ internal fun MediaPlayerScreen(
             Spacer(Modifier.weight(1f))
             Slider(
                 value = progress,
-                onValueChange = { progress = it },
+                onValueChange = {
+                    progress = it
+                    if (durationMs > 0) videoView?.seekTo((durationMs * it).toInt())
+                },
                 enabled = playable,
                 modifier = Modifier.fillMaxWidth().testTag("player_seek"),
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(if (playable) "00:00" else "--:--", color = Color(0xFFE5ECF5), fontSize = 13.sp)
-                Text("—:—", color = Color(0xFFE5ECF5), fontSize = 13.sp)
+                Text(if (playable && durationMs > 0) formatPlayerTime(positionMs) else if (playable) "00:00" else "--:--", color = Color(0xFFE5ECF5), fontSize = 13.sp)
+                Text(if (playable && durationMs > 0) formatPlayerTime(durationMs) else "—:—", color = Color(0xFFE5ECF5), fontSize = 13.sp)
             }
             Spacer(Modifier.size(10.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
@@ -179,7 +238,15 @@ internal fun MediaPlayerScreen(
                 PlayerTextButton("◂", "player_previous", playable, {}, label = "Previous")
                 PlayerTextButton("↶ 10", "player_rewind", playable, {}, label = "Rewind 10 seconds")
                 Button(
-                    onClick = { playing = !playing },
+                    onClick = {
+                        val player = videoView
+                        if (player != null) {
+                            if (player.isPlaying) player.pause() else player.start()
+                            playing = player.isPlaying
+                        } else {
+                            playing = !playing
+                        }
+                    },
                     enabled = playable,
                     modifier = Modifier.size(64.dp).testTag("player_play_pause"),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF08A8E8)),
@@ -223,6 +290,11 @@ private fun PlayerTextButton(
         Text(text, color = if (enabled) Color.White else Color(0xFF758397), fontSize = fontSize.sp,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
+}
+
+private fun formatPlayerTime(milliseconds: Int): String {
+    val totalSeconds = (milliseconds / 1000).coerceAtLeast(0)
+    return "%02d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }
 
 internal tailrec fun Context.findActivity(): Activity? = when (this) {

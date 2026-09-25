@@ -3,6 +3,7 @@ package com.tomex777.annie
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import java.io.File
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -355,6 +356,12 @@ internal fun AnnieChat() {
             } else if (category.startsWith("Downloads:")) {
                 DownloadsManagerContent(
                     items = downloads,
+                    onPlay = { item ->
+                        val parsed = Uri.parse(item.localPath)
+                        val mediaUri = if (parsed.scheme == "content" || parsed.scheme == "file") item.localPath
+                            else Uri.fromFile(File(item.localPath)).toString()
+                        launchPlayer(context, item.toPlayerCatalogItem(), mediaUri, PlayerMode.OFFLINE)
+                    },
                     onRemove = { item ->
                         downloads.remove(item)
                         DownloadStore.write(context, downloads)
@@ -394,16 +401,35 @@ internal fun AnnieChat() {
     }
 }
 
-private fun launchPlayer(context: Context, item: CatalogItem) {
+private fun launchPlayer(context: Context, item: CatalogItem, mediaUri: String? = null, mode: PlayerMode = PlayerMode.STREAMING) {
     context.startActivity(
         Intent(context, AnniePlayerActivity::class.java)
             .putExtra(AnniePlayerActivity.EXTRA_ID, item.id)
             .putExtra(AnniePlayerActivity.EXTRA_MEDIA_TYPE, item.mediaType)
             .putExtra(AnniePlayerActivity.EXTRA_TITLE, item.title)
             .putExtra(AnniePlayerActivity.EXTRA_IMAGE, item.image)
-            .putExtra(AnniePlayerActivity.EXTRA_YEAR, item.year ?: -1),
+            .putExtra(AnniePlayerActivity.EXTRA_YEAR, item.year ?: -1)
+            .putExtra(AnniePlayerActivity.EXTRA_MODE, mode.name)
+            .putExtra(AnniePlayerActivity.EXTRA_MEDIA_URI, mediaUri),
     )
 }
+
+private fun DownloadItem.toPlayerCatalogItem(): CatalogItem = CatalogItem(
+    id = 0,
+    mediaType = when (kind) {
+        DownloadMediaKind.ANIME -> "ANIME"
+        DownloadMediaKind.MOVIE -> "MOVIE"
+        DownloadMediaKind.TV -> "TV"
+        DownloadMediaKind.MANGA -> "MANGA"
+        DownloadMediaKind.MUSIC -> "MUSIC"
+    },
+    title = title,
+    image = artworkUrl,
+    year = null,
+    status = "",
+    episodes = null,
+    chapters = null,
+)
 
 private fun newWelcomeChat(): ChatSession {
     val welcome = ChatEntry(

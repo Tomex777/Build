@@ -208,6 +208,7 @@ internal fun DownloadsManagerContent(
     items: List<DownloadItem>,
     onRemove: (DownloadItem) -> Unit,
     onStateChange: (DownloadItem, DownloadState) -> Unit,
+    onPlay: (DownloadItem) -> Unit = {},
     initialMediaFilter: String = "All",
     modifier: Modifier = Modifier,
 ) {
@@ -315,6 +316,7 @@ internal fun DownloadsManagerContent(
                         },
                         onRemove = onRemove,
                         onStateChange = onStateChange,
+                        onPlay = onPlay,
                     )
                 }
             }
@@ -329,6 +331,7 @@ private fun DownloadGroupCard(
     onToggle: () -> Unit,
     onRemove: (DownloadItem) -> Unit,
     onStateChange: (DownloadItem, DownloadState) -> Unit,
+    onPlay: (DownloadItem) -> Unit,
 ) {
     val completed = group.items.count { it.state == DownloadState.COMPLETE }
     val active = group.items.firstOrNull { it.state == DownloadState.DOWNLOADING }
@@ -379,7 +382,7 @@ private fun DownloadGroupCard(
             if (expanded) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     group.items.forEach { item ->
-                        DownloadUnitRow(item = item, onRemove = { onRemove(item) }, onStateChange = { state -> onStateChange(item, state) })
+                        DownloadUnitRow(item = item, onRemove = { onRemove(item) }, onStateChange = { state -> onStateChange(item, state) }, onPlay = { onPlay(item) })
                     }
                 }
             }
@@ -388,7 +391,7 @@ private fun DownloadGroupCard(
 }
 
 @Composable
-private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateChange: (DownloadState) -> Unit) {
+private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateChange: (DownloadState) -> Unit, onPlay: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(DownloadsRow).padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -456,7 +459,12 @@ private fun DownloadUnitRow(item: DownloadItem, onRemove: () -> Unit, onStateCha
                     DownloadAction("Retry") { onStateChange(DownloadState.QUEUED) }
                     DownloadAction("Remove", destructive = true, onClick = onRemove)
                 }
-                DownloadState.COMPLETE -> DownloadAction("Delete", destructive = true, onClick = onRemove)
+                DownloadState.COMPLETE -> {
+                    if (item.localPath.isNotBlank() && item.kind in setOf(DownloadMediaKind.ANIME, DownloadMediaKind.MOVIE, DownloadMediaKind.TV)) {
+                        DownloadAction("Play", onClick = onPlay)
+                    }
+                    DownloadAction("Delete", destructive = true, onClick = onRemove)
+                }
             }
         }
     }

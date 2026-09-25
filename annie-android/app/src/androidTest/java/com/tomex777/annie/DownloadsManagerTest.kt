@@ -58,6 +58,28 @@ class DownloadsManagerTest {
         compose.onNodeWithTag("download_action_resume").assertExists()
     }
 
+
+    @Test fun completedLocalVideoCanOpenTheOfflinePlayer() {
+        var playedId = ""
+        val completedVideo = DownloadItem(
+            "local-video", "anime:local", "source-local", "Local source",
+            DownloadMediaKind.ANIME, "Local Anime",
+            unitTitle = "Episode 1", unitNumber = "1",
+            state = DownloadState.COMPLETE, localPath = "/tmp/annie-local-video.mp4",
+        )
+        compose.setContent {
+            DownloadsManagerContent(
+                listOf(completedVideo),
+                onRemove = {},
+                onStateChange = { _, _ -> },
+                onPlay = { playedId = it.id },
+            )
+        }
+        compose.onNodeWithTag("download_group_ANIME").performClick()
+        compose.onNodeWithTag("download_action_play").performClick()
+        assertEquals("local-video", playedId)
+    }
+
     @Test fun statusFilterShowsPartialCatalogCount() {
         compose.setContent { DownloadsManagerContent(items, onRemove = {}, onStateChange = { _, _ -> }) }
         compose.onNodeWithTag("download_status_Downloaded").performClick()
