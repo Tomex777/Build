@@ -34,3 +34,5 @@ rerun 48 - verify extension-free Music through switcher and read back Bible cach
 rerun 49 - route Bible navigation through local deterministic API fixture
 
 rerun 50 - patch both deterministic Bible API endpoints in CI
+
+rerun 51 - rerun API 36 Bible fixture health check and next chapter top navigation

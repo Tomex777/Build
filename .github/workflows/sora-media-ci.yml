@@ -141,10 +141,10 @@ jobs:
           nohup python3 "$GITHUB_WORKSPACE/sora-ci/bible-fixture-server.py" > /tmp/sora-bible-fixture.log 2>&1 &
           echo $! > /tmp/sora-bible-fixture.pid
           for attempt in {1..20}; do
-            if curl -fsS http://127.0.0.1:8765/health | grep -q '^ok$'; then break; fi
+            if curl -fsS http://127.0.0.1:8765/health | grep -q '"status": "ok"'; then break; fi
             sleep 1
           done
-          curl -fsS http://127.0.0.1:8765/health | grep -q '^ok$'
+          curl -fsS http://127.0.0.1:8765/health | grep -q '"status": "ok"'
           curl -fsS 'http://127.0.0.1:8765/Genesis+1?translation=web' | python3 -c 'import json,sys; assert json.load(sys.stdin)["verses"][0]["text"].startswith("In the beginning")'
 
       - name: Probe AniList availability
