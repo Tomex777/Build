@@ -24,7 +24,8 @@ jobs:
         run: |
           mkdir -p diagnostics
           python3 - <<'PY'
-          import subprocess, requests, json, re, os, urllib.parse
+          import subprocess, requests, json, re, os, urllib.parse, glob
+          import gdown
 
           S4="https://drive.google.com/drive/folders/1t11nowwMHP48OHbl1TNdFH7mj8H5q2nP?usp=sharing"
           UA="Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
@@ -57,7 +58,7 @@ jobs:
           candidates=[]
           for x in files:
               n=x["name"].lower()
-              if re.search(r"(s0?4e0?4|episode\s*0?4|(?:^|[^0-9])0?4(?:[^0-9]|$))",n):
+              if re.search(r"s0?4e0?4(?:[^0-9]|$)",n) or re.search(r"episode\s*0?4(?:[^0-9]|$)",n):
                   candidates.append(x)
           if not candidates and len(files)>=4:
               candidates=[files[3]]
@@ -111,6 +112,42 @@ jobs:
                   rr.close()
               except Exception as e:
                   out["episode4"]["rangeError"]=repr(e)
+
+              # Let gdown complete Google's confirm/interstitial flow, then stop
+              # after the first transfer chunk. This proves the final file body
+              # without downloading the whole episode.
+              transfer={}
+              class StopAfterFirstChunk(Exception): pass
+              def progress(done,total):
+                  transfer["bytesSeen"]=done
+                  transfer["totalBytes"]=total
+                  raise StopAfterFirstChunk()
+              try:
+                  gdown.download(
+                      url=furl,
+                      output="/tmp/rezero-s04e04.mkv",
+                      quiet=True,
+                      use_cookies=False,
+                      user_agent=UA,
+                      progress=progress,
+                      timeout=50
+                  )
+                  transfer["unexpectedFullDownload"]=True
+              except StopAfterFirstChunk:
+                  transfer["abortedAfterFirstChunk"]=True
+              except Exception as e:
+                  transfer["error"]=repr(e)
+
+              parts=glob.glob("/tmp/rezero-s04e04.mkv*.part")
+              if parts:
+                  pp=parts[0]
+                  with open(pp,"rb") as fh:
+                      sig=fh.read(64)
+                  transfer["partialBytesOnDisk"]=os.path.getsize(pp)
+                  transfer["firstBytes"]=sig[:16].hex()
+                  transfer["matroskaEbmlSignature"]=sig.startswith(bytes.fromhex("1a45dfa3"))
+                  os.remove(pp)
+              out["episode4"]["gdownTransfer"]=transfer
 
           json.dump(out,open("diagnostics/kayoanime-rezero-s4-map.json","w"),indent=2)
           print(json.dumps(out,indent=2))
