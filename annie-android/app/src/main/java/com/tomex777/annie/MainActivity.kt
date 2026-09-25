@@ -30,8 +30,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
@@ -137,7 +137,8 @@ internal fun AnnieChat() {
     val messages = activeChat.messages
     var draft by remember { mutableStateOf("") }
     var activeSheet by remember { mutableStateOf<String?>(null) }
-    val listState = rememberLazyListState()
+    val listState = remember(activeChatId) { LazyListState() }
+    var playerItem by remember { mutableStateOf<CatalogItem?>(null) }
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val keyboardVisible = WindowInsets.ime.getBottom(density) > 0
@@ -286,6 +287,14 @@ internal fun AnnieChat() {
         }
     }
 
+    if (playerItem != null) {
+        MediaPlayerScreen(
+            item = playerItem!!,
+            mode = PlayerMode.STREAMING,
+            sourceAvailable = false,
+            onBack = { playerItem = null },
+        )
+    } else {
     Surface(modifier = Modifier.fillMaxSize(), color = Night) {
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding().testTag("chat_root")) {
             AnnieTopBar(onHistory = { activeSheet = "Chat history" })
@@ -305,7 +314,7 @@ internal fun AnnieChat() {
                         },
                         onSeriesAction = { item, stage, season ->
                             if (stage == "play") {
-                                addAnnie("Playback is unavailable until an anime streaming source is connected.")
+                                playerItem = season?.asCatalogItem() ?: item
                             } else {
                                 addAnnie("", selectedItem = season?.asCatalogItem() ?: item, selectedStage = stage)
                             }
@@ -321,6 +330,7 @@ internal fun AnnieChat() {
                 onMenu = { activeSheet = "Attachments" }
             )
         }
+    }
     }
 
     if (activeSheet != null) {
