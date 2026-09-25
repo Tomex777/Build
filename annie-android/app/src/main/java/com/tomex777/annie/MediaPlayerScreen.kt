@@ -258,7 +258,7 @@ internal fun MediaPlayerScreen(
         while (isActive) {
             durationMs = runCatching { player.length.coerceAtLeast(0L) }.getOrDefault(0L)
             positionMs = runCatching { player.time.coerceAtLeast(0L) }.getOrDefault(0L)
-            playing = runCatching { player.isPlaying }.getOrDefault(false)
+            playing = !userPaused && runCatching { player.isPlaying }.getOrDefault(false)
             delay(250)
         }
     }
