@@ -119,4 +119,40 @@ class AniyomiCompatibilitySmokeTest {
         Unit
     }
 
+    @Test
+    fun installedV17FixtureCrossesClassloaderBoundary() = runBlocking<Unit> {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val installed = AniyomiExtensionRegistry(context).installedSources()
+        val fixture = installed.firstOrNull {
+            it.metadata.extensionPackage == "app.nami.fixture.v17"
+        }
+
+        assertNotNull("The separately installed v17 fixture APK must be discovered", fixture)
+        fixture!!
+        assertEquals(17, fixture.metadata.extensionApiVersion)
+
+        val results = withTimeout(10_000) { fixture.search("Bleach").items }
+        assertEquals(1, results.size)
+        assertTrue(results.single().title.contains("Bleach", ignoreCase = true))
+
+        val details = withTimeout(10_000) { fixture.details(results.single().ref) }
+        assertEquals("Fixture Details", details.title)
+
+        val episodes = withTimeout(10_000) { fixture.episodes(results.single().ref) }
+        assertEquals(1, episodes.size)
+        assertEquals("Fixture Episode 1", episodes.single().title)
+
+        val media = withTimeout(10_000) { fixture.resolve(episodes.single().ref) }
+        assertEquals(1, media.size)
+        assertEquals("https://example.invalid/fixture-v17.mp4", media.single().url)
+        assertEquals("1080p", media.single().quality)
+
+        Log.i(
+            "NamiSourceSmoke",
+            "v17Fixture source=${fixture.metadata.id} results=${results.size} " +
+                "episodes=${episodes.size} media=${media.size}",
+        )
+    }
+
+
 }

@@ -24,10 +24,13 @@ dependencies {
     implementation("androidx.preference:preference-ktx:1.2.1")
     implementation("com.github.mihonapp:injekt:91edab2317")
     api("com.squareup.okhttp3:okhttp:5.4.0")
+    implementation("com.squareup.okhttp3:okhttp-brotli:5.4.0")
+    implementation("com.squareup.okhttp3:okhttp-zstd:5.4.0")
     implementation("org.jsoup:jsoup:1.22.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json-okio:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.9.0")
     implementation("io.reactivex:rxjava:1.3.8")
     implementation("org.nanohttpd:nanohttpd:2.3.1")
 
