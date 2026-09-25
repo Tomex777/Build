@@ -41,6 +41,10 @@ PY
 adb shell run-as com.night.sora mkdir -p /data/user/0/com.night.sora/shared_prefs
 adb shell run-as com.night.sora tee /data/user/0/com.night.sora/shared_prefs/sora_bible.xml < /tmp/sora-bible-ci-prefs.xml >/dev/null
 adb shell run-as com.night.sora test -s /data/user/0/com.night.sora/shared_prefs/sora_bible.xml
+# Read the cache back through the app UID and compare it byte-for-byte before
+# launch; a present but malformed/unreadable preference file must fail setup.
+adb shell run-as com.night.sora cat /data/user/0/com.night.sora/shared_prefs/sora_bible.xml > /tmp/sora-bible-ci-prefs-readback.xml
+cmp /tmp/sora-bible-ci-prefs.xml /tmp/sora-bible-ci-prefs-readback.xml
 adb shell am force-stop com.night.sora
 adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
 sleep 3
