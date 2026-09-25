@@ -292,7 +292,7 @@ jobs:
             nami-api26-logcat.txt
           if-no-files-found: ignore
 
-api-36-smoke:
+  api-36-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
