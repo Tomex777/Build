@@ -37,30 +37,6 @@ class AniyomiCompatibilitySmokeTest {
 
         val jikan = JikanAnimeSource()
         val query = "Bleach"
-        println("NamiSourceSmoke: extension-only global search started for $query")
-        val search = withTimeout(90_000) {
-            GlobalAnimeSearch(NamiSourceRegistry { installed }).search(query)
-        }
-        Log.i(
-            "NamiSourceSmoke",
-            "globalSearch sources=${search.resultsBySource.keys} " +
-                "counts=${search.resultsBySource.mapValues { it.value.size }} " +
-                "failures=${search.failures.map { it.sourceId + ":" + it.stage + ":" + it.cause.javaClass.simpleName + ":" + it.cause.message }}",
-        )
-        search.failures.forEach { failure ->
-            Log.e(
-                "NamiSourceSmoke",
-                "source=${failure.sourceId} stage=${failure.stage}",
-                failure.cause,
-            )
-        }
-        val extensionResults = search.resultsBySource[animeSogo.metadata.id].orEmpty()
-        assertTrue("AnimeSogo returned no real results for $query", extensionResults.isNotEmpty())
-        assertTrue(
-            "Extension-only global search leaked a native source",
-            search.resultsBySource.keys.none { it == jikan.metadata.id },
-        )
-
         println("NamiSourceSmoke: native Jikan search started separately")
         val nativeResults = withTimeout(60_000) { jikan.search(query).items }
         assertTrue("Jikan returned no real results for $query", nativeResults.isNotEmpty())
@@ -91,6 +67,31 @@ class AniyomiCompatibilitySmokeTest {
         }
         assertTrue("Jikan details did not normalize into Nami models", nativeDetails.title.isNotBlank())
         assertTrue("Jikan did not return episode metadata", nativeEpisodes.isNotEmpty())
+
+
+        println("NamiSourceSmoke: extension-only global search started for $query")
+        val search = withTimeout(90_000) {
+            GlobalAnimeSearch(NamiSourceRegistry { installed }).search(query)
+        }
+        Log.i(
+            "NamiSourceSmoke",
+            "globalSearch sources=${search.resultsBySource.keys} " +
+                "counts=${search.resultsBySource.mapValues { it.value.size }} " +
+                "failures=${search.failures.map { it.sourceId + ":" + it.stage + ":" + it.cause.javaClass.simpleName + ":" + it.cause.message }}",
+        )
+        search.failures.forEach { failure ->
+            Log.e(
+                "NamiSourceSmoke",
+                "source=${failure.sourceId} stage=${failure.stage}",
+                failure.cause,
+            )
+        }
+        val extensionResults = search.resultsBySource[animeSogo.metadata.id].orEmpty()
+        assertTrue("AnimeSogo returned no real results for $query", extensionResults.isNotEmpty())
+        assertTrue(
+            "Extension-only global search leaked a native source",
+            search.resultsBySource.keys.none { it == jikan.metadata.id },
+        )
 
         val elapsed = (System.nanoTime() - start) / 1_000_000
         Log.i(
