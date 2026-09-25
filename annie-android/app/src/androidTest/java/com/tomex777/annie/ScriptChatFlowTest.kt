@@ -27,6 +27,7 @@ class ScriptChatFlowTest {
         }
         compose.onNodeWithTag("script_studio").assertIsDisplayed()
         compose.onNodeWithTag("script_editor").assertIsDisplayed()
+        saveEmulatorScreenshot("annie-script-studio")
     }
 
     @Test fun scriptCommandRunsThroughComposerAndAppearsAsAChatMessage() {
