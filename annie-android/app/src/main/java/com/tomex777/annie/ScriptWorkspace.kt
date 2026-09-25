@@ -1,6 +1,8 @@
 package com.tomex777.annie
 
 import android.content.Context
+import android.webkit.CookieManager
+import android.webkit.WebSettings
 import com.dokar.quickjs.ModuleContent
 import com.dokar.quickjs.ModuleLoader
 import com.dokar.quickjs.QuickJs
@@ -16,7 +18,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.ConcurrentHashMap
 
 internal data class ScriptProject(
@@ -377,6 +382,30 @@ internal class ScriptRuntime(
             val request = JSONObject(args.firstOrNull() as? String ?: "{}")
             JSONObject(requestHttp(request)).toString()
         }
+        runtime.function("annieBrowserBuildMessage") { args ->
+            val raw = args.firstOrNull() as? String ?: "{}"
+            val spec = AnnieBrowserSpec.decode(raw) ?: error("Invalid Annie browser request")
+            AnnieBrowserSessionStore.register(context, spec)
+            spec.encode().toString()
+        }
+        runtime.function("annieBrowserSession") { args ->
+            val sessionId = args.firstOrNull()?.toString().orEmpty()
+            val session = AnnieBrowserSessionStore.get(context, sessionId) ?: return@function null
+            JSONObject()
+                .put("sessionId", session.sessionId)
+                .put("currentUrl", session.currentUrl)
+                .put("userAgent", session.userAgent ?: WebSettings.getDefaultUserAgent(context))
+                .put("allowedHosts", JSONArray(session.allowedHosts))
+                .put("restricted", session.restricted)
+                .put("verificationState", session.verificationState.wireName)
+                .put("verifiedAt", session.verifiedAtMillis)
+                .toString()
+        }
+        runtime.asyncFunction("annieBrowserClear") { args ->
+            val sessionId = args.firstOrNull()?.toString().orEmpty()
+            AnnieBrowserSessionStore.clear(context, sessionId)
+            true
+        }
         runtime.function("annieLog") { args ->
             val level = args.getOrNull(0)?.toString()?.uppercase()?.take(8) ?: "INFO"
             val message = redact(args.drop(1).joinToString(" ")).take(MAX_LOG_CHARS)
@@ -466,43 +495,118 @@ internal class ScriptRuntime(
     }
 
     private suspend fun requestHttp(request: JSONObject): Map<String, Any?> = withContext(Dispatchers.IO) {
-        val address = request.optString("url")
-        val url = URL(address)
-        require(url.protocol == "https" || url.protocol == "http") { "Only HTTP and HTTPS URLs are allowed" }
-        val connection = (url.openConnection() as HttpURLConnection).apply {
-            requestMethod = request.optString("method", "GET").uppercase().takeIf { it in ALLOWED_METHODS } ?: "GET"
-            connectTimeout = request.optInt("timeoutMs", DEFAULT_HTTP_TIMEOUT_MS).coerceIn(1_000, MAX_HTTP_TIMEOUT_MS)
-            readTimeout = connectTimeout
-            instanceFollowRedirects = true
-            setRequestProperty("User-Agent", "Annie/1.0")
-            request.optJSONObject("headers")?.let { headers ->
-                val iterator = headers.keys()
-                while (iterator.hasNext()) {
-                    val key = iterator.next()
-                    if (key.equals("host", true) || key.equals("content-length", true) || key.equals("connection", true)) continue
-                    setRequestProperty(key.take(128), headers.optString(key).take(4096))
-                }
+        val initial = request.optString("url")
+        requireHttpAddress(initial)
+        val sessionId = request.optString("browserSession").takeIf(String::isNotBlank)
+        val browserSession = sessionId?.let { AnnieBrowserSessionStore.get(context, it) }
+        if (sessionId != null) require(browserSession != null) { "Unknown Annie browser session: $sessionId" }
+        val explicitHeaders = linkedMapOf<String, Pair<String, String>>()
+        request.optJSONObject("headers")?.let { headers ->
+            val iterator = headers.keys()
+            while (iterator.hasNext()) {
+                val key = iterator.next()
+                if (key.equals("host", true) || key.equals("content-length", true) || key.equals("connection", true)) continue
+                explicitHeaders[key.lowercase()] = key.take(128) to headers.optString(key).take(4096)
             }
         }
-        try {
-            val body = request.optString("body").takeIf { request.has("body") && !request.isNull("body") }
-            if (body != null && connection.requestMethod in BODY_METHODS) {
-                connection.doOutput = true
-                connection.setRequestProperty("Content-Type", request.optString("contentType", "application/json"))
-                connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+        val timeout = request.optInt("timeoutMs", DEFAULT_HTTP_TIMEOUT_MS).coerceIn(1_000, MAX_HTTP_TIMEOUT_MS)
+        var method = request.optString("method", "GET").uppercase().takeIf { it in ALLOWED_METHODS } ?: "GET"
+        var body = request.optString("body").takeIf { request.has("body") && !request.isNull("body") }
+        var current = initial
+        var redirects = 0
+        var finalStatus = 0
+        var responseBody = ""
+        var finalUrl = initial
+        while (true) {
+            requireHttpAddress(current)
+            val connection = (URL(current).openConnection() as HttpURLConnection).apply {
+                requestMethod = method
+                connectTimeout = timeout
+                readTimeout = timeout
+                instanceFollowRedirects = false
             }
-            val status = connection.responseCode
-            val stream = if (status >= 400) connection.errorStream else connection.inputStream
-            val responseBody = stream?.bufferedReader()?.use { it.readText().take(MAX_HTTP_RESPONSE_CHARS) }.orEmpty()
-            val responseJson = runCatching { JSONObject(responseBody).toMap() }.getOrNull()
-            mapOf(
-                "status" to status,
-                "ok" to (status in 200..299),
-                "url" to (connection.url?.toString() ?: address),
-                "body" to responseBody,
-                "json" to responseJson,
-            )
-        } finally { connection.disconnect() }
+            try {
+                if (browserSession != null) {
+                    require(AnnieBrowserSessionStore.allows(browserSession, current)) {
+                        "HTTP URL is outside this browser session's allowed sites"
+                    }
+                }
+                explicitHeaders.values.forEach { (name, value) -> connection.setRequestProperty(name, value) }
+                if (explicitHeaders["user-agent"] == null) {
+                    val userAgent = browserSession?.userAgent
+                        ?: if (browserSession != null) WebSettings.getDefaultUserAgent(context) else "Annie/1.0"
+                    connection.setRequestProperty("User-Agent", userAgent)
+                }
+                if (explicitHeaders["cookie"] == null) {
+                    CookieManager.getInstance().getCookie(current)?.takeIf(String::isNotBlank)?.let {
+                        connection.setRequestProperty("Cookie", it)
+                    }
+                }
+                if (body != null && method in BODY_METHODS) {
+                    connection.doOutput = true
+                    connection.setRequestProperty("Content-Type", request.optString("contentType", "application/json"))
+                    connection.outputStream.use { it.write(body!!.toByteArray(Charsets.UTF_8)) }
+                }
+                finalStatus = connection.responseCode
+                if (browserSession != null) persistResponseCookies(current, connection)
+                val location = connection.getHeaderField("Location")
+                if (finalStatus in REDIRECT_CODES && !location.isNullOrBlank() && redirects < MAX_HTTP_REDIRECTS) {
+                    val next = URI(current).resolve(location).toString()
+                    requireHttpAddress(next)
+                    if (!sameOrigin(current, next)) {
+                        explicitHeaders.remove("authorization")
+                        explicitHeaders.remove("cookie")
+                    }
+                    if (finalStatus == 303 || (finalStatus in setOf(301, 302) && method == "POST")) {
+                        method = "GET"
+                        body = null
+                    }
+                    current = next
+                    redirects++
+                    continue
+                }
+                finalUrl = connection.url?.toString() ?: current
+                val stream = if (finalStatus >= 400) connection.errorStream else connection.inputStream
+                responseBody = stream?.bufferedReader()?.use { it.readText().take(MAX_HTTP_RESPONSE_CHARS) }.orEmpty()
+                break
+            } finally {
+                connection.disconnect()
+            }
+        }
+        val responseJson = runCatching { JSONObject(responseBody).toMap() }.getOrNull()
+        mapOf(
+            "status" to finalStatus,
+            "ok" to (finalStatus in 200..299),
+            "url" to finalUrl,
+            "body" to responseBody,
+            "json" to responseJson,
+        )
+    }
+
+    private fun requireHttpAddress(raw: String) {
+        val uri = runCatching { URI(raw) }.getOrNull()
+        require(uri != null && (uri.scheme?.equals("https", true) == true || uri.scheme?.equals("http", true) == true) && !uri.host.isNullOrBlank() && uri.rawUserInfo.isNullOrBlank()) {
+            "Only safe HTTP and HTTPS URLs are allowed"
+        }
+    }
+
+    private fun sameOrigin(left: String, right: String): Boolean = runCatching {
+        val a = URI(left); val b = URI(right)
+        a.scheme.equals(b.scheme, true) && a.host.equals(b.host, true) && a.port == b.port
+    }.getOrDefault(false)
+
+    private fun persistResponseCookies(url: String, connection: HttpURLConnection) {
+        val values = connection.headerFields.entries
+            .filter { it.key.equals("Set-Cookie", true) }
+            .flatMap { it.value.orEmpty() }
+        if (values.isEmpty()) return
+        val manager = CookieManager.getInstance()
+        values.forEach { cookie ->
+            val latch = CountDownLatch(1)
+            manager.setCookie(url, cookie) { latch.countDown() }
+            runCatching { latch.await(1, TimeUnit.SECONDS) }
+        }
+        manager.flush()
     }
 
     private fun redact(value: String): String = value.replace(
@@ -519,6 +623,8 @@ internal class ScriptRuntime(
         private const val MAX_LOG_CHARS = 2_000
         private val ALLOWED_METHODS = setOf("GET", "POST", "PUT", "PATCH", "DELETE")
         private val BODY_METHODS = setOf("POST", "PUT", "PATCH", "DELETE")
+        private val REDIRECT_CODES = setOf(301, 302, 303, 307, 308)
+        private const val MAX_HTTP_REDIRECTS = 8
         private fun storageName(id: String) = "annie_script_storage_${id.replace(Regex("[^A-Za-z0-9_-]"), "_")}"
 
         private val BOOTSTRAP = """
@@ -552,6 +658,12 @@ internal class ScriptRuntime(
             |    globalThis.__annieSessionHandlers[String(definition.name)] = definition.onMessage;
             |  }},
             |  http: { request: async request => JSON.parse(await annieHttpRequest(JSON.stringify(request))) },
+            |  browser: {
+            |    open: spec => JSON.parse(annieBrowserBuildMessage(JSON.stringify(spec || {}))),
+            |    session: sessionId => { const raw = annieBrowserSession(String(sessionId)); return raw == null ? null : JSON.parse(raw); },
+            |    clear: async sessionId => await annieBrowserClear(String(sessionId)),
+            |    verification: (status, message = "") => ({type: "text", text: String(message || status), verification: {status: String(status), message: String(message)}})
+            |  },
             |  image: { chess: fen => annieRenderChess(String(fen)) },
             |  files: {
             |    readText: path => annieFileReadText(String(path)),
@@ -565,7 +677,8 @@ internal class ScriptRuntime(
             |    music: value => Object.assign({type: "music"}, value || {}),
             |    video: value => Object.assign({type: "video"}, value || {}),
             |    options: value => Object.assign({type: "options"}, value || {}),
-            |    progress: value => Object.assign({type: "progress"}, value || {})
+            |    progress: value => Object.assign({type: "progress"}, value || {}),
+            |    browser: value => JSON.parse(annieBrowserBuildMessage(JSON.stringify(value || {})))
             |  },
             |  storage: {
             |    get: key => { const raw = annieStoreGet(String(key)); return raw == null ? null : JSON.parse(raw); },

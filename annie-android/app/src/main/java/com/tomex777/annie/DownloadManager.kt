@@ -79,6 +79,7 @@ internal data class DownloadItem(
     val sourceUrl: String = "",
     val headersJson: String = "{}",
     val sourceMimeType: String? = null,
+    val browserSessionId: String? = null,
 )
 
 internal data class ChapterBatch(val first: Int, val last: Int) {
@@ -152,6 +153,7 @@ internal object DownloadStore {
                         sourceUrl = json.optString("sourceUrl"),
                         headersJson = json.optString("headersJson", "{}"),
                         sourceMimeType = json.optString("sourceMimeType").takeIf { it.isNotBlank() },
+                        browserSessionId = json.optString("browserSessionId").takeIf { it.isNotBlank() },
                     )
                 )
             }
@@ -184,6 +186,7 @@ internal object DownloadStore {
                     .put("sourceUrl", item.sourceUrl)
                     .put("headersJson", item.headersJson)
                     .put("sourceMimeType", item.sourceMimeType ?: "")
+                    .put("browserSessionId", item.browserSessionId ?: "")
             )
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

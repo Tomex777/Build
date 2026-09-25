@@ -117,6 +117,56 @@ class ScriptRuntimeTest {
         }
     }
 
+    @Test fun browserMessagePersistsSessionAndReturnsAsyncVerificationToItsOwningScript() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val name = "browserproof${System.nanoTime().toString().takeLast(8)}"
+        try {
+            val file = workspace.files.createScript(name)
+            workspace.files.writeFile(
+                name, file.name, """
+                    |annie.actions.register("verifySession", async payload =>
+                    |  annie.browser.verification("verified", "Protected source request succeeded")
+                    |);
+                    |annie.commands.register({
+                    |  name: "$name",
+                    |  async execute() {
+                    |    const message = annie.browser.open({
+                    |      title: "Verify test source",
+                    |      sessionId: "$name.main",
+                    |      url: "https://example.com/start",
+                    |      allowedHosts: ["example.com", "related.example"],
+                    |      verifyAction: "verifySession",
+                    |      userAgent: "AnnieBrowserProof/1.0"
+                    |    });
+                    |    return { ...message, savedSession: annie.browser.session(message.sessionId) };
+                    |  }
+                    |});
+                """.trimMargin()
+            )
+            workspace.reload()
+            val browser = JSONObject(workspace.execute(name, "/$name", "browser-chat", 505L))
+            assertEquals("browser", browser.getString("type"))
+            assertTrue(browser.getJSONObject("savedSession").getString("currentUrl").startsWith("https://example.com"))
+            assertEquals("AnnieBrowserProof/1.0", browser.getJSONObject("savedSession").getString("userAgent"))
+
+            val verification = workspace.executeAction(
+                name,
+                browser.getString("verifyAction"),
+                """{"sessionId":"$name.main","currentUrl":"https://example.com/start"}""",
+                "browser-chat",
+                506L,
+            )
+            val result = JSONObject(checkNotNull(verification).resultJson)
+            assertEquals("verified", result.getJSONObject("verification").getString("status"))
+            assertEquals("Protected source request succeeded", result.getJSONObject("verification").getString("message"))
+        } finally {
+            runCatching { workspace.files.deleteProject(name) }
+            AnnieBrowserSessionStore.clear(context, "$name.main", clearCookies = false)
+            workspace.close()
+        }
+    }
+
     @Test fun chessScriptGeneratesPersistentImageAndHandlesPlainTextMove() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val workspace = ScriptWorkspace(context)

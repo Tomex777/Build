@@ -260,6 +260,7 @@ internal fun AnnieChat() {
             sourceUrl = source.url,
             headersJson = org.json.JSONObject(source.headers).toString(),
             sourceMimeType = source.mimeType,
+            browserSessionId = source.browserSessionId,
         )
         mediaDownloader.enqueue(item)
         addAnnie(
@@ -453,22 +454,23 @@ internal fun AnnieChat() {
                                     addAnnie("", selectedItem = season?.asCatalogItem() ?: item, selectedStage = stage)
                                 }
                             },
-                            onScriptAction = { actionId, payloadJson ->
+                            onScriptAction = { actionId, payloadJson, complete ->
                                 val owner = entry.scriptId
                                 if (owner != null) {
                                     scope.launch {
-                                        val dispatch = scriptWorkspace.executeAction(
-                                            scriptId = owner,
-                                            actionId = actionId,
-                                            payloadJson = payloadJson,
-                                            chatId = activeChatId,
-                                            messageId = entry.id,
-                                        )
-                                        if (dispatch != null) {
-                                            addScriptResult(dispatch.resultJson, dispatch.scriptId, dispatch.channel)
-                                        }
+                                        val dispatch = runCatching {
+                                            scriptWorkspace.executeAction(
+                                                scriptId = owner,
+                                                actionId = actionId,
+                                                payloadJson = payloadJson,
+                                                chatId = activeChatId,
+                                                messageId = entry.id,
+                                            )
+                                        }.getOrNull()
+                                        if (dispatch != null) addScriptResult(dispatch.resultJson, dispatch.scriptId, dispatch.channel)
+                                        complete(dispatch?.resultJson)
                                     }
-                                }
+                                } else complete(null)
                             },
                             onScriptVideoDownload = { data, owner ->
                                 queueScriptVideoDownload(data, owner)
@@ -753,7 +755,7 @@ internal fun ChatBubble(
     onActionClick: (String, String) -> Unit,
     onOpenSource: (String) -> Unit,
     onSeriesAction: (CatalogItem, String, SeasonItem?) -> Unit,
-    onScriptAction: (String, String) -> Unit = { _, _ -> },
+    onScriptAction: (String, String, (String?) -> Unit) -> Unit = { _, _, done -> done(null) },
     onScriptVideoDownload: (org.json.JSONObject, String?) -> Unit = { _, _ -> },
 ) {
     Row(
@@ -860,7 +862,7 @@ internal fun ChatBubble(
 @Composable
 private fun ScriptMessageCard(
     payload: String,
-    onAction: (String, String) -> Unit,
+    onAction: (String, String, (String?) -> Unit) -> Unit,
     onVideoDownload: (org.json.JSONObject) -> Unit,
 ) {
     val data = remember(payload) { runCatching { org.json.JSONObject(payload) }.getOrNull() }
@@ -876,7 +878,13 @@ private fun ScriptMessageCard(
         "image" -> ScriptImageMessage(data)
         "music" -> ScriptMusicMessage(data)
         "video" -> ScriptVideoMessage(data, onVideoDownload)
-        "options" -> ScriptOptionsMessage(data, onAction)
+        "options" -> ScriptOptionsMessage(data) { action, payloadJson -> onAction(action, payloadJson) {} }
+        "browser" -> AnnieBrowserSpec.decode(data)?.let { spec ->
+            AnnieBrowserMessage(spec, onAction)
+        } ?: Surface(color = Bubble, shape = RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)) {
+            Text("Browser request could not be opened safely.", color = SoftText,
+                fontSize = 14.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp))
+        }
         "progress" -> ScriptProgressMessage(data)
         "text" -> Text(data.optString("text"), color = BrightText, fontSize = 15.sp)
         else -> Surface(color = Bubble, shape = RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)) {

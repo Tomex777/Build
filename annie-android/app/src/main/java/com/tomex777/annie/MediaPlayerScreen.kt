@@ -6,6 +6,8 @@ import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.net.Uri
+import android.webkit.CookieManager
+import android.webkit.WebSettings
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -127,6 +129,7 @@ internal data class PlayerSource(
     val label: String,
     val uri: Uri,
     val headers: Map<String, String> = emptyMap(),
+    val browserSessionId: String? = null,
 )
 
 private enum class AnnieVideoScale(val label: String, val scale: MediaPlayer.ScaleType) {
@@ -258,7 +261,19 @@ internal fun MediaPlayerScreen(
             // Let Android's hardware decoder render into the surface now that it is attached.
             setHWDecoderEnabled(true, false)
             addOption(":network-caching=1500")
-            activeSource?.headers?.forEach { (name, value) ->
+            val sourceHeaders = activeSource?.headers.orEmpty().toMutableMap()
+            val browserSession = activeSource?.browserSessionId
+                ?.let { AnnieBrowserSessionStore.get(context, it) }
+                ?.takeIf { AnnieBrowserSessionStore.allows(it, activeUri.toString()) }
+            if (sourceHeaders.keys.none { it.equals("User-Agent", true) } && browserSession != null) {
+                sourceHeaders["User-Agent"] = browserSession.userAgent ?: WebSettings.getDefaultUserAgent(context)
+            }
+            if (sourceHeaders.keys.none { it.equals("Cookie", true) }) {
+                CookieManager.getInstance().getCookie(activeUri.toString())?.takeIf(String::isNotBlank)?.let {
+                    sourceHeaders["Cookie"] = it
+                }
+            }
+            sourceHeaders.forEach { (name, value) ->
                 when (name.lowercase()) {
                     "user-agent" -> addOption(":http-user-agent=$value")
                     "referer", "referrer" -> addOption(":http-referrer=$value")
@@ -712,6 +727,7 @@ private fun formatRate(rate: Float): String =
 private fun parsePlayerSources(config: JSONObject?, fallback: Uri?): List<PlayerSource> {
     if (config == null) return fallback?.let { listOf(PlayerSource("Source", it)) }.orEmpty()
     val topHeaders = config.optJSONObject("headers").stringMap()
+    val browserSessionId = config.optString("browserSession").takeIf(String::isNotBlank)
     val qualities = config.optJSONArray("qualities")
     val parsed = buildList {
         if (qualities != null) {
@@ -726,13 +742,14 @@ private fun parsePlayerSources(config: JSONObject?, fallback: Uri?): List<Player
                     .ifBlank { row.optString("quality") }
                     .ifBlank { "Source ${index + 1}" }
                 val headers = topHeaders + row.optJSONObject("headers").stringMap()
-                add(PlayerSource(label, Uri.parse(address), headers))
+                val session = row.optString("browserSession").takeIf(String::isNotBlank) ?: browserSessionId
+                add(PlayerSource(label, Uri.parse(address), headers, session))
             }
         }
     }
     if (parsed.isNotEmpty()) return parsed
     val direct = config.optString("uri").takeIf(String::isNotBlank)?.let(Uri::parse) ?: fallback
-    return direct?.let { listOf(PlayerSource(config.optString("quality", "Source"), it, topHeaders)) }.orEmpty()
+    return direct?.let { listOf(PlayerSource(config.optString("quality", "Source"), it, topHeaders, browserSessionId)) }.orEmpty()
 }
 
 private fun JSONObject?.stringMap(): Map<String, String> {

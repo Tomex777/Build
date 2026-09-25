@@ -29,6 +29,7 @@ internal data class AnnieDownloadSource(
     val headers: Map<String, String> = emptyMap(),
     val mimeType: String? = null,
     val quality: String = "",
+    val browserSessionId: String? = null,
 )
 
 internal object ScriptVideoDownloadSource {
@@ -36,6 +37,7 @@ internal object ScriptVideoDownloadSource {
 
     fun from(data: JSONObject): AnnieDownloadSource? {
         val topHeaders = data.optJSONObject("headers").stringMap()
+        val browserSessionId = data.optString("browserSession").takeIf(String::isNotBlank)
         val qualities = data.optJSONArray("qualities")
         val candidates = buildList {
             if (qualities != null) {
@@ -55,6 +57,7 @@ internal object ScriptVideoDownloadSource {
                             headers = topHeaders + row.optJSONObject("headers").stringMap(),
                             mimeType = row.optString("mimeType").takeIf(String::isNotBlank),
                             quality = quality,
+                            browserSessionId = row.optString("browserSession").takeIf(String::isNotBlank) ?: browserSessionId,
                         )
                     )
                 }
@@ -78,6 +81,7 @@ internal object ScriptVideoDownloadSource {
             headers = topHeaders,
             mimeType = data.optString("mimeType").takeIf(String::isNotBlank),
             quality = data.optString("quality"),
+            browserSessionId = browserSessionId,
         )
     }
 
@@ -278,14 +282,28 @@ internal class AnnieMediaDownloader(
             }
         }.getOrDefault(emptyMap())
 
-        val first = open(item.sourceUrl, headers)
+        val browserSession = item.browserSessionId?.let { id ->
+            val session = AnnieBrowserSessionStore.get(context, id)
+                ?: error("Unknown Annie browser session: $id")
+            require(AnnieBrowserSessionStore.allows(session, item.sourceUrl)) {
+                "Download URL is outside this browser session's allowed sites"
+            }
+            session
+        }
+        val sessionHeaders = browserSession?.let { session ->
+            if (headers.keys.none { it.equals("User-Agent", true) }) {
+                headers + ("User-Agent" to (session.userAgent ?: android.webkit.WebSettings.getDefaultUserAgent(context)))
+            } else headers
+        } ?: headers
+
+        val first = open(item.sourceUrl, sessionHeaders, browserSession = browserSession)
         try {
             val responseMime = first.contentType?.substringBefore(';')?.trim()
             if (AnnieDownloadNaming.isHls(first.url.toString(), item.sourceMimeType ?: responseMime)) {
                 val playlist = first.inputStream.bufferedReader().use { it.readText() }
-                downloadHls(item, first.url.toString(), playlist, headers)
+                downloadHls(item, first.url.toString(), playlist, sessionHeaders, browserSession)
             } else {
-                downloadDirect(item, first, responseMime)
+                downloadDirect(item, first, responseMime, sessionHeaders, browserSession)
             }
         } finally {
             first.disconnect()
@@ -296,6 +314,8 @@ internal class AnnieMediaDownloader(
         item: DownloadItem,
         initial: HttpURLConnection,
         responseMime: String?,
+        requestHeaders: Map<String, String>,
+        browserSession: AnnieBrowserSession?,
     ) {
         val resolvedUrl = initial.url.toString()
         initial.disconnect()
@@ -305,7 +325,7 @@ internal class AnnieMediaDownloader(
         temp.parentFile?.mkdirs()
 
         val existing = temp.length().coerceAtLeast(0L)
-        val connection = open(item.sourceUrl, headers(item), existing.takeIf { it > 0L })
+        val connection = open(item.sourceUrl, requestHeaders, existing.takeIf { it > 0L }, browserSession)
         try {
             val append = existing > 0L && connection.responseCode == HttpURLConnection.HTTP_PARTIAL
             if (!append && existing > 0L) temp.delete()
@@ -348,11 +368,12 @@ internal class AnnieMediaDownloader(
         initialUrl: String,
         initialPlaylist: String,
         headers: Map<String, String>,
+        browserSession: AnnieBrowserSession?,
     ) {
         var playlistUrl = initialUrl
         var playlist = initialPlaylist
         AnnieHlsPlanner.selectMasterVariant(playlistUrl, playlist)?.let { variant ->
-            val child = open(variant, headers)
+            val child = open(variant, headers, browserSession = browserSession)
             try {
                 playlist = child.inputStream.bufferedReader().use { it.readText() }
                 playlistUrl = child.url.toString()
@@ -376,7 +397,7 @@ internal class AnnieMediaDownloader(
             for (index in completed until parts.size) {
                 currentCoroutineContext().ensureActive()
                 val boundary = temp.length()
-                val connection = open(parts[index], headers)
+                val connection = open(parts[index], headers, browserSession = browserSession)
                 try {
                     connection.inputStream.use { input ->
                         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
@@ -453,44 +474,63 @@ internal class AnnieMediaDownloader(
         url: String,
         headers: Map<String, String>,
         rangeStart: Long? = null,
+        browserSession: AnnieBrowserSession? = null,
     ): HttpURLConnection {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        connection.instanceFollowRedirects = true
-        connection.connectTimeout = 30_000
-        connection.readTimeout = 60_000
-        headers.forEach { (name, value) ->
-            if (name.isNotBlank() && value.isNotBlank()) {
-                connection.setRequestProperty(name, value)
+        var currentUrl = url
+        var currentHeaders = headers
+        repeat(if (browserSession == null) 1 else 9) { redirectCount ->
+            if (browserSession != null) require(AnnieBrowserSessionStore.allows(browserSession, currentUrl)) {
+                "Download redirect is outside this browser session's allowed sites"
             }
-        }
-        if (headers.keys.none { it.equals("Cookie", ignoreCase = true) }) {
-            CookieManager.getInstance().getCookie(url)?.takeIf(String::isNotBlank)?.let {
-                connection.setRequestProperty("Cookie", it)
+            val connection = URL(currentUrl).openConnection() as HttpURLConnection
+            connection.instanceFollowRedirects = browserSession == null
+            connection.connectTimeout = 30_000
+            connection.readTimeout = 60_000
+            currentHeaders.forEach { (name, value) ->
+                if (name.isNotBlank() && value.isNotBlank()) connection.setRequestProperty(name, value)
             }
-        }
-        rangeStart?.takeIf { it > 0L }?.let {
-            connection.setRequestProperty("Range", "bytes=$it-")
-        }
-        connection.connect()
-        if (connection.responseCode !in 200..299) {
+            if (currentHeaders.keys.none { it.equals("Cookie", ignoreCase = true) }) {
+                CookieManager.getInstance().getCookie(currentUrl)?.takeIf(String::isNotBlank)?.let {
+                    connection.setRequestProperty("Cookie", it)
+                }
+            }
+            rangeStart?.takeIf { it > 0L }?.let { connection.setRequestProperty("Range", "bytes=$it-") }
+            connection.connect()
             val code = connection.responseCode
-            connection.disconnect()
-            error("Download request failed with HTTP $code.")
+            if (browserSession != null) {
+                connection.headerFields.entries
+                    .filter { it.key.equals("Set-Cookie", true) }
+                    .flatMap { it.value.orEmpty() }
+                    .forEach { CookieManager.getInstance().setCookie(currentUrl, it) }
+                CookieManager.getInstance().flush()
+            }
+            val location = connection.getHeaderField("Location")
+            if (browserSession != null && code in setOf(301, 302, 303, 307, 308) && !location.isNullOrBlank()) {
+                if (redirectCount >= 8) {
+                    connection.disconnect()
+                    error("Download exceeded the browser session redirect limit.")
+                }
+                val next = URI(currentUrl).resolve(location).toString()
+                if (!sameOrigin(currentUrl, next)) {
+                    currentHeaders = currentHeaders.filterKeys { !it.equals("Cookie", true) && !it.equals("Authorization", true) }
+                }
+                connection.disconnect()
+                currentUrl = next
+                return@repeat
+            }
+            if (code !in 200..299) {
+                connection.disconnect()
+                error("Download request failed with HTTP $code.")
+            }
+            return connection
         }
-        return connection
+        error("Download redirect did not resolve to a resource.")
     }
 
-    private fun headers(item: DownloadItem): Map<String, String> = runCatching {
-        val json = JSONObject(item.headersJson.ifBlank { "{}" })
-        buildMap {
-            val keys = json.keys()
-            while (keys.hasNext()) {
-                val key = keys.next()
-                val value = json.optString(key)
-                if (key.isNotBlank() && value.isNotBlank()) put(key, value)
-            }
-        }
-    }.getOrDefault(emptyMap())
+    private fun sameOrigin(left: String, right: String): Boolean = runCatching {
+        val a = URI(left); val b = URI(right)
+        a.scheme.equals(b.scheme, true) && a.host.equals(b.host, true) && a.port == b.port
+    }.getOrDefault(false)
 
     private fun hlsIndexKey(id: String) = "hls_index_$id"
 

@@ -70,6 +70,7 @@ class AnnieMediaDownloaderTest {
         val data = JSONObject()
             .put("type", "video")
             .put("title", "Proof")
+            .put("browserSession", "source.main")
             .put("headers", JSONObject().put("Referer", "https://site.example/watch"))
             .put(
                 "qualities",
@@ -83,6 +84,7 @@ class AnnieMediaDownloaderTest {
                         JSONObject()
                             .put("label", "1080p")
                             .put("url", "https://cdn.example/1080/master.m3u8")
+                            .put("browserSession", "source.hd")
                             .put("headers", JSONObject().put("Origin", "https://site.example"))
                     )
             )
@@ -92,6 +94,7 @@ class AnnieMediaDownloaderTest {
         assertEquals("https://cdn.example/1080/master.m3u8", source.url)
         assertEquals("https://site.example/watch", source.headers["Referer"])
         assertEquals("https://site.example", source.headers["Origin"])
+        assertEquals("source.hd", source.browserSessionId)
         assertTrue(AnnieDownloadNaming.isHls(source.url, source.mimeType))
     }
 }

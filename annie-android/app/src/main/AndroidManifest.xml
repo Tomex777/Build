@@ -28,5 +28,9 @@
             android:name=".AnniePlayerActivity"
             android:screenOrientation="landscape"
             android:exported="false" />
+        <activity
+            android:name=".AnnieBrowserActivity"
+            android:screenOrientation="portrait"
+            android:exported="false" />
     </application>
 </manifest>
