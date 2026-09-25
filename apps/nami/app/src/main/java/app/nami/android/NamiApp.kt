@@ -68,6 +68,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -337,6 +338,7 @@ private fun GlobalSearchHome(
 ) {
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val searcher = remember(sourceRegistry) { GlobalAnimeSearch(sourceRegistry) }
 
     var query by rememberSaveable { mutableStateOf("") }
@@ -361,7 +363,8 @@ private fun GlobalSearchHome(
     fun submitSearch() {
         val submitted = query.trim()
         if (submitted.isEmpty()) return
-        focusManager.clearFocus()
+        keyboardController?.hide()
+        focusManager.clearFocus(force = true)
         hasSearched = true
         searchJob?.cancel()
         searchJob = scope.launch {
@@ -703,6 +706,7 @@ private fun SourceBrowseScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val pager = remember(route.source) { SourceListingPager(route.source) }
 
     var query by remember(route.source.metadata.id, route.listing) {
@@ -730,7 +734,8 @@ private fun SourceBrowseScreen(
     fun submitSearch() {
         val submitted = query.trim()
         if (submitted.isEmpty()) return
-        focusManager.clearFocus()
+        keyboardController?.hide()
+        focusManager.clearFocus(force = true)
         loadListing(SourceListing.Search(submitted))
     }
 
