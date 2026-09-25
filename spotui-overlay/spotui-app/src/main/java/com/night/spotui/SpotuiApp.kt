@@ -8,8 +8,10 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -1343,7 +1345,7 @@ private fun NowPlaying(
         Surface(
             color = Color(0xFF244B37),
             shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth().clickable { lyricsOpen = true },
+            modifier = Modifier.fillMaxWidth().animateContentSize().clickable { lyricsOpen = true },
         ) {
             Column(Modifier.padding(18.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1465,8 +1467,19 @@ private fun NowPlaying(
                         val activeIndex = loaded.synced.indexOfLast { it.timeMs <= player.positionMs }
                             .coerceAtLeast(0)
                         val listState = rememberLazyListState()
-                        LaunchedEffect(activeIndex) {
-                            if (activeIndex in loaded.synced.indices) {
+                        val isDragged by listState.interactionSource.collectIsDraggedAsState()
+                        var followPlayback by remember(track.id) { mutableStateOf(true) }
+
+                        LaunchedEffect(isDragged) {
+                            if (isDragged) {
+                                followPlayback = false
+                            } else if (!followPlayback) {
+                                delay(2200)
+                                followPlayback = true
+                            }
+                        }
+                        LaunchedEffect(activeIndex, followPlayback) {
+                            if (followPlayback && activeIndex in loaded.synced.indices) {
                                 listState.animateScrollToItem((activeIndex - 2).coerceAtLeast(0))
                             }
                         }
@@ -1479,7 +1492,10 @@ private fun NowPlaying(
                             ),
                             verticalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
-                            items(loaded.synced.size) { index ->
+                            items(
+                                count = loaded.synced.size,
+                                key = { index -> loaded.synced[index].timeMs },
+                            ) { index ->
                                 val line = loaded.synced[index]
                                 Text(
                                     line.text.ifBlank { "♪" },
