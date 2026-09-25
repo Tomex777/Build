@@ -10,6 +10,7 @@ import app.nami.android.NamiApplication
 import app.nami.android.NamiDownloadManager
 import app.nami.android.NamiDownloadState
 import app.nami.android.NamiSourceEnablementStore
+import app.nami.android.PlaybackMediaSelector
 import app.nami.compat.aniyomi.AniyomiExtensionRegistry
 import app.nami.data.local.NamiDatabase
 import app.nami.domain.AnimeDetails
@@ -156,6 +157,21 @@ class AniyomiCompatibilitySmokeTest {
             "Resolved stream candidate did not contain an HTTP URL",
             resolvedStreams.any { it.url.startsWith("http://") || it.url.startsWith("https://") },
         )
+        val selected1080 = PlaybackMediaSelector.choose(
+            media = resolvedStreams,
+            preferredHeight = 1080,
+        )
+        assertNotNull("Nami player selection rejected AnimeSogo v16 media", selected1080)
+        if (resolvedStreams.any { PlaybackMediaSelector.height(it) == 1080 }) {
+            assertEquals(
+                "Nami player did not select available 1080p AnimeSogo v16 media",
+                1080,
+                PlaybackMediaSelector.height(selected1080!!),
+            )
+        }
+        val v16Headers = selected1080!!.headers.keys.map { it.lowercase() }.toSet()
+        assertTrue("Selected v16 stream lost Referer", "referer" in v16Headers)
+        assertTrue("Selected v16 stream lost User-Agent", "user-agent" in v16Headers)
 
         val elapsed = (System.nanoTime() - start) / 1_000_000
         Log.i(
@@ -228,6 +244,21 @@ class AniyomiCompatibilitySmokeTest {
             }
         }
         assertTrue("AnimeSogo v17 did not resolve any final HTTP stream", streams.isNotEmpty())
+        val selected1080 = PlaybackMediaSelector.choose(
+            media = streams,
+            preferredHeight = 1080,
+        )
+        assertNotNull("Nami player selection rejected AnimeSogo v17 media", selected1080)
+        if (streams.any { PlaybackMediaSelector.height(it) == 1080 }) {
+            assertEquals(
+                "Nami player did not select available 1080p AnimeSogo v17 media",
+                1080,
+                PlaybackMediaSelector.height(selected1080!!),
+            )
+        }
+        val v17Headers = selected1080!!.headers.keys.map { it.lowercase() }.toSet()
+        assertTrue("Selected v17 stream lost Referer", "referer" in v17Headers)
+        assertTrue("Selected v17 stream lost User-Agent", "user-agent" in v17Headers)
 
         val elapsed = (System.nanoTime() - startedAt) / 1_000_000
         Log.i(
@@ -424,6 +455,72 @@ class AniyomiCompatibilitySmokeTest {
             database.close()
             context.deleteDatabase(databaseName)
         }
+    }
+
+
+    @Test
+    fun watchProgressMigratesV5AndPersistsResumeContext() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val databaseName = "nami-watch-migration-${System.nanoTime()}.db"
+        context.deleteDatabase(databaseName)
+
+        val legacy = context.openOrCreateDatabase(databaseName, Context.MODE_PRIVATE, null)
+        legacy.execSQL(
+            """CREATE TABLE watch_progress (
+                source_id TEXT NOT NULL,
+                source_episode_id TEXT NOT NULL,
+                position_ms INTEGER NOT NULL DEFAULT 0,
+                completed INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY(source_id, source_episode_id)
+            )""".trimIndent(),
+        )
+        legacy.execSQL(
+            "INSERT INTO watch_progress(source_id, source_episode_id, position_ms, completed) " +
+                "VALUES(?, ?, ?, ?)",
+            arrayOf("fixture-source", "/episode-4", 822_000L, 0),
+        )
+        legacy.version = 5
+        legacy.close()
+
+        NamiDatabase(context, databaseName).use { database ->
+            val migrated = database.getWatchProgress("fixture-source", "/episode-4")
+            assertNotNull("v5 -> v6 watch progress row disappeared", migrated)
+            assertEquals(822_000L, migrated!!.positionMs)
+            assertTrue(!migrated.completed)
+
+            database.upsertWatchProgress(
+                sourceId = "fixture-source",
+                sourceAnimeId = "/bleach-tybw-calamity",
+                sourceEpisodeId = "/episode-4",
+                animeTitle = "Bleach: Thousand-Year Blood War - The Calamity",
+                episodeTitle = "Episode 4",
+                animeSourceState = """{"anime":"opaque"}""",
+                episodeSourceState = """{"episode":"opaque"}""",
+                positionMs = 823_000L,
+                durationMs = 1_440_000L,
+                completed = false,
+            )
+        }
+
+        NamiDatabase(context, databaseName).use { reopened ->
+            val stored = reopened.getWatchProgress("fixture-source", "/episode-4")
+            assertNotNull("Resume context did not persist after reopening Nami", stored)
+            stored!!
+            assertEquals("/bleach-tybw-calamity", stored.sourceAnimeId)
+            assertEquals("Bleach: Thousand-Year Blood War - The Calamity", stored.animeTitle)
+            assertEquals("Episode 4", stored.episodeTitle)
+            assertEquals("""{"anime":"opaque"}""", stored.animeSourceState)
+            assertEquals("""{"episode":"opaque"}""", stored.episodeSourceState)
+            assertEquals(823_000L, stored.positionMs)
+            assertEquals(1_440_000L, stored.durationMs)
+            assertTrue(!stored.completed)
+            assertEquals(
+                "/episode-4",
+                reopened.getContinueWatching().single().sourceEpisodeId,
+            )
+        }
+
+        context.deleteDatabase(databaseName)
     }
 
 
