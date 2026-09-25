@@ -52,11 +52,11 @@
         "path": "ReZero - S04E11.mkv"
       }
     ],
-    "episode4CandidateCount": 11
+    "episode4CandidateCount": 1
   },
   "episode4": {
-    "name": "ReZero - S04E01.mkv",
-    "path": "ReZero - S04E01.mkv",
+    "name": "ReZero - S04E04.mkv",
+    "path": "ReZero - S04E04.mkv",
     "extension": ".mkv",
     "listedHost": "drive.google.com",
     "listedPath": "/uc",
@@ -77,6 +77,14 @@
       "contentDisposition": null,
       "prefixBytesRead": 2384,
       "firstBytes": "3c21444f43545950452068746d6c3e3c"
+    },
+    "gdownTransfer": {
+      "bytesSeen": 524288,
+      "totalBytes": 302423286,
+      "abortedAfterFirstChunk": true,
+      "partialBytesOnDisk": 524288,
+      "firstBytes": "1a45dfa3a34286810142f7810142f281",
+      "matroskaEbmlSignature": true
     }
   }
 }
