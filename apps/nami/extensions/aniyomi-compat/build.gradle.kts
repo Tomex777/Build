@@ -27,4 +27,6 @@ dependencies {
     implementation("org.jsoup:jsoup:1.22.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    implementation("io.reactivex:rxjava:1.3.8")
+    implementation("org.nanohttpd:nanohttpd:2.3.1")
 }
