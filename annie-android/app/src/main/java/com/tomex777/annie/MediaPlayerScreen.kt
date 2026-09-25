@@ -334,22 +334,14 @@ internal fun MediaPlayerScreen(
                         layout.post {
                             if (attachedPlayer !== player) {
                                 runCatching { attachedPlayer?.detachViews() }
+                                // TextureView keeps Compose controls above video on every device.
                                 val attached = runCatching {
                                     player.attachViews(layout, null, true, true)
                                 }.isSuccess
                                 if (attached) {
                                     attachedPlayer = player
-                                    runCatching {
-                                        player.setVideoScale(scaleMode.scale)
-                                        player.updateVideoSurfaces()
-                                    }
                                 }
                             }
-                        }
-                    } else {
-                        runCatching {
-                            player.setVideoScale(scaleMode.scale)
-                            player.updateVideoSurfaces()
                         }
                     }
                 },
