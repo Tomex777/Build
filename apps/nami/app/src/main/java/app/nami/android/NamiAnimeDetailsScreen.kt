@@ -408,8 +408,14 @@ fun NamiAnimeDetailsScreen(
                                 onOpen = {
                                     downloadStatus?.let(onPlayDownloaded)
                                 },
-                                onCancel = {
-                                    downloadStatus?.let { downloadManager.cancel(it) }
+                                onPause = {
+                                    downloadStatus?.let { downloadManager.pause(it) }
+                                },
+                                onResume = {
+                                    downloadStatus?.let { downloadManager.resume(it) }
+                                },
+                                onRetry = {
+                                    downloadStatus?.let { downloadManager.retry(it) }
                                 },
                             )
                         }
@@ -688,7 +694,9 @@ private fun AniyomiEpisodeRow(
     onPlay: () -> Unit,
     onDownload: () -> Unit,
     onOpen: () -> Unit,
-    onCancel: () -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onRetry: () -> Unit,
 ) {
     val downloaded = status?.state == NamiDownloadState.DOWNLOADED
     Row(
@@ -767,16 +775,21 @@ private fun AniyomiEpisodeRow(
         }
 
         if (downloaded || downloadEnabled || status != null) {
-            val active = status?.state == NamiDownloadState.QUEUED ||
-                status?.state == NamiDownloadState.DOWNLOADING
+            val pausable = status?.state == NamiDownloadState.QUEUED ||
+                status?.state == NamiDownloadState.DOWNLOADING ||
+                status?.state == NamiDownloadState.WAITING_FOR_NETWORK
+            val paused = status?.state == NamiDownloadState.PAUSED
+            val failed = status?.state == NamiDownloadState.ERROR
             val action = when {
                 downloaded -> onOpen
-                active -> onCancel
+                pausable -> onPause
+                paused -> onResume
+                failed -> onRetry
                 else -> onDownload
             }
             IconButton(
                 onClick = action,
-                enabled = downloaded || active || downloadEnabled,
+                enabled = downloaded || pausable || paused || failed || downloadEnabled,
             ) {
                 when (status?.state) {
                     NamiDownloadState.QUEUED -> Box(
@@ -788,8 +801,8 @@ private fun AniyomiEpisodeRow(
                             strokeWidth = 2.dp,
                         )
                         Icon(
-                            imageVector = Icons.Outlined.Close,
-                            contentDescription = "Cancel queued download",
+                            imageVector = Icons.Outlined.Pause,
+                            contentDescription = "Pause queued download",
                             modifier = Modifier.size(14.dp),
                         )
                     }
@@ -803,11 +816,23 @@ private fun AniyomiEpisodeRow(
                             strokeWidth = 3.dp,
                         )
                         Icon(
-                            imageVector = Icons.Outlined.Close,
-                            contentDescription = "Cancel download",
+                            imageVector = Icons.Outlined.Pause,
+                            contentDescription = "Pause download",
                             modifier = Modifier.size(16.dp),
                         )
                     }
+                    NamiDownloadState.WAITING_FOR_NETWORK -> Icon(
+                        imageVector = Icons.Filled.HourglassEmpty,
+                        contentDescription = status.errorMessage ?: "Waiting for network",
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    NamiDownloadState.PAUSED -> Icon(
+                        imageVector = Icons.Filled.PlayArrow,
+                        contentDescription = "Resume download",
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     NamiDownloadState.DOWNLOADED -> Icon(
                         imageVector = Icons.Filled.CheckCircle,
                         contentDescription = "Downloaded",
