@@ -6,11 +6,14 @@ import org.json.JSONObject
 
 /**
  * Durable local catalog state. The UI reads this first and refreshes from the
- * extension in the background, so reopening Auri never starts from a blank Home.
+ * extension in the background, so reopening Lyra does not start from a blank Home.
+ *
+ * v2 intentionally invalidates the old pre-Lyra cache. Real devices could retain
+ * old artwork URLs even after search/detail began returning fresh artwork.
  */
 class HomeCacheStore(context: Context) {
     private val prefs = context.applicationContext
-        .getSharedPreferences("auri_home_cache_v1", Context.MODE_PRIVATE)
+        .getSharedPreferences("lyra_home_cache_v2", Context.MODE_PRIVATE)
 
     fun load(): List<Track> = decodeTracks(prefs.getString(KEY_TRACKS, "[]").orEmpty())
 
