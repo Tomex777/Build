@@ -306,6 +306,154 @@ class DownloadEngineSmokeTest {
     }
 
     @Test
+    fun pausedDirectDownloadSurvivesManagerAndDatabaseRecreation() = runBlocking<Unit> {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val databaseName = "nami-recreate-resume-" + System.nanoTime() + ".db"
+        context.deleteDatabase(databaseName)
+        val payload = ByteArray(2 * 1024 * 1024) { index -> (index % 223).toByte() }
+        val observedRanges = CopyOnWriteArrayList<Long>()
+        var firstDatabase: NamiDatabase? = null
+        var secondDatabase: NamiDatabase? = null
+        var restartedManager: NamiDownloadManager? = null
+
+        val server = object : NanoHTTPD(0) {
+            override fun serve(session: IHTTPSession): Response {
+                val start = parseRangeStart(session.headers["range"])
+                if (start > 0L) observedRanges += start
+                val boundedStart = start.coerceIn(0L, payload.size.toLong())
+                val remaining = payload.size.toLong() - boundedStart
+                return newFixedLengthResponse(
+                    if (boundedStart > 0L) Response.Status.PARTIAL_CONTENT else Response.Status.OK,
+                    "video/mp4",
+                    SlowByteArrayInputStream(
+                        payload = payload,
+                        start = boundedStart.toInt(),
+                        delayMillis = 2L,
+                    ),
+                    remaining,
+                ).apply {
+                    addHeader("Accept-Ranges", "bytes")
+                    addHeader("ETag", "\"nami-recreate-fixture\"")
+                    if (boundedStart > 0L) {
+                        addHeader(
+                            "Content-Range",
+                            "bytes $boundedStart-${payload.size - 1}/${payload.size}",
+                        )
+                    }
+                }
+            }
+        }
+
+        try {
+            server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
+            val source = fixtureSource(
+                id = "recreate-fixture",
+                mediaUrl = "http://127.0.0.1:${server.listeningPort}/episode.mp4",
+            )
+            val registry = NamiSourceRegistry { listOf(source) }
+            firstDatabase = NamiDatabase(context, databaseName)
+            val firstManager = NamiDownloadManager(
+                context,
+                firstDatabase!!,
+                registry,
+            )
+            firstManager.resumeAll()
+
+            val anime = fixtureAnime(source, "Recreate Resume")
+            val episode = fixtureEpisode(source, anime, 1)
+            val key = firstManager.key(source.metadata.id, episode.ref.sourceEpisodeId)
+            firstManager.enqueue(source, anime, episode)
+
+            val transferring = withTimeout(20_000) {
+                waitForStatus(firstManager, key) {
+                    it.state == NamiDownloadState.DOWNLOADING &&
+                        it.bytesDownloaded >= 96 * 1024L &&
+                        !it.tempPath.isNullOrBlank()
+                }
+            }
+            firstManager.pause(transferring)
+            val paused = withTimeout(10_000) {
+                waitForStatus(firstManager, key) {
+                    it.state == NamiDownloadState.PAUSED &&
+                        it.pauseReason == NamiPauseReason.USER
+                }
+            }
+
+            val partial = File(paused.tempPath!!)
+            withTimeout(10_000) {
+                while (partial.length() != paused.bytesDownloaded) delay(25)
+            }
+            assertTrue(
+                "Paused direct download lost its private partial before recreation",
+                partial.length() > 0L,
+            )
+
+            firstDatabase!!.close()
+            firstDatabase = null
+
+            secondDatabase = NamiDatabase(context, databaseName)
+            val secondManager = NamiDownloadManager(
+                context,
+                secondDatabase!!,
+                registry,
+            )
+            restartedManager = secondManager
+
+            val restored = secondManager.statuses.value[key]
+                ?: throw AssertionError("Paused download disappeared after manager recreation")
+            assertEquals(NamiDownloadState.PAUSED, restored.state)
+            assertEquals(NamiPauseReason.USER, restored.pauseReason)
+            assertEquals(paused.bytesDownloaded, restored.bytesDownloaded)
+            assertTrue(
+                "Recreated manager lost the resumable partial file",
+                File(restored.tempPath!!).exists(),
+            )
+
+            secondManager.resume(restored)
+            val completed = withTimeout(30_000) {
+                waitForStatus(secondManager, key) {
+                    it.state == NamiDownloadState.DOWNLOADED
+                }
+            }
+
+            assertTrue(
+                "Manager recreation resumed from byte zero instead of the saved Range",
+                observedRanges.any { it >= paused.bytesDownloaded && it > 0L },
+            )
+            assertEquals(100, completed.progress)
+
+            val finalSize = context.contentResolver.query(
+                android.net.Uri.parse(completed.contentUri),
+                arrayOf(OpenableColumns.SIZE),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getLong(0) else -1L
+            } ?: -1L
+            assertEquals(
+                "Recreated manager produced a corrupt final file",
+                payload.size.toLong(),
+                finalSize,
+            )
+        } finally {
+            restartedManager?.let { manager ->
+                manager.resumeAll()
+                manager.statuses.value.values.toList().forEach(manager::remove)
+                runCatching {
+                    withTimeout(10_000) {
+                        while (manager.statuses.value.isNotEmpty()) delay(50)
+                    }
+                }
+            }
+            runCatching { firstDatabase?.close() }
+            runCatching { secondDatabase?.close() }
+            server.stop()
+            context.deleteDatabase(databaseName)
+        }
+    }
+
+    @Test
     fun hlsPauseResumeContinuesAtNextIncompleteSegment() = runBlocking<Unit> {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val databaseName = "nami-hls-resume-" + System.nanoTime() + ".db"
