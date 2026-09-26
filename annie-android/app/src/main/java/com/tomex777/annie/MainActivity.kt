@@ -503,7 +503,13 @@ internal fun AnnieChat() {
         }
     }
 
-    if (activeSheet != null) {
+    if (activeSheet == "Scripts") {
+        ScriptStudioSheet(
+            workspace = scriptWorkspace,
+            onCommandsReloaded = { commands -> scriptCommands = commands },
+            onClose = { activeSheet = null },
+        )
+    } else if (activeSheet != null) {
         val category = activeSheet!!
         ModalBottomSheet(
             onDismissRequest = { activeSheet = null },
@@ -531,11 +537,6 @@ internal fun AnnieChat() {
                     onExtensions = {
                         activeSheet = "Extensions"
                     },
-                )
-            } else if (category == "Scripts") {
-                ScriptStudioSheet(
-                    workspace = scriptWorkspace,
-                    onCommandsReloaded = { commands -> scriptCommands = commands },
                 )
             } else if (category.startsWith("Downloads:")) {
                 DownloadsManagerContent(
