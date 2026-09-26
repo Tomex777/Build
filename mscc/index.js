@@ -1,5 +1,6 @@
-import { cp, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { appendFile, cp, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
+import crypto from 'node:crypto'
 import makeWASocket, {
   Browsers,
   DisconnectReason,
@@ -39,6 +40,7 @@ const ACCOUNT_REGISTRY_FILE = process.env.ACCOUNT_REGISTRY_FILE || join(dirname(
 const ACCOUNT_AUTH_ROOT = process.env.ACCOUNT_AUTH_ROOT || '/var/lib/mscc/accounts'
 const CORTEX_SETTINGS_SCHEMA_FILE = process.env.CORTEX_SETTINGS_SCHEMA_FILE || join(dirname(SETTINGS_FILE), 'cortex-settings-schema.json')
 const CORTEX_RUNTIME_REGISTRY_FILE = process.env.CORTEX_RUNTIME_REGISTRY_FILE || join(dirname(SETTINGS_FILE), 'cortex-runtime-registry.json')
+const ACTIVITY_FILE = process.env.MSCC_ACTIVITY_FILE || join(dirname(SETTINGS_FILE), 'mscc-activity.jsonl')
 const AUTH_BACKUP_DIR = process.env.AUTH_BACKUP_DIR || '/var/backups/mscc'
 const TTL_MS = num('MESSAGE_TTL_HOURS', 24, 1, 168) * 3600000
 const MAX_CACHE = num('MAX_MESSAGE_CACHE', 5000, 100, 20000)
@@ -115,6 +117,11 @@ async function createAccount(input = {}) {
   const record = await accountRegistry.create(input)
   const account = makeAccount(record)
   accounts.set(account.id, account)
+  await recordActivity('account.created', {
+    account: account.id,
+    displayName: account.displayName,
+    numberMasked: masked(account.number),
+  })
   return {
     ok: true,
     account: {
@@ -131,6 +138,38 @@ async function createAccount(input = {}) {
       pairingQr: '',
       pairingError: '',
     },
+  }
+}
+
+async function recordActivity(action, detail = {}) {
+  await mkdir(dirname(ACTIVITY_FILE), { recursive: true })
+  const row = JSON.stringify({
+    id: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`,
+    at: new Date().toISOString(),
+    action,
+    detail,
+  })
+  await appendFile(ACTIVITY_FILE, row + '\n', 'utf8')
+  try {
+    const info = await stat(ACTIVITY_FILE)
+    if (info.size > 2 * 1024 * 1024) {
+      const text = await readFile(ACTIVITY_FILE, 'utf8')
+      const lines = text.trim().split(/\r?\n/).filter(Boolean).slice(-2500)
+      await writeFile(ACTIVITY_FILE, lines.join('\n') + '\n', 'utf8')
+    }
+  } catch {}
+}
+
+async function activity(limit = 100) {
+  const safeLimit = Math.max(10, Math.min(500, Number(limit) || 100))
+  try {
+    const text = await readFile(ACTIVITY_FILE, 'utf8')
+    return text.trim().split(/\r?\n/).filter(Boolean).slice(-safeLimit).reverse().flatMap(line => {
+      try { return [JSON.parse(line)] } catch { return [] }
+    })
+  } catch (error) {
+    if (error?.code === 'ENOENT') return []
+    throw error
   }
 }
 
@@ -617,6 +656,10 @@ async function onDelete(account, updates) {
       await sendInbox(account, { text: `🗑️ Deleted message recovered\n${await describe(account, original)}` })
       await sendInbox(account, { forward: unlocked(original) || original, force: true })
       handledDelete.set(dk, Date.now())
+      await recordActivity('cc.deleted-recovery', {
+        sourceAccount: account.id,
+        destinationAccount: destinationIdFor(account.id),
+      })
     } catch (e) { console.error(`[${account.id}] delete recovery:`, e?.message || e) }
   }
 }
@@ -652,6 +695,11 @@ async function onMessages(account, { messages, type }) {
           if (account.id !== destinationIdFor(account.id)) await sendInbox(account, { text: `📥 Auto CC\n${await describe(account, msg)}` })
           await sendInbox(account, { forward: unlocked(msg), force: true })
           handledAuto.set(ak, Date.now())
+          await recordActivity('cc.forwarded', {
+            sourceAccount: account.id,
+            destinationAccount: destinationIdFor(account.id),
+            mode: 'auto',
+          })
         }
       }
 
@@ -678,6 +726,11 @@ async function onMessages(account, { messages, type }) {
       }
       await sendInbox(account, { forward: unlocked(source), force: true })
       handledReply.set(rk, Date.now())
+      await recordActivity('cc.forwarded', {
+        sourceAccount: account.id,
+        destinationAccount: destinationIdFor(account.id),
+        mode: 'reply',
+      })
     } catch (e) {
       console.error(`[${account.id}] message error:`, e?.message || e)
     }
@@ -770,12 +823,21 @@ async function startAccount(account) {
       account.pairingError = ''
       account.lastQr = ''
       console.log(`[${account.id}] connected as ${sock.user?.id || account.number}`)
+      await recordActivity('account.connected', {
+        account: account.id,
+        displayName: account.displayName,
+      })
       return
     }
     if (update.connection !== 'close') return
     account.connected = false
     account.sock = null
     const code = update.lastDisconnect?.error?.output?.statusCode
+    await recordActivity('account.disconnected', {
+      account: account.id,
+      displayName: account.displayName,
+      reasonCode: code ?? null,
+    })
     if (code === DisconnectReason.loggedOut || code === DisconnectReason.badSession) {
       account.invalid = true
       account.pairingMode = ''
@@ -812,6 +874,7 @@ async function pairAccount(id, mode) {
     a.pairingError = ''
     a.lastQr = ''
     await startAccount(a)
+    await recordActivity('pairing.requested', { account: a.id, mode: a.pairingMode })
     return { ok: true, message: `Preparing ${a.pairingMode} pairing for Account ${a.id}.` }
   })
 }
@@ -826,6 +889,7 @@ async function reconnectAccount(id) {
     a.pairingQr = ''
     a.pairingError = ''
     await startAccount(a)
+    await recordActivity('account.reconnect-requested', { account: a.id })
     return { ok: true }
   })
 }
@@ -838,6 +902,7 @@ async function disconnectAccount(id) {
     a.pairingCode = ''
     a.pairingQr = ''
     a.pairingError = ''
+    await recordActivity('account.disconnected-manually', { account: a.id })
     return { ok: true, account: a.id, status: statusOf(a) }
   })
 }
@@ -858,6 +923,11 @@ async function removeAccount(id) {
     if (destinationId === resolved) delete ccOverrides[sourceId]
   }
   await saveSettings()
+  await recordActivity('account.removed', {
+    account: resolved,
+    displayName: a.displayName,
+    authPreserved: removed.authPreserved === true,
+  })
   return { ok: true, account: resolved, authPreserved: removed.authPreserved === true }
 }
 
@@ -874,6 +944,7 @@ async function repairAccount(id, mode = 'code') {
     a.pairingError = ''
     a.lastQr = ''
     await startAccount(a)
+    await recordActivity('pairing.repair-requested', { account: a.id, mode: a.pairingMode })
     return { ok: true, message: `Account ${a.id} auth backed up. ${a.pairingMode === 'qr' ? 'QR' : 'Code'} pairing started.` }
   })
 }
@@ -903,6 +974,7 @@ async function setDestination(value) {
   if (!account?.enabled) throw new Error(`Account ${value} is not configured`)
   destination = id
   await saveSettings()
+  await recordActivity('cc.destination-changed', { destinationAccount: id })
   return destination
 }
 
@@ -999,6 +1071,7 @@ async function init() {
     sessionSecret: WEB_SESSION_SECRET,
     localControlPort: LOCAL_CONTROL_PORT,
     getState: webState,
+    getActivity: activity,
     pairAccount,
     reconnectAccount,
     disconnectAccount,

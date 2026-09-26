@@ -127,6 +127,7 @@ jobs:
             password: 'test-password',
             sessionSecret: 'test-secret',
             getState: async () => ({ version:'test', destination:'A', settings:{}, capabilities:{addAccount:true}, entitlements:{maxAccounts:10}, accounts, system:{} }),
+            getActivity: async () => [{ id:'activity-1', at:'2026-09-26T00:00:00.000Z', action:'cc.forwarded', detail:{ sourceAccount:'work-3', destinationAccount:'A', mode:'auto' } }],
             createAccount: async ({ phoneNumber, displayName }) => {
               const row = { id:'account-5', enabled:true, connected:false, status:'offline', numberMasked:String(phoneNumber), displayName:String(displayName || ''), indexCount:0, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' }
               accounts.push(row)
@@ -160,6 +161,7 @@ jobs:
             sleep .25
           done
           grep -q '"id":"work-3"' /tmp/mscc-pair-state.json
+          curl -fsS http://127.0.0.1:18788/activity | grep -q '"action":"cc.forwarded"'
           curl -fsS -H 'Content-Type: application/json' -d '{"phoneNumber":"234000000005","displayName":"Extra"}' http://127.0.0.1:18788/accounts | grep -q '"id":"account-5"'
           curl -fsS -H 'Content-Type: application/json' -d '{"mode":"code"}' http://127.0.0.1:18788/accounts/work-3/pair
           curl -fsS http://127.0.0.1:18788/state | grep -q 'ABCD-EFGH'

@@ -72,7 +72,7 @@ function ip(req) {
   return String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown'
 }
 
-export function startWebPanel({ port, password, sessionSecret, localControlPort = 8788, getState, pairAccount, reconnectAccount, disconnectAccount, removeAccount, repairAccount, createAccount, setSetting, setDestination, reloadCommands, reloadModule }) {
+export function startWebPanel({ port, password, sessionSecret, localControlPort = 8788, getState, getActivity = async () => [], pairAccount, reconnectAccount, disconnectAccount, removeAccount, repairAccount, createAccount, setSetting, setDestination, reloadCommands, reloadModule }) {
   const configured = Boolean(password && password !== 'change-this-password' && password !== 'change-me')
   const secret = createHash('sha256').update(`${sessionSecret || ''}\0${password || ''}\0mscc`).digest()
   const token = createHmac('sha256', secret).update('admin').digest('base64url')
@@ -120,6 +120,9 @@ export function startWebPanel({ port, password, sessionSecret, localControlPort 
       }
       if (req.method === 'GET' && url.pathname === '/api/state') {
         return sendJson(res, 200, await getState())
+      }
+      if (req.method === 'GET' && url.pathname === '/api/activity') {
+        return sendJson(res, 200, { entries: await getActivity(url.searchParams.get('limit')) })
       }
       if (req.method === 'POST' && url.pathname === '/api/settings') {
         const body = await readJson(req)
@@ -179,6 +182,9 @@ export function startWebPanel({ port, password, sessionSecret, localControlPort 
     try {
       if (req.method === 'GET' && url.pathname === '/state') {
         return sendJson(res, 200, await getState())
+      }
+      if (req.method === 'GET' && url.pathname === '/activity') {
+        return sendJson(res, 200, { entries: await getActivity(url.searchParams.get('limit')) })
       }
       if (req.method === 'POST' && url.pathname === '/accounts') {
         if (typeof createAccount !== 'function') return sendJson(res, 501, { error: 'Dynamic account creation is not enabled yet' })
