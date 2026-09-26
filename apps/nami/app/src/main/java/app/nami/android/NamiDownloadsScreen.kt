@@ -1,39 +1,51 @@
 package app.nami.android
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.DragHandle
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+private enum class DownloadSort {
+    DEFAULT,
+    EPISODE_ASC,
+    EPISODE_DESC,
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,21 +55,136 @@ fun NamiDownloadsScreen(
     onPlayDownloaded: (NamiDownloadStatus) -> Unit,
 ) {
     val statuses by downloadManager.statuses.collectAsState()
-    val downloads = statuses.values.sortedWith(
-        compareBy<NamiDownloadStatus>(
-            { it.extensionName.lowercase() },
-            { it.animeTitle.lowercase() },
-            { it.episodeTitle.lowercase() },
-        ),
-    )
+    var sort by remember { mutableStateOf(DownloadSort.DEFAULT) }
+    var sortExpanded by remember { mutableStateOf(false) }
+    var actionsExpanded by remember { mutableStateOf(false) }
+
+    val downloads = remember(statuses, sort) {
+        val base = statuses.values.toList()
+        when (sort) {
+            DownloadSort.DEFAULT -> base.sortedWith(
+                compareBy<NamiDownloadStatus>(
+                    { it.animeTitle.lowercase() },
+                    { episodeNumber(it) },
+                    { it.episodeTitle.lowercase() },
+                ),
+            )
+            DownloadSort.EPISODE_ASC -> base.sortedWith(
+                compareBy<NamiDownloadStatus>(
+                    { it.animeTitle.lowercase() },
+                    { episodeNumber(it) },
+                    { it.episodeTitle.lowercase() },
+                ),
+            )
+            DownloadSort.EPISODE_DESC -> base.sortedWith(
+                compareBy<NamiDownloadStatus>(
+                    { it.animeTitle.lowercase() },
+                    { -episodeNumber(it) },
+                    { it.episodeTitle.lowercase() },
+                ),
+            )
+        }
+    }
+
+    val groupedDownloads = remember(downloads) {
+        downloads.groupBy { status ->
+            status.sourceId + "\u0000" + status.sourceAnimeId
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Downloads") },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Downloads",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (downloads.isNotEmpty()) {
+                            Surface(
+                                modifier = Modifier.padding(start = 6.dp),
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.12f),
+                            ) {
+                                Text(
+                                    text = downloads.size.toString(),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                )
+                            }
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = "Back",
+                        )
+                    }
+                },
+                actions = {
+                    if (downloads.isNotEmpty()) {
+                        Box {
+                            IconButton(onClick = { sortExpanded = true }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Outlined.Sort,
+                                    contentDescription = "Sort downloads",
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = sortExpanded,
+                                onDismissRequest = { sortExpanded = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Episode number · Ascending") },
+                                    onClick = {
+                                        sort = DownloadSort.EPISODE_ASC
+                                        sortExpanded = false
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Episode number · Descending") },
+                                    onClick = {
+                                        sort = DownloadSort.EPISODE_DESC
+                                        sortExpanded = false
+                                    },
+                                )
+                            }
+                        }
+
+                        Box {
+                            IconButton(onClick = { actionsExpanded = true }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.MoreVert,
+                                    contentDescription = "Download actions",
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = actionsExpanded,
+                                onDismissRequest = { actionsExpanded = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Cancel all") },
+                                    enabled = downloads.any {
+                                        it.state == NamiDownloadState.QUEUED ||
+                                            it.state == NamiDownloadState.DOWNLOADING
+                                    },
+                                    onClick = {
+                                        downloads
+                                            .filter {
+                                                it.state == NamiDownloadState.QUEUED ||
+                                                    it.state == NamiDownloadState.DOWNLOADING
+                                            }
+                                            .forEach(downloadManager::cancel)
+                                        actionsExpanded = false
+                                    },
+                                )
+                            }
+                        }
                     }
                 },
             )
@@ -70,7 +197,10 @@ fun NamiDownloadsScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("No downloads yet.")
+                Text(
+                    text = "No downloads",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         } else {
             LazyColumn(
@@ -78,92 +208,26 @@ fun NamiDownloadsScreen(
                     .fillMaxSize()
                     .padding(padding),
             ) {
-                items(
-                    items = downloads,
-                    key = { downloadManager.key(it.sourceId, it.sourceEpisodeId) },
-                ) { status ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(
-                                enabled = status.state == NamiDownloadState.DOWNLOADED,
-                                onClick = { onPlayDownloaded(status) },
-                            )
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        DownloadStateIcon(status)
+                groupedDownloads.forEach { (groupKey, group) ->
+                    val first = group.first()
+                    item(key = "header:$groupKey") {
+                        DownloadGroupHeader(
+                            title = first.animeTitle,
+                            count = group.size,
+                        )
+                    }
 
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = status.episodeTitle,
-                                style = MaterialTheme.typography.bodyLarge,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                text = status.extensionName + " • " + status.animeTitle,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            if (status.state == NamiDownloadState.DOWNLOADING) {
-                                androidx.compose.material3.LinearProgressIndicator(
-                                    progress = { status.progress / 100f },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 6.dp),
-                                )
-                            }
-                            status.errorMessage?.takeIf { status.state == NamiDownloadState.ERROR }?.let {
-                                Text(
-                                    text = it,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-
-                        when (status.state) {
-                            NamiDownloadState.QUEUED,
-                            NamiDownloadState.DOWNLOADING,
-                            -> {
-                                IconButton(onClick = { downloadManager.cancel(status) }) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Close,
-                                        contentDescription = "Cancel download",
-                                    )
-                                }
-                            }
-
-                            NamiDownloadState.ERROR -> {
-                                IconButton(onClick = { downloadManager.retry(status) }) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Refresh,
-                                        contentDescription = "Retry download",
-                                    )
-                                }
-                                IconButton(onClick = { downloadManager.remove(status) }) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.DeleteOutline,
-                                        contentDescription = "Remove download",
-                                    )
-                                }
-                            }
-
-                            NamiDownloadState.DOWNLOADED -> {
-                                IconButton(onClick = { downloadManager.remove(status) }) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.DeleteOutline,
-                                        contentDescription = "Delete downloaded file",
-                                    )
-                                }
-                            }
-                        }
+                    items(
+                        items = group,
+                        key = { downloadManager.key(it.sourceId, it.sourceEpisodeId) },
+                    ) { status ->
+                        AniyomiStyleDownloadRow(
+                            status = status,
+                            onPlayDownloaded = onPlayDownloaded,
+                            onCancel = { downloadManager.cancel(status) },
+                            onRetry = { downloadManager.retry(status) },
+                            onRemove = { downloadManager.remove(status) },
+                        )
                     }
                 }
             }
@@ -172,28 +236,207 @@ fun NamiDownloadsScreen(
 }
 
 @Composable
-private fun DownloadStateIcon(status: NamiDownloadStatus) {
-    when (status.state) {
-        NamiDownloadState.QUEUED -> Icon(
-            imageVector = Icons.Outlined.Schedule,
-            contentDescription = "Queued",
-            modifier = Modifier.size(24.dp),
+private fun DownloadGroupHeader(
+    title: String,
+    count: Int,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "$title ($count)",
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
-        NamiDownloadState.DOWNLOADING -> CircularProgressIndicator(
-            progress = { status.progress / 100f },
-            modifier = Modifier.size(24.dp),
-            strokeWidth = 3.dp,
-        )
-        NamiDownloadState.DOWNLOADED -> Icon(
-            imageVector = Icons.Filled.CheckCircle,
-            contentDescription = "Downloaded",
-            modifier = Modifier.size(24.dp),
-        )
-        NamiDownloadState.ERROR -> Icon(
-            imageVector = Icons.Outlined.ErrorOutline,
-            contentDescription = "Error",
-            tint = MaterialTheme.colorScheme.error,
-            modifier = Modifier.size(24.dp),
+        Icon(
+            imageVector = Icons.Outlined.DragHandle,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
         )
     }
+}
+
+@Composable
+private fun AniyomiStyleDownloadRow(
+    status: NamiDownloadStatus,
+    onPlayDownloaded: (NamiDownloadStatus) -> Unit,
+    onCancel: () -> Unit,
+    onRetry: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    var menuExpanded by remember(status.sourceId, status.sourceEpisodeId) {
+        mutableStateOf(false)
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                enabled = status.state == NamiDownloadState.DOWNLOADED,
+                onClick = { onPlayDownloaded(status) },
+            )
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.DragHandle,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(16.dp),
+        )
+
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = status.animeTitle,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = downloadProgressLabel(status),
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                        .widthIn(min = 36.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 12.sp,
+                    color = if (status.state == NamiDownloadState.ERROR) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    maxLines = 1,
+                )
+            }
+
+            Text(
+                text = status.episodeTitle,
+                modifier = Modifier.padding(top = 2.dp),
+                style = MaterialTheme.typography.bodySmall,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            when {
+                status.state == NamiDownloadState.DOWNLOADING && status.progress <= 0 -> {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, bottom = 4.dp),
+                    )
+                }
+                else -> {
+                    LinearProgressIndicator(
+                        progress = { progressFraction(status) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, bottom = 4.dp),
+                    )
+                }
+            }
+        }
+
+        Box {
+            IconButton(
+                onClick = { menuExpanded = true },
+                modifier = Modifier.semantics {
+                    contentDescription = "Download menu for ${status.episodeTitle}"
+                },
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.MoreVert,
+                    contentDescription = null,
+                )
+            }
+
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+            ) {
+                when (status.state) {
+                    NamiDownloadState.QUEUED,
+                    NamiDownloadState.DOWNLOADING,
+                    -> {
+                        DropdownMenuItem(
+                            text = { Text("Cancel") },
+                            onClick = {
+                                menuExpanded = false
+                                onCancel()
+                            },
+                        )
+                    }
+
+                    NamiDownloadState.ERROR -> {
+                        DropdownMenuItem(
+                            text = { Text("Retry") },
+                            onClick = {
+                                menuExpanded = false
+                                onRetry()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Remove") },
+                            onClick = {
+                                menuExpanded = false
+                                onRemove()
+                            },
+                        )
+                    }
+
+                    NamiDownloadState.DOWNLOADED -> {
+                        DropdownMenuItem(
+                            text = { Text("Play") },
+                            onClick = {
+                                menuExpanded = false
+                                onPlayDownloaded(status)
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            onClick = {
+                                menuExpanded = false
+                                onRemove()
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun progressFraction(status: NamiDownloadStatus): Float = when (status.state) {
+    NamiDownloadState.QUEUED -> 0f
+    NamiDownloadState.DOWNLOADING -> status.progress.coerceIn(0, 100) / 100f
+    NamiDownloadState.DOWNLOADED -> 1f
+    NamiDownloadState.ERROR -> 0f
+}
+
+private fun downloadProgressLabel(status: NamiDownloadStatus): String = when (status.state) {
+    NamiDownloadState.QUEUED -> "Queued"
+    NamiDownloadState.DOWNLOADING ->
+        if (status.progress <= 0) "Downloading" else "${status.progress.coerceIn(0, 100)}%"
+    NamiDownloadState.DOWNLOADED -> "100%"
+    NamiDownloadState.ERROR -> "Error"
+}
+
+private fun episodeNumber(status: NamiDownloadStatus): Double {
+    val match = Regex(
+        """(?i)\b(?:episode|ep)\s*([0-9]+(?:\.[0-9]+)?)""",
+    ).find(status.episodeTitle)
+    return match?.groupValues?.getOrNull(1)?.toDoubleOrNull() ?: Double.MAX_VALUE
 }
