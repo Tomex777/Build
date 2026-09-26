@@ -1150,7 +1150,9 @@ class AniyomiCompatibilitySmokeTest {
                     val status = manager.statuses.value[key]
                     if (
                         status?.state == NamiDownloadState.DOWNLOADING &&
-                        !status.contentUri.isNullOrBlank()
+                        status.bytesDownloaded > 0L &&
+                        !status.tempPath.isNullOrBlank() &&
+                        File(status.tempPath!!).exists()
                     ) {
                         activeStatus = status
                     } else {
@@ -1159,7 +1161,15 @@ class AniyomiCompatibilitySmokeTest {
                 }
                 activeStatus
             }
-            val partialUri = android.net.Uri.parse(active.contentUri)
+            val partialFile = File(active.tempPath!!)
+            assertTrue(
+                "Active download did not keep resumable bytes in Nami private storage",
+                partialFile.length() > 0L,
+            )
+            assertTrue(
+                "Partial download was published before completion",
+                active.contentUri.isNullOrBlank(),
+            )
 
             manager.cancel(active)
 
@@ -1173,14 +1183,9 @@ class AniyomiCompatibilitySmokeTest {
                 null,
                 database.getDownload(source.metadata.id, episode.ref.sourceEpisodeId),
             )
-            val partialStillExists = runCatching {
-                context.contentResolver.openFileDescriptor(partialUri, "r")
-                    ?.use { true }
-                    ?: false
-            }.getOrDefault(false)
             assertTrue(
-                "Cancelling a download left its partial MediaStore target behind",
-                !partialStillExists,
+                "Cancelling a download left its resumable partial file behind",
+                !partialFile.exists(),
             )
         } finally {
             server.stop()
