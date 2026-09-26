@@ -51,5 +51,6 @@ data class ResolvedAudio(
     val contentLength: Long? = null,
     val cacheKey: String? = null,
     val cacheSourceId: String? = null,
+    val resolverClient: String? = null,
     val fromCache: Boolean = false,
 )
