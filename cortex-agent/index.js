@@ -413,7 +413,7 @@ async function discoveredModules() {
     if (!entry.isDirectory() || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(entry.name)) continue;
     const directory = path.join(MODULES_DIR, entry.name);
     let metadata = {};
-    for (const filename of ['module.json', 'package.json']) {
+    for (const filename of ['bailey.module.json', 'module.json', 'package.json']) {
       try {
         metadata = JSON.parse(await fs.readFile(path.join(directory, filename), 'utf8'));
         break;
@@ -427,35 +427,50 @@ async function discoveredModules() {
       version: String(metadata.version || ''),
       status: 'discovered',
       enabled: metadata.enabled !== false,
-      commands: Array.isArray(metadata.commands) ? metadata.commands.map(String).slice(0, 128) : [],
-      configuration: Array.isArray(metadata.configuration) ? metadata.configuration : [],
+      commands: Array.isArray(metadata.commands)
+        ? metadata.commands.map((command) => String(command?.name || command?.id || command)).filter(Boolean).slice(0, 128)
+        : [],
+      configuration: Array.isArray(metadata.configuration)
+        ? metadata.configuration
+        : Array.isArray(metadata.settings) ? metadata.settings : [],
       loadError: '',
       lastReload: '',
       moduleDirectory: path.relative(PROJECT_ROOT, directory) || entry.name,
-      dependencies: [],
-      permissions: [],
+      dependencies: metadata.dependencies && typeof metadata.dependencies === 'object'
+        ? Object.keys(metadata.dependencies).slice(0, 128)
+        : [],
+      permissions: Array.isArray(metadata.permissions) ? metadata.permissions.map(String).slice(0, 128) : [],
     });
   }
   return result.sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
 function normalizeRuntimeRegistry(raw, fallbackModules) {
-  const modules = (Array.isArray(raw?.modules) ? raw.modules : fallbackModules)
+  const normalizeModule = (row) => ({
+    id: String(row.id),
+    displayName: String(row.displayName || row.name || row.id).slice(0, 96),
+    version: String(row.version || '').slice(0, 48),
+    status: String(row.status || 'unknown').slice(0, 48),
+    enabled: row.enabled !== false,
+    commands: Array.isArray(row.commands) ? row.commands.map(String).slice(0, 128) : [],
+    configuration: Array.isArray(row.configuration) ? row.configuration : [],
+    loadError: String(row.loadError || row.error || '').slice(0, 2000),
+    lastReload: String(row.lastReload || ''),
+    moduleDirectory: String(row.moduleDirectory || row.directory || '').slice(0, 512),
+    dependencies: Array.isArray(row.dependencies) ? row.dependencies.map(String).slice(0, 128) : [],
+    permissions: Array.isArray(row.permissions) ? row.permissions.map(String).slice(0, 128) : [],
+  });
+
+  const runtimeModules = (Array.isArray(raw?.modules) ? raw.modules : [])
     .filter((row) => row && /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(String(row.id || '')))
-    .map((row) => ({
-      id: String(row.id),
-      displayName: String(row.displayName || row.name || row.id).slice(0, 96),
-      version: String(row.version || '').slice(0, 48),
-      status: String(row.status || 'unknown').slice(0, 48),
-      enabled: row.enabled !== false,
-      commands: Array.isArray(row.commands) ? row.commands.map(String).slice(0, 128) : [],
-      configuration: Array.isArray(row.configuration) ? row.configuration : [],
-      loadError: String(row.loadError || row.error || '').slice(0, 2000),
-      lastReload: String(row.lastReload || ''),
-      moduleDirectory: String(row.moduleDirectory || row.directory || '').slice(0, 512),
-      dependencies: Array.isArray(row.dependencies) ? row.dependencies.map(String).slice(0, 128) : [],
-      permissions: Array.isArray(row.permissions) ? row.permissions.map(String).slice(0, 128) : [],
-    }));
+    .map(normalizeModule);
+  const known = new Set(runtimeModules.map((row) => row.id));
+  const discoveredOnly = fallbackModules
+    .filter((row) => !known.has(String(row.id)))
+    .map(normalizeModule);
+  const modules = runtimeModules.length ? [...runtimeModules, ...discoveredOnly] : fallbackModules.map(normalizeModule);
+  modules.sort((a, b) => a.displayName.localeCompare(b.displayName));
+
   const commands = (Array.isArray(raw?.commands) ? raw.commands : [])
     .filter((row) => row && typeof row.name === 'string')
     .map((row) => ({
@@ -471,7 +486,7 @@ function normalizeRuntimeRegistry(raw, fallbackModules) {
   return {
     version: Number(raw?.version) || 1,
     generatedAt: String(raw?.generatedAt || ''),
-    source: Array.isArray(raw?.modules) ? 'runtime' : 'filesystem',
+    source: runtimeModules.length ? (discoveredOnly.length ? 'runtime+filesystem' : 'runtime') : 'filesystem',
     modules,
     commands,
   };
