@@ -740,7 +740,7 @@ async function hostStatus() {
 
 async function logs(limit) {
   const safeLimit = Math.max(20, Math.min(1000, Number(limit) || 200));
-  const { stdout } = await exec('journalctl', ['-u', MANAGED_SERVICE, '-n', String(safeLimit), '--no-pager', '-o', 'cat'], {
+  const { stdout } = await exec('journalctl', ['-u', MANAGED_SERVICE, '-n', String(safeLimit), '--no-pager', '-o', 'short-iso-precise'], {
     maxBuffer: 4 * 1024 * 1024,
   });
   return stdout.split(/\r?\n/).filter(Boolean);
@@ -769,7 +769,7 @@ async function streamLogs(req, res, initialLimit = 120) {
     }
   }
 
-  const child = spawn('journalctl', ['-u', MANAGED_SERVICE, '-f', '-n', '0', '--no-pager', '-o', 'cat'], {
+  const child = spawn('journalctl', ['-u', MANAGED_SERVICE, '-f', '-n', '0', '--no-pager', '-o', 'short-iso-precise'], {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let pending = '';
