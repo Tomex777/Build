@@ -3,6 +3,7 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
 VERSION="2.0.0"
+SOURCE_REF="${MSCC_SOURCE_REF:-mscc-azure}"
 BASE="/opt/mscc"
 RELEASE="$BASE/releases/$VERSION"
 STATE="/var/lib/mscc"
@@ -14,6 +15,7 @@ ARCHIVE="/tmp/mscc-azure.tar.gz"
 UNPACK="/tmp/mscc-azure-src"
 
 echo "=== MSCC Azure install v$VERSION ==="
+echo "Source ref: $SOURCE_REF"
 
 sudo mkdir -p "$RELEASE" "$STATE/auth" "$STATE/auth-b" "$STATE/data" "$BACKUPS"
 sudo chown -R "$USER:$USER" "$BASE" "$STATE" "$BACKUPS"
@@ -21,12 +23,12 @@ chmod 700 "$STATE" "$STATE/auth" "$STATE/auth-b" "$STATE/data"
 
 echo ">>> Downloading complete MSCC source from GitHub..."
 rm -rf "$UNPACK" "$ARCHIVE"
-curl -fsSL "https://github.com/Tomex777/Build/archive/refs/heads/mscc-azure.tar.gz" -o "$ARCHIVE"
+curl -fsSL "https://github.com/Tomex777/Build/archive/$SOURCE_REF.tar.gz" -o "$ARCHIVE"
 mkdir -p "$UNPACK"
-tar -xzf "$ARCHIVE" -C "$UNPACK"
+tar -xzf "$ARCHIVE" -C "$UNPACK" --strip-components=1
 rm -rf "$RELEASE"
 mkdir -p "$RELEASE"
-cp -a "$UNPACK/Build-mscc-azure/mscc/." "$RELEASE/"
+cp -a "$UNPACK/mscc/." "$RELEASE/"
 rm -rf "$UNPACK" "$ARCHIVE" "$RELEASE/dist"
 
 echo ">>> Installing Node dependencies..."

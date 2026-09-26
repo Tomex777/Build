@@ -40,6 +40,9 @@ jobs:
           grep -Fq "waiting for Cortex pairing" index.js
           ! grep -Fq "private configuration still needs to be migrated" install-azure.sh
           grep -Fq 'VERSION="2.0.0"' install-azure.sh
+          grep -Fq 'SOURCE_REF="${MSCC_SOURCE_REF:-mscc-azure}"' install-azure.sh
+          grep -Fq 'archive/$SOURCE_REF.tar.gz' install-azure.sh
+          grep -Fq -- '--strip-components=1' install-azure.sh
 
       - name: Verify multi-account CC routing
         working-directory: mscc
