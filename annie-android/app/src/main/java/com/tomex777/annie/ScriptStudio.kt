@@ -1090,7 +1090,18 @@ private fun ScriptCodeEditor(
                 ?: registry.findGrammar("typescript")
                 ?: error("Could not load JavaScript syntax grammar")
             val language = MonarchLanguage(grammar, registry.findLanguageConfiguration("source.typescript"), registry, true).apply {
-                setCompleterKeywords(arrayOf("annie.commands", "annie.commands.register", "annie.http", "annie.http.request", "annie.browser", "annie.storage", "annie.storage.get", "annie.storage.set", "annie.sessions", "annie.actions", "annie.messages", "annie.files", "annie.log"))
+                setCompleterKeywords(
+                    arrayOf(
+                        "annie.commands", "annie.commands.register",
+                        "annie.actions", "annie.sessions",
+                        "annie.http", "annie.http.request", "annie.browser",
+                        "annie.storage", "annie.storage.get", "annie.storage.set",
+                        "annie.env", "annie.env.define", "annie.env.get", "annie.env.set", "annie.env.secret", "annie.env.values",
+                        "annie.schedule", "annie.schedule.create", "annie.schedule.list", "annie.schedule.cancel", "annie.schedule.enable", "annie.schedule.disable",
+                        "annie.tasks", "annie.tasks.start", "annie.tasks.list", "annie.tasks.cancel", "annie.tasks.retry",
+                        "annie.messages", "annie.messages.form", "annie.files", "annie.log",
+                    )
+                )
             }
             CodeEditor(context).apply {
                 // Monarch emits dynamic foreground ids after async tokenization. A regular
