@@ -69,3 +69,13 @@ The helper installs Certbot 5.4+ in an isolated virtual environment, obtains a
 short-lived IP certificate, configures nginx, installs an automatic renewal
 timer, and verifies the authenticated Cortex Agent route without printing the
 agent token.
+
+
+If Azure IMDS exposes the NIC but leaves `publicIpAddress` blank, the installer
+falls back to the VM's externally visible IPv4 as a candidate. Confirm that
+candidate matches the **Static Public IP** attached to the VM/NIC in Azure.
+If it does not, pass the correct static address explicitly:
+
+```bash
+sudo bash cortex-agent/install-azure-ip-https.sh <STATIC_PUBLIC_IPV4>
+```

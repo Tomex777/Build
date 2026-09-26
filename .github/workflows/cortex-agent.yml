@@ -23,6 +23,8 @@ jobs:
           bash -n cortex-agent/install.sh
           bash -n cortex-agent/install-azure-ip-https.sh
           grep -Fq 'interfaces=d if isinstance(d,list)' cortex-agent/install-azure-ip-https.sh
+          grep -Fq 'https://api.ipify.org' cortex-agent/install-azure-ip-https.sh
+          grep -Fq 'Externally visible IPv4 candidate' cortex-agent/install-azure-ip-https.sh
       - name: Start Cortex Agent
         shell: bash
         run: |

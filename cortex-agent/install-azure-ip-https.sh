@@ -16,7 +16,14 @@ if [ -z "$PUBLIC_IP" ]; then
 fi
 
 if [ -n "$PUBLIC_IP" ]; then
-  echo "Detected Azure public IP: $PUBLIC_IP"
+  echo "Detected Azure public IP from IMDS: $PUBLIC_IP"
+else
+  echo "Azure IMDS did not expose a public IPv4; checking the VM's externally visible IPv4..."
+  PUBLIC_IP="$(curl -4fsS --connect-timeout 3 --max-time 8 https://api.ipify.org || true)"
+  if [ -n "$PUBLIC_IP" ]; then
+    echo "Externally visible IPv4 candidate: $PUBLIC_IP"
+    echo "NOTE: Verify this matches the Static Public IP attached to the Azure VM/NIC."
+  fi
 fi
 
 python3 - "$PUBLIC_IP" <<'PY'
@@ -30,6 +37,12 @@ if value.version != 4:
     raise SystemExit("This helper currently supports Azure static public IPv4 addresses.")
 print(value)
 PY
+
+if [ -z "$PUBLIC_IP" ]; then
+  echo "Could not determine a public IPv4 automatically." >&2
+  echo "Run again with: sudo bash $0 <AZURE_STATIC_PUBLIC_IPV4>" >&2
+  exit 1
+fi
 
 if ! systemctl cat cortex-agent.service >/dev/null 2>&1; then
   echo "Cortex Agent is not installed yet; installing it first..."
