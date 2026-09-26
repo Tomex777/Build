@@ -1376,6 +1376,14 @@ class NamiDownloadManager(
     }
 
     private fun ensureServiceRunning() {
+        // Only the process-wide application manager is owned by the foreground service.
+        // Instrumentation and isolated managers use their own database/registry and must not
+        // start a service whose singleton manager observes a different queue.
+        val appManagerOwnsThisQueue = runCatching {
+            (context.applicationContext as? NamiApplication)?.downloadManager === this
+        }.getOrDefault(false)
+        if (!appManagerOwnsThisQueue) return
+
         val intent = Intent(context, NamiDownloadService::class.java)
             .setAction(NamiDownloadService.ACTION_START)
         ContextCompat.startForegroundService(context, intent)
