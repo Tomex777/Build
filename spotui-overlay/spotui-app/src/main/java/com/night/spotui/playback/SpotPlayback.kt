@@ -146,6 +146,7 @@ class SpotPlaybackController(
                         30_000L
                     }
                     if (positionMs >= thresholdMs) {
+                        taste.recordPlay(track)
                         taste.recordHistory(track)
                         historyRecordedForTrack = track.id
                         historyRevision += 1
@@ -164,7 +165,6 @@ class SpotPlaybackController(
     fun play(track: Track, sourceQueue: List<Track>) {
         SpotPlaybackService.ensureStarted(appContext)
         currentTrack?.takeIf { it.id != track.id }?.let(taste::recordSkip)
-        taste.recordPlay(track)
         baseQueue = sourceQueue.distinctBy(Track::id).let { list ->
             if (list.any { it.id == track.id }) list else listOf(track) + list
         }
@@ -177,7 +177,6 @@ class SpotPlaybackController(
         if (index !in queue.indices || index == currentIndex) return
         currentTrack?.let(taste::recordSkip)
         currentIndex = index
-        taste.recordPlay(queue[index])
         resolveAndPlay(queue[index])
     }
 
@@ -204,7 +203,6 @@ class SpotPlaybackController(
         if (next >= 0) {
             currentTrack?.let(taste::recordSkip)
             currentIndex = next
-            taste.recordPlay(queue[next])
             resolveAndPlay(queue[next])
         }
     }
@@ -222,7 +220,6 @@ class SpotPlaybackController(
         }
         currentTrack?.let(taste::recordSkip)
         currentIndex = previous
-        taste.recordPlay(queue[previous])
         resolveAndPlay(queue[previous])
     }
 
@@ -248,24 +245,30 @@ class SpotPlaybackController(
     }
 
     private fun handleEnded() {
-        currentTrack?.let(taste::recordCompleted)
+        currentTrack?.let { track ->
+            if (historyRecordedForTrack != track.id) {
+                taste.recordPlay(track)
+                taste.recordHistory(track)
+                historyRecordedForTrack = track.id
+                historyRevision += 1
+            }
+            taste.recordCompleted(track)
+        }
         when (repeatMode) {
             SpotRepeatMode.ONE -> {
-                currentTrack?.let(taste::recordPlay)
+                historyRecordedForTrack = null
                 player.seekTo(0)
                 player.play()
             }
             SpotRepeatMode.ALL -> {
                 if (queue.isNotEmpty()) {
                     currentIndex = if (currentIndex < queue.lastIndex) currentIndex + 1 else 0
-                    taste.recordPlay(queue[currentIndex])
                     resolveAndPlay(queue[currentIndex])
                 }
             }
             SpotRepeatMode.OFF -> {
                 if (currentIndex < queue.lastIndex) {
                     currentIndex += 1
-                    taste.recordPlay(queue[currentIndex])
                     resolveAndPlay(queue[currentIndex])
                 }
             }

@@ -277,6 +277,8 @@ fun SpotuiApp() {
 
     LaunchedEffect(player.historyRevision) {
         recentlyPlayed = taste.recentHistory()
+        homeTracks = taste.rank(homeTracks)
+        homeCache.save(homeTracks)
     }
 
     LaunchedEffect(player.currentTrack?.id) {
