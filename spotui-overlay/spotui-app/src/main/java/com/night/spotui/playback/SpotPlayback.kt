@@ -320,11 +320,17 @@ class SpotPlaybackController(
                     downloadRevision += 1
                 }
                 downloadedTrackIds.add(track.id)
+                val downloadedBytes = audioCache.cachedBytes(key)
                 downloadStates[track.id] = LyraDownloadProgress(
-                    cachedBytes = audioCache.cachedBytes(key),
-                    totalBytes = audioCache.cachedBytes(key),
+                    cachedBytes = downloadedBytes,
+                    totalBytes = downloadedBytes,
                     downloaded = true,
                     cacheKey = key,
+                )
+                Log.i(
+                    TAG,
+                    "LYRA_DOWNLOAD_PROOF track=" + track.id +
+                        " cachedBytes=" + downloadedBytes,
                 )
                 downloadRevision += 1
             } catch (cancelled: CancellationException) {
@@ -508,6 +514,7 @@ class SpotPlaybackController(
             }
             val namespace = runCatching { source.cacheNamespace() }.getOrElse { failure ->
                 if (serial != requestSerial) return@launch
+                logTransportFailure("namespace", failure, null)
                 isLoading = false
                 errorMessage = "Playback couldn’t start. Tap play to retry."
                 return@launch
