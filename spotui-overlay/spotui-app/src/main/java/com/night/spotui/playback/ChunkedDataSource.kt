@@ -30,16 +30,23 @@ class ChunkedDataSource(
     override fun open(dataSpec: DataSpec): Long {
         baseSpec = dataSpec
         position = dataSpec.position
-        val total = dataSpec.uri.getQueryParameter("clen")?.toLongOrNull()
-        if (dataSpec.length != C.LENGTH_UNSET.toLong() || total == null) {
+        val uriLength = dataSpec.uri.getQueryParameter("clen")?.toLongOrNull()
+            ?.takeIf { it > 0L }
+        val requestedLength = dataSpec.length.takeIf { it != C.LENGTH_UNSET.toLong() && it >= 0L }
+        val availableLength = requestedLength
+            ?: uriLength?.let { total -> (total - position).coerceAtLeast(0L) }
+
+        if (availableLength == null) {
+            // Non-Googlevideo sources may not expose a stable length. Preserve
+            // ordinary Media3 behavior when a bounded request cannot be derived.
             passthrough = true
             chunkOpen = true
             return upstream.open(dataSpec)
         }
 
         passthrough = false
-        bytesRemaining = (total - position).coerceAtLeast(0L)
-        if (bytesRemaining > 0) openChunk()
+        bytesRemaining = availableLength
+        if (bytesRemaining > 0L) openChunk()
         return bytesRemaining
     }
 
