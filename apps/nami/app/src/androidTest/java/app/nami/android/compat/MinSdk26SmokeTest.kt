@@ -105,6 +105,15 @@ class MinSdk26SmokeTest {
                 }
             assertTrue("anime_source_state" in columns)
             assertTrue("episode_source_state" in columns)
+            assertTrue("bytes_downloaded" in columns)
+            assertTrue("total_bytes" in columns)
+            assertTrue("temp_path" in columns)
+            assertTrue("hls_completed_parts" in columns)
+            assertTrue("pause_reason" in columns)
+            assertTrue("retry_count" in columns)
+            assertTrue("media_kind" in columns)
+            assertTrue("etag" in columns)
+            assertTrue("last_modified" in columns)
         } finally {
             database.close()
             context.deleteDatabase(databaseName)
