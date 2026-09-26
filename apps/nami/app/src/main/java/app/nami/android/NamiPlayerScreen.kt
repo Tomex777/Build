@@ -657,22 +657,40 @@ private fun PlayerControls(
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 PlayerAction(
-                    Icons.Outlined.VideoSettings,
-                    qualityLabel.ifBlank { "Quality" },
-                    onQuality,
+                    icon = Icons.Outlined.VideoSettings,
+                    label = qualityLabel.ifBlank { "Quality" },
+                    onClick = onQuality,
+                    modifier = Modifier.weight(1f),
                 )
                 PlayerAction(
-                    Icons.Outlined.Subtitles,
-                    "Subtitles",
-                    onSubtitles,
+                    icon = Icons.Outlined.Subtitles,
+                    label = "Subtitles",
+                    onClick = onSubtitles,
                     contentDescription = if (subtitlesActive) "Subtitles active" else "Subtitles",
+                    modifier = Modifier.weight(1f),
                 )
-                PlayerAction(Icons.Outlined.Audiotrack, "Audio", onAudio)
-                PlayerAction(Icons.Outlined.Speed, state.rate.toString() + "×", onSpeed)
-                PlayerAction(Icons.Outlined.Fullscreen, "Fullscreen", onFullscreen)
+                PlayerAction(
+                    icon = Icons.Outlined.Audiotrack,
+                    label = "Audio",
+                    onClick = onAudio,
+                    modifier = Modifier.weight(1f),
+                )
+                PlayerAction(
+                    icon = Icons.Outlined.Speed,
+                    label = state.rate.toString() + "×",
+                    onClick = onSpeed,
+                    modifier = Modifier.weight(1f),
+                )
+                PlayerAction(
+                    icon = Icons.Outlined.Fullscreen,
+                    label = "Full",
+                    onClick = onFullscreen,
+                    contentDescription = "Fullscreen",
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
@@ -684,21 +702,31 @@ private fun PlayerAction(
     label: String,
     onClick: () -> Unit,
     contentDescription: String = label,
+    modifier: Modifier = Modifier,
 ) {
-    TextButton(
-        onClick = onClick,
-        modifier = Modifier.semantics {
-            this.contentDescription = contentDescription
-        },
+    Column(
+        modifier = modifier
+            .semantics {
+                this.contentDescription = contentDescription
+            }
+            .clickable(onClick = onClick)
+            .padding(horizontal = 2.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Icon(
             icon,
             contentDescription = null,
             tint = Color.White,
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(20.dp),
         )
-        Spacer(Modifier.size(4.dp))
-        Text(label, color = Color.White, maxLines = 1)
+        Text(
+            text = label,
+            color = Color.White,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

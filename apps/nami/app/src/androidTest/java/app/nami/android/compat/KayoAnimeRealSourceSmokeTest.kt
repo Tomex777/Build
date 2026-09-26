@@ -131,6 +131,25 @@ class KayoAnimeRealSourceSmokeTest {
             } ?: -1L
             assertTrue("Downloaded KayoAnime MKV was unexpectedly small ($size bytes)", size > 1_000_000L)
 
+            val signature = context.contentResolver.openInputStream(uri)?.use { input ->
+                ByteArray(4).also { bytes ->
+                    val read = input.read(bytes)
+                    assertTrue("Downloaded KayoAnime file was too short to identify", read == bytes.size)
+                }
+            } ?: throw AssertionError("Downloaded KayoAnime MKV could not be reopened")
+            assertTrue(
+                "Downloaded KayoAnime file is not an MKV/EBML stream",
+                signature.contentEquals(
+                    byteArrayOf(0x1A, 0x45, 0xDF.toByte(), 0xA3.toByte()),
+                ),
+            )
+
+            Log.i(
+                "NamiKayoSmoke",
+                "downloaded=true mkv=${completed!!.displayName} mime=${completed!!.mimeType} " +
+                    "bytes=$size ebml=true",
+            )
+
             player = NamiVlcPlayer(context)
             player!!.play(
                 ResolvedMedia(

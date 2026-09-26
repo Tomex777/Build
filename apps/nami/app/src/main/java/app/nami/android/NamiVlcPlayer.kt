@@ -1,6 +1,8 @@
 package app.nami.android
 
+import android.content.ContentResolver
 import android.content.Context
+import android.os.ParcelFileDescriptor
 import android.net.Uri
 import android.view.TextureView
 import app.nami.domain.ResolvedMedia
@@ -31,6 +33,8 @@ internal data class NamiVlcState(
 )
 
 internal class NamiVlcPlayer(context: Context) {
+    private val appContext = context.applicationContext
+
     private companion object {
         // libVLC media-slave ABI: subtitle=0, generic/audio=1.
         const val SLAVE_TYPE_SUBTITLE = 0
@@ -38,7 +42,7 @@ internal class NamiVlcPlayer(context: Context) {
     }
 
     private val libVlc = LibVLC(
-        context.applicationContext,
+        appContext,
         arrayListOf("--audio-time-stretch", "--network-caching=2500"),
     )
     private val player = MediaPlayer(libVlc)
@@ -47,6 +51,7 @@ internal class NamiVlcPlayer(context: Context) {
     val state: StateFlow<NamiVlcState> = mutableState.asStateFlow()
     private var pendingSeekMs: Long? = null
     private var attachedSurface: TextureView? = null
+    private var localDescriptor: ParcelFileDescriptor? = null
 
     init {
         player.setEventListener { event ->
@@ -131,7 +136,16 @@ internal class NamiVlcPlayer(context: Context) {
             rate = mutableState.value.rate,
         )
         val playbackUrl = headerProxy.wrap(media.url, media.headers)
-        val vlcMedia = Media(libVlc, Uri.parse(playbackUrl)).apply {
+        val playbackUri = Uri.parse(playbackUrl)
+        closeLocalDescriptor()
+        val vlcMedia = if (playbackUri.scheme == ContentResolver.SCHEME_CONTENT) {
+            val descriptor = appContext.contentResolver.openFileDescriptor(playbackUri, "r")
+                ?: error("Nami could not open the downloaded media file.")
+            localDescriptor = descriptor
+            Media(libVlc, descriptor.fileDescriptor)
+        } else {
+            Media(libVlc, playbackUri)
+        }.apply {
             setHWDecoderEnabled(true, false)
             addOption(":network-caching=2500")
         }
@@ -200,8 +214,14 @@ internal class NamiVlcPlayer(context: Context) {
         runCatching { player.stop() }
         runCatching { detach() }
         runCatching { player.release() }
+        closeLocalDescriptor()
         runCatching { headerProxy.stop() }
         runCatching { libVlc.release() }
+    }
+
+    private fun closeLocalDescriptor() {
+        runCatching { localDescriptor?.close() }
+        localDescriptor = null
     }
 
     private fun refreshTracks() {
