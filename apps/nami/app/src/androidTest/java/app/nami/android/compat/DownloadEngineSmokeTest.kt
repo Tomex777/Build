@@ -321,6 +321,15 @@ class DownloadEngineSmokeTest {
                 while (manager.statuses.value.isNotEmpty()) delay(50)
             }
         } finally {
+            runCatching {
+                val cleanupManager = NamiDownloadManager(
+                    context,
+                    database,
+                    NamiSourceRegistry { emptyList() },
+                )
+                cleanupManager.resumeAll()
+                cleanupManager.statuses.value.values.toList().forEach(cleanupManager::remove)
+            }
             server.stop()
             database.close()
             context.deleteDatabase(databaseName)
