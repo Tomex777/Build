@@ -379,9 +379,10 @@ class DownloadEngineSmokeTest {
                 }
             }
 
-            val settledPaused: NamiDownloadStatus = withTimeout(10_000) {
+            withTimeout(10_000) {
                 var lastMatchingBytes = -1L
-                while (true) {
+                var settled = false
+                while (!settled) {
                     val current = firstManager.statuses.value[key]
                     val currentFile = current?.tempPath
                         ?.takeIf { it.isNotBlank() }
@@ -396,14 +397,13 @@ class DownloadEngineSmokeTest {
                             currentLength > 0L &&
                             current.bytesDownloaded == currentLength
 
-                    if (matchesDurableBoundary && currentLength == lastMatchingBytes) {
-                        return@withTimeout requireNotNull(current)
-                    }
-
+                    settled = matchesDurableBoundary && currentLength == lastMatchingBytes
                     lastMatchingBytes = if (matchesDurableBoundary) currentLength else -1L
-                    delay(50)
+                    if (!settled) delay(50)
                 }
             }
+            val settledPaused = firstManager.statuses.value[key]
+                ?: throw AssertionError("Paused download disappeared before manager recreation")
             val partial = File(settledPaused.tempPath!!)
             assertTrue(
                 "Paused direct download lost its private partial before recreation",
