@@ -10,7 +10,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PUBLIC_IP="${1:-${CORTEX_PUBLIC_IP:-}}"
 
 if [ -z "$PUBLIC_IP" ]; then
-  PUBLIC_IP="$(curl -fsS -H Metadata:true     'http://169.254.169.254/metadata/instance/network/interface?api-version=2021-02-01'     | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next((x.get("publicIpAddress","") for i in d.get("interface",[]) for x in i.get("ipv4",{}).get("ipAddress",[]) if x.get("publicIpAddress")), ""))'     || true)"
+  PUBLIC_IP="$(
+    curl -fsS --connect-timeout 3 --max-time 8 -H Metadata:true       'http://169.254.169.254/metadata/instance/network/interface?api-version=2021-02-01'     | python3 -c 'import json,sys; d=json.load(sys.stdin); interfaces=d if isinstance(d,list) else d.get("interface", d.get("network",{}).get("interface",[])); print(next((str(x.get("publicIpAddress","")).strip() for i in interfaces if isinstance(i,dict) for x in i.get("ipv4",{}).get("ipAddress",[]) if isinstance(x,dict) and str(x.get("publicIpAddress","")).strip()), ""))'     || true
+  )"
+fi
+
+if [ -n "$PUBLIC_IP" ]; then
+  echo "Detected Azure public IP: $PUBLIC_IP"
 fi
 
 python3 - "$PUBLIC_IP" <<'PY'

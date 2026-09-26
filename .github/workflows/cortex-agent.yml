@@ -22,6 +22,7 @@ jobs:
           node --check cortex-agent/index.js
           bash -n cortex-agent/install.sh
           bash -n cortex-agent/install-azure-ip-https.sh
+          grep -Fq 'interfaces=d if isinstance(d,list)' cortex-agent/install-azure-ip-https.sh
       - name: Start Cortex Agent
         shell: bash
         run: |
