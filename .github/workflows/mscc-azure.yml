@@ -27,6 +27,41 @@ jobs:
       - name: Syntax check all MSCC modules
         working-directory: mscc
         run: npm run check
+      - name: Verify dynamic account registry migration
+        working-directory: mscc
+        run: |
+          node --input-type=module <<'NODE'
+          import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
+          import { rm } from 'node:fs/promises'
+
+          const root = '/tmp/mscc-account-registry-test'
+          await rm(root, { recursive:true, force:true })
+          const registry = new AccountRegistry({
+            file: root + '/data/accounts.json',
+            authRoot: root + '/auth',
+            maxAccounts: 5,
+            legacy: legacyAccountRecords({
+              accountA:'234000000001',
+              accountB:'234000000002',
+              authA:root + '/legacy-a',
+              authB:root + '/legacy-b',
+            }),
+          })
+          const migrated = await registry.load()
+          if (migrated.length !== 2) throw new Error('Legacy A/B migration failed')
+          if (registry.get('A').authDir !== root + '/legacy-a') throw new Error('Legacy A auth path changed')
+          if (registry.get('B').authDir !== root + '/legacy-b') throw new Error('Legacy B auth path changed')
+          const third = await registry.create({ phoneNumber:'234000000003', displayName:'Work' })
+          const fourth = await registry.create({ phoneNumber:'234000000004', displayName:'Archive' })
+          if (third.id !== 'account-3' || fourth.id !== 'account-4') throw new Error('Stable generated IDs are wrong')
+          const reloaded = new AccountRegistry({ file:root + '/data/accounts.json', authRoot:root + '/auth', maxAccounts:5 })
+          await reloaded.load()
+          if (reloaded.list().length !== 4) throw new Error('Registry persistence failed')
+          if (reloaded.get('ACCOUNT-3')?.displayName !== 'Work') throw new Error('Case-insensitive ID lookup failed')
+          const removed = await reloaded.remove('account-4')
+          if (!removed.authPreserved) throw new Error('Remove must preserve auth by default')
+          console.log('Dynamic account registry migration OK')
+          NODE
       - name: Verify local pairing control stays on loopback
         working-directory: mscc
         shell: bash
@@ -36,13 +71,20 @@ jobs:
           const accounts = [
             { id:'A', enabled:true, connected:false, status:'offline', numberMasked:'234••••0001', indexCount:0, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
             { id:'B', enabled:true, connected:false, status:'offline', numberMasked:'234••••0002', indexCount:0, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
+            { id:'work-3', enabled:true, connected:false, status:'offline', numberMasked:'234••••0003', indexCount:0, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
+            { id:'archive-4', enabled:true, connected:false, status:'offline', numberMasked:'234••••0004', indexCount:0, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
           ]
           startWebPanel({
             port: 18787,
             localControlPort: 18788,
             password: 'test-password',
             sessionSecret: 'test-secret',
-            getState: async () => ({ version:'test', destination:'A', settings:{}, accounts, system:{} }),
+            getState: async () => ({ version:'test', destination:'A', settings:{}, capabilities:{addAccount:true}, entitlements:{maxAccounts:10}, accounts, system:{} }),
+            createAccount: async ({ phoneNumber, displayName }) => {
+              const row = { id:'account-5', enabled:true, connected:false, status:'offline', numberMasked:String(phoneNumber), displayName:String(displayName || ''), indexCount:0, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' }
+              accounts.push(row)
+              return { ok:true, account:row }
+            },
             pairAccount: async (id, mode) => {
               const row = accounts.find(x => x.id === id)
               row.pairingMode = mode
@@ -57,7 +99,7 @@ jobs:
               return { ok:true }
             },
             setSetting: async () => {},
-            setDestination: async account => account === 'B' ? 'B' : 'A',
+            setDestination: async account => account,
             reloadCommands: async () => ['autocc', 'replycc', 'reloadcommands'],
           })
           setInterval(() => {}, 1000)
@@ -67,12 +109,13 @@ jobs:
             curl -fsS http://127.0.0.1:18788/state >/tmp/mscc-pair-state.json && break
             sleep .25
           done
-          grep -q '"id":"A"' /tmp/mscc-pair-state.json
-          curl -fsS -H 'Content-Type: application/json' -d '{"mode":"code"}' http://127.0.0.1:18788/accounts/B/pair
+          grep -q '"id":"work-3"' /tmp/mscc-pair-state.json
+          curl -fsS -H 'Content-Type: application/json' -d '{"phoneNumber":"234000000005","displayName":"Extra"}' http://127.0.0.1:18788/accounts | grep -q '"id":"account-5"'
+          curl -fsS -H 'Content-Type: application/json' -d '{"mode":"code"}' http://127.0.0.1:18788/accounts/work-3/pair
           curl -fsS http://127.0.0.1:18788/state | grep -q 'ABCD-EFGH'
-          curl -fsS -H 'Content-Type: application/json' -d '{"mode":"qr"}' http://127.0.0.1:18788/accounts/B/repair
+          curl -fsS -H 'Content-Type: application/json' -d '{"mode":"qr"}' http://127.0.0.1:18788/accounts/archive-4/repair
           curl -fsS http://127.0.0.1:18788/state | grep -q '"pairingMode":"qr"'
-          curl -fsS -H 'Content-Type: application/json' -d '{"account":"B"}' http://127.0.0.1:18788/destination | grep -q '"destination":"B"'
+          curl -fsS -H 'Content-Type: application/json' -d '{"account":"archive-4"}' http://127.0.0.1:18788/destination | grep -q '"destination":"archive-4"'
           curl -fsS -X POST http://127.0.0.1:18788/commands/reload | grep -q '"reloadcommands"'
           kill "$(cat /tmp/mscc-local-control.pid)" 2>/dev/null || true
       - name: Validate drop-in command registry
