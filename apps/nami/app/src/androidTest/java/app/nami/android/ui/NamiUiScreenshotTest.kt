@@ -88,8 +88,8 @@ class NamiUiScreenshotTest {
         assertTrue("Episode list did not expose a download action", downloads.isNotEmpty())
         composeRule.onAllNodesWithContentDescription("Download")[0].performClick()
         waitUntil(90_000, "episode download to enter a visible state") {
-            hasDescription("Cancel download") ||
-                hasDescription("Cancel queued download") ||
+            hasDescription("Pause download") ||
+                hasDescription("Pause queued download") ||
                 hasDescription("Downloaded")
         }
 
@@ -97,6 +97,15 @@ class NamiUiScreenshotTest {
         waitForText("Library", timeoutMillis = 30_000)
         composeRule.onNodeWithText("Library").performClick()
         waitForDescription("Downloads", timeoutMillis = 30_000)
+        val libraryTop = composeRule.onNodeWithTag("library-top-bar")
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .top
+        assertTrue(
+            "Library still has a root-level top inset before its own TopAppBar: top=$libraryTop",
+            libraryTop <= 2f,
+        )
+        capture("06-library.png")
         composeRule.onNodeWithContentDescription("Downloads").performClick()
         waitForText("Downloads", timeoutMillis = 30_000)
         capture("06-downloads.png")
