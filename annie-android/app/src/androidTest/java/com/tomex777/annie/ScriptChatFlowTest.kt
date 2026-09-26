@@ -218,7 +218,8 @@ class ScriptChatFlowTest {
         compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
         compose.waitForIdle()
         saveEmulatorScreenshot("annie-script-chess-move")
-        compose.onAllNodesWithTag("script_image_message")[0].performClick()
+        val boardNodes = compose.onAllNodesWithTag("script_image_message").fetchSemanticsNodes()
+        compose.onAllNodesWithTag("script_image_message")[boardNodes.lastIndex].performClick()
         compose.waitUntil(5_000) {
             compose.onAllNodesWithTag("script_image_fullscreen", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
         }
@@ -241,13 +242,16 @@ class ScriptChatFlowTest {
         compose.onNodeWithTag("context_action_hint").assertIsDisplayed()
         compose.onNodeWithTag("context_action_resign").assertIsDisplayed()
 
+        val hintsBefore = compose.onAllNodesWithText("Try ", substring = true).fetchSemanticsNodes().size
+        val repliesBefore = compose.onAllNodesWithTag("received_message_animation").fetchSemanticsNodes().size
         compose.onNodeWithTag("context_action_hint").performClick()
         compose.onNodeWithTag("send_message").performClick()
         compose.waitUntil(10_000) {
-            compose.onAllNodesWithText("Try ", substring = true).fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("Try ", substring = true).fetchSemanticsNodes().size > hintsBefore &&
+                compose.onAllNodesWithTag("received_message_animation").fetchSemanticsNodes().size > repliesBefore
         }
-        compose.onNodeWithText("Try ", substring = true).assertExists()
-        compose.onAllNodesWithTag("received_message_animation")[0].assertExists()
+        val hintNodes = compose.onAllNodesWithText("Try ", substring = true).fetchSemanticsNodes()
+        compose.onAllNodesWithText("Try ", substring = true)[hintNodes.lastIndex].assertExists()
 
         compose.onNodeWithTag("context_action_resign").performClick()
         compose.onNodeWithTag("send_message").performClick()
