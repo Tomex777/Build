@@ -507,7 +507,7 @@ private fun ScriptStudioContent(
                             }
                             Text(project.name, color = StudioMuted, fontSize = 11.sp)
                         }
-                        StudioAction("Assist", icon = StudioGlyph.ASSIST, onClick = { assistOpen = true }, enabled = !saving)
+                        StudioAction("AI spec", icon = StudioGlyph.ASSIST, onClick = { exportAiSpec() }, enabled = !saving)
                         Spacer(Modifier.width(7.dp))
                         StudioAction("Run", emphasized = true, icon = StudioGlyph.RUN, onClick = { saveScript(runAfterSave = true) }, enabled = !saving)
                     }
