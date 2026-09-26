@@ -33,10 +33,13 @@ jobs:
           printf '{"version":1,"service":"mscc","entries":[{"key":"autoCc","label":"Auto CC","description":"Copy V1 automatically","command":"autocc","type":"boolean","default":false},{"key":"replyCc","label":"Reply CC","description":"Reply recovery","command":"replycc","type":"boolean","default":true}]}\n' >/tmp/cortex-settings/schema.json
           cat >/tmp/mock-mscc.mjs <<'NODE'
           import http from 'node:http'
-          let destination = 'A'
+          let destination = 'account-1'
+          let nextAccount = 5
           const accounts = [
-            { id:'A', enabled:true, connected:true, status:'connected', numberMasked:'234••••0001', indexCount:12, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
-            { id:'B', enabled:true, connected:false, status:'offline', numberMasked:'234••••0002', indexCount:4, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
+            { id:'account-1', displayName:'Main', enabled:true, connected:true, status:'connected', numberMasked:'234••••0001', indexCount:12, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
+            { id:'account-2', displayName:'Second', enabled:true, connected:false, status:'offline', numberMasked:'234••••0002', indexCount:4, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
+            { id:'account-3', displayName:'Work', enabled:true, connected:false, status:'offline', numberMasked:'234••••0003', indexCount:2, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
+            { id:'account-4', displayName:'Archive', enabled:true, connected:false, status:'offline', numberMasked:'234••••0004', indexCount:1, indexLimit:5000, pairingMode:'', pairingCode:'', pairingQr:'', pairingError:'' },
           ]
           const server = http.createServer(async (req,res) => {
             const url = new URL(req.url, 'http://localhost')
@@ -48,10 +51,38 @@ jobs:
             }
             if (req.method === 'GET' && url.pathname === '/state') {
               res.setHeader('content-type','application/json')
-              return res.end(JSON.stringify({ version:'1.8.3', destination, settings:{}, accounts, system:{ uptime:'1m', rssMb:50, heapMb:20, port:8787 } }))
+              return res.end(JSON.stringify({
+                version:'2.0.0',
+                destination,
+                settings:{},
+                capabilities:{ addAccount:true, perAccountCcOverride:true },
+                entitlements:{ maxAccounts:10 },
+                accounts,
+                system:{ uptime:'1m', rssMb:50, heapMb:20, port:8787 }
+              }))
+            }
+            if (req.method === 'POST' && url.pathname === '/accounts') {
+              const id = 'account-' + nextAccount++
+              const row = {
+                id,
+                displayName:String(body.displayName || ''),
+                enabled:true,
+                connected:false,
+                status:'offline',
+                numberMasked:String(body.phoneNumber || ''),
+                indexCount:0,
+                indexLimit:5000,
+                pairingMode:'',
+                pairingCode:'',
+                pairingQr:'',
+                pairingError:'',
+              }
+              accounts.push(row)
+              res.setHeader('content-type','application/json')
+              return res.end(JSON.stringify({ ok:true, account:row }))
             }
             if (req.method === 'POST' && url.pathname === '/destination') {
-              if (!['A','B'].includes(body.account)) {
+              if (!accounts.some(row => row.id === body.account)) {
                 res.statusCode = 400
                 return res.end(JSON.stringify({ error:'bad destination' }))
               }
@@ -63,11 +94,22 @@ jobs:
               res.setHeader('content-type','application/json')
               return res.end(JSON.stringify({ ok:true, commands:['autocc','replycc','reloadcommands'] }))
             }
-            const m = url.pathname.match(/^\/accounts\/(A|B)\/(pair|reconnect|repair)$/)
+            if (req.method === 'POST' && url.pathname === '/modules/demo/reload') {
+              res.setHeader('content-type','application/json')
+              return res.end(JSON.stringify({ ok:true, module:'demo', commands:['hello'], status:'loaded' }))
+            }
+            const m = url.pathname.match(/^\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/(pair|reconnect|disconnect|repair)$/)
             if (req.method === 'POST' && m) {
               const row = accounts.find(x => x.id === m[1])
+              if (!row) {
+                res.statusCode = 404
+                return res.end(JSON.stringify({ error:'unknown account' }))
+              }
               if (m[2] === 'reconnect') {
                 row.status = 'connecting'
+              } else if (m[2] === 'disconnect') {
+                row.connected = false
+                row.status = 'offline'
               } else {
                 row.pairingMode = body.mode === 'qr' ? 'qr' : 'code'
                 row.pairingCode = row.pairingMode === 'code' ? 'ABCD-EFGH' : ''
@@ -75,7 +117,18 @@ jobs:
                 row.status = 'pairing'
               }
               res.setHeader('content-type','application/json')
-              return res.end(JSON.stringify({ ok:true }))
+              return res.end(JSON.stringify({ ok:true, account:row.id, status:row.status }))
+            }
+            const remove = url.pathname.match(/^\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})$/)
+            if (req.method === 'DELETE' && remove) {
+              const index = accounts.findIndex(row => row.id === remove[1])
+              if (index < 0) {
+                res.statusCode = 404
+                return res.end(JSON.stringify({ error:'unknown account' }))
+              }
+              accounts.splice(index, 1)
+              res.setHeader('content-type','application/json')
+              return res.end(JSON.stringify({ ok:true, account:remove[1], authPreserved:true }))
             }
             res.statusCode = 404
             res.end('{}')
@@ -219,18 +272,32 @@ jobs:
           echo "$SETTINGS" | grep -q '"command":"replycc","enabled":true'
           curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"key":"autoCc","enabled":true}'             http://127.0.0.1:47831/api/cortex/host/settings | grep -q '"enabled":true'
           grep -q '"autoCc": true' /tmp/cortex-settings/settings.json
-      - name: Verify MSCC pairing bridge
+      - name: Verify dynamic MSCC control bridge
         shell: bash
         run: |
           AUTH='Authorization: Bearer test-token-12345678901234567890'
-          curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q '"id":"B"'
-          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"mode":"code"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts/B/pair
+          STATE=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing)
+          echo "$STATE" | grep -q '"id":"account-3"'
+          echo "$STATE" | grep -q '"maxAccounts":10'
+          echo "$STATE" | grep -q '"addAccount":true'
+
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"phoneNumber":"234000000005","displayName":"Extra"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts | grep -q '"id":"account-5"'
+
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"mode":"code"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts/account-3/pair
           curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q 'ABCD-EFGH'
-          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"mode":"qr"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts/B/repair
+
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"mode":"qr"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts/account-4/repair
           curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q '"pairingMode":"qr"'
-          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"account":"B"}'             http://127.0.0.1:47831/api/cortex/mscc/destination | grep -q '"destination":"B"'
-          curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q '"destination":"B"'
-          curl -fsS -X POST -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/commands/reload | grep -q '"reloadcommands"'
+
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"account":"account-2"}'             http://127.0.0.1:47831/api/cortex/mscc/destination | grep -q '"destination":"account-2"'
+          curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q '"destination":"account-2"'
+
+          curl -fsS -X POST -H "$AUTH" -H 'Content-Type: application/json' -d '{}'             http://127.0.0.1:47831/api/cortex/mscc/accounts/account-3/disconnect | grep -q '"status":"offline"'
+          curl -fsS -X DELETE -H "$AUTH"             http://127.0.0.1:47831/api/cortex/mscc/accounts/account-3 | grep -q '"authPreserved":true"'
+          ! curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q '"id":"account-3"'
+
+          curl -fsS -X POST -H "$AUTH"             http://127.0.0.1:47831/api/cortex/mscc/modules/demo/reload | grep -q '"module":"demo"'
+          curl -fsS -X POST -H "$AUTH"             http://127.0.0.1:47831/api/cortex/mscc/commands/reload | grep -q '"reloadcommands"'
       - name: Reject unauthenticated requests
         shell: bash
         run: |
