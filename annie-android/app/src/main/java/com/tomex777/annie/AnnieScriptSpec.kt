@@ -84,6 +84,18 @@ internal object AnnieScriptSpec {
         appendLine("~~~")
         appendLine()
 
+        appendLine("## Durable tasks")
+        appendLine("annie.tasks creates a durable one-shot WorkManager boundary. Annie persists task state, recreates QuickJS for the registered action, delivers the native result to chat, then closes the runtime.")
+        appendLine("Task states are queued, running, succeeded, failed, and cancelled. Retry creates a fresh WorkManager attempt for the same stored task.")
+        appendLine("Task actions are still bounded script invocations; use native download/media/background services for genuinely long active work rather than an endless JavaScript loop.")
+        appendLine("~~~js")
+        appendLine("await annie.tasks.start({ id: \"job\", title: \"Processing…\", action: \"run-job\", payload: {} });")
+        appendLine("const tasks = await annie.tasks.list();")
+        appendLine("await annie.tasks.cancel(\"job\");")
+        appendLine("await annie.tasks.retry(\"job\");")
+        appendLine("~~~")
+        appendLine()
+
         appendLine("## Browser security")
         appendLine("Browser messages use safe HTTP/HTTPS URLs. Restricted sessions only navigate allowed hosts/subdomains. Browser-session HTTP requests reuse the session's cookies and User-Agent.")
         appendLine()
