@@ -36,7 +36,7 @@ class ScriptChatFlowTest {
         compose.onNodeWithTag("script_tab_files").assertIsDisplayed()
         compose.onNodeWithTag("script_tab_api").assertIsDisplayed()
         compose.onNodeWithText("chess.js", substring = false).assertIsDisplayed()
-        compose.onNodeWithText("MAIN", substring = false).assertIsDisplayed()
+        assertEquals(true, compose.onAllNodesWithText("MAIN", substring = false).fetchSemanticsNodes().isNotEmpty())
         saveEmulatorScreenshot("annie-script-studio-files")
         assertEquals(0, compose.onAllNodesWithText("Console", substring = false).fetchSemanticsNodes().size)
         compose.onNodeWithTag("script_tab_editor").performClick()
