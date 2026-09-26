@@ -162,6 +162,31 @@ PY
   return 1
 }
 
+scroll_catalog_once() {
+  dump_ui
+  python3 <<'PY'
+import re, subprocess, xml.etree.ElementTree as ET
+root=ET.parse('/tmp/spotui.xml').getroot()
+scrollables=[]
+for node in root.iter('node'):
+    if node.attrib.get('scrollable') != 'true': continue
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+    if not m: continue
+    x1,y1,x2,y2=map(int,m.groups())
+    scrollables.append(((x2-x1)*(y2-y1),x1,y1,x2,y2))
+if not scrollables: raise SystemExit('No scrollable catalog page found')
+_,x1,y1,x2,y2=max(scrollables)
+x=(x1+x2)//2
+subprocess.check_call([
+    'adb','shell','input','swipe',
+    str(x),str(y1+(y2-y1)*4//5),
+    str(x),str(y1+(y2-y1)*2//5),
+    '400'
+])
+PY
+  sleep 1
+}
+
 tap_first_discography_release() {
   dump_ui
   python3 <<'PY'
@@ -370,7 +395,19 @@ scroll_until_node Discography 10 || {
   exit 1
 }
 shot 04-artist
-tap_first_discography_release
+ALBUM_OPENED=0
+for attempt in 1 2 3; do
+  if tap_first_discography_release; then
+    ALBUM_OPENED=1
+    break
+  fi
+  scroll_catalog_once
+done
+if [[ "$ALBUM_OPENED" -ne 1 ]]; then
+  shot failure-artist-album-card
+  echo "Discography was visible but no album card became tappable after scrolling." >&2
+  exit 1
+fi
 wait_for_node Tracks 20
 wait_for_contains songs 10
 assert_album_track_metadata() {
