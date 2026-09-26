@@ -2,6 +2,7 @@ package app.nami.android.compat
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.SystemClock
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
@@ -83,6 +84,30 @@ class AniyomiPreferencesSmokeTest {
                 "Source preferences still overlap the status bar: rowTop=" +
                     firstPreference.visibleBounds.top + " inset=" + topInset,
                 firstPreference.visibleBounds.top >= topInset,
+            )
+
+            var primaryTextColor = Color.TRANSPARENT
+            var secondaryTextColor = Color.TRANSPARENT
+            scenario.onActivity { activity ->
+                activity.obtainStyledAttributes(
+                    intArrayOf(
+                        android.R.attr.textColorPrimary,
+                        android.R.attr.textColorSecondary,
+                    ),
+                ).use { attributes ->
+                    primaryTextColor = attributes.getColor(0, Color.TRANSPARENT)
+                    secondaryTextColor = attributes.getColor(1, Color.TRANSPARENT)
+                }
+            }
+            assertTrue(
+                "Source preference primary text is too dark for Nami's dark surface: " +
+                    Integer.toHexString(primaryTextColor),
+                relativeLuminance(primaryTextColor) >= 0.55,
+            )
+            assertTrue(
+                "Source preference secondary text is too dark for Nami's dark surface: " +
+                    Integer.toHexString(secondaryTextColor),
+                relativeLuminance(secondaryTextColor) >= 0.30,
             )
 
             val topScreenshot = File(application.filesDir, "nami-source-preferences-top.png")
@@ -253,6 +278,20 @@ class AniyomiPreferencesSmokeTest {
             editor.commit()
             scenario?.close()
         }
+    }
+
+    private fun relativeLuminance(color: Int): Double {
+        fun channel(value: Int): Double {
+            val normalized = value / 255.0
+            return if (normalized <= 0.04045) {
+                normalized / 12.92
+            } else {
+                Math.pow((normalized + 0.055) / 1.055, 2.4)
+            }
+        }
+        return 0.2126 * channel(Color.red(color)) +
+            0.7152 * channel(Color.green(color)) +
+            0.0722 * channel(Color.blue(color))
     }
 
     private fun findPreferenceRow(
