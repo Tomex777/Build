@@ -124,14 +124,22 @@ class DownloadMediaPlannerTest {
     }
 
     @Test
-    fun interruptedTransfersRecoverAsErrorsButTerminalStatesStayStable() {
+    fun interruptedTransfersRecoverAsResumableQueueEntries() {
         assertEquals(
-            NamiDownloadState.ERROR,
+            NamiDownloadState.QUEUED,
             DownloadRecoveryPolicy.recoverState(NamiDownloadState.QUEUED),
         )
         assertEquals(
-            NamiDownloadState.ERROR,
+            NamiDownloadState.QUEUED,
             DownloadRecoveryPolicy.recoverState(NamiDownloadState.DOWNLOADING),
+        )
+        assertEquals(
+            NamiDownloadState.QUEUED,
+            DownloadRecoveryPolicy.recoverState(NamiDownloadState.WAITING_FOR_NETWORK),
+        )
+        assertEquals(
+            NamiDownloadState.PAUSED,
+            DownloadRecoveryPolicy.recoverState(NamiDownloadState.PAUSED),
         )
         assertEquals(
             NamiDownloadState.DOWNLOADED,
@@ -142,11 +150,11 @@ class DownloadMediaPlannerTest {
             DownloadRecoveryPolicy.recoverState(NamiDownloadState.ERROR),
         )
 
-        assertTrue(
+        assertFalse(
             DownloadRecoveryPolicy.shouldDiscardPartialTarget(NamiDownloadState.DOWNLOADING),
         )
         assertFalse(
-            DownloadRecoveryPolicy.shouldDiscardPartialTarget(NamiDownloadState.DOWNLOADED),
+            DownloadRecoveryPolicy.shouldDiscardPartialTarget(NamiDownloadState.PAUSED),
         )
     }
 
@@ -324,6 +332,8 @@ class DownloadMediaPlannerTest {
         assertTrue(DownloadBatchPolicy.shouldEnqueue(NamiDownloadState.ERROR))
         assertFalse(DownloadBatchPolicy.shouldEnqueue(NamiDownloadState.QUEUED))
         assertFalse(DownloadBatchPolicy.shouldEnqueue(NamiDownloadState.DOWNLOADING))
+        assertFalse(DownloadBatchPolicy.shouldEnqueue(NamiDownloadState.WAITING_FOR_NETWORK))
+        assertFalse(DownloadBatchPolicy.shouldEnqueue(NamiDownloadState.PAUSED))
         assertFalse(DownloadBatchPolicy.shouldEnqueue(NamiDownloadState.DOWNLOADED))
     }
 
