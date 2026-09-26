@@ -73,6 +73,11 @@ import io.github.rosemoe.sora.event.SelectionChangeEvent
 import io.github.rosemoe.sora.langs.monarch.MonarchLanguage
 import io.github.rosemoe.sora.langs.monarch.MonarchColorScheme
 import io.github.rosemoe.sora.langs.monarch.registry.MonarchGrammarRegistry
+import io.github.rosemoe.sora.langs.monarch.registry.FileProviderRegistry
+import io.github.rosemoe.sora.langs.monarch.registry.ThemeRegistry
+import io.github.rosemoe.sora.langs.monarch.registry.model.ThemeModel
+import io.github.rosemoe.sora.langs.monarch.registry.model.ThemeSource
+import io.github.rosemoe.sora.langs.monarch.registry.provider.AssetsFileResolver
 import io.github.rosemoe.sora.langs.monarch.registry.dsl.monarchLanguages
 import io.github.rosemoe.sora.widget.CodeEditor
 import io.github.rosemoe.sora.widget.EditorSearcher
@@ -94,6 +99,22 @@ private val StudioMuted = Color(0xFF9CB2CC)
 private val StudioBlue = Color(0xFF42B9F5)
 private val StudioGreen = Color(0xFF54D6AE)
 private val StudioDanger = Color(0xFFFF7586)
+
+private val monarchThemeLock = Any()
+@Volatile private var annieMonarchThemeReady = false
+
+private fun ensureAnnieMonarchTheme(context: android.content.Context): ThemeModel = synchronized(monarchThemeLock) {
+    if (!annieMonarchThemeReady) {
+        FileProviderRegistry.addProvider(AssetsFileResolver(context.applicationContext.assets))
+        val model = ThemeModel(ThemeSource("textmate/annie-dark.json", "annie-dark")).apply {
+            isDark = true
+        }
+        ThemeRegistry.loadTheme(model, false)
+        annieMonarchThemeReady = true
+    }
+    check(ThemeRegistry.setTheme("annie-dark")) { "Could not load Annie Script Studio theme" }
+    ThemeRegistry.currentTheme
+}
 
 private enum class StudioPage(val title: String) { FILES("Files"), EDITOR("Editor"), API("API") }
 private enum class FileAction { RENAME, SHARE, EXPORT, DELETE, ENABLE, DISABLE }
@@ -766,8 +787,8 @@ private fun ScriptCodeEditor(
                 // which can make the code turn transparent while the caret still works.
                 // Keep the language and color scheme paired so document, spans and paint
                 // always describe the same visible editor state.
-                setColorScheme(MonarchColorScheme.create())
-                io.github.rosemoe.sora.langs.monarch.registry.ThemeRegistry.setTheme("darcula")
+                val annieTheme = ensureAnnieMonarchTheme(context)
+                setColorScheme(MonarchColorScheme.create(annieTheme))
                 setEditorLanguage(language)
                 setTextSize(14f)
                 setTabWidth(4)
