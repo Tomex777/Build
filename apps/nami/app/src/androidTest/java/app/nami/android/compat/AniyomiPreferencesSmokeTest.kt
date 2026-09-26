@@ -84,6 +84,12 @@ class AniyomiPreferencesSmokeTest {
                     firstPreference.visibleBounds.top + " inset=" + topInset,
                 firstPreference.visibleBounds.top >= topInset,
             )
+
+            val topScreenshot = File(application.filesDir, "nami-source-preferences-top.png")
+            assertTrue(
+                "Could not capture source preference top-inset acceptance screenshot",
+                device.takeScreenshot(topScreenshot),
+            )
             qualityRow.click()
 
             val quality720 = device.wait(
