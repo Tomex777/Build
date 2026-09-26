@@ -1,12 +1,19 @@
 package app.nami.android
 
 import android.content.Context
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
 import android.util.TypedValue
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.appcompat.view.ContextThemeWrapper
+import androidx.appcompat.widget.SwitchCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.recyclerview.widget.RecyclerView
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.DialogPreference
 import androidx.preference.PreferenceFragmentCompat
@@ -35,11 +42,16 @@ class AniyomiSourcePreferencesActivity : FragmentActivity() {
         }
 
         val containerId = View.generateViewId()
-        setContentView(
-            FrameLayout(this).apply {
-                id = containerId
-            },
-        )
+        val container = FrameLayout(this).apply {
+            id = containerId
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(container) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.setPadding(0, bars.top, 0, bars.bottom)
+            insets
+        }
+        setContentView(container)
+        ViewCompat.requestApplyInsets(container)
 
         lifecycleScope.launch {
             val source = (application as NamiApplication)
@@ -109,6 +121,54 @@ class AniyomiSourcePreferencesActivity : FragmentActivity() {
             }
 
             preferenceScreen = screen
+        }
+
+        override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+            super.onViewCreated(view, savedInstanceState)
+
+            val listener = object : RecyclerView.OnChildAttachStateChangeListener {
+                override fun onChildViewAttachedToWindow(child: View) {
+                    tintExtensionSwitches(child)
+                }
+
+                override fun onChildViewDetachedFromWindow(child: View) = Unit
+            }
+            listView.addOnChildAttachStateChangeListener(listener)
+            for (index in 0 until listView.childCount) {
+                tintExtensionSwitches(listView.getChildAt(index))
+            }
+        }
+
+        private fun tintExtensionSwitches(view: View) {
+            if (view is SwitchCompat) {
+                view.thumbTintList = ColorStateList(
+                    arrayOf(
+                        intArrayOf(android.R.attr.state_checked),
+                        intArrayOf(),
+                    ),
+                    intArrayOf(
+                        Color.rgb(138, 180, 248),
+                        Color.rgb(138, 147, 158),
+                    ),
+                )
+                view.trackTintList = ColorStateList(
+                    arrayOf(
+                        intArrayOf(android.R.attr.state_checked),
+                        intArrayOf(),
+                    ),
+                    intArrayOf(
+                        Color.rgb(63, 99, 143),
+                        Color.rgb(55, 63, 73),
+                    ),
+                )
+                return
+            }
+
+            if (view is ViewGroup) {
+                for (index in 0 until view.childCount) {
+                    tintExtensionSwitches(view.getChildAt(index))
+                }
+            }
         }
     }
 
