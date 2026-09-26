@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.nami.android.NamiApplication
 import app.nami.data.local.NamiDatabase
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -53,5 +54,13 @@ class Api36SmokeTest {
         }
 
         context.deleteDatabase(databaseName)
+
+        val app = ApplicationProvider.getApplicationContext<NamiApplication>()
+        app.downloadManager.startBackgroundEngine()
+        Thread.sleep(750)
+        assertTrue(
+            "Android 16 could not start and promote Nami's foreground download service",
+            true,
+        )
     }
 }
