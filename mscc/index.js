@@ -466,7 +466,10 @@ async function reloadSettings(silent = false) {
   if (!exists) await saveSettings()
   else settingsMtimeMs = (await stat(SETTINGS_FILE)).mtimeMs
 
-  if (!silent) console.log('MSCC settings reloaded from disk')
+  if (!silent) {
+    console.log('MSCC settings reloaded from disk')
+    await recordActivity('configuration.reloaded', {})
+  }
 }
 
 async function saveSettings() {
@@ -556,6 +559,7 @@ async function writeRuntimeRegistry() {
 async function reloadModule(id) {
   if (String(id) !== 'mscc-core-commands') throw new Error(`Unknown module: ${id}`)
   const commands = await reloadCommands()
+  await recordActivity('module.reloaded', { module: id, commandCount: commands.length })
   return { ok: true, module: id, commands }
 }
 
@@ -956,6 +960,7 @@ async function setSetting(key, value) {
   }
   settings[key] = Boolean(value)
   await saveSettings()
+  await recordActivity('configuration.changed', { key, value: Boolean(value) })
 }
 
 async function reloadCommands() {
@@ -965,7 +970,9 @@ async function reloadCommands() {
   await saveSettings()
   await writeCommandSettingsSchema()
   await writeRuntimeRegistry()
-  return next.canonical.map(command => command.name).sort()
+  const names = next.canonical.map(command => command.name).sort()
+  await recordActivity('command.registry-changed', { count: names.length })
+  return names
 }
 
 async function setDestination(value) {
