@@ -300,6 +300,7 @@ internal class ScriptRuntime(
     private var capturedModuleResult: String? = null
     private val envStore = ScriptEnvStore(context, project.id)
     private var envDefinition: ScriptEnvDefinition? = null
+    private var invocationChatId: String? = null
 
     init {
         val modulePrefix = "${project.id}/"
@@ -446,6 +447,23 @@ internal class ScriptRuntime(
         runtime.function("annieEnvValues") { _ ->
             envStore.values(envDefinition).toString()
         }
+        runtime.function("annieScheduleCreate") { args ->
+            val raw = args.firstOrNull()?.toString().orEmpty()
+            val chatId = invocationChatId ?: error("Schedule creation requires an active script invocation")
+            ScriptScheduler.create(context, project.id, chatId, JSONObject(raw.ifBlank { "{}" })).toString()
+        }
+        runtime.function("annieScheduleList") { _ ->
+            ScriptScheduler.list(context, project.id).toString()
+        }
+        runtime.function("annieScheduleCancel") { args ->
+            ScriptScheduler.cancel(context, project.id, args.firstOrNull()?.toString().orEmpty())
+        }
+        runtime.function("annieScheduleEnable") { args ->
+            ScriptScheduler.setEnabled(context, project.id, args.firstOrNull()?.toString().orEmpty(), true)
+        }
+        runtime.function("annieScheduleDisable") { args ->
+            ScriptScheduler.setEnabled(context, project.id, args.firstOrNull()?.toString().orEmpty(), false)
+        }
         runtime.function("annieLog") { args ->
             val level = args.getOrNull(0)?.toString()?.uppercase()?.take(8) ?: "INFO"
             val message = redact(args.drop(1).joinToString(" ")).take(MAX_LOG_CHARS)
@@ -494,7 +512,8 @@ internal class ScriptRuntime(
             .put("chatId", chatId)
             .put("messageId", messageId)
             .put("replyTo", JSONObject.NULL)
-        evaluateModuleResult(
+        evaluateModuleResultForChat(
+            chatId,
             "await globalThis.__annieRun(${JSONObject.quote(commandName)}, ${JSONObject.quote(invocation.toString())})",
             "annie-invocation.js",
         )
@@ -508,7 +527,8 @@ internal class ScriptRuntime(
             .put("chatId", chatId)
             .put("messageId", messageId)
             .put("replyTo", JSONObject.NULL)
-        evaluateModuleResult(
+        evaluateModuleResultForChat(
+            chatId,
             "await globalThis.__annieSession(${JSONObject.quote(sessionName)}, ${JSONObject.quote(invocation.toString())})",
             "annie-session.js",
         )
@@ -522,10 +542,21 @@ internal class ScriptRuntime(
             .put("chatId", chatId)
             .put("messageId", messageId)
             .put("replyTo", JSONObject.NULL)
-        evaluateModuleResult(
+        evaluateModuleResultForChat(
+            chatId,
             "await globalThis.__annieAction(${JSONObject.quote(actionId)}, ${JSONObject.quote(payloadJson)}, ${JSONObject.quote(invocation.toString())})",
             "annie-action.js",
         )
+    }
+
+    private suspend fun evaluateModuleResultForChat(chatId: String, expression: String, filename: String): String {
+        val previous = invocationChatId
+        invocationChatId = chatId
+        return try {
+            evaluateModuleResult(expression, filename)
+        } finally {
+            invocationChatId = previous
+        }
     }
 
     private suspend fun evaluateModuleResult(expression: String, filename: String): String {
@@ -752,6 +783,13 @@ internal class ScriptRuntime(
             |    set: async (key, value) => annieEnvSet(String(key), JSON.stringify({value})),
             |    secret: async key => annieEnvSecret(String(key)),
             |    values: () => JSON.parse(annieEnvValues())
+            |  },
+            |  schedule: {
+            |    create: async spec => JSON.parse(annieScheduleCreate(JSON.stringify(spec || {}))),
+            |    list: async () => JSON.parse(annieScheduleList()),
+            |    cancel: async id => annieScheduleCancel(String(id)),
+            |    enable: async id => annieScheduleEnable(String(id)),
+            |    disable: async id => annieScheduleDisable(String(id))
             |  },
             |  messages: {
             |    text: text => ({type: "text", text: String(text)}),
