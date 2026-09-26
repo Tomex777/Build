@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { promises as fs } from 'node:fs';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const exec = promisify(execFile);
@@ -603,6 +603,65 @@ async function logs(limit) {
   return stdout.split(/\r?\n/).filter(Boolean);
 }
 
+async function streamLogs(req, res) {
+  res.writeHead(200, {
+    'content-type': 'text/event-stream; charset=utf-8',
+    'cache-control': 'no-store',
+    'connection': 'keep-alive',
+    'x-accel-buffering': 'no',
+  });
+  if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+  const send = (line) => {
+    if (!res.destroyed) res.write('data: ' + JSON.stringify({ line: String(line) }) + '\n\n');
+  };
+
+  try {
+    const initial = await logs(120);
+    initial.forEach(send);
+  } catch (error) {
+    send('[Cortex] Unable to read initial journal: ' + (error?.message || error));
+  }
+
+  const child = spawn('journalctl', ['-u', MANAGED_SERVICE, '-f', '-n', '0', '--no-pager', '-o', 'cat'], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let pending = '';
+
+  child.stdout.on('data', (chunk) => {
+    pending += chunk.toString('utf8');
+    const rows = pending.split(/\r?\n/);
+    pending = rows.pop() || '';
+    rows.filter(Boolean).forEach(send);
+  });
+  child.stderr.on('data', (chunk) => {
+    const message = chunk.toString('utf8').trim();
+    if (message) send('[journalctl] ' + message);
+  });
+
+  const heartbeat = setInterval(() => {
+    if (!res.destroyed) res.write(': heartbeat\n\n');
+  }, 15_000);
+  heartbeat.unref?.();
+
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    clearInterval(heartbeat);
+    if (!child.killed) child.kill('SIGTERM');
+    if (!res.destroyed) res.end();
+  };
+
+  req.once('close', close);
+  res.once('close', close);
+  child.once('error', (error) => {
+    send('[Cortex] Log stream error: ' + (error?.message || error));
+    close();
+  });
+  child.once('exit', close);
+}
+
 async function power(action) {
   if (!['start', 'stop', 'restart'].includes(action)) {
     throw Object.assign(new Error('Invalid power action'), { statusCode: 400 });
@@ -817,6 +876,9 @@ async function handler(req, res) {
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/logs') {
       return json(res, 200, { lines: await logs(url.searchParams.get('limit')) });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/cortex/host/logs/stream') {
+      return streamLogs(req, res);
     }
     if (req.method === 'POST' && url.pathname === '/api/cortex/host/power') {
       const body = await readJson(req);
