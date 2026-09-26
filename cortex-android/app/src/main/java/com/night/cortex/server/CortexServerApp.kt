@@ -32,8 +32,10 @@ import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.CreateNewFolder
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DriveFileMove
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Folder
@@ -133,6 +135,7 @@ private enum class SheetMode {
     NEW_DIRECTORY,
     FILE_ACTIONS,
     RENAME,
+    MOVE,
     BACKUP,
     NEW_COMMAND,
 }
@@ -145,6 +148,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
     var tab by rememberSaveable { mutableStateOf(ServerTab.CONSOLE) }
     var sheet by remember { mutableStateOf<SheetMode?>(null) }
     var selectedEntry by remember { mutableStateOf<HostingFileEntry?>(null) }
+    var deleteCandidate by remember { mutableStateOf<HostingFileEntry?>(null) }
 
     val uploadLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -333,6 +337,11 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                     vm.openFile(entry.name)
                 },
                 onRename = { sheet = SheetMode.RENAME },
+                onMove = { sheet = SheetMode.MOVE },
+                onDuplicate = {
+                    sheet = null
+                    vm.duplicate(entry)
+                },
                 onDownload = {
                     sheet = null
                     vm.prepareFileDownload(entry)
@@ -347,7 +356,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                 },
                 onDelete = {
                     sheet = null
-                    vm.delete(entry)
+                    deleteCandidate = entry
                 },
             )
         }
@@ -360,6 +369,20 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                 onDismiss = { sheet = null },
                 onSubmit = {
                     vm.rename(entry, it)
+                    sheet = null
+                },
+            )
+        }
+        SheetMode.MOVE -> selectedEntry?.let { entry ->
+            val current = state.currentPath.trimEnd('/').ifBlank { "" }
+            NameSheet(
+                title = "Move",
+                label = "Destination path",
+                initial = "$current/${entry.name}",
+                action = "Move",
+                onDismiss = { sheet = null },
+                onSubmit = {
+                    vm.move(entry, it)
                     sheet = null
                 },
             )
@@ -382,6 +405,33 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
             },
         )
         null -> Unit
+    }
+
+    deleteCandidate?.let { entry ->
+        AlertDialog(
+            onDismissRequest = { deleteCandidate = null },
+            title = { Text("Delete ${entry.name}?") },
+            text = {
+                Text(
+                    if (entry.type == "directory") {
+                        "This permanently deletes the directory and everything inside it from the MSCC workspace."
+                    } else {
+                        "This permanently deletes the file from the MSCC workspace."
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        deleteCandidate = null
+                        vm.delete(entry)
+                    }
+                ) { Text("Delete", color = CortexDanger) }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteCandidate = null }) { Text("Cancel") }
+            },
+        )
     }
 }
 
@@ -1718,6 +1768,8 @@ private fun FileActionsSheet(
     onDismiss: () -> Unit,
     onEdit: () -> Unit,
     onRename: () -> Unit,
+    onMove: () -> Unit,
+    onDuplicate: () -> Unit,
     onDownload: () -> Unit,
     onCompress: () -> Unit,
     onExtract: () -> Unit,
@@ -1731,6 +1783,8 @@ private fun FileActionsSheet(
             }
             if (entry.type == "file") SheetAction(Icons.Rounded.Edit, "Edit", onEdit)
             SheetAction(Icons.Rounded.Edit, "Rename", onRename)
+            SheetAction(Icons.Rounded.DriveFileMove, "Move", onMove)
+            SheetAction(Icons.Rounded.ContentCopy, "Duplicate", onDuplicate)
             if (entry.type == "file") SheetAction(Icons.Rounded.Download, "Download", onDownload)
             SheetAction(Icons.Rounded.Archive, "Compress to ZIP", onCompress)
             if (entry.type == "file" && entry.name.endsWith(".zip", true)) {
@@ -1818,7 +1872,8 @@ private fun activityTitle(action: String): String = when (action) {
     "server:file.mkdir" -> "Created a directory"
     "server:file.write" -> "Wrote file content"
     "server:file.uploaded" -> "Uploaded a file"
-    "server:file.rename" -> "Renamed a file"
+    "server:file.rename" -> "Moved or renamed a file"
+    "server:file.copy" -> "Duplicated a file or directory"
     "server:file.delete" -> "Deleted a file"
     "server:file.compress" -> "Compressed files"
     "server:file.decompress" -> "Decompressed an archive"

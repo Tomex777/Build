@@ -101,6 +101,10 @@ class CortexServerApi(
         postJson("/api/cortex/host/files/rename", JSONObject().put("from", from).put("to", to))
     }
 
+    fun copy(from: String, to: String) {
+        postJson("/api/cortex/host/files/copy", JSONObject().put("from", from).put("to", to))
+    }
+
     fun delete(path: String) {
         postJson("/api/cortex/host/files/delete", JSONObject().put("path", path))
     }

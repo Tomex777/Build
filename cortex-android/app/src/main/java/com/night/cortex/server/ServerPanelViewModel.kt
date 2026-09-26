@@ -276,6 +276,31 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun move(entry: HostingFileEntry, destination: String) {
+        val clean = destination.trim()
+        if (clean.isBlank()) return
+        val from = join(_state.value.currentPath, entry.name)
+        val to = if (clean.startsWith("/")) normalize(clean) else join(_state.value.currentPath, clean)
+        if (from == to) return
+        viewModelScope.launch {
+            busy("Moved.") {
+                withContext(Dispatchers.IO) { api().rename(from, to) }
+                refreshFilesInline()
+            }
+        }
+    }
+
+    fun duplicate(entry: HostingFileEntry) {
+        val from = join(_state.value.currentPath, entry.name)
+        val to = join(_state.value.currentPath, duplicateName(entry.name))
+        viewModelScope.launch {
+            busy("Duplicated.") {
+                withContext(Dispatchers.IO) { api().copy(from, to) }
+                refreshFilesInline()
+            }
+        }
+    }
+
     fun delete(entry: HostingFileEntry) {
         viewModelScope.launch {
             busy("Deleted.") {
@@ -719,6 +744,15 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     private fun join(parent: String, child: String): String {
         val p = normalize(parent)
         return if (p == "/") "/${child.trimStart('/')}" else "$p/${child.trimStart('/')}"
+    }
+
+    private fun duplicateName(name: String): String {
+        val dot = name.lastIndexOf('.')
+        return if (dot > 0 && dot < name.length - 1) {
+            name.substring(0, dot) + " copy" + name.substring(dot)
+        } else {
+            "$name copy"
+        }
     }
 
     private fun normalize(path: String): String {

@@ -147,11 +147,52 @@ async function renamePath(fromInput, toInput) {
   const from = safeProjectPath(fromInput);
   const to = safeProjectPath(toInput);
   if (from === PROJECT_ROOT || to === PROJECT_ROOT) throw Object.assign(new Error('Project root cannot be renamed'), { statusCode: 400 });
+  if (from === to) throw Object.assign(new Error('Source and destination are the same'), { statusCode: 400 });
   await assertNoSymlink(from);
   await assertNoSymlink(to);
   await fs.mkdir(path.dirname(to), { recursive: true });
   await fs.rename(from, to);
   await recordActivity('server:file.rename', {
+    from: path.relative(PROJECT_ROOT, from),
+    to: path.relative(PROJECT_ROOT, to),
+  });
+}
+
+async function copyPath(fromInput, toInput) {
+  const from = safeProjectPath(fromInput);
+  const to = safeProjectPath(toInput);
+  if (from === PROJECT_ROOT || to === PROJECT_ROOT) throw Object.assign(new Error('Project root cannot be copied'), { statusCode: 400 });
+  if (from === to) throw Object.assign(new Error('Source and destination are the same'), { statusCode: 400 });
+  await assertNoSymlink(from);
+  await assertNoSymlink(to);
+
+  const sourceInfo = await fs.stat(from);
+  const relativeToSource = path.relative(from, to);
+  if (
+    sourceInfo.isDirectory() &&
+    relativeToSource &&
+    !relativeToSource.startsWith('..') &&
+    !path.isAbsolute(relativeToSource)
+  ) {
+    throw Object.assign(new Error('A directory cannot be copied into itself'), { statusCode: 400 });
+  }
+
+  try {
+    await fs.access(to);
+    throw Object.assign(new Error('Destination already exists'), { statusCode: 409 });
+  } catch (error) {
+    if (error?.statusCode) throw error;
+    if (error?.code !== 'ENOENT') throw error;
+  }
+
+  await fs.mkdir(path.dirname(to), { recursive: true });
+  await fs.cp(from, to, {
+    recursive: sourceInfo.isDirectory(),
+    force: false,
+    errorOnExist: true,
+    preserveTimestamps: true,
+  });
+  await recordActivity('server:file.copy', {
     from: path.relative(PROJECT_ROOT, from),
     to: path.relative(PROJECT_ROOT, to),
   });
@@ -931,6 +972,11 @@ async function handler(req, res) {
     if (req.method === 'POST' && url.pathname === '/api/cortex/host/files/rename') {
       const body = await readJson(req);
       await renamePath(String(body.from || ''), String(body.to || ''));
+      return json(res, 200, { ok: true });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/files/copy') {
+      const body = await readJson(req);
+      await copyPath(String(body.from || ''), String(body.to || ''));
       return json(res, 200, { ok: true });
     }
     if (req.method === 'POST' && url.pathname === '/api/cortex/host/files/delete') {
