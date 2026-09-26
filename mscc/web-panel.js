@@ -72,7 +72,7 @@ function ip(req) {
   return String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown'
 }
 
-export function startWebPanel({ port, password, sessionSecret, localControlPort = 8788, getState, getActivity = async () => [], pairAccount, reconnectAccount, disconnectAccount, removeAccount, repairAccount, createAccount, setSetting, setDestination, reloadCommands, reloadModule }) {
+export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecret, localControlPort = 8788, getState, getActivity = async () => [], pairAccount, reconnectAccount, disconnectAccount, removeAccount, repairAccount, createAccount, setSetting, setDestination, reloadCommands, reloadModule }) {
   const configured = Boolean(password && password !== 'change-this-password' && password !== 'change-me')
   const secret = createHash('sha256').update(`${sessionSecret || ''}\0${password || ''}\0mscc`).digest()
   const token = createHmac('sha256', secret).update('admin').digest('base64url')
@@ -241,8 +241,8 @@ export function startWebPanel({ port, password, sessionSecret, localControlPort 
   server.on('error', error => {
     console.error(`MSCC panel listen error on 0.0.0.0:${port}:`, error?.message || error)
   })
-  server.listen(port, '0.0.0.0', () => {
-    console.log(`MSCC panel listening on 0.0.0.0:${port}`)
+  server.listen(port, host, () => {
+    console.log(`MSCC panel listening on ${host}:${port}`)
   })
   return {
     close() {
