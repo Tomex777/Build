@@ -216,18 +216,20 @@ fun SpotuiApp() {
                             value !in setOf("Album", "Single", "EP", "Playlist") &&
                             !value.matches(Regex("""(?:19|20)\d{2}"""))
 
+                    val currentArtistName = selectedArtist.orEmpty()
+                    val currentArtistBrowseId = selectedArtistId.orEmpty()
                     val currentArtistOwnsAlbum =
                         artistReleases.any { it.id == summary.id } &&
-                            usableArtist(selectedArtist)
+                            usableArtist(currentArtistName)
                     val summaryArtistIsUsable = usableArtist(summary.artist)
                     val fallbackArtist = when {
                         summaryArtistIsUsable -> summary.artist
-                        currentArtistOwnsAlbum -> selectedArtist
+                        currentArtistOwnsAlbum -> currentArtistName
                         else -> ""
                     }
                     val fallbackArtistId = when {
                         summaryArtistIsUsable -> summary.artistId
-                        currentArtistOwnsAlbum -> selectedArtistId
+                        currentArtistOwnsAlbum -> currentArtistBrowseId
                         else -> ""
                     }
                     val sourceArtistIsUsable = usableArtist(catalog.artist)
