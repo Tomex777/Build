@@ -1,1 +1,0 @@
-2026-09-17 capture current Sora Music UI before Spotui-alignment changes; Pixel 7 screenshots requested by user.

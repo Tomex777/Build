@@ -1,1 +1,0 @@
-apply real Movie STREAMS to Core player

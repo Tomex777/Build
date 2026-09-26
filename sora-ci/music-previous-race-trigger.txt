@@ -1,1 +1,0 @@
-2026-09-17 apply rapid double-Previous race fix after deterministic Music runtime proved playback, pause/resume, MediaSession, and Next transport.

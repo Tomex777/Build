@@ -204,7 +204,11 @@ PY
   sleep 2
 }
 
-wait_for_node SpotUI 20
+# Assert the current Lyra home identity and its listening-space content before
+# checking the persistent navigation. These semantics remain stable even though
+# the package and internal module names still say SpotUI.
+wait_for_node Auri 20
+wait_for_node 'Your listening space' 20
 wait_for_node Search 20
 wait_for_node Library 20
 shot 00-home
@@ -306,3 +310,4 @@ else
 fi
 
 echo "SpotUI core + extension smoke passed."
+84252aed610f60cbbdf9cea3979c4b9a128fa323

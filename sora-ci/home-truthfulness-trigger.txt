@@ -1,1 +1,0 @@
-2026-09-17 remove dead Home actions, fake personalization/history, generic recently-played labeling, and fake Bible last-read state.

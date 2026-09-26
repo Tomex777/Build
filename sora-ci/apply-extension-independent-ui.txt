@@ -1,1 +1,0 @@
-apply stale-while-revalidate media cache and multi-provider routing

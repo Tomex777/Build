@@ -1,1 +1,0 @@
-2026-09-17 replace Home saved-library pseudo-Continue and hardcoded 62 percent progress with real Core-owned watch/read progress and exact resume.

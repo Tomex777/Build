@@ -1,1 +1,0 @@
-2026-09-17 verify latest YouTube Music session UI plus actionable sign-in error handling.
