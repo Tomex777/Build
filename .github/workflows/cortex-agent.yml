@@ -276,28 +276,50 @@ jobs:
         shell: bash
         run: |
           AUTH='Authorization: Bearer test-token-12345678901234567890'
+
           STATE=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing)
+          echo "initial-state=$STATE"
           echo "$STATE" | grep -q '"id":"account-3"'
           echo "$STATE" | grep -q '"maxAccounts":10'
           echo "$STATE" | grep -q '"addAccount":true'
 
-          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"phoneNumber":"234000000005","displayName":"Extra"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts | grep -q '"id":"account-5"'
+          ADDED=$(curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"phoneNumber":"234000000005","displayName":"Extra"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts)
+          echo "added=$ADDED"
+          echo "$ADDED" | grep -q '"id":"account-5"'
 
-          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"mode":"code"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts/account-3/pair
-          curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q 'ABCD-EFGH'
+          PAIRED=$(curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"mode":"code"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts/account-3/pair)
+          echo "paired=$PAIRED"
+          AFTER_PAIR=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing)
+          echo "$AFTER_PAIR" | grep -q 'ABCD-EFGH'
 
-          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"mode":"qr"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts/account-4/repair
-          curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q '"pairingMode":"qr"'
+          REPAIRED=$(curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"mode":"qr"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts/account-4/repair)
+          echo "repaired=$REPAIRED"
+          AFTER_REPAIR=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing)
+          echo "$AFTER_REPAIR" | grep -q '"pairingMode":"qr"'
 
-          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"account":"account-2"}'             http://127.0.0.1:47831/api/cortex/mscc/destination | grep -q '"destination":"account-2"'
-          curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q '"destination":"account-2"'
+          DEST=$(curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"account":"account-2"}'             http://127.0.0.1:47831/api/cortex/mscc/destination)
+          echo "destination=$DEST"
+          echo "$DEST" | grep -q '"destination":"account-2"'
+          AFTER_DEST=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing)
+          echo "$AFTER_DEST" | grep -q '"destination":"account-2"'
 
-          curl -fsS -X POST -H "$AUTH" -H 'Content-Type: application/json' -d '{}'             http://127.0.0.1:47831/api/cortex/mscc/accounts/account-3/disconnect | grep -q '"status":"offline"'
-          curl -fsS -X DELETE -H "$AUTH"             http://127.0.0.1:47831/api/cortex/mscc/accounts/account-3 | grep -q '"authPreserved":true"'
-          ! curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing | grep -q '"id":"account-3"'
+          DISCONNECTED=$(curl -fsS -X POST -H "$AUTH" -H 'Content-Type: application/json' -d '{}'             http://127.0.0.1:47831/api/cortex/mscc/accounts/account-3/disconnect)
+          echo "disconnected=$DISCONNECTED"
+          echo "$DISCONNECTED" | grep -q '"status":"offline"'
 
-          curl -fsS -X POST -H "$AUTH"             http://127.0.0.1:47831/api/cortex/mscc/modules/demo/reload | grep -q '"module":"demo"'
-          curl -fsS -X POST -H "$AUTH"             http://127.0.0.1:47831/api/cortex/mscc/commands/reload | grep -q '"reloadcommands"'
+          REMOVED=$(curl -fsS -X DELETE -H "$AUTH"             http://127.0.0.1:47831/api/cortex/mscc/accounts/account-3)
+          echo "removed=$REMOVED"
+          echo "$REMOVED" | grep -q '"authPreserved":true'
+          AFTER_REMOVE=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing)
+          ! echo "$AFTER_REMOVE" | grep -q '"id":"account-3"'
+
+          MODULE=$(curl -fsS -X POST -H "$AUTH"             http://127.0.0.1:47831/api/cortex/mscc/modules/demo/reload)
+          echo "module=$MODULE"
+          echo "$MODULE" | grep -q '"module":"demo"'
+
+          COMMANDS=$(curl -fsS -X POST -H "$AUTH"             http://127.0.0.1:47831/api/cortex/mscc/commands/reload)
+          echo "commands=$COMMANDS"
+          echo "$COMMANDS" | grep -q '"reloadcommands"'
       - name: Reject unauthenticated requests
         shell: bash
         run: |
