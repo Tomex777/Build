@@ -20,8 +20,10 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +45,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
@@ -79,6 +82,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
@@ -148,6 +156,7 @@ internal fun AnnieChat() {
     val context = LocalContext.current
     val scriptWorkspace = remember(context) { ScriptWorkspace(context) }
     var scriptCommands by remember { mutableStateOf<List<ScriptCommand>>(emptyList()) }
+    var commandUsage by remember(context) { mutableStateOf(CommandUsageStore.read(context)) }
     LaunchedEffect(scriptWorkspace) { scriptCommands = scriptWorkspace.reload() }
     androidx.compose.runtime.DisposableEffect(scriptWorkspace) {
         onDispose { scriptWorkspace.close() }
@@ -161,6 +170,18 @@ internal fun AnnieChat() {
     var activeChatId by remember { mutableStateOf(chats.first().id) }
     val activeChat = chats.firstOrNull { it.id == activeChatId } ?: chats.first()
     val messages = activeChat.messages
+    val activeScriptId = scriptWorkspace.activeScriptId(activeChatId)
+    val activeScriptCommand = scriptCommands.firstOrNull { it.scriptId == activeScriptId }
+    val latestMediaType = messages.asReversed().firstNotNullOfOrNull { entry ->
+        entry.searchMedia ?: entry.selectedItem?.mediaType?.lowercase()
+    }
+    val conversationContext = ConversationContext(
+        activeScriptId = activeScriptId,
+        activeCommand = activeScriptCommand?.name,
+        mediaType = latestMediaType,
+        capabilities = activeScriptCommand?.capabilities?.toSet().orEmpty(),
+        suggestedActions = activeScriptCommand?.suggestedActions.orEmpty(),
+    )
     var draft by remember { mutableStateOf(TextFieldValue("")) }
     var lastSentMessageId by remember { mutableStateOf<Long?>(null) }
     val animatedMessageIds = remember { mutableStateMapOf<Long, Boolean>() }
@@ -367,6 +388,10 @@ internal fun AnnieChat() {
         val dynamicCommand = scriptCommands.firstOrNull {
             command == "/${it.name}" || command.removePrefix("/") in it.aliases
         }
+        if (command.startsWith("/")) {
+            val canonical = dynamicCommand?.let { "/${it.name}" } ?: command
+            commandUsage = CommandUsageStore.record(context, commandUsage, canonical)
+        }
         if (dynamicCommand != null) {
             val chatId = activeChatId
             scope.launch {
@@ -501,9 +526,14 @@ internal fun AnnieChat() {
                     val selected = "$it "
                     draft = TextFieldValue(selected, selection = TextRange(selected.length))
                 },
+                onContextActionSelected = { input ->
+                    draft = TextFieldValue(input, selection = TextRange(input.length))
+                },
                 onSend = { submit() },
                 onMenu = { activeSheet = "Attachments" },
-                scriptCommands = scriptCommands
+                scriptCommands = scriptCommands,
+                commandUsage = commandUsage,
+                conversationContext = conversationContext,
             )
         }
     }
@@ -1562,98 +1592,186 @@ private fun statusLabel(status: String): String = when (status) {
 }
 
 @Composable
-internal fun CommandSuggestions(value: String, onSelect: (String) -> Unit, scriptCommands: List<ScriptCommand> = emptyList()) {
-    val commands = listOf(
-        "/anime" to "Browse anime",
-        "/anime search" to "Search the catalog",
-        "/anime recent" to "New episodes",
-        "/anime downloads" to "Downloads",
-        "/anime recently aired" to "Recently aired",
-        "/anime continue" to "Continue watching",
-        "/anime continue watching" to "Continue watching",
-        "/manga" to "Browse manga",
-        "/movie search" to "Search movies",
-        "/movie" to "Browse movies",
-        "/movie continue" to "Continue watching",
-        "/tv series" to "Browse TV series",
-        "/tv" to "Search TV series",
-        "/tv search" to "Search TV series",
-        "/tv continue" to "Continue watching",
-        "/manga search" to "Search manga",
-        "/manga continue" to "Continue reading",
-        "/manga downloads" to "Downloads",
-        "/music" to "Music",
-        "/continue" to "Continue watching",
-        "/downloads" to "Downloads",
-        "/scripts" to "JavaScript projects",
-        "/extensions" to "Extensions",
-        "/help" to "Help"
-    ) + scriptCommands.map { "/${it.name}" to it.description.ifBlank { "JavaScript command" } }
-    val raw = value.trimStart()
-    if (!raw.startsWith("/") || raw.contains("\n")) return
-    val matches = if (raw == "/") {
-        commands.filter { it.first.count { char -> char == ' ' } == 0 }
-    } else {
-        commands.filter { it.first.startsWith(raw, ignoreCase = true) }
-    }
-    if (matches.isEmpty()) return
-
-    Column(
-        Modifier.fillMaxWidth().heightIn(max = 240.dp).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(16.dp)).background(Panel).padding(6.dp).testTag("slash_suggestions"),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+internal fun CommandSuggestions(
+    suggestions: List<RankedCommandSuggestion>,
+    selectedIndex: Int,
+    onSelectedIndexChange: (Int) -> Unit,
+    onSelect: (String) -> Unit,
+) {
+    AnimatedVisibility(
+        visible = suggestions.isNotEmpty(),
+        enter = fadeIn(tween(150)) + slideInVertically(tween(150)) { it / 5 },
+        exit = fadeOut(tween(100)) + slideOutVertically(tween(100)) { it / 6 },
     ) {
-        matches.take(if (raw == "/") 9 else 5).forEach { (command, label) ->
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp))
-                    .clickable { onSelect(command) }.testTag("slash_command_$command")
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(command, color = BrightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.width(10.dp))
-                Text(label, color = SoftText, fontSize = 12.sp)
+        LazyColumn(
+            Modifier.fillMaxWidth().heightIn(max = 240.dp).padding(horizontal = 18.dp, vertical = 6.dp)
+                .clip(RoundedCornerShape(16.dp)).background(Panel).padding(6.dp).testTag("slash_suggestions"),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            itemsIndexed(
+                suggestions,
+                key = { _, suggestion -> suggestion.candidate.command },
+            ) { index, suggestion ->
+                val candidate = suggestion.candidate
+                Row(
+                    Modifier.animateItem(
+                        fadeInSpec = tween(140),
+                        placementSpec = tween(160),
+                        fadeOutSpec = tween(100),
+                    ).fillMaxWidth().clip(RoundedCornerShape(11.dp))
+                        .background(if (index == selectedIndex) Color(0xFF173854) else Color.Transparent)
+                        .clickable {
+                            onSelectedIndexChange(index)
+                            onSelect(candidate.command)
+                        }
+                        .testTag("slash_command_${candidate.command}")
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(candidate.command, color = BrightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.width(10.dp))
+                    Text(candidate.label, color = SoftText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
         }
     }
 }
 
 @Composable
-internal fun Composer(value: TextFieldValue, onValueChange: (TextFieldValue) -> Unit, onSuggestionSelected: (String) -> Unit = {}, onSend: () -> Unit, onMenu: () -> Unit, scriptCommands: List<ScriptCommand> = emptyList()) {
-    Column(Modifier.fillMaxWidth().imePadding().navigationBarsPadding().testTag("composer")) {
-        CommandSuggestions(value.text, onSuggestionSelected, scriptCommands)
-        Row(
-        modifier = Modifier.fillMaxWidth()
-            .background(Night).padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+private fun ContextSuggestedActions(
+    actions: List<ScriptSuggestedAction>,
+    onSelect: (String) -> Unit,
+) {
+    AnimatedVisibility(
+        visible = actions.isNotEmpty(),
+        enter = fadeIn(tween(150)) + slideInVertically(tween(150)) { it / 5 },
+        exit = fadeOut(tween(100)),
     ) {
-        Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = onMenu)) {
-            Box(contentAlignment = Alignment.Center) { Text("+", color = SoftText, fontSize = 26.sp) }
-        }
         Row(
-            Modifier.weight(1f).clip(RoundedCornerShape(28.dp)).background(Color(0xFF102139)).padding(horizontal = 16.dp, vertical = 13.dp),
-            verticalAlignment = Alignment.CenterVertically
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                .padding(horizontal = 18.dp, vertical = 5.dp)
+                .testTag("context_suggestions"),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier.weight(1f).testTag("composer_input"),
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodyLarge.copy(color = BrightText),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = { onSend() }),
-                decorationBox = { inner ->
-                    Box {
-                        if (value.text.isEmpty()) Text("Message Annie…", color = SoftText, fontSize = 15.sp)
-                        inner()
-                    }
+            actions.take(4).forEach { action ->
+                Surface(
+                    color = Color(0xFF10263D),
+                    shape = RoundedCornerShape(18.dp),
+                    border = BorderStroke(1.dp, Color(0xFF294562)),
+                    modifier = Modifier.clickable { onSelect(action.input) }
+                        .testTag("context_action_${action.label.lowercase().replace(Regex("[^a-z0-9]+"), "_")}"),
+                ) {
+                    Text(
+                        action.label,
+                        color = BrightText,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
+                    )
                 }
-            )
+            }
         }
-        Surface(color = Blue, shape = CircleShape, modifier = Modifier.size(46.dp).clickable(onClick = onSend).testTag("send_message")) {
-            Box(contentAlignment = Alignment.Center) { Text("➤", color = Color.White, fontSize = 19.sp) }
+    }
+}
+
+@Composable
+internal fun Composer(
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
+    onSuggestionSelected: (String) -> Unit = {},
+    onContextActionSelected: (String) -> Unit = {},
+    onSend: () -> Unit,
+    onMenu: () -> Unit,
+    scriptCommands: List<ScriptCommand> = emptyList(),
+    commandUsage: Map<String, CommandUsage> = emptyMap(),
+    conversationContext: ConversationContext = ConversationContext(),
+) {
+    val candidates = remember(scriptCommands) {
+        builtInCommandCandidates() + scriptCommands.map { it.toCommandCandidate() }
+    }
+    val suggestions = remember(value.text, candidates, commandUsage, conversationContext) {
+        CommandSuggestionEngine.rank(
+            query = value.text,
+            candidates = candidates,
+            usage = commandUsage,
+            context = conversationContext,
+            limit = 6,
+        )
+    }
+    var selectedSuggestionIndex by remember(value.text) { mutableIntStateOf(0) }
+    if (selectedSuggestionIndex > suggestions.lastIndex) {
+        selectedSuggestionIndex = suggestions.lastIndex.coerceAtLeast(0)
+    }
+
+    fun acceptSelectedSuggestion(): Boolean {
+        val selected = suggestions.getOrNull(selectedSuggestionIndex) ?: return false
+        onSuggestionSelected(selected.candidate.command)
+        return true
+    }
+
+    Column(Modifier.fillMaxWidth().imePadding().navigationBarsPadding().testTag("composer")) {
+        if (!value.text.trimStart().startsWith("/")) {
+            ContextSuggestedActions(conversationContext.suggestedActions, onContextActionSelected)
         }
+        CommandSuggestions(
+            suggestions = suggestions,
+            selectedIndex = selectedSuggestionIndex,
+            onSelectedIndexChange = { selectedSuggestionIndex = it },
+            onSelect = onSuggestionSelected,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .background(Night).padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = onMenu)) {
+                Box(contentAlignment = Alignment.Center) { Text("+", color = SoftText, fontSize = 26.sp) }
+            }
+            Row(
+                Modifier.weight(1f).clip(RoundedCornerShape(28.dp)).background(Color(0xFF102139))
+                    .padding(horizontal = 16.dp, vertical = 13.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier.weight(1f).testTag("composer_input").onPreviewKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown || suggestions.isEmpty()) return@onPreviewKeyEvent false
+                        when (event.key) {
+                            Key.DirectionDown -> {
+                                selectedSuggestionIndex = (selectedSuggestionIndex + 1).coerceAtMost(suggestions.lastIndex)
+                                true
+                            }
+                            Key.DirectionUp -> {
+                                selectedSuggestionIndex = (selectedSuggestionIndex - 1).coerceAtLeast(0)
+                                true
+                            }
+                            Key.Tab, Key.Enter -> acceptSelectedSuggestion()
+                            else -> false
+                        }
+                    },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = BrightText),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = {
+                        if (!acceptSelectedSuggestion()) onSend()
+                    }),
+                    decorationBox = { inner ->
+                        Box {
+                            if (value.text.isEmpty()) Text("Message Annie…", color = SoftText, fontSize = 15.sp)
+                            inner()
+                        }
+                    },
+                )
+            }
+            Surface(
+                color = Blue,
+                shape = CircleShape,
+                modifier = Modifier.size(46.dp).clickable(onClick = onSend).testTag("send_message"),
+            ) {
+                Box(contentAlignment = Alignment.Center) { Text("➤", color = Color.White, fontSize = 19.sp) }
+            }
         }
     }
 }
