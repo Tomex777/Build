@@ -36,7 +36,10 @@ interface MusicSource {
     suspend fun suggestions(query: String): Result<List<String>>
     suspend fun artist(query: String, artistId: String? = null): Result<ArtistCatalog>
     suspend fun album(query: String, albumId: String? = null): Result<AlbumCatalog>
-    suspend fun resolveCandidates(track: Track): Result<List<ResolvedAudio>>
+    suspend fun resolveCandidates(
+        track: Track,
+        avoidResolverClient: String? = null,
+    ): Result<List<ResolvedAudio>>
     suspend fun resolve(track: Track): Result<ResolvedAudio> =
         resolveCandidates(track).map { candidates ->
             candidates.firstOrNull() ?: error("No playable audio stream")
@@ -129,14 +132,18 @@ class ExtensionMusicSource(context: Context) : MusicSource {
         parseAlbum(JSONObject(raw))
     }
 
-    override suspend fun resolveCandidates(track: Track): Result<List<ResolvedAudio>> = runCatching {
+    override suspend fun resolveCandidates(
+        track: Track,
+        avoidResolverClient: String?,
+    ): Result<List<ResolvedAudio>> = runCatching {
         val target = target()
         val raw = call(
             target.component,
             MusicSourceContract.Method.STREAMS,
             JSONObject()
                 .put("sourceId", target.sourceId)
-                .put("id", track.id),
+                .put("id", track.id)
+                .put("avoidResolverClient", avoidResolverClient.orEmpty()),
         ).getOrThrow()
 
         val array = JSONArray(raw)
@@ -164,6 +171,8 @@ class ExtensionMusicSource(context: Context) : MusicSource {
                     contentLength = item.optLong("contentLength")
                         .takeIf { it > 0L }
                         ?: Uri.parse(item.getString("url")).getQueryParameter("clen")?.toLongOrNull(),
+                    resolverClient = item.optString("resolverClient")
+                        .takeIf(String::isNotBlank),
                 )
             }
             .sortedWith(
