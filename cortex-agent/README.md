@@ -1,8 +1,8 @@
 # Cortex Agent
 
-Small Node.js 24 service that gives the Cortex Android app live access to Night on an Azure Linux VM without coupling Cortex to the Night process itself.
+Small Node.js 24 service that gives the Cortex Android app live access to MSCC on an Azure Linux VM without coupling Cortex to the MSCC process itself.
 
-It stays separate from `night.service`, so files, metrics and logs remain reachable while Night is stopped or restarting.
+It stays separate from `mscc.service`, so files, metrics and logs remain reachable while MSCC is stopped or restarting.
 
 ## API
 
@@ -38,3 +38,34 @@ PORT=47831
 ## CI
 
 `.github/workflows/cortex-agent.yml` boots the agent on Node 24 and verifies authenticated status + file read/write/list behavior and unauthenticated rejection.
+
+
+## Domainless Azure HTTPS
+
+Cortex is the production UI; a public browser dashboard is not required.
+
+For an Azure VM with a **static public IPv4 address**, run the Cortex Agent on
+`127.0.0.1:47831` and expose only the agent through HTTPS on port 443. The
+`install-azure-ip-https.sh` helper configures nginx as a reverse proxy and
+requests a publicly trusted Let's Encrypt short-lived IP-address certificate
+using Certbot's webroot flow.
+
+Requirements:
+
+- Azure public IP allocation is static.
+- Azure NSG allows inbound TCP 80 for ACME HTTP-01 validation/renewal.
+- Azure NSG allows inbound TCP 443 for Cortex.
+- Do not expose ports 47831 or 8788 publicly.
+- Cortex stores the resulting URL as `https://<public-ip>` and authenticates
+  with the existing Cortex Agent bearer token.
+
+Run after `install.sh`:
+
+```bash
+sudo bash cortex-agent/install-azure-ip-https.sh <STATIC_PUBLIC_IPV4>
+```
+
+The helper installs Certbot 5.4+ in an isolated virtual environment, obtains a
+short-lived IP certificate, configures nginx, installs an automatic renewal
+timer, and verifies the authenticated Cortex Agent route without printing the
+agent token.
