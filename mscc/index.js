@@ -142,22 +142,26 @@ async function createAccount(input = {}) {
 }
 
 async function recordActivity(action, detail = {}) {
-  await mkdir(dirname(ACTIVITY_FILE), { recursive: true })
-  const row = JSON.stringify({
-    id: randomUUID(),
-    at: new Date().toISOString(),
-    action,
-    detail,
-  })
-  await appendFile(ACTIVITY_FILE, row + '\n', 'utf8')
   try {
-    const info = await stat(ACTIVITY_FILE)
-    if (info.size > 2 * 1024 * 1024) {
-      const text = await readFile(ACTIVITY_FILE, 'utf8')
-      const lines = text.trim().split(/\r?\n/).filter(Boolean).slice(-2500)
-      await writeFile(ACTIVITY_FILE, lines.join('\n') + '\n', 'utf8')
-    }
-  } catch {}
+    await mkdir(dirname(ACTIVITY_FILE), { recursive: true })
+    const row = JSON.stringify({
+      id: randomUUID(),
+      at: new Date().toISOString(),
+      action,
+      detail,
+    })
+    await appendFile(ACTIVITY_FILE, row + '\n', 'utf8')
+    try {
+      const info = await stat(ACTIVITY_FILE)
+      if (info.size > 2 * 1024 * 1024) {
+        const text = await readFile(ACTIVITY_FILE, 'utf8')
+        const lines = text.trim().split(/\r?\n/).filter(Boolean).slice(-2500)
+        await writeFile(ACTIVITY_FILE, lines.join('\n') + '\n', 'utf8')
+      }
+    } catch {}
+  } catch (error) {
+    console.warn('Activity write failed:', error?.message || error)
+  }
 }
 
 async function activity(limit = 100) {
