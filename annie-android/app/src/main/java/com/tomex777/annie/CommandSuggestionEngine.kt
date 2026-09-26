@@ -45,8 +45,9 @@ internal object CommandSuggestionEngine {
         nowMillis: Long = System.currentTimeMillis(),
         limit: Int = 6,
     ): List<RankedCommandSuggestion> {
-        val normalized = normalizeCommand(query)
-        if (!normalized.startsWith("/") || normalized.contains('\n')) return emptyList()
+        val raw = query.trimStart()
+        if (!raw.startsWith("/") || raw.contains('\n')) return emptyList()
+        val normalized = normalizeCommand(raw)
 
         return candidates.asSequence()
             .distinctBy { normalizeCommand(it.command) }
