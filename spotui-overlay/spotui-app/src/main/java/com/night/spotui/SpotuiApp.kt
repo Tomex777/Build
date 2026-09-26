@@ -1153,7 +1153,8 @@ private fun TrackRow(
                     fontSize = 11.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.clickable(onClick = onArtist),
+                    modifier = Modifier.clickable(onClick = onArtist)
+                        .semantics { contentDescription = "Open artist " + track.artist },
                 )
                 if (track.album.isNotBlank()) {
                     Text(" · " + track.album, color = SpotMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)

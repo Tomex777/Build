@@ -255,10 +255,9 @@ PY
   sleep 2
 }
 
-# Assert the current Lyra home identity and its listening-space content before
-# checking the persistent navigation. These semantics remain stable even though
-# the package and internal module names still say SpotUI.
-wait_for_node Auri 20
+# Assert the listening-space home screen and persistent navigation using
+# visible app semantics rather than the legacy application label.
+wait_for_node Home 20
 wait_for_node 'Your listening space' 20
 wait_for_node Search 20
 wait_for_node Library 20
@@ -288,7 +287,7 @@ shot 03-search-adele-again
 # Follow Adele's stable artist ID from the actual search result, then open the
 # first album card from the artist's discography. This proves catalog navigation
 # independently from playback resolution.
-tap_text Adele
+tap_text 'Open artist Adele'
 wait_for_node Artist 20
 scroll_until_node Discography 10 || {
   shot failure-artist-discography
