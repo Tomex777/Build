@@ -5,14 +5,14 @@ import android.provider.OpenableColumns
 import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import app.nami.android.NamiDownloadManager
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.UiDevice
+import app.nami.android.NamiApplication
 import app.nami.android.NamiDownloadState
 import app.nami.android.NamiDownloadStatus
 import app.nami.android.NamiVlcPlayer
 import app.nami.compat.aniyomi.AniyomiExtensionRegistry
-import app.nami.data.local.NamiDatabase
 import app.nami.domain.ResolvedMedia
-import app.nami.runtime.NamiSourceRegistry
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -26,7 +26,8 @@ class KayoAnimeRealSourceSmokeTest {
 
     @Test
     fun realKayoAnimeDriveMkvDownloadsAndPlaysOfflineWithVlc() = runBlocking<Unit> {
-        val context = ApplicationProvider.getApplicationContext<Context>()
+        val application = ApplicationProvider.getApplicationContext<NamiApplication>()
+        val context: Context = application
         val source = AniyomiExtensionRegistry(context)
             .installedSources()
             .firstOrNull {
@@ -76,20 +77,56 @@ class KayoAnimeRealSourceSmokeTest {
         }
         assertNotNull("KayoAnime MKV did not resolve into a Google Drive download URL", driveMedia)
 
-        val databaseName = "nami-kayo-real-" + System.nanoTime() + ".db"
-        context.deleteDatabase(databaseName)
-        val database = NamiDatabase(context, databaseName)
+        val manager = application.downloadManager
+        val key = manager.key(source.metadata.id, mkvEpisode.ref.sourceEpisodeId)
         var completed: NamiDownloadStatus? = null
         var player: NamiVlcPlayer? = null
 
         try {
-            val manager = NamiDownloadManager(
-                context = context,
-                database = database,
-                sourceRegistry = NamiSourceRegistry { listOf(source) },
-            )
+            manager.statuses.value[key]?.let { existing ->
+                manager.remove(existing)
+                withTimeout(30_000) {
+                    while (manager.statuses.value.containsKey(key)) delay(100)
+                }
+            }
+
             manager.enqueue(source, details, mkvEpisode)
-            val key = manager.key(source.metadata.id, mkvEpisode.ref.sourceEpisodeId)
+
+            val started = withTimeout(120_000) {
+                var value: NamiDownloadStatus? = null
+                while (value == null) {
+                    val status = manager.statuses.value[key]
+                    if (
+                        status?.state == NamiDownloadState.DOWNLOADING &&
+                        status.bytesDownloaded > 0L
+                    ) {
+                        value = status
+                    } else if (status?.state == NamiDownloadState.ERROR) {
+                        throw AssertionError(
+                            "KayoAnime failed before background-survival check: " +
+                                status.errorMessage,
+                        )
+                    } else {
+                        delay(200)
+                    }
+                }
+                value
+            }
+
+            val beforeBackgroundBytes = started.bytesDownloaded
+            UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).pressHome()
+            delay(2_000)
+            val afterBackground = manager.statuses.value[key]
+                ?: throw AssertionError("Download disappeared after pressing Home")
+            assertTrue(
+                "Foreground download did not survive leaving Nami",
+                afterBackground.state != NamiDownloadState.ERROR &&
+                    afterBackground.state != NamiDownloadState.PAUSED,
+            )
+            assertTrue(
+                "Background download lost its persisted progress",
+                afterBackground.bytesDownloaded >= beforeBackgroundBytes,
+            )
 
             completed = withTimeout(900_000) {
                 var value: NamiDownloadStatus? = null
@@ -188,8 +225,11 @@ class KayoAnimeRealSourceSmokeTest {
             }
         } finally {
             player?.release()
-            database.close()
-            context.deleteDatabase(databaseName)
+            manager.statuses.value[key]?.let { leftover ->
+                if (leftover.state != NamiDownloadState.DOWNLOADED || completed == null) {
+                    manager.remove(leftover)
+                }
+            }
         }
     }
 }
