@@ -37,8 +37,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -98,7 +96,7 @@ class NamiDownloadManager(
     private val sourceRegistry: NamiSourceRegistry,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val sourcePermits = ConcurrentHashMap<String, Semaphore>()
+    private val downloadGate = PerSourceDownloadGate(MAX_PARALLEL_DOWNLOADS_PER_SOURCE)
     private val activeJobs = ConcurrentHashMap<String, Job>()
     private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
     private val mutableStatuses = MutableStateFlow<Map<String, NamiDownloadStatus>>(emptyMap())
@@ -252,7 +250,7 @@ class NamiDownloadManager(
 
         val k = key(status.sourceId, status.sourceEpisodeId)
         val newJob = scope.launch(start = CoroutineStart.LAZY) {
-            permitFor(status.sourceId).withPermit {
+            downloadGate.withPermit(status.sourceId) {
                 val current = mutableStatuses.value[k] ?: return@withPermit
                 if (mutableGlobalPaused.value || current.state != NamiDownloadState.QUEUED) {
                     return@withPermit
@@ -272,10 +270,6 @@ class NamiDownloadManager(
         }
     }
 
-    private fun permitFor(sourceId: String): Semaphore =
-        sourcePermits.computeIfAbsent(sourceId) {
-            Semaphore(MAX_PARALLEL_DOWNLOADS_PER_SOURCE)
-        }
 
     fun openDownloaded(context: Context, status: NamiDownloadStatus) {
         val uri = status.contentUri?.let(Uri::parse) ?: return
