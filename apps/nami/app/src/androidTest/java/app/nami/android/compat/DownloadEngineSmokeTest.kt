@@ -411,12 +411,27 @@ class DownloadEngineSmokeTest {
             }
             val completedBeforePause = paused.hlsCompletedParts
             val partial = File(paused.tempPath!!)
-            val pausedBytes = partial.length()
-            delay(300)
+            val expectedStableBytes = paused.bytesDownloaded
+
+            // Pause may catch the writer midway through the next segment. Nami deliberately
+            // rolls that incomplete segment back to the last completed segment boundary.
+            // Wait for that rollback to finish, then prove the partial stays stable.
+            withTimeout(10_000) {
+                while (partial.length() != expectedStableBytes) {
+                    delay(25)
+                }
+            }
+            val stableBytes = partial.length()
+            delay(350)
             assertEquals(
-                "Paused HLS transfer kept writing after cancellation settled",
-                pausedBytes,
+                "Paused HLS transfer changed after rollback reached the completed segment boundary",
+                stableBytes,
                 partial.length(),
+            )
+            assertEquals(
+                "Paused HLS bytes do not match completed segment count",
+                segmentSize.toLong() * completedBeforePause,
+                stableBytes,
             )
 
             manager.resume(paused)
