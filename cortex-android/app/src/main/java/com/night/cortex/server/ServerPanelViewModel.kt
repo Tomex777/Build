@@ -1,6 +1,8 @@
 package com.night.cortex.server
 
 import android.app.Application
+import android.net.ConnectivityManager
+import android.net.Network
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
@@ -10,6 +12,7 @@ import com.night.cortex.hosting.HostingFileEntry
 import com.night.cortex.hosting.HostingPowerAction
 import com.night.cortex.hosting.HostingProviderId
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +22,19 @@ import kotlinx.coroutines.withContext
 
 class ServerPanelViewModel(application: Application) : AndroidViewModel(application) {
     private val repo = CortexRepository(application)
+    private val connectivityManager = application.getSystemService(ConnectivityManager::class.java)
+    private var reconnectJob: Job? = null
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            if (_state.value.configured && !_state.value.loading) refreshAll()
+        }
+
+        override fun onLost(network: Network) {
+            if (connectivityManager.activeNetwork == null) {
+                _state.value = _state.value.copy(agentReachable = false)
+            }
+        }
+    }
     private val _state = MutableStateFlow(
         ServerPanelState(
             baseUrl = repo.hostingIdentifier(HostingProviderId.AZURE),
@@ -29,7 +45,14 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
 
     init {
         syncConfigured()
+        runCatching { connectivityManager.registerDefaultNetworkCallback(networkCallback) }
         if (_state.value.configured) refreshAll()
+    }
+
+    override fun onCleared() {
+        reconnectJob?.cancel()
+        runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
+        super.onCleared()
     }
 
     fun saveConnection(baseUrl: String, token: String) {
@@ -53,6 +76,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             baseUrl = url,
             hasToken = hasToken,
             configured = url.startsWith("https://") && hasToken,
+            agentReachable = if (url.startsWith("https://") && hasToken) _state.value.agentReachable else false,
         )
     }
 
@@ -500,19 +524,57 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         _state.value = _state.value.copy(loading = true, error = null, message = null)
         runCatching { block() }
             .onSuccess {
+                reconnectJob?.cancel()
+                reconnectJob = null
                 _state.value = _state.value.copy(
                     loading = false,
+                    agentReachable = true,
+                    lastSuccessfulSyncAt = System.currentTimeMillis(),
                     error = null,
                     message = _state.value.message ?: success,
                 )
             }
-            .onFailure {
+            .onFailure { error ->
+                val transportFailure = error is CortexTransportException
                 _state.value = _state.value.copy(
                     loading = false,
-                    error = it.message ?: "Request failed",
+                    agentReachable = if (transportFailure) false else _state.value.agentReachable,
+                    error = error.message ?: "Request failed",
                     message = null,
                 )
+                if (transportFailure) scheduleReconnect()
             }
+    }
+
+    private fun scheduleReconnect() {
+        if (!_state.value.configured || reconnectJob?.isActive == true) return
+        reconnectJob = viewModelScope.launch {
+            var waitMs = 2_000L
+            repeat(6) {
+                delay(waitMs)
+                if (!_state.value.configured) return@launch
+                val result = withContext(Dispatchers.IO) { runCatching { api().snapshot() } }
+                val snapshot = result.getOrNull()
+                if (snapshot != null) {
+                    _state.value = _state.value.copy(
+                        snapshot = snapshot,
+                        agentReachable = true,
+                        lastSuccessfulSyncAt = System.currentTimeMillis(),
+                        error = null,
+                    )
+                    reconnectJob = null
+                    refreshAll()
+                    return@launch
+                }
+                if (result.exceptionOrNull() is CortexHttpException) {
+                    _state.value = _state.value.copy(agentReachable = true)
+                    reconnectJob = null
+                    return@launch
+                }
+                waitMs = (waitMs * 2).coerceAtMost(30_000L)
+            }
+            reconnectJob = null
+        }
     }
 
     private fun displayName(uri: Uri): String? {

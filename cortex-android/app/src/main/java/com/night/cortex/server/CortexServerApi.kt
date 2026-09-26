@@ -8,6 +8,7 @@ import com.night.cortex.hosting.HostingSnapshot
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URLEncoder
@@ -314,33 +315,46 @@ class CortexServerApi(
     private fun request(method: String, path: String, body: JSONObject?): ByteArray {
         require(base.startsWith("https://")) { "Cortex Agent URL must use HTTPS" }
         require(token.isNotBlank()) { "Cortex Agent token is missing" }
-        val conn = URI(base + path).toURL().openConnection() as HttpURLConnection
-        conn.requestMethod = method
-        conn.connectTimeout = 12_000
-        conn.readTimeout = 10 * 60_000
-        conn.setRequestProperty("Accept", "*/*")
-        conn.setRequestProperty("Authorization", "Bearer $token")
-        if (body != null) {
-            conn.doOutput = true
-            conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-            conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-        }
-        val code = conn.responseCode
-        val stream = if (code in 200..299) conn.inputStream else conn.errorStream
-        val out = ByteArrayOutputStream()
-        stream?.use { input ->
-            val buffer = ByteArray(32 * 1024)
-            while (true) {
-                val read = input.read(buffer)
-                if (read < 0) break
-                out.write(buffer, 0, read)
+        try {
+            val conn = URI(base + path).toURL().openConnection() as HttpURLConnection
+            try {
+                conn.requestMethod = method
+                conn.connectTimeout = 12_000
+                conn.readTimeout = 10 * 60_000
+                conn.setRequestProperty("Accept", "*/*")
+                conn.setRequestProperty("Authorization", "Bearer $token")
+                if (body != null) {
+                    conn.doOutput = true
+                    conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                    conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+                }
+                val code = conn.responseCode
+                val stream = if (code in 200..299) conn.inputStream else conn.errorStream
+                val out = ByteArrayOutputStream()
+                stream?.use { input ->
+                    val buffer = ByteArray(32 * 1024)
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        out.write(buffer, 0, read)
+                    }
+                }
+                val bytes = out.toByteArray()
+                if (code !in 200..299) {
+                    throw CortexHttpException(
+                        statusCode = code,
+                        message = "Cortex Agent HTTP $code: " + bytes.toString(Charsets.UTF_8).take(800),
+                    )
+                }
+                return bytes
+            } finally {
+                conn.disconnect()
             }
+        } catch (error: CortexHttpException) {
+            throw error
+        } catch (error: IOException) {
+            throw CortexTransportException("Cortex Agent is unreachable: " + (error.message ?: "network error"), error)
         }
-        val bytes = out.toByteArray()
-        check(code in 200..299) {
-            "Cortex Agent HTTP $code: " + bytes.toString(Charsets.UTF_8).take(800)
-        }
-        return bytes
     }
 
     private fun encode(value: String): String =
@@ -369,3 +383,14 @@ private fun JSONObject.optLongOrNull(name: String): Long? =
 
 private fun JSONObject.optDoubleOrNull(name: String): Double? =
     if (has(name) && !isNull(name)) optDouble(name).takeUnless { it.isNaN() } else null
+
+
+class CortexHttpException(
+    val statusCode: Int,
+    message: String,
+) : IOException(message)
+
+class CortexTransportException(
+    message: String,
+    cause: Throwable,
+) : IOException(message, cause)

@@ -193,7 +193,8 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                 .padding(pad),
         ) {
             Header(
-                connected = state.configured,
+                configured = state.configured,
+                reachable = state.agentReachable,
                 state = state.snapshot?.state,
                 onConnect = { sheet = SheetMode.CONNECTION },
                 onRefresh = vm::refreshAll,
@@ -377,7 +378,8 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
 
 @Composable
 private fun Header(
-    connected: Boolean,
+    configured: Boolean,
+    reachable: Boolean,
     state: String?,
     onConnect: () -> Unit,
     onRefresh: () -> Unit,
@@ -390,20 +392,32 @@ private fun Header(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text("Bot", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Text("Cortex", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             Text(
-                if (connected) "Cortex server" else "Not connected",
+                when {
+                    !configured -> "Cortex Agent is not configured"
+                    reachable -> "Cortex Agent connected"
+                    else -> "Agent unavailable · retrying"
+                },
                 color = CortexMuted,
                 fontSize = 11.sp,
             )
         }
-        if (connected) {
+        if (configured) {
             Surface(
                 shape = RoundedCornerShape(3.dp),
-                color = if (state.equals("active", true) || state.equals("running", true)) Color(0xFF166534) else CortexSurface2,
+                color = when {
+                    !reachable -> Color(0xFF7F1D1D)
+                    state.equals("active", true) || state.equals("running", true) -> Color(0xFF166534)
+                    else -> CortexSurface2
+                },
             ) {
                 Text(
-                    (state ?: "unknown").uppercase(),
+                    when {
+                        !reachable -> "OFFLINE"
+                        state.isNullOrBlank() -> "CONNECTED"
+                        else -> state.uppercase()
+                    },
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                     color = Color.White,
                     fontSize = 9.sp,
