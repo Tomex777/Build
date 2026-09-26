@@ -18,7 +18,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlin.math.absoluteValue
 import kotlin.random.Random
 
 internal data class AnnieCharacter(
@@ -64,7 +63,7 @@ internal object AnnieCharacters {
     fun byId(id: String?): AnnieCharacter = all.firstOrNull { it.id == id } ?: default
 
     fun stableIdForExistingChat(chatId: String): String {
-        val index = chatId.hashCode().absoluteValue % all.size
+        val index = (chatId.hashCode() and Int.MAX_VALUE) % all.size
         return all[index].id
     }
 
