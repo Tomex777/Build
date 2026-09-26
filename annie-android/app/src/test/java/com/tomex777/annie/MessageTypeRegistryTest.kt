@@ -15,6 +15,7 @@ class MessageTypeRegistryTest {
             "options" to ScriptMessageKind.OPTIONS,
             "browser" to ScriptMessageKind.BROWSER,
             "progress" to ScriptMessageKind.PROGRESS,
+            "form" to ScriptMessageKind.FORM,
         )
 
         expected.forEach { (wire, kind) ->
