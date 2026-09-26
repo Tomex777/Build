@@ -159,10 +159,11 @@ class SpotPlaybackController(
 
             override fun onPlayerError(error: PlaybackException) {
                 val track = currentTrack
+                val failedStream = activeCandidates.getOrNull(activeCandidateIndex)
                 logTransportFailure(
                     stage = "playback",
                     failure = error,
-                    stream = activeCandidates.getOrNull(activeCandidateIndex),
+                    stream = failedStream,
                 )
                 val nextIndex = activeCandidateIndex + 1
                 if (track != null && nextIndex in activeCandidates.indices) {
@@ -174,7 +175,11 @@ class SpotPlaybackController(
                 }
                 if (track != null && !refreshingAfterPlayerError && error.errorCode in 2000..2999) {
                     refreshingAfterPlayerError = true
-                    resolveAndPlay(track, preserveRefreshGuard = true)
+                    resolveAndPlay(
+                        track = track,
+                        preserveRefreshGuard = true,
+                        avoidResolverClient = failedStream?.resolverClient,
+                    )
                     return
                 }
                 isLoading = false
@@ -247,6 +252,7 @@ class SpotPlaybackController(
             throw failure
         }
         var lastFailure: Throwable? = null
+        var rejectedResolverClient: String? = null
 
         for (resolutionPass in 0..1) {
             var sawRejectedTransport = false
@@ -272,14 +278,20 @@ class SpotPlaybackController(
                     throw cancelled
                 } catch (failure: Throwable) {
                     lastFailure = failure
-                    sawRejectedTransport =
-                        sawRejectedTransport || isRejectedTransportFailure(failure)
+                    val rejected = isRejectedTransportFailure(failure)
+                    sawRejectedTransport = sawRejectedTransport || rejected
+                    if (rejected && rejectedResolverClient == null) {
+                        rejectedResolverClient = candidate.resolverClient
+                    }
                     logTransportFailure("download", failure, candidate)
                 }
             }
 
             if (resolutionPass == 0 && sawRejectedTransport) {
-                candidates = source.resolveCandidates(track).getOrElse { failure ->
+                candidates = source.resolveCandidates(
+                    track = track,
+                    avoidResolverClient = rejectedResolverClient,
+                ).getOrElse { failure ->
                     logTransportFailure("download-refresh-resolver", failure, null)
                     throw failure
                 }
@@ -484,7 +496,11 @@ class SpotPlaybackController(
     private fun shuffledAround(track: Track, values: List<Track>): List<Track> =
         listOf(track) + values.filterNot { it.id == track.id }.shuffled()
 
-    private fun resolveAndPlay(track: Track, preserveRefreshGuard: Boolean = false) {
+    private fun resolveAndPlay(
+        track: Track,
+        preserveRefreshGuard: Boolean = false,
+        avoidResolverClient: String? = null,
+    ) {
         val serial = ++requestSerial
         player.stop()
         player.clearMediaItems()
@@ -530,7 +546,10 @@ class SpotPlaybackController(
                 return@launch
             }
 
-            source.resolveCandidates(track)
+            source.resolveCandidates(
+                track = track,
+                avoidResolverClient = avoidResolverClient,
+            )
                 .onSuccess { streams ->
                     if (serial != requestSerial) return@onSuccess
                     activeCandidates = streams.map { stream ->
@@ -649,21 +668,36 @@ class SpotPlaybackController(
         }
         val uri = runCatching { Uri.parse(stream.url) }.getOrNull()
         val host = uri?.host.orEmpty().lowercase().ifBlank { "none" }
-        val client = uri?.getQueryParameter("c")
-            ?.take(32)
-            ?.filter { value -> value.isLetterOrDigit() || value == '_' || value == '-' }
+        val client = stream.resolverClient
+            ?.take(48)
+            ?.filter { value ->
+                value.isLetterOrDigit() || value == '_' || value == '-' ||
+                    value == '.' || value == '/'
+            }
             .orEmpty()
-            .ifBlank { "unknown" }
+            .ifBlank {
+                uri?.getQueryParameter("c")
+                    ?.take(32)
+                    ?.filter { value -> value.isLetterOrDigit() || value == '_' || value == '-' }
+                    .orEmpty()
+                    .ifBlank { "unknown" }
+            }
         val itag = uri?.getQueryParameter("itag")
             ?.take(8)
             ?.filter(Char::isDigit)
             .orEmpty()
             .ifBlank { "unknown" }
-        val codec = stream.mimeType.orEmpty()
-            .substringBefore(';')
-            .take(40)
+        val codec = when {
+            stream.label.contains("Opus", ignoreCase = true) -> "opus"
+            stream.label.contains("AAC", ignoreCase = true) -> "aac"
+            else -> stream.mimeType.orEmpty().substringBefore(';').take(40)
+        }.ifBlank { "unknown" }
+        val sourceId = stream.cacheSourceId.orEmpty()
+            .take(32)
+            .filter { value -> value.isLetterOrDigit() || value == '_' || value == '-' || value == '.' }
             .ifBlank { "unknown" }
-        return "host=" + host +
+        return "source=" + sourceId +
+            " host=" + host +
             " client=" + client +
             " itag=" + itag +
             " codec=" + codec
