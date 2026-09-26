@@ -986,9 +986,14 @@ async function handler(req, res) {
       return json(res, 200, result);
     }
     if (req.method === 'POST' && url.pathname === '/api/cortex/mscc/commands/reload') {
-      const result = await msccControl('POST', '/commands/reload', {});
-      await recordActivity('mscc:commands.reload', { count: Array.isArray(result.commands) ? result.commands.length : 0 });
-      return json(res, 200, result);
+      try {
+        const result = await msccControl('POST', '/commands/reload', {});
+        await recordActivity('mscc:commands.reload', { count: Array.isArray(result.commands) ? result.commands.length : 0 });
+        return json(res, 200, result);
+      } catch (error) {
+        await recordActivity('mscc:commands.reload-failed', { error: String(error?.message || error).slice(0, 1000) });
+        throw error;
+      }
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/mscc/registry') {
       return json(res, 200, await runtimeRegistry());
@@ -996,9 +1001,17 @@ async function handler(req, res) {
     const moduleReloadRoute = url.pathname.match(/^\/api\/cortex\/mscc\/modules\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/reload$/);
     if (req.method === 'POST' && moduleReloadRoute) {
       const id = moduleReloadRoute[1];
-      const result = await msccControl('POST', '/modules/' + id + '/reload', {});
-      await recordActivity('mscc:module.reload', { module: id });
-      return json(res, 200, result);
+      try {
+        const result = await msccControl('POST', '/modules/' + id + '/reload', {});
+        await recordActivity('mscc:module.reload', { module: id });
+        return json(res, 200, result);
+      } catch (error) {
+        await recordActivity('mscc:module.reload-failed', {
+          module: id,
+          error: String(error?.message || error).slice(0, 1000),
+        });
+        throw error;
+      }
     }
     const pairRoute = url.pathname.match(/^\/api\/cortex\/mscc\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/(pair|reconnect|disconnect|repair)$/);
     if (req.method === 'POST' && pairRoute) {
