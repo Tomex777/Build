@@ -326,47 +326,124 @@ private fun AnnieFullBrowser(spec: AnnieBrowserSpec, onClose: () -> Unit) {
         if (controller.currentUrl.isNotBlank()) address = controller.currentUrl
     }
     BackHandler(controller.canGoBack) { controller.goBack() }
-    Column(Modifier.fillMaxSize().testTag("annie_full_browser").background(BrowserNight).statusBarsPadding().navigationBarsPadding()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onClose) { Text("Close") }
-            Text(safe.title, Modifier.weight(1f), color = BrowserBrightText, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            OutlinedTextField(
-                value = address,
-                onValueChange = { address = it.take(AnnieBrowserSpec.MAX_URL_CHARS) },
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-                label = { Text("Address") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
-                keyboardActions = KeyboardActions(onGo = { loadAddress(controller, safe, address) }),
-            )
-            Button(onClick = { loadAddress(controller, safe, address) }) { Text("Go") }
-        }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = controller::goBack, enabled = controller.canGoBack) { Text("Back") }
-            TextButton(onClick = controller::goForward, enabled = controller.canGoForward) { Text("Forward") }
-            TextButton(onClick = controller::reload) { Text("Reload") }
-            TextButton(onClick = {
-                controller.currentUrl.takeIf(String::isNotBlank)?.let { url ->
-                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+
+    Column(
+        Modifier.fillMaxSize().testTag("annie_full_browser")
+            .background(BrowserNight).statusBarsPadding().navigationBarsPadding()
+    ) {
+        Surface(color = BrowserBubble, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = onClose, modifier = Modifier.testTag("annie_browser_close")) {
+                        Text("✕", color = BrowserBrightText, fontSize = 18.sp)
+                    }
+                    Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
+                        Text(
+                            controller.pageTitle.ifBlank { safe.title },
+                            color = BrowserBrightText,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            Uri.parse(controller.currentUrl.ifBlank { safe.url }).host.orEmpty(),
+                            color = BrowserSoftText,
+                            fontSize = 10.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Text(
+                        if (safe.restricted) "SESSION" else "BROWSER",
+                        color = if (safe.restricted) BrowserTeal else BrowserSoftText,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
-            }) { Text("Open external") }
-            TextButton(onClick = {
-                val url = controller.currentUrl.takeIf(String::isNotBlank) ?: safe.url
-                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, url), "Share page"))
-            }) { Text("Share") }
+
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                ) {
+                    OutlinedTextField(
+                        value = address,
+                        onValueChange = { address = it.take(AnnieBrowserSpec.MAX_URL_CHARS) },
+                        modifier = Modifier.weight(1f).testTag("annie_browser_address"),
+                        singleLine = true,
+                        placeholder = { Text("Search or enter address", color = BrowserSoftText, fontSize = 12.sp) },
+                        shape = RoundedCornerShape(15.dp),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
+                        keyboardActions = KeyboardActions(onGo = { loadAddress(controller, safe, address) }),
+                    )
+                    Button(
+                        onClick = { loadAddress(controller, safe, address) },
+                        colors = ButtonDefaults.buttonColors(containerColor = BrowserBlue),
+                        shape = RoundedCornerShape(14.dp),
+                    ) { Text("Go") }
+                }
+            }
         }
-        if (controller.loading) LinearProgressIndicator(
-            progress = { controller.progress / 100f },
-            modifier = Modifier.fillMaxWidth(),
-            color = BrowserBlue,
+
+        if (controller.loading) {
+            LinearProgressIndicator(
+                progress = { controller.progress / 100f },
+                modifier = Modifier.fillMaxWidth(),
+                color = BrowserBlue,
+            )
+        }
+
+        controller.message?.let {
+            Surface(color = Color(0xFF3A2026), modifier = Modifier.fillMaxWidth()) {
+                Text(it, Modifier.padding(horizontal = 14.dp, vertical = 8.dp), color = Color(0xFFFFB0A9), fontSize = 12.sp)
+            }
+        }
+
+        AnnieBrowserWebView(
+            safe,
+            controller,
+            Modifier.fillMaxWidth().weight(1f).testTag("annie_full_browser_webview"),
         )
-        controller.message?.let { Text(it, Modifier.padding(horizontal = 14.dp, vertical = 6.dp), color = Color(0xFFFF9B91), fontSize = 12.sp) }
-        AnnieBrowserWebView(safe, controller, Modifier.fillMaxSize())
+
+        Surface(color = BrowserBubble, modifier = Modifier.fillMaxWidth()) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                TextButton(onClick = controller::goBack, enabled = controller.canGoBack) {
+                    Text("‹", fontSize = 24.sp)
+                }
+                TextButton(onClick = controller::goForward, enabled = controller.canGoForward) {
+                    Text("›", fontSize = 24.sp)
+                }
+                TextButton(onClick = controller::reload) {
+                    Text("↻", fontSize = 20.sp)
+                }
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = {
+                    controller.currentUrl.takeIf(String::isNotBlank)?.let { url ->
+                        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+                    }
+                }, modifier = Modifier.testTag("annie_browser_external")) {
+                    Text("Open", fontSize = 12.sp)
+                }
+                TextButton(onClick = {
+                    val url = controller.currentUrl.takeIf(String::isNotBlank) ?: safe.url
+                    context.startActivity(
+                        Intent.createChooser(
+                            Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, url),
+                            "Share page",
+                        )
+                    )
+                }, modifier = Modifier.testTag("annie_browser_share")) {
+                    Text("Share", fontSize = 12.sp)
+                }
+            }
+        }
     }
 }
-
 private fun loadAddress(controller: AnnieBrowserController, spec: AnnieBrowserSpec, raw: String) {
     val address = raw.trim().let { if ("://" in it) it else "https://$it" }
     if (controller.load(spec, address)) controller.currentUrl = address
