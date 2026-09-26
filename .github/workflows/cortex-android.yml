@@ -54,7 +54,7 @@ jobs:
 
   emulator-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-java@v5
@@ -64,22 +64,56 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.6.0'
-      - name: Run app flow in Android 16 / API 36 emulator and capture screen
+      - name: Prebuild instrumentation APKs
+        working-directory: cortex-android
+        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+      - name: Run Cortex instrumentation on Android 16 / API 36
         uses: ReactiveCircus/android-emulator-runner@v2
         with:
           api-level: 36
           target: google_apis
           arch: x86_64
           profile: pixel_6
-          cores: 4
-          ram-size: 4096M
+          cores: 2
+          ram-size: 3072M
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect
           emulator-boot-timeout: 1200
           disable-spellchecker: true
           disable-animations: true
           script: |
-            bash -c 'adb shell settings put global package_verifier_enable 0 || true; adb shell settings put global verifier_verify_adb_installs 0 || true; gradle -p cortex-android :app:connectedDebugAndroidTest --info --stacktrace; test_status=$?; adb logcat -d > "$GITHUB_WORKSPACE/cortex-android-logcat.txt" || true; adb install -r -g cortex-android/app/build/outputs/apk/debug/app-debug.apk || true; adb shell am force-stop com.night.cortex || true; adb shell am start -n com.night.cortex/.MainActivity || true; sleep 3; adb exec-out screencap -p > "$GITHUB_WORKSPACE/cortex-home-emulator.png" || true; exit "$test_status"'
-      - name: Upload emulator screenshot
+            set -euo pipefail
+            APP_APK="$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/debug/app-debug.apk"
+            TEST_APK="$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
+            TEST_RUNNER="com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner"
+
+            adb wait-for-device
+            adb shell 'while [ "$(getprop sys.boot_completed)" != "1" ]; do sleep 2; done'
+            adb shell settings put global package_verifier_enable 0 || true
+            adb shell settings put global verifier_verify_adb_installs 0 || true
+
+            install_and_test() {
+              adb wait-for-device
+              adb install -r -g "$APP_APK"
+              adb install -r -g "$TEST_APK"
+              adb shell am instrument -w -r "$TEST_RUNNER" | tee "$GITHUB_WORKSPACE/cortex-android-instrumentation.txt"
+              grep -q '^OK (' "$GITHUB_WORKSPACE/cortex-android-instrumentation.txt"
+            }
+
+            if ! install_and_test; then
+              echo "First instrumentation attempt failed; restarting adb once."
+              adb kill-server || true
+              sleep 3
+              adb start-server
+              adb wait-for-device
+              install_and_test
+            fi
+
+            adb logcat -d > "$GITHUB_WORKSPACE/cortex-android-logcat.txt" || true
+            adb shell am force-stop com.night.cortex || true
+            adb shell am start -W -n com.night.cortex/.MainActivity
+            sleep 3
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/cortex-home-emulator.png"
+      - name: Upload API 36 emulator evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -87,6 +121,58 @@ jobs:
           path: |
             cortex-home-emulator.png
             cortex-android-logcat.txt
-            cortex-android/app/build/reports/androidTests/connected/debug/
-            cortex-android/app/build/outputs/androidTest-results/connected/debug/
+            cortex-android-instrumentation.txt
+          if-no-files-found: ignore
+
+  min-sdk-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Prebuild minSdk instrumentation APKs
+        working-directory: cortex-android
+        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+      - name: Run Cortex instrumentation on minSdk / API 26
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          cores: 2
+          ram-size: 2048M
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect
+          emulator-boot-timeout: 1200
+          disable-spellchecker: true
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            APP_APK="$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/debug/app-debug.apk"
+            TEST_APK="$GITHUB_WORKSPACE/cortex-android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
+            TEST_RUNNER="com.night.cortex.test/androidx.test.runner.AndroidJUnitRunner"
+
+            adb wait-for-device
+            adb shell 'while [ "$(getprop sys.boot_completed)" != "1" ]; do sleep 2; done'
+            adb install -r -g "$APP_APK"
+            adb install -r -g "$TEST_APK"
+            adb shell am instrument -w -r "$TEST_RUNNER" | tee "$GITHUB_WORKSPACE/cortex-api26-instrumentation.txt"
+            grep -q '^OK (' "$GITHUB_WORKSPACE/cortex-api26-instrumentation.txt"
+            adb shell am start -W -n com.night.cortex/.MainActivity
+            sleep 2
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/cortex-api26-home.png"
+      - name: Upload API 26 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cortex-api26-emulator-screen
+          path: |
+            cortex-api26-home.png
+            cortex-api26-instrumentation.txt
           if-no-files-found: ignore
