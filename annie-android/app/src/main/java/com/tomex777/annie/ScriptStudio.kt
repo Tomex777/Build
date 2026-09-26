@@ -861,18 +861,43 @@ private fun ScriptEnvFieldCard(
                     var configured by remember(scriptId, field.key) { mutableStateOf(workspace.envHasSecret(scriptId, field.key)) }
                     OutlinedTextField(
                         value = value,
-                        onValueChange = {
-                            value = it
-                            runCatching { workspace.setEnvValue(scriptId, field.key, it) }
-                                .onSuccess { configured = it.isNotBlank() }
-                                .onFailure { error -> onStatus(error.message ?: "Secret ENV update failed") }
-                        },
+                        onValueChange = { value = it },
                         modifier = Modifier.fillMaxWidth().testTag("script_env_secret_${field.key}"),
                         singleLine = true,
                         label = { Text(if (configured && value.isBlank()) "${field.label} · configured" else field.label) },
                         visualTransformation = PasswordVisualTransformation(),
                     )
-                    if (configured) Text("Stored securely. Enter a replacement value, or clear the field to remove it.", color = StudioMuted, fontSize = 10.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        StudioAction(
+                            "Save",
+                            emphasized = value.isNotBlank(),
+                            enabled = value.isNotBlank(),
+                            onClick = {
+                                runCatching { workspace.setEnvValue(scriptId, field.key, value) }
+                                    .onSuccess {
+                                        configured = true
+                                        value = ""
+                                        onStatus("Saved ${field.label}")
+                                    }
+                                    .onFailure { error -> onStatus(error.message ?: "Secret ENV update failed") }
+                            },
+                        )
+                        if (configured) {
+                            StudioAction(
+                                "Clear",
+                                onClick = {
+                                    runCatching { workspace.setEnvValue(scriptId, field.key, "") }
+                                        .onSuccess {
+                                            configured = false
+                                            value = ""
+                                            onStatus("Cleared ${field.label}")
+                                        }
+                                        .onFailure { error -> onStatus(error.message ?: "Secret ENV update failed") }
+                                },
+                            )
+                        }
+                    }
+                    if (configured) Text("Stored securely. Annie never reveals the saved value in Script Studio.", color = StudioMuted, fontSize = 10.sp)
                 }
 
                 ScriptEnvFieldType.NUMBER -> {
