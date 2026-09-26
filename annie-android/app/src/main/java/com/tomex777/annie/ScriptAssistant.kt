@@ -116,7 +116,7 @@ internal object ScriptAssistValidator {
         val warnings = buildList {
             if ("annie." !in source) add("This file does not reference Annie's scripting API.")
             if ("eval(" in source || "new Function(" in source) add("Proposal contains dynamic code evaluation; review it carefully.")
-            if (Regex("""(?:fetch|XMLHttpRequest)\\s*\\(""").containsMatchIn(source)) {
+            if (Regex("""(?:fetch|XMLHttpRequest)\s*\(""").containsMatchIn(source)) {
                 add("Use annie.http.request(...) instead of browser-only HTTP APIs.")
             }
         }
