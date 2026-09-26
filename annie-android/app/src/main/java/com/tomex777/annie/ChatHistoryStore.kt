@@ -69,6 +69,45 @@ internal object ChatHistoryStore {
             .apply()
     }
 
+
+    @Synchronized
+    fun appendScriptResult(
+        context: Context,
+        chatId: String,
+        resultJson: String,
+        scriptId: String,
+        channel: String,
+    ): Boolean = runCatching {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val sessions = JSONArray(prefs.getString(KEY_SESSIONS, "[]") ?: "[]")
+        val result = runCatching { JSONObject(resultJson) }.getOrNull() ?: return false
+        for (sessionIndex in 0 until sessions.length()) {
+            val session = sessions.optJSONObject(sessionIndex) ?: continue
+            if (session.optString("id") != chatId) continue
+
+            val type = result.optString("type")
+            val error = type == "error"
+            val entry = ChatEntry(
+                id = System.nanoTime(),
+                fromUser = false,
+                text = when {
+                    error -> "Script error\n" + result.optString("text", "Script failed").take(300)
+                    type == "text" -> result.optString("text")
+                    else -> ""
+                },
+                scriptMessageJson = if (error) null else resultJson,
+                scriptId = if (error) null else scriptId,
+                scriptCommandName = if (error) null else channel,
+            )
+            val messages = session.optJSONArray("messages") ?: JSONArray()
+            messages.put(encodeMessage(entry))
+            session.put("messages", messages)
+            prefs.edit().putString(KEY_SESSIONS, sessions.toString()).commit()
+            return true
+        }
+        false
+    }.getOrDefault(false)
+
     private fun encodeMessage(entry: ChatEntry) = JSONObject()
         .put("id", entry.id)
         .put("fromUser", entry.fromUser)
