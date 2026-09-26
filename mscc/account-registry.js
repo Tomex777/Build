@@ -118,7 +118,7 @@ export class AccountRegistry {
       phoneNumber: number,
       displayName: String(displayName || '').trim().slice(0, 48),
       authDir: join(this.authRoot, id),
-      role: 'linked',
+      role: this.records.size === 0 ? 'owner' : 'linked',
       createdAt: Date.now(),
     }
     this.records.set(id, record)

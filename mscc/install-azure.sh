@@ -2,7 +2,7 @@
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
-VERSION="1.9.0"
+VERSION="2.0.0"
 BASE="/opt/mscc"
 RELEASE="$BASE/releases/$VERSION"
 STATE="/var/lib/mscc"
@@ -49,6 +49,27 @@ else
   echo "Existing $ENV_FILE preserved."
 fi
 
+upsert_env() {
+  local key="$1" value="$2"
+  if sudo grep -q "^$key=" "$ENV_FILE"; then
+    sudo sed -i "s|^$key=.*|$key=$value|" "$ENV_FILE"
+  else
+    printf '%s=%s\n' "$key" "$value" | sudo tee -a "$ENV_FILE" >/dev/null
+  fi
+}
+
+echo ">>> Hardening private control configuration..."
+WEB_PASSWORD_VALUE="$(sudo sed -n 's/^WEB_PASSWORD=//p' "$ENV_FILE" | tail -1 | tr -d '\r' || true)"
+if [ -z "$WEB_PASSWORD_VALUE" ] || [ "$WEB_PASSWORD_VALUE" = "change-this-password" ]; then
+  upsert_env WEB_PASSWORD "$(openssl rand -hex 24)"
+fi
+WEB_SESSION_VALUE="$(sudo sed -n 's/^WEB_SESSION_SECRET=//p' "$ENV_FILE" | tail -1 | tr -d '\r' || true)"
+if [ -z "$WEB_SESSION_VALUE" ]; then
+  upsert_env WEB_SESSION_SECRET "$(openssl rand -hex 32)"
+fi
+upsert_env MSCC_WEB_HOST "127.0.0.1"
+sudo chmod 600 "$ENV_FILE"
+
 echo ">>> Installing systemd service..."
 sudo tee "$SERVICE" >/dev/null <<EOF
 [Unit]
@@ -77,26 +98,32 @@ EOF
 sudo systemctl daemon-reload
 sudo systemctl enable mscc.service >/dev/null
 
-A="$(sudo sed -n 's/^ACCOUNT_A_NUMBER=//p' "$ENV_FILE" | tail -1 | tr -d '\r' || true)"
-PW="$(sudo sed -n 's/^WEB_PASSWORD=//p' "$ENV_FILE" | tail -1 | tr -d '\r' || true)"
+echo ">>> Starting MSCC..."
+sudo systemctl restart mscc.service
 
-if [[ "$A" =~ ^[0-9]{7,15}$ ]] && [ -n "$PW" ] && [ "$PW" != "change-this-password" ]; then
-  echo ">>> Configuration looks ready; starting MSCC..."
-  sudo systemctl restart mscc.service
-  sleep 4
+READY=0
+for _ in $(seq 1 20); do
+  if curl -fsS http://127.0.0.1:8787/health >/tmp/mscc-health.json 2>/dev/null; then
+    READY=1
+    break
+  fi
+  sleep 1
+done
+
+if [ "$READY" -ne 1 ]; then
+  echo "MSCC did not become healthy." >&2
   sudo systemctl --no-pager --full status mscc.service || true
-  echo
-  curl -fsS http://127.0.0.1:8787/health || true
-  echo
-  echo "Local Cortex pairing bridge:"
-  curl -fsS http://127.0.0.1:8788/state || true
-  echo
-else
-  echo
-  echo "MSCC code is installed, but the private configuration still needs to be migrated."
-  echo "Service was enabled but NOT started."
-  sudo systemctl stop mscc.service >/dev/null 2>&1 || true
+  sudo journalctl -u mscc.service -n 80 --no-pager || true
+  exit 1
 fi
+
+sudo systemctl --no-pager --full status mscc.service || true
+echo
+cat /tmp/mscc-health.json
+echo
+echo "Local Cortex pairing bridge:"
+curl -fsS http://127.0.0.1:8788/state
+echo
 
 echo
 echo "=== MSCC INSTALL COMPLETE ==="

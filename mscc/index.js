@@ -93,11 +93,12 @@ const makeAccount = record => ({
 
 async function loadAccounts() {
   const records = await accountRegistry.load()
-  if (!records.length) {
-    throw new Error('No WhatsApp accounts are configured. Set legacy ACCOUNT_A_NUMBER once or create a registry before startup.')
-  }
   accounts.clear()
   for (const record of records) accounts.set(record.id, makeAccount(record))
+  if (!records.length) {
+    console.log('No WhatsApp accounts configured yet; waiting for Cortex pairing.')
+    return
+  }
   if (!controlNumbers.size) {
     const owner = records.find(row => row.role === 'owner') || records[0]
     if (owner?.phoneNumber) controlNumbers.add(owner.phoneNumber)
@@ -118,6 +119,7 @@ async function createAccount(input = {}) {
   const record = await accountRegistry.create(input)
   const account = makeAccount(record)
   accounts.set(account.id, account)
+  if (record.role === 'owner' && record.phoneNumber) controlNumbers.add(record.phoneNumber)
   await recordActivity('account.created', {
     account: account.id,
     displayName: account.displayName,

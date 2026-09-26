@@ -37,6 +37,9 @@ jobs:
           grep -Fq "createAccount," index.js
           grep -Fq "perAccountCcOverride: true" index.js
           grep -Fq "writeRuntimeRegistry()" index.js
+          grep -Fq "waiting for Cortex pairing" index.js
+          ! grep -Fq "private configuration still needs to be migrated" install-azure.sh
+          grep -Fq 'VERSION="2.0.0"' install-azure.sh
 
       - name: Verify multi-account CC routing
         working-directory: mscc
@@ -107,6 +110,22 @@ jobs:
           if (reloaded.get('ACCOUNT-3')?.displayName !== 'Work') throw new Error('Case-insensitive ID lookup failed')
           const removed = await reloaded.remove('account-4')
           if (!removed.authPreserved) throw new Error('Remove must preserve auth by default')
+
+          const emptyRoot = '/tmp/mscc-empty-account-registry-test'
+          await rm(emptyRoot, { recursive:true, force:true })
+          const emptyRegistry = new AccountRegistry({
+            file: emptyRoot + '/data/accounts.json',
+            authRoot: emptyRoot + '/auth',
+            maxAccounts: 5,
+          })
+          const empty = await emptyRegistry.load()
+          if (empty.length !== 0) throw new Error('Fresh registry should be allowed to start empty')
+          const first = await emptyRegistry.create({ phoneNumber:'234000000010', displayName:'First' })
+          if (first.id !== 'account-1') throw new Error('Fresh registry first ID is wrong')
+          if (first.role !== 'owner') throw new Error('Fresh registry first account must become owner')
+          const second = await emptyRegistry.create({ phoneNumber:'234000000011', displayName:'Second' })
+          if (second.role !== 'linked') throw new Error('Only the first fresh account should become owner')
+
           console.log('Dynamic account registry migration OK')
           NODE
       - name: Verify local pairing control stays on loopback
