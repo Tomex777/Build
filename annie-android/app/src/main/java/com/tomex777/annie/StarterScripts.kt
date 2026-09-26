@@ -1,6 +1,56 @@
 package com.tomex777.annie
 
 internal object StarterScripts {
+    internal fun migrateChess(source: String): String {
+        var migrated = source
+        if ("capabilities:" !in migrated) {
+            migrated = migrated.replace(
+                """annie.commands.register({
+  name: "chess",
+  description: "Play local chess with Annie",
+  usage: "/chess new",
+  async execute(ctx) {""",
+                """annie.commands.register({
+  name: "chess",
+  description: "Play local chess with Annie",
+  usage: "/chess new",
+  keywords: ["game", "board", "move", "hint", "resign"],
+  capabilities: ["game", "chess", "move", "board", "hint", "resign"],
+  suggestions: [
+    { label: "Show board", input: "board" },
+    { label: "Hint", input: "hint" },
+    { label: "Resign", input: "resign" }
+  ],
+  async execute(ctx) {""",
+            )
+        }
+        if ("action === \"board\"" !in migrated) {
+            migrated = migrated.replace(
+                """    if (String(ctx.text).trim().toLowerCase() === "resign") {
+      ctx.session.end();
+      await annie.storage.set("game:" + ctx.chatId, null);
+      return { type: "text", text: "Game ended. Use /chess new whenever you want another one." };
+    }
+    const user = parseMove(state, ctx.text);""",
+                """    const action = String(ctx.text).trim().toLowerCase();
+    if (action === "board") {
+      return sendBoard(ctx, state, state.turn === "w" ? "Your move." : "Black to move.");
+    }
+    if (action === "hint") {
+      const ideas = pseudoMoves(state).slice(0, 4).map(moveLabel);
+      return { type: "text", text: ideas.length ? "Try " + ideas.join(", ") + "." : "No moves are available." };
+    }
+    if (action === "resign") {
+      ctx.session.end();
+      await annie.storage.set("game:" + ctx.chatId, null);
+      return { type: "text", text: "Game ended. Use /chess new whenever you want another one." };
+    }
+    const user = parseMove(state, ctx.text);""",
+            )
+        }
+        return migrated
+    }
+
     val chess: String = """
         |const START = [
         |  "rnbqkbnr",
