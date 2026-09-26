@@ -65,11 +65,11 @@ import io.github.dingyi222666.monarch.languages.TypescriptLanguage
 import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.event.SelectionChangeEvent
 import io.github.rosemoe.sora.langs.monarch.MonarchLanguage
+import io.github.rosemoe.sora.langs.monarch.MonarchColorScheme
 import io.github.rosemoe.sora.langs.monarch.registry.MonarchGrammarRegistry
 import io.github.rosemoe.sora.langs.monarch.registry.dsl.monarchLanguages
 import io.github.rosemoe.sora.widget.CodeEditor
 import io.github.rosemoe.sora.widget.EditorSearcher
-import io.github.rosemoe.sora.widget.schemes.SchemeDarcula
 import io.github.rosemoe.sora.widget.subscribeAlways
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -701,8 +701,14 @@ private fun ScriptCodeEditor(
                 setCompleterKeywords(arrayOf("annie.commands", "annie.commands.register", "annie.http", "annie.http.request", "annie.browser", "annie.storage", "annie.storage.get", "annie.storage.set", "annie.sessions", "annie.actions", "annie.messages", "annie.files", "annie.log"))
             }
             CodeEditor(context).apply {
+                // Monarch emits dynamic foreground ids after async tokenization. A regular
+                // EditorColorScheme (including SchemeDarcula) does not resolve those ids,
+                // which can make the code turn transparent while the caret still works.
+                // Keep the language and color scheme paired so document, spans and paint
+                // always describe the same visible editor state.
+                setColorScheme(MonarchColorScheme.create())
+                io.github.rosemoe.sora.langs.monarch.registry.ThemeRegistry.setTheme("darcula")
                 setEditorLanguage(language)
-                setColorScheme(SchemeDarcula())
                 setTextSize(14f)
                 setTabWidth(4)
                 isLineNumberEnabled = true
