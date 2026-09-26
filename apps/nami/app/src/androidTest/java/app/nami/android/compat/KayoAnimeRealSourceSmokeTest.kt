@@ -78,6 +78,7 @@ class KayoAnimeRealSourceSmokeTest {
         assertNotNull("KayoAnime MKV did not resolve into a Google Drive download URL", driveMedia)
 
         val manager = application.downloadManager
+        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
         val key = manager.key(source.metadata.id, mkvEpisode.ref.sourceEpisodeId)
         var completed: NamiDownloadStatus? = null
         var player: NamiVlcPlayer? = null
@@ -114,7 +115,7 @@ class KayoAnimeRealSourceSmokeTest {
             }
 
             val beforeBackgroundBytes = started.bytesDownloaded
-            UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).pressHome()
+            device.pressHome()
             delay(2_000)
             val afterBackground = manager.statuses.value[key]
                 ?: throw AssertionError("Download disappeared after pressing Home")
@@ -127,6 +128,27 @@ class KayoAnimeRealSourceSmokeTest {
                 "Background download lost its persisted progress",
                 afterBackground.bytesDownloaded >= beforeBackgroundBytes,
             )
+
+            if (afterBackground.state != NamiDownloadState.DOWNLOADED) {
+                val beforeScreenOffBytes = afterBackground.bytesDownloaded
+                device.sleep()
+                delay(2_500)
+                val whileScreenOff = manager.statuses.value[key]
+                    ?: throw AssertionError("Download disappeared while the screen was off")
+                assertTrue(
+                    "Foreground download failed while the screen was off: " +
+                        whileScreenOff.errorMessage,
+                    whileScreenOff.state != NamiDownloadState.ERROR &&
+                        whileScreenOff.state != NamiDownloadState.PAUSED,
+                )
+                assertTrue(
+                    "Screen-off background execution lost download progress",
+                    whileScreenOff.bytesDownloaded >= beforeScreenOffBytes,
+                )
+                device.wakeUp()
+                runCatching { device.executeShellCommand("wm dismiss-keyguard") }
+                delay(500)
+            }
 
             completed = withTimeout(900_000) {
                 var value: NamiDownloadStatus? = null
@@ -224,6 +246,8 @@ class KayoAnimeRealSourceSmokeTest {
                 }
             }
         } finally {
+            runCatching { device.wakeUp() }
+            runCatching { device.executeShellCommand("wm dismiss-keyguard") }
             player?.release()
             manager.statuses.value[key]?.let(manager::remove)
         }
