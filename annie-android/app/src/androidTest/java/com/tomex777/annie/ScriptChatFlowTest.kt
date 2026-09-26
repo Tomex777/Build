@@ -27,6 +27,7 @@ import org.junit.Rule
 import org.junit.Test
 import io.github.rosemoe.sora.langs.monarch.MonarchColorScheme
 import io.github.rosemoe.sora.widget.CodeEditor
+import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
 import org.junit.runner.RunWith
 import org.hamcrest.Matcher
 import org.hamcrest.Matchers.allOf
@@ -105,6 +106,9 @@ class ScriptChatFlowTest {
                 "Monarch syntax analysis must use MonarchColorScheme so token ids stay visible",
                 editor.colorScheme is MonarchColorScheme,
             )
+            val background = editor.colorScheme.getColor(EditorColorScheme.WHOLE_BACKGROUND)
+            val averageRgb = (Color.red(background) + Color.green(background) + Color.blue(background)) / 3
+            assertTrue("Script Studio editor background must stay dark", averageRgb < 110)
             for (dynamicColorId in 255..300) {
                 assertTrue(
                     "Monarch token color $dynamicColorId became transparent",
