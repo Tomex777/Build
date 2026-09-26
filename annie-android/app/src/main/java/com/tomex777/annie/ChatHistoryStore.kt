@@ -9,6 +9,7 @@ import org.json.JSONObject
 internal data class ChatSession(
     val id: String,
     val messages: SnapshotStateList<ChatEntry>,
+    val characterId: String = AnnieCharacters.default.id,
 ) {
     val title: String
         get() = messages.firstOrNull { it.fromUser }?.text?.takeIf(String::isNotBlank)
@@ -41,7 +42,11 @@ internal object ChatHistoryStore {
                 for (messageIndex in 0 until rows.length()) {
                     rows.optJSONObject(messageIndex)?.let(::decodeMessage)?.let(messages::add)
                 }
-                if (messages.isNotEmpty()) add(ChatSession(id, messages))
+                if (messages.isNotEmpty()) {
+                    val characterId = json.optString("characterId").takeIf(String::isNotBlank)
+                        ?: AnnieCharacters.stableIdForExistingChat(id)
+                    add(ChatSession(id, messages, characterId))
+                }
             }
         }
     }.getOrDefault(emptyList())
@@ -51,7 +56,12 @@ internal object ChatHistoryStore {
         sessions.forEach { session ->
             val messages = JSONArray()
             session.messages.forEach { messages.put(encodeMessage(it)) }
-            array.put(JSONObject().put("id", session.id).put("messages", messages))
+            array.put(
+                JSONObject()
+                    .put("id", session.id)
+                    .put("characterId", session.characterId)
+                    .put("messages", messages)
+            )
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
