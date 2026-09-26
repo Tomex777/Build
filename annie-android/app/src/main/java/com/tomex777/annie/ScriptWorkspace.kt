@@ -443,7 +443,7 @@ internal class ScriptRuntime(
             val key = args.firstOrNull()?.toString().orEmpty()
             envStore.secret(requireEnvField(key))
         }
-        runtime.function("annieEnvValues") {
+        runtime.function("annieEnvValues") { _ ->
             envStore.values(envDefinition).toString()
         }
         runtime.function("annieLog") { args ->
