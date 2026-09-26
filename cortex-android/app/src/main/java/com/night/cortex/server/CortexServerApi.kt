@@ -363,6 +363,14 @@ class CortexServerApi(
         postJson("/api/cortex/mscc/accounts/${encodeAccount(id)}/reconnect", JSONObject())
     }
 
+    fun disconnectAccount(id: String) {
+        postJson("/api/cortex/mscc/accounts/${encodeAccount(id)}/disconnect", JSONObject())
+    }
+
+    fun removeAccount(id: String) {
+        requestJson("DELETE", "/api/cortex/mscc/accounts/${encodeAccount(id)}", null)
+    }
+
     fun repairAccount(id: String, mode: String) {
         postJson(
             "/api/cortex/mscc/accounts/${encodeAccount(id)}/repair",

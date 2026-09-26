@@ -227,6 +227,8 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                             onDestination = vm::setDestination,
                             onPair = vm::pairAccount,
                             onReconnect = vm::reconnectPairing,
+                            onDisconnect = vm::disconnectPairing,
+                            onRemove = vm::removePairing,
                             onRepair = vm::repairAccount,
                         )
                         ServerTab.FILES -> FilesPage(
@@ -1826,6 +1828,8 @@ private fun activityTitle(action: String): String = when (action) {
     "server:startup.update" -> "Changed startup behavior"
     "mscc:module.reload" -> "Reloaded an MSCC module"
     "mscc:commands.reload" -> "Reloaded the command registry"
+    "mscc:account.disconnect" -> "Disconnected a WhatsApp account"
+    "mscc:account.remove" -> "Removed a WhatsApp account"
     "server:dependencies.install" -> "Installed dependencies"
     else -> action.removePrefix("server:").replace('.', ' ').replaceFirstChar { it.uppercase() }
 }

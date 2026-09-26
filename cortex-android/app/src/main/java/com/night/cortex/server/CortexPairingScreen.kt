@@ -25,11 +25,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.RestartAlt
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -78,10 +80,13 @@ fun CortexPairingScreen(
     onDestination: (String) -> Unit,
     onPair: (String, String) -> Unit,
     onReconnect: (String) -> Unit,
+    onDisconnect: (String) -> Unit,
+    onRemove: (String) -> Unit,
     onRepair: (String, String) -> Unit,
 ) {
     var selected by remember { mutableStateOf<PairingAccount?>(null) }
     var destinationCandidate by remember { mutableStateOf<PairingAccount?>(null) }
+    var removeCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var action by remember { mutableStateOf(PairAction.PAIR) }
     var addingNumber by remember { mutableStateOf(false) }
 
@@ -163,6 +168,8 @@ fun CortexPairingScreen(
                         },
                         onDestination = { destinationCandidate = account },
                         onReconnect = { onReconnect(account.id) },
+                        onDisconnect = { onDisconnect(account.id) },
+                        onRemove = { removeCandidate = account },
                         onRepair = {
                             selected = account
                             action = PairAction.REPAIR
@@ -189,6 +196,32 @@ fun CortexPairingScreen(
             onSubmit = { phone, name ->
                 onAddAccount(phone, name)
                 addingNumber = false
+            },
+        )
+    }
+
+    removeCandidate?.let { account ->
+        AlertDialog(
+            onDismissRequest = { removeCandidate = null },
+            title = { Text("Remove ${account.title}?") },
+            text = {
+                Text(
+                    "This removes the account from MSCC but preserves its auth folder on the server. " +
+                        "You can only remove an account after choosing a different CC destination."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onRemove(account.id)
+                        removeCandidate = null
+                    }
+                ) {
+                    Text("Remove account", color = CortexDanger)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { removeCandidate = null }) { Text("Cancel") }
             },
         )
     }
@@ -229,6 +262,8 @@ private fun PairingAccountCard(
     onPair: () -> Unit,
     onDestination: () -> Unit,
     onReconnect: () -> Unit,
+    onDisconnect: () -> Unit,
+    onRemove: () -> Unit,
     onRepair: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -346,7 +381,7 @@ private fun PairingAccountCard(
 
             HorizontalDivider(color = CortexLine)
             Row(
-                Modifier.fillMaxWidth().padding(10.dp),
+                Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (!account.enabled) {
@@ -387,7 +422,35 @@ private fun PairingAccountCard(
                         enabled = !busy,
                         shape = RoundedCornerShape(4.dp),
                     ) {
-                        Icon(Icons.Rounded.RestartAlt, null, Modifier.size(14.dp))
+                        Icon(Icons.Rounded.RestartAlt, "Reconnect", Modifier.size(14.dp))
+                    }
+                }
+            }
+            if (account.enabled) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(
+                        onClick = onDisconnect,
+                        enabled = !busy && account.connected,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("Disconnect", fontSize = 9.sp)
+                    }
+                    TextButton(
+                        onClick = onRemove,
+                        enabled = !busy && !destination,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(Icons.Rounded.Delete, null, Modifier.size(13.dp), tint = CortexDanger)
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            if (destination) "Change destination first" else "Remove account",
+                            color = if (destination) CortexMuted else CortexDanger,
+                            fontSize = 9.sp,
+                        )
                     }
                 }
             }

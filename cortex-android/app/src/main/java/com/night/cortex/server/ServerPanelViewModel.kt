@@ -556,6 +556,28 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun disconnectPairing(id: String) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy("Account disconnected.") {
+                withContext(Dispatchers.IO) { api().disconnectAccount(id) }
+                val pairing = withContext(Dispatchers.IO) { api().pairingState() }
+                _state.value = _state.value.copy(pairing = pairing)
+            }
+        }
+    }
+
+    fun removePairing(id: String) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy("Account removed. Auth was preserved on the server.") {
+                withContext(Dispatchers.IO) { api().removeAccount(id) }
+                val pairing = withContext(Dispatchers.IO) { api().pairingState() }
+                _state.value = _state.value.copy(pairing = pairing)
+            }
+        }
+    }
+
     private suspend fun pollPairing(id: String) {
         repeat(10) { attempt ->
             delay(if (attempt == 0) 300 else 650)

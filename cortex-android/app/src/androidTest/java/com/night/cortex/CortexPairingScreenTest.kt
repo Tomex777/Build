@@ -61,6 +61,8 @@ class CortexPairingScreenTest {
                     onDestination = {},
                     onPair = { _, _ -> },
                     onReconnect = {},
+                    onDisconnect = {},
+                    onRemove = {},
                     onRepair = { _, _ -> },
                 )
             }
