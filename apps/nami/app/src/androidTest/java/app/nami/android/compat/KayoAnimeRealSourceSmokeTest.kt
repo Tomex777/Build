@@ -225,11 +225,7 @@ class KayoAnimeRealSourceSmokeTest {
             }
         } finally {
             player?.release()
-            manager.statuses.value[key]?.let { leftover ->
-                if (leftover.state != NamiDownloadState.DOWNLOADED || completed == null) {
-                    manager.remove(leftover)
-                }
-            }
+            manager.statuses.value[key]?.let(manager::remove)
         }
     }
 }
