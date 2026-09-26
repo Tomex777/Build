@@ -18,6 +18,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import androidx.lifecycle.Lifecycle
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
@@ -43,7 +44,7 @@ class AniyomiPreferencesSmokeTest {
             Context.MODE_PRIVATE,
         )
         val key = "preferred_quality"
-        val original = preferences.getString(key, null)
+        val originalValues = preferences.all.toMap()
 
         var scenario: ActivityScenario<AniyomiSourcePreferencesActivity>? = null
         try {
@@ -78,12 +79,71 @@ class AniyomiPreferencesSmokeTest {
                 "720",
                 preferences.getString(key, null),
             )
-        } finally {
-            if (original == null) {
-                preferences.edit().remove(key).commit()
-            } else {
-                preferences.edit().putString(key, original).commit()
+
+            val reportedPreferenceTitles = listOf(
+                "Preferred Domain",
+                "Preferred Title Language",
+                "Preferred Server",
+                "Preferred Type",
+                "Score Display Position",
+                "Exclude Servers",
+                "Exclude Types",
+            )
+            reportedPreferenceTitles.forEach { title ->
+                val row = device.wait(
+                    Until.findObject(By.text(title)),
+                    15_000,
+                )
+                assertNotNull(
+                    "Real AnimeSogo preference '$title' was not rendered",
+                    row,
+                )
+                row.click()
+                device.waitForIdle()
+                SystemClock.sleep(350)
+
+                scenario.onActivity { activity ->
+                    assertTrue(
+                        "Nami's source-settings activity died after tapping '$title'",
+                        !activity.isFinishing && !activity.isDestroyed,
+                    )
+                }
+                assertTrue(
+                    "Nami left the source preference activity after tapping '$title'",
+                    scenario.state != Lifecycle.State.DESTROYED,
+                )
+
+                val dialogVisible =
+                    device.hasObject(By.res("android", "button1")) ||
+                        device.hasObject(By.res("android", "button2")) ||
+                        device.hasObject(By.clazz("android.widget.ListView"))
+                if (dialogVisible) {
+                    device.pressBack()
+                    device.waitForIdle()
+                    SystemClock.sleep(200)
+                }
+
+                assertTrue(
+                    "AnimeSogo preference screen did not survive '$title'",
+                    device.hasObject(By.text(title)),
+                )
             }
+        } finally {
+            val editor = preferences.edit().clear()
+            originalValues.forEach { (name, value) ->
+                when (value) {
+                    is String -> editor.putString(name, value)
+                    is Boolean -> editor.putBoolean(name, value)
+                    is Int -> editor.putInt(name, value)
+                    is Long -> editor.putLong(name, value)
+                    is Float -> editor.putFloat(name, value)
+                    is Set<*> -> {
+                        @Suppress("UNCHECKED_CAST")
+                        editor.putStringSet(name, value.filterIsInstance<String>().toSet())
+                    }
+                }
+            }
+            editor.commit()
             scenario?.close()
         }
     }
