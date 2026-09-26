@@ -115,6 +115,8 @@ private fun ScriptStudioContent(
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val scriptAssistant = remember { ScriptAssistant() }
+    var assistOpen by remember { mutableStateOf(false) }
     var projects by remember { mutableStateOf(workspace.files.listProjects()) }
     var selectedProjectId by remember { mutableStateOf(projects.firstOrNull()?.id) }
     var selectedPath by remember { mutableStateOf(projects.firstOrNull()?.entryPath) }
@@ -447,6 +449,8 @@ private fun ScriptStudioContent(
                             }
                             Text(project.name, color = StudioMuted, fontSize = 11.sp)
                         }
+                        StudioAction("Assist", onClick = { assistOpen = true }, enabled = !saving)
+                        Spacer(Modifier.width(7.dp))
                         StudioAction("Run", emphasized = true, onClick = { saveScript(runAfterSave = true) }, enabled = !saving)
                     }
                     val matches = remember(query, editorValue.text) {
@@ -508,6 +512,54 @@ private fun ScriptStudioContent(
                     }) { Text("Continue", color = StudioBlue) }
                 },
                 dismissButton = { TextButton(onClick = { dialogTitle = null }) { Text("Cancel", color = StudioMuted) } },
+            )
+        }
+        if (assistOpen && selectedProject != null && selectedPath != null) {
+            ScriptAssistDialog(
+                fileName = selectedPath.orEmpty(),
+                currentSource = editorValue.text,
+                assistant = scriptAssistant,
+                onDismiss = { assistOpen = false },
+                onApply = { proposed ->
+                    editorValue = TextFieldValue(proposed, selection = TextRange(proposed.length))
+                    status = "Assist proposal applied · review then Save"
+                    assistOpen = false
+                },
+                onInsert = { proposed ->
+                    val fragment = scriptAssistInsertedFragment(editorValue.text, proposed)
+                    if (fragment.isBlank()) {
+                        status = "Assist proposal has no insertable changes"
+                    } else {
+                        val start = minOf(editorValue.selection.start, editorValue.selection.end).coerceIn(0, editorValue.text.length)
+                        val end = maxOf(editorValue.selection.start, editorValue.selection.end).coerceIn(start, editorValue.text.length)
+                        val next = editorValue.text.replaceRange(start, end, fragment)
+                        val caret = start + fragment.length
+                        editorValue = TextFieldValue(next, selection = TextRange(caret))
+                        status = "Assist change inserted · review then Save"
+                    }
+                    assistOpen = false
+                },
+                onCreateNew = { proposed ->
+                    assistOpen = false
+                    val owner = selectedProject?.takeIf { File(workspace.files.root, it.id).isDirectory }
+                    askForText("New file from Assist", "generated.js") { rawName ->
+                        runCatching {
+                            val name = rawName.trim().let { if (it.endsWith(".js", true)) it else "$it.js" }
+                            val file = if (owner == null) workspace.files.createScript(name)
+                                else workspace.files.createFile(owner.id, name)
+                            val id = if (owner == null) file.nameWithoutExtension else owner.id
+                            val path = if (owner == null) file.name
+                                else file.relativeTo(File(workspace.files.root, id)).invariantSeparatorsPath
+                            workspace.files.writeFile(id, path, proposed)
+                            id to path
+                        }.onSuccess { (id, path) ->
+                            refreshProjects(id, path)
+                            page = StudioPage.EDITOR
+                            status = "Created $path from Assist"
+                            scope.launch { onCommandsReloaded(workspace.reload()) }
+                        }.onFailure { status = it.message ?: "Could not create assisted file" }
+                    }
+                },
             )
         }
     }
