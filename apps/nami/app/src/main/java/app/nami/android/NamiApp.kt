@@ -21,8 +21,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -147,6 +149,7 @@ fun NamiApp(
 
     NamiTheme {
         Scaffold(
+            contentWindowInsets = WindowInsets(0),
             bottomBar = {
                 if (stack.isEmpty()) {
                     NavigationBar {
@@ -386,6 +389,18 @@ private fun GlobalSearchHome(
     }
 
     val shownSections = searchState.sections
+    val resultListState = rememberLazyListState()
+    val shownOrder = shownSections.map { it.source.metadata.id }
+
+    LaunchedEffect(shownOrder) {
+        // LazyColumn preserves the first visible keyed item when items move. During live
+        // global search that can hide a newly completed source above the anchored row.
+        // If the user is still at the top of the results, keep the viewport pinned to
+        // position zero so each completion-order transition is immediately visible.
+        if (resultListState.firstVisibleItemIndex <= 1) {
+            resultListState.scrollToItem(0)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -427,6 +442,7 @@ private fun GlobalSearchHome(
         when {
             shownSections.isNotEmpty() -> {
                 LazyColumn(
+                    state = resultListState,
                     modifier = Modifier
                         .fillMaxSize()
                         .testTag("global-search-results"),
@@ -436,7 +452,8 @@ private fun GlobalSearchHome(
                         items = shownSections,
                         key = { it.source.metadata.id },
                     ) { section ->
-                        GlobalSearchSourceSection(
+                        Box(modifier = Modifier.animateItem()) {
+                            GlobalSearchSourceSection(
                             section = section,
                             query = query.trim(),
                             onOpenSource = { source, listing ->
@@ -447,7 +464,8 @@ private fun GlobalSearchHome(
                                 dismissSearchKeyboard()
                                 onOpenAnime(source, item)
                             },
-                        )
+                            )
+                        }
                     }
                 }
             }
@@ -584,7 +602,13 @@ private fun GlobalSearchSourceSection(
     onOpenSource: (NamiAnimeSource, SourceListing) -> Unit,
     onOpenAnime: (NamiAnimeSource, AnimeSearchResult) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "Global search source: " + section.source.metadata.name
+            },
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
