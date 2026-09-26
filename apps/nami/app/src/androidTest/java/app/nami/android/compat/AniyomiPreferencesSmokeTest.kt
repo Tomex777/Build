@@ -9,19 +9,25 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.UiScrollable
 import androidx.test.uiautomator.UiSelector
 import androidx.test.uiautomator.Until
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import app.nami.android.AniyomiSourcePreferencesActivity
 import app.nami.android.NamiApplication
 import app.nami.compat.aniyomi.AniyomiConfigurableSourceHandle
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import androidx.lifecycle.Lifecycle
 import org.junit.runner.RunWith
+import java.io.File
+import kotlin.math.abs
 
 @RunWith(AndroidJUnit4::class)
 class AniyomiPreferencesSmokeTest {
@@ -60,6 +66,24 @@ class AniyomiPreferencesSmokeTest {
                 30_000,
             )
             assertNotNull("AnimeSogo preference screen did not render Preferred Quality", qualityRow)
+
+            var topInset = 0
+            scenario.onActivity { activity ->
+                topInset = ViewCompat.getRootWindowInsets(activity.window.decorView)
+                    ?.getInsets(WindowInsetsCompat.Type.statusBars())
+                    ?.top
+                    ?: 0
+            }
+            val firstPreference = device.wait(
+                Until.findObject(By.text("Preferred Domain")),
+                10_000,
+            )
+            assertNotNull("AnimeSogo did not render its first source preference", firstPreference)
+            assertTrue(
+                "Source preferences still overlap the status bar: rowTop=" +
+                    firstPreference.visibleBounds.top + " inset=" + topInset,
+                firstPreference.visibleBounds.top >= topInset,
+            )
             qualityRow.click()
 
             val quality720 = device.wait(
@@ -141,6 +165,70 @@ class AniyomiPreferencesSmokeTest {
                     device.hasObject(By.text(title)),
                 )
             }
+
+            var markFillerRow = findPreferenceRow(device, "Mark Filler Episodes")
+            assertNotNull(
+                "AnimeSogo preference screen did not render Mark Filler Episodes",
+                markFillerRow,
+            )
+            var markFillerSwitch = nearestSwitch(device, markFillerRow!!)
+            assertNotNull(
+                "Mark Filler Episodes did not render a native checkable switch",
+                markFillerSwitch,
+            )
+
+            if (!markFillerSwitch!!.isChecked) {
+                markFillerRow.click()
+                device.waitForIdle()
+                SystemClock.sleep(250)
+                markFillerSwitch = nearestSwitch(device, markFillerRow)
+                assertTrue(
+                    "Mark Filler Episodes did not visually switch ON after tapping it",
+                    markFillerSwitch?.isChecked == true,
+                )
+            }
+
+            val beforeTurningOff = preferences.all.toMap()
+            markFillerRow.click()
+            device.waitForIdle()
+            SystemClock.sleep(300)
+            markFillerSwitch = nearestSwitch(device, markFillerRow)
+            assertFalse(
+                "Mark Filler Episodes still reports checked after switching it OFF",
+                markFillerSwitch?.isChecked ?: true,
+            )
+            val afterTurningOff = preferences.all.toMap()
+            assertTrue(
+                "Switching Mark Filler Episodes OFF did not persist a boolean source preference",
+                afterTurningOff.any { (name, value) ->
+                    value is Boolean &&
+                        value == false &&
+                        beforeTurningOff[name] != value
+                },
+            )
+
+            val screenshot = File(application.filesDir, "nami-source-preferences.png")
+            assertTrue(
+                "Could not capture source preference acceptance screenshot",
+                device.takeScreenshot(screenshot),
+            )
+
+            scenario.close()
+            scenario = ActivityScenario.launch(intent)
+            markFillerRow = findPreferenceRow(device, "Mark Filler Episodes")
+            assertNotNull(
+                "Mark Filler Episodes disappeared after reopening source settings",
+                markFillerRow,
+            )
+            val reopenedSwitch = nearestSwitch(device, markFillerRow!!)
+            assertNotNull(
+                "Reopened Mark Filler Episodes did not expose its switch",
+                reopenedSwitch,
+            )
+            assertFalse(
+                "Mark Filler Episodes OFF state did not survive reopening source settings",
+                reopenedSwitch!!.isChecked,
+            )
         } finally {
             val editor = preferences.edit().clear()
             originalValues.forEach { (name, value) ->
@@ -159,5 +247,35 @@ class AniyomiPreferencesSmokeTest {
             editor.commit()
             scenario?.close()
         }
+    }
+
+    private fun findPreferenceRow(
+        device: UiDevice,
+        title: String,
+    ): UiObject2? {
+        device.findObject(By.text(title))?.let { return it }
+        runCatching {
+            UiScrollable(UiSelector().scrollable(true))
+                .setAsVerticalList()
+                .scrollTextIntoView(title)
+        }
+        return device.wait(Until.findObject(By.text(title)), 10_000)
+    }
+
+    private fun nearestSwitch(
+        device: UiDevice,
+        title: UiObject2,
+    ): UiObject2? {
+        val centerY = title.visibleBounds.centerY()
+        return device.findObjects(By.checkable(true))
+            .filter { candidate ->
+                candidate.className?.contains("Switch", ignoreCase = true) == true
+            }
+            .minByOrNull { candidate ->
+                abs(candidate.visibleBounds.centerY() - centerY)
+            }
+            ?.takeIf { candidate ->
+                abs(candidate.visibleBounds.centerY() - centerY) <= title.visibleBounds.height() * 2
+            }
     }
 }
