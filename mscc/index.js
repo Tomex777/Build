@@ -16,6 +16,7 @@ import QRCode from 'qrcode'
 import { startWebPanel } from './web-panel.js'
 import { dispatchCommand, loadCommands } from './commands/registry.js'
 import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
+import { selectCcDestination } from './cc-routing.js'
 
 const COMMANDS_URL = new URL('./commands/', import.meta.url)
 let commandRegistry = await loadCommands(COMMANDS_URL)
@@ -178,10 +179,12 @@ const trackable = jid => {
   return x.endsWith('@g.us') || x.endsWith('@s.whatsapp.net') || x.endsWith('@lid')
 }
 const masked = n => !n ? 'Not configured' : n.length < 8 ? n : `${n.slice(0,3)}••••${n.slice(-4)}`
-const destinationIdFor = sourceId => {
-  const override = resolveAccountId(ccOverrides[sourceId])
-  return override && accounts.get(override)?.enabled ? override : destination
-}
+const destinationIdFor = sourceId => selectCcDestination({
+  sourceId,
+  defaultDestination: destination,
+  overrides: ccOverrides,
+  accounts,
+})
 const destinationAccount = sourceId => accounts.get(destinationIdFor(sourceId))
 
 function futureproof(message) {

@@ -38,6 +38,42 @@ jobs:
           grep -Fq "perAccountCcOverride: true" index.js
           grep -Fq "writeRuntimeRegistry()" index.js
 
+      - name: Verify multi-account CC routing
+        working-directory: mscc
+        run: |
+          node --input-type=module <<'NODE'
+          import { selectCcDestination } from './cc-routing.js'
+
+          const accounts = new Map([
+            ['account-1', { enabled:true }],
+            ['account-2', { enabled:true }],
+            ['account-3', { enabled:true }],
+            ['account-4', { enabled:true }],
+          ])
+
+          let destination = 'account-1'
+          const overrides = {}
+          const source = 'account-3'
+
+          const first = selectCcDestination({ sourceId:source, defaultDestination:destination, overrides, accounts })
+          if (first !== 'account-1') throw new Error('Account 3 did not route to Account 1')
+
+          destination = 'account-2'
+          const second = selectCcDestination({ sourceId:source, defaultDestination:destination, overrides, accounts })
+          if (second !== 'account-2') throw new Error('Destination change did not apply without restart')
+
+          overrides[source] = 'account-4'
+          const third = selectCcDestination({ sourceId:source, defaultDestination:destination, overrides, accounts })
+          if (third !== 'account-4') throw new Error('Per-account override architecture failed')
+
+          delete overrides[source]
+          const fourth = selectCcDestination({ sourceId:source, defaultDestination:destination, overrides, accounts })
+          if (fourth !== 'account-2') throw new Error('Global fallback after override removal failed')
+
+          if (source === first || source === second) throw new Error('Source and destination were incorrectly coupled')
+          console.log('Multi-account CC routing OK')
+          NODE
+
       - name: Verify dynamic account registry migration
         working-directory: mscc
         run: |
