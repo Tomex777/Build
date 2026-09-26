@@ -32,7 +32,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -59,6 +62,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -116,7 +120,7 @@ private fun ensureAnnieMonarchTheme(context: android.content.Context): ThemeMode
     ThemeRegistry.currentTheme
 }
 
-private enum class StudioPage(val title: String) { FILES("Files"), EDITOR("Editor"), API("API") }
+private enum class StudioPage(val title: String) { FILES("Files"), EDITOR("Editor"), ENV("ENV"), API("API") }
 private enum class FileAction { RENAME, SHARE, EXPORT, DELETE, ENABLE, DISABLE }
 private enum class StudioGlyph { SAVE, CLOSE, ASSIST, RUN, FIND, UNDO, REDO, REFRESH, EXPAND, COLLAPSE }
 
@@ -167,6 +171,7 @@ private fun ScriptStudioContent(
     var consoleHeight by remember { mutableStateOf(166.dp) }
     var consoleCollapsed by remember { mutableStateOf(false) }
     var pendingExport by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var pendingSpecExport by remember { mutableStateOf<String?>(null) }
     var apiSearch by remember { mutableStateOf("") }
 
     fun refreshProjects(preferredProject: String? = selectedProjectId, preferredPath: String? = selectedPath) {
@@ -269,9 +274,33 @@ private fun ScriptStudioContent(
         }
     }
 
+    val exportSpec = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/markdown")) { uri ->
+        val source = pendingSpecExport
+        pendingSpecExport = null
+        if (uri != null && source != null) scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openOutputStream(uri)?.bufferedWriter(Charsets.UTF_8)?.use { it.write(source) }
+                        ?: error("Could not write the Annie scripting spec")
+                }
+            }.onSuccess { status = "Exported ${AnnieScriptSpec.FILE_NAME}" }
+                .onFailure { status = it.message ?: "Spec export failed" }
+        }
+    }
+
     fun exportFile(name: String, source: String) {
         pendingExport = name to source
         exportScript.launch(name)
+    }
+
+    fun exportAiSpec() {
+        val project = projects.firstOrNull { it.id == selectedProjectId }
+        pendingSpecExport = AnnieScriptSpec.build(
+            project = project,
+            selectedPath = selectedPath,
+            selectedSource = if (project != null && selectedPath != null) editorValue.text else null,
+        )
+        exportSpec.launch(AnnieScriptSpec.FILE_NAME)
     }
 
     fun shareFile(name: String, source: String) {
@@ -522,7 +551,37 @@ private fun ScriptStudioContent(
                 }
             }
 
-            StudioPage.API -> ApiReferenceScreen(apiSearch, { apiSearch = it })
+            StudioPage.ENV -> {
+                val project = selectedProject
+                if (project == null) {
+                    EmptyStudioState("Choose a script", "Select a script project to view its ENV configuration.")
+                } else {
+                    ScriptEnvScreen(
+                        workspace = workspace,
+                        scriptId = project.id,
+                        definition = workspace.envDefinition(project.id),
+                        onStatus = { status = it },
+                        onAction = { action ->
+                            scope.launch {
+                                val result = workspace.executeAction(
+                                    scriptId = project.id,
+                                    actionId = action,
+                                    payloadJson = "{}",
+                                    chatId = "script-env",
+                                    messageId = System.nanoTime(),
+                                )
+                                status = result?.resultJson?.let { raw ->
+                                    runCatching { org.json.JSONObject(raw).optString("text") }.getOrNull()
+                                }?.takeIf(String::isNotBlank) ?: "ENV action completed"
+                                logVersion++
+                            }
+                        },
+                    )
+                    StudioStatus(status, Modifier.padding(horizontal = 16.dp, vertical = 7.dp))
+                }
+            }
+
+            StudioPage.API -> ApiReferenceScreen(apiSearch, { apiSearch = it }, onExportSpec = ::exportAiSpec)
         }
 
         if (dialogTitle != null) {
@@ -704,7 +763,225 @@ private fun ScriptConsolePanel(
 }
 
 @Composable
-private fun ApiReferenceScreen(search: String, onSearch: (String) -> Unit) {
+private fun ScriptEnvScreen(
+    workspace: ScriptWorkspace,
+    scriptId: String,
+    definition: ScriptEnvDefinition?,
+    onStatus: (String) -> Unit,
+    onAction: (String) -> Unit,
+) {
+    if (definition == null) {
+        EmptyStudioState(
+            "No ENV declared",
+            "Add annie.env.define({...}) to this enabled script, then Save/Run to generate its native configuration.",
+        )
+        return
+    }
+
+    Column(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 12.dp)) {
+        Text(definition.title, color = StudioText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        if (definition.description.isNotBlank()) {
+            Text(definition.description, color = StudioMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+        }
+        Text(
+            "Persistent configuration for this script. Secrets are never shown after saving.",
+            color = StudioMuted,
+            fontSize = 11.sp,
+            modifier = Modifier.padding(top = 5.dp, bottom = 10.dp),
+        )
+        LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            items(definition.fields, key = { it.key }) { field ->
+                ScriptEnvFieldCard(workspace, scriptId, field, onStatus, onAction)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScriptEnvFieldCard(
+    workspace: ScriptWorkspace,
+    scriptId: String,
+    field: ScriptEnvField,
+    onStatus: (String) -> Unit,
+    onAction: (String) -> Unit,
+) {
+    Surface(
+        color = StudioSurface,
+        shape = RoundedCornerShape(13.dp),
+        border = BorderStroke(1.dp, StudioBorder),
+        modifier = Modifier.fillMaxWidth().testTag("script_env_${field.key}"),
+    ) {
+        Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(field.label, color = StudioText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    if (field.description.isNotBlank()) {
+                        Text(field.description, color = StudioMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
+                    }
+                }
+                Text(field.type.wireName.uppercase(), color = StudioBlue, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            }
+
+            when (field.type) {
+                ScriptEnvFieldType.SWITCH -> {
+                    var checked by remember(scriptId, field.key) {
+                        mutableStateOf(workspace.envValue(scriptId, field.key) as? Boolean ?: false)
+                    }
+                    Switch(
+                        checked = checked,
+                        onCheckedChange = {
+                            checked = it
+                            runCatching { workspace.setEnvValue(scriptId, field.key, it) }
+                                .onSuccess { onStatus("Saved ${field.label}") }
+                                .onFailure { error -> onStatus(error.message ?: "ENV update failed") }
+                        },
+                        modifier = Modifier.testTag("script_env_switch_${field.key}"),
+                    )
+                }
+
+                ScriptEnvFieldType.TEXT -> {
+                    var value by remember(scriptId, field.key) {
+                        mutableStateOf(workspace.envValue(scriptId, field.key)?.toString().orEmpty())
+                    }
+                    OutlinedTextField(
+                        value = value,
+                        onValueChange = {
+                            value = it
+                            runCatching { workspace.setEnvValue(scriptId, field.key, it) }
+                                .onFailure { error -> onStatus(error.message ?: "ENV update failed") }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text(field.label) },
+                    )
+                }
+
+                ScriptEnvFieldType.SECRET -> {
+                    var value by remember(scriptId, field.key) { mutableStateOf("") }
+                    var configured by remember(scriptId, field.key) { mutableStateOf(workspace.envHasSecret(scriptId, field.key)) }
+                    OutlinedTextField(
+                        value = value,
+                        onValueChange = {
+                            value = it
+                            runCatching { workspace.setEnvValue(scriptId, field.key, it) }
+                                .onSuccess { configured = it.isNotBlank() }
+                                .onFailure { error -> onStatus(error.message ?: "Secret ENV update failed") }
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("script_env_secret_${field.key}"),
+                        singleLine = true,
+                        label = { Text(if (configured && value.isBlank()) "${field.label} · configured" else field.label) },
+                        visualTransformation = PasswordVisualTransformation(),
+                    )
+                    if (configured) Text("Stored securely. Enter a replacement value, or clear the field to remove it.", color = StudioMuted, fontSize = 10.sp)
+                }
+
+                ScriptEnvFieldType.NUMBER -> {
+                    var value by remember(scriptId, field.key) {
+                        mutableStateOf(workspace.envValue(scriptId, field.key)?.toString().orEmpty())
+                    }
+                    OutlinedTextField(
+                        value = value,
+                        onValueChange = { next ->
+                            value = next
+                            next.toDoubleOrNull()?.let { number ->
+                                runCatching { workspace.setEnvValue(scriptId, field.key, number) }
+                                    .onFailure { error -> onStatus(error.message ?: "ENV update failed") }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text(field.label) },
+                    )
+                }
+
+                ScriptEnvFieldType.SELECT -> {
+                    var selected by remember(scriptId, field.key) {
+                        mutableStateOf(workspace.envValue(scriptId, field.key)?.toString().orEmpty())
+                    }
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        field.options.forEach { option ->
+                            Surface(
+                                color = if (option == selected) Color(0xFF16446A) else StudioSurface2,
+                                shape = RoundedCornerShape(9.dp),
+                                border = BorderStroke(1.dp, if (option == selected) StudioBlue else StudioBorder),
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    selected = option
+                                    runCatching { workspace.setEnvValue(scriptId, field.key, option) }
+                                        .onSuccess { onStatus("Saved ${field.label}") }
+                                        .onFailure { error -> onStatus(error.message ?: "ENV update failed") }
+                                },
+                            ) {
+                                Text(option, color = StudioText, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp))
+                            }
+                        }
+                    }
+                }
+
+                ScriptEnvFieldType.MULTI_SELECT -> {
+                    val initial = remember(scriptId, field.key) {
+                        val raw = workspace.envValue(scriptId, field.key) as? org.json.JSONArray
+                        buildSet {
+                            if (raw != null) for (index in 0 until raw.length()) raw.optString(index).takeIf(String::isNotBlank)?.let(::add)
+                        }
+                    }
+                    var selected by remember(scriptId, field.key) { mutableStateOf(initial) }
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        field.options.forEach { option ->
+                            val active = option in selected
+                            Surface(
+                                color = if (active) Color(0xFF16446A) else StudioSurface2,
+                                shape = RoundedCornerShape(9.dp),
+                                border = BorderStroke(1.dp, if (active) StudioBlue else StudioBorder),
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    selected = if (active) selected - option else selected + option
+                                    runCatching {
+                                        workspace.setEnvValue(scriptId, field.key, org.json.JSONArray(selected.toList()))
+                                    }.onSuccess { onStatus("Saved ${field.label}") }
+                                        .onFailure { error -> onStatus(error.message ?: "ENV update failed") }
+                                },
+                            ) {
+                                Text((if (active) "✓ " else "") + option, color = StudioText, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp))
+                            }
+                        }
+                    }
+                }
+
+                ScriptEnvFieldType.SLIDER -> {
+                    val min = (field.min ?: 0.0).toFloat()
+                    val max = (field.max ?: 1.0).toFloat().coerceAtLeast(min + 0.0001f)
+                    var value by remember(scriptId, field.key) {
+                        mutableStateOf((workspace.envValue(scriptId, field.key) as? Number)?.toFloat()?.coerceIn(min, max) ?: min)
+                    }
+                    Text("%.2f".format(value), color = StudioMuted, fontSize = 11.sp)
+                    Slider(
+                        value = value,
+                        onValueChange = {
+                            value = it
+                            runCatching { workspace.setEnvValue(scriptId, field.key, it.toDouble()) }
+                                .onFailure { error -> onStatus(error.message ?: "ENV update failed") }
+                        },
+                        valueRange = min..max,
+                    )
+                }
+
+                ScriptEnvFieldType.ACTION -> {
+                    StudioAction(
+                        label = field.label,
+                        emphasized = true,
+                        onClick = {
+                            val action = field.action
+                            if (action.isNullOrBlank()) onStatus("ENV action ${field.key} has no action handler")
+                            else onAction(action)
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ApiReferenceScreen(search: String, onSearch: (String) -> Unit, onExportSpec: () -> Unit) {
     val clipboard = LocalClipboardManager.current
     val entries = remember {
         listOf(
@@ -713,14 +990,20 @@ private fun ApiReferenceScreen(search: String, onSearch: (String) -> Unit) {
             ApiEntry("Browser", "annie.browser.open(spec)", "Create a browser request that can be returned as a native Annie browser message. Read or clear its shared session with session(id) and clear(id).", "return annie.messages.browser({\n  url: \"https://example.com\",\n  sessionId: \"catalog\"\n});"),
             ApiEntry("Storage", "annie.storage.get/set(key, value)", "Persistent storage isolated to this script project.", "await annie.storage.set(\"lastSearch\", query);\nconst saved = await annie.storage.get(\"lastSearch\");"),
             ApiEntry("Files", "annie.files.readText/writeText/list(path)", "Read and write files inside this script’s private data directory.", "const files = await annie.files.list(\"\");"),
-            ApiEntry("Messages", "Return { type, ... }", "Return structured data. Annie renders native text, image, music, video, options, and progress messages.", "return { type: \"image\", uri, caption: \"Result\" };"),
+            ApiEntry("ENV", "annie.env.define/get/set/secret/values", "Declare persistent per-script user configuration. Secret fields use Keystore-backed encrypted storage and are excluded from values().", "annie.env.define({ fields: [{ key: \"enabled\", type: \"switch\", label: \"Enabled\", default: true }] });"),
+            ApiEntry("Messages", "Return { type, ... }", "Return structured data. Annie renders registered first-party native message types.", "return { type: \"image\", uri, caption: \"Result\" };"),
             ApiEntry("Console", "annie.log.info/warn/error(...)", "Write diagnostics to the editor’s integrated Output panel.", "annie.log.info(\"Loaded results\", results.length);"),
         )
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 15.dp, vertical = 12.dp)) {
-        Text("API reference", color = StudioText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-        Text("Search Annie’s script interfaces and copy examples.", color = StudioMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp, bottom = 11.dp))
-        StudioInput(search, onSearch, "Search APIs", Modifier.fillMaxWidth())
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("API reference", color = StudioText, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text("Search Annie’s script interfaces and export a portable AI-ready spec.", color = StudioMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
+            }
+            StudioAction("Export AI spec", emphasized = true, onClick = onExportSpec)
+        }
+        StudioInput(search, onSearch, "Search APIs", Modifier.fillMaxWidth().padding(top = 11.dp))
         LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(entries.filter { search.isBlank() || listOf(it.category, it.signature, it.description, it.example).any { value -> value.contains(search, true) } }) { entry ->
                 Surface(color = StudioSurface, shape = RoundedCornerShape(13.dp), border = BorderStroke(1.dp, StudioBorder), modifier = Modifier.fillMaxWidth()) {
