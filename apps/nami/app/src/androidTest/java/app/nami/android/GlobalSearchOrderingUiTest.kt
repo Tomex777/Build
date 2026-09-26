@@ -2,7 +2,6 @@ package app.nami.android
 
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.test.SemanticsNodeInteraction
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -67,7 +66,7 @@ class GlobalSearchOrderingUiTest {
     private fun waitForAllSources() {
         composeRule.waitUntil(10_000) {
             listOf("Alpha", "Beta", "Zulu").all { name ->
-                sourceNode(name).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+                runCatching { sourceNode(name).fetchSemanticsNode() }.isSuccess
             }
         }
     }
@@ -95,10 +94,9 @@ class GlobalSearchOrderingUiTest {
     }
 
     private fun sourceBounds(name: String): Rect? =
-        sourceNode(name)
-            .fetchSemanticsNodes(atLeastOneRootRequired = false)
-            .firstOrNull()
-            ?.boundsInRoot
+        runCatching {
+            sourceNode(name).fetchSemanticsNode().boundsInRoot
+        }.getOrNull()
 
     private fun sourceNode(name: String): SemanticsNodeInteraction =
         composeRule.onNodeWithContentDescription(
