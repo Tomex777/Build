@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -35,7 +36,7 @@ class ChatInsetTest {
         val conversation = compose.onNodeWithTag("conversation").fetchSemanticsNode().boundsInRoot
         val composer = compose.onNodeWithTag("composer").fetchSemanticsNode().boundsInRoot
         val input = compose.onNodeWithTag("composer_input").fetchSemanticsNode().boundsInRoot
-        val latestMessage = compose.onNodeWithText("Hi, I’m Annie. What are you in the mood for? Type a command to start. Providers stay separate, and I’ll show clearly when one is unavailable.").fetchSemanticsNode().boundsInRoot
+        val latestMessage = compose.onAllNodesWithTag("chat_message")[0].fetchSemanticsNode().boundsInRoot
         assertTrue("Top bar must start below the status bar inset", top.top > 0f)
         assertTrue("Conversation must start below the status-bar-safe top bar", conversation.top >= top.bottom)
         assertTrue("Conversation must end at the composer, without a blank gap", kotlin.math.abs(composer.top - conversation.bottom) <= 2f)
