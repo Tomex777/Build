@@ -21,8 +21,12 @@ class AnnieScriptSpecTest {
 
         assertTrue(spec.contains("annie.env.define"))
         assertTrue(spec.contains("annie.env.secret"))
+        assertTrue(spec.contains("annie.messages.form"))
+        assertTrue(spec.contains("annie.schedule.create"))
+        assertTrue(spec.contains("annie.tasks.start"))
         assertTrue(spec.contains("Registered native message types:"))
         assertTrue(spec.contains("video"))
+        assertTrue(spec.contains("form"))
         assertTrue(spec.contains("Project: Demo"))
         assertTrue(spec.contains("return currentValue;"))
         assertFalse(spec.contains("return oldValue;"))
