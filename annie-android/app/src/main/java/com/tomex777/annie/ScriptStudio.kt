@@ -126,6 +126,7 @@ private fun ScriptStudioContent(
     var savedSource by remember { mutableStateOf(editorValue.text) }
     var page by remember { mutableStateOf(StudioPage.FILES) }
     var status by remember { mutableStateOf("Ready") }
+    var saving by remember { mutableStateOf(false) }
     var newFileName by remember { mutableStateOf("") }
     var dialogTitle by remember { mutableStateOf<String?>(null) }
     var dialogValue by remember { mutableStateOf("") }
@@ -164,12 +165,14 @@ private fun ScriptStudioContent(
     }
 
     fun saveScript(runAfterSave: Boolean = false) {
+        if (saving) return
         val project = projects.firstOrNull { it.id == selectedProjectId } ?: run {
             status = "Choose a script first"
             return
         }
         val path = selectedPath ?: return
         val source = editorValue.text
+        saving = true
         scope.launch {
             runCatching {
                 workspace.files.writeFile(project.id, path, source)
@@ -191,6 +194,7 @@ private fun ScriptStudioContent(
                 } else "Saved and reloaded"
                 logVersion++
             }.onFailure { status = it.message ?: if (runAfterSave) "Run failed" else "Save failed"; logVersion++ }
+                .also { saving = false }
         }
     }
 
@@ -278,7 +282,12 @@ private fun ScriptStudioContent(
                 Text("Script Studio", color = StudioText, fontSize = 21.sp, fontWeight = FontWeight.Bold)
                 Text(selectedProject?.let { "${it.name} · ${selectedPath ?: it.entryPath}" } ?: "Your JavaScript workspace", color = StudioMuted, fontSize = 12.sp, maxLines = 1)
             }
-            StudioAction(if (dirty) "Save" else "Saved", emphasized = dirty, onClick = { saveScript() }, enabled = selectedProject != null && selectedPath != null)
+            StudioAction(
+                label = when { saving -> "Saving…"; dirty -> "Save"; else -> "Saved" },
+                emphasized = dirty || saving,
+                onClick = { saveScript() },
+                enabled = !saving && dirty && selectedProject != null && selectedPath != null,
+            )
             Spacer(Modifier.width(8.dp))
             StudioAction("×", onClick = onClose, contentDescription = "Close Script Studio")
         }
@@ -438,7 +447,7 @@ private fun ScriptStudioContent(
                             }
                             Text(project.name, color = StudioMuted, fontSize = 11.sp)
                         }
-                        StudioAction("Run", emphasized = true, onClick = { saveScript(runAfterSave = true) })
+                        StudioAction("Run", emphasized = true, onClick = { saveScript(runAfterSave = true) }, enabled = !saving)
                     }
                     val matches = remember(query, editorValue.text) {
                         if (query.isBlank()) 0 else Regex(Regex.escape(query), RegexOption.IGNORE_CASE).findAll(editorValue.text).count()
