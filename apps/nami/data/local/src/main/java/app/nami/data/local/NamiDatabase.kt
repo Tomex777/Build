@@ -35,6 +35,15 @@ data class StoredDownload(
     val errorMessage: String?,
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
+    val bytesDownloaded: Long = 0L,
+    val totalBytes: Long? = null,
+    val tempPath: String? = null,
+    val hlsCompletedParts: Int = 0,
+    val pauseReason: String? = null,
+    val retryCount: Int = 0,
+    val mediaKind: String? = null,
+    val etag: String? = null,
+    val lastModified: String? = null,
 )
 
 data class StoredWatchProgress(
@@ -98,6 +107,17 @@ class NamiDatabase(
             addColumnIfMissing(db, "watch_progress", "episode_source_state", "TEXT")
             addColumnIfMissing(db, "watch_progress", "duration_ms", "INTEGER NOT NULL DEFAULT 0")
             addColumnIfMissing(db, "watch_progress", "last_watched_at", "INTEGER NOT NULL DEFAULT 0")
+        }
+        if (oldVersion < 7) {
+            addColumnIfMissing(db, "downloads", "bytes_downloaded", "INTEGER NOT NULL DEFAULT 0")
+            addColumnIfMissing(db, "downloads", "total_bytes", "INTEGER")
+            addColumnIfMissing(db, "downloads", "temp_path", "TEXT")
+            addColumnIfMissing(db, "downloads", "hls_completed_parts", "INTEGER NOT NULL DEFAULT 0")
+            addColumnIfMissing(db, "downloads", "pause_reason", "TEXT")
+            addColumnIfMissing(db, "downloads", "retry_count", "INTEGER NOT NULL DEFAULT 0")
+            addColumnIfMissing(db, "downloads", "media_kind", "TEXT")
+            addColumnIfMissing(db, "downloads", "etag", "TEXT")
+            addColumnIfMissing(db, "downloads", "last_modified", "TEXT")
         }
     }
 
@@ -193,6 +213,15 @@ class NamiDatabase(
         contentUri: String? = null,
         mimeType: String? = null,
         errorMessage: String? = null,
+        bytesDownloaded: Long = 0L,
+        totalBytes: Long? = null,
+        tempPath: String? = null,
+        hlsCompletedParts: Int = 0,
+        pauseReason: String? = null,
+        retryCount: Int = 0,
+        mediaKind: String? = null,
+        etag: String? = null,
+        lastModified: String? = null,
     ) {
         val now = System.currentTimeMillis()
         val existing = getDownload(sourceId, sourceEpisodeId)
@@ -212,6 +241,15 @@ class NamiDatabase(
             put("content_uri", contentUri)
             put("mime_type", mimeType)
             put("error_message", errorMessage)
+            put("bytes_downloaded", bytesDownloaded.coerceAtLeast(0L))
+            if (totalBytes == null) putNull("total_bytes") else put("total_bytes", totalBytes.coerceAtLeast(0L))
+            put("temp_path", tempPath)
+            put("hls_completed_parts", hlsCompletedParts.coerceAtLeast(0))
+            put("pause_reason", pauseReason)
+            put("retry_count", retryCount.coerceAtLeast(0))
+            put("media_kind", mediaKind)
+            put("etag", etag)
+            put("last_modified", lastModified)
             put("updated_at", now)
             put("created_at", existing?.createdAtEpochMillis ?: now)
         }
@@ -392,6 +430,17 @@ class NamiDatabase(
             errorMessage = cursor.getString(cursor.getColumnIndexOrThrow("error_message")),
             createdAtEpochMillis = cursor.getLong(cursor.getColumnIndexOrThrow("created_at")),
             updatedAtEpochMillis = cursor.getLong(cursor.getColumnIndexOrThrow("updated_at")),
+            bytesDownloaded = cursor.getLong(cursor.getColumnIndexOrThrow("bytes_downloaded")),
+            totalBytes = cursor.getColumnIndexOrThrow("total_bytes").let { index ->
+                if (cursor.isNull(index)) null else cursor.getLong(index)
+            },
+            tempPath = cursor.getString(cursor.getColumnIndexOrThrow("temp_path")),
+            hlsCompletedParts = cursor.getInt(cursor.getColumnIndexOrThrow("hls_completed_parts")),
+            pauseReason = cursor.getString(cursor.getColumnIndexOrThrow("pause_reason")),
+            retryCount = cursor.getInt(cursor.getColumnIndexOrThrow("retry_count")),
+            mediaKind = cursor.getString(cursor.getColumnIndexOrThrow("media_kind")),
+            etag = cursor.getString(cursor.getColumnIndexOrThrow("etag")),
+            lastModified = cursor.getString(cursor.getColumnIndexOrThrow("last_modified")),
         )
     }
 
@@ -468,6 +517,15 @@ class NamiDatabase(
                 state TEXT NOT NULL,
                 progress INTEGER NOT NULL DEFAULT 0,
                 error_message TEXT,
+                bytes_downloaded INTEGER NOT NULL DEFAULT 0,
+                total_bytes INTEGER,
+                temp_path TEXT,
+                hls_completed_parts INTEGER NOT NULL DEFAULT 0,
+                pause_reason TEXT,
+                retry_count INTEGER NOT NULL DEFAULT 0,
+                media_kind TEXT,
+                etag TEXT,
+                last_modified TEXT,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL DEFAULT 0,
                 UNIQUE(source_id, source_episode_id)
@@ -499,7 +557,7 @@ class NamiDatabase(
 
     companion object {
         private const val DATABASE_NAME = "nami.db"
-        private const val VERSION = 6
+        private const val VERSION = 7
 
         private val WATCH_PROGRESS_COLUMNS = arrayOf(
             "source_id",
@@ -532,6 +590,15 @@ class NamiDatabase(
             "state",
             "progress",
             "error_message",
+            "bytes_downloaded",
+            "total_bytes",
+            "temp_path",
+            "hls_completed_parts",
+            "pause_reason",
+            "retry_count",
+            "media_kind",
+            "etag",
+            "last_modified",
             "created_at",
             "updated_at",
         )
