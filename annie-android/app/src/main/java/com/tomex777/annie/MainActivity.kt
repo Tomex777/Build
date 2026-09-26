@@ -169,6 +169,7 @@ internal fun AnnieChat() {
     }
     var activeChatId by remember { mutableStateOf(chats.first().id) }
     val activeChat = chats.firstOrNull { it.id == activeChatId } ?: chats.first()
+    val character = AnnieCharacters.byId(activeChat.characterId)
     val messages = activeChat.messages
     val activeScriptId = scriptWorkspace.activeScriptId(activeChatId)
     val activeScriptCommand = scriptCommands.firstOrNull { it.scriptId == activeScriptId }
@@ -464,7 +465,7 @@ internal fun AnnieChat() {
 
     Surface(modifier = Modifier.fillMaxSize(), color = Night) {
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding().testTag("chat_root")) {
-            AnnieTopBar(onHistory = { activeSheet = "Chat history" })
+            AnnieTopBar(character = character, onHistory = { activeSheet = "Chat history" })
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth().testTag("conversation"),
                 state = listState,
@@ -475,6 +476,7 @@ internal fun AnnieChat() {
                     val bubbleContent: @Composable () -> Unit = {
                         ChatBubble(
                             entry,
+                            character = character,
                             onCatalogClick = ::openSelectedTitle,
                             onActionClick = ::handleMenuAction,
                             onOpenSource = { sourceUrl ->
@@ -557,7 +559,7 @@ internal fun AnnieChat() {
                     chats = chats,
                     activeChatId = activeChatId,
                     onNewChat = {
-                        val newChat = newWelcomeChat()
+                        val newChat = newWelcomeChat(excludeCharacterId = activeChat.characterId)
                         chats.add(0, newChat)
                         activeChatId = newChat.id
                         draft = TextFieldValue("")
@@ -690,13 +692,15 @@ private fun DownloadItem.toPlayerCatalogItem(): CatalogItem = CatalogItem(
     chapters = null,
 )
 
-private fun newWelcomeChat(): ChatSession {
+private fun newWelcomeChat(excludeCharacterId: String? = null): ChatSession {
+    val characterId = AnnieCharacters.randomId(excludeCharacterId)
+    val character = AnnieCharacters.byId(characterId)
     val welcome = ChatEntry(
         id = System.nanoTime(),
         fromUser = false,
-        text = "Hi, I’m Annie. What are you in the mood for? Type a command to start. Providers stay separate, and I’ll show clearly when one is unavailable.",
+        text = character.greeting,
     )
-    return ChatSession(System.nanoTime().toString(), mutableStateListOf(welcome))
+    return ChatSession(System.nanoTime().toString(), mutableStateListOf(welcome), characterId)
 }
 
 @Composable
@@ -754,18 +758,15 @@ private fun ChatHistoryContent(
 }
 
 @Composable
-private fun AnnieTopBar(onHistory: () -> Unit) {
+private fun AnnieTopBar(character: AnnieCharacter, onHistory: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().height(68.dp).background(Panel).padding(horizontal = 16.dp).testTag("top_bar"),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier.size(42.dp).clip(CircleShape)
-                .background(Brush.linearGradient(listOf(Color(0xFF8ED2FF), Color(0xFF245287)))),
-            contentAlignment = Alignment.Center
-        ) { Text("A", fontWeight = FontWeight.Bold, color = BrightText, fontSize = 18.sp) }
+        AnnieCharacterAvatar(character = character, size = 42.dp)
         Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-            Text("Annie", color = BrightText, fontWeight = FontWeight.Bold, fontSize = 19.sp)
+            Text(character.name, color = BrightText, fontWeight = FontWeight.Bold, fontSize = 19.sp)
+            Text("Annie character", color = SoftText, fontSize = 10.sp)
         }
         Text(
             "⋮",
@@ -812,6 +813,7 @@ private fun WelcomePanel() {
 @Composable
 internal fun ChatBubble(
     entry: ChatEntry,
+    character: AnnieCharacter = AnnieCharacters.default,
     onCatalogClick: (CatalogItem) -> Unit,
     onActionClick: (String, String) -> Unit,
     onOpenSource: (String) -> Unit,
@@ -825,16 +827,17 @@ internal fun ChatBubble(
         verticalAlignment = Alignment.Top
     ) {
         if (!entry.fromUser) {
-            Box(
-                Modifier.padding(end = 9.dp, top = 18.dp).size(32.dp).clip(CircleShape).background(Color(0xFF274C78)),
-                contentAlignment = Alignment.Center
-            ) { Text("A", color = BrightText, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+            AnnieCharacterAvatar(
+                character = character,
+                size = 32.dp,
+                modifier = Modifier.padding(end = 9.dp, top = 18.dp),
+            )
         }
         Column(
             modifier = Modifier.fillMaxWidth(0.88f),
             horizontalAlignment = if (entry.fromUser) Alignment.End else Alignment.Start
         ) {
-            Text(if (entry.fromUser) "You" else "Annie", color = SoftText, fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp, bottom = 5.dp))
+            Text(if (entry.fromUser) "You" else character.name, color = SoftText, fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp, bottom = 5.dp))
             if (entry.searchMedia != null) {
                 SearchMessage(entry.searchMedia, entry.searchInitial, onCatalogClick)
             } else if (entry.selectedItem != null) {
