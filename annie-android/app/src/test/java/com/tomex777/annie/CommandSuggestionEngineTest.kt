@@ -5,6 +5,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CommandSuggestionEngineTest {
+    @Test fun suggestionsRequireAnActualSlashPrefix() {
+        assertTrue(CommandSuggestionEngine.rank("", builtInCommandCandidates()).isEmpty())
+        assertTrue(CommandSuggestionEngine.rank("anime", builtInCommandCandidates()).isEmpty())
+        assertTrue(CommandSuggestionEngine.rank("  hello", builtInCommandCandidates()).isEmpty())
+    }
+
     @Test fun exactPrefixMakesAnimeTheObviousAniSuggestion() {
         val ranked = CommandSuggestionEngine.rank("/ani", builtInCommandCandidates())
         assertEquals("/anime", ranked.first().candidate.command)
