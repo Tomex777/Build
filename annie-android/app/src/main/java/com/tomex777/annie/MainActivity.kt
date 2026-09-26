@@ -1155,8 +1155,19 @@ private fun ScriptMusicMessage(data: org.json.JSONObject) {
             ) {
                 Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Lyrics", color = BrightText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                        Text(if (showLyrics) "Hide" else "Show", color = Color(0xFF42B9F5), fontSize = 12.sp)
+                        Text(
+                            "Lyrics",
+                            color = BrightText,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f).clickable { showLyrics = !showLyrics },
+                        )
+                        Text(
+                            if (showLyrics) "Hide" else "Show",
+                            color = Color(0xFF42B9F5),
+                            fontSize = 12.sp,
+                            modifier = Modifier.clickable { showLyrics = !showLyrics },
+                        )
                     }
                     if (showLyrics) {
                         Text(lyrics, color = BrightText, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 9.dp))
