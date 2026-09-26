@@ -379,10 +379,32 @@ class DownloadEngineSmokeTest {
                 }
             }
 
-            val partial = File(paused.tempPath!!)
-            withTimeout(10_000) {
-                while (partial.length() != paused.bytesDownloaded) delay(25)
+            val settledPaused = withTimeout(10_000) {
+                var lastMatchingBytes = -1L
+                while (true) {
+                    val current = firstManager.statuses.value[key]
+                    val currentFile = current?.tempPath
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let(::File)
+                    val currentLength = currentFile
+                        ?.takeIf { it.exists() }
+                        ?.length()
+                        ?: -1L
+                    val matchesDurableBoundary =
+                        current?.state == NamiDownloadState.PAUSED &&
+                            current.pauseReason == NamiPauseReason.USER &&
+                            currentLength > 0L &&
+                            current.bytesDownloaded == currentLength
+
+                    if (matchesDurableBoundary && currentLength == lastMatchingBytes) {
+                        return@withTimeout current
+                    }
+
+                    lastMatchingBytes = if (matchesDurableBoundary) currentLength else -1L
+                    delay(50)
+                }
             }
+            val partial = File(settledPaused.tempPath!!)
             assertTrue(
                 "Paused direct download lost its private partial before recreation",
                 partial.length() > 0L,
@@ -403,7 +425,7 @@ class DownloadEngineSmokeTest {
                 ?: throw AssertionError("Paused download disappeared after manager recreation")
             assertEquals(NamiDownloadState.PAUSED, restored.state)
             assertEquals(NamiPauseReason.USER, restored.pauseReason)
-            assertEquals(paused.bytesDownloaded, restored.bytesDownloaded)
+            assertEquals(settledPaused.bytesDownloaded, restored.bytesDownloaded)
             assertTrue(
                 "Recreated manager lost the resumable partial file",
                 File(restored.tempPath!!).exists(),
@@ -418,7 +440,7 @@ class DownloadEngineSmokeTest {
 
             assertTrue(
                 "Manager recreation resumed from byte zero instead of the saved Range",
-                observedRanges.any { it >= paused.bytesDownloaded && it > 0L },
+                observedRanges.any { it >= settledPaused.bytesDownloaded && it > 0L },
             )
             assertEquals(100, completed.progress)
 
