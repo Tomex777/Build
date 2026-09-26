@@ -248,6 +248,29 @@ replace_search_text() {
   adb shell input keyevent KEYCODE_ENTER
 }
 
+playback_proof_count() {
+  grep -c 'LYRA_PLAYBACK_PROOF' "$OUT/resolver-live-logcat.txt" 2>/dev/null || true
+}
+
+wait_for_new_playback_proof() {
+  local before="$1"
+  local timeout="$2"
+  local elapsed=0
+  while (( elapsed < timeout )); do
+    local after
+    after="$(playback_proof_count)"
+    if (( after > before )); then
+      return 0
+    fi
+    if node_contains 'Source needs browser session' >/dev/null 2>&1; then
+      return 2
+    fi
+    sleep 1
+    elapsed=$((elapsed+1))
+  done
+  return 1
+}
+
 assert_no_raw_timeout() {
   dump_ui
   if grep -Eqi 'Timed out awaiting|30000 ms|TimeoutCancellationException' /tmp/spotui.xml; then
@@ -364,74 +387,104 @@ sleep 1
 adb logcat -c || true
 adb logcat -v threadtime > "$OUT/resolver-live-logcat.txt" 2>&1 &
 LIVE_LOGCAT_PID=$!
+PROOF_BEFORE="$(playback_proof_count)"
 tap_text 'Play Easy On Me'
 wait_for_node 'Mini player' 15
 
-PLAYBACK_OUTCOME=""
-for _ in $(seq 1 50); do
-  if node_exists Pause >/dev/null 2>&1; then
-    PLAYBACK_OUTCOME="playing"
-    break
-  fi
-  if node_contains 'Source needs browser session' >/dev/null 2>&1; then
-    PLAYBACK_OUTCOME="challenged"
-    break
-  fi
-  sleep 1
-done
+set +e
+wait_for_new_playback_proof "$PROOF_BEFORE" 60
+PLAYBACK_RESULT=$?
+set -e
 
-if [[ "$PLAYBACK_OUTCOME" == "playing" ]]; then
-  shot 04-playing
-  adb shell dumpsys activity services com.night.spotui | grep -q 'SpotPlaybackService'
-  adb shell dumpsys media_session | grep -q 'com.night.spotui'
-
-  # Open the player and verify the production-facing layout no longer exposes
-  # source/codec diagnostics. The lyrics entry should be the primary card.
-  tap_text 'Mini player'
-  wait_for_node 'NOW PLAYING' 12
-  wait_for_node 'Lyrics' 12
-  if node_exists 'SOURCE'; then
-    shot failure-source-card
-    echo "Legacy SOURCE diagnostic card is still visible." >&2
-    exit 1
-  fi
-  shot 05-now-playing
-
-  # Regression proof for the user's Hear Me Calling -> Fast symptom: moving to
-  # the next queue item must update the selected track immediately rather than
-  # leaving/reopening the old item while a new stream resolves.
-  wait_for_node 'Now playing Easy On Me' 8
-  tap_text 'Next'
-  sleep 2
-  if node_exists 'Now playing Easy On Me'; then
-    shot failure-stale-next-track
-    echo "Next kept the old Now Playing title." >&2
-    exit 1
-  fi
-  wait_for_contains 'Now playing' 8
-  shot 06-next-transition
-
-  adb shell am start -W -a android.settings.SETTINGS >/dev/null
-  sleep 3
-  adb shell dumpsys activity services com.night.spotui | grep -q 'SpotPlaybackService'
-  adb shell dumpsys media_session | grep -q 'com.night.spotui'
-  shot 07-background
-  touch "$OUT/FULL_ANONYMOUS_PLAYBACK_PASS"
-  echo "SpotUI core + YouTube Music extension live playback, repeated search, and queue transition passed anonymously."
-elif [[ "$PLAYBACK_OUTCOME" == "challenged" ]]; then
-  shot 04-youtube-challenge
+if [[ "$PLAYBACK_RESULT" -eq 2 ]]; then
+  shot 08-youtube-challenge
   tap_text 'Source needs browser session · Open'
   wait_for_node 'Close source browser' 20
-  shot 05-sign-in-flow
+  shot 09-sign-in-flow
   capture_resolver_logs
-  grep -Eqi 'LOGIN_REQUIRED|sign in to confirm|not a bot' "$OUT/resolver-summary.txt"
-  touch "$OUT/SOURCE_BROWSER_SESSION_REQUIRED"
-  echo "The source hit a YouTube challenge; SpotUI crossed the extension boundary and opened the source-owned browser-session fallback correctly."
-else
+  touch "$OUT/SOURCE_BROWSER_SESSION_FALLBACK_PASS"
+  echo "Browser-session fallback was validated, but it is not accepted as playback proof." >&2
+  exit 1
+elif [[ "$PLAYBACK_RESULT" -ne 0 ]]; then
   capture_resolver_logs
-  echo "Neither playback nor the explicit YouTube sign-in fallback appeared." >&2
+  echo "Easy On Me never produced READY + duration + advancing position + cached audio bytes." >&2
   cat "$OUT/resolver-summary.txt" >&2 2>/dev/null || true
   exit 1
 fi
+
+shot 08-playing-proof
+adb shell dumpsys activity services com.night.spotui | grep -q 'SpotPlaybackService'
+adb shell dumpsys media_session | grep -q 'com.night.spotui'
+
+# Open the player and verify the production-facing layout no longer exposes
+# source/codec diagnostics. The lyrics entry should be the primary card.
+tap_text 'Mini player'
+wait_for_node 'NOW PLAYING' 12
+wait_for_node 'Lyrics' 12
+if node_exists 'SOURCE'; then
+  shot failure-source-card
+  echo "Legacy SOURCE diagnostic card is still visible." >&2
+  exit 1
+fi
+shot 09-now-playing
+
+# Regression proof for stale queue selection.
+wait_for_node 'Now playing Easy On Me' 8
+tap_text 'Next'
+sleep 2
+if node_exists 'Now playing Easy On Me'; then
+  shot failure-stale-next-track
+  echo "Next kept the old Now Playing title." >&2
+  exit 1
+fi
+wait_for_contains 'Now playing' 8
+shot 10-next-transition
+tap_text 'Close player'
+sleep 1
+
+# Real-device regression tracks: these previously resolved metadata correctly
+# while their final audio transport failed on the Galaxy A16.
+replace_search_text Fast
+wait_for_contains 'Juice WRLD' 35
+wait_for_node 'Play Fast' 35
+FAST_PROOF_BEFORE="$(playback_proof_count)"
+tap_text 'Play Fast'
+wait_for_node 'Mini player' 15
+if ! wait_for_new_playback_proof "$FAST_PROOF_BEFORE" 60; then
+  capture_resolver_logs
+  shot failure-fast-playback
+  echo "Juice WRLD - Fast did not produce actual playback proof." >&2
+  cat "$OUT/resolver-summary.txt" >&2 2>/dev/null || true
+  exit 1
+fi
+shot 11-fast-playing
+
+replace_search_text 'Wishing%sWell'
+wait_for_contains 'Juice WRLD' 35
+wait_for_node 'Play Wishing Well' 35
+WISHING_PROOF_BEFORE="$(playback_proof_count)"
+tap_text 'Play Wishing Well'
+wait_for_node 'Mini player' 15
+if ! wait_for_new_playback_proof "$WISHING_PROOF_BEFORE" 60; then
+  capture_resolver_logs
+  shot failure-wishing-well-playback
+  echo "Juice WRLD - Wishing Well did not produce actual playback proof." >&2
+  cat "$OUT/resolver-summary.txt" >&2 2>/dev/null || true
+  exit 1
+fi
+shot 12-wishing-well-playing
+
+# The playback proof marker is emitted only after READY, known duration,
+# advancing position, and non-zero cached audio bytes.
+grep -q 'LYRA_PLAYBACK_PROOF' "$OUT/resolver-live-logcat.txt"
+touch "$OUT/FULL_ANONYMOUS_PLAYBACK_PASS"
+
+adb shell am start -W -a android.settings.SETTINGS >/dev/null
+sleep 3
+adb shell dumpsys activity services com.night.spotui | grep -q 'SpotPlaybackService'
+adb shell dumpsys media_session | grep -q 'com.night.spotui'
+shot 13-background
+
+echo "Lyra core + YouTube Music source proved real cached-byte playback for Easy On Me, Fast, and Wishing Well."
 
 echo "SpotUI core + extension smoke passed."
