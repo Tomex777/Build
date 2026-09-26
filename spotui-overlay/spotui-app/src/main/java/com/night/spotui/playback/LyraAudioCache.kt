@@ -15,6 +15,7 @@ import androidx.media3.datasource.cache.CacheSpan
 import androidx.media3.datasource.cache.ContentMetadata
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.SimpleCache
+import com.night.spotui.ResolvedAudio
 import com.night.spotui.Track
 import java.io.File
 import java.security.MessageDigest
@@ -177,7 +178,8 @@ class LyraAudioCache(context: Context) {
     ): String = withContext(Dispatchers.IO) {
         val key = rememberVariant(sourceId, track, audio)
         val uri = Uri.parse(audio.url)
-        val requestLength = audio.contentLength?.takeIf { it > 0L } ?: C.LENGTH_UNSET.toLong()
+        val requestLength = audio.contentLength?.takeIf { it > 0L }
+            ?: cache.getContentMetadata(key).get(ContentMetadata.KEY_CONTENT_LENGTH, C.LENGTH_UNSET.toLong())
         val spec = DataSpec.Builder()
             .setUri(uri)
             .setPosition(0L)
@@ -199,7 +201,12 @@ class LyraAudioCache(context: Context) {
         inProgressDownloads.add(key)
         try {
             writer.cache()
-            pinDownload(key, sourceId, track, audio)
+            val knownLength = ContentMetadata.getContentLength(cache.getContentMetadata(key))
+                .takeIf { it > 0L }
+                ?: cachedBytes(key)
+            val completeAudio = audio.copy(contentLength = knownLength, cacheKey = key)
+            rememberVariant(sourceId, track, completeAudio)
+            pinDownload(key, sourceId, track, completeAudio)
             key
         } finally {
             inProgressDownloads.remove(key)
