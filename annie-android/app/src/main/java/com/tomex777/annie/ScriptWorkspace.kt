@@ -770,6 +770,9 @@ internal class ScriptWorkspace(context: Context) : AutoCloseable {
         }.getOrElse { JSONObject().put("type", "error").put("text", it.message ?: "Script failed").toString() }
     }
 
+    fun activeScriptId(chatId: String): String? =
+        readActiveSession(appContext, chatId)?.scriptId
+
     suspend fun executeSession(text: String, chatId: String, messageId: Long): ScriptDispatch? {
         val active = readActiveSession(appContext, chatId) ?: return null
         val runtime = runtimes[active.scriptId]
