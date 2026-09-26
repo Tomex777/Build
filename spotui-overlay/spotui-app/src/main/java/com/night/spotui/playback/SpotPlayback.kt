@@ -28,6 +28,8 @@ import com.night.spotui.ResolvedAudio
 import com.night.spotui.Track
 import com.night.spotui.TasteStore
 import com.night.spotui.ExtensionMusicSource
+import com.night.spotui.source.api.MusicSourceCallException
+import com.night.spotui.source.api.MusicSourceContract
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -281,10 +283,17 @@ class SpotPlaybackController(
                     activeCandidateIndex = 0
                     prepareStream(track, streams.first(), serial)
                 }
-                .onFailure {
+                .onFailure { failure ->
                     if (serial != requestSerial) return@onFailure
                     isLoading = false
-                    errorMessage = "Playback couldn’t start. Tap play to retry."
+                    errorMessage = if (
+                        (failure as? MusicSourceCallException)?.errorCode ==
+                        MusicSourceContract.ERROR_CODE_SESSION_REQUIRED
+                    ) {
+                        "This music source needs a browser session on this network."
+                    } else {
+                        "Playback couldn’t start. Tap play to retry."
+                    }
                 }
         }
     }

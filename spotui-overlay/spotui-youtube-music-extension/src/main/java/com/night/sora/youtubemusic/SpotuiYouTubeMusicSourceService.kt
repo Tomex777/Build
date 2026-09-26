@@ -124,6 +124,14 @@ class SpotuiYouTubeMusicSourceService : Service() {
                                 MusicSourceContract.KEY_ERROR,
                                 it.message ?: "YouTube Music source error",
                             )
+                            putString(
+                                MusicSourceContract.KEY_ERROR_CODE,
+                                if (it.requiresBrowserSession()) {
+                                    MusicSourceContract.ERROR_CODE_SESSION_REQUIRED
+                                } else {
+                                    MusicSourceContract.ERROR_CODE_GENERIC
+                                },
+                            )
                         }
                     }
                 }
@@ -131,6 +139,15 @@ class SpotuiYouTubeMusicSourceService : Service() {
             }
         }
     })
+
+    private fun Throwable.requiresBrowserSession(): Boolean =
+        generateSequence(this) { it.cause }.any { failure ->
+            val message = failure.message.orEmpty()
+            message.contains("LOGIN_REQUIRED", ignoreCase = true) ||
+                message.contains("sign in to confirm", ignoreCase = true) ||
+                message.contains("please sign in", ignoreCase = true) ||
+                message.contains("not a bot", ignoreCase = true)
+        }
 
     private fun manifestJson(): String = JSONObject()
         .put("id", "spotui.youtube.music")

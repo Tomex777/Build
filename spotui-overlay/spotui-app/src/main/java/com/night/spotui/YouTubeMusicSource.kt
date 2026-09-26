@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 5041)
+Total output lines: 535
+
 package com.night.spotui
 
 import android.content.ComponentName
@@ -12,6 +15,7 @@ import android.os.Looper
 import android.os.Message
 import android.os.Messenger
 import com.night.spotui.source.api.MusicSourceContract
+import com.night.spotui.source.api.MusicSourceCallException
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
@@ -218,120 +222,11 @@ class ExtensionMusicSource(context: Context) : MusicSource {
                 .put("dataSyncId", dataSyncId)
                 .put("authUser", authUser),
         ).getOrThrow()
-        JSONObject(raw).optBoolean("signedIn")
-    }
-
-    private suspend fun target(): Target {
-        activeTarget?.let { return it }
-        val discovered = discoverTarget()
-        activeTarget = discovered
-        return discovered
-    }
-
-    @Suppress("DEPRECATION")
-    private suspend fun discoverTarget(): Target {
-        val matches = appContext.packageManager.queryIntentServices(
-            Intent(MusicSourceContract.ACTION_BIND_SOURCE),
-            PackageManager.GET_META_DATA,
-        )
-
-        if (matches.isEmpty()) {
-            error("No SpotUI music source extension is installed.")
-        }
-
-        var lastError: Throwable? = null
-        for (match in matches) {
-            val info = match.serviceInfo ?: continue
-            val apiVersion = info.metaData?.getInt(
-                MusicSourceContract.META_API_VERSION,
-                -1,
-            ) ?: -1
-            if (apiVersion != MusicSourceContract.API_VERSION) continue
-
-            val component = ComponentName(info.packageName, info.name)
-            val manifest = call(
-                component,
-                MusicSourceContract.Method.MANIFEST,
-                JSONObject(),
-            ).getOrElse {
-                lastError = it
-                continue
-            }
-
-            val parsed = runCatching { parseManifest(component, manifest) }
-            parsed.getOrNull()?.let { return it }
-            lastError = parsed.exceptionOrNull()
-        }
-
-        throw lastError ?: IllegalStateException(
-            "No compatible SpotUI music source extension was found."
-        )
-    }
-
-    private fun parseManifest(component: ComponentName, raw: String): Target {
-        val root = JSONObject(raw)
-        require(root.optInt("apiVersion") == MusicSourceContract.API_VERSION) {
-            "Unsupported music source API"
-        }
-
-        val sources = root.optJSONArray("sources") ?: JSONArray()
-        for (index in 0 until sources.length()) {
-            val source = sources.optJSONObject(index) ?: continue
-            if (!contains(source.optJSONArray("contentTypes"), "music")) continue
-            val sourceId = source.optString("id")
-            if (sourceId.isBlank()) continue
-            return Target(
-                component = component,
-                sourceId = sourceId,
-                name = source.optString("name")
-                    .ifBlank { root.optString("name", "Music source") },
-            )
-        }
-        error("Extension does not expose a music source")
-    }
-
-    private suspend fun call(
-        component: ComponentName,
-        method: String,
-        payload: JSONObject,
-    ): Result<String> = try {
-        withTimeout(CALL_TIMEOUT_MS) {
-            suspendCancellableCoroutine { continuation ->
-            val requestId = UUID.randomUUID().toString()
-            val finished = AtomicBoolean(false)
-            var connection: ServiceConnection? = null
-
-            fun finish(result: Result<String>) {
-                if (!finished.compareAndSet(false, true)) return
-                connection?.let { bound ->
-                    runCatching { appContext.unbindService(bound) }
-                }
-                if (continuation.isActive) continuation.resume(result)
-            }
-
-            val reply = Messenger(
-                Handler(Looper.getMainLooper()) { message ->
-                    if (message.what != MusicSourceContract.MSG_RESPONSE) {
-                        return@Handler true
-                    }
-                    if (
-                        message.data.getString(MusicSourceContract.KEY_REQUEST_ID) !=
-                        requestId
-                    ) {
-                        return@Handler true
-                    }
-
-                    val result = if (
-                        message.data.getBoolean(MusicSourceContract.KEY_OK)
-                    ) {
-                        Result.success(
-                            message.data.getString(
-                                MusicSourceContract.KEY_RESULT_JSON
-                            ).orEmpty()
-                        )
-                    } else {
+        JSONObject(raw).optBoolean("s…1041 tokens truncated…          MusicSourceContract.KEY_ERROR_CODE
+                        ).orEmpty().ifBlank { MusicSourceContract.ERROR_CODE_GENERIC }
                         Result.failure(
-                            IllegalStateException(
+                            MusicSourceCallException(
+                                errorCode,
                                 message.data.getString(
                                     MusicSourceContract.KEY_ERROR
                                 ) ?: "Music source call failed"

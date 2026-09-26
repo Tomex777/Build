@@ -18,6 +18,10 @@ object MusicSourceContract {
     const val KEY_OK = "ok"
     const val KEY_RESULT_JSON = "resultJson"
     const val KEY_ERROR = "error"
+    const val KEY_ERROR_CODE = "errorCode"
+
+    const val ERROR_CODE_GENERIC = "source_error"
+    const val ERROR_CODE_SESSION_REQUIRED = "session_required"
 
     object Method {
         const val MANIFEST = "manifest"
@@ -31,3 +35,8 @@ object MusicSourceContract {
         const val STORE_SESSION = "storeSession"
     }
 }
+
+class MusicSourceCallException(
+    val errorCode: String,
+    message: String,
+) : IllegalStateException(message)
