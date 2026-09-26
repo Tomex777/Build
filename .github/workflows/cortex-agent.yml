@@ -22,7 +22,8 @@ jobs:
       - name: Start Cortex Agent
         shell: bash
         run: |
-          mkdir -p /tmp/night/node_modules
+          mkdir -p /tmp/night/node_modules /tmp/night/modules/demo
+          printf '{"name":"Demo Module","version":"1.2.3","commands":["hello"]}\n' >/tmp/night/modules/demo/module.json
           printf 'secret=must-stay-server-side\n' >/tmp/night/.env.production
           printf 'private-key' >/tmp/night/server.pem
           printf 'server-only' >/tmp/night/node_modules/server-only.js
@@ -150,6 +151,15 @@ jobs:
           echo "$STARTUP" | grep -q '"runtime":"Node.js"'
           echo "$STARTUP" | grep -q '"additionalNodePackages"'
           curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/activity?limit=50 | grep -q 'server:file.rename'
+      - name: Verify runtime module registry fallback
+        shell: bash
+        run: |
+          AUTH='Authorization: Bearer test-token-12345678901234567890'
+          REGISTRY=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/registry)
+          echo "$REGISTRY" | grep -q '"source":"filesystem"'
+          echo "$REGISTRY" | grep -q '"id":"demo"'
+          echo "$REGISTRY" | grep -q '"displayName":"Demo Module"'
+          echo "$REGISTRY" | grep -q '"hello"'
       - name: Verify clean project backup excludes server dependencies and secrets
         shell: bash
         run: |
