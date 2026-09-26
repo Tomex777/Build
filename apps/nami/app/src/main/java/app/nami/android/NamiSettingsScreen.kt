@@ -226,7 +226,7 @@ internal fun NamiSettingsScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             Text(
-                                text = "Up to 2 downloads run at once; additional episodes stay queued.",
+                                text = "Up to 2 downloads per extension run at once; additional episodes stay queued.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
