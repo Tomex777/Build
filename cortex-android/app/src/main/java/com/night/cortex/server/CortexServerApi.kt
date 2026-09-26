@@ -328,9 +328,13 @@ class CortexServerApi(
         URLEncoder.encode(value, StandardCharsets.UTF_8.toString()).replace("+", "%20")
 
     private fun encodeAccount(value: String): String {
-        val id = value.trim().uppercase()
-        require(id == "A" || id == "B") { "Unknown account" }
-        return id
+        val id = value.trim()
+        require(ACCOUNT_ID.matches(id)) { "Invalid account ID" }
+        return encode(id)
+    }
+
+    private companion object {
+        val ACCOUNT_ID = Regex("^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
     }
 }
 

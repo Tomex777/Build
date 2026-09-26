@@ -647,9 +647,9 @@ async function handler(req, res) {
     }
     if (req.method === 'POST' && url.pathname === '/api/cortex/mscc/destination') {
       const body = await readJson(req);
-      const account = String(body.account || '').toUpperCase();
-      if (!['A', 'B'].includes(account)) {
-        throw Object.assign(new Error('Destination must be A or B'), { statusCode: 400 });
+      const account = String(body.account || '').trim();
+      if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(account)) {
+        throw Object.assign(new Error('Invalid destination account ID'), { statusCode: 400 });
       }
       const result = await msccControl('POST', '/destination', { account });
       await recordActivity('mscc:destination.update', { account });
@@ -660,7 +660,7 @@ async function handler(req, res) {
       await recordActivity('mscc:commands.reload', { count: Array.isArray(result.commands) ? result.commands.length : 0 });
       return json(res, 200, result);
     }
-    const pairRoute = url.pathname.match(/^\/api\/cortex\/mscc\/accounts\/(A|B)\/(pair|reconnect|repair)$/);
+    const pairRoute = url.pathname.match(/^\/api\/cortex\/mscc\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/(pair|reconnect|repair)$/);
     if (req.method === 'POST' && pairRoute) {
       const [, id, action] = pairRoute;
       const body = await readJson(req);

@@ -29,6 +29,38 @@ android {
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}")
     }
+
+    signingConfigs {
+        val keystorePath = System.getenv("CORTEX_RELEASE_KEYSTORE")
+        val storePasswordValue = System.getenv("CORTEX_RELEASE_STORE_PASSWORD")
+        val keyAliasValue = System.getenv("CORTEX_RELEASE_KEY_ALIAS")
+        val keyPasswordValue = System.getenv("CORTEX_RELEASE_KEY_PASSWORD")
+        if (
+            !keystorePath.isNullOrBlank() &&
+            !storePasswordValue.isNullOrBlank() &&
+            !keyAliasValue.isNullOrBlank() &&
+            !keyPasswordValue.isNullOrBlank()
+        ) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = storePasswordValue
+                keyAlias = keyAliasValue
+                keyPassword = keyPasswordValue
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+            signingConfigs.findByName("release")?.let { signingConfig = it }
+        }
+    }
 }
 
 dependencies {
