@@ -306,6 +306,170 @@ class DownloadEngineSmokeTest {
     }
 
     @Test
+    fun hlsPauseResumeContinuesAtNextIncompleteSegment() = runBlocking<Unit> {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val databaseName = "nami-hls-resume-" + System.nanoTime() + ".db"
+        context.deleteDatabase(databaseName)
+        val database = NamiDatabase(context, databaseName)
+        val segmentSize = 384 * 1024
+        val segmentCount = 5
+        val segmentRequests = ConcurrentHashMap<String, AtomicInteger>()
+        var cleanupManager: NamiDownloadManager? = null
+
+        val server = object : NanoHTTPD(0) {
+            override fun serve(session: IHTTPSession): Response {
+                return if (session.uri.endsWith(".m3u8")) {
+                    val playlist = buildString {
+                        appendLine("#EXTM3U")
+                        appendLine("#EXT-X-TARGETDURATION:4")
+                        appendLine("#EXT-X-VERSION:3")
+                        repeat(segmentCount) { index ->
+                            appendLine("#EXTINF:4,")
+                            appendLine("seg-${index + 1}.ts")
+                        }
+                        appendLine("#EXT-X-ENDLIST")
+                    }
+                    newFixedLengthResponse(
+                        Response.Status.OK,
+                        "application/vnd.apple.mpegurl",
+                        playlist,
+                    )
+                } else {
+                    val segmentName = session.uri.substringAfterLast('/')
+                    segmentRequests
+                        .computeIfAbsent(segmentName) { AtomicInteger() }
+                        .incrementAndGet()
+                    newFixedLengthResponse(
+                        Response.Status.OK,
+                        "video/mp2t",
+                        GeneratedSlowInputStream(
+                            totalBytes = segmentSize.toLong(),
+                            delayMillis = 2L,
+                            onClose = {},
+                        ),
+                        segmentSize.toLong(),
+                    )
+                }
+            }
+        }
+
+        try {
+            server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
+            val source = object : NamiAnimeSource {
+                override val metadata = SourceMetadata(
+                    id = "hls-resume-fixture",
+                    name = "HLS Resume Fixture",
+                    origin = SourceOrigin.NATIVE_NAMI,
+                    capabilities = SourceCapabilities(downloadable = true),
+                )
+
+                override suspend fun search(
+                    query: String,
+                    page: Int,
+                ): SourcePage<AnimeSearchResult> = SourcePage(emptyList(), false)
+
+                override suspend fun details(anime: AnimeRef): AnimeDetails = error("Not used")
+                override suspend fun episodes(anime: AnimeRef): List<AnimeEpisode> = error("Not used")
+
+                override suspend fun resolve(episode: EpisodeRef): List<ResolvedMedia> =
+                    listOf(
+                        ResolvedMedia(
+                            url = "http://127.0.0.1:${server.listeningPort}/playlist.m3u8",
+                            mimeType = "application/vnd.apple.mpegurl",
+                            quality = "fixture",
+                        ),
+                    )
+            }
+
+            val manager = NamiDownloadManager(
+                context,
+                database,
+                NamiSourceRegistry { listOf(source) },
+            )
+            cleanupManager = manager
+            manager.resumeAll()
+
+            val anime = fixtureAnime(source, "HLS Resume")
+            val episode = fixtureEpisode(source, anime, 1)
+            val key = manager.key(source.metadata.id, episode.ref.sourceEpisodeId)
+            manager.enqueue(source, anime, episode)
+
+            val transferring = withTimeout(20_000) {
+                waitForStatus(manager, key) {
+                    it.state == NamiDownloadState.DOWNLOADING &&
+                        it.hlsCompletedParts in 1 until segmentCount
+                }
+            }
+            manager.pause(transferring)
+
+            val paused = withTimeout(10_000) {
+                waitForStatus(manager, key) {
+                    it.state == NamiDownloadState.PAUSED &&
+                        it.pauseReason == NamiPauseReason.USER &&
+                        it.hlsCompletedParts > 0
+                }
+            }
+            val completedBeforePause = paused.hlsCompletedParts
+            val partial = File(paused.tempPath!!)
+            val pausedBytes = partial.length()
+            delay(300)
+            assertEquals(
+                "Paused HLS transfer kept writing after cancellation settled",
+                pausedBytes,
+                partial.length(),
+            )
+
+            manager.resume(paused)
+            val completed = withTimeout(30_000) {
+                waitForStatus(manager, key) {
+                    it.state == NamiDownloadState.DOWNLOADED
+                }
+            }
+
+            for (index in 1..completedBeforePause) {
+                assertEquals(
+                    "HLS resume downloaded completed segment $index again",
+                    1,
+                    segmentRequests["seg-$index.ts"]?.get() ?: 0,
+                )
+            }
+            assertEquals(
+                "HLS resume did not complete every segment",
+                segmentCount,
+                completed.hlsCompletedParts,
+            )
+
+            val finalSize = context.contentResolver.query(
+                android.net.Uri.parse(completed.contentUri),
+                arrayOf(OpenableColumns.SIZE),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getLong(0) else -1L
+            } ?: -1L
+            assertEquals(
+                "HLS resume produced an unexpected concatenated media size",
+                segmentSize.toLong() * segmentCount,
+                finalSize,
+            )
+        } finally {
+            cleanupManager?.let { manager ->
+                manager.resumeAll()
+                manager.statuses.value.values.toList().forEach(manager::remove)
+                runCatching {
+                    withTimeout(10_000) {
+                        while (manager.statuses.value.isNotEmpty()) delay(50)
+                    }
+                }
+            }
+            server.stop()
+            database.close()
+            context.deleteDatabase(databaseName)
+        }
+    }
+
+    @Test
     fun realConnectivityLossWaitsThenAutomaticallyResumesPartialTransfer() = runBlocking<Unit> {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
