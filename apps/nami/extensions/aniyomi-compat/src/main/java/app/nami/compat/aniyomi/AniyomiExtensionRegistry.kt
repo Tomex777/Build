@@ -199,7 +199,6 @@ class AniyomiExtensionRegistry(
 
             loadedSources.map { legacy ->
                 LegacyAnimeSourceAdapter(
-                    hostContext = context.applicationContext,
                     packageName = packageInfo.packageName,
                     extensionName = extensionName,
                     extensionVersion = extensionVersion,
@@ -214,7 +213,6 @@ class AniyomiExtensionRegistry(
 }
 
 internal class LegacyAnimeSourceAdapter(
-    private val hostContext: Context,
     private val packageName: String,
     private val extensionName: String,
     private val extensionVersion: String,
