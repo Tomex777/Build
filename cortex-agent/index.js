@@ -330,6 +330,13 @@ async function startupInfo() {
     additionalNodePackages = Object.keys(pkg?.dependencies || {}).sort();
   } catch {}
 
+  let startupMode = 'unknown';
+  try {
+    startupMode = (await exec('systemctl', ['is-enabled', MANAGED_SERVICE], { timeout: 5000 })).stdout.trim() || 'unknown';
+  } catch (error) {
+    startupMode = String(error?.stdout || '').trim() || 'disabled';
+  }
+
   return {
     runtime: 'Node.js',
     version: process.version.replace(/^v/, ''),
@@ -337,10 +344,17 @@ async function startupInfo() {
     startCommand: START_COMMAND,
     projectRoot: PROJECT_ROOT,
     service: MANAGED_SERVICE,
+    startupMode,
     gitRepository,
     gitBranch,
     additionalNodePackages,
   };
+}
+
+async function setStartupEnabled(enabled) {
+  await exec('systemctl', [enabled ? 'enable' : 'disable', MANAGED_SERVICE], { timeout: 30_000 });
+  await recordActivity('server:startup.update', { service: MANAGED_SERVICE, enabled });
+  return startupInfo();
 }
 
 
@@ -858,6 +872,13 @@ async function handler(req, res) {
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/startup') {
       return json(res, 200, await startupInfo());
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/startup') {
+      const body = await readJson(req);
+      if (typeof body.enabled !== 'boolean') {
+        throw Object.assign(new Error('enabled must be boolean'), { statusCode: 400 });
+      }
+      return json(res, 200, await setStartupEnabled(body.enabled));
     }
 
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/settings') {
