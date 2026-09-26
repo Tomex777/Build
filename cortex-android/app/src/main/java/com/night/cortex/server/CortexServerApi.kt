@@ -399,6 +399,11 @@ class CortexServerApi(
         requestJson("DELETE", "/api/cortex/host/backups?name=${encode(name)}", null)
     }
 
+    fun restoreBackup(name: String): String {
+        val result = postJson("/api/cortex/host/backups/restore", JSONObject().put("name", name))
+        return result.optString("safetyBackup")
+    }
+
     fun streamLogs(onLine: (String) -> Unit) {
         require(base.startsWith("https://")) { "Cortex Agent URL must use HTTPS" }
         require(token.isNotBlank()) { "Cortex Agent token is missing" }

@@ -337,6 +337,93 @@ async function deleteBackup(name) {
   return { ok: true, name: clean };
 }
 
+function validateRestoreEntry(name) {
+  const clean = cleanZipEntry(name);
+  const segments = clean.split('/').filter(Boolean);
+  if (segments.some(isProtectedName)) {
+    throw Object.assign(new Error('Backup contains a protected path'), { statusCode: 400 });
+  }
+  return clean;
+}
+
+async function assertSafeRestoreTree(root) {
+  const entries = await fs.readdir(root, { withFileTypes: true });
+  for (const entry of entries) {
+    if (isProtectedName(entry.name)) {
+      throw Object.assign(new Error('Backup contains a protected path'), { statusCode: 400 });
+    }
+    const full = path.join(root, entry.name);
+    const info = await fs.lstat(full);
+    if (info.isSymbolicLink()) {
+      throw Object.assign(new Error('Backup restore refuses symbolic links'), { statusCode: 400 });
+    }
+    if (info.isDirectory()) await assertSafeRestoreTree(full);
+    else if (!info.isFile()) throw Object.assign(new Error('Backup contains an unsupported file type'), { statusCode: 400 });
+  }
+}
+
+async function restoreProjectBackup(name) {
+  const clean = safeBackupName(name);
+  if (!clean.startsWith('project-')) {
+    throw Object.assign(new Error('Only source/project backups can be restored automatically'), { statusCode: 400 });
+  }
+  const archive = path.join(BACKUP_DIR, clean);
+  const info = await fs.stat(archive);
+  if (!info.isFile()) throw Object.assign(new Error('Backup is not a file'), { statusCode: 400 });
+
+  const listing = await exec('unzip', ['-Z1', archive], { timeout: 30_000, maxBuffer: 8 * 1024 * 1024 });
+  listing.stdout.split(/\r?\n/).filter(Boolean).forEach(validateRestoreEntry);
+
+  const safetyBackup = await createProjectBackup(false);
+  await ensureState();
+  const staging = path.join(STATE_DIR, 'restore-' + crypto.randomUUID());
+  let wasActive = false;
+  try {
+    await fs.mkdir(staging, { recursive: false });
+    await exec('unzip', ['-oq', archive, '-d', staging], {
+      timeout: 5 * 60_000,
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    await assertSafeRestoreTree(staging);
+
+    wasActive = (await serviceState()) === 'active';
+    if (wasActive) await exec('systemctl', ['stop', MANAGED_SERVICE], { timeout: 30_000 });
+
+    const entries = await fs.readdir(staging, { withFileTypes: true });
+    for (const entry of entries) {
+      const source = path.join(staging, entry.name);
+      const destination = safeProjectPath(entry.name);
+      await fs.cp(source, destination, {
+        recursive: entry.isDirectory(),
+        force: true,
+        preserveTimestamps: true,
+      });
+    }
+
+    await recordActivity('server:backup.restore', {
+      name: clean,
+      safetyBackup: safetyBackup.name,
+      mode: 'source-overlay',
+    });
+    return {
+      ok: true,
+      name: clean,
+      safetyBackup: safetyBackup.name,
+      restarted: wasActive,
+    };
+  } finally {
+    await fs.rm(staging, { recursive: true, force: true }).catch(() => {});
+    if (wasActive) {
+      await exec('systemctl', ['start', MANAGED_SERVICE], { timeout: 30_000 }).catch(async error => {
+        await recordActivity('server:backup.restore-restart-failed', {
+          name: clean,
+          error: error?.message || String(error),
+        });
+      });
+    }
+  }
+}
+
 async function sendBackup(res, name) {
   const clean = safeBackupName(name);
   const target = path.join(BACKUP_DIR, clean);
@@ -1042,6 +1129,10 @@ async function handler(req, res) {
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/backups/content') {
       return sendBackup(res, url.searchParams.get('name') || '');
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/backups/restore') {
+      const body = await readJson(req);
+      return json(res, 200, await restoreProjectBackup(String(body.name || '')));
     }
     if (req.method === 'DELETE' && url.pathname === '/api/cortex/host/backups') {
       return json(res, 200, await deleteBackup(url.searchParams.get('name') || ''));

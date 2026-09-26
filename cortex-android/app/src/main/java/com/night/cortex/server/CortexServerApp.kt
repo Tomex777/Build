@@ -258,6 +258,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                             onCreate = { sheet = SheetMode.BACKUP },
                             onDownload = vm::prepareBackupDownload,
                             onDelete = vm::deleteBackup,
+                            onRestore = vm::restoreBackup,
                         )
                         ServerTab.STARTUP -> StartupPage(
                             state = state,
@@ -813,8 +814,10 @@ private fun BackupsPage(
     onCreate: () -> Unit,
     onDownload: (BackupEntry) -> Unit,
     onDelete: (BackupEntry) -> Unit,
+    onRestore: (BackupEntry) -> Unit,
 ) {
     var deleting by remember { mutableStateOf<BackupEntry?>(null) }
+    var restoring by remember { mutableStateOf<BackupEntry?>(null) }
 
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -869,6 +872,11 @@ private fun BackupsPage(
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
+                        if (!backup.privateBackup) {
+                            IconButton(onClick = { restoring = backup }) {
+                                Icon(Icons.Rounded.Unarchive, "Restore project backup")
+                            }
+                        }
                         IconButton(onClick = { onDownload(backup) }) {
                             Icon(Icons.Rounded.Download, "Download backup")
                         }
@@ -880,6 +888,28 @@ private fun BackupsPage(
                 }
             }
         }
+    }
+
+    restoring?.let { backup ->
+        AlertDialog(
+            onDismissRequest = { restoring = null },
+            title = { Text("Restore project backup?") },
+            text = {
+                Text(
+                    "Cortex will create a new safety backup first, then restore source files from this project ZIP. " +
+                        "Private/session/auth backups are never restored through this action."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    restoring = null
+                    onRestore(backup)
+                }) { Text("Restore") }
+            },
+            dismissButton = {
+                TextButton(onClick = { restoring = null }) { Text("Cancel") }
+            },
+        )
     }
 
     deleting?.let { backup ->
@@ -1880,6 +1910,8 @@ private fun activityTitle(action: String): String = when (action) {
     "server:backup.create" -> "Created a backup"
     "server:backup.download" -> "Downloaded a backup"
     "server:backup.delete" -> "Deleted a backup"
+    "server:backup.restore" -> "Restored a project backup"
+    "server:backup.restore-restart-failed" -> "Restore completed but service restart failed"
     "server:startup.update" -> "Changed startup behavior"
     "mscc:module.reload" -> "Reloaded an MSCC module"
     "mscc:commands.reload" -> "Reloaded the command registry"

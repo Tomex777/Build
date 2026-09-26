@@ -168,6 +168,24 @@ jobs:
           echo "$REGISTRY" | grep -q '"displayName":"Demo Module"'
           echo "$REGISTRY" | grep -q '"fallback"'
           echo "$REGISTRY" | grep -q '"whatsapp.send"'
+      - name: Verify guarded source backup restore
+        shell: bash
+        run: |
+          AUTH='Authorization: Bearer test-token-12345678901234567890'
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"private":false}'             http://127.0.0.1:47831/api/cortex/host/backups >/tmp/restore-backup.json
+          RESTORE_BACKUP=$(python -c 'import json; print(json.load(open("/tmp/restore-backup.json"))["name"])')
+          printf 'changed-after-backup\n' >/tmp/night/index.js
+          RESTORED=$(curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d "{\"name\":\"$RESTORE_BACKUP\"}"             http://127.0.0.1:47831/api/cortex/host/backups/restore)
+          echo "$RESTORED" | grep -q '"ok":true'
+          echo "$RESTORED" | grep -q '"safetyBackup":"project-'
+          grep -q 'console.log("night")' /tmp/night/index.js
+          ! grep -q 'changed-after-backup' /tmp/night/index.js
+
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"private":true}'             http://127.0.0.1:47831/api/cortex/host/backups >/tmp/private-restore-backup.json
+          PRIVATE_RESTORE=$(python -c 'import json; print(json.load(open("/tmp/private-restore-backup.json"))["name"])')
+          code=$(curl -s -o /tmp/private-restore-response.json -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json'             -d "{\"name\":\"$PRIVATE_RESTORE\"}"             http://127.0.0.1:47831/api/cortex/host/backups/restore)
+          test "$code" = '400'
+
       - name: Verify clean project backup excludes server dependencies and secrets
         shell: bash
         run: |

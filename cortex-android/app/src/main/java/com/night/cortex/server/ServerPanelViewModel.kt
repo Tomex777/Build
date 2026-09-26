@@ -377,6 +377,28 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun restoreBackup(entry: BackupEntry) {
+        if (!_state.value.configured || entry.privateBackup) return
+        viewModelScope.launch {
+            busy("Backup restored. A safety backup was created first.") {
+                val result = withContext(Dispatchers.IO) {
+                    val api = api()
+                    val safetyBackup = api.restoreBackup(entry.name)
+                    Triple(
+                        safetyBackup,
+                        api.backups(),
+                        runCatching { api.activity() }.getOrDefault(emptyList()),
+                    )
+                }
+                _state.value = _state.value.copy(
+                    backups = result.second,
+                    activity = result.third,
+                    message = "Restored ${entry.name}. Safety backup: ${result.first}",
+                )
+            }
+        }
+    }
+
     fun createBackup(privateBackup: Boolean) {
         viewModelScope.launch {
             busy(if (privateBackup) "Private backup created." else "Project backup created.") {
