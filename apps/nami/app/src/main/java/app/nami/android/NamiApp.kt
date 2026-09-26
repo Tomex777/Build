@@ -996,6 +996,7 @@ private fun LibraryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                modifier = Modifier.testTag("library-top-bar"),
                 title = { Text("Library") },
                 actions = {
                     IconButton(onClick = onDownloads) {
