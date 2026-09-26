@@ -101,14 +101,18 @@ class NamiUiScreenshotTest {
         waitForText("Downloads", timeoutMillis = 30_000)
         capture("06-downloads.png")
 
-        when {
-            hasDescription("Cancel download") ->
-                composeRule.onAllNodesWithContentDescription("Cancel download")[0].performClick()
-            hasDescription("Delete downloaded file") ->
-                composeRule.onAllNodesWithContentDescription("Delete downloaded file")[0].performClick()
-            hasDescription("Remove download") ->
-                composeRule.onAllNodesWithContentDescription("Remove download")[0].performClick()
+        val downloadMenuDescription = "Download menu for Episode 8"
+        waitForDescription(downloadMenuDescription, timeoutMillis = 30_000)
+        composeRule.onNodeWithContentDescription(downloadMenuDescription).performClick()
+        waitUntil(15_000, "Aniyomi-style download row action") {
+            hasText("Cancel") || hasText("Delete") || hasText("Remove")
         }
+        when {
+            hasText("Cancel") -> composeRule.onNodeWithText("Cancel").performClick()
+            hasText("Delete") -> composeRule.onNodeWithText("Delete").performClick()
+            hasText("Remove") -> composeRule.onNodeWithText("Remove").performClick()
+        }
+        waitForText("No downloads", timeoutMillis = 30_000)
 
         device.pressBack()
         waitForDescription("Settings", timeoutMillis = 30_000)
@@ -178,6 +182,11 @@ class NamiUiScreenshotTest {
 
     private fun hasDescription(description: String): Boolean =
         composeRule.onAllNodesWithContentDescription(description)
+            .fetchSemanticsNodes(atLeastOneRootRequired = false)
+            .isNotEmpty()
+
+    private fun hasText(text: String): Boolean =
+        composeRule.onAllNodesWithText(text)
             .fetchSemanticsNodes(atLeastOneRootRequired = false)
             .isNotEmpty()
 
