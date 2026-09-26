@@ -181,6 +181,15 @@ internal object ScriptScheduler {
         return true
     }
 
+    fun cancelAllForScript(context: Context, scriptId: String) {
+        ScriptScheduleStore.list(context)
+            .filter { it.scriptId == scriptId }
+            .forEach { entry ->
+                cancelWork(context, entry)
+                ScriptScheduleStore.remove(context, scriptId, entry.id)
+            }
+    }
+
     internal fun enqueue(context: Context, entry: ScriptScheduleEntry) {
         if (!entry.enabled) return
         val manager = WorkManager.getInstance(context.applicationContext)
@@ -307,6 +316,9 @@ internal class AnnieScriptScheduleWorker(
                     scriptId = dispatch.scriptId,
                     channel = "schedule:${entry.id}",
                 )
+            }
+            if (entry.every == null) {
+                ScriptScheduleStore.put(applicationContext, entry.copy(enabled = false))
             }
             Result.success()
         } catch (_: Throwable) {
