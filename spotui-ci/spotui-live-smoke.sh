@@ -172,18 +172,20 @@ parents={child: parent for parent in root.iter() for child in parent}
 start=next((i for i,n in enumerate(nodes) if (n.attrib.get('text') or '').strip() == 'Discography'),None)
 if start is None: raise SystemExit('Discography section not visible')
 for node in nodes[start+1:]:
-    label=(node.attrib.get('text') or '').strip()
+    text=(node.attrib.get('text') or '').strip()
+    desc=(node.attrib.get('content-desc') or '').strip()
+    label=desc or text
     if not label or label == 'Albums, EPs and singles': continue
-    current=node
-    while current is not None:
-        if current.attrib.get('clickable') == 'true':
-            m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',current.attrib.get('bounds',''))
-            if m:
-                x1,y1,x2,y2=map(int,m.groups())
-                subprocess.check_call(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)])
-                raise SystemExit(0)
-        current=parents.get(current)
-raise SystemExit('No clickable album card found after Discography')
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+    if not m: continue
+    x1,y1,x2,y2=map(int,m.groups())
+    if x2-x1 < 120 or y2-y1 < 80: continue
+    # Album artwork and cards expose their title as contentDescription. Tap the
+    # visible card bounds directly, even if Android omits clickable=true on it.
+    subprocess.check_call(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)])
+    print('Tapped album card:',label)
+    raise SystemExit(0)
+raise SystemExit('No visible album card found after Discography')
 PY
   sleep 2
 }
