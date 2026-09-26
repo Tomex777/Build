@@ -281,8 +281,8 @@ internal class AnnieScriptTaskWorker(
                 )
                 Result.success()
             }
-        } catch (error: Throwable) {
-            val message = (error.message ?: error::class.java.simpleName).take(300)
+        } catch (_: Throwable) {
+            val message = "Task execution failed"
             if (runAttemptCount < 2) {
                 ScriptTaskStore.put(
                     applicationContext,
