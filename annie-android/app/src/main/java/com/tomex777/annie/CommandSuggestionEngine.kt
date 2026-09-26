@@ -50,11 +50,11 @@ internal object CommandSuggestionEngine {
 
         return candidates.asSequence()
             .distinctBy { normalizeCommand(it.command) }
-            .mapNotNull { candidate ->
-                val base = matchScore(normalized, candidate) ?: return@mapNotNull null
+            .mapIndexedNotNull { index, candidate ->
+                val base = matchScore(normalized, candidate) ?: return@mapIndexedNotNull null
                 val key = normalizeCommand(candidate.command)
                 val history = usage[key]
-                var score = base
+                var score = base - index
                 if (history != null) {
                     score += min(history.count * 8, 64)
                     val age = (nowMillis - history.lastUsedAtMillis).coerceAtLeast(0L)
@@ -181,20 +181,23 @@ internal object CommandUsageStore {
 
 internal fun builtInCommandCandidates(): List<CommandCandidate> = listOf(
     CommandCandidate("/anime", "Browse anime", keywords = setOf("anime", "episodes"), contextTags = setOf("anime")),
-    CommandCandidate("/anime search", "Search the anime catalog", keywords = setOf("find", "title"), contextTags = setOf("anime")),
-    CommandCandidate("/anime recent", "New anime episodes", keywords = setOf("aired", "recent"), contextTags = setOf("anime")),
-    CommandCandidate("/anime downloads", "Anime downloads", keywords = setOf("saved"), contextTags = setOf("anime")),
-    CommandCandidate("/anime continue", "Continue watching anime", keywords = setOf("resume"), contextTags = setOf("anime")),
+    CommandCandidate("/anime search", "Search the catalog", keywords = setOf("find", "title"), contextTags = setOf("anime")),
+    CommandCandidate("/anime recent", "New episodes", keywords = setOf("aired", "recent"), contextTags = setOf("anime")),
+    CommandCandidate("/anime downloads", "Downloads", keywords = setOf("saved"), contextTags = setOf("anime")),
+    CommandCandidate("/anime recently aired", "Recently aired", keywords = setOf("aired", "recent"), contextTags = setOf("anime")),
+    CommandCandidate("/anime continue", "Continue watching", keywords = setOf("resume"), contextTags = setOf("anime")),
+    CommandCandidate("/anime continue watching", "Continue watching", keywords = setOf("resume"), contextTags = setOf("anime")),
     CommandCandidate("/manga", "Browse manga", keywords = setOf("manga", "chapters"), contextTags = setOf("manga")),
-    CommandCandidate("/manga search", "Search manga", keywords = setOf("find"), contextTags = setOf("manga")),
-    CommandCandidate("/manga continue", "Continue reading", keywords = setOf("resume"), contextTags = setOf("manga")),
-    CommandCandidate("/manga downloads", "Manga downloads", keywords = setOf("saved"), contextTags = setOf("manga")),
-    CommandCandidate("/movie", "Browse movies", aliases = listOf("/movies"), keywords = setOf("film"), contextTags = setOf("movie")),
     CommandCandidate("/movie search", "Search movies", keywords = setOf("find", "film"), contextTags = setOf("movie")),
-    CommandCandidate("/movie continue", "Continue watching a movie", keywords = setOf("resume"), contextTags = setOf("movie")),
+    CommandCandidate("/movie", "Browse movies", aliases = listOf("/movies"), keywords = setOf("film"), contextTags = setOf("movie")),
+    CommandCandidate("/movie continue", "Continue watching", keywords = setOf("resume"), contextTags = setOf("movie")),
+    CommandCandidate("/tv series", "Browse TV series", keywords = setOf("television", "series"), contextTags = setOf("tv")),
     CommandCandidate("/tv", "Search TV series", aliases = listOf("/series"), keywords = setOf("television", "series"), contextTags = setOf("tv")),
     CommandCandidate("/tv search", "Search TV series", keywords = setOf("find", "series"), contextTags = setOf("tv")),
-    CommandCandidate("/tv continue", "Continue watching TV", keywords = setOf("resume", "series"), contextTags = setOf("tv")),
+    CommandCandidate("/tv continue", "Continue watching", keywords = setOf("resume", "series"), contextTags = setOf("tv")),
+    CommandCandidate("/manga search", "Search manga", keywords = setOf("find"), contextTags = setOf("manga")),
+    CommandCandidate("/manga continue", "Continue reading", keywords = setOf("resume"), contextTags = setOf("manga")),
+    CommandCandidate("/manga downloads", "Downloads", keywords = setOf("saved"), contextTags = setOf("manga")),
     CommandCandidate("/music", "Music", keywords = setOf("song", "track"), contextTags = setOf("music")),
     CommandCandidate("/continue", "Continue watching", keywords = setOf("resume")),
     CommandCandidate("/downloads", "Downloads", keywords = setOf("saved", "offline")),
