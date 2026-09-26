@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.io.File
@@ -109,7 +110,9 @@ class NamiDownloadManager(
     val globalPaused: StateFlow<Boolean> = mutableGlobalPaused.asStateFlow()
 
     init {
-        scope.launch {
+        // The service and UI need the persisted queue immediately after process recreation.
+        // Load the small download table before either can make scheduling decisions.
+        runBlocking(Dispatchers.IO) {
             reloadFromDatabase()
         }
     }
