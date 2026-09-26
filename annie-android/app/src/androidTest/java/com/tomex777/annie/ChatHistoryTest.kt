@@ -1,6 +1,7 @@
 package com.tomex777.annie
 
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -37,7 +38,10 @@ class ChatHistoryTest {
         compose.onNodeWithTag("composer_input").performTextInput("My saved conversation")
         compose.onNodeWithTag("send_message").performClick()
         compose.waitForIdle()
-        compose.onNodeWithTag("sent_message_animation").assertIsDisplayed()
+        // The reply can immediately auto-scroll to the newest bubble, so the outgoing
+        // animation node may legitimately leave the viewport. Its continued presence proves
+        // the sent message used the animated path; persistence/reopen is asserted below.
+        compose.onNodeWithTag("sent_message_animation").assertExists()
         val saved = ChatHistoryStore.read(context).first { it.title == "My saved conversation" }
         assertTrue(saved.messages.any { it.fromUser && it.text == "My saved conversation" })
 
