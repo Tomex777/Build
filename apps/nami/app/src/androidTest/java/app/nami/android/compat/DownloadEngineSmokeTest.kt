@@ -379,7 +379,7 @@ class DownloadEngineSmokeTest {
                 }
             }
 
-            val settledPaused = withTimeout(10_000) {
+            val settledPaused: NamiDownloadStatus = withTimeout(10_000) {
                 var lastMatchingBytes = -1L
                 while (true) {
                     val current = firstManager.statuses.value[key]
@@ -397,7 +397,7 @@ class DownloadEngineSmokeTest {
                             current.bytesDownloaded == currentLength
 
                     if (matchesDurableBoundary && currentLength == lastMatchingBytes) {
-                        return@withTimeout current
+                        return@withTimeout requireNotNull(current)
                     }
 
                     lastMatchingBytes = if (matchesDurableBoundary) currentLength else -1L
