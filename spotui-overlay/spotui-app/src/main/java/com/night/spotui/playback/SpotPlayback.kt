@@ -4,12 +4,14 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -19,6 +21,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -83,7 +86,11 @@ class SpotPlaybackController(
             }
         },
     )
-    private val mediaDataSource = ChunkedDataSource.Factory(audioCache.cacheDataSourceFactory(resolving))
+    // Cache is deliberately outermost: already-cached spans never reopen the network.
+    // Cache misses are then split into bounded CDN ranges before headers are resolved.
+    private val mediaDataSource = audioCache.cacheDataSourceFactory(
+        ChunkedDataSource.Factory(resolving),
+    )
     private val player = ExoPlayer.Builder(appContext)
         .setMediaSourceFactory(DefaultMediaSourceFactory(mediaDataSource))
         .build()
@@ -93,6 +100,8 @@ class SpotPlaybackController(
     private var activeCandidateIndex = -1
     private var activeSourceNamespace = ""
     private var refreshingAfterPlayerError = false
+    private var activeCacheKey: String? = null
+    private var playbackProofSerial = -1L
     private val downloadJobs = ConcurrentHashMap<String, Job>()
     private val downloadStates = mutableStateMapOf<String, LyraDownloadProgress>()
     private val downloadedTrackIds = ConcurrentHashMap.newKeySet<String>().apply {
@@ -136,12 +145,25 @@ class SpotPlaybackController(
 
             override fun onPlaybackStateChanged(state: Int) {
                 isLoading = state == Player.STATE_BUFFERING
-                if (state == Player.STATE_READY) durationMs = player.duration.coerceAtLeast(0L)
+                if (state == Player.STATE_READY) {
+                    durationMs = player.duration.coerceAtLeast(0L)
+                    Log.i(
+                        TAG,
+                        "playback ready track=" + currentTrack?.id.orEmpty() +
+                            " durationMs=" + durationMs + " " +
+                            safeStreamSummary(activeCandidates.getOrNull(activeCandidateIndex)),
+                    )
+                }
                 if (state == Player.STATE_ENDED) handleEnded()
             }
 
             override fun onPlayerError(error: PlaybackException) {
                 val track = currentTrack
+                logTransportFailure(
+                    stage = "playback",
+                    failure = error,
+                    stream = activeCandidates.getOrNull(activeCandidateIndex),
+                )
                 val nextIndex = activeCandidateIndex + 1
                 if (track != null && nextIndex in activeCandidates.indices) {
                     activeCandidateIndex = nextIndex
@@ -156,7 +178,13 @@ class SpotPlaybackController(
                     return
                 }
                 isLoading = false
-                errorMessage = "Playback couldn’t start. Tap play to retry."
+                errorMessage = if (
+                    refreshingAfterPlayerError && isRejectedTransportFailure(error)
+                ) {
+                    "This music source needs a browser session on this network."
+                } else {
+                    "Playback couldn’t start. Tap play to retry."
+                }
             }
         })
         scope.launch {
@@ -164,6 +192,26 @@ class SpotPlaybackController(
                 positionMs = player.currentPosition.coerceAtLeast(0L)
                 durationMs = player.duration.coerceAtLeast(0L)
                 val track = currentTrack
+                if (
+                    track != null &&
+                    player.playbackState == Player.STATE_READY &&
+                    durationMs > 0L &&
+                    positionMs >= 1_000L &&
+                    playbackProofSerial != requestSerial
+                ) {
+                    val cachedBytes = activeCacheKey?.let(audioCache::cachedBytes) ?: 0L
+                    if (cachedBytes > 0L) {
+                        playbackProofSerial = requestSerial
+                        Log.i(
+                            TAG,
+                            "LYRA_PLAYBACK_PROOF track=" + track.id +
+                                " ready=true durationMs=" + durationMs +
+                                " positionMs=" + positionMs +
+                                " cachedBytes=" + cachedBytes + " " +
+                                safeStreamSummary(activeCandidates.getOrNull(activeCandidateIndex)),
+                        )
+                    }
+                }
                 if (player.isPlaying && track != null && historyRecordedForTrack != track.id) {
                     val thresholdMs = if (durationMs > 0L) {
                         minOf(30_000L, maxOf(5_000L, durationMs / 2L))
@@ -193,15 +241,54 @@ class SpotPlaybackController(
     ): String {
         val namespace = source.cacheNamespace()
         audioCache.promoteCachedVariant(namespace, track)?.let { return it }
-        val stream = source.resolveCandidates(track).getOrThrow().firstOrNull()
-            ?: error("This source did not provide a playable download")
-        val cacheKey = audioCache.cacheKey(namespace, track.id, stream.mimeType, stream.label)
-        return audioCache.download(
-            namespace,
-            track,
-            stream.copy(cacheKey = cacheKey, cacheSourceId = namespace),
-            onProgress,
-        )
+
+        var candidates = source.resolveCandidates(track).getOrElse { failure ->
+            logTransportFailure("download-resolver", failure, null)
+            throw failure
+        }
+        var lastFailure: Throwable? = null
+
+        for (resolutionPass in 0..1) {
+            var sawRejectedTransport = false
+            for (stream in candidates) {
+                val cacheKey = audioCache.cacheKey(
+                    namespace,
+                    track.id,
+                    stream.mimeType,
+                    stream.label,
+                )
+                val candidate = stream.copy(
+                    cacheKey = cacheKey,
+                    cacheSourceId = namespace,
+                )
+                try {
+                    return audioCache.download(
+                        namespace,
+                        track,
+                        candidate,
+                        onProgress,
+                    )
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: Throwable) {
+                    lastFailure = failure
+                    sawRejectedTransport =
+                        sawRejectedTransport || isRejectedTransportFailure(failure)
+                    logTransportFailure("download", failure, candidate)
+                }
+            }
+
+            if (resolutionPass == 0 && sawRejectedTransport) {
+                candidates = source.resolveCandidates(track).getOrElse { failure ->
+                    logTransportFailure("download-refresh-resolver", failure, null)
+                    throw failure
+                }
+                continue
+            }
+            break
+        }
+
+        throw lastFailure ?: error("This source did not provide a playable download")
     }
 
     fun downloadedTracks(): List<Track> = audioCache.downloadedTracks()
@@ -244,8 +331,18 @@ class SpotPlaybackController(
                 downloadStates.remove(track.id)
                 downloadRevision += 1
                 throw cancelled
-            } catch (_: Throwable) {
-                downloadStates[track.id] = LyraDownloadProgress(error = "Download failed. Check the connection and try again.")
+            } catch (failure: Throwable) {
+                val sessionRequired =
+                    (failure as? MusicSourceCallException)?.errorCode ==
+                        MusicSourceContract.ERROR_CODE_SESSION_REQUIRED ||
+                        isRejectedTransportFailure(failure)
+                downloadStates[track.id] = LyraDownloadProgress(
+                    error = if (sessionRequired) {
+                        "Source needs a browser session. Open the source session and retry."
+                    } else {
+                        "Download failed. Check the connection and try again."
+                    }
+                )
                 downloadRevision += 1
             } finally {
                 downloadJobs.remove(track.id)
@@ -387,6 +484,7 @@ class SpotPlaybackController(
         player.clearMediaItems()
         streamHeaders.clear()
         activeStreamHeaders = emptyMap()
+        activeCacheKey = null
         activeCandidates = emptyList()
         activeCandidateIndex = -1
         if (!preserveRefreshGuard) refreshingAfterPlayerError = false
@@ -444,6 +542,7 @@ class SpotPlaybackController(
                 }
                 .onFailure { failure ->
                     if (serial != requestSerial) return@onFailure
+                    logTransportFailure("resolver", failure, null)
                     isLoading = false
                     errorMessage = if (
                         (failure as? MusicSourceCallException)?.errorCode ==
@@ -468,6 +567,7 @@ class SpotPlaybackController(
         streamLabel = stream.label
         val sourceNamespace = stream.cacheSourceId ?: activeSourceNamespace
         val cacheKey = audioCache.rememberVariant(sourceNamespace, track, stream)
+        activeCacheKey = cacheKey
         audioCache.protectForPlayback(cacheKey)
 
         val metadata = MediaMetadata.Builder()
@@ -486,6 +586,84 @@ class SpotPlaybackController(
         player.setMediaItem(item)
         player.prepare()
         player.playWhenReady = true
+    }
+
+    private fun isRejectedTransportFailure(failure: Throwable): Boolean {
+        val responseCode = generateSequence(failure) { it.cause }
+            .filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
+            .firstOrNull()
+            ?.responseCode
+        return responseCode != null && responseCode in setOf(403, 410, 416, 429)
+    }
+
+    private fun logTransportFailure(
+        stage: String,
+        failure: Throwable,
+        stream: ResolvedAudio?,
+    ) {
+        val httpFailure = generateSequence(failure) { it.cause }
+            .filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
+            .firstOrNull()
+        val spec = httpFailure?.dataSpec
+        val requestedLength = spec?.length?.let { length ->
+            if (length == C.LENGTH_UNSET.toLong()) "*" else length.toString()
+        } ?: "unknown"
+        val range = if (spec == null) {
+            "unknown"
+        } else {
+            spec.position.toString() + "+" + requestedLength
+        }
+        val causes = generateSequence(failure) { it.cause }
+            .take(6)
+            .joinToString(">") { cause ->
+                cause.javaClass.simpleName.ifBlank { "Throwable" }
+            }
+        val layer = when {
+            failure is MusicSourceCallException -> "resolver"
+            causes.contains("Cache", ignoreCase = true) -> "cache"
+            httpFailure != null -> "cdn"
+            failure is PlaybackException && failure.errorCode in 4000..4999 -> "decoder"
+            else -> "player"
+        }
+        Log.e(
+            TAG,
+            "transport failure stage=" + stage +
+                " layer=" + layer +
+                " status=" + (httpFailure?.responseCode ?: -1) +
+                " range=" + range +
+                " causes=" + causes + " " +
+                safeStreamSummary(stream),
+        )
+    }
+
+    private fun safeStreamSummary(stream: ResolvedAudio?): String {
+        if (stream == null) {
+            return "host=none client=none itag=none codec=none"
+        }
+        val uri = runCatching { Uri.parse(stream.url) }.getOrNull()
+        val host = uri?.host.orEmpty().lowercase().ifBlank { "none" }
+        val client = uri?.getQueryParameter("c")
+            ?.take(32)
+            ?.filter { value -> value.isLetterOrDigit() || value == '_' || value == '-' }
+            .orEmpty()
+            .ifBlank { "unknown" }
+        val itag = uri?.getQueryParameter("itag")
+            ?.take(8)
+            ?.filter(Char::isDigit)
+            .orEmpty()
+            .ifBlank { "unknown" }
+        val codec = stream.mimeType.orEmpty()
+            .substringBefore(';')
+            .take(40)
+            .ifBlank { "unknown" }
+        return "host=" + host +
+            " client=" + client +
+            " itag=" + itag +
+            " codec=" + codec
+    }
+
+    companion object {
+        private const val TAG = "LyraPlayback"
     }
 }
 
