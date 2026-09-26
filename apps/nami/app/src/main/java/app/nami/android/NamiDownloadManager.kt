@@ -850,6 +850,25 @@ class NamiDownloadManager(
         if (!temp.exists() && completedParts > 0) {
             completedParts = 0
         }
+
+        if (initial.mediaKind == MEDIA_KIND_HLS && temp.exists()) {
+            // bytesDownloaded is persisted only after a complete HLS part. Android can kill
+            // the process in the middle of the next segment before our exception handler has
+            // a chance to roll the file back. Truncate to the last durable segment boundary
+            // before resuming so a full segment is never appended after a stale half-segment.
+            val durableBoundary = initial.bytesDownloaded
+            if (
+                durableBoundary < 0L ||
+                durableBoundary > temp.length() ||
+                (durableBoundary == 0L && completedParts > 0)
+            ) {
+                RandomAccessFile(temp, "rw").use { it.setLength(0L) }
+                completedParts = 0
+            } else if (temp.length() != durableBoundary) {
+                RandomAccessFile(temp, "rw").use { it.setLength(durableBoundary) }
+            }
+        }
+
         if (completedParts == 0 && temp.exists() && initial.hlsCompletedParts == 0) {
             RandomAccessFile(temp, "rw").use { it.setLength(0L) }
         }
