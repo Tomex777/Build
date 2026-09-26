@@ -16,14 +16,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -77,6 +74,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
@@ -512,10 +510,12 @@ internal fun AnnieChat() {
                             },
                         )
                     }
-                    if (animatedMessageIds[entry.id] == true) {
-                        MessageArrivalAnimation(fromUser = entry.fromUser) { bubbleContent() }
-                    } else {
-                        Box(Modifier.animateContentSize(animationSpec = tween(180))) { bubbleContent() }
+                    Box(Modifier.animateItem(placementSpec = tween(180))) {
+                        if (animatedMessageIds[entry.id] == true) {
+                            MessageArrivalAnimation(fromUser = entry.fromUser) { bubbleContent() }
+                        } else {
+                            Box(Modifier.animateContentSize(animationSpec = tween(180))) { bubbleContent() }
+                        }
                     }
                 }
             }
@@ -635,23 +635,25 @@ private fun MessageArrivalAnimation(
     fromUser: Boolean,
     content: @Composable () -> Unit,
 ) {
-    val visible = remember {
-        MutableTransitionState(false).apply { targetState = true }
-    }
+    val progress = remember { Animatable(0f) }
     val duration = if (fromUser) 190 else 210
-    AnimatedVisibility(
-        visibleState = visible,
-        modifier = Modifier
+    LaunchedEffect(Unit) {
+        progress.animateTo(1f, animationSpec = tween(duration))
+    }
+    Box(
+        Modifier
             .testTag(if (fromUser) "sent_message_animation" else "received_message_animation")
-            .animateContentSize(animationSpec = tween(180)),
-        enter = fadeIn(tween(duration)) +
-            expandVertically(tween(duration)) +
-            slideInVertically(tween(duration)) { fullHeight -> fullHeight / 6 } +
-            scaleIn(tween(duration), initialScale = if (fromUser) 0.965f else 0.975f),
+            .animateContentSize(animationSpec = tween(180))
+            .graphicsLayer {
+                val p = progress.value
+                alpha = 0.55f + (0.45f * p)
+                translationY = (1f - p) * 12.dp.toPx()
+                val scale = (if (fromUser) 0.965f else 0.975f) + ((if (fromUser) 0.035f else 0.025f) * p)
+                scaleX = scale
+                scaleY = scale
+            },
     ) {
-        Box(Modifier.animateContentSize(animationSpec = tween(180))) {
-            content()
-        }
+        content()
     }
 }
 
@@ -1601,40 +1603,43 @@ internal fun CommandSuggestions(
     onSelectedIndexChange: (Int) -> Unit,
     onSelect: (String) -> Unit,
 ) {
-    AnimatedVisibility(
-        visible = suggestions.isNotEmpty(),
-        enter = fadeIn(tween(150)) + slideInVertically(tween(150)) { it / 5 },
-        exit = fadeOut(tween(100)) + slideOutVertically(tween(100)) { it / 6 },
+    if (suggestions.isEmpty()) return
+    val progress = remember(suggestions.firstOrNull()?.candidate?.command) { Animatable(0f) }
+    LaunchedEffect(progress) { progress.animateTo(1f, tween(150)) }
+
+    LazyColumn(
+        Modifier.fillMaxWidth().heightIn(max = 240.dp).padding(horizontal = 18.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(16.dp)).background(Panel).padding(6.dp)
+            .graphicsLayer {
+                alpha = 0.62f + 0.38f * progress.value
+                translationY = (1f - progress.value) * 8.dp.toPx()
+            }
+            .testTag("slash_suggestions"),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        LazyColumn(
-            Modifier.fillMaxWidth().heightIn(max = 240.dp).padding(horizontal = 18.dp, vertical = 6.dp)
-                .clip(RoundedCornerShape(16.dp)).background(Panel).padding(6.dp).testTag("slash_suggestions"),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            itemsIndexed(
-                suggestions,
-                key = { _, suggestion -> suggestion.candidate.command },
-            ) { index, suggestion ->
-                val candidate = suggestion.candidate
-                Row(
-                    Modifier.animateItem(
-                        fadeInSpec = tween(140),
-                        placementSpec = tween(160),
-                        fadeOutSpec = tween(100),
-                    ).fillMaxWidth().clip(RoundedCornerShape(11.dp))
-                        .background(if (index == selectedIndex) Color(0xFF173854) else Color.Transparent)
-                        .clickable {
-                            onSelectedIndexChange(index)
-                            onSelect(candidate.command)
-                        }
-                        .testTag("slash_command_${candidate.command}")
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(candidate.command, color = BrightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.width(10.dp))
-                    Text(candidate.label, color = SoftText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+        itemsIndexed(
+            suggestions,
+            key = { _, suggestion -> suggestion.candidate.command },
+        ) { index, suggestion ->
+            val candidate = suggestion.candidate
+            Row(
+                Modifier.animateItem(
+                    fadeInSpec = tween(140),
+                    placementSpec = tween(160),
+                    fadeOutSpec = tween(100),
+                ).fillMaxWidth().clip(RoundedCornerShape(11.dp))
+                    .background(if (index == selectedIndex) Color(0xFF173854) else Color.Transparent)
+                    .clickable {
+                        onSelectedIndexChange(index)
+                        onSelect(candidate.command)
+                    }
+                    .testTag("slash_command_${candidate.command}")
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(candidate.command, color = BrightText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.width(10.dp))
+                Text(candidate.label, color = SoftText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -1645,33 +1650,35 @@ private fun ContextSuggestedActions(
     actions: List<ScriptSuggestedAction>,
     onSelect: (String) -> Unit,
 ) {
-    AnimatedVisibility(
-        visible = actions.isNotEmpty(),
-        enter = fadeIn(tween(150)) + slideInVertically(tween(150)) { it / 5 },
-        exit = fadeOut(tween(100)),
+    if (actions.isEmpty()) return
+    val progress = remember(actions) { Animatable(0f) }
+    LaunchedEffect(progress) { progress.animateTo(1f, tween(150)) }
+
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+            .padding(horizontal = 18.dp, vertical = 5.dp)
+            .graphicsLayer {
+                alpha = 0.62f + 0.38f * progress.value
+                translationY = (1f - progress.value) * 8.dp.toPx()
+            }
+            .testTag("context_suggestions"),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp, vertical = 5.dp)
-                .testTag("context_suggestions"),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            actions.take(4).forEach { action ->
-                Surface(
-                    color = Color(0xFF10263D),
-                    shape = RoundedCornerShape(18.dp),
-                    border = BorderStroke(1.dp, Color(0xFF294562)),
-                    modifier = Modifier.clickable { onSelect(action.input) }
-                        .testTag("context_action_${action.label.lowercase().replace(Regex("[^a-z0-9]+"), "_")}"),
-                ) {
-                    Text(
-                        action.label,
-                        color = BrightText,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
-                    )
-                }
+        actions.take(4).forEach { action ->
+            Surface(
+                color = Color(0xFF10263D),
+                shape = RoundedCornerShape(18.dp),
+                border = BorderStroke(1.dp, Color(0xFF294562)),
+                modifier = Modifier.clickable { onSelect(action.input) }
+                    .testTag("context_action_${action.label.lowercase().replace(Regex("[^a-z0-9]+"), "_")}"),
+            ) {
+                Text(
+                    action.label,
+                    color = BrightText,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
+                )
             }
         }
     }
