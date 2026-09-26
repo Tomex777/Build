@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.PhoneAndroid
@@ -37,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -72,6 +74,7 @@ fun CortexPairingScreen(
     state: PairingState?,
     busy: Boolean,
     onRefresh: () -> Unit,
+    onAddAccount: (String, String) -> Unit,
     onDestination: (String) -> Unit,
     onPair: (String, String) -> Unit,
     onReconnect: (String) -> Unit,
@@ -80,6 +83,7 @@ fun CortexPairingScreen(
     var selected by remember { mutableStateOf<PairingAccount?>(null) }
     var destinationCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var action by remember { mutableStateOf(PairAction.PAIR) }
+    var addingNumber by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -89,10 +93,22 @@ fun CortexPairingScreen(
             Column(Modifier.weight(1f)) {
                 Text("WhatsApp Pairing", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                 Text(
-                    state?.let { "Destination: Account ${it.destination} · MSCC ${it.version}" } ?: "Connect MSCC to manage linked accounts",
+                    state?.let {
+                        val destinationName = it.accounts.firstOrNull { account -> account.id == it.destination }?.title
+                            ?: "Account ${it.destination}"
+                        "Destination: $destinationName · MSCC ${it.version}"
+                    } ?: "Connect MSCC to manage linked accounts",
                     color = CortexMuted,
                     fontSize = 9.sp,
                 )
+            }
+            if (
+                state?.canAddAccount == true &&
+                (state.maxAccounts == null || state.accounts.size < state.maxAccounts)
+            ) {
+                IconButton(onClick = { addingNumber = true }, enabled = !busy) {
+                    Icon(Icons.Rounded.Add, "Add number")
+                }
             }
             IconButton(onClick = onRefresh, enabled = !busy) {
                 Icon(Icons.Rounded.Refresh, "Refresh pairing")
@@ -116,6 +132,26 @@ fun CortexPairingScreen(
                 contentPadding = PaddingValues(12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                if (state.canAddAccount) {
+                    item {
+                        val atLimit = state.maxAccounts != null && state.accounts.size >= state.maxAccounts
+                        Button(
+                            onClick = { addingNumber = true },
+                            enabled = !busy && !atLimit,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = CortexAccent),
+                            shape = RoundedCornerShape(4.dp),
+                        ) {
+                            Icon(Icons.Rounded.Add, null, Modifier.size(15.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                if (atLimit) "Account limit reached (${state.accounts.size}/${state.maxAccounts})"
+                                else "Add number",
+                                fontSize = 10.sp,
+                            )
+                        }
+                    }
+                }
                 items(state.accounts, key = { it.id }) { account ->
                     PairingAccountCard(
                         account = account,
@@ -145,6 +181,16 @@ fun CortexPairingScreen(
                 }
             }
         }
+    }
+
+    if (addingNumber) {
+        AddNumberSheet(
+            onDismiss = { addingNumber = false },
+            onSubmit = { phone, name ->
+                onAddAccount(phone, name)
+                addingNumber = false
+            },
+        )
     }
 
     destinationCandidate?.let { account ->
@@ -202,7 +248,7 @@ private fun PairingAccountCard(
                 }
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Account ${account.id}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(account.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     Text(
                         "${account.numberMasked} · Index ${account.indexCount}/${account.indexLimit}",
                         color = CortexMuted,
@@ -292,7 +338,7 @@ private fun PairingAccountCard(
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text("Make destination", fontSize = 10.sp, fontWeight = FontWeight.Medium)
-                        Text("Recovered media will be sent to Account ${account.id}.", color = CortexMuted, fontSize = 8.sp)
+                        Text("Recovered media will be sent to ${account.title}.", color = CortexMuted, fontSize = 8.sp)
                     }
                     Text("CHANGE", color = CortexAccent, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                 }
@@ -415,7 +461,7 @@ private fun DestinationSheet(
         ) {
             Text("Change destination", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             Text(
-                "Use Account ${account.id} (${account.numberMasked}) as the private destination for recovered media?",
+                "Use ${account.title} (${account.numberMasked}) as the private destination for recovered media?",
                 color = CortexMuted,
                 fontSize = 10.sp,
             )
@@ -424,7 +470,7 @@ private fun DestinationSheet(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(4.dp),
             ) {
-                Text("Use Account ${account.id}")
+                Text("Use ${account.title}")
             }
         }
     }
@@ -443,7 +489,7 @@ private fun PairMethodSheet(
         Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
             Column(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) {
                 Text(
-                    if (repair) "Re-pair Account ${account.id}" else "Pair Account ${account.id}",
+                    if (repair) "Re-pair ${account.title}" else "Pair ${account.title}",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -501,6 +547,59 @@ private fun PairMethodRow(
         }
         if (primary) {
             Text("PRIMARY", color = CortexAccent, fontSize = 7.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+
+private val PairingAccount.title: String
+    get() = displayName.trim().ifBlank { "Account $id" }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddNumberSheet(
+    onDismiss: () -> Unit,
+    onSubmit: (String, String) -> Unit,
+) {
+    var phone by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf("") }
+    val digits = phone.filter(Char::isDigit)
+    val valid = digits.length in 7..15
+
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = CortexSurface) {
+        Column(
+            Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Add number", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Create a new isolated WhatsApp session. Phone-number pairing stays the primary method.",
+                color = CortexMuted,
+                fontSize = 10.sp,
+            )
+            OutlinedTextField(
+                value = phone,
+                onValueChange = { phone = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Phone number") },
+                placeholder = { Text("234…") },
+                singleLine = true,
+            )
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it.take(48) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Friendly name (optional)") },
+                singleLine = true,
+            )
+            Button(
+                onClick = { onSubmit(digits, name.trim()) },
+                enabled = valid,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(4.dp),
+            ) {
+                Text("Create account")
+            }
         }
     }
 }

@@ -645,6 +645,17 @@ async function handler(req, res) {
     if (req.method === 'GET' && url.pathname === '/api/cortex/mscc/pairing') {
       return json(res, 200, await msccControl('GET', '/state'));
     }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/mscc/accounts') {
+      const body = await readJson(req);
+      const phoneNumber = String(body.phoneNumber || '').replace(/\D/g, '');
+      const displayName = String(body.displayName || '').trim().slice(0, 48);
+      if (!/^\d{7,15}$/.test(phoneNumber)) {
+        throw Object.assign(new Error('Phone number must contain 7 to 15 digits'), { statusCode: 400 });
+      }
+      const result = await msccControl('POST', '/accounts', { phoneNumber, displayName });
+      await recordActivity('mscc:account.create', { account: result?.account?.id || '', displayName });
+      return json(res, 200, result);
+    }
     if (req.method === 'POST' && url.pathname === '/api/cortex/mscc/destination') {
       const body = await readJson(req);
       const account = String(body.account || '').trim();

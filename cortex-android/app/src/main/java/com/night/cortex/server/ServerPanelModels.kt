@@ -49,12 +49,15 @@ data class PairingAccount(
     val pairingCode: String,
     val pairingQr: String,
     val pairingError: String,
+    val displayName: String = "",
 )
 
 data class PairingState(
     val version: String,
     val destination: String,
     val accounts: List<PairingAccount>,
+    val maxAccounts: Int? = null,
+    val canAddAccount: Boolean = false,
 )
 
 data class PendingDownload(

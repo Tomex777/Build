@@ -226,14 +226,33 @@ class CortexServerApi(
                         pairingCode = row.optString("pairingCode"),
                         pairingQr = row.optString("pairingQr"),
                         pairingError = row.optString("pairingError"),
+                        displayName = row.optString("displayName"),
                     )
                 )
             }
         }
+        val maxAccounts = json.optJSONObject("entitlements")
+            ?.optInt("maxAccounts", 0)
+            ?.takeIf { it > 0 }
+            ?: json.optInt("maxAccounts", 0).takeIf { it > 0 }
+        val canAddAccount = json.optJSONObject("capabilities")
+            ?.optBoolean("addAccount", false)
+            ?: json.optBoolean("canAddAccount", false)
         return PairingState(
             version = json.optString("version"),
             destination = json.optString("destination", "A"),
             accounts = accounts,
+            maxAccounts = maxAccounts,
+            canAddAccount = canAddAccount,
+        )
+    }
+
+    fun addAccount(phoneNumber: String, displayName: String) {
+        postJson(
+            "/api/cortex/mscc/accounts",
+            JSONObject()
+                .put("phoneNumber", phoneNumber)
+                .put("displayName", displayName),
         )
     }
 

@@ -57,6 +57,7 @@ class CortexPairingScreenTest {
                     ),
                     busy = false,
                     onRefresh = {},
+                    onAddAccount = { _, _ -> },
                     onDestination = {},
                     onPair = { _, _ -> },
                     onReconnect = {},

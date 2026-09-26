@@ -401,6 +401,17 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun addAccount(phoneNumber: String, displayName: String) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy("Account added.") {
+                withContext(Dispatchers.IO) { api().addAccount(phoneNumber, displayName) }
+                val pairing = withContext(Dispatchers.IO) { api().pairingState() }
+                _state.value = _state.value.copy(pairing = pairing)
+            }
+        }
+    }
+
     fun setDestination(id: String) {
         if (!_state.value.configured) return
         viewModelScope.launch {
