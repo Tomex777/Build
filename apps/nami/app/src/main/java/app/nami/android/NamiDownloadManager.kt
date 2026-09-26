@@ -3,18 +3,23 @@ package app.nami.android
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.media.MediaScannerConnection
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
-import android.media.MediaScannerConnection
 import android.provider.MediaStore
 import android.webkit.CookieManager
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import app.nami.data.local.DownloadDirectoryLayout
 import app.nami.data.local.NamiDatabase
 import app.nami.data.local.StoredDownload
 import app.nami.domain.AnimeDetails
 import app.nami.domain.AnimeEpisode
+import app.nami.domain.AnimeRef
+import app.nami.domain.EpisodeRef
 import app.nami.domain.ResolvedMedia
 import app.nami.runtime.NamiSourceRegistry
 import app.nami.source.NamiAnimeSource
@@ -25,6 +30,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,18 +40,28 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.io.OutputStream
+import java.io.RandomAccessFile
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
+import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.roundToInt
 
 enum class NamiDownloadState {
     QUEUED,
     DOWNLOADING,
+    PAUSED,
+    WAITING_FOR_NETWORK,
     DOWNLOADED,
     ERROR,
+}
+
+enum class NamiPauseReason {
+    USER,
+    GLOBAL,
 }
 
 data class NamiDownloadStatus(
@@ -64,6 +80,15 @@ data class NamiDownloadStatus(
     val state: NamiDownloadState,
     val progress: Int = 0,
     val errorMessage: String? = null,
+    val bytesDownloaded: Long = 0L,
+    val totalBytes: Long? = null,
+    val tempPath: String? = null,
+    val hlsCompletedParts: Int = 0,
+    val pauseReason: NamiPauseReason? = null,
+    val retryCount: Int = 0,
+    val mediaKind: String? = null,
+    val etag: String? = null,
+    val lastModified: String? = null,
 )
 
 class NamiDownloadManager(
@@ -72,13 +97,21 @@ class NamiDownloadManager(
     private val sourceRegistry: NamiSourceRegistry,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val downloadPermits = Semaphore(MAX_PARALLEL_DOWNLOADS)
+    private val sourcePermits = ConcurrentHashMap<String, Semaphore>()
     private val activeJobs = ConcurrentHashMap<String, Job>()
+    private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
     private val mutableStatuses = MutableStateFlow<Map<String, NamiDownloadStatus>>(emptyMap())
+    private val mutableGlobalPaused = MutableStateFlow(
+        preferences.getBoolean(KEY_GLOBAL_PAUSED, false),
+    )
+
     val statuses: StateFlow<Map<String, NamiDownloadStatus>> = mutableStatuses.asStateFlow()
+    val globalPaused: StateFlow<Boolean> = mutableGlobalPaused.asStateFlow()
 
     init {
-        scope.launch { reloadFromDatabase() }
+        scope.launch {
+            reloadFromDatabase()
+        }
     }
 
     fun key(sourceId: String, sourceEpisodeId: String): String =
@@ -134,6 +167,9 @@ class NamiDownloadManager(
         if (mutableStatuses.value[k]?.state in setOf(
                 NamiDownloadState.QUEUED,
                 NamiDownloadState.DOWNLOADING,
+                NamiDownloadState.PAUSED,
+                NamiDownloadState.WAITING_FOR_NETWORK,
+                NamiDownloadState.DOWNLOADED,
             )
         ) {
             return
@@ -149,24 +185,94 @@ class NamiDownloadManager(
             animeSourceState = anime.sourceState,
             episodeSourceState = episode.sourceState,
             relativePath = relativeDirectory,
-            state = NamiDownloadState.QUEUED,
+            tempPath = tempFileForKey(k).absolutePath,
+            state = if (mutableGlobalPaused.value) {
+                NamiDownloadState.PAUSED
+            } else {
+                NamiDownloadState.QUEUED
+            },
+            pauseReason = if (mutableGlobalPaused.value) NamiPauseReason.GLOBAL else null,
         )
-        mutableStatuses.value = mutableStatuses.value + (k to queued)
-        val job = scope.launch(start = CoroutineStart.LAZY) {
-            persist(
-                status = queued,
-                sourceAnimeId = episode.ref.sourceAnimeId,
-            )
-            downloadPermits.withPermit {
-                runDownload(source, anime, episode, queued)
+        setAndPersist(queued)
+
+        if (!mutableGlobalPaused.value) {
+            ensureServiceRunning()
+            schedule(queued, source, anime, episode)
+        }
+    }
+
+    fun startBackgroundEngine() {
+        ensureServiceRunning()
+    }
+
+    internal fun kickScheduler() {
+        if (mutableGlobalPaused.value) return
+        scope.launch {
+            val sources = runCatching { sourceRegistry.installedSources() }
+                .getOrDefault(emptyList())
+                .associateBy { it.metadata.id }
+
+            mutableStatuses.value.values
+                .filter { it.state == NamiDownloadState.QUEUED }
+                .forEach { status ->
+                    val source = sources[status.sourceId]
+                    if (source == null) {
+                        setAndPersist(
+                            status.copy(
+                                state = NamiDownloadState.ERROR,
+                                errorMessage = "The source for this download is not installed.",
+                            ),
+                        )
+                        return@forEach
+                    }
+                    val request = requestFromStatus(status) ?: run {
+                        setAndPersist(
+                            status.copy(
+                                state = NamiDownloadState.ERROR,
+                                errorMessage = "This download record cannot be resumed.",
+                            ),
+                        )
+                        return@forEach
+                    }
+                    schedule(status, source, request.anime, request.episode)
+                }
+        }
+    }
+
+    private fun schedule(
+        status: NamiDownloadStatus,
+        source: NamiAnimeSource,
+        anime: AnimeDetails,
+        episode: AnimeEpisode,
+    ) {
+        if (mutableGlobalPaused.value || status.state != NamiDownloadState.QUEUED) return
+
+        val k = key(status.sourceId, status.sourceEpisodeId)
+        val newJob = scope.launch(start = CoroutineStart.LAZY) {
+            permitFor(status.sourceId).withPermit {
+                val current = mutableStatuses.value[k] ?: return@withPermit
+                if (mutableGlobalPaused.value || current.state != NamiDownloadState.QUEUED) {
+                    return@withPermit
+                }
+                runDownload(source, anime, episode, current)
             }
         }
-        activeJobs[k] = job
-        job.invokeOnCompletion {
-            activeJobs.remove(k, job)
+
+        val previous = activeJobs.putIfAbsent(k, newJob)
+        if (previous == null) {
+            newJob.invokeOnCompletion {
+                activeJobs.remove(k, newJob)
+            }
+            newJob.start()
+        } else {
+            newJob.cancel()
         }
-        job.start()
     }
+
+    private fun permitFor(sourceId: String): Semaphore =
+        sourcePermits.computeIfAbsent(sourceId) {
+            Semaphore(MAX_PARALLEL_DOWNLOADS_PER_SOURCE)
+        }
 
     fun openDownloaded(context: Context, status: NamiDownloadStatus) {
         val uri = status.contentUri?.let(Uri::parse) ?: return
@@ -177,13 +283,111 @@ class NamiDownloadManager(
         context.startActivity(Intent.createChooser(intent, "Open with"))
     }
 
-    fun cancel(status: NamiDownloadStatus) {
-        if (status.state != NamiDownloadState.QUEUED &&
-            status.state != NamiDownloadState.DOWNLOADING
+    fun pause(status: NamiDownloadStatus) {
+        val k = key(status.sourceId, status.sourceEpisodeId)
+        val latest = mutableStatuses.value[k] ?: return
+        if (latest.state !in setOf(
+                NamiDownloadState.QUEUED,
+                NamiDownloadState.DOWNLOADING,
+                NamiDownloadState.WAITING_FOR_NETWORK,
+            )
         ) {
             return
         }
 
+        setAndPersist(
+            latest.copy(
+                state = NamiDownloadState.PAUSED,
+                pauseReason = NamiPauseReason.USER,
+                errorMessage = null,
+            ),
+        )
+        activeJobs[k]?.cancel(CancellationException("Paused by user"))
+    }
+
+    fun resume(status: NamiDownloadStatus) {
+        val k = key(status.sourceId, status.sourceEpisodeId)
+        val latest = mutableStatuses.value[k] ?: return
+        if (latest.state != NamiDownloadState.PAUSED) return
+
+        if (mutableGlobalPaused.value) {
+            setAndPersist(
+                latest.copy(
+                    pauseReason = NamiPauseReason.GLOBAL,
+                    errorMessage = null,
+                ),
+            )
+            return
+        }
+
+        val queued = latest.copy(
+            state = NamiDownloadState.QUEUED,
+            pauseReason = null,
+            errorMessage = null,
+        )
+        setAndPersist(queued)
+        ensureServiceRunning()
+        kickScheduler()
+    }
+
+    fun pauseAll() {
+        if (mutableGlobalPaused.value) return
+
+        preferences.edit().putBoolean(KEY_GLOBAL_PAUSED, true).apply()
+        mutableGlobalPaused.value = true
+
+        val snapshot = mutableStatuses.value.values.toList()
+        snapshot.forEach { status ->
+            if (status.state in setOf(
+                    NamiDownloadState.QUEUED,
+                    NamiDownloadState.DOWNLOADING,
+                    NamiDownloadState.WAITING_FOR_NETWORK,
+                )
+            ) {
+                setAndPersist(
+                    status.copy(
+                        state = NamiDownloadState.PAUSED,
+                        pauseReason = NamiPauseReason.GLOBAL,
+                        errorMessage = null,
+                    ),
+                )
+            }
+        }
+        activeJobs.values.forEach { it.cancel(CancellationException("Downloads globally paused")) }
+    }
+
+    fun resumeAll() {
+        preferences.edit().putBoolean(KEY_GLOBAL_PAUSED, false).apply()
+        mutableGlobalPaused.value = false
+
+        mutableStatuses.value.values.toList().forEach { status ->
+            if (
+                status.state == NamiDownloadState.PAUSED &&
+                status.pauseReason == NamiPauseReason.GLOBAL
+            ) {
+                setAndPersist(
+                    status.copy(
+                        state = NamiDownloadState.QUEUED,
+                        pauseReason = null,
+                        errorMessage = null,
+                    ),
+                )
+            }
+        }
+        ensureServiceRunning()
+        kickScheduler()
+    }
+
+    fun cancel(status: NamiDownloadStatus) {
+        if (status.state !in setOf(
+                NamiDownloadState.QUEUED,
+                NamiDownloadState.DOWNLOADING,
+                NamiDownloadState.PAUSED,
+                NamiDownloadState.WAITING_FOR_NETWORK,
+            )
+        ) {
+            return
+        }
         cancelAndCleanup(status, "Cancelled by user")
     }
 
@@ -200,15 +404,10 @@ class NamiDownloadManager(
         job?.cancel(CancellationException(reason))
 
         scope.launch {
-            // Do not race MediaStore/file deletion against a writer that still owns the
-            // stream. Waiting for the cancelled job lets runDownload unwind its use/finally
-            // blocks, close the output, abort the pending target and disconnect HTTP first.
             job?.join()
-
-            // Progress updates can replace the status object after the caller captured it.
-            // Use the latest value so cleanup always sees the final target URI/name.
             val latest = mutableStatuses.value[k] ?: status
-            deleteTarget(latest)
+            deleteFinalTarget(latest)
+            deletePartial(latest)
             database.deleteDownloadRecord(status.sourceId, status.sourceEpisodeId)
             mutableStatuses.value = mutableStatuses.value - k
             if (job != null) {
@@ -218,37 +417,25 @@ class NamiDownloadManager(
     }
 
     fun retry(status: NamiDownloadStatus) {
-        if (status.state != NamiDownloadState.ERROR) return
+        val k = key(status.sourceId, status.sourceEpisodeId)
+        val latest = mutableStatuses.value[k] ?: status
+        if (latest.state != NamiDownloadState.ERROR) return
 
-        scope.launch {
-            val source = runCatching {
-                sourceRegistry.installedSources()
-                    .firstOrNull { it.metadata.id == status.sourceId }
-            }.getOrNull()
+        val next = latest.copy(
+            state = if (mutableGlobalPaused.value) {
+                NamiDownloadState.PAUSED
+            } else {
+                NamiDownloadState.QUEUED
+            },
+            pauseReason = if (mutableGlobalPaused.value) NamiPauseReason.GLOBAL else null,
+            errorMessage = null,
+            retryCount = 0,
+        )
+        setAndPersist(next)
 
-            if (source == null) {
-                update(
-                    status.copy(errorMessage = "The source for this download is not installed."),
-                    status.sourceAnimeId,
-                )
-                return@launch
-            }
-
-            val request = DownloadRetryPlanner.create(status)
-            if (request == null) {
-                update(
-                    status.copy(errorMessage = "This download record cannot be retried."),
-                    status.sourceAnimeId,
-                )
-                return@launch
-            }
-
-            enqueueInternal(
-                source = source,
-                anime = request.anime,
-                episode = request.episode,
-                relativeDirectory = request.relativeDirectory,
-            )
+        if (!mutableGlobalPaused.value) {
+            ensureServiceRunning()
+            kickScheduler()
         }
     }
 
@@ -258,39 +445,141 @@ class NamiDownloadManager(
         episode: AnimeEpisode,
         queued: NamiDownloadStatus,
     ) {
-        update(
-            queued.copy(
+        val k = key(queued.sourceId, queued.sourceEpisodeId)
+        val current = mutableStatuses.value[k] ?: return
+        if (current.state != NamiDownloadState.QUEUED || mutableGlobalPaused.value) return
+
+        setAndPersist(
+            current.copy(
                 state = NamiDownloadState.DOWNLOADING,
-                progress = 0,
+                pauseReason = null,
                 errorMessage = null,
             ),
-            episode.ref.sourceAnimeId,
         )
 
-        try {
-            val media = source.resolve(episode.ref, episode.sourceState)
-                .firstOrNull { it.url.isNotBlank() }
-                ?: error("This source did not return a downloadable video.")
+        var recoveryAttempt = current.retryCount.coerceAtLeast(0)
 
-            downloadResolvedMedia(
-                media = media,
-                anime = anime,
-                episode = episode,
-                initial = queued,
-            )
-        } catch (_: CancellationException) {
-            return
-        } catch (t: Throwable) {
-            val current = mutableStatuses.value[key(queued.sourceId, queued.sourceEpisodeId)] ?: queued
-            update(
-                current.copy(
-                    contentUri = null,
-                    state = NamiDownloadState.ERROR,
-                    errorMessage = t.message ?: t.javaClass.simpleName,
-                ),
-                episode.ref.sourceAnimeId,
-            )
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            try {
+                val latest = mutableStatuses.value[k] ?: return
+                if (latest.state !in setOf(
+                        NamiDownloadState.DOWNLOADING,
+                        NamiDownloadState.WAITING_FOR_NETWORK,
+                    )
+                ) {
+                    return
+                }
+
+                if (latest.state == NamiDownloadState.WAITING_FOR_NETWORK) {
+                    setAndPersist(
+                        latest.copy(
+                            state = NamiDownloadState.DOWNLOADING,
+                            errorMessage = null,
+                        ),
+                    )
+                }
+
+                val media = source.resolve(episode.ref, episode.sourceState)
+                    .firstOrNull { it.url.isNotBlank() }
+                    ?: error("This source did not return a downloadable video.")
+
+                downloadResolvedMedia(
+                    media = media,
+                    anime = anime,
+                    episode = episode,
+                    initial = mutableStatuses.value[k] ?: latest,
+                )
+                return
+            } catch (cancelled: CancellationException) {
+                return
+            } catch (failure: Throwable) {
+                val latest = mutableStatuses.value[k] ?: return
+                if (latest.state == NamiDownloadState.PAUSED) return
+
+                if (!isRecoverableFailure(failure)) {
+                    markHardError(latest, failure)
+                    return
+                }
+
+                if (!isNetworkAvailable()) {
+                    setAndPersist(
+                        latest.copy(
+                            state = NamiDownloadState.WAITING_FOR_NETWORK,
+                            errorMessage = "Waiting for network",
+                            retryCount = recoveryAttempt,
+                        ),
+                    )
+                    waitForNetwork()
+                    continue
+                }
+
+                recoveryAttempt += 1
+                if (recoveryAttempt > MAX_RECOVERY_ATTEMPTS) {
+                    markHardError(latest, failure)
+                    return
+                }
+
+                val backoffMillis = RETRY_BACKOFF_MILLIS[
+                    (recoveryAttempt - 1).coerceAtMost(RETRY_BACKOFF_MILLIS.lastIndex)
+                ]
+                setAndPersist(
+                    latest.copy(
+                        state = NamiDownloadState.WAITING_FOR_NETWORK,
+                        errorMessage = "Retrying in " + (backoffMillis / 1000) + "s",
+                        retryCount = recoveryAttempt,
+                    ),
+                )
+                delay(backoffMillis)
+            }
         }
+    }
+
+    private fun markHardError(
+        status: NamiDownloadStatus,
+        failure: Throwable,
+    ) {
+        setAndPersist(
+            status.copy(
+                state = NamiDownloadState.ERROR,
+                pauseReason = null,
+                errorMessage = failure.message ?: failure.javaClass.simpleName,
+            ),
+        )
+    }
+
+    private suspend fun waitForNetwork() {
+        while (!isNetworkAvailable()) {
+            currentCoroutineContext().ensureActive()
+            delay(NETWORK_POLL_MILLIS)
+        }
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = manager.activeNetwork ?: return false
+        val capabilities = manager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    private fun isRecoverableFailure(failure: Throwable): Boolean {
+        var current: Throwable? = failure
+        while (current != null) {
+            if (current is DownloadHttpException) {
+                return current.code == 408 ||
+                    current.code == 425 ||
+                    current.code == 429 ||
+                    current.code in 500..599
+            }
+            if (current is IOException) return true
+            current = current.cause
+        }
+
+        val message = failure.message.orEmpty().lowercase()
+        return "timeout" in message ||
+            "temporar" in message ||
+            "connection reset" in message ||
+            Regex("""http\s+5\d\d""").containsMatchIn(message)
     }
 
     private suspend fun downloadResolvedMedia(
@@ -299,78 +588,151 @@ class NamiDownloadManager(
         episode: AnimeEpisode,
         initial: NamiDownloadStatus,
     ) {
-        val firstConnection = openConnection(media.url, media.headers)
-        try {
-            val responseMime = firstConnection.contentType
-                ?.substringBefore(';')
-                ?.trim()
-                ?.lowercase()
-            val isHls = DownloadMediaNaming.isHls(media.url, media.mimeType ?: responseMime)
+        val knownHls = initial.mediaKind == MEDIA_KIND_HLS ||
+            DownloadMediaNaming.isHls(media.url, media.mimeType)
 
-            if (isHls) {
-                val playlist = firstConnection.inputStream.bufferedReader().use { it.readText() }
+        if (knownHls) {
+            val connection = openConnection(media.url, media.headers)
+            try {
+                val playlist = connection.inputStream.bufferedReader().use { it.readText() }
                 downloadHls(
-                    initialPlaylistUrl = firstConnection.url.toString(),
+                    initialPlaylistUrl = connection.url.toString(),
                     initialPlaylist = playlist,
                     headers = media.headers,
                     anime = anime,
                     episode = episode,
                     initial = initial,
                 )
-            } else {
-                val responseType = media.mimeType ?: responseMime ?: "application/octet-stream"
-                val extension = DownloadMediaNaming.extensionFor(
-                    mimeType = responseType,
-                    url = firstConnection.url.toString(),
-                    contentDisposition = firstConnection.getHeaderField("Content-Disposition"),
-                )
-                val mime = DownloadMediaNaming.normalizedMimeType(
-                    mimeType = responseType,
-                    extension = extension,
-                )
-                val displayName = DownloadMediaNaming.episodeFileName(episode, extension)
-                val target = createTarget(
-                    relativeDirectory = initial.relativePath,
-                    displayName = displayName,
-                    mimeType = mime,
-                )
-                try {
-                    val total = firstConnection.contentLengthLong.takeIf { it > 0L }
-                    firstConnection.inputStream.use { input ->
-                        target.output.use { output ->
-                            copyWithProgress(
-                                input = input,
-                                output = output,
-                                totalBytes = total,
-                                status = initial.copy(
-                                    displayName = displayName,
-                                    contentUri = target.publicUri,
-                                    mimeType = mime,
-                                    state = NamiDownloadState.DOWNLOADING,
-                                ),
-                                sourceAnimeId = episode.ref.sourceAnimeId,
-                            )
-                        }
-                    }
-                    target.finish()
-                    update(
-                        initial.copy(
-                            displayName = displayName,
-                            contentUri = target.publicUri,
-                            mimeType = mime,
-                            state = NamiDownloadState.DOWNLOADED,
-                            progress = 100,
-                            errorMessage = null,
-                        ),
-                        episode.ref.sourceAnimeId,
-                    )
-                } catch (t: Throwable) {
-                    target.abort()
-                    throw t
+            } finally {
+                connection.disconnect()
+            }
+            return
+        }
+
+        val existingBytes = partialFile(initial).takeIf { it.exists() }?.length() ?: 0L
+        val requestHeaders = buildMap {
+            putAll(media.headers)
+            if (existingBytes > 0L) {
+                put("Range", "bytes=$existingBytes-")
+                val validator = initial.etag ?: initial.lastModified
+                if (!validator.isNullOrBlank()) {
+                    put("If-Range", validator)
                 }
             }
+        }
+
+        var connection = openConnection(
+            url = media.url,
+            headers = requestHeaders,
+            requireSuccess = false,
+        )
+        try {
+            val responseMime = connection.contentType
+                ?.substringBefore(';')
+                ?.trim()
+                ?.lowercase()
+
+            if (
+                initial.mediaKind == null &&
+                DownloadMediaNaming.isHls(
+                    connection.url.toString(),
+                    media.mimeType ?: responseMime,
+                )
+            ) {
+                if (existingBytes > 0L) {
+                    resetPartial(initial)
+                }
+                val playlist = connection.inputStream.bufferedReader().use { it.readText() }
+                downloadHls(
+                    initialPlaylistUrl = connection.url.toString(),
+                    initialPlaylist = playlist,
+                    headers = media.headers,
+                    anime = anime,
+                    episode = episode,
+                    initial = initial.copy(
+                        bytesDownloaded = 0L,
+                        hlsCompletedParts = 0,
+                        mediaKind = MEDIA_KIND_HLS,
+                    ),
+                )
+                return
+            }
+
+            var appendFrom = existingBytes
+            when (connection.responseCode) {
+                HttpURLConnection.HTTP_PARTIAL -> Unit
+                in 200..299 -> {
+                    if (appendFrom > 0L) {
+                        resetPartial(initial)
+                        appendFrom = 0L
+                    }
+                }
+                416 -> {
+                    connection.disconnect()
+                    resetPartial(initial)
+                    appendFrom = 0L
+                    connection = openConnection(media.url, media.headers)
+                }
+                else -> throw DownloadHttpException(
+                    connection.responseCode,
+                    "Download request failed with HTTP " + connection.responseCode + ".",
+                )
+            }
+
+            val responseType = media.mimeType ?: responseMime ?: "application/octet-stream"
+            val extension = DownloadMediaNaming.extensionFor(
+                mimeType = responseType,
+                url = connection.url.toString(),
+                contentDisposition = connection.getHeaderField("Content-Disposition"),
+            )
+            val mime = DownloadMediaNaming.normalizedMimeType(
+                mimeType = responseType,
+                extension = extension,
+            )
+            val displayName = initial.displayName
+                ?: DownloadMediaNaming.episodeFileName(episode, extension)
+            val total = totalBytesFromConnection(connection, appendFrom)
+            val temp = partialFile(initial)
+            temp.parentFile?.mkdirs()
+
+            val transferStatus = initial.copy(
+                displayName = displayName,
+                contentUri = null,
+                mimeType = mime,
+                state = NamiDownloadState.DOWNLOADING,
+                mediaKind = MEDIA_KIND_DIRECT,
+                bytesDownloaded = appendFrom,
+                totalBytes = total,
+                tempPath = temp.absolutePath,
+                etag = connection.getHeaderField("ETag") ?: initial.etag,
+                lastModified = connection.getHeaderField("Last-Modified") ?: initial.lastModified,
+                errorMessage = null,
+            )
+            setAndPersist(transferStatus)
+
+            connection.inputStream.use { input ->
+                FileOutputStream(temp, appendFrom > 0L).use { output ->
+                    copyWithProgress(
+                        input = input,
+                        output = output,
+                        totalBytes = total,
+                        startBytes = appendFrom,
+                        status = transferStatus,
+                    )
+                }
+            }
+
+            val completed = (mutableStatuses.value[
+                key(initial.sourceId, initial.sourceEpisodeId)
+            ] ?: transferStatus).copy(
+                bytesDownloaded = temp.length(),
+                totalBytes = total ?: temp.length(),
+                progress = 99,
+            )
+            setAndPersist(completed)
+            finalizePartial(completed)
         } finally {
-            firstConnection.disconnect()
+            connection.disconnect()
         }
     }
 
@@ -398,72 +760,162 @@ class NamiDownloadManager(
         }
 
         val plan = HlsPlaylistPlanner.mediaPlan(playlistUrl, playlist)
-        val mime = plan.mimeType
-        val extension = plan.extension
-        val displayName = DownloadMediaNaming.episodeFileName(episode, extension)
-        val target = createTarget(
-            relativeDirectory = initial.relativePath,
+        val displayName = initial.displayName
+            ?: DownloadMediaNaming.episodeFileName(episode, plan.extension)
+        val temp = partialFile(initial)
+        temp.parentFile?.mkdirs()
+
+        var completedParts = if (
+            initial.mediaKind == MEDIA_KIND_HLS &&
+            temp.exists()
+        ) {
+            initial.hlsCompletedParts.coerceIn(0, plan.allPartUrls.size)
+        } else {
+            0
+        }
+
+        if (
+            initial.mediaKind != null &&
+            initial.mediaKind != MEDIA_KIND_HLS
+        ) {
+            resetPartial(initial)
+            completedParts = 0
+        }
+
+        if (!temp.exists() && completedParts > 0) {
+            completedParts = 0
+        }
+        if (completedParts == 0 && temp.exists() && initial.hlsCompletedParts == 0) {
+            RandomAccessFile(temp, "rw").use { it.setLength(0L) }
+        }
+
+        var transferStatus = initial.copy(
             displayName = displayName,
-            mimeType = mime,
+            contentUri = null,
+            mimeType = plan.mimeType,
+            state = NamiDownloadState.DOWNLOADING,
+            mediaKind = MEDIA_KIND_HLS,
+            tempPath = temp.absolutePath,
+            hlsCompletedParts = completedParts,
+            bytesDownloaded = temp.takeIf { it.exists() }?.length() ?: 0L,
+            totalBytes = null,
+            errorMessage = null,
+        )
+        setAndPersist(transferStatus)
+
+        val allParts = plan.allPartUrls
+        for (index in completedParts until allParts.size) {
+            currentCoroutineContext().ensureActive()
+            val segmentStart = temp.takeIf { it.exists() }?.length() ?: 0L
+            val connection = openConnection(allParts[index], headers)
+            try {
+                connection.inputStream.use { input ->
+                    FileOutputStream(temp, true).use { output ->
+                        copyCancellable(input, output)
+                    }
+                }
+            } catch (failure: Throwable) {
+                if (temp.exists()) {
+                    RandomAccessFile(temp, "rw").use { it.setLength(segmentStart) }
+                }
+                throw failure
+            } finally {
+                connection.disconnect()
+            }
+
+            val partCount = index + 1
+            val progress = ((partCount.toDouble() / allParts.size) * 100)
+                .roundToInt()
+                .coerceIn(0, 99)
+            transferStatus = transferStatus.copy(
+                hlsCompletedParts = partCount,
+                bytesDownloaded = temp.length(),
+                progress = progress,
+            )
+            setAndPersist(transferStatus)
+        }
+
+        finalizePartial(
+            transferStatus.copy(
+                bytesDownloaded = temp.length(),
+                progress = 99,
+            ),
+        )
+    }
+
+    private suspend fun finalizePartial(status: NamiDownloadStatus) {
+        val temp = partialFile(status)
+        require(temp.exists() && temp.length() > 0L) {
+            "The partial download file is missing."
+        }
+        val displayName = status.displayName ?: error("The download file name is missing.")
+        val mimeType = status.mimeType ?: "application/octet-stream"
+        val target = createFinalTarget(
+            relativeDirectory = status.relativePath,
+            displayName = displayName,
+            mimeType = mimeType,
         )
 
         try {
-            target.output.use { output ->
-                val allParts = plan.allPartUrls
-                allParts.forEachIndexed { index, partUrl ->
-                    val connection = openConnection(partUrl, headers)
-                    try {
-                        connection.inputStream.use { input ->
-                            copyCancellable(input, output)
-                        }
-                    } finally {
-                        connection.disconnect()
-                    }
-                    val progress = (((index + 1).toDouble() / allParts.size) * 100)
-                        .roundToInt()
-                        .coerceIn(0, 99)
-                    update(
-                        initial.copy(
-                            displayName = displayName,
-                            contentUri = target.publicUri,
-                            mimeType = mime,
-                            state = NamiDownloadState.DOWNLOADING,
-                            progress = progress,
-                        ),
-                        episode.ref.sourceAnimeId,
-                    )
+            temp.inputStream().use { input ->
+                target.output.use { output ->
+                    copyCancellable(input, output)
                 }
             }
             target.finish()
-            update(
-                initial.copy(
-                    displayName = displayName,
-                    contentUri = target.publicUri,
-                    mimeType = mime,
-                    state = NamiDownloadState.DOWNLOADED,
-                    progress = 100,
-                ),
-                episode.ref.sourceAnimeId,
-            )
-        } catch (t: Throwable) {
+        } catch (failure: Throwable) {
             target.abort()
-            throw t
+            throw failure
+        }
+
+        temp.delete()
+        setAndPersist(
+            status.copy(
+                contentUri = target.publicUri,
+                state = NamiDownloadState.DOWNLOADED,
+                progress = 100,
+                errorMessage = null,
+                pauseReason = null,
+                retryCount = 0,
+                tempPath = null,
+            ),
+        )
+    }
+
+    private fun totalBytesFromConnection(
+        connection: HttpURLConnection,
+        startBytes: Long,
+    ): Long? {
+        val contentRange = connection.getHeaderField("Content-Range")
+        val rangeTotal = contentRange
+            ?.substringAfterLast('/', "")
+            ?.takeIf { it != "*" }
+            ?.toLongOrNull()
+        if (rangeTotal != null && rangeTotal > 0L) return rangeTotal
+
+        val length = connection.contentLengthLong.takeIf { it > 0L } ?: return null
+        return if (connection.responseCode == HttpURLConnection.HTTP_PARTIAL) {
+            startBytes + length
+        } else {
+            length
         }
     }
 
     private fun openConnection(
         url: String,
         headers: Map<String, String>,
+        requireSuccess: Boolean = true,
     ): HttpURLConnection {
         if (GoogleDriveDownloadPlanner.isDriveDownload(url)) {
-            return openGoogleDriveConnection(url, headers)
+            return openGoogleDriveConnection(url, headers, requireSuccess)
         }
-        return openRawConnection(url, headers, followRedirects = true)
+        return openRawConnection(url, headers, followRedirects = true, requireSuccess = requireSuccess)
     }
 
     private fun openGoogleDriveConnection(
         sourceUrl: String,
         headers: Map<String, String>,
+        requireSuccess: Boolean,
     ): HttpURLConnection {
         var currentUrl = GoogleDriveDownloadPlanner.directDownloadUrl(sourceUrl)
 
@@ -489,14 +941,20 @@ class NamiDownloadManager(
                 return@repeat
             }
 
-            if (code !in 200..299) {
+            if (code !in 200..299 && code != HttpURLConnection.HTTP_PARTIAL) {
+                if (!requireSuccess) return connection
                 connection.disconnect()
-                error("Google Drive download failed with HTTP $code.")
+                throw DownloadHttpException(
+                    code,
+                    "Google Drive download failed with HTTP $code.",
+                )
             }
 
             val contentDisposition = connection.getHeaderField("Content-Disposition")
             val contentType = connection.contentType.orEmpty()
-            if (!contentDisposition.isNullOrBlank() ||
+            if (
+                code == HttpURLConnection.HTTP_PARTIAL ||
+                !contentDisposition.isNullOrBlank() ||
                 !contentType.contains("text/html", ignoreCase = true)
             ) {
                 return connection
@@ -546,10 +1004,16 @@ class NamiDownloadManager(
         }
 
         connection.connect()
-        if (requireSuccess && connection.responseCode !in 200..299) {
+        if (
+            requireSuccess &&
+            connection.responseCode !in 200..299
+        ) {
             val code = connection.responseCode
             connection.disconnect()
-            error("Download request failed with HTTP $code.")
+            throw DownloadHttpException(
+                code,
+                "Download request failed with HTTP $code.",
+            )
         }
         return connection
     }
@@ -571,12 +1035,14 @@ class NamiDownloadManager(
         input: java.io.InputStream,
         output: OutputStream,
         totalBytes: Long?,
+        startBytes: Long,
         status: NamiDownloadStatus,
-        sourceAnimeId: String,
     ) {
         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-        var copied = 0L
-        var lastProgress = -1
+        var copied = startBytes
+        var lastProgress = status.progress
+        var lastPersistedBytes = startBytes
+
         while (true) {
             currentCoroutineContext().ensureActive()
             val read = input.read(buffer)
@@ -585,13 +1051,39 @@ class NamiDownloadManager(
             copied += read
 
             val progress = totalBytes
+                ?.takeIf { it > 0L }
                 ?.let { ((copied.toDouble() / it) * 100).roundToInt().coerceIn(0, 99) }
-                ?: 0
-            if (progress != lastProgress && (progress == 0 || progress - lastProgress >= 2)) {
+                ?: status.progress
+
+            val shouldPersist = progress >= lastProgress + 2 ||
+                copied - lastPersistedBytes >= PROGRESS_PERSIST_BYTES
+            if (shouldPersist) {
                 lastProgress = progress
-                update(status.copy(progress = progress), sourceAnimeId)
+                lastPersistedBytes = copied
+                publishTransferProgress(status, copied, totalBytes, progress)
             }
         }
+        output.flush()
+        publishTransferProgress(status, copied, totalBytes, 99)
+    }
+
+    private fun publishTransferProgress(
+        base: NamiDownloadStatus,
+        bytesDownloaded: Long,
+        totalBytes: Long?,
+        progress: Int,
+    ) {
+        val k = key(base.sourceId, base.sourceEpisodeId)
+        val latest = mutableStatuses.value[k] ?: return
+        if (latest.state != NamiDownloadState.DOWNLOADING) return
+
+        setAndPersist(
+            latest.copy(
+                bytesDownloaded = bytesDownloaded.coerceAtLeast(0L),
+                totalBytes = totalBytes ?: latest.totalBytes,
+                progress = progress.coerceIn(0, 99),
+            ),
+        )
     }
 
     private suspend fun copyCancellable(
@@ -607,7 +1099,7 @@ class NamiDownloadManager(
         }
     }
 
-    private fun createTarget(
+    private fun createFinalTarget(
         relativeDirectory: String,
         displayName: String,
         mimeType: String,
@@ -648,7 +1140,7 @@ class NamiDownloadManager(
         } else {
             val file = legacyPublicFile(relativeDirectory, displayName)
             file.parentFile?.mkdirs()
-            val output = FileOutputStream(file)
+            val output = FileOutputStream(file, false)
             val publicUri = FileProvider.getUriForFile(
                 context,
                 context.packageName + ".downloads",
@@ -673,7 +1165,7 @@ class NamiDownloadManager(
         }
     }
 
-    private fun deleteTarget(status: NamiDownloadStatus) {
+    private fun deleteFinalTarget(status: NamiDownloadStatus) {
         val uriString = status.contentUri ?: return
 
         runCatching {
@@ -697,6 +1189,32 @@ class NamiDownloadManager(
         }
     }
 
+    private fun partialFile(status: NamiDownloadStatus): File {
+        val stored = status.tempPath?.takeIf { it.isNotBlank() }
+        return if (stored != null) {
+            File(stored)
+        } else {
+            tempFileForKey(key(status.sourceId, status.sourceEpisodeId))
+        }
+    }
+
+    private fun tempFileForKey(key: String): File {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(key.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+        return File(File(context.filesDir, "downloads/partial"), "$digest.part")
+    }
+
+    private fun resetPartial(status: NamiDownloadStatus) {
+        val file = partialFile(status)
+        file.parentFile?.mkdirs()
+        RandomAccessFile(file, "rw").use { it.setLength(0L) }
+    }
+
+    private fun deletePartial(status: NamiDownloadStatus) {
+        runCatching { partialFile(status).delete() }
+    }
+
     @Suppress("DEPRECATION")
     private fun legacyPublicFile(
         relativeDirectory: String,
@@ -706,17 +1224,17 @@ class NamiDownloadManager(
         return File(File(root, "Nami/" + relativeDirectory), displayName)
     }
 
-    private fun update(status: NamiDownloadStatus, sourceAnimeId: String) {
+    private fun setAndPersist(status: NamiDownloadStatus) {
         val k = key(status.sourceId, status.sourceEpisodeId)
         mutableStatuses.value = mutableStatuses.value + (k to status)
-        persist(status, sourceAnimeId)
+        persist(status)
     }
 
-    private fun persist(status: NamiDownloadStatus, sourceAnimeId: String) {
+    private fun persist(status: NamiDownloadStatus) {
         database.upsertDownload(
             sourceId = status.sourceId,
             extensionName = status.extensionName,
-            sourceAnimeId = sourceAnimeId,
+            sourceAnimeId = status.sourceAnimeId,
             sourceEpisodeId = status.sourceEpisodeId,
             relativePath = status.relativePath,
             animeTitle = status.animeTitle,
@@ -729,6 +1247,15 @@ class NamiDownloadManager(
             state = status.state.name,
             progress = status.progress,
             errorMessage = status.errorMessage,
+            bytesDownloaded = status.bytesDownloaded,
+            totalBytes = status.totalBytes,
+            tempPath = status.tempPath,
+            hlsCompletedParts = status.hlsCompletedParts,
+            pauseReason = status.pauseReason?.name,
+            retryCount = status.retryCount,
+            mediaKind = status.mediaKind,
+            etag = status.etag,
+            lastModified = status.lastModified,
         )
     }
 
@@ -744,51 +1271,48 @@ class NamiDownloadManager(
         stored: StoredDownload,
         status: NamiDownloadStatus,
     ): NamiDownloadStatus {
-        val recoveredState = DownloadRecoveryPolicy.recoverState(status.state)
-        if (recoveredState == status.state) return status
+        var recovered = status
 
-        if (DownloadRecoveryPolicy.shouldDiscardPartialTarget(status.state)) {
-            discardPartialTarget(status.contentUri)
+        // Records made by the old direct-to-MediaStore downloader can contain a pending
+        // content URI but no durable private partial. Do not mistake that URI for resumable
+        // data after upgrading to the new engine.
+        if (
+            status.state != NamiDownloadState.DOWNLOADED &&
+            status.tempPath.isNullOrBlank() &&
+            !status.contentUri.isNullOrBlank()
+        ) {
+            deleteFinalTarget(status)
+            recovered = recovered.copy(contentUri = null)
         }
 
-        val recovered = status.copy(
-            contentUri = null,
-            state = recoveredState,
-            progress = 0,
-            errorMessage = DownloadRecoveryPolicy.INTERRUPTED_MESSAGE,
-        )
-
-        database.upsertDownload(
-            sourceId = stored.sourceId,
-            extensionName = stored.extensionName,
-            sourceAnimeId = stored.sourceAnimeId,
-            sourceEpisodeId = stored.sourceEpisodeId,
-            relativePath = stored.relativePath,
-            animeTitle = stored.animeTitle,
-            episodeTitle = stored.episodeTitle,
-            animeSourceState = stored.animeSourceState,
-            episodeSourceState = stored.episodeSourceState,
-            displayName = stored.displayName,
-            contentUri = null,
-            mimeType = stored.mimeType,
-            state = recovered.state.name,
-            progress = recovered.progress,
-            errorMessage = recovered.errorMessage,
-        )
-
-        return recovered
-    }
-
-    private fun discardPartialTarget(uriString: String?) {
-        if (uriString.isNullOrBlank()) return
-
-        runCatching {
-            val uri = Uri.parse(uriString)
-            when (uri.scheme?.lowercase()) {
-                "content" -> context.contentResolver.delete(uri, null, null)
-                "file" -> uri.path?.let(::File)?.delete()
+        recovered = when (recovered.state) {
+            NamiDownloadState.DOWNLOADING,
+            NamiDownloadState.WAITING_FOR_NETWORK,
+            NamiDownloadState.QUEUED,
+            -> if (mutableGlobalPaused.value) {
+                recovered.copy(
+                    state = NamiDownloadState.PAUSED,
+                    pauseReason = NamiPauseReason.GLOBAL,
+                    errorMessage = null,
+                )
+            } else {
+                recovered.copy(
+                    state = NamiDownloadState.QUEUED,
+                    pauseReason = null,
+                    errorMessage = null,
+                )
             }
+
+            NamiDownloadState.PAUSED,
+            NamiDownloadState.DOWNLOADED,
+            NamiDownloadState.ERROR,
+            -> recovered
         }
+
+        if (recovered != status) {
+            persist(recovered)
+        }
+        return recovered
     }
 
     private fun StoredDownload.toStatus(): NamiDownloadStatus = NamiDownloadStatus(
@@ -807,13 +1331,74 @@ class NamiDownloadManager(
         displayName = displayName,
         contentUri = contentUri,
         mimeType = mimeType,
-        state = runCatching { NamiDownloadState.valueOf(state) }.getOrDefault(NamiDownloadState.ERROR),
+        state = runCatching { NamiDownloadState.valueOf(state) }
+            .getOrDefault(NamiDownloadState.ERROR),
         progress = progress,
         errorMessage = errorMessage,
+        bytesDownloaded = bytesDownloaded,
+        totalBytes = totalBytes,
+        tempPath = tempPath,
+        hlsCompletedParts = hlsCompletedParts,
+        pauseReason = pauseReason?.let {
+            runCatching { NamiPauseReason.valueOf(it) }.getOrNull()
+        },
+        retryCount = retryCount,
+        mediaKind = mediaKind,
+        etag = etag,
+        lastModified = lastModified,
     )
 
+    private fun requestFromStatus(status: NamiDownloadStatus): RetryDownloadRequest? {
+        if (
+            status.sourceId.isBlank() ||
+            status.sourceAnimeId.isBlank() ||
+            status.sourceEpisodeId.isBlank()
+        ) {
+            return null
+        }
+        return RetryDownloadRequest(
+            anime = AnimeDetails(
+                ref = AnimeRef(status.sourceId, status.sourceAnimeId),
+                title = status.animeTitle,
+                sourceState = status.animeSourceState,
+            ),
+            episode = AnimeEpisode(
+                ref = EpisodeRef(
+                    sourceId = status.sourceId,
+                    sourceAnimeId = status.sourceAnimeId,
+                    sourceEpisodeId = status.sourceEpisodeId,
+                ),
+                title = status.episodeTitle,
+                sourceState = status.episodeSourceState,
+            ),
+            relativeDirectory = status.relativePath,
+        )
+    }
+
+    private fun ensureServiceRunning() {
+        val intent = Intent(context, NamiDownloadService::class.java)
+            .setAction(NamiDownloadService.ACTION_START)
+        ContextCompat.startForegroundService(context, intent)
+    }
+
     companion object {
-        internal const val MAX_PARALLEL_DOWNLOADS = 2
+        internal const val MAX_PARALLEL_DOWNLOADS_PER_SOURCE = 2
+        @Deprecated("Use MAX_PARALLEL_DOWNLOADS_PER_SOURCE")
+        internal const val MAX_PARALLEL_DOWNLOADS = MAX_PARALLEL_DOWNLOADS_PER_SOURCE
+
+        private const val PREFERENCES_NAME = "nami_download_engine"
+        private const val KEY_GLOBAL_PAUSED = "global_paused"
+        private const val MEDIA_KIND_DIRECT = "DIRECT"
+        private const val MEDIA_KIND_HLS = "HLS"
+        private const val MAX_RECOVERY_ATTEMPTS = 6
+        private const val NETWORK_POLL_MILLIS = 2_000L
+        private const val PROGRESS_PERSIST_BYTES = 1L * 1024L * 1024L
+        private val RETRY_BACKOFF_MILLIS = longArrayOf(
+            2_000L,
+            5_000L,
+            10_000L,
+            30_000L,
+        )
     }
 
     private data class DownloadTarget(
@@ -822,4 +1407,9 @@ class NamiDownloadManager(
         val finish: () -> Unit,
         val abort: () -> Unit,
     )
+
+    private class DownloadHttpException(
+        val code: Int,
+        message: String,
+    ) : IOException(message)
 }
