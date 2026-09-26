@@ -17,11 +17,15 @@
       is untouched while ListPreference/MultiSelectListPreference dialogs get the
       AppCompat + preference attributes they require.
     -->
-    <style name="Theme.Nami.SourcePreferences" parent="@style/Theme.AppCompat.DayNight.NoActionBar">
+    <style name="Theme.Nami.SourcePreferences" parent="@style/Theme.AppCompat.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowBackground">#0B0F14</item>
         <item name="android:colorAccent">#8AB4F8</item>
         <item name="colorAccent">#8AB4F8</item>
+        <item name="colorControlActivated">#8AB4F8</item>
+        <item name="colorControlNormal">#9AA4B2</item>
+        <item name="android:textColorPrimary">#E6EDF3</item>
+        <item name="android:textColorSecondary">#9AA4B2</item>
         <item name="android:statusBarColor">#0B0F14</item>
         <item name="android:navigationBarColor">#0B0F14</item>
         <item name="android:windowLightStatusBar">false</item>
