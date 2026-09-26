@@ -23,6 +23,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -934,30 +935,41 @@ private fun ScriptMessageCard(
 ) {
     val data = remember(payload) { runCatching { org.json.JSONObject(payload) }.getOrNull() }
         ?: run {
-            Surface(color = Bubble, shape = RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)) {
-                Text("Script response could not be read.", color = SoftText,
-                    fontSize = 15.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp))
-            }
+            ScriptTextMessage("Script response could not be read.", muted = true)
             return
         }
-    val type = data.optString("type")
-    when (type) {
-        "image" -> ScriptImageMessage(data)
-        "music" -> ScriptMusicMessage(data)
-        "video" -> ScriptVideoMessage(data, onVideoDownload)
-        "options" -> ScriptOptionsMessage(data) { action, payloadJson -> onAction(action, payloadJson) {} }
-        "browser" -> AnnieBrowserSpec.decode(data)?.let { spec ->
+
+    when (MessageTypeRegistry.resolve(data).kind) {
+        ScriptMessageKind.IMAGE -> ScriptImageMessage(data)
+        ScriptMessageKind.MUSIC -> ScriptMusicMessage(data)
+        ScriptMessageKind.VIDEO -> ScriptVideoMessage(data, onVideoDownload)
+        ScriptMessageKind.OPTIONS -> ScriptOptionsMessage(data) { action, payloadJson -> onAction(action, payloadJson) {} }
+        ScriptMessageKind.BROWSER -> AnnieBrowserSpec.decode(data)?.let { spec ->
             AnnieBrowserMessage(spec, onAction)
-        } ?: Surface(color = Bubble, shape = RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)) {
-            Text("Browser request could not be opened safely.", color = SoftText,
-                fontSize = 14.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp))
-        }
-        "progress" -> ScriptProgressMessage(data)
-        "text" -> Text(data.optString("text"), color = BrightText, fontSize = 15.sp)
-        else -> Surface(color = Bubble, shape = RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)) {
-            Text(data.optString("text").takeIf(String::isNotBlank) ?: "Script response", color = BrightText,
-                fontSize = 15.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp))
-        }
+        } ?: ScriptTextMessage("Browser request could not be opened safely.", muted = true)
+        ScriptMessageKind.PROGRESS -> ScriptProgressMessage(data)
+        ScriptMessageKind.TEXT -> ScriptTextMessage(data.optString("text"))
+        ScriptMessageKind.UNKNOWN -> ScriptTextMessage(
+            data.optString("text").takeIf(String::isNotBlank) ?: "Script response"
+        )
+    }
+}
+
+@Composable
+private fun ScriptTextMessage(text: String, muted: Boolean = false) {
+    Surface(
+        color = Bubble,
+        shape = RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.035f)),
+        modifier = Modifier.testTag("script_text_message"),
+    ) {
+        Text(
+            text,
+            color = if (muted) SoftText else BrightText,
+            fontSize = 15.sp,
+            lineHeight = 21.sp,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp),
+        )
     }
 }
 
@@ -997,58 +1009,167 @@ private fun ScriptImageMessage(data: org.json.JSONObject) {
 private fun ScriptMusicMessage(data: org.json.JSONObject) {
     val context = LocalContext.current
     val stream = data.optString("streamUrl").takeIf(String::isNotBlank)
+        ?: data.optString("uri").takeIf(String::isNotBlank)
     var mediaPlayer by remember(stream) { mutableStateOf<MediaPlayer?>(null) }
+    var prepared by remember(stream) { mutableStateOf(false) }
     var playing by remember(stream) { mutableStateOf(false) }
-    var duration by remember(stream) { mutableIntStateOf(0) }
+    var duration by remember(stream) { mutableIntStateOf(data.optInt("durationMs", 0).coerceAtLeast(0)) }
     var position by remember(stream) { mutableIntStateOf(0) }
     var showLyrics by remember(stream) { mutableStateOf(false) }
+
     androidx.compose.runtime.DisposableEffect(stream) {
-        onDispose { mediaPlayer?.release(); mediaPlayer = null }
+        onDispose {
+            mediaPlayer?.release()
+            mediaPlayer = null
+        }
     }
     LaunchedEffect(playing, mediaPlayer) {
         while (playing) {
             mediaPlayer?.let { player ->
                 if (runCatching { player.isPlaying }.getOrDefault(false)) {
                     position = runCatching { player.currentPosition }.getOrDefault(position)
-                    duration = runCatching { player.duration }.getOrDefault(duration)
-                } else playing = false
+                    duration = runCatching { player.duration }.getOrDefault(duration).coerceAtLeast(duration)
+                } else {
+                    playing = false
+                }
             }
-            delay(350)
+            delay(300)
         }
     }
-    fun startPlayback() {
+
+    fun togglePlayback() {
         if (stream == null) return
-        val player = mediaPlayer ?: MediaPlayer().also { mediaPlayer = it }
+        val current = mediaPlayer
+        if (playing) {
+            runCatching { current?.pause() }
+            playing = false
+            return
+        }
+        if (current != null && prepared) {
+            runCatching {
+                current.start()
+                playing = true
+            }.onFailure {
+                prepared = false
+                playing = false
+            }
+            if (playing) return
+        }
+
+        val player = current ?: MediaPlayer().also { mediaPlayer = it }
         runCatching {
             player.reset()
-            player.setOnPreparedListener { prepared -> duration = prepared.duration; prepared.start(); playing = true }
-            player.setOnCompletionListener { playing = false; position = 0 }
-            player.setOnErrorListener { _, _, _ -> playing = false; true }
+            prepared = false
+            player.setOnPreparedListener { ready ->
+                prepared = true
+                duration = ready.duration.coerceAtLeast(0)
+                ready.start()
+                playing = true
+            }
+            player.setOnCompletionListener {
+                playing = false
+                position = 0
+            }
+            player.setOnErrorListener { _, _, _ ->
+                prepared = false
+                playing = false
+                true
+            }
             player.setDataSource(context, Uri.parse(stream))
             player.prepareAsync()
-        }.onFailure { playing = false }
-    }
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)).background(Bubble).padding(12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            AsyncImage(model = data.optString("artwork").takeIf(String::isNotBlank), contentDescription = null,
-                contentScale = ContentScale.Crop, modifier = Modifier.size(60.dp).clip(RoundedCornerShape(12.dp)))
-            Column(Modifier.weight(1f)) {
-                Text(data.optString("title", "Untitled track"), color = BrightText, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(data.optString("artist"), color = SoftText, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            Text(if (playing) "Ⅱ" else "▶", color = BrightText, fontSize = 20.sp,
-                modifier = Modifier.clip(CircleShape).background(Blue).clickable { if (playing) { mediaPlayer?.pause(); playing = false } else startPlayback() }.padding(horizontal = 14.dp, vertical = 10.dp).testTag("script_music_play"))
+        }.onFailure {
+            prepared = false
+            playing = false
         }
-        Slider(value = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f,
-            onValueChange = { value -> if (duration > 0) { position = (duration * value).toInt(); runCatching { mediaPlayer?.seekTo(position) } } },
-            enabled = stream != null && duration > 0, modifier = Modifier.height(30.dp).testTag("script_music_seek"))
+    }
+
+    Column(
+        Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
+            .background(Bubble)
+            .padding(13.dp)
+            .testTag("script_music_message"),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(
+                Modifier.size(72.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF0A1726)),
+                contentAlignment = Alignment.Center,
+            ) {
+                AsyncImage(
+                    model = data.optString("artwork").takeIf(String::isNotBlank),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                if (data.optString("artwork").isBlank()) {
+                    Text("♪", color = Color(0xFF7EC8FF), fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    data.optString("title", "Untitled track"),
+                    color = BrightText,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                data.optString("artist").takeIf(String::isNotBlank)?.let {
+                    Text(it, color = SoftText, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            Box(
+                Modifier.size(46.dp).clip(CircleShape).background(if (stream != null) Blue else Color(0xFF26384B))
+                    .clickable(enabled = stream != null, onClick = ::togglePlayback)
+                    .testTag("script_music_play"),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(if (playing) "Ⅱ" else "▶", color = BrightText, fontSize = if (playing) 18.sp else 17.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(formatMediaTime(position), color = SoftText, fontSize = 10.sp)
+            Slider(
+                value = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f,
+                onValueChange = { value ->
+                    if (duration > 0) {
+                        position = (duration * value).toInt()
+                        runCatching { mediaPlayer?.seekTo(position) }
+                    }
+                },
+                enabled = stream != null && duration > 0,
+                modifier = Modifier.weight(1f).height(30.dp).testTag("script_music_seek"),
+            )
+            Text(if (duration > 0) formatMediaTime(duration) else "--:--", color = SoftText, fontSize = 10.sp)
+        }
+
         val lyrics = data.optString("lyrics")
         if (lyrics.isNotBlank()) {
-            Text(if (showLyrics) "Hide lyrics" else "Lyrics", color = Color(0xFF42B9F5), fontSize = 13.sp,
-                modifier = Modifier.clickable { showLyrics = !showLyrics }.padding(vertical = 4.dp))
-            if (showLyrics) Text(lyrics, color = BrightText, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 6.dp))
+            Surface(
+                color = Color(0xFF10263D),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Color(0xFF294562)),
+                modifier = Modifier.fillMaxWidth().clickable { showLyrics = !showLyrics },
+            ) {
+                Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Lyrics", color = BrightText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Text(if (showLyrics) "Hide" else "Show", color = Color(0xFF42B9F5), fontSize = 12.sp)
+                    }
+                    if (showLyrics) {
+                        Text(lyrics, color = BrightText, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 9.dp))
+                    }
+                }
+            }
         }
     }
+}
+
+private fun formatMediaTime(milliseconds: Int): String {
+    val totalSeconds = (milliseconds.coerceAtLeast(0) / 1000)
+    return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }
 
 @Composable
@@ -1060,15 +1181,35 @@ private fun ScriptVideoMessage(
     val title = data.optString("title").ifBlank { "Video" }
     val source = remember(data.toString()) { ScriptVideoDownloadSource.from(data) }
     val uri = source?.url
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)).background(Bubble).padding(8.dp)) {
-        Box(Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF030811))
-            .clickable(enabled = uri != null) {
-                val item = CatalogItem(0, "VIDEO", title, data.optString("thumbnail"), null, "", null, null)
-                launchPlayer(context, item, uri, videoConfigJson = data.toString())
-            }.testTag("script_video_message"), contentAlignment = Alignment.Center) {
-            AsyncImage(model = data.optString("thumbnail").takeIf(String::isNotBlank), contentDescription = title,
-                contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            Text("▶", color = Color.White, fontSize = 26.sp, modifier = Modifier.clip(CircleShape).background(Color(0xBB07111E)).padding(16.dp))
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
+            .background(Bubble).padding(8.dp)
+    ) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val previewHeight = ScriptVideoLayout.previewHeightDp(maxWidth.value, data).dp
+            Box(
+                Modifier.fillMaxWidth().height(previewHeight).clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFF030811))
+                    .clickable(enabled = uri != null) {
+                        val item = CatalogItem(0, "VIDEO", title, data.optString("thumbnail"), null, "", null, null)
+                        launchPlayer(context, item, uri, videoConfigJson = data.toString())
+                    }
+                    .testTag("script_video_message"),
+                contentAlignment = Alignment.Center,
+            ) {
+                AsyncImage(
+                    model = data.optString("thumbnail").takeIf(String::isNotBlank),
+                    contentDescription = title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Box(
+                    Modifier.size(54.dp).clip(CircleShape).background(Color(0xBB07111E)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("▶", color = Color.White, fontSize = 24.sp, modifier = Modifier.padding(start = 3.dp))
+                }
+            }
         }
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 9.dp),
@@ -1076,14 +1217,16 @@ private fun ScriptVideoMessage(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Column(Modifier.weight(1f)) {
-                Text(title, color = BrightText, fontWeight = FontWeight.SemiBold)
-                source?.quality?.takeIf(String::isNotBlank)?.let {
-                    Text(it, color = SoftText, fontSize = 12.sp)
-                }
+                Text(title, color = BrightText, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                val details = listOfNotNull(
+                    source?.quality?.takeIf(String::isNotBlank),
+                    data.optString("duration").takeIf(String::isNotBlank),
+                ).joinToString(" · ")
+                if (details.isNotBlank()) Text(details, color = SoftText, fontSize = 12.sp)
             }
             Text(
                 "Download",
-                color = Color(0xFF42B9F5),
+                color = if (source != null) Color(0xFF42B9F5) else SoftText,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
@@ -1122,15 +1265,47 @@ private fun ScriptOptionsMessage(data: org.json.JSONObject, onAction: (String, S
 
 @Composable
 private fun ScriptProgressMessage(data: org.json.JSONObject) {
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp)).background(Bubble).padding(14.dp)) {
-        Text(data.optString("text", "Working…"), color = BrightText)
+    val state = data.optString("state", if (data.has("progress")) "running" else "indeterminate").lowercase()
+    val tone = when (state) {
+        "success", "completed" -> Teal
+        "failed", "error", "cancelled" -> Color(0xFFFF8C86)
+        "paused" -> Color(0xFFFFC86A)
+        else -> Blue
+    }
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 22.dp, 22.dp, 22.dp))
+            .background(Bubble).padding(14.dp).testTag("script_progress_message"),
+        verticalArrangement = Arrangement.spacedBy(9.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                data.optString("text", "Working…"),
+                color = BrightText,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                when (state) {
+                    "success", "completed" -> "DONE"
+                    "failed", "error" -> "FAILED"
+                    "cancelled" -> "CANCELLED"
+                    "paused" -> "PAUSED"
+                    "queued" -> "QUEUED"
+                    else -> if (data.has("progress")) "${(data.optDouble("progress", 0.0).coerceIn(0.0, 1.0) * 100).toInt()}%" else "WORKING"
+                },
+                color = tone,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
         if (data.has("progress")) {
             val value = data.optDouble("progress", 0.0).toFloat().coerceIn(0f, 1f)
-            Spacer(Modifier.height(7.dp))
-            androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(5.dp)) {
+            Canvas(Modifier.fillMaxWidth().height(6.dp)) {
                 drawRoundRect(Color(0xFF26384B), cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height))
-                drawRoundRect(Blue, size = androidx.compose.ui.geometry.Size(size.width * value, size.height), cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height))
+                drawRoundRect(tone, size = androidx.compose.ui.geometry.Size(size.width * value, size.height), cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height))
             }
+        } else if (state in setOf("running", "indeterminate")) {
+            CircularProgressIndicator(color = tone, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
         }
     }
 }
