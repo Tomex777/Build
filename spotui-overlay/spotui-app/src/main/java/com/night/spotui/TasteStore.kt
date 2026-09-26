@@ -43,6 +43,35 @@ class TasteStore(context: Context) {
         }
     }
 
+    /**
+     * Add a track to local listening history only after playback has been meaningful.
+     * The playback controller owns the threshold and calls this once per play session.
+     */
+    @Synchronized
+    fun recordHistory(track: Track) {
+        if (track.id.isBlank()) return
+        val history = readArray(KEY_HISTORY)
+        val updated = JSONArray()
+        updated.put(trackToJson(track).put("playedAt", System.currentTimeMillis()))
+        for (index in 0 until history.length()) {
+            val item = history.optJSONObject(index) ?: continue
+            if (item.optString("id") != track.id && updated.length() < HISTORY_LIMIT) {
+                updated.put(item)
+            }
+        }
+        prefs.edit().putString(KEY_HISTORY, updated.toString()).apply()
+    }
+
+    @Synchronized
+    fun recentHistory(limit: Int = 50): List<Track> {
+        val history = readArray(KEY_HISTORY)
+        return buildList {
+            for (index in 0 until history.length()) {
+                history.optJSONObject(index)?.let(::trackFromJson)?.let(::add)
+            }
+        }.take(limit.coerceAtLeast(0))
+    }
+
     @Synchronized
     fun recordPlay(track: Track) {
         boostArtist(track.artist, 2.0, touchRecency = true)
@@ -234,6 +263,33 @@ class TasteStore(context: Context) {
         prefs.edit().putString(KEY_TRACKS, root.toString()).apply()
     }
 
+    private fun trackToJson(track: Track): JSONObject = JSONObject()
+        .put("id", track.id)
+        .put("title", track.title)
+        .put("artist", track.artist)
+        .put("artistId", track.artistId)
+        .put("album", track.album)
+        .put("albumId", track.albumId)
+        .put("artworkUrl", track.artworkUrl)
+        .put("durationSeconds", track.durationSeconds)
+        .put("explicit", track.explicit)
+
+    private fun trackFromJson(item: JSONObject): Track? {
+        val id = item.optString("id")
+        if (id.isBlank()) return null
+        return Track(
+            id = id,
+            title = item.optString("title"),
+            artist = item.optString("artist"),
+            artistId = item.optString("artistId"),
+            album = item.optString("album"),
+            albumId = item.optString("albumId"),
+            artworkUrl = item.optString("artworkUrl").takeIf(String::isNotBlank),
+            durationSeconds = item.optLong("durationSeconds"),
+            explicit = item.optBoolean("explicit"),
+        )
+    }
+
     private fun artistScore(root: JSONObject, artist: String): Double =
         root.optJSONObject(artist.trim().lowercase())?.optDouble("score", 0.0) ?: 0.0
 
@@ -250,5 +306,7 @@ class TasteStore(context: Context) {
         private const val KEY_ARTISTS = "artists"
         private const val KEY_TRACKS = "tracks"
         private const val KEY_RECENT_QUERIES = "recent_queries"
+        private const val KEY_HISTORY = "listening_history"
+        private const val HISTORY_LIMIT = 100
     }
 }

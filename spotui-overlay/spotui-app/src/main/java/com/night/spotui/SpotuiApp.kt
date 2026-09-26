@@ -137,6 +137,7 @@ fun SpotuiApp() {
     var searchTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var likedTracks by remember { mutableStateOf(library.all()) }
     var likedAlbums by remember { mutableStateOf(library.albums()) }
+    var recentlyPlayed by remember { mutableStateOf(taste.recentHistory()) }
     var query by remember { mutableStateOf("") }
     var submittedQuery by remember { mutableStateOf("") }
     var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -272,6 +273,10 @@ fun SpotuiApp() {
                 if (homeTracks.isEmpty()) homeError = "Home didn’t refresh."
             }
         homeLoading = false
+    }
+
+    LaunchedEffect(player.historyRevision) {
+        recentlyPlayed = taste.recentHistory()
     }
 
     LaunchedEffect(player.currentTrack?.id) {
@@ -431,6 +436,7 @@ fun SpotuiApp() {
                             modifier = Modifier.padding(padding),
                             tracks = likedTracks,
                             albums = likedAlbums,
+                            recentlyPlayed = recentlyPlayed,
                             onPlay = { player.play(it, likedTracks) },
                             onToggleLike = ::toggleLike,
                             onArtist = { name, id -> openArtist(name, id) },
@@ -636,6 +642,7 @@ private fun LibraryScreen(
     modifier: Modifier,
     tracks: List<Track>,
     albums: List<AlbumSummary>,
+    recentlyPlayed: List<Track>,
     onPlay: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
     onArtist: (String, String?) -> Unit,
@@ -647,7 +654,8 @@ private fun LibraryScreen(
                 Text("YOUR MUSIC", color = SpotGreen, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
                 Text("Everything you kept.", color = SpotText, fontSize = 25.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 3.dp))
                 Text(
-                    tracks.size.toString() + " songs · " + albums.size + " albums",
+                    tracks.size.toString() + " saved songs · " + albums.size + " albums · " +
+                        recentlyPlayed.size + " recent plays",
                     color = SpotMuted,
                     fontSize = 11.sp,
                     modifier = Modifier.padding(top = 4.dp),
@@ -655,7 +663,7 @@ private fun LibraryScreen(
             }
         }
 
-        if (tracks.isEmpty() && albums.isEmpty()) {
+        if (recentlyPlayed.isEmpty() && tracks.isEmpty() && albums.isEmpty()) {
             item {
                 Column(
                     Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 72.dp),
@@ -666,6 +674,18 @@ private fun LibraryScreen(
                 }
             }
         } else {
+            if (recentlyPlayed.isNotEmpty()) {
+                item { MusicSectionTitle("Recently played", "Your listening history") }
+                items(recentlyPlayed, key = { "history-" + it.id }) { track ->
+                    TrackRow(
+                        track,
+                        tracks.any { saved -> saved.id == track.id },
+                        { onPlay(track) },
+                        { onToggleLike(track) },
+                        { onArtist(track.artist, track.artistId.takeIf(String::isNotBlank)) },
+                    )
+                }
+            }
             if (albums.isNotEmpty()) {
                 item { MusicSectionTitle("Saved albums", "Albums in your library") }
                 item {

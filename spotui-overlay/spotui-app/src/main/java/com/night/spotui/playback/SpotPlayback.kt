@@ -98,6 +98,10 @@ class SpotPlaybackController(
         private set
     var streamLabel by mutableStateOf("")
         private set
+    var historyRevision by mutableIntStateOf(0)
+        private set
+
+    private var historyRecordedForTrack: String? = null
 
     init {
         player.addListener(object : Player.Listener {
@@ -134,6 +138,19 @@ class SpotPlaybackController(
             while (isActive) {
                 positionMs = player.currentPosition.coerceAtLeast(0L)
                 durationMs = player.duration.coerceAtLeast(0L)
+                val track = currentTrack
+                if (player.isPlaying && track != null && historyRecordedForTrack != track.id) {
+                    val thresholdMs = if (durationMs > 0L) {
+                        minOf(30_000L, maxOf(5_000L, durationMs / 2L))
+                    } else {
+                        30_000L
+                    }
+                    if (positionMs >= thresholdMs) {
+                        taste.recordHistory(track)
+                        historyRecordedForTrack = track.id
+                        historyRevision += 1
+                    }
+                }
                 delay(350)
             }
         }
@@ -268,6 +285,7 @@ class SpotPlaybackController(
         activeCandidateIndex = -1
         if (!preserveRefreshGuard) refreshingAfterPlayerError = false
         currentTrack = track
+        historyRecordedForTrack = null
         isPlaying = false
         isLoading = true
         errorMessage = null
