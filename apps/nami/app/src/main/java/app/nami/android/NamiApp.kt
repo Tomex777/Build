@@ -337,7 +337,7 @@ private fun downloadedPlaybackSession(
 }
 
 @Composable
-private fun GlobalSearchHome(
+internal fun GlobalSearchHome(
     sourceRegistry: NamiSourceRegistry,
     onOpenSource: (NamiAnimeSource, SourceListing) -> Unit,
     onOpenAnime: (NamiAnimeSource, AnimeSearchResult) -> Unit,
