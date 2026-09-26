@@ -264,6 +264,18 @@ class NamiDownloadManager(
         if (previous == null) {
             newJob.invokeOnCompletion {
                 activeJobs.remove(k, newJob)
+
+                // Pause/Resume can race with coroutine cancellation. If Resume changed the
+                // persisted item back to QUEUED before the old transfer finished unwinding,
+                // the immediate kick may have seen this still-active job and skipped it.
+                // Re-arm that exact item once the old job has actually left the map.
+                val latest = mutableStatuses.value[k]
+                if (
+                    latest?.state == NamiDownloadState.QUEUED &&
+                    !mutableGlobalPaused.value
+                ) {
+                    schedule(latest, source, anime, episode)
+                }
             }
             newJob.start()
         } else {
@@ -603,7 +615,27 @@ class NamiDownloadManager(
             return
         }
 
-        val existingBytes = partialFile(initial).takeIf { it.exists() }?.length() ?: 0L
+        val existingFile = partialFile(initial)
+        val existingBytes = existingFile.takeIf { it.exists() }?.length() ?: 0L
+
+        if (
+            initial.mediaKind == MEDIA_KIND_DIRECT &&
+            initial.totalBytes != null &&
+            initial.totalBytes > 0L &&
+            existingBytes == initial.totalBytes &&
+            !initial.displayName.isNullOrBlank() &&
+            !initial.mimeType.isNullOrBlank()
+        ) {
+            finalizePartial(
+                initial.copy(
+                    bytesDownloaded = existingBytes,
+                    progress = 99,
+                    errorMessage = null,
+                ),
+            )
+            return
+        }
+
         val requestHeaders = buildMap {
             putAll(media.headers)
             if (existingBytes > 0L) {
@@ -621,7 +653,7 @@ class NamiDownloadManager(
             requireSuccess = false,
         )
         try {
-            val responseMime = connection.contentType
+            val initialResponseMime = connection.contentType
                 ?.substringBefore(';')
                 ?.trim()
                 ?.lowercase()
@@ -630,7 +662,7 @@ class NamiDownloadManager(
                 initial.mediaKind == null &&
                 DownloadMediaNaming.isHls(
                     connection.url.toString(),
-                    media.mimeType ?: responseMime,
+                    media.mimeType ?: initialResponseMime,
                 )
             ) {
                 if (existingBytes > 0L) {
@@ -654,9 +686,38 @@ class NamiDownloadManager(
 
             var appendFrom = existingBytes
             when (connection.responseCode) {
-                HttpURLConnection.HTTP_PARTIAL -> Unit
+                HttpURLConnection.HTTP_PARTIAL -> {
+                    val responseStart = contentRangeStart(connection)
+                    if (responseStart != appendFrom) {
+                        connection.disconnect()
+                        resetPartial(initial)
+                        appendFrom = 0L
+                        connection = openConnection(
+                            media.url,
+                            media.headers,
+                            requireSuccess = false,
+                        )
+                        if (connection.responseCode !in 200..299) {
+                            throw DownloadHttpException(
+                                connection.responseCode,
+                                "Download restart failed with HTTP " +
+                                    connection.responseCode + ".",
+                            )
+                        }
+                        if (
+                            connection.responseCode == HttpURLConnection.HTTP_PARTIAL &&
+                            contentRangeStart(connection) != 0L
+                        ) {
+                            throw IOException(
+                                "Server returned an invalid Content-Range while restarting.",
+                            )
+                        }
+                    }
+                }
                 in 200..299 -> {
                     if (appendFrom > 0L) {
+                        // Server ignored Range. Start from byte zero rather than appending a
+                        // second full response to the existing partial.
                         resetPartial(initial)
                         appendFrom = 0L
                     }
@@ -673,6 +734,10 @@ class NamiDownloadManager(
                 )
             }
 
+            val responseMime = connection.contentType
+                ?.substringBefore(';')
+                ?.trim()
+                ?.lowercase()
             val responseType = media.mimeType ?: responseMime ?: "application/octet-stream"
             val extension = DownloadMediaNaming.extensionFor(
                 mimeType = responseType,
@@ -881,6 +946,16 @@ class NamiDownloadManager(
             ),
         )
     }
+
+    private fun contentRangeStart(connection: HttpURLConnection): Long? =
+        connection.getHeaderField("Content-Range")
+            ?.let { value ->
+                Regex("""(?i)^bytes\\s+(\\d+)-\\d+/[^\\s]+$""")
+                    .find(value.trim())
+                    ?.groupValues
+                    ?.getOrNull(1)
+                    ?.toLongOrNull()
+            }
 
     private fun totalBytesFromConnection(
         connection: HttpURLConnection,
