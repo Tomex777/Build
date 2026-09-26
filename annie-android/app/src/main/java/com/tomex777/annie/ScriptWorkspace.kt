@@ -760,6 +760,7 @@ internal class ScriptRuntime(
             |    video: value => Object.assign({type: "video"}, value || {}),
             |    options: value => Object.assign({type: "options"}, value || {}),
             |    progress: value => Object.assign({type: "progress"}, value || {}),
+            |    form: value => Object.assign({type: "form"}, value || {}),
             |    browser: value => JSON.parse(annieBrowserBuildMessage(JSON.stringify(value || {})))
             |  },
             |  storage: {
