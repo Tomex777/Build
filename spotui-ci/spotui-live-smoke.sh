@@ -90,6 +90,8 @@ wait_for_node() {
     elapsed=$((elapsed+1))
   done
   shot failure-node
+  echo "Timed out waiting for UI node: $label" >&2
+  cat /tmp/spotui.xml >&2 || true
   capture_resolver_logs
   echo "--- SpotUI resolver summary ---" >&2
   cat "$OUT/resolver-summary.txt" >&2 2>/dev/null || true
@@ -182,6 +184,30 @@ for node in nodes[start+1:]:
                 raise SystemExit(0)
         current=parents.get(current)
 raise SystemExit('No clickable album card found after Discography')
+PY
+  sleep 2
+}
+
+tap_accessible_action() {
+  local label="$1"
+  dump_ui
+  python3 - "$label" <<'PY'
+import re, subprocess, sys, xml.etree.ElementTree as ET
+label=sys.argv[1]
+root=ET.parse('/tmp/spotui.xml').getroot()
+matches=[]
+for node in root.iter('node'):
+    desc=(node.attrib.get('content-desc') or '').strip()
+    if desc != label: continue
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+    if not m: continue
+    x1,y1,x2,y2=map(int,m.groups())
+    matches.append((node.attrib.get('clickable') == 'true',(x1+x2)//2,(y1+y2)//2,node.attrib.get('class','')))
+clickable=[match for match in matches if match[0]]
+if not clickable:
+    raise SystemExit('No clickable accessibility node for '+label+'; matches='+repr(matches))
+_,x,y,_=clickable[-1]
+subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
 PY
   sleep 2
 }
@@ -287,7 +313,7 @@ shot 03-search-adele-again
 # Follow Adele's stable artist ID from the actual search result, then open the
 # first album card from the artist's discography. This proves catalog navigation
 # independently from playback resolution.
-tap_text 'Open artist Adele'
+tap_accessible_action 'Open artist Adele'
 wait_for_node Artist 20
 scroll_until_node Discography 10 || {
   shot failure-artist-discography
