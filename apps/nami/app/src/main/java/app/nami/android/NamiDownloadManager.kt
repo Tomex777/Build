@@ -265,6 +265,13 @@ class NamiDownloadManager(
             newJob.invokeOnCompletion {
                 activeJobs.remove(k, newJob)
 
+                // A blocking network read can finish one last buffer after pause() records the
+                // PAUSED state but before coroutine cancellation is observed. Once the transfer
+                // job is fully stopped, make the database agree with the durable partial file so
+                // process recreation resumes from the real byte boundary instead of stale UI
+                // progress.
+                mutableStatuses.value[k]?.let(::reconcilePausedDirectPartial)
+
                 // Pause/Resume can race with coroutine cancellation. If Resume changed the
                 // persisted item back to QUEUED before the old transfer finished unwinding,
                 // the immediate kick may have seen this still-active job and skipped it.
@@ -1282,6 +1289,39 @@ class NamiDownloadManager(
                 context.contentResolver.delete(Uri.parse(uriString), null, null)
             }
         }
+    }
+
+    private fun reconcilePausedDirectPartial(
+        status: NamiDownloadStatus,
+    ): NamiDownloadStatus {
+        if (
+            status.state != NamiDownloadState.PAUSED ||
+            status.mediaKind != MEDIA_KIND_DIRECT
+        ) {
+            return status
+        }
+
+        val partial = partialFile(status)
+        if (!partial.exists()) return status
+
+        val durableBytes = partial.length().coerceAtLeast(0L)
+        val progress = status.totalBytes
+            ?.takeIf { it > 0L }
+            ?.let {
+                ((durableBytes.toDouble() / it) * 100)
+                    .roundToInt()
+                    .coerceIn(0, 99)
+            }
+            ?: status.progress
+
+        val reconciled = status.copy(
+            bytesDownloaded = durableBytes,
+            progress = progress,
+        )
+        if (reconciled != status) {
+            setAndPersist(reconciled)
+        }
+        return reconciled
     }
 
     private fun partialFile(status: NamiDownloadStatus): File {
