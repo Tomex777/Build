@@ -286,6 +286,16 @@ function safeBackupName(name) {
   return clean;
 }
 
+async function deleteBackup(name) {
+  const clean = safeBackupName(name);
+  const target = path.join(BACKUP_DIR, clean);
+  const info = await fs.stat(target);
+  if (!info.isFile()) throw Object.assign(new Error('Backup is not a file'), { statusCode: 400 });
+  await fs.unlink(target);
+  await recordActivity('server:backup.delete', { name: clean, private: clean.startsWith('private-') });
+  return { ok: true, name: clean };
+}
+
 async function sendBackup(res, name) {
   const clean = safeBackupName(name);
   const target = path.join(BACKUP_DIR, clean);
@@ -872,6 +882,9 @@ async function handler(req, res) {
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/backups/content') {
       return sendBackup(res, url.searchParams.get('name') || '');
+    }
+    if (req.method === 'DELETE' && url.pathname === '/api/cortex/host/backups') {
+      return json(res, 200, await deleteBackup(url.searchParams.get('name') || ''));
     }
 
     return json(res, 404, { error: 'Not found' });
