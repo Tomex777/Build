@@ -1578,6 +1578,7 @@ private fun NowPlaying(
                         val listState = rememberLazyListState()
                         val isDragged by listState.interactionSource.collectIsDraggedAsState()
                         var followPlayback by remember(track.id) { mutableStateOf(true) }
+                        val lyricScope = rememberCoroutineScope()
 
                         LaunchedEffect(isDragged) {
                             if (isDragged) {
@@ -1590,6 +1591,49 @@ private fun NowPlaying(
                         LaunchedEffect(activeIndex, followPlayback) {
                             if (followPlayback && activeIndex in loaded.synced.indices) {
                                 listState.animateScrollToItem((activeIndex - 2).coerceAtLeast(0))
+                            }
+                        }
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    track.title,
+                                    color = SpotText,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Black,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    track.artist,
+                                    color = SpotText.copy(alpha = 0.66f),
+                                    fontSize = 12.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            if (!followPlayback) {
+                                Text(
+                                    "Back to current",
+                                    color = SpotText,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .background(Color(0xFF356347))
+                                        .clickable {
+                                            followPlayback = true
+                                            lyricScope.launch {
+                                                if (activeIndex in loaded.synced.indices) {
+                                                    listState.animateScrollToItem((activeIndex - 2).coerceAtLeast(0))
+                                                }
+                                            }
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                        .semantics { contentDescription = "Return to current lyric" },
+                                )
                             }
                         }
                         LazyColumn(
