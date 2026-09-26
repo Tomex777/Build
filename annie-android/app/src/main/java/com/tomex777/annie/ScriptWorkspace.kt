@@ -83,7 +83,13 @@ internal class ScriptFiles(context: Context) {
             )
         }
         val chess = File(root, "chess.js")
-        if (!chess.exists()) chess.writeText(StarterScripts.chess)
+        if (!chess.exists()) {
+            chess.writeText(StarterScripts.chess)
+        } else {
+            val current = chess.readText()
+            val migrated = StarterScripts.migrateChess(current)
+            if (migrated != current) chess.writeText(migrated)
+        }
     }
 
     fun listProjects(): List<ScriptProject> = root.listFiles().orEmpty()
