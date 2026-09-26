@@ -213,15 +213,30 @@ fun SpotuiApp() {
                     fun usableArtist(value: String): Boolean =
                         value.isNotBlank() &&
                             !value.equals("YouTube Music", ignoreCase = true) &&
+                            value !in setOf("Album", "Single", "EP", "Playlist") &&
                             !value.matches(Regex("""(?:19|20)\d{2}"""))
 
+                    val currentArtistOwnsAlbum =
+                        artistReleases.any { it.id == summary.id } &&
+                            usableArtist(selectedArtist)
+                    val summaryArtistIsUsable = usableArtist(summary.artist)
+                    val fallbackArtist = when {
+                        summaryArtistIsUsable -> summary.artist
+                        currentArtistOwnsAlbum -> selectedArtist
+                        else -> ""
+                    }
+                    val fallbackArtistId = when {
+                        summaryArtistIsUsable -> summary.artistId
+                        currentArtistOwnsAlbum -> selectedArtistId
+                        else -> ""
+                    }
                     val sourceArtistIsUsable = usableArtist(catalog.artist)
                     val artist = catalog.artist.takeIf { sourceArtistIsUsable }
-                        ?: summary.artist
+                        ?: fallbackArtist
                     val artistId = if (sourceArtistIsUsable) {
-                        catalog.artistId.ifBlank { summary.artistId }
+                        catalog.artistId.ifBlank { fallbackArtistId }
                     } else {
-                        summary.artistId
+                        fallbackArtistId
                     }
                     val providerTitle = catalog.title.trim()
                     val title = if (
