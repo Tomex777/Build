@@ -1,9 +1,13 @@
 package app.nami.android.compat
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.provider.OpenableColumns
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.UiDevice
 import app.nami.android.NamiDownloadManager
 import app.nami.android.NamiDownloadState
 import app.nami.android.NamiDownloadStatus
@@ -302,6 +306,148 @@ class DownloadEngineSmokeTest {
     }
 
     @Test
+    fun realConnectivityLossWaitsThenAutomaticallyResumesPartialTransfer() = runBlocking<Unit> {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        val connectivity = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val databaseName = "nami-network-loss-" + System.nanoTime() + ".db"
+        context.deleteDatabase(databaseName)
+        val database = NamiDatabase(context, databaseName)
+        val payload = ByteArray(1024 * 1024) { index -> (index % 181).toByte() }
+        val requestCount = AtomicInteger()
+        val observedRanges = CopyOnWriteArrayList<Long>()
+        var cleanupManager: NamiDownloadManager? = null
+
+        val server = object : NanoHTTPD(0) {
+            override fun serve(session: IHTTPSession): Response {
+                val request = requestCount.incrementAndGet()
+                val start = parseRangeStart(session.headers["range"])
+                if (start > 0L) observedRanges += start
+
+                if (request == 1 && start == 0L) {
+                    return newFixedLengthResponse(
+                        Response.Status.OK,
+                        "video/mp4",
+                        TruncatingByteArrayInputStream(
+                            payload = payload,
+                            maxBytes = 192 * 1024,
+                        ),
+                        payload.size.toLong(),
+                    ).apply {
+                        addHeader("Accept-Ranges", "bytes")
+                        addHeader("ETag", "\"nami-network-loss-fixture\"")
+                    }
+                }
+
+                val boundedStart = start.coerceIn(0L, payload.size.toLong())
+                return newFixedLengthResponse(
+                    if (boundedStart > 0L) Response.Status.PARTIAL_CONTENT else Response.Status.OK,
+                    "video/mp4",
+                    SlowByteArrayInputStream(
+                        payload = payload,
+                        start = boundedStart.toInt(),
+                        delayMillis = 0L,
+                    ),
+                    payload.size.toLong() - boundedStart,
+                ).apply {
+                    addHeader("Accept-Ranges", "bytes")
+                    addHeader("ETag", "\"nami-network-loss-fixture\"")
+                    if (boundedStart > 0L) {
+                        addHeader(
+                            "Content-Range",
+                            "bytes $boundedStart-${payload.size - 1}/${payload.size}",
+                        )
+                    }
+                }
+            }
+        }
+
+        try {
+            server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
+            val source = fixtureSource(
+                id = "network-loss-fixture",
+                mediaUrl = "http://127.0.0.1:${server.listeningPort}/episode.mp4",
+            )
+            val manager = NamiDownloadManager(
+                context,
+                database,
+                NamiSourceRegistry { listOf(source) },
+            )
+            cleanupManager = manager
+            manager.resumeAll()
+
+            setEmulatorNetwork(device, enabled = false)
+            withTimeout(15_000) {
+                while (hasInternet(connectivity)) delay(100)
+            }
+
+            val anime = fixtureAnime(source, "Network Loss Fixture")
+            val episode = fixtureEpisode(source, anime, 1)
+            val key = manager.key(source.metadata.id, episode.ref.sourceEpisodeId)
+            manager.enqueue(source, anime, episode)
+
+            val waiting = withTimeout(20_000) {
+                waitForStatus(manager, key) {
+                    it.state == NamiDownloadState.WAITING_FOR_NETWORK &&
+                        it.bytesDownloaded > 0L
+                }
+            }
+            assertTrue(
+                "Network loss discarded the partial file",
+                !waiting.tempPath.isNullOrBlank() && File(waiting.tempPath!!).length() > 0L,
+            )
+
+            setEmulatorNetwork(device, enabled = true)
+            withTimeout(20_000) {
+                while (!hasInternet(connectivity)) delay(100)
+            }
+
+            val completed = withTimeout(30_000) {
+                waitForStatus(manager, key) {
+                    it.state == NamiDownloadState.DOWNLOADED
+                }
+            }
+            assertTrue(
+                "Restoring connectivity restarted from zero instead of resuming partial bytes",
+                observedRanges.any { it > 0L },
+            )
+            assertTrue(
+                "Network recovery did not publish the completed media",
+                !completed.contentUri.isNullOrBlank(),
+            )
+            val finalSize = context.contentResolver.query(
+                android.net.Uri.parse(completed.contentUri),
+                arrayOf(OpenableColumns.SIZE),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getLong(0) else -1L
+            } ?: -1L
+            assertEquals(payload.size.toLong(), finalSize)
+        } finally {
+            runCatching { setEmulatorNetwork(device, enabled = true) }
+            runCatching {
+                withTimeout(20_000) {
+                    while (!hasInternet(connectivity)) delay(100)
+                }
+            }
+            cleanupManager?.let { manager ->
+                manager.resumeAll()
+                manager.statuses.value.values.toList().forEach(manager::remove)
+                runCatching {
+                    withTimeout(10_000) {
+                        while (manager.statuses.value.isNotEmpty()) delay(50)
+                    }
+                }
+            }
+            server.stop()
+            database.close()
+            context.deleteDatabase(databaseName)
+        }
+    }
+
+    @Test
     fun perSourceSlotsAndGlobalPauseResumeRemainIndependent() = runBlocking<Unit> {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val databaseName = "nami-per-source-" + System.nanoTime() + ".db"
@@ -559,6 +705,33 @@ class DownloadEngineSmokeTest {
         title = "Episode $number",
         number = number.toDouble(),
     )
+
+    private fun setEmulatorNetwork(
+        device: UiDevice,
+        enabled: Boolean,
+    ) {
+        if (enabled) {
+            device.executeShellCommand("settings put global airplane_mode_on 0")
+            device.executeShellCommand(
+                "am broadcast -a android.intent.action.AIRPLANE_MODE --ez state false",
+            )
+            device.executeShellCommand("svc data enable")
+            device.executeShellCommand("svc wifi enable")
+        } else {
+            device.executeShellCommand("svc wifi disable")
+            device.executeShellCommand("svc data disable")
+            device.executeShellCommand("settings put global airplane_mode_on 1")
+            device.executeShellCommand(
+                "am broadcast -a android.intent.action.AIRPLANE_MODE --ez state true",
+            )
+        }
+    }
+
+    private fun hasInternet(connectivity: ConnectivityManager): Boolean {
+        val network = connectivity.activeNetwork ?: return false
+        val capabilities = connectivity.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
 
     private fun parseRangeStart(value: String?): Long =
         value
