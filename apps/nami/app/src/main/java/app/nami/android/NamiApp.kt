@@ -2,7 +2,9 @@
 
 package app.nami.android
 
+import android.content.Context
 import android.content.Intent
+import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -69,6 +71,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -337,9 +340,18 @@ private fun GlobalSearchHome(
     onOpenAnime: (NamiAnimeSource, AnimeSearchResult) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val hostView = LocalView.current
     val searcher = remember(sourceRegistry) { GlobalAnimeSearch(sourceRegistry) }
+
+    fun dismissSearchKeyboard() {
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
+        (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)
+            ?.hideSoftInputFromWindow(hostView.windowToken, 0)
+    }
 
     var query by rememberSaveable { mutableStateOf("") }
     var searchState by remember { mutableStateOf(GlobalSearchState()) }
@@ -363,8 +375,7 @@ private fun GlobalSearchHome(
     fun submitSearch() {
         val submitted = query.trim()
         if (submitted.isEmpty()) return
-        keyboardController?.hide()
-        focusManager.clearFocus(force = true)
+        dismissSearchKeyboard()
         hasSearched = true
         searchJob?.cancel()
         searchJob = scope.launch {
@@ -428,8 +439,14 @@ private fun GlobalSearchHome(
                         GlobalSearchSourceSection(
                             section = section,
                             query = query.trim(),
-                            onOpenSource = onOpenSource,
-                            onOpenAnime = onOpenAnime,
+                            onOpenSource = { source, listing ->
+                                dismissSearchKeyboard()
+                                onOpenSource(source, listing)
+                            },
+                            onOpenAnime = { source, item ->
+                                dismissSearchKeyboard()
+                                onOpenAnime(source, item)
+                            },
                         )
                     }
                 }
