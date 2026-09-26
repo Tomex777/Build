@@ -31,6 +31,7 @@ object YouTubeMusicCatalog {
     private const val SESSION_PREFS = "sora_youtube_music_session_v1"
     private const val SESSION_COOKIE = "cookie"
     private const val SESSION_USER_AGENT = "userAgent"
+    private const val NEWPIPE_RESOLVER_CLIENT = "NewPipe"
 
     @Volatile
     private var poTokenProvider: YouTubePoTokenProvider? = null
@@ -200,7 +201,11 @@ object YouTubeMusicCatalog {
             .toString()
     }
 
-    suspend fun streams(sourceId: String, id: String): String {
+    suspend fun streams(
+        sourceId: String,
+        id: String,
+        avoidResolverClient: String? = null,
+    ): String {
         requireSource(sourceId)
         ensureVisitorData()
 
@@ -210,7 +215,9 @@ object YouTubeMusicCatalog {
         // cost if we actually reach a client that requires it.
         Log.i(
             TAG,
-            "resolver start id=$id visitor=${!YouTube.visitorData.isNullOrBlank()} signedIn=${hasSignedInCookie(YouTube.cookie)}",
+            "resolver start id=$id visitor=${!YouTube.visitorData.isNullOrBlank()} " +
+                "signedIn=${hasSignedInCookie(YouTube.cookie)} " +
+                "avoidClient=${avoidResolverClient ?: "none"}",
         )
         var signatureTimestamp: Int? = null
         var signatureTimestampResolved = false
@@ -229,7 +236,11 @@ object YouTubeMusicCatalog {
 
         val failures = mutableListOf<String>()
         for (client in nativePlaybackClients) {
-            val identity = "${client.clientName}/${client.clientVersion}"
+            val identity = clientIdentity(client)
+            if (identity == avoidResolverClient) {
+                Log.i(TAG, "player skip id=$id client=$identity reason=transport-rejected")
+                continue
+            }
             Log.i(TAG, "player start id=$id client=$identity")
             val response = withTimeoutOrNull(PLAYER_ATTEMPT_TIMEOUT_MS) {
                 YouTube.player(
@@ -282,8 +293,13 @@ object YouTubeMusicCatalog {
 
         val visitorData = YouTube.visitorData?.takeIf(String::isNotBlank)
         val provider = poTokenProvider
+        val webResolverClient = clientIdentity(WEB_REMIX)
+        val allowWebResolver = avoidResolverClient != webResolverClient
         var tokenPair: YouTubePoTokenProvider.Tokens? = null
-        if (visitorData == null) {
+        if (!allowWebResolver) {
+            failures += "WEB_REMIX: skipped after transport rejection"
+            Log.i(TAG, "player skip id=$id client=$webResolverClient reason=transport-rejected")
+        } else if (visitorData == null) {
             failures += "WEB_REMIX: missing visitor data"
         } else if (provider == null) {
             failures += "WEB_REMIX: PoToken provider not initialized"
@@ -399,38 +415,43 @@ object YouTubeMusicCatalog {
         // independent of the Innertube response above, so let it make one final
         // anonymous attempt when YouTube has challenged every API client. Keeping it
         // last avoids replacing URLs that were already minted for a known client.
-        Log.i(TAG, "newpipe start id=$id")
-        val extracted = runCatching { NewPipeExtractor.newPipePlayer(id) }
-        val newPipeStreams = extracted.getOrNull().orEmpty()
-        if (newPipeStreams.isNotEmpty()) {
-            val audioStreams = newPipeStreams.mapNotNull { (itag, url) ->
-                val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return@mapNotNull null
-                val mime = uri.getQueryParameter("mime").orEmpty()
-                val isKnownAudioItag = itag in setOf(139, 140, 141, 249, 250, 251, 256, 258, 325, 328)
-                if (!mime.startsWith("audio/", ignoreCase = true) && !isKnownAudioItag) {
-                    return@mapNotNull null
-                }
-                NewPipeAudioStream(
-                    itag = itag,
-                    url = url,
-                    mimeType = mime.ifBlank { mimeTypeForAudioItag(itag) },
-                    bitrate = bitrateForAudioItag(itag),
-                    durationMs = ((uri.getQueryParameter("dur")?.toDoubleOrNull() ?: 0.0) * 1000.0).toLong(),
-                )
-            }.sortedByDescending {
-                it.bitrate + if (it.mimeType.contains("mp4", ignoreCase = true)) 50_000 else 0
-            }
-
-            if (audioStreams.isNotEmpty()) {
-                Log.i(TAG, "newpipe resolved id=$id streams=${audioStreams.size} itags=${audioStreams.joinToString { it.itag.toString() }}")
-                return newPipeStreamsJson(audioStreams)
-            }
-            failures += "NewPipe: streams found but none identified as audio"
-            Log.w(TAG, "newpipe returned streams but no audio id=$id total=${newPipeStreams.size}")
+        if (avoidResolverClient == NEWPIPE_RESOLVER_CLIENT) {
+            failures += "NewPipe: skipped after transport rejection"
+            Log.i(TAG, "newpipe skip id=$id reason=transport-rejected")
         } else {
-            val reason = extracted.exceptionOrNull()?.message.orEmpty().ifBlank { "no streams" }
-            failures += "NewPipe: $reason"
-            Log.w(TAG, "newpipe failed id=$id reason=$reason", extracted.exceptionOrNull())
+            Log.i(TAG, "newpipe start id=$id")
+            val extracted = runCatching { NewPipeExtractor.newPipePlayer(id) }
+            val newPipeStreams = extracted.getOrNull().orEmpty()
+            if (newPipeStreams.isNotEmpty()) {
+                val audioStreams = newPipeStreams.mapNotNull { (itag, url) ->
+                    val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return@mapNotNull null
+                    val mime = uri.getQueryParameter("mime").orEmpty()
+                    val isKnownAudioItag = itag in setOf(139, 140, 141, 249, 250, 251, 256, 258, 325, 328)
+                    if (!mime.startsWith("audio/", ignoreCase = true) && !isKnownAudioItag) {
+                        return@mapNotNull null
+                    }
+                    NewPipeAudioStream(
+                        itag = itag,
+                        url = url,
+                        mimeType = mime.ifBlank { mimeTypeForAudioItag(itag) },
+                        bitrate = bitrateForAudioItag(itag),
+                        durationMs = ((uri.getQueryParameter("dur")?.toDoubleOrNull() ?: 0.0) * 1000.0).toLong(),
+                    )
+                }.sortedByDescending {
+                    it.bitrate + if (it.mimeType.contains("mp4", ignoreCase = true)) 50_000 else 0
+                }
+
+                if (audioStreams.isNotEmpty()) {
+                    Log.i(TAG, "newpipe resolved id=$id streams=${audioStreams.size} itags=${audioStreams.joinToString { it.itag.toString() }}")
+                    return newPipeStreamsJson(audioStreams)
+                }
+                failures += "NewPipe: streams found but none identified as audio"
+                Log.w(TAG, "newpipe returned streams but no audio id=$id total=${newPipeStreams.size}")
+            } else {
+                val reason = extracted.exceptionOrNull()?.message.orEmpty().ifBlank { "no streams" }
+                failures += "NewPipe: $reason"
+                Log.w(TAG, "newpipe failed id=$id reason=$reason", extracted.exceptionOrNull())
+            }
         }
 
         error("No YouTube Music playback path resolved direct audio: ${failures.joinToString("; ")}")
@@ -484,6 +505,7 @@ object YouTubeMusicCatalog {
             put(
                 JSONObject()
                     .put("label", qualityLabel(format.mimeType, format.averageBitrate ?: format.bitrate))
+                    .put("resolverClient", clientIdentity(client))
                     .put("url", url)
                     .put("headers", headersJson)
                     .put("mimeType", format.mimeType.substringBefore(';'))
@@ -505,6 +527,7 @@ object YouTubeMusicCatalog {
             put(
                 JSONObject()
                     .put("label", qualityLabel(stream.mimeType, stream.bitrate))
+                    .put("resolverClient", clientIdentity(client))
                     .put("url", appendPoToken(stream.url, poToken))
                     .put("headers", headersJson)
                     .put("mimeType", stream.mimeType.substringBefore(';'))
@@ -522,6 +545,7 @@ object YouTubeMusicCatalog {
             put(
                 JSONObject()
                     .put("label", qualityLabel(stream.mimeType, stream.bitrate))
+                    .put("resolverClient", NEWPIPE_RESOLVER_CLIENT)
                     .put("url", stream.url)
                     .put("headers", headersJson)
                     .put("mimeType", stream.mimeType.substringBefore(';'))
@@ -549,6 +573,9 @@ object YouTubeMusicCatalog {
     private fun authenticatedWebClient(): YouTubeClient = WEB_REMIX.copy(
         userAgent = sessionUserAgent?.takeIf(String::isNotBlank) ?: WEB_REMIX.userAgent,
     )
+
+    private fun clientIdentity(client: YouTubeClient): String =
+        "${client.clientName}/${client.clientVersion}"
 
     private fun hasSignedInCookie(cookie: String?): Boolean = cookie
         ?.split(';')
