@@ -824,7 +824,7 @@ internal fun ChatBubble(
     onScriptVideoDownload: (org.json.JSONObject, String?) -> Unit = { _, _ -> },
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().testTag("chat_message").testTag("chat_message_${entry.id}"),
         horizontalArrangement = if (entry.fromUser) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.Top
     ) {
