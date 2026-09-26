@@ -43,10 +43,12 @@ internal object AnnieScriptSpec {
         appendLine("return annie.messages.video({ title, uri, thumbnail, width: 1920, height: 1080 });")
         appendLine("return annie.messages.options({ title: \"Choose\", options: [{ id: \"a\", label: \"A\", action: \"pick\" }] });")
         appendLine("return annie.messages.progress({ text: \"Downloading…\", progress: 0.64, state: \"running\" });")
+        appendLine("return annie.messages.form({ title: \"Download options\", fields: [{ id: \"quality\", type: \"select\", label: \"Quality\", options: [\"720p\", \"1080p\"] }], submit: { label: \"Download\", action: \"start-download\" } });")
         appendLine("return annie.messages.browser({ url: \"https://example.com\", sessionId: \"source.main\" });")
         appendLine("~~~")
         appendLine("Progress states understood by the native renderer include running/indeterminate, queued, paused, success/completed, failed/error, and cancelled.")
         appendLine("Video cards are compact chat previews; tapping opens Annie's standalone player. Music remains an in-chat player.")
+        appendLine("Form messages are temporary conversation interaction. Their submit payload is routed to the owning script action; they are not persistent ENV.")
         appendLine()
 
         appendLine("## ENV — persistent user configuration")
