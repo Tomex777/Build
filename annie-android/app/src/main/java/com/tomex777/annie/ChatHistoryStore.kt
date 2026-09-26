@@ -51,6 +51,7 @@ internal object ChatHistoryStore {
         }
     }.getOrDefault(emptyList())
 
+    @Synchronized
     fun write(context: Context, sessions: List<ChatSession>) {
         val array = JSONArray()
         sessions.forEach { session ->
