@@ -123,17 +123,36 @@ async function recordActivity(action, detail = {}) {
   } catch {}
 }
 
-async function activity(limit) {
+async function agentActivity(limit) {
   const safeLimit = Math.max(10, Math.min(500, Number(limit) || 100));
   try {
     const text = await fs.readFile(ACTIVITY_FILE, 'utf8');
     return text.trim().split(/\r?\n/).filter(Boolean).slice(-safeLimit).reverse().flatMap((line) => {
-      try { return [JSON.parse(line)]; } catch { return []; }
+      try { return [{ ...JSON.parse(line), source: 'agent' }]; } catch { return []; }
     });
   } catch (error) {
     if (error?.code === 'ENOENT') return [];
     throw error;
   }
+}
+
+async function activity(limit) {
+  const safeLimit = Math.max(10, Math.min(500, Number(limit) || 100));
+  const agentRows = await agentActivity(safeLimit);
+  let msccRows = [];
+  try {
+    const payload = await msccControl('GET', '/activity?limit=' + safeLimit);
+    msccRows = (Array.isArray(payload?.entries) ? payload.entries : []).map((row) => ({
+      ...row,
+      source: 'mscc',
+    }));
+  } catch {
+    // Activity must remain available even while MSCC itself is restarting/offline.
+  }
+  return [...agentRows, ...msccRows]
+    .filter((row) => row && row.at && row.action)
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+    .slice(0, safeLimit);
 }
 
 async function makeDirectory(inputPath) {
