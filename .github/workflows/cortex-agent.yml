@@ -166,7 +166,8 @@ jobs:
           echo "$REGISTRY" | grep -q '"source":"filesystem"'
           echo "$REGISTRY" | grep -q '"id":"demo"'
           echo "$REGISTRY" | grep -q '"displayName":"Demo Module"'
-          echo "$REGISTRY" | grep -q '"hello"'
+          echo "$REGISTRY" | grep -q '"fallback"'
+          echo "$REGISTRY" | grep -q '"whatsapp.send"'
       - name: Verify clean project backup excludes server dependencies and secrets
         shell: bash
         run: |
