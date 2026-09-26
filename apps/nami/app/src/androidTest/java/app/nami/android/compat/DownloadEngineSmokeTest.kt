@@ -47,6 +47,7 @@ class DownloadEngineSmokeTest {
         val database = NamiDatabase(context, databaseName)
         val payload = ByteArray(2 * 1024 * 1024) { index -> (index % 239).toByte() }
         val observedRanges = CopyOnWriteArrayList<Long>()
+        var cleanupManager: NamiDownloadManager? = null
 
         val server = object : NanoHTTPD(0) {
             override fun serve(session: IHTTPSession): Response {
@@ -92,6 +93,7 @@ class DownloadEngineSmokeTest {
                 database,
                 NamiSourceRegistry { listOf(source) },
             )
+            cleanupManager = manager
             manager.resumeAll()
 
             val anime = fixtureAnime(source, "Range Resume")
@@ -159,6 +161,15 @@ class DownloadEngineSmokeTest {
                 while (manager.statuses.value.containsKey(key)) delay(50)
             }
         } finally {
+            cleanupManager?.let { manager ->
+                manager.resumeAll()
+                manager.statuses.value.values.toList().forEach(manager::remove)
+                runCatching {
+                    withTimeout(10_000) {
+                        while (manager.statuses.value.isNotEmpty()) delay(50)
+                    }
+                }
+            }
             server.stop()
             database.close()
             context.deleteDatabase(databaseName)
@@ -171,6 +182,7 @@ class DownloadEngineSmokeTest {
         val databaseName = "nami-per-source-" + System.nanoTime() + ".db"
         context.deleteDatabase(databaseName)
         val database = NamiDatabase(context, databaseName)
+        var cleanupManager: NamiDownloadManager? = null
 
         val active = ConcurrentHashMap<String, AtomicInteger>()
         val maximum = ConcurrentHashMap<String, AtomicInteger>()
@@ -229,6 +241,7 @@ class DownloadEngineSmokeTest {
                 database,
                 NamiSourceRegistry { sources.values.toList() },
             )
+            cleanupManager = manager
             manager.resumeAll()
 
             sources.forEach { (id, source) ->
@@ -321,14 +334,14 @@ class DownloadEngineSmokeTest {
                 while (manager.statuses.value.isNotEmpty()) delay(50)
             }
         } finally {
-            runCatching {
-                val cleanupManager = NamiDownloadManager(
-                    context,
-                    database,
-                    NamiSourceRegistry { emptyList() },
-                )
-                cleanupManager.resumeAll()
-                cleanupManager.statuses.value.values.toList().forEach(cleanupManager::remove)
+            cleanupManager?.let { manager ->
+                manager.resumeAll()
+                manager.statuses.value.values.toList().forEach(manager::remove)
+                runCatching {
+                    withTimeout(15_000) {
+                        while (manager.statuses.value.isNotEmpty()) delay(50)
+                    }
+                }
             }
             server.stop()
             database.close()
