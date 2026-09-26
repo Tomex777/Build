@@ -48,4 +48,8 @@ data class ResolvedAudio(
     val label: String = "Audio",
     val mimeType: String? = null,
     val headers: Map<String, String> = emptyMap(),
+    val contentLength: Long? = null,
+    val cacheKey: String? = null,
+    val cacheSourceId: String? = null,
+    val fromCache: Boolean = false,
 )

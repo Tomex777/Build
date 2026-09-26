@@ -38,6 +38,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.LibraryMusic
@@ -506,11 +509,14 @@ fun SpotuiApp() {
                             modifier = Modifier.padding(padding),
                             tracks = likedTracks,
                             albums = likedAlbums,
+                            downloadsRevision = player.downloadRevision,
+                            downloads = player.downloadedTracks(),
                             recentlyPlayed = recentlyPlayed,
                             onPlay = { player.play(it, likedTracks) },
                             onToggleLike = ::toggleLike,
                             onArtist = { name, id -> openArtist(name, id) },
                             onAlbum = ::openAlbum,
+                            onDeleteDownload = { player.deleteDownloadForTrack(it.id) },
                         )
                     }
                 }
@@ -730,11 +736,14 @@ private fun LibraryScreen(
     modifier: Modifier,
     tracks: List<Track>,
     albums: List<AlbumSummary>,
+    downloadsRevision: Int,
+    downloads: List<Track>,
     recentlyPlayed: List<Track>,
     onPlay: (Track) -> Unit,
     onToggleLike: (Track) -> Unit,
     onArtist: (String, String?) -> Unit,
     onAlbum: (AlbumSummary) -> Unit,
+    onDeleteDownload: (Track) -> Unit,
 ) {
     LazyColumn(modifier.fillMaxSize().background(SpotBlack)) {
         item {
@@ -743,6 +752,7 @@ private fun LibraryScreen(
                 Text("Everything you kept.", color = SpotText, fontSize = 25.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 3.dp))
                 Text(
                     tracks.size.toString() + " saved songs · " + albums.size + " albums · " +
+                        downloads.size + " downloads · " +
                         recentlyPlayed.size + " recent plays",
                     color = SpotMuted,
                     fontSize = 11.sp,
@@ -751,7 +761,7 @@ private fun LibraryScreen(
             }
         }
 
-        if (recentlyPlayed.isEmpty() && tracks.isEmpty() && albums.isEmpty()) {
+        if (recentlyPlayed.isEmpty() && tracks.isEmpty() && albums.isEmpty() && downloads.isEmpty()) {
             item {
                 Column(
                     Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 72.dp),
@@ -796,6 +806,19 @@ private fun LibraryScreen(
                         { onPlay(track) },
                         { onToggleLike(track) },
                         { onArtist(track.artist, track.artistId.takeIf(String::isNotBlank)) },
+                    )
+                }
+            }
+            if (downloads.isNotEmpty()) {
+                item { MusicSectionTitle("Downloads", "Audio saved on this phone") }
+                items(downloads, key = { "download-" + it.id }) { track ->
+                    TrackRow(
+                        track = track,
+                        liked = tracks.any { it.id == track.id },
+                        onPlay = { onPlay(track) },
+                        onToggleLike = { onToggleLike(track) },
+                        onArtist = { onArtist(track.artist, track.artistId.takeIf(String::isNotBlank)) },
+                        onDeleteDownload = { onDeleteDownload(track) },
                     )
                 }
             }
@@ -1224,6 +1247,7 @@ private fun TrackRow(
     onPlay: () -> Unit,
     onToggleLike: () -> Unit,
     onArtist: () -> Unit,
+    onDeleteDownload: (() -> Unit)? = null,
 ) {
     Row(
         Modifier.fillMaxWidth().semantics { contentDescription = "Play " + track.title }.clickable(onClick = onPlay).padding(horizontal = 18.dp, vertical = 8.dp),
@@ -1253,6 +1277,11 @@ private fun TrackRow(
                 if (liked) "Unlike" else "Like",
                 tint = if (liked) SpotGreen else SpotMuted,
             )
+        }
+        onDeleteDownload?.let { delete ->
+            IconButton(onClick = delete) {
+                Icon(Icons.Rounded.Delete, "Delete download", tint = SpotMuted)
+            }
         }
     }
 }
@@ -1369,6 +1398,46 @@ private fun NowPlaying(
             }
             IconButton(onClick = onToggleLike) {
                 Icon(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, "Like", tint = if (liked) SpotGreen else SpotText)
+            }
+            val download = player.downloadProgress(track.id)
+            IconButton(
+                onClick = {
+                    when {
+                        download?.downloading == true -> player.cancelDownload(track.id)
+                        download?.downloaded == true -> player.deleteDownloadForTrack(track.id)
+                        else -> player.startDownload(track)
+                    }
+                },
+                modifier = Modifier.semantics {
+                    contentDescription = when {
+                        download?.downloading == true -> "Cancel download"
+                        download?.downloaded == true -> "Remove download"
+                        else -> "Download ${track.title}"
+                    }
+                },
+            ) {
+                when {
+                    download?.downloading == true ->
+                        CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = SpotGreen)
+                    download?.downloaded == true -> Icon(Icons.Rounded.Check, "Downloaded", tint = SpotGreen)
+                    else -> Icon(Icons.Rounded.FileDownload, "Download", tint = SpotText)
+                }
+            }
+        }
+        player.downloadProgress(track.id)?.let { download ->
+            when {
+                download.downloading && download.totalBytes > 0L -> Text(
+                    "Saving offline · ${formatBytes(download.cachedBytes)} of ${formatBytes(download.totalBytes)}",
+                    color = SpotMuted,
+                    fontSize = 10.sp,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+                download.error != null -> Text(
+                    download.error,
+                    color = SpotMuted,
+                    fontSize = 10.sp,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
             }
         }
         Spacer(Modifier.height(22.dp))
@@ -1931,4 +2000,11 @@ private fun formatTime(ms: Long): String {
     val minutes = TimeUnit.MILLISECONDS.toMinutes(ms)
     val seconds = TimeUnit.MILLISECONDS.toSeconds(ms) - TimeUnit.MINUTES.toSeconds(minutes)
     return String.format(Locale.US, "%d:%02d", minutes, seconds)
+}
+
+private fun formatBytes(bytes: Long): String {
+    if (bytes < 0L) return "—"
+    val mb = bytes / (1024.0 * 1024.0)
+    return if (mb >= 100.0) String.format(Locale.US, "%.0f MB", mb)
+    else String.format(Locale.US, "%.1f MB", mb)
 }

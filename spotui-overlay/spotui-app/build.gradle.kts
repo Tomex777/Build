@@ -58,6 +58,8 @@ dependencies {
 
     val media3Version = "1.11.0"
     implementation("androidx.media3:media3-exoplayer:$media3Version")
+    implementation("androidx.media3:media3-datasource:$media3Version")
+    implementation("androidx.media3:media3-database:$media3Version")
     implementation("androidx.media3:media3-session:$media3Version")
 
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")

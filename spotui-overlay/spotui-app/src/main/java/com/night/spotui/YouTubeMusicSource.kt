@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
@@ -29,6 +30,7 @@ data class BrowserSessionSpec(
 
 interface MusicSource {
     val name: String
+    suspend fun cacheNamespace(): String = name
     suspend fun home(): Result<List<Track>>
     suspend fun search(query: String): Result<List<Track>>
     suspend fun suggestions(query: String): Result<List<String>>
@@ -57,6 +59,8 @@ class ExtensionMusicSource(context: Context) : MusicSource {
 
     override val name: String
         get() = activeTarget?.name ?: "Music source"
+
+    override suspend fun cacheNamespace(): String = target().sourceId
 
     override suspend fun home(): Result<List<Track>> = runCatching {
         val target = target()
@@ -157,6 +161,9 @@ class ExtensionMusicSource(context: Context) : MusicSource {
                     label = item.optString("label", "Audio"),
                     mimeType = item.optString("mimeType").takeIf(String::isNotBlank),
                     headers = headers,
+                    contentLength = item.optLong("contentLength")
+                        .takeIf { it > 0L }
+                        ?: Uri.parse(item.getString("url")).getQueryParameter("clen")?.toLongOrNull(),
                 )
             }
             .sortedWith(
