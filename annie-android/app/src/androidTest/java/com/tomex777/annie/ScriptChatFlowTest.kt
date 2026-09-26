@@ -2,7 +2,6 @@ package com.tomex777.annie
 
 import android.graphics.Color
 import android.view.View
-import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -15,6 +14,11 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.click
 import androidx.compose.ui.geometry.Offset
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.UiController
+import androidx.test.espresso.ViewAction
+import androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
@@ -24,6 +28,8 @@ import org.junit.Test
 import io.github.rosemoe.sora.langs.monarch.MonarchColorScheme
 import io.github.rosemoe.sora.widget.CodeEditor
 import org.junit.runner.RunWith
+import org.hamcrest.Matcher
+import org.hamcrest.Matchers.allOf
 
 @RunWith(AndroidJUnit4::class)
 class ScriptChatFlowTest {
@@ -63,9 +69,11 @@ class ScriptChatFlowTest {
         val files = ScriptFiles(InstrumentationRegistry.getInstrumentation().targetContext)
         val original = files.readFile("chess", "chess.js")
         try {
-            compose.onNodeWithTag("script_editor").performTouchInput { click(Offset(230f, 100f)) }
-            InstrumentationRegistry.getInstrumentation().sendStringSync("//caret-proof")
-            compose.waitForIdle()
+            compose.onNodeWithTag("script_editor").assertIsDisplayed()
+            onView(isAssignableFrom(CodeEditor::class.java)).perform(insertCodeEditorText("\n//caret-proof"))
+            compose.waitUntil(5_000) {
+                compose.onAllNodesWithText("Save", substring = false).fetchSemanticsNodes().isNotEmpty()
+            }
             compose.onNodeWithText("Save", substring = false).performClick()
             compose.waitUntil(8_000) { files.readFile("chess", "chess.js") != original }
             assertEquals(true, files.readFile("chess", "chess.js").contains("//caret-proof"))
@@ -88,11 +96,11 @@ class ScriptChatFlowTest {
         Thread.sleep(500)
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
 
-        compose.runOnIdle {
-            val editor = checkNotNull(findCodeEditor(compose.activity.window.decorView)) {
-                "Script Studio did not attach its native CodeEditor"
-            }
+        onView(allOf(isAssignableFrom(CodeEditor::class.java), isDisplayed())).check { view, noView ->
+            if (noView != null) throw noView
+            val editor = view as CodeEditor
             assertTrue("Script source unexpectedly became empty", editor.text.toString().isNotBlank())
+            assertTrue("Native CodeEditor must remain attached and shown", editor.isShown)
             assertTrue(
                 "Monarch syntax analysis must use MonarchColorScheme so token ids stay visible",
                 editor.colorScheme is MonarchColorScheme,
@@ -339,12 +347,18 @@ class ScriptChatFlowTest {
 }
 
 
-private fun findCodeEditor(view: View): CodeEditor? {
-    if (view is CodeEditor) return view
-    if (view is ViewGroup) {
-        for (index in 0 until view.childCount) {
-            findCodeEditor(view.getChildAt(index))?.let { return it }
-        }
+private fun insertCodeEditorText(value: String): ViewAction = object : ViewAction {
+    override fun getConstraints(): Matcher<View> =
+        allOf(isAssignableFrom(CodeEditor::class.java), isDisplayed())
+
+    override fun getDescription(): String = "insert text into the native Script Studio CodeEditor"
+
+    override fun perform(uiController: UiController, view: View) {
+        val editor = view as CodeEditor
+        editor.requestFocus()
+        val line = (editor.text.lineCount - 1).coerceAtLeast(0)
+        editor.setSelection(line, editor.text.getColumnCount(line))
+        editor.insertText(value, value.length)
+        uiController.loopMainThreadUntilIdle()
     }
-    return null
 }
