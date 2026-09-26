@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import java.io.EOFException
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -713,6 +714,12 @@ class NamiDownloadManager(
                         status = transferStatus,
                     )
                 }
+            }
+
+            if (total != null && temp.length() < total) {
+                throw EOFException(
+                    "Download ended early at " + temp.length() + " of " + total + " bytes.",
+                )
             }
 
             val completed = (mutableStatuses.value[
