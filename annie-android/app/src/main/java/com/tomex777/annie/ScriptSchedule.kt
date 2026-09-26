@@ -138,7 +138,7 @@ internal object ScriptScheduler {
         }
 
         val payloadValue = spec.opt("payload").takeUnless { it == null || it == JSONObject.NULL } ?: JSONObject()
-        val payloadJson = JSONObject.valueToString(payloadValue)
+        val payloadJson = encodeScriptJsonValue(payloadValue)
         require(payloadJson.length <= MAX_PAYLOAD_CHARS) { "Schedule payload is too large" }
 
         val entry = ScriptScheduleEntry(
