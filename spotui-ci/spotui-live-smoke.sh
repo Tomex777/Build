@@ -135,6 +135,57 @@ PY
   sleep 2
 }
 
+scroll_until_node() {
+  local label="$1"
+  local attempts="${2:-10}"
+  for _ in $(seq 1 "$attempts"); do
+    if node_exists "$label"; then return 0; fi
+    python3 <<'PY'
+import re, subprocess, xml.etree.ElementTree as ET
+root=ET.parse('/tmp/spotui.xml').getroot()
+scrollables=[]
+for node in root.iter('node'):
+    if node.attrib.get('scrollable') != 'true': continue
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds',''))
+    if not m: continue
+    x1,y1,x2,y2=map(int,m.groups())
+    scrollables.append(((x2-x1)*(y2-y1),x1,y1,x2,y2))
+if not scrollables: raise SystemExit('No scrollable catalog page found')
+_,x1,y1,x2,y2=max(scrollables)
+x=(x1+x2)//2
+subprocess.check_call(['adb','shell','input','swipe',str(x),str(y1+(y2-y1)*4//5),str(x),str(y1+(y2-y1)//3),'450'])
+PY
+    sleep 1
+  done
+  return 1
+}
+
+tap_first_discography_release() {
+  dump_ui
+  python3 <<'PY'
+import re, subprocess, xml.etree.ElementTree as ET
+root=ET.parse('/tmp/spotui.xml').getroot()
+nodes=list(root.iter('node'))
+parents={child: parent for parent in root.iter() for child in parent}
+start=next((i for i,n in enumerate(nodes) if (n.attrib.get('text') or '').strip() == 'Discography'),None)
+if start is None: raise SystemExit('Discography section not visible')
+for node in nodes[start+1:]:
+    label=(node.attrib.get('text') or '').strip()
+    if not label or label == 'Albums, EPs and singles': continue
+    current=node
+    while current is not None:
+        if current.attrib.get('clickable') == 'true':
+            m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',current.attrib.get('bounds',''))
+            if m:
+                x1,y1,x2,y2=map(int,m.groups())
+                subprocess.check_call(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)])
+                raise SystemExit(0)
+        current=parents.get(current)
+raise SystemExit('No clickable album card found after Discography')
+PY
+  sleep 2
+}
+
 tap_search_field() {
   dump_ui
   python3 <<'PY'
@@ -233,6 +284,28 @@ replace_search_text Adele
 wait_for_node 'Play Easy On Me' 35
 assert_no_raw_timeout
 shot 03-search-adele-again
+
+# Follow Adele's stable artist ID from the actual search result, then open the
+# first album card from the artist's discography. This proves catalog navigation
+# independently from playback resolution.
+tap_text Adele
+wait_for_node Artist 20
+scroll_until_node Discography 10 || {
+  shot failure-artist-discography
+  echo "Artist browse omitted its discography section." >&2
+  exit 1
+}
+shot 04-artist
+tap_first_discography_release
+wait_for_node Tracks 20
+wait_for_contains songs 10
+shot 05-album
+touch "$OUT/CATALOG_ARTIST_ALBUM_PASS"
+adb shell input keyevent KEYCODE_BACK || true
+sleep 1
+adb shell input keyevent BACK || true
+sleep 2
+wait_for_node 'Play Easy On Me' 12
 
 adb shell input keyevent KEYCODE_BACK || true
 sleep 2
