@@ -56,6 +56,15 @@ internal object ScriptTaskStore {
     }
 
     @Synchronized
+    fun remove(context: Context, scriptId: String, id: String): Boolean {
+        val before = read(context)
+        val after = before.filterNot { it.scriptId == scriptId && it.id == id }
+        if (after.size == before.size) return false
+        write(context, after)
+        return true
+    }
+
+    @Synchronized
     fun removeAllForScript(context: Context, scriptId: String) {
         val before = read(context)
         val doomed = before.filter { it.scriptId == scriptId }
