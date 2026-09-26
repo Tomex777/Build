@@ -827,6 +827,37 @@ async function reconnectAccount(id) {
   })
 }
 
+async function disconnectAccount(id) {
+  const a = requireAccount(id)
+  return runOp(a, async () => {
+    await closeAccount(a)
+    a.pairingMode = ''
+    a.pairingCode = ''
+    a.pairingQr = ''
+    a.pairingError = ''
+    return { ok: true, account: a.id, status: statusOf(a) }
+  })
+}
+
+async function removeAccount(id) {
+  const resolved = resolveAccountId(id)
+  if (!resolved) throw new Error(`Unknown account: ${id}`)
+  if (resolved === destination) throw new Error('Choose a different CC destination before removing this account')
+  if (accounts.size <= 1) throw new Error('At least one WhatsApp account must remain')
+
+  const a = accounts.get(resolved)
+  await runOp(a, async () => closeAccount(a))
+  const removed = await accountRegistry.remove(resolved)
+  accounts.delete(resolved)
+
+  delete ccOverrides[resolved]
+  for (const [sourceId, destinationId] of Object.entries(ccOverrides)) {
+    if (destinationId === resolved) delete ccOverrides[sourceId]
+  }
+  await saveSettings()
+  return { ok: true, account: resolved, authPreserved: removed.authPreserved === true }
+}
+
 async function repairAccount(id, mode = 'code') {
   const a = requireAccount(id)
   return runOp(a, async () => {
@@ -967,6 +998,8 @@ async function init() {
     getState: webState,
     pairAccount,
     reconnectAccount,
+    disconnectAccount,
+    removeAccount,
     repairAccount,
     createAccount,
     setSetting,

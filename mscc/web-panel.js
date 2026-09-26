@@ -72,7 +72,7 @@ function ip(req) {
   return String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown'
 }
 
-export function startWebPanel({ port, password, sessionSecret, localControlPort = 8788, getState, pairAccount, reconnectAccount, repairAccount, createAccount, setSetting, setDestination, reloadCommands }) {
+export function startWebPanel({ port, password, sessionSecret, localControlPort = 8788, getState, pairAccount, reconnectAccount, disconnectAccount, removeAccount, repairAccount, createAccount, setSetting, setDestination, reloadCommands, reloadModule }) {
   const configured = Boolean(password && password !== 'change-this-password' && password !== 'change-me')
   const secret = createHash('sha256').update(`${sessionSecret || ''}\0${password || ''}\0mscc`).digest()
   const token = createHmac('sha256', secret).update('admin').digest('base64url')
@@ -141,7 +141,13 @@ export function startWebPanel({ port, password, sessionSecret, localControlPort 
         return sendJson(res, 200, { ok: true, commands: await reloadCommands() })
       }
 
-      const m = url.pathname.match(/^\/api\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/(pair|reconnect|repair)$/)
+      const moduleMatch = url.pathname.match(/^\/api\/modules\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/reload$/)
+      if (req.method === 'POST' && moduleMatch) {
+        if (typeof reloadModule !== 'function') return sendJson(res, 501, { error: 'Module reload is not enabled' })
+        return sendJson(res, 200, await reloadModule(moduleMatch[1]))
+      }
+
+      const m = url.pathname.match(/^\/api\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/(pair|reconnect|disconnect|repair)$/)
       if (req.method === 'POST' && m) {
         const [, id, action] = m
         const body = await readJson(req)
@@ -150,8 +156,15 @@ export function startWebPanel({ port, password, sessionSecret, localControlPort 
           return sendJson(res, 200, await pairAccount(id, mode))
         }
         if (action === 'reconnect') return sendJson(res, 200, await reconnectAccount(id))
+        if (action === 'disconnect') return sendJson(res, 200, await disconnectAccount(id))
         if (body.confirm !== true) return sendJson(res, 400, { error: 'Re-pair requires confirmation' })
         return sendJson(res, 200, await repairAccount(id, body.mode === 'qr' ? 'qr' : 'code'))
+      }
+
+      const removeMatch = url.pathname.match(/^\/api\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})$/)
+      if (req.method === 'DELETE' && removeMatch) {
+        if (typeof removeAccount !== 'function') return sendJson(res, 501, { error: 'Account removal is not enabled' })
+        return sendJson(res, 200, await removeAccount(removeMatch[1]))
       }
 
       return sendJson(res, 404, { error: 'Not found' })
@@ -178,7 +191,13 @@ export function startWebPanel({ port, password, sessionSecret, localControlPort 
       if (req.method === 'POST' && url.pathname === '/commands/reload') {
         return sendJson(res, 200, { ok: true, commands: await reloadCommands() })
       }
-      const m = url.pathname.match(/^\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/(pair|reconnect|repair)$/)
+      const moduleMatch = url.pathname.match(/^\/modules\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/reload$/)
+      if (req.method === 'POST' && moduleMatch) {
+        if (typeof reloadModule !== 'function') return sendJson(res, 501, { error: 'Module reload is not enabled' })
+        return sendJson(res, 200, await reloadModule(moduleMatch[1]))
+      }
+
+      const m = url.pathname.match(/^\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/(pair|reconnect|disconnect|repair)$/)
       if (req.method === 'POST' && m) {
         const [, id, action] = m
         const body = await readJson(req)
@@ -187,7 +206,14 @@ export function startWebPanel({ port, password, sessionSecret, localControlPort 
           return sendJson(res, 200, await pairAccount(id, mode))
         }
         if (action === 'reconnect') return sendJson(res, 200, await reconnectAccount(id))
+        if (action === 'disconnect') return sendJson(res, 200, await disconnectAccount(id))
         return sendJson(res, 200, await repairAccount(id, body.mode === 'qr' ? 'qr' : 'code'))
+      }
+
+      const removeMatch = url.pathname.match(/^\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})$/)
+      if (req.method === 'DELETE' && removeMatch) {
+        if (typeof removeAccount !== 'function') return sendJson(res, 501, { error: 'Account removal is not enabled' })
+        return sendJson(res, 200, await removeAccount(removeMatch[1]))
       }
       return sendJson(res, 404, { error: 'Not found' })
     } catch (error) {

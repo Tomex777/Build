@@ -104,6 +104,8 @@ jobs:
               return { ok:true }
             },
             reconnectAccount: async () => ({ ok:true }),
+            disconnectAccount: async id => ({ ok:true, account:id, status:'offline' }),
+            removeAccount: async id => ({ ok:true, account:id, authPreserved:true }),
             repairAccount: async (id, mode) => {
               const row = accounts.find(x => x.id === id)
               row.pairingMode = mode
@@ -112,6 +114,7 @@ jobs:
             setSetting: async () => {},
             setDestination: async account => account,
             reloadCommands: async () => ['autocc', 'replycc', 'reloadcommands'],
+            reloadModule: async id => ({ ok:true, module:id, commands:['autocc', 'replycc', 'reloadcommands'] }),
           })
           setInterval(() => {}, 1000)
           NODE
@@ -127,6 +130,9 @@ jobs:
           curl -fsS -H 'Content-Type: application/json' -d '{"mode":"qr"}' http://127.0.0.1:18788/accounts/archive-4/repair
           curl -fsS http://127.0.0.1:18788/state | grep -q '"pairingMode":"qr"'
           curl -fsS -H 'Content-Type: application/json' -d '{"account":"archive-4"}' http://127.0.0.1:18788/destination | grep -q '"destination":"archive-4"'
+          curl -fsS -X POST http://127.0.0.1:18788/modules/mscc-core-commands/reload | grep -q '"module":"mscc-core-commands"'
+          curl -fsS -X POST -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:18788/accounts/work-3/disconnect | grep -q '"status":"offline"'
+          curl -fsS -X DELETE http://127.0.0.1:18788/accounts/work-3 | grep -q '"authPreserved":true'
           curl -fsS -X POST http://127.0.0.1:18788/commands/reload | grep -q '"reloadcommands"'
           kill "$(cat /tmp/mscc-local-control.pid)" 2>/dev/null || true
       - name: Validate drop-in command registry
