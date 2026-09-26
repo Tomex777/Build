@@ -158,12 +158,17 @@ class AnnieBrowserFlowTest {
         private val worker = Thread({
             while (!closed) {
                 val socket = runCatching { listener.accept() }.getOrNull() ?: break
-                try {
-                    socket.use(::respond)
-                } catch (error: SocketException) {
-                    val message = error.message.orEmpty().lowercase()
-                    val clientClosedEarly = "broken pipe" in message || "connection reset" in message || "socket closed" in message
-                    if (!clientClosedEarly && !closed) throw error
+                Thread({
+                    try {
+                        socket.use(::respond)
+                    } catch (error: SocketException) {
+                        val message = error.message.orEmpty().lowercase()
+                        val clientClosedEarly = "broken pipe" in message || "connection reset" in message || "socket closed" in message
+                        if (!clientClosedEarly && !closed) throw error
+                    }
+                }, "annie-browser-fixture-client").apply {
+                    isDaemon = true
+                    start()
                 }
             }
         }, "annie-browser-fixture").apply { isDaemon = true; start() }
