@@ -15,7 +15,7 @@ class CortexSmokeTest {
 
     @Test
     fun opensFamiliarServerPanelWithoutNetworkTab() {
-        composeRule.onNodeWithText("Bot").assertIsDisplayed()
+        composeRule.onNodeWithText("Cortex").assertIsDisplayed()
         composeRule.onNodeWithText("Console").assertIsDisplayed()
         composeRule.onNodeWithText("Pairing").assertIsDisplayed()
         composeRule.onNodeWithText("Files").assertIsDisplayed()

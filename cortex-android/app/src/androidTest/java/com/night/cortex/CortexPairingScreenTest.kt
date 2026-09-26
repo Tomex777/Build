@@ -19,6 +19,96 @@ class CortexPairingScreenTest {
     val composeRule = createComposeRule()
 
     @Test
+    fun rendersDynamicAccountRegistryAndAddNumber() {
+        composeRule.setContent {
+            CortexTheme {
+                CortexPairingScreen(
+                    state = PairingState(
+                        version = "2.0.0",
+                        destination = "account-1",
+                        maxAccounts = 5,
+                        canAddAccount = true,
+                        accounts = listOf(
+                            PairingAccount(
+                                id = "account-1",
+                                displayName = "Main",
+                                enabled = true,
+                                connected = true,
+                                status = "connected",
+                                numberMasked = "234••••0001",
+                                indexCount = 12,
+                                indexLimit = 5000,
+                                pairingMode = "",
+                                pairingCode = "",
+                                pairingQr = "",
+                                pairingError = "",
+                            ),
+                            PairingAccount(
+                                id = "account-2",
+                                displayName = "Second",
+                                enabled = true,
+                                connected = false,
+                                status = "offline",
+                                numberMasked = "234••••0002",
+                                indexCount = 4,
+                                indexLimit = 5000,
+                                pairingMode = "",
+                                pairingCode = "",
+                                pairingQr = "",
+                                pairingError = "",
+                            ),
+                            PairingAccount(
+                                id = "account-3",
+                                displayName = "Work",
+                                enabled = true,
+                                connected = false,
+                                status = "offline",
+                                numberMasked = "234••••0003",
+                                indexCount = 2,
+                                indexLimit = 5000,
+                                pairingMode = "",
+                                pairingCode = "",
+                                pairingQr = "",
+                                pairingError = "",
+                            ),
+                            PairingAccount(
+                                id = "account-4",
+                                displayName = "Archive",
+                                enabled = true,
+                                connected = false,
+                                status = "offline",
+                                numberMasked = "234••••0004",
+                                indexCount = 1,
+                                indexLimit = 5000,
+                                pairingMode = "",
+                                pairingCode = "",
+                                pairingQr = "",
+                                pairingError = "",
+                            ),
+                        ),
+                    ),
+                    busy = false,
+                    onRefresh = {},
+                    onAddAccount = { _, _ -> },
+                    onDestination = {},
+                    onPair = { _, _ -> },
+                    onReconnect = {},
+                    onDisconnect = {},
+                    onRemove = {},
+                    onRepair = { _, _ -> },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Main").assertIsDisplayed()
+        composeRule.onNodeWithText("Second").assertIsDisplayed()
+        composeRule.onNodeWithText("Work").assertIsDisplayed()
+        composeRule.onNodeWithText("Archive").assertIsDisplayed()
+        composeRule.onNodeWithText("Add number").assertIsDisplayed()
+        composeRule.onNodeWithText("Destination: Main · MSCC 2.0.0").assertIsDisplayed()
+    }
+
+    @Test
     fun codePairingIsPrimaryAndQrRequiresExplicitChoice() {
         composeRule.setContent {
             CortexTheme {
