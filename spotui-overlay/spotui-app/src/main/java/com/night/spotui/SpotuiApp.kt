@@ -206,7 +206,57 @@ fun SpotuiApp() {
             source.album(summary.title + " " + summary.artist, summary.id)
                 .onSuccess { catalog ->
                     if (requestEpoch != albumEpoch) return@onSuccess
-                    selectedAlbum = catalog
+
+                    // The artist discography card is a trusted catalog record that
+                    // opened this stable album ID. Keep its metadata when a source
+                    // returns a malformed album header (for example, year as artist).
+                    fun usableArtist(value: String): Boolean =
+                        value.isNotBlank() &&
+                            !value.equals("YouTube Music", ignoreCase = true) &&
+                            !value.matches(Regex("""(?:19|20)\d{2}"""))
+
+                    val sourceArtistIsUsable = usableArtist(catalog.artist)
+                    val artist = catalog.artist.takeIf { sourceArtistIsUsable }
+                        ?: summary.artist
+                    val artistId = if (sourceArtistIsUsable) {
+                        catalog.artistId.ifBlank { summary.artistId }
+                    } else {
+                        summary.artistId
+                    }
+                    val providerTitle = catalog.title.trim()
+                    val title = if (
+                        summary.year > 0 &&
+                        providerTitle.startsWith(summary.title, ignoreCase = true) &&
+                        providerTitle.endsWith(summary.year.toString()) &&
+                        providerTitle != summary.title
+                    ) {
+                        summary.title
+                    } else {
+                        providerTitle.ifBlank { summary.title }
+                    }
+
+                    selectedAlbum = catalog.copy(
+                        title = title,
+                        artist = artist,
+                        artistId = artistId,
+                        artworkUrl = catalog.artworkUrl ?: summary.artworkUrl,
+                        songs = catalog.songs.map { track ->
+                            val trackHasArtist = usableArtist(track.artist)
+                            track.copy(
+                                artist = track.artist.takeIf { trackHasArtist } ?: artist,
+                                artistId = if (trackHasArtist) {
+                                    track.artistId.ifBlank { artistId }
+                                } else {
+                                    artistId
+                                },
+                                album = track.album.takeIf {
+                                    it.isNotBlank() && it != providerTitle
+                                } ?: title,
+                                albumId = track.albumId.ifBlank { summary.id },
+                                artworkUrl = track.artworkUrl ?: summary.artworkUrl,
+                            )
+                        },
+                    )
                 }
                 .onFailure {
                     if (requestEpoch == albumEpoch) albumError = "Album didn’t load."
