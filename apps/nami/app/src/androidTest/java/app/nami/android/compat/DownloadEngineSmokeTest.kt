@@ -395,7 +395,7 @@ class DownloadEngineSmokeTest {
 
     private fun parseRangeStart(value: String?): Long =
         value
-            ?.let { Regex("""(?i)^bytes=(\\d+)-$""").find(it.trim()) }
+            ?.let { Regex("""(?i)^bytes=(\d+)-$""").find(it.trim()) }
             ?.groupValues
             ?.getOrNull(1)
             ?.toLongOrNull()
