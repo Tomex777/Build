@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -385,6 +386,7 @@ fun SpotuiApp() {
         Box(Modifier.fillMaxSize().background(SpotBlack)) {
             Scaffold(
                 containerColor = SpotBlack,
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 bottomBar = {
                     Column {
                         player.currentTrack?.let { track ->
@@ -395,25 +397,27 @@ fun SpotuiApp() {
                                 onSignIn = { showSignIn = true },
                             )
                         }
-                        NavigationBar(containerColor = Color(0xFF101010)) {
-                            NavigationBarItem(
-                                selected = tab == SpotTab.HOME,
-                                onClick = { tab = SpotTab.HOME },
-                                icon = { Icon(Icons.Rounded.Home, null) },
-                                label = { Text("Home") },
-                            )
-                            NavigationBarItem(
-                                selected = tab == SpotTab.SEARCH,
-                                onClick = { tab = SpotTab.SEARCH },
-                                icon = { Icon(Icons.Rounded.Search, null) },
-                                label = { Text("Search") },
-                            )
-                            NavigationBarItem(
-                                selected = tab == SpotTab.LIBRARY,
-                                onClick = { tab = SpotTab.LIBRARY },
-                                icon = { Icon(Icons.Rounded.LibraryMusic, null) },
-                                label = { Text("Library") },
-                            )
+                        if (selectedArtist == null && pendingAlbum == null) {
+                            NavigationBar(containerColor = Color(0xFF101010)) {
+                                NavigationBarItem(
+                                    selected = tab == SpotTab.HOME,
+                                    onClick = { tab = SpotTab.HOME },
+                                    icon = { Icon(Icons.Rounded.Home, null) },
+                                    label = { Text("Home") },
+                                )
+                                NavigationBarItem(
+                                    selected = tab == SpotTab.SEARCH,
+                                    onClick = { tab = SpotTab.SEARCH },
+                                    icon = { Icon(Icons.Rounded.Search, null) },
+                                    label = { Text("Search") },
+                                )
+                                NavigationBarItem(
+                                    selected = tab == SpotTab.LIBRARY,
+                                    onClick = { tab = SpotTab.LIBRARY },
+                                    icon = { Icon(Icons.Rounded.LibraryMusic, null) },
+                                    label = { Text("Library") },
+                                )
+                            }
                         }
                     }
                 },
@@ -1154,9 +1158,9 @@ private fun MusicSquareRail(
                     color = SpotText,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 7.dp),
+                    modifier = Modifier.padding(top = 7.dp).height(32.dp),
                 )
                 Text(
                     track.artist,
@@ -1368,7 +1372,10 @@ private fun NowPlaying(
     }
     BackHandler(onBack = onClose)
     Column(
-        Modifier.fillMaxSize().background(Color(0xFF11140F)).statusBarsPadding().navigationBarsPadding().padding(20.dp)
+        Modifier.fillMaxSize().background(Color(0xFF11140F))
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(start = 20.dp, end = 20.dp, bottom = 20.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onClose) { Icon(Icons.Rounded.KeyboardArrowDown, "Close player", tint = SpotText) }
@@ -1432,12 +1439,31 @@ private fun NowPlaying(
                     fontSize = 10.sp,
                     modifier = Modifier.padding(top = 6.dp),
                 )
-                download.error != null -> Text(
-                    download.error,
-                    color = SpotMuted,
-                    fontSize = 10.sp,
-                    modifier = Modifier.padding(top = 6.dp),
-                )
+                download.error != null -> Surface(
+                    color = Color(0xFF241B1B),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                        .clickable { player.startDownload(track) },
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            download.error,
+                            color = SpotText,
+                            fontSize = 11.sp,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            "Retry",
+                            color = SpotGreen,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(start = 10.dp),
+                        )
+                    }
+                }
             }
         }
         Spacer(Modifier.height(22.dp))
@@ -1464,12 +1490,32 @@ private fun NowPlaying(
                     }
                 }
             } else {
-                Text(
-                    "Playback didn’t start. Tap play to retry.",
-                    color = SpotMuted,
-                    fontSize = 11.sp,
-                    modifier = Modifier.padding(top = 10.dp),
-                )
+                Surface(
+                    color = Color(0xFF241B1B),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
+                        .clickable(onClick = player::retryCurrent),
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "Playback didn’t start.",
+                            color = SpotText,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            "Retry",
+                            color = SpotGreen,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(start = 10.dp),
+                        )
+                    }
+                }
             }
         }
         Spacer(Modifier.height(12.dp))
