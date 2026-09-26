@@ -256,22 +256,9 @@ class DownloadEngineSmokeTest {
             manager.enqueue(source, anime, episode)
 
             var observedRetryState = false
-            val completed = withTimeout(30_000) {
-                while (true) {
-                    val status = manager.statuses.value[key]
-                    if (status?.state == NamiDownloadState.WAITING_FOR_NETWORK) {
-                        observedRetryState = true
-                    }
-                    if (status?.state == NamiDownloadState.DOWNLOADED) {
-                        return@withTimeout status
-                    }
-                    if (status?.state == NamiDownloadState.ERROR) {
-                        throw AssertionError(
-                            "Temporary connection drop became a hard error: " +
-                                status.errorMessage,
-                        )
-                    }
-                    delay(50)
+            val completed: NamiDownloadStatus = withTimeout(30_000) {
+                waitForCompletionTrackingRetry(manager, key) {
+                    observedRetryState = true
                 }
             }
 
@@ -484,6 +471,26 @@ class DownloadEngineSmokeTest {
             server.stop()
             database.close()
             context.deleteDatabase(databaseName)
+        }
+    }
+
+    private suspend fun waitForCompletionTrackingRetry(
+        manager: NamiDownloadManager,
+        key: String,
+        onRetryState: () -> Unit,
+    ): NamiDownloadStatus {
+        while (true) {
+            val status = manager.statuses.value[key]
+            when (status?.state) {
+                NamiDownloadState.WAITING_FOR_NETWORK -> onRetryState()
+                NamiDownloadState.DOWNLOADED -> return status
+                NamiDownloadState.ERROR -> throw AssertionError(
+                    "Temporary connection drop became a hard error: " +
+                        status.errorMessage,
+                )
+                else -> Unit
+            }
+            delay(50)
         }
     }
 
