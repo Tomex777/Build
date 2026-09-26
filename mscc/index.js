@@ -578,7 +578,7 @@ async function isController(account, msg) {
 async function describe(account, msg) {
   const sender = jidUser(await resolveSender(account, msg)) || 'unknown'
   const chat = normalizeJid(msg?.key?.remoteJid)
-  const accountLine = `Account: ${account.id}\n`
+  const accountLine = `Account: ${account.displayName || 'Account'} [${account.id}]\n`
   if (isGroup(chat)) {
     const gk = `${account.id}|${chat}`
     let name = groupNames.get(gk)?.name
