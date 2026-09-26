@@ -1,6 +1,6 @@
 import { appendFile, cp, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import crypto from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import makeWASocket, {
   Browsers,
   DisconnectReason,
@@ -144,7 +144,7 @@ async function createAccount(input = {}) {
 async function recordActivity(action, detail = {}) {
   await mkdir(dirname(ACTIVITY_FILE), { recursive: true })
   const row = JSON.stringify({
-    id: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`,
+    id: randomUUID(),
     at: new Date().toISOString(),
     action,
     detail,
