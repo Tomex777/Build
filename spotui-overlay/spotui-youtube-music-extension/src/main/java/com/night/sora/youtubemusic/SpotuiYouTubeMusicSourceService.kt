@@ -143,7 +143,8 @@ class SpotuiYouTubeMusicSourceService : Service() {
     private fun Throwable.requiresBrowserSession(): Boolean =
         generateSequence(this) { it.cause }.any { failure ->
             val message = failure.message.orEmpty()
-            message.contains("LOGIN_REQUIRED", ignoreCase = true) ||
+            message.contains("browser session", ignoreCase = true) ||
+                message.contains("LOGIN_REQUIRED", ignoreCase = true) ||
                 message.contains("sign in to confirm", ignoreCase = true) ||
                 message.contains("please sign in", ignoreCase = true) ||
                 message.contains("not a bot", ignoreCase = true)
