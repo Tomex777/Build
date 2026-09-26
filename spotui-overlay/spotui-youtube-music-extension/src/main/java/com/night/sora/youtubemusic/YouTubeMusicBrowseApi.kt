@@ -56,9 +56,6 @@ object YouTubeMusicBrowseApi {
         val releases = LinkedHashMap<String, JSONObject>()
         collectAlbums(root).forEach { releases[it.getString("id")] = it }
 
-        // YouTube Music artist pages intentionally preview only a handful of songs.
-        // Follow the section "more" endpoint and continuations so "See all songs"
-        // is actually a catalog view instead of a name-search approximation.
         sectionEndpoint(root, setOf("songs", "popular songs"))?.let { endpoint ->
             var page = browse(endpoint.first, endpoint.second)
             repeat(4) {
@@ -68,8 +65,6 @@ object YouTubeMusicBrowseApi {
             }
         }
 
-        // Same idea for discography. Some artist pages label this Albums, Singles,
-        // Releases, or Discography depending on locale/account state.
         val releaseTitles = setOf("albums", "singles", "singles & eps", "releases", "discography")
         sectionEndpoint(root, releaseTitles)?.let { endpoint ->
             val page = browse(endpoint.first, endpoint.second)
@@ -426,7 +421,7 @@ object YouTubeMusicBrowseApi {
         }
     }
 
-    private inline fun walk(value: Any?, crossinline block: (JSONObject) -> Unit) {
+    private fun walk(value: Any?, block: (JSONObject) -> Unit) {
         fun visit(current: Any?) {
             when (current) {
                 is JSONObject -> {
