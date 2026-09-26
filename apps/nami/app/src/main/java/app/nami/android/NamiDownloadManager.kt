@@ -314,12 +314,8 @@ class NamiDownloadManager(
         if (latest.state != NamiDownloadState.PAUSED) return
 
         if (mutableGlobalPaused.value) {
-            setAndPersist(
-                latest.copy(
-                    pauseReason = NamiPauseReason.GLOBAL,
-                    errorMessage = null,
-                ),
-            )
+            // A user-paused item stays user-paused. Resume All must never override that
+            // explicit per-item decision merely because Resume was tapped during a global pause.
             return
         }
 
