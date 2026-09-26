@@ -180,6 +180,8 @@ jobs:
           curl -fsS -H "$AUTH" "http://127.0.0.1:47831/api/cortex/host/backups/content?name=$PRIVATE_BACKUP" -o /tmp/private.zip
           unzip -l /tmp/private.zip >/tmp/private-list.txt
           grep -q 'tmp/cortex-private/auth.txt' /tmp/private-list.txt
+          curl -fsS -X DELETE -H "$AUTH" "http://127.0.0.1:47831/api/cortex/host/backups?name=$BACKUP" | grep -q '"ok":true'
+          ! curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/backups | grep -q "$BACKUP"
       - name: Verify command-driven settings contract
         shell: bash
         run: |
