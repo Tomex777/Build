@@ -512,11 +512,19 @@ internal fun AnnieChat() {
                             },
                         )
                     }
-                    Box(Modifier.animateItem(placementSpec = tween(180))) {
-                        if (animatedMessageIds[entry.id] == true) {
-                            MessageArrivalAnimation(fromUser = entry.fromUser) { bubbleContent() }
-                        } else {
-                            Box(Modifier.animateContentSize(animationSpec = tween(180))) { bubbleContent() }
+                    Box(
+                        Modifier.animateItem(
+                            fadeInSpec = null,
+                            placementSpec = tween(180),
+                            fadeOutSpec = null,
+                        )
+                    ) {
+                        MessageArrivalAnimation(
+                            fromUser = entry.fromUser,
+                            animate = animatedMessageIds[entry.id] == true,
+                            onFinished = { animatedMessageIds.remove(entry.id) },
+                        ) {
+                            bubbleContent()
                         }
                     }
                 }
@@ -635,22 +643,30 @@ internal fun AnnieChat() {
 @Composable
 private fun MessageArrivalAnimation(
     fromUser: Boolean,
+    animate: Boolean,
+    onFinished: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val progress = remember { Animatable(0f) }
+    val progress = remember { Animatable(if (animate) 0f else 1f) }
     val duration = if (fromUser) 190 else 210
-    LaunchedEffect(Unit) {
-        progress.animateTo(1f, animationSpec = tween(duration))
+    LaunchedEffect(animate) {
+        if (animate) {
+            progress.snapTo(0f)
+            progress.animateTo(1f, animationSpec = tween(duration))
+            onFinished()
+        } else if (progress.value < 1f) {
+            progress.snapTo(1f)
+        }
     }
     Box(
         Modifier
             .testTag(if (fromUser) "sent_message_animation" else "received_message_animation")
-            .animateContentSize(animationSpec = tween(180))
             .graphicsLayer {
                 val p = progress.value
-                alpha = 0.55f + (0.45f * p)
-                translationY = (1f - p) * 12.dp.toPx()
-                val scale = (if (fromUser) 0.965f else 0.975f) + ((if (fromUser) 0.035f else 0.025f) * p)
+                alpha = 0.70f + (0.30f * p)
+                translationY = (1f - p) * 10.dp.toPx()
+                val startScale = if (fromUser) 0.975f else 0.985f
+                val scale = startScale + ((1f - startScale) * p)
                 scaleX = scale
                 scaleY = scale
             },
@@ -658,7 +674,6 @@ private fun MessageArrivalAnimation(
         content()
     }
 }
-
 private fun launchPlayer(
     context: Context,
     item: CatalogItem,
