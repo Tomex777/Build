@@ -874,7 +874,7 @@ async function repairAccount(id, mode = 'code') {
     a.pairingError = ''
     a.lastQr = ''
     await startAccount(a)
-    return { ok: true, message: `Account ${a.id} auth backed up. Code pairing started.` }
+    return { ok: true, message: `Account ${a.id} auth backed up. ${a.pairingMode === 'qr' ? 'QR' : 'Code'} pairing started.` }
   })
 }
 
