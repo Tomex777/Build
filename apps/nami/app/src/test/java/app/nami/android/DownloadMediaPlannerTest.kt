@@ -187,6 +187,20 @@ class DownloadMediaPlannerTest {
                 "attachment; filename=\"ReZero Episode 16.mkv\"",
             ),
         )
+        assertEquals(
+            "video/x-matroska",
+            DownloadMediaNaming.normalizedMimeType(
+                mimeType = "application/octet-stream",
+                extension = "mkv",
+            ),
+        )
+        assertEquals(
+            "video/mp4",
+            DownloadMediaNaming.normalizedMimeType(
+                mimeType = "video/mp4",
+                extension = "mkv",
+            ),
+        )
     }
 
     @Test

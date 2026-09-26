@@ -305,6 +305,12 @@ internal fun NamiPlayerScreen(
         }
     }
 
+    val externalSubtitleChoices = resolved
+        .flatMap { media ->
+            media.subtitles.map { track -> Triple(track, media.headers, media.url) }
+        }
+        .distinctBy { (track) -> track.url }
+
     Surface(color = Color.Black, modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -470,7 +476,7 @@ internal fun NamiPlayerScreen(
                 activeExternalSubtitle = null
                 sheet = null
             }
-            selectedMedia?.subtitles.orEmpty().forEach { track ->
+            externalSubtitleChoices.forEach { (track, headers, _) ->
                 val label = track.displayName("Subtitle")
                 ChoiceRow(
                     label = label,
@@ -479,7 +485,7 @@ internal fun NamiPlayerScreen(
                 ) {
                     if (engine.addExternalSubtitle(
                             track.url,
-                            selectedMedia?.headers.orEmpty(),
+                            headers,
                         )
                     ) {
                         activeExternalSubtitle = label

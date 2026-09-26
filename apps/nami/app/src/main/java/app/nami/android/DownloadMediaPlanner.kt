@@ -140,6 +140,26 @@ internal object DownloadMediaNaming {
         }
     }
 
+    fun normalizedMimeType(
+        mimeType: String,
+        extension: String,
+    ): String {
+        val normalized = mimeType.substringBefore(';').trim().lowercase()
+        val generic = normalized.isBlank() ||
+            normalized == "application/octet-stream" ||
+            normalized == "binary/octet-stream"
+        if (!generic) return normalized
+
+        return when (extension.lowercase()) {
+            "mkv" -> "video/x-matroska"
+            "mp4", "m4v" -> "video/mp4"
+            "webm" -> "video/webm"
+            "ts" -> "video/mp2t"
+            "avi" -> "video/x-msvideo"
+            else -> normalized.ifBlank { "application/octet-stream" }
+        }
+    }
+
     fun episodeFileName(
         episode: AnimeEpisode,
         extension: String,

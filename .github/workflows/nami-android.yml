@@ -463,6 +463,8 @@ jobs:
           set -euo pipefail
 
           ADB_SERIAL="emulator-5554"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/nami-api36-avd"
+          mkdir -p "$ANDROID_AVD_HOME"
 
           collect_evidence() {
             echo NAMI_API36_EVIDENCE
@@ -477,7 +479,12 @@ jobs:
           echo no | avdmanager create avd \
             --force \
             --name nami-api36 \
-            --package "system-images;android-36;aosp_atd;x86_64"
+            --package "system-images;android-36;aosp_atd;x86_64" \
+            --path "$ANDROID_AVD_HOME/nami-api36.avd"
+
+          "$ANDROID_SDK_ROOT/emulator/emulator" -list-avds \
+            | tee "$GITHUB_WORKSPACE/nami-api36-avds.txt"
+          grep -qx "nami-api36" "$GITHUB_WORKSPACE/nami-api36-avds.txt"
 
           adb start-server
           accel="off"
@@ -500,9 +507,15 @@ jobs:
             -cores 2 \
             -accel "$accel" \
             > "$GITHUB_WORKSPACE/nami-api36-emulator.txt" 2>&1 &
+          EMULATOR_PID=$!
 
           wait_for_framework() {
             for attempt in $(seq 1 180); do
+              if ! kill -0 "$EMULATOR_PID" >/dev/null 2>&1; then
+                echo "NAMI_EMULATOR_EXITED attempt=$attempt"
+                tail -120 "$GITHUB_WORKSPACE/nami-api36-emulator.txt" || true
+                return 1
+              fi
               state=$(timeout 10s adb -s "$ADB_SERIAL" get-state 2>/dev/null || true)
               boot=$(timeout 10s adb -s "$ADB_SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)
               package_state=$(timeout 10s adb -s "$ADB_SERIAL" shell service check package 2>/dev/null || true)
@@ -579,4 +592,5 @@ jobs:
             nami-api36-getprop.txt
             nami-api36-package-service.txt
             nami-api36-emulator.txt
+            nami-api36-avds.txt
           if-no-files-found: ignore
