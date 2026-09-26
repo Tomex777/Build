@@ -7,7 +7,7 @@ LIVE_LOGCAT_PID=""
 
 capture_resolver_logs() {
   if [[ -f "$OUT/resolver-live-logcat.txt" ]]; then
-    grep -Ei 'SpotuiYouTubeMusic|player start|player result|resolved|signature timestamp|potoken|newpipe|PlaybackException|ExoPlayer|HttpDataSource|googlevideo' "$OUT/resolver-live-logcat.txt" \
+    grep -Ei 'SpotuiYouTubeMusic|LyraPlayback|LYRA_PLAYBACK_PROOF|LYRA_DOWNLOAD_PROOF|transport failure|player start|player result|resolved|signature timestamp|potoken|newpipe|PlaybackException|ExoPlayer|HttpDataSource|googlevideo' "$OUT/resolver-live-logcat.txt" \
       | tail -n 260 > "$OUT/resolver-summary.txt" || true
   fi
 }
