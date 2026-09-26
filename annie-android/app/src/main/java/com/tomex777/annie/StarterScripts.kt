@@ -152,7 +152,15 @@ internal object StarterScripts {
         |      ctx.session.end();
         |      return { type: "text", text: "There is no active chess game. Use /chess new." };
         |    }
-        |    if (String(ctx.text).trim().toLowerCase() === "resign") {
+        |    const action = String(ctx.text).trim().toLowerCase();
+        |    if (action === "board") {
+        |      return sendBoard(ctx, state, state.turn === "w" ? "Your move." : "Black to move.");
+        |    }
+        |    if (action === "hint") {
+        |      const ideas = pseudoMoves(state).slice(0, 4).map(moveLabel);
+        |      return { type: "text", text: ideas.length ? "Try " + ideas.join(", ") + "." : "No moves are available." };
+        |    }
+        |    if (action === "resign") {
         |      ctx.session.end();
         |      await annie.storage.set("game:" + ctx.chatId, null);
         |      return { type: "text", text: "Game ended. Use /chess new whenever you want another one." };
@@ -174,6 +182,13 @@ internal object StarterScripts {
         |  name: "chess",
         |  description: "Play local chess with Annie",
         |  usage: "/chess new",
+        |  keywords: ["game", "board", "move", "hint", "resign"],
+        |  capabilities: ["game", "chess", "move", "board", "hint", "resign"],
+        |  suggestions: [
+        |    { label: "Show board", input: "board" },
+        |    { label: "Hint", input: "hint" },
+        |    { label: "Resign", input: "resign" }
+        |  ],
         |  async execute(ctx) {
         |    const arg = String(ctx.text || "").trim().toLowerCase();
         |    if (arg && arg !== "new") return { type: "text", text: "Use /chess new to begin a local game." };
