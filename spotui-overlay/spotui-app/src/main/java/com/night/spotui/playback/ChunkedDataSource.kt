@@ -1,11 +1,14 @@
 package com.night.spotui.playback
 
 import android.net.Uri
+import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.TransferListener
+import java.io.EOFException
 
 /**
  * Reads googlevideo-style streams in bounded ranges instead of one open-ended
@@ -23,11 +26,18 @@ class ChunkedDataSource(
     private var chunkRemaining = 0L
     private var chunkOpen = false
     private var passthrough = false
+    private var chunkStart = 0L
+    private var chunkRequested = 0L
+    private var chunkReceived = 0L
+    private var chunksOpened = 0
 
     override fun addTransferListener(transferListener: TransferListener) =
         upstream.addTransferListener(transferListener)
 
     override fun open(dataSpec: DataSpec): Long {
+        bytesRemaining = 0L
+        chunkRemaining = 0L
+        chunkOpen = false
         baseSpec = dataSpec
         position = dataSpec.position
         val uriLength = dataSpec.uri.getQueryParameter("clen")?.toLongOrNull()
@@ -41,24 +51,56 @@ class ChunkedDataSource(
             // ordinary Media3 behavior when a bounded request cannot be derived.
             passthrough = true
             chunkOpen = true
-            return upstream.open(dataSpec)
+            return try {
+                upstream.open(dataSpec)
+            } catch (failure: Throwable) {
+                logOpenFailure(dataSpec, failure)
+                throw failure
+            }
         }
 
         passthrough = false
         bytesRemaining = availableLength
+        chunksOpened = 0
         if (bytesRemaining > 0L) openChunk()
         return bytesRemaining
     }
 
     private fun openChunk() {
         val length = minOf(chunkBytes, bytesRemaining)
+        chunkStart = position
+        chunkRequested = length
+        chunkReceived = 0L
         val spec = requireNotNull(baseSpec).buildUpon()
             .setPosition(position)
             .setLength(length)
             .build()
-        upstream.open(spec)
-        chunkRemaining = length
+        val openedLength = try {
+            upstream.open(spec)
+        } catch (failure: Throwable) {
+            logOpenFailure(spec, failure)
+            throw failure
+        }
+        chunkRemaining = if (openedLength == C.LENGTH_UNSET.toLong()) {
+            length
+        } else {
+            openedLength.coerceAtMost(length)
+        }
         chunkOpen = true
+        chunksOpened += 1
+        if (chunksOpened == 1 || chunksOpened % 8 == 0) {
+            Log.i(
+                TAG,
+                "range open host=${host(spec.uri)} start=$chunkStart requested=$length " +
+                responseSummary(upstream.responseHeaders),
+            )
+        }
+        if (chunkRemaining == 0L) {
+            throw EOFException(
+                "Audio range opened empty at $position with $bytesRemaining bytes remaining " +
+                    "(host=${host(spec.uri)})",
+            )
+        }
     }
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
@@ -75,11 +117,29 @@ class ChunkedDataSource(
                 position += read
                 chunkRemaining -= read
                 bytesRemaining -= read
+                chunkReceived += read
+                if (chunkRemaining == 0L) {
+                    Log.i(
+                        TAG,
+                        "range complete host=${host(requireNotNull(baseSpec).uri)} start=$chunkStart " +
+                            "requested=$chunkRequested received=$chunkReceived " +
+                            responseSummary(upstream.responseHeaders),
+                    )
+                }
                 return read
             }
+            Log.e(
+                TAG,
+                "short range host=${host(requireNotNull(baseSpec).uri)} start=$chunkStart " +
+                    "requested=$chunkRequested received=$chunkReceived remaining=$bytesRemaining",
+            )
             chunkRemaining = 0L
         }
-        return C.RESULT_END_OF_INPUT
+        throw EOFException(
+            "Audio range ended early at $position; $bytesRemaining bytes remain " +
+                "(range start=$chunkStart requested=$chunkRequested received=$chunkReceived, " +
+                "host=${host(requireNotNull(baseSpec).uri)})",
+        )
     }
 
     private fun closeChunk() {
@@ -99,11 +159,40 @@ class ChunkedDataSource(
         chunkRemaining = 0L
     }
 
+    private fun logOpenFailure(spec: DataSpec, failure: Throwable) {
+        val response = generateSequence(failure) { it.cause }
+            .filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
+            .firstOrNull()
+        Log.e(
+            TAG,
+            "range open failed host=${host(spec.uri)} start=${spec.position} " +
+                "requested=${spec.length} status=${response?.responseCode ?: -1} " +
+                "responseHeaders=${responseSummary(response?.headerFields.orEmpty())} " +
+                "causes=${generateSequence(failure) { it.cause }.take(4).joinToString(">") { it.javaClass.simpleName }}",
+        )
+    }
+
+    private fun responseSummary(headers: Map<String, List<String>>): String {
+        val allowed = setOf("content-length", "content-range", "content-type", "accept-ranges")
+        return headers.entries
+            .filter { it.key.lowercase() in allowed }
+            .joinToString(" ") { (name, values) ->
+                "${name.lowercase()}=${values.joinToString(",").take(120)}"
+            }
+            .ifBlank { "responseHeaders=none" }
+    }
+
+    private fun host(uri: Uri): String = uri.host.orEmpty().lowercase().take(100).ifBlank { "unknown" }
+
     class Factory(
         private val upstream: DataSource.Factory,
         private val chunkBytes: Long = 2L * 1024L * 1024L,
     ) : DataSource.Factory {
         override fun createDataSource(): DataSource =
             ChunkedDataSource(upstream.createDataSource(), chunkBytes)
+    }
+
+    companion object {
+        private const val TAG = "LyraAudioRange"
     }
 }

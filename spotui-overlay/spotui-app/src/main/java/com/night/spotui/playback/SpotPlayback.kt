@@ -68,7 +68,6 @@ class SpotPlaybackController(
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val streamHeaders = ConcurrentHashMap<String, Map<String, String>>()
-    @Volatile private var activeStreamHeaders: Map<String, String> = emptyMap()
     private val upstream = DefaultDataSource.Factory(
         appContext,
         DefaultHttpDataSource.Factory()
@@ -80,8 +79,8 @@ class SpotPlaybackController(
         upstream,
         object : ResolvingDataSource.Resolver {
             override fun resolveDataSpec(dataSpec: DataSpec): DataSpec {
-                val headers = streamHeaders[dataSpec.uri.toString()].orEmpty()
-                    .ifEmpty { activeStreamHeaders }
+                val headers = dataSpec.key?.let(streamHeaders::get).orEmpty()
+                    .ifEmpty { streamHeaders[dataSpec.uri.toString()].orEmpty() }
                 return if (headers.isEmpty()) dataSpec else dataSpec.withAdditionalHeaders(headers)
             }
         },
@@ -505,7 +504,6 @@ class SpotPlaybackController(
         player.stop()
         player.clearMediaItems()
         streamHeaders.clear()
-        activeStreamHeaders = emptyMap()
         activeCacheKey = null
         activeCandidates = emptyList()
         activeCandidateIndex = -1
@@ -588,11 +586,13 @@ class SpotPlaybackController(
         player.stop()
         player.clearMediaItems()
         streamHeaders.clear()
-        activeStreamHeaders = stream.headers
-        if (stream.headers.isNotEmpty()) streamHeaders[stream.url] = stream.headers
         streamLabel = stream.label
         val sourceNamespace = stream.cacheSourceId ?: activeSourceNamespace
         val cacheKey = audioCache.rememberVariant(sourceNamespace, track, stream)
+        if (stream.headers.isNotEmpty()) {
+            streamHeaders[cacheKey] = stream.headers
+            streamHeaders[stream.url] = stream.headers
+        }
         activeCacheKey = cacheKey
         audioCache.protectForPlayback(cacheKey)
 
