@@ -166,6 +166,9 @@ export function startWebPanel({ port, password, sessionSecret, localControlPort 
 
       const removeMatch = url.pathname.match(/^\/api\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})$/)
       if (req.method === 'DELETE' && removeMatch) {
+        if (url.searchParams.get('confirm') !== 'true') {
+          return sendJson(res, 400, { error: 'Account removal requires confirm=true' })
+        }
         if (typeof removeAccount !== 'function') return sendJson(res, 501, { error: 'Account removal is not enabled' })
         return sendJson(res, 200, await removeAccount(removeMatch[1]))
       }
