@@ -112,8 +112,45 @@ class NamiUiScreenshotTest {
 
         val downloadMenuDescription = "Download menu for Episode 8"
         waitForDescription(downloadMenuDescription, timeoutMillis = 30_000)
+
+        // Exercise the global queue control while a real AnimeSogo download is active.
+        if (hasDescription("Pause all downloads")) {
+            composeRule.onNodeWithContentDescription("Pause all downloads").performClick()
+            waitForDescription("Resume all downloads", timeoutMillis = 15_000)
+            waitForText("Paused", timeoutMillis = 15_000)
+            capture("06-downloads-global-paused.png")
+
+            composeRule.onNodeWithContentDescription("Resume all downloads").performClick()
+            waitForDescription("Pause all downloads", timeoutMillis = 15_000)
+            waitUntil(15_000, "global download resume") {
+                !hasText("Paused")
+            }
+            capture("06-downloads-global-resumed.png")
+        }
+
+        // Exercise per-item Pause -> Resume through the compact row menu.
         composeRule.onNodeWithContentDescription(downloadMenuDescription).performClick()
-        waitUntil(15_000, "Aniyomi-style download row action") {
+        waitUntil(15_000, "real per-item pause action") {
+            hasText("Pause") || hasText("Delete")
+        }
+        if (hasText("Pause")) {
+            composeRule.onNodeWithText("Pause").performClick()
+            waitForText("Paused", timeoutMillis = 15_000)
+            capture("06-downloads-paused.png")
+
+            composeRule.onNodeWithContentDescription(downloadMenuDescription).performClick()
+            waitForText("Resume", timeoutMillis = 15_000)
+            composeRule.onNodeWithText("Resume").performClick()
+            waitUntil(15_000, "individual download resume") {
+                !hasText("Paused")
+            }
+            capture("06-downloads-resumed.png")
+        } else {
+            device.pressBack()
+        }
+
+        composeRule.onNodeWithContentDescription(downloadMenuDescription).performClick()
+        waitUntil(15_000, "Aniyomi-style download cleanup action") {
             hasText("Cancel") || hasText("Delete") || hasText("Remove")
         }
         when {
