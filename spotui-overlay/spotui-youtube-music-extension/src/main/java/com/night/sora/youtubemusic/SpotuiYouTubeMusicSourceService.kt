@@ -70,7 +70,12 @@ class SpotuiYouTubeMusicSourceService : Service() {
                                     payload.optString("query"),
                                     payload.optString("albumId").takeIf(String::isNotBlank),
                                 )
-                            MusicSourceContract.Method.STREAMS -> resolveStreams(sourceId, id)
+                            MusicSourceContract.Method.STREAMS -> resolveStreams(
+                                sourceId = sourceId,
+                                id = id,
+                                avoidResolverClient = payload.optString("avoidResolverClient")
+                                    .takeIf(String::isNotBlank),
+                            )
                             MusicSourceContract.Method.BROWSER_SESSION -> {
                                 require(sourceId == SOURCE_ID) { "Unsupported source: $sourceId" }
                                 YouTubeMusicSession.browserSession()
@@ -189,9 +194,17 @@ class SpotuiYouTubeMusicSourceService : Service() {
         )
         .toString()
 
-    private suspend fun resolveStreams(sourceId: String, id: String): String {
+    private suspend fun resolveStreams(
+        sourceId: String,
+        id: String,
+        avoidResolverClient: String?,
+    ): String {
         return try {
-            YouTubeMusicCatalog.streams(sourceId, id)
+            YouTubeMusicCatalog.streams(
+                sourceId = sourceId,
+                id = id,
+                avoidResolverClient = avoidResolverClient,
+            )
         } catch (cause: Throwable) {
             val detail = cause.message.orEmpty()
             val challenged = detail.contains("LOGIN_REQUIRED", ignoreCase = true) ||
