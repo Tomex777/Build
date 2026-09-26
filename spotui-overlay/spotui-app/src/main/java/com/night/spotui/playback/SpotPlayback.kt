@@ -192,6 +192,7 @@ class SpotPlaybackController(
         onProgress: (Long, Long) -> Unit = { _, _ -> },
     ): String {
         val namespace = source.cacheNamespace()
+        audioCache.promoteCachedVariant(namespace, track)?.let { return it }
         val stream = source.resolveCandidates(track).getOrThrow().firstOrNull()
             ?: error("This source did not provide a playable download")
         val cacheKey = audioCache.cacheKey(namespace, track.id, stream.mimeType, stream.label)

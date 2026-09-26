@@ -57,7 +57,9 @@ class LyraAudioCache(context: Context) {
 
     fun rememberVariant(sourceId: String, track: Track, audio: ResolvedAudio): String {
         val key = audio.cacheKey ?: cacheKey(sourceId, track.id, audio.mimeType, audio.label)
-        val length = audio.contentLength?.takeIf { it > 0L } ?: C.LENGTH_UNSET.toLong()
+        val length = audio.contentLength?.takeIf { it > 0L }
+            ?: Uri.parse(audio.url).getQueryParameter("clen")?.toLongOrNull()?.takeIf { it > 0L }
+            ?: C.LENGTH_UNSET.toLong()
         preferences.edit().putString(
             entryKey(sourceId, track.id),
             JSONObject()
@@ -113,6 +115,29 @@ class LyraAudioCache(context: Context) {
             cacheSourceId = sourceId,
             fromCache = true,
         )
+    }
+
+    /** Pins a fully cached stream as a user download without resolving or fetching it again. */
+    fun promoteCachedVariant(sourceId: String, track: Track): String? {
+        val raw = preferences.getString(entryKey(sourceId, track.id), null) ?: return null
+        val entry = runCatching { JSONObject(raw) }.getOrNull() ?: return null
+        val key = entry.optString("key").takeIf(String::isNotBlank) ?: return null
+        val contentLength = cache.getContentMetadata(key)
+            .get(ContentMetadata.KEY_CONTENT_LENGTH, entry.optLong("length", C.LENGTH_UNSET.toLong()))
+        if (contentLength <= 0L || !cache.isCached(key, 0L, contentLength)) return null
+
+        val audio = ResolvedAudio(
+            url = "",
+            label = entry.optString("label", "Audio"),
+            mimeType = entry.optString("mimeType").takeIf(String::isNotBlank),
+            contentLength = contentLength,
+            cacheKey = key,
+            cacheSourceId = sourceId,
+            fromCache = true,
+        )
+        rememberVariant(sourceId, track, audio)
+        pinDownload(key, sourceId, track, audio)
+        return key
     }
 
     fun cacheDataSourceFactory(upstream: DataSource.Factory): CacheDataSource.Factory =
@@ -179,6 +204,7 @@ class LyraAudioCache(context: Context) {
         val key = rememberVariant(sourceId, track, audio)
         val uri = Uri.parse(audio.url)
         val requestLength = audio.contentLength?.takeIf { it > 0L }
+            ?: uri.getQueryParameter("clen")?.toLongOrNull()?.takeIf { it > 0L }
             ?: cache.getContentMetadata(key).get(ContentMetadata.KEY_CONTENT_LENGTH, C.LENGTH_UNSET.toLong())
         val spec = DataSpec.Builder()
             .setUri(uri)
