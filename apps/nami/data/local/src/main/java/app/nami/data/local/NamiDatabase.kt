@@ -109,6 +109,10 @@ class NamiDatabase(
             addColumnIfMissing(db, "watch_progress", "last_watched_at", "INTEGER NOT NULL DEFAULT 0")
         }
         if (oldVersion < 7) {
+            // Some historical/test databases can legitimately reach v5/v6 without the
+            // downloads table being present. Ensure the base table exists before extending
+            // it with resumable-transfer columns.
+            createDownloadTable(db)
             addColumnIfMissing(db, "downloads", "bytes_downloaded", "INTEGER NOT NULL DEFAULT 0")
             addColumnIfMissing(db, "downloads", "total_bytes", "INTEGER")
             addColumnIfMissing(db, "downloads", "temp_path", "TEXT")
