@@ -603,7 +603,7 @@ async function logs(limit) {
   return stdout.split(/\r?\n/).filter(Boolean);
 }
 
-async function streamLogs(req, res) {
+async function streamLogs(req, res, initialLimit = 120) {
   res.writeHead(200, {
     'content-type': 'text/event-stream; charset=utf-8',
     'cache-control': 'no-store',
@@ -616,11 +616,14 @@ async function streamLogs(req, res) {
     if (!res.destroyed) res.write('data: ' + JSON.stringify({ line: String(line) }) + '\n\n');
   };
 
-  try {
-    const initial = await logs(120);
-    initial.forEach(send);
-  } catch (error) {
-    send('[Cortex] Unable to read initial journal: ' + (error?.message || error));
+  const initialCount = Math.max(0, Math.min(500, Number(initialLimit) || 0));
+  if (initialCount > 0) {
+    try {
+      const initial = await logs(initialCount);
+      initial.forEach(send);
+    } catch (error) {
+      send('[Cortex] Unable to read initial journal: ' + (error?.message || error));
+    }
   }
 
   const child = spawn('journalctl', ['-u', MANAGED_SERVICE, '-f', '-n', '0', '--no-pager', '-o', 'cat'], {
@@ -878,7 +881,7 @@ async function handler(req, res) {
       return json(res, 200, { lines: await logs(url.searchParams.get('limit')) });
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/logs/stream') {
-      return streamLogs(req, res);
+      return streamLogs(req, res, url.searchParams.get('initial'));
     }
     if (req.method === 'POST' && url.pathname === '/api/cortex/host/power') {
       const body = await readJson(req);
