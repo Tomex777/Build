@@ -137,7 +137,7 @@ internal object ScriptTaskManager {
         require(action.isNotBlank() && action.length <= 128) { "Task requires an action" }
         require(chatId.isNotBlank()) { "Task requires an active chat" }
         val payloadValue = spec.opt("payload").takeUnless { it == null || it == JSONObject.NULL } ?: JSONObject()
-        val payloadJson = JSONObject.valueToString(payloadValue)
+        val payloadJson = encodeScriptJsonValue(payloadValue)
         require(payloadJson.length <= MAX_PAYLOAD_CHARS) { "Task payload is too large" }
         val now = System.currentTimeMillis()
         val entry = ScriptTaskEntry(
