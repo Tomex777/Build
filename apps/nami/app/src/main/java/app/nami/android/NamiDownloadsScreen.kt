@@ -15,6 +15,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Pause
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -54,6 +56,7 @@ fun NamiDownloadsScreen(
     onPlayDownloaded: (NamiDownloadStatus) -> Unit,
 ) {
     val statuses by downloadManager.statuses.collectAsState()
+    val globallyPaused by downloadManager.globalPaused.collectAsState()
     var sort by remember { mutableStateOf(DownloadSort.DEFAULT) }
     var sortExpanded by remember { mutableStateOf(false) }
     var actionsExpanded by remember { mutableStateOf(false) }
@@ -127,6 +130,40 @@ fun NamiDownloadsScreen(
                 },
                 actions = {
                     if (downloads.isNotEmpty()) {
+                        val hasQueueWork = downloads.any {
+                            it.state == NamiDownloadState.QUEUED ||
+                                it.state == NamiDownloadState.DOWNLOADING ||
+                                it.state == NamiDownloadState.WAITING_FOR_NETWORK ||
+                                (
+                                    it.state == NamiDownloadState.PAUSED &&
+                                        it.pauseReason == NamiPauseReason.GLOBAL
+                                )
+                        }
+                        if (hasQueueWork) {
+                            IconButton(
+                                onClick = {
+                                    if (globallyPaused) {
+                                        downloadManager.resumeAll()
+                                    } else {
+                                        downloadManager.pauseAll()
+                                    }
+                                },
+                            ) {
+                                Icon(
+                                    imageVector = if (globallyPaused) {
+                                        Icons.Outlined.PlayArrow
+                                    } else {
+                                        Icons.Outlined.Pause
+                                    },
+                                    contentDescription = if (globallyPaused) {
+                                        "Resume all downloads"
+                                    } else {
+                                        "Pause all downloads"
+                                    },
+                                )
+                            }
+                        }
+
                         Box {
                             IconButton(onClick = { sortExpanded = true }) {
                                 Icon(
@@ -170,13 +207,17 @@ fun NamiDownloadsScreen(
                                     text = { Text("Cancel all") },
                                     enabled = downloads.any {
                                         it.state == NamiDownloadState.QUEUED ||
-                                            it.state == NamiDownloadState.DOWNLOADING
+                                            it.state == NamiDownloadState.DOWNLOADING ||
+                                            it.state == NamiDownloadState.WAITING_FOR_NETWORK ||
+                                            it.state == NamiDownloadState.PAUSED
                                     },
                                     onClick = {
                                         downloads
                                             .filter {
                                                 it.state == NamiDownloadState.QUEUED ||
-                                                    it.state == NamiDownloadState.DOWNLOADING
+                                                    it.state == NamiDownloadState.DOWNLOADING ||
+                                                    it.state == NamiDownloadState.WAITING_FOR_NETWORK ||
+                                                    it.state == NamiDownloadState.PAUSED
                                             }
                                             .forEach(downloadManager::cancel)
                                         actionsExpanded = false
@@ -223,6 +264,8 @@ fun NamiDownloadsScreen(
                         AniyomiStyleDownloadRow(
                             status = status,
                             onPlayDownloaded = onPlayDownloaded,
+                            onPause = { downloadManager.pause(status) },
+                            onResume = { downloadManager.resume(status) },
                             onCancel = { downloadManager.cancel(status) },
                             onRetry = { downloadManager.retry(status) },
                             onRemove = { downloadManager.remove(status) },
@@ -262,6 +305,8 @@ private fun DownloadGroupHeader(
 private fun AniyomiStyleDownloadRow(
     status: NamiDownloadStatus,
     onPlayDownloaded: (NamiDownloadStatus) -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
     onRemove: () -> Unit,
@@ -360,12 +405,37 @@ private fun AniyomiStyleDownloadRow(
                 when (status.state) {
                     NamiDownloadState.QUEUED,
                     NamiDownloadState.DOWNLOADING,
+                    NamiDownloadState.WAITING_FOR_NETWORK,
                     -> {
+                        DropdownMenuItem(
+                            text = { Text("Pause") },
+                            onClick = {
+                                menuExpanded = false
+                                onPause()
+                            },
+                        )
                         DropdownMenuItem(
                             text = { Text("Cancel") },
                             onClick = {
                                 menuExpanded = false
                                 onCancel()
+                            },
+                        )
+                    }
+
+                    NamiDownloadState.PAUSED -> {
+                        DropdownMenuItem(
+                            text = { Text("Resume") },
+                            onClick = {
+                                menuExpanded = false
+                                onResume()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Remove") },
+                            onClick = {
+                                menuExpanded = false
+                                onRemove()
                             },
                         )
                     }
@@ -411,15 +481,26 @@ private fun AniyomiStyleDownloadRow(
 
 private fun progressFraction(status: NamiDownloadStatus): Float = when (status.state) {
     NamiDownloadState.QUEUED -> 0f
-    NamiDownloadState.DOWNLOADING -> status.progress.coerceIn(0, 100) / 100f
+    NamiDownloadState.DOWNLOADING,
+    NamiDownloadState.PAUSED,
+    NamiDownloadState.WAITING_FOR_NETWORK,
+    -> status.progress.coerceIn(0, 100) / 100f
     NamiDownloadState.DOWNLOADED -> 1f
-    NamiDownloadState.ERROR -> 0f
+    NamiDownloadState.ERROR -> status.progress.coerceIn(0, 100) / 100f
 }
 
 private fun downloadProgressLabel(status: NamiDownloadStatus): String = when (status.state) {
     NamiDownloadState.QUEUED -> "Queued"
     NamiDownloadState.DOWNLOADING ->
         if (status.progress <= 0) "Downloading" else "${status.progress.coerceIn(0, 100)}%"
+    NamiDownloadState.PAUSED -> "Paused"
+    NamiDownloadState.WAITING_FOR_NETWORK -> {
+        if (status.errorMessage?.startsWith("Retrying", ignoreCase = true) == true) {
+            "Retrying…"
+        } else {
+            "Waiting"
+        }
+    }
     NamiDownloadState.DOWNLOADED -> "100%"
     NamiDownloadState.ERROR -> "Error"
 }
