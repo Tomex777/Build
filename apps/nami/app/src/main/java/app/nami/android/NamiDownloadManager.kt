@@ -950,7 +950,7 @@ class NamiDownloadManager(
     private fun contentRangeStart(connection: HttpURLConnection): Long? =
         connection.getHeaderField("Content-Range")
             ?.let { value ->
-                Regex("""(?i)^bytes\\s+(\\d+)-\\d+/[^\\s]+$""")
+                Regex("""(?i)^bytes\s+(\d+)-\d+/[^\s]+$""")
                     .find(value.trim())
                     ?.groupValues
                     ?.getOrNull(1)
