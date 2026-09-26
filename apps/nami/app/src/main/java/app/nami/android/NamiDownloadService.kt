@@ -51,6 +51,11 @@ class NamiDownloadService : Service() {
             setReferenceCounted(false)
         }
 
+        // Android requires a service started with startForegroundService() to promote
+        // itself immediately. Do this before collecting StateFlow because an initial empty
+        // snapshot can synchronously request stopSelf() during onCreate.
+        startForegroundIfNeeded()
+
         observerJob = scope.launch {
             combine(manager.statuses, manager.globalPaused) { statuses, paused ->
                 EngineSnapshot(statuses.values.toList(), paused)
