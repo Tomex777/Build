@@ -328,12 +328,33 @@ shot 04-artist
 tap_first_discography_release
 wait_for_node Tracks 20
 wait_for_contains songs 10
+assert_album_track_metadata() {
+  dump_ui
+  python3 <<'PY'
+import sys, xml.etree.ElementTree as ET
+root=ET.parse('/tmp/spotui.xml').getroot()
+nodes=list(root.iter('node'))
+start=next((i for i,n in enumerate(nodes) if (n.attrib.get('text') or '').strip() == 'Tracks'),None)
+if start is None: raise SystemExit('Album tracks section was not visible')
+labels=[(n.attrib.get('text') or '').strip() for n in nodes[start+1:]]
+artists=sum(label == 'Adele' for label in labels)
+provider_fallback=sum(label == 'YouTube Music' for label in labels)
+if artists < 1 or provider_fallback:
+    raise SystemExit('Album track metadata is wrong: Adele rows=%d, provider fallback rows=%d' % (artists,provider_fallback))
+PY
+}
+assert_album_track_metadata
 shot 05-album
 touch "$OUT/CATALOG_ARTIST_ALBUM_PASS"
 adb shell input keyevent KEYCODE_BACK || true
 sleep 1
 adb shell input keyevent BACK || true
 sleep 2
+tap_text Library
+wait_for_node 'YOUR MUSIC' 15
+shot 06-library
+tap_text Search
+wait_for_node Search 12
 wait_for_node 'Play Easy On Me' 12
 sleep 1
 adb logcat -c || true

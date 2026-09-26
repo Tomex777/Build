@@ -409,6 +409,7 @@ fun SpotuiApp() {
                         SpotTab.HOME -> HomeScreen(
                             modifier = Modifier.padding(padding),
                             tracks = homeTracks,
+                            personalized = taste.hasTaste(),
                             loading = homeLoading,
                             error = homeError,
                             liked = likedTracks.map(Track::id).toSet(),
@@ -478,6 +479,7 @@ fun SpotuiApp() {
 private fun HomeScreen(
     modifier: Modifier,
     tracks: List<Track>,
+    personalized: Boolean,
     loading: Boolean,
     error: String?,
     liked: Set<String>,
@@ -496,7 +498,7 @@ private fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("Auri", color = SpotText, fontSize = 30.sp, fontWeight = FontWeight.Black)
+                    Text("Lyra", color = SpotText, fontSize = 30.sp, fontWeight = FontWeight.Black)
                     Text("Your listening space", color = SpotMuted, fontSize = 11.sp)
                 }
             }
@@ -509,11 +511,28 @@ private fun HomeScreen(
             }
         } else {
             item { MusicQuickGrid(tracks.take(6), liked, onPlay, onToggleLike) }
-            item { MusicSectionTitle("Made for you", "Ordered by what you search, like and replay") }
+            item {
+                MusicSectionTitle(
+                    if (personalized) "Made for you" else "Explore music",
+                    if (personalized) "Ordered by what you search, like and replay"
+                    else "Start listening to shape your music mix",
+                )
+            }
             item { MusicSquareRail(tracks.take(10), onPlay, onArtist) }
-            item { MusicSectionTitle("Artists in your mix", "Shaped by your listening") }
+            item {
+                MusicSectionTitle(
+                    if (personalized) "Artists in your mix" else "Artists to explore",
+                    if (personalized) "Shaped by your listening" else "Your listening will shape what appears here",
+                )
+            }
             item { ArtistRail(tracks, onArtist) }
-            item { MusicSectionTitle("Your rotation", "Songs and artists you keep coming back to") }
+            item {
+                MusicSectionTitle(
+                    if (personalized) "Your rotation" else "Discover more",
+                    if (personalized) "Songs and artists you keep coming back to"
+                    else "New tracks to start your library",
+                )
+            }
             item { MusicTrackList(tracks.take(10), liked, onPlay, onToggleLike, onArtist) }
         }
 

@@ -50,8 +50,15 @@ object YouTubeMusicBrowseApi {
         val artist = if (requestedId.isNullOrBlank()) resolveArtist(query) else null
         val artistId = requestedId?.takeIf(String::isNotBlank) ?: artist?.id ?: error("Artist not found")
         val root = browse(artistId)
+        val artistName = headerTitle(root).ifBlank { artist?.title ?: query }
+        val artistArtwork = headerArtwork(root).ifBlank { artist?.thumbnail.orEmpty() }
         val songObjects = LinkedHashMap<String, JSONObject>()
-        collectSongs(root).forEach { songObjects[it.getString("id")] = it }
+        collectSongs(
+            root,
+            fallbackArtist = artistName,
+            fallbackArtistId = artistId,
+            fallbackArtwork = artistArtwork,
+        ).forEach { songObjects[it.getString("id")] = it }
 
         val releases = LinkedHashMap<String, JSONObject>()
         collectAlbums(root).forEach { releases[it.getString("id")] = it }
@@ -59,7 +66,12 @@ object YouTubeMusicBrowseApi {
         sectionEndpoint(root, setOf("songs", "popular songs"))?.let { endpoint ->
             var page = browse(endpoint.first, endpoint.second)
             repeat(4) {
-                collectSongs(page).forEach { songObjects[it.getString("id")] = it }
+                collectSongs(
+                    page,
+                    fallbackArtist = artistName,
+                    fallbackArtistId = artistId,
+                    fallbackArtwork = artistArtwork,
+                ).forEach { songObjects[it.getString("id")] = it }
                 val continuation = firstContinuation(page) ?: return@repeat
                 page = browse(continuation = continuation)
             }
@@ -73,8 +85,8 @@ object YouTubeMusicBrowseApi {
 
         JSONObject()
             .put("id", artistId)
-            .put("name", headerTitle(root).ifBlank { artist?.title ?: query })
-            .put("artworkUrl", headerArtwork(root).ifBlank { artist?.thumbnail.orEmpty() })
+            .put("name", artistName)
+            .put("artworkUrl", artistArtwork)
             .put("songs", JSONArray(songObjects.values.toList()))
             .put("releases", JSONArray(releases.values.toList()))
             .toString()
@@ -84,17 +96,31 @@ object YouTubeMusicBrowseApi {
         val album = if (requestedId.isNullOrBlank()) resolveAlbum(query) else null
         val albumId = requestedId?.takeIf(String::isNotBlank) ?: album?.id ?: error("Album not found")
         val root = browse(albumId)
-        val songs = collectSongs(root)
+        val year = album?.year?.takeIf { it > 0 } ?: headerYear(root)
+        val title = cleanAlbumTitle(headerTitle(root), year)
+            .ifBlank { album?.title ?: query }
+        val (headerArtist, headerArtistId) = headerArtistDetails(root)
+        val artistName = headerArtist.ifBlank {
+            album?.artists?.joinToString(", ") { it.name }.orEmpty()
+        }
+        val artistId = headerArtistId.ifBlank { album?.artists?.firstOrNull()?.id.orEmpty() }
+        val artwork = headerArtwork(root).ifBlank { album?.thumbnail.orEmpty() }
+        val songs = collectSongs(
+            root,
+            fallbackArtist = artistName,
+            fallbackArtistId = artistId,
+            fallbackAlbum = title,
+            fallbackAlbumId = albumId,
+            fallbackArtwork = artwork,
+        )
 
         JSONObject()
             .put("id", albumId)
-            .put("title", headerTitle(root).ifBlank { album?.title ?: query })
-            .put("artist", headerArtist(root).ifBlank {
-                album?.artists?.joinToString(", ") { it.name }.orEmpty()
-            })
-            .put("artistId", album?.artists?.firstOrNull()?.id.orEmpty())
-            .put("year", album?.year ?: headerYear(root))
-            .put("artworkUrl", headerArtwork(root).ifBlank { album?.thumbnail.orEmpty() })
+            .put("title", title)
+            .put("artist", artistName)
+            .put("artistId", artistId)
+            .put("year", year)
+            .put("artworkUrl", artwork)
             .put("songs", JSONArray(songs))
             .toString()
     }
@@ -186,17 +212,38 @@ object YouTubeMusicBrowseApi {
             .put("user", JSONObject().put("lockedSafetyMode", false))
     }
 
-    private fun collectSongs(root: Any?): List<JSONObject> {
+    private fun collectSongs(
+        root: Any?,
+        fallbackArtist: String = "",
+        fallbackArtistId: String = "",
+        fallbackAlbum: String = "",
+        fallbackAlbumId: String = "",
+        fallbackArtwork: String = "",
+    ): List<JSONObject> {
         val result = LinkedHashMap<String, JSONObject>()
         walk(root) { obj ->
             obj.optJSONObject("musicResponsiveListItemRenderer")?.let { renderer ->
-                parseSong(renderer)?.let { result[it.getString("id")] = it }
+                parseSong(
+                    renderer,
+                    fallbackArtist,
+                    fallbackArtistId,
+                    fallbackAlbum,
+                    fallbackAlbumId,
+                    fallbackArtwork,
+                )?.let { result[it.getString("id")] = it }
             }
         }
         return result.values.toList()
     }
 
-    private fun parseSong(renderer: JSONObject): JSONObject? {
+    private fun parseSong(
+        renderer: JSONObject,
+        fallbackArtist: String,
+        fallbackArtistId: String,
+        fallbackAlbum: String,
+        fallbackAlbumId: String,
+        fallbackArtwork: String,
+    ): JSONObject? {
         val id = renderer.optJSONObject("playlistItemData")?.optString("videoId")
             .orEmpty()
             .ifBlank {
@@ -258,11 +305,11 @@ object YouTubeMusicBrowseApi {
         return JSONObject()
             .put("id", id)
             .put("title", title)
-            .put("artist", artistNames.distinct().joinToString(", "))
-            .put("artistId", artistId)
-            .put("album", album)
-            .put("albumId", albumId)
-            .put("artworkUrl", thumbnail(renderer))
+            .put("artist", artistNames.distinct().joinToString(", ").ifBlank { fallbackArtist })
+            .put("artistId", artistId.ifBlank { fallbackArtistId })
+            .put("album", album.ifBlank { fallbackAlbum })
+            .put("albumId", albumId.ifBlank { fallbackAlbumId })
+            .put("artworkUrl", thumbnail(renderer).ifBlank { fallbackArtwork })
             .put("durationSeconds", parseDuration(renderer))
             .put("explicit", renderer.toString().contains("MUSIC_EXPLICIT_BADGE"))
     }
@@ -362,9 +409,50 @@ object YouTubeMusicBrowseApi {
     private fun headerTitle(root: JSONObject): String =
         headerRuns(root, "title").firstOrNull().orEmpty()
 
-    private fun headerArtist(root: JSONObject): String {
-        val subtitle = headerRuns(root, "subtitle")
-        return subtitle.firstOrNull { it.isNotBlank() && !it.matches(Regex("""\d{4}""")) }.orEmpty()
+    private fun headerArtist(root: JSONObject): String = headerArtistDetails(root).first
+
+    private fun headerArtistDetails(root: JSONObject): Pair<String, String> {
+        var artistName = ""
+        var artistId = ""
+        walk(root.optJSONObject("header")) { obj ->
+            if (artistName.isNotBlank()) return@walk
+            val runs = obj.optJSONObject("subtitle")?.optJSONArray("runs") ?: return@walk
+            for (index in 0 until runs.length()) {
+                val run = runs.optJSONObject(index) ?: continue
+                val name = run.optString("text").trim()
+                val browseId = run.optJSONObject("navigationEndpoint")
+                    ?.optJSONObject("browseEndpoint")
+                    ?.optString("browseId")
+                    .orEmpty()
+                if (name.isNotBlank() && browseId.startsWith("UC")) {
+                    artistName = name
+                    artistId = browseId
+                    return@walk
+                }
+            }
+        }
+        if (artistName.isBlank()) {
+            artistName = headerRuns(root, "subtitle")
+                .asSequence()
+                .map(String::trim)
+                .firstOrNull { value ->
+                    value.isNotBlank() &&
+                        !value.matches(Regex("""\d{4}""")) &&
+                        value !in setOf("Album", "Single", "EP", "Playlist")
+                }
+                .orEmpty()
+        }
+        return artistName to artistId
+    }
+
+    private fun cleanAlbumTitle(value: String, year: Int): String {
+        val clean = value.trim()
+        if (year <= 0) return clean
+        return clean
+            .removeSuffix(" • $year")
+            .removeSuffix(" · $year")
+            .removeSuffix(" $year")
+            .trim()
     }
 
     private fun headerYear(root: JSONObject): Int =
