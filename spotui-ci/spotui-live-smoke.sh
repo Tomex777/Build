@@ -310,4 +310,3 @@ else
 fi
 
 echo "SpotUI core + extension smoke passed."
-84252aed610f60cbbdf9cea3979c4b9a128fa323
