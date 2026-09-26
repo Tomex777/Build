@@ -18,7 +18,10 @@ jobs:
         with:
           node-version: '24'
       - name: Syntax check
-        run: node --check cortex-agent/index.js
+        run: |
+          node --check cortex-agent/index.js
+          bash -n cortex-agent/install.sh
+          bash -n cortex-agent/install-azure-ip-https.sh
       - name: Start Cortex Agent
         shell: bash
         run: |
