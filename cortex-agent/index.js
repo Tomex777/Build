@@ -857,7 +857,7 @@ async function handler(req, res) {
       await recordActivity('mscc:module.reload', { module: id });
       return json(res, 200, result);
     }
-    const pairRoute = url.pathname.match(/^\/api\/cortex\/mscc\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/(pair|reconnect|repair)$/);
+    const pairRoute = url.pathname.match(/^\/api\/cortex\/mscc\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/(pair|reconnect|disconnect|repair)$/);
     if (req.method === 'POST' && pairRoute) {
       const [, id, action] = pairRoute;
       const body = await readJson(req);
@@ -872,9 +872,22 @@ async function handler(req, res) {
         await recordActivity('mscc:pairing.reconnect', { account: id });
         return json(res, 200, result);
       }
+      if (action === 'disconnect') {
+        const result = await msccControl('POST', '/accounts/' + id + '/disconnect', {});
+        await recordActivity('mscc:account.disconnect', { account: id });
+        return json(res, 200, result);
+      }
       const mode = body.mode === 'qr' ? 'qr' : 'code';
       const result = await msccControl('POST', '/accounts/' + id + '/repair', { mode });
       await recordActivity('mscc:pairing.repair', { account: id, mode });
+      return json(res, 200, result);
+    }
+
+    const removeAccountRoute = url.pathname.match(/^\/api\/cortex\/mscc\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})$/);
+    if (req.method === 'DELETE' && removeAccountRoute) {
+      const id = removeAccountRoute[1];
+      const result = await msccControl('DELETE', '/accounts/' + id);
+      await recordActivity('mscc:account.remove', { account: id, authPreserved: result?.authPreserved === true });
       return json(res, 200, result);
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/logs') {
