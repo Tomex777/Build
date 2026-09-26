@@ -89,14 +89,17 @@ class AniyomiPreferencesSmokeTest {
             var primaryTextColor = Color.TRANSPARENT
             var secondaryTextColor = Color.TRANSPARENT
             scenario.onActivity { activity ->
-                activity.obtainStyledAttributes(
+                val attributes = activity.obtainStyledAttributes(
                     intArrayOf(
                         android.R.attr.textColorPrimary,
                         android.R.attr.textColorSecondary,
                     ),
-                ).use { attributes ->
+                )
+                try {
                     primaryTextColor = attributes.getColor(0, Color.TRANSPARENT)
                     secondaryTextColor = attributes.getColor(1, Color.TRANSPARENT)
+                } finally {
+                    attributes.recycle()
                 }
             }
             assertTrue(
