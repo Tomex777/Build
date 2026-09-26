@@ -27,6 +27,17 @@ jobs:
       - name: Syntax check all MSCC modules
         working-directory: mscc
         run: npm run check
+      - name: Guard against fixed A/B runtime assumptions
+        working-directory: mscc
+        run: |
+          ! grep -Fq "Destination must be A or B" index.js
+          ! grep -Fq "accounts.get('B')" index.js
+          ! grep -Fq "item.account === 'B'" index.js
+          grep -Fq "await loadAccounts()" index.js
+          grep -Fq "createAccount," index.js
+          grep -Fq "perAccountCcOverride: true" index.js
+          grep -Fq "writeRuntimeRegistry()" index.js
+
       - name: Verify dynamic account registry migration
         working-directory: mscc
         run: |

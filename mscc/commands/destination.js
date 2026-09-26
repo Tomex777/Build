@@ -4,21 +4,21 @@ export default {
   description: 'Show or change which linked account receives recovered media.',
   ownerOnly: true,
   async run(ctx) {
-    const requested = String(ctx.args[0] || '').trim().toUpperCase()
+    const requested = String(ctx.args[0] || '').trim()
+    const diagnostics = ctx.diagnostics()
     if (!requested) {
-      await ctx.reply(`MSCC destination: Account ${ctx.diagnostics().destination}\nUsage: .destination A|B`)
+      const current = diagnostics.accounts.find(item => item.id === diagnostics.destination)
+      await ctx.reply(
+        `MSCC destination: ${current?.displayName || 'Account'} [${diagnostics.destination}]\nUsage: .destination <account-id>`
+      )
       return
     }
-    if (!['A', 'B'].includes(requested)) {
-      await ctx.reply('Usage: .destination A|B')
-      return
-    }
-    const account = ctx.diagnostics().accounts.find(item => item.id === requested)
+    const account = diagnostics.accounts.find(item => item.id.toLowerCase() === requested.toLowerCase())
     if (!account?.enabled) {
-      await ctx.reply(`Account ${requested} is not configured.`)
+      await ctx.reply(`Unknown or disabled account: ${requested}\nUse .accounts to list account IDs.`)
       return
     }
-    await ctx.setDestination(requested)
-    await ctx.reply(`✅ Destination changed to Account ${requested}`)
+    await ctx.setDestination(account.id)
+    await ctx.reply(`✅ Destination changed to ${account.displayName || 'Account'} [${account.id}]`)
   },
 }

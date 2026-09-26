@@ -15,6 +15,7 @@ import pino from 'pino'
 import QRCode from 'qrcode'
 import { startWebPanel } from './web-panel.js'
 import { dispatchCommand, loadCommands } from './commands/registry.js'
+import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
 
 const COMMANDS_URL = new URL('./commands/', import.meta.url)
 let commandRegistry = await loadCommands(COMMANDS_URL)
@@ -25,18 +26,22 @@ const num = (name, fallback, min, max) => {
   return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback
 }
 
-const ACCOUNT_A_NUMBER = digits(process.env.ACCOUNT_A_NUMBER || process.env.BOT_NUMBER)
-const ACCOUNT_B_NUMBER = digits(process.env.ACCOUNT_B_NUMBER)
-const OWNER_NUMBER = digits(process.env.OWNER_NUMBER || ACCOUNT_A_NUMBER)
-const ACCOUNT_A_AUTH_DIR = process.env.ACCOUNT_A_AUTH_DIR || '/var/lib/mscc/auth'
-const ACCOUNT_B_AUTH_DIR = process.env.ACCOUNT_B_AUTH_DIR || '/var/lib/mscc/auth-b'
-const DEFAULT_DESTINATION = String(process.env.CC_DESTINATION_ACCOUNT || 'A').toUpperCase() === 'B' ? 'B' : 'A'
+const LEGACY_ACCOUNT_A_NUMBER = digits(process.env.ACCOUNT_A_NUMBER || process.env.BOT_NUMBER)
+const LEGACY_ACCOUNT_B_NUMBER = digits(process.env.ACCOUNT_B_NUMBER)
+const OWNER_NUMBER = digits(process.env.OWNER_NUMBER || LEGACY_ACCOUNT_A_NUMBER)
+const LEGACY_ACCOUNT_A_AUTH_DIR = process.env.ACCOUNT_A_AUTH_DIR || '/var/lib/mscc/auth'
+const LEGACY_ACCOUNT_B_AUTH_DIR = process.env.ACCOUNT_B_AUTH_DIR || '/var/lib/mscc/auth-b'
+const DEFAULT_DESTINATION = String(process.env.CC_DESTINATION_ACCOUNT || 'A').trim() || 'A'
 const INDEX_FILE = process.env.MESSAGE_INDEX_FILE || '/var/lib/mscc/data/mscc-message-index.json'
 const SETTINGS_FILE = process.env.SETTINGS_FILE || '/var/lib/mscc/data/mscc-settings.json'
+const ACCOUNT_REGISTRY_FILE = process.env.ACCOUNT_REGISTRY_FILE || join(dirname(SETTINGS_FILE), 'mscc-accounts.json')
+const ACCOUNT_AUTH_ROOT = process.env.ACCOUNT_AUTH_ROOT || '/var/lib/mscc/accounts'
 const CORTEX_SETTINGS_SCHEMA_FILE = process.env.CORTEX_SETTINGS_SCHEMA_FILE || join(dirname(SETTINGS_FILE), 'cortex-settings-schema.json')
+const CORTEX_RUNTIME_REGISTRY_FILE = process.env.CORTEX_RUNTIME_REGISTRY_FILE || join(dirname(SETTINGS_FILE), 'cortex-runtime-registry.json')
 const AUTH_BACKUP_DIR = process.env.AUTH_BACKUP_DIR || '/var/backups/mscc'
 const TTL_MS = num('MESSAGE_TTL_HOURS', 24, 1, 168) * 3600000
 const MAX_CACHE = num('MAX_MESSAGE_CACHE', 5000, 100, 20000)
+const MAX_ACCOUNTS = num('MAX_ACCOUNTS', 2, 1, 50)
 const WEB_PORT = process.env.SERVER_PORT
   ? num('SERVER_PORT', 8787, 1, 65535)
   : num('MSCC_WEB_PORT', num('PORT', 8787, 1, 65535), 1, 65535)
@@ -45,16 +50,7 @@ const WEB_SESSION_SECRET = process.env.WEB_SESSION_SECRET || ''
 const LOCAL_CONTROL_PORT = 8788
 const logger = pino({ level: process.env.LOG_LEVEL || 'silent' })
 const startedAt = Date.now()
-const APP_VERSION = '1.9.0'
-
-if (!/^\d{7,15}$/.test(ACCOUNT_A_NUMBER)) {
-  console.error('ACCOUNT_A_NUMBER (or BOT_NUMBER) is required.')
-  process.exit(1)
-}
-if (ACCOUNT_B_NUMBER && !/^\d{7,15}$/.test(ACCOUNT_B_NUMBER)) {
-  console.error('ACCOUNT_B_NUMBER is invalid.')
-  process.exit(1)
-}
+const APP_VERSION = '2.0.0'
 
 const controlNumbers = new Set(
   String(process.env.CONTROL_NUMBERS || OWNER_NUMBER)
@@ -63,17 +59,79 @@ const controlNumbers = new Set(
     .filter(v => /^\d{7,15}$/.test(v))
 )
 
+const accountRegistry = new AccountRegistry({
+  file: ACCOUNT_REGISTRY_FILE,
+  authRoot: ACCOUNT_AUTH_ROOT,
+  maxAccounts: MAX_ACCOUNTS,
+  legacy: legacyAccountRecords({
+    accountA: LEGACY_ACCOUNT_A_NUMBER,
+    accountB: LEGACY_ACCOUNT_B_NUMBER,
+    authA: LEGACY_ACCOUNT_A_AUTH_DIR,
+    authB: LEGACY_ACCOUNT_B_AUTH_DIR,
+  }),
+})
+
 const accounts = new Map()
-const makeAccount = (id, number, authDir) => ({
-  id, number, authDir, enabled: Boolean(number),
+const makeAccount = record => ({
+  id: record.id,
+  number: record.phoneNumber,
+  authDir: record.authDir,
+  displayName: record.displayName || '',
+  role: record.role || 'linked',
+  createdAt: record.createdAt || Date.now(),
+  enabled: Boolean(record.phoneNumber),
   sock: null, connected: false, registered: false, invalid: false,
   generation: 0, reconnectTimer: null,
   pairingMode: '', pairingCode: '', pairingQr: '', pairingError: '',
   lastQr: '', lastCodeAt: 0, pairingRequested: false,
   op: Promise.resolve()
 })
-accounts.set('A', makeAccount('A', ACCOUNT_A_NUMBER, ACCOUNT_A_AUTH_DIR))
-accounts.set('B', makeAccount('B', ACCOUNT_B_NUMBER, ACCOUNT_B_AUTH_DIR))
+
+async function loadAccounts() {
+  const records = await accountRegistry.load()
+  if (!records.length) {
+    throw new Error('No WhatsApp accounts are configured. Set legacy ACCOUNT_A_NUMBER once or create a registry before startup.')
+  }
+  accounts.clear()
+  for (const record of records) accounts.set(record.id, makeAccount(record))
+  if (!controlNumbers.size) {
+    const owner = records.find(row => row.role === 'owner') || records[0]
+    if (owner?.phoneNumber) controlNumbers.add(owner.phoneNumber)
+  }
+}
+
+function resolveAccountId(value) {
+  const registryId = accountRegistry.resolveId(value)
+  if (registryId && accounts.has(registryId)) return registryId
+  const raw = String(value || '').trim()
+  if (accounts.has(raw)) return raw
+  const lower = raw.toLowerCase()
+  for (const id of accounts.keys()) if (id.toLowerCase() === lower) return id
+  return ''
+}
+
+async function createAccount(input = {}) {
+  const record = await accountRegistry.create(input)
+  const account = makeAccount(record)
+  accounts.set(account.id, account)
+  return {
+    ok: true,
+    account: {
+      id: account.id,
+      displayName: account.displayName,
+      enabled: account.enabled,
+      connected: false,
+      status: statusOf(account),
+      numberMasked: masked(account.number),
+      indexCount: 0,
+      indexLimit: MAX_CACHE,
+      pairingMode: '',
+      pairingCode: '',
+      pairingQr: '',
+      pairingError: '',
+    },
+  }
+}
 
 function commandSettingDefaults(registry = commandRegistry) {
   const defaults = {}
@@ -96,6 +154,7 @@ function mergeCommandSettings(raw, registry = commandRegistry) {
 
 let settings = commandSettingDefaults()
 let destination = DEFAULT_DESTINATION
+let ccOverrides = {}
 let waVersion = null
 let webServer = null
 let saveTimer = null
@@ -119,7 +178,11 @@ const trackable = jid => {
   return x.endsWith('@g.us') || x.endsWith('@s.whatsapp.net') || x.endsWith('@lid')
 }
 const masked = n => !n ? 'Not configured' : n.length < 8 ? n : `${n.slice(0,3)}••••${n.slice(-4)}`
-const destinationAccount = () => accounts.get(destination)
+const destinationIdFor = sourceId => {
+  const override = resolveAccountId(ccOverrides[sourceId])
+  return override && accounts.get(override)?.enabled ? override : destination
+}
+const destinationAccount = sourceId => accounts.get(destinationIdFor(sourceId))
 
 function futureproof(message) {
   let current = message
@@ -291,7 +354,8 @@ async function loadState() {
     for (const item of raw?.messages || []) {
       if (!item?.data || !item?.at || Date.now() - item.at > TTL_MS) continue
       try {
-        const accountId = item.account === 'B' ? 'B' : 'A'
+        const accountId = resolveAccountId(item.account) || resolveAccountId('A') || accounts.keys().next().value
+        if (!accountId) continue
         const msg = decodeMessage(item.data)
         const key = cacheKey(accountId, msg)
         const e = {
@@ -348,7 +412,14 @@ async function reloadSettings(silent = false) {
   }
 
   settings = mergeCommandSettings(raw)
-  destination = raw?.destination === 'B' ? 'B' : raw?.destination === 'A' ? 'A' : DEFAULT_DESTINATION
+  const requestedDestination = raw?.cc?.defaultDestinationAccountId || raw?.destination || DEFAULT_DESTINATION
+  destination = resolveAccountId(requestedDestination) || [...accounts.values()].find(account => account.enabled)?.id || ''
+  ccOverrides = {}
+  for (const [sourceRaw, destinationRaw] of Object.entries(raw?.cc?.overrides || {})) {
+    const sourceId = resolveAccountId(sourceRaw)
+    const destinationId = resolveAccountId(destinationRaw)
+    if (sourceId && destinationId && accounts.get(destinationId)?.enabled) ccOverrides[sourceId] = destinationId
+  }
 
   if (!exists) await saveSettings()
   else settingsMtimeMs = (await stat(SETTINGS_FILE)).mtimeMs
@@ -358,7 +429,16 @@ async function reloadSettings(silent = false) {
 
 async function saveSettings() {
   await mkdir(dirname(SETTINGS_FILE), { recursive: true })
-  await writeFile(SETTINGS_FILE + '.tmp', JSON.stringify({ version: 1, ...settings, destination, savedAt: Date.now() }, null, 2))
+  await writeFile(SETTINGS_FILE + '.tmp', JSON.stringify({
+    version: 2,
+    ...settings,
+    destination,
+    cc: {
+      defaultDestinationAccountId: destination,
+      overrides: ccOverrides,
+    },
+    savedAt: Date.now(),
+  }, null, 2))
   await rename(SETTINGS_FILE + '.tmp', SETTINGS_FILE)
   settingsMtimeMs = (await stat(SETTINGS_FILE)).mtimeMs
 }
@@ -381,6 +461,60 @@ async function writeCommandSettingsSchema() {
     entries,
   }, null, 2))
   await rename(CORTEX_SETTINGS_SCHEMA_FILE + '.tmp', CORTEX_SETTINGS_SCHEMA_FILE)
+}
+
+async function writeRuntimeRegistry() {
+  const commands = commandRegistry.canonical
+    .map(command => ({
+      name: command.name,
+      moduleId: String(command.moduleId || command.module || 'mscc-core-commands'),
+      description: command.description || '',
+      aliases: Array.isArray(command.aliases) ? command.aliases : [],
+      enabled: true,
+      permission: command.ownerOnly === false ? 'all' : 'owner',
+      usage: command.usage || '',
+      error: '',
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  const configEntries = commandRegistry.canonical
+    .filter(command => command.setting?.key)
+    .map(command => ({
+      key: command.setting.key,
+      label: command.setting.label || command.name,
+      type: 'boolean',
+      description: command.setting.description || command.description || '',
+    }))
+
+  const modules = [{
+    id: 'mscc-core-commands',
+    displayName: 'MSCC Core Commands',
+    version: APP_VERSION,
+    status: 'loaded',
+    enabled: true,
+    commands: commands.map(command => command.name),
+    configuration: configEntries,
+    loadError: '',
+    lastReload: new Date().toISOString(),
+    moduleDirectory: 'commands',
+    dependencies: [],
+    permissions: ['commands', 'settings'],
+  }]
+
+  await mkdir(dirname(CORTEX_RUNTIME_REGISTRY_FILE), { recursive: true })
+  await writeFile(CORTEX_RUNTIME_REGISTRY_FILE + '.tmp', JSON.stringify({
+    version: 1,
+    generatedAt: new Date().toISOString(),
+    modules,
+    commands,
+  }, null, 2))
+  await rename(CORTEX_RUNTIME_REGISTRY_FILE + '.tmp', CORTEX_RUNTIME_REGISTRY_FILE)
+}
+
+async function reloadModule(id) {
+  if (String(id) !== 'mscc-core-commands') throw new Error(`Unknown module: ${id}`)
+  const commands = await reloadCommands()
+  return { ok: true, module: id, commands }
 }
 
 function startSettingsWatcher() {
@@ -455,8 +589,9 @@ async function describe(account, msg) {
 }
 
 async function sendInbox(source, content) {
-  const dest = destinationAccount()
-  if (!dest?.enabled) throw new Error(`Destination Account ${destination} is not configured`)
+  const destinationId = destinationIdFor(source?.id)
+  const dest = destinationAccount(source?.id)
+  if (!dest?.enabled) throw new Error(`Destination Account ${destinationId} is not configured`)
   if (dest.connected && dest.sock) {
     try { return await dest.sock.sendMessage(selfJid(dest), content) }
     catch (e) {
@@ -511,7 +646,7 @@ async function onMessages(account, { messages, type }) {
       if (settings.autoCc && vo) {
         const ak = cacheKey(account.id, msg)
         if (!handledAuto.has(ak)) {
-          if (account.id !== destination) await sendInbox(account, { text: `📥 Auto CC\n${await describe(account, msg)}` })
+          if (account.id !== destinationIdFor(account.id)) await sendInbox(account, { text: `📥 Auto CC\n${await describe(account, msg)}` })
           await sendInbox(account, { forward: unlocked(msg), force: true })
           handledAuto.set(ak, Date.now())
         }
@@ -535,7 +670,7 @@ async function onMessages(account, { messages, type }) {
       }
       if (!source) continue
 
-      if (!controller || account.id !== destination) {
+      if (!controller || account.id !== destinationIdFor(account.id)) {
         await sendInbox(account, { text: `↩️ V1 reply detected\n${await describe(account, msg)}` })
       }
       await sendInbox(account, { forward: unlocked(source), force: true })
@@ -653,8 +788,9 @@ async function startAccount(account) {
 }
 
 function requireAccount(id) {
-  const a = accounts.get(String(id).toUpperCase())
-  if (!a?.enabled) throw new Error(`Account ${id} is not configured in /etc/mscc.env`)
+  const resolved = resolveAccountId(id)
+  const a = resolved ? accounts.get(resolved) : null
+  if (!a?.enabled) throw new Error(`Account ${id} is not configured`)
   return a
 }
 
@@ -723,14 +859,14 @@ async function reloadCommands() {
   settings = mergeCommandSettings(settings, next)
   await saveSettings()
   await writeCommandSettingsSchema()
+  await writeRuntimeRegistry()
   return next.canonical.map(command => command.name).sort()
 }
 
 async function setDestination(value) {
-  const id = String(value || '').toUpperCase()
-  if (!['A', 'B'].includes(id)) throw new Error('Destination must be A or B')
-  const account = accounts.get(id)
-  if (!account?.enabled) throw new Error(`Account ${id} is not configured`)
+  const id = resolveAccountId(value)
+  const account = id ? accounts.get(id) : null
+  if (!account?.enabled) throw new Error(`Account ${value} is not configured`)
   destination = id
   await saveSettings()
   return destination
@@ -750,6 +886,8 @@ function commandDiagnostics() {
     waVersion: Array.isArray(waVersion) ? waVersion.join('.') : '',
     accounts: [...accounts.values()].map(a => ({
       id: a.id,
+      displayName: a.displayName,
+      role: a.role,
       enabled: a.enabled,
       connected: a.connected,
       status: statusOf(a),
@@ -761,7 +899,21 @@ function commandDiagnostics() {
 
 async function statusText(ping = false) {
   const mem = process.memoryUsage()
-  return `${ping ? '🏓 MSCC\n' : ''}Uptime: ${uptime(Date.now()-startedAt)}\nDestination: Account ${destination}\nA: ${statusOf(accounts.get('A'))} • ${countFor('A')}/${MAX_CACHE}\nB: ${statusOf(accounts.get('B'))} • ${countFor('B')}/${MAX_CACHE}\nRAM RSS: ${(mem.rss/1048576).toFixed(1)} MB\nAuto CC: ${settings.autoCc?'ON':'OFF'}\nReply CC: ${settings.replyCc?'ON':'OFF'}\nAnti-delete: ${settings.antiDelete?'ON':'OFF'}`
+  const accountLines = [...accounts.values()].map(account => {
+    const name = account.displayName || `Account ${account.id}`
+    const marker = account.id === destination ? ' • destination' : ''
+    return `${name} [${account.id}]: ${statusOf(account)} • ${countFor(account.id)}/${MAX_CACHE}${marker}`
+  })
+  return [
+    ping ? '🏓 MSCC' : null,
+    `Uptime: ${uptime(Date.now()-startedAt)}`,
+    `Destination: ${accounts.get(destination)?.displayName || `Account ${destination}`} [${destination}]`,
+    ...accountLines,
+    `RAM RSS: ${(mem.rss/1048576).toFixed(1)} MB`,
+    `Auto CC: ${settings.autoCc?'ON':'OFF'}`,
+    `Reply CC: ${settings.replyCc?'ON':'OFF'}`,
+    `Anti-delete: ${settings.antiDelete?'ON':'OFF'}`,
+  ].filter(Boolean).join('\n')
 }
 
 async function webState() {
@@ -770,8 +922,17 @@ async function webState() {
     version: APP_VERSION,
     destination,
     settings: { ...settings },
+    capabilities: {
+      addAccount: true,
+      perAccountCcOverride: true,
+    },
+    entitlements: {
+      maxAccounts: accountRegistry.maxAccounts,
+    },
     accounts: [...accounts.values()].map(a => ({
       id: a.id,
+      displayName: a.displayName,
+      role: a.role,
       enabled: a.enabled,
       connected: a.connected,
       status: statusOf(a),
@@ -793,8 +954,10 @@ async function webState() {
 }
 
 async function init() {
+  await loadAccounts()
   await loadState()
   await writeCommandSettingsSchema()
+  await writeRuntimeRegistry()
   startSettingsWatcher()
   webServer = startWebPanel({
     port: WEB_PORT,
@@ -805,9 +968,11 @@ async function init() {
     pairAccount,
     reconnectAccount,
     repairAccount,
+    createAccount,
     setSetting,
     setDestination,
-    reloadCommands
+    reloadCommands,
+    reloadModule
   })
 
   try {
@@ -818,10 +983,14 @@ async function init() {
     console.warn('Could not fetch latest WhatsApp Web version:', e?.message || e)
   }
 
-  await startAccount(accounts.get('A'))
-  if (accounts.get('B').enabled) {
-    setTimeout(() => startAccount(accounts.get('B')).catch(e => console.error('[B] startup:', e?.message || e)), 1200).unref?.()
-  }
+  const enabledAccounts = [...accounts.values()].filter(account => account.enabled)
+  if (enabledAccounts[0]) await startAccount(enabledAccounts[0])
+  enabledAccounts.slice(1).forEach((account, index) => {
+    setTimeout(
+      () => startAccount(account).catch(e => console.error(`[${account.id}] startup:`, e?.message || e)),
+      1200 * (index + 1),
+    ).unref?.()
+  })
 }
 
 for (const signal of ['SIGINT','SIGTERM']) {
