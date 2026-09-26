@@ -298,6 +298,8 @@ internal class ScriptRuntime(
     private val registered = linkedMapOf<String, ScriptCommand>()
     private val runtime: QuickJs
     private var capturedModuleResult: String? = null
+    private val envStore = ScriptEnvStore(context, project.id)
+    private var envDefinition: ScriptEnvDefinition? = null
 
     init {
         val modulePrefix = "${project.id}/"
@@ -418,6 +420,32 @@ internal class ScriptRuntime(
             AnnieBrowserSessionStore.clear(context, sessionId)
             true
         }
+        runtime.function("annieEnvDefine") { args ->
+            val raw = args.firstOrNull()?.toString().orEmpty()
+            envDefinition = ScriptEnvDefinition.decode(raw)
+            null
+        }
+        runtime.function("annieEnvGet") { args ->
+            val key = args.firstOrNull()?.toString().orEmpty()
+            val field = requireEnvField(key)
+            require(field.type != ScriptEnvFieldType.SECRET) { "Secret ENV values require annie.env.secret(key)" }
+            JSONObject().put("value", envStore.value(field) ?: JSONObject.NULL).toString()
+        }
+        runtime.function("annieEnvSet") { args ->
+            val key = args.getOrNull(0)?.toString().orEmpty()
+            val raw = args.getOrNull(1)?.toString().orEmpty()
+            val field = requireEnvField(key)
+            val value = JSONObject(raw.ifBlank { "{}" }).opt("value").takeUnless { it == JSONObject.NULL }
+            envStore.setFromScript(field, value)
+            true
+        }
+        runtime.function("annieEnvSecret") { args ->
+            val key = args.firstOrNull()?.toString().orEmpty()
+            envStore.secret(requireEnvField(key))
+        }
+        runtime.function("annieEnvValues") {
+            envStore.values(envDefinition).toString()
+        }
         runtime.function("annieLog") { args ->
             val level = args.getOrNull(0)?.toString()?.uppercase()?.take(8) ?: "INFO"
             val message = redact(args.drop(1).joinToString(" ")).take(MAX_LOG_CHARS)
@@ -428,6 +456,7 @@ internal class ScriptRuntime(
 
     suspend fun load(): List<ScriptCommand> = lock.withLock {
         registered.clear()
+        envDefinition = null
         // The bootstrap's final assignment evaluates to an object. Keep that value
         // inside an IIFE so Unit receives JavaScript undefined instead.
         runtime.evaluate<Unit>("(() => {\n$BOOTSTRAP\n})()", filename = "annie-runtime.js")
@@ -436,6 +465,25 @@ internal class ScriptRuntime(
         runtime.evaluate<JsObject>(entry, filename = entryModule, asModule = true)
         registered.values.distinctBy { it.name }
     }
+
+    fun environment(): ScriptEnvDefinition? = envDefinition
+
+    fun environmentValue(key: String): Any? {
+        val field = requireEnvField(key)
+        return if (field.type == ScriptEnvFieldType.SECRET) null else envStore.value(field)
+    }
+
+    fun environmentHasSecret(key: String): Boolean {
+        val field = requireEnvField(key)
+        return envStore.hasSecret(field)
+    }
+
+    fun setEnvironmentValue(key: String, value: Any?) {
+        envStore.setFromUi(requireEnvField(key), value)
+    }
+
+    private fun requireEnvField(key: String): ScriptEnvField =
+        envDefinition?.field(key) ?: error("Unknown ENV field: $key")
 
     suspend fun execute(commandName: String, commandText: String, chatId: String, messageId: Long): String = lock.withLock {
         val commandArgs = commandText.trim().split(Regex("\\s+")).filter(String::isNotBlank).drop(1)
@@ -621,9 +669,18 @@ internal class ScriptRuntime(
         manager.flush()
     }
 
-    private fun redact(value: String): String = value.replace(
-        Regex("(?i)(authorization|api[_-]?key|token|password)(\\s*[=:]\\s*)[^,\\s]+"), "$1$2[redacted]"
-    )
+    private fun redact(value: String): String {
+        var output = value.replace(
+            Regex("(?i)(authorization|api[_-]?key|token|password)(\\s*[=:]\\s*)[^,\\s]+"),
+            "$1$2[redacted]",
+        )
+        envDefinition?.fields.orEmpty()
+            .filter { it.type == ScriptEnvFieldType.SECRET }
+            .mapNotNull(envStore::secret)
+            .filter { it.isNotBlank() }
+            .forEach { secret -> output = output.replace(secret, "[redacted]") }
+        return output
+    }
 
     companion object {
         private const val MAX_RUNTIME_BYTES = 32L * 1024L * 1024L
@@ -689,6 +746,13 @@ internal class ScriptRuntime(
             |    delete: path => annieFileDelete(String(path)),
             |    list: (path = "") => annieFileList(String(path))
             |  },
+            |  env: {
+            |    define: definition => annieEnvDefine(JSON.stringify(definition || {})),
+            |    get: async key => JSON.parse(annieEnvGet(String(key))).value,
+            |    set: async (key, value) => annieEnvSet(String(key), JSON.stringify({value})),
+            |    secret: async key => annieEnvSecret(String(key)),
+            |    values: () => JSON.parse(annieEnvValues())
+            |  },
             |  messages: {
             |    text: text => ({type: "text", text: String(text)}),
             |    image: value => Object.assign({type: "image"}, value || {}),
@@ -741,6 +805,14 @@ internal class ScriptWorkspace(context: Context) : AutoCloseable {
 
     fun commands(): List<ScriptCommand> = commands
     fun logs(): List<ScriptLog> = synchronized(logLock) { logs.toList() }
+
+    fun envDefinition(scriptId: String): ScriptEnvDefinition? = runtimes[scriptId]?.environment()
+    fun envValue(scriptId: String, key: String): Any? = runtimes[scriptId]?.environmentValue(key)
+    fun envHasSecret(scriptId: String, key: String): Boolean = runtimes[scriptId]?.environmentHasSecret(key) == true
+    fun setEnvValue(scriptId: String, key: String, value: Any?) {
+        val runtime = runtimes[scriptId] ?: error("Enable this script before editing its ENV")
+        runtime.setEnvironmentValue(key, value)
+    }
 
     suspend fun reload(): List<ScriptCommand> = withContext(Dispatchers.IO) {
         val projects = files.listProjects()
