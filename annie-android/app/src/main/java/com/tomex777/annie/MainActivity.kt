@@ -15,9 +15,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,6 +65,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -159,6 +163,7 @@ internal fun AnnieChat() {
     val messages = activeChat.messages
     var draft by remember { mutableStateOf(TextFieldValue("")) }
     var lastSentMessageId by remember { mutableStateOf<Long?>(null) }
+    val animatedMessageIds = remember { mutableStateMapOf<Long, Boolean>() }
     var activeSheet by remember { mutableStateOf<String?>(null) }
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val listState = remember(activeChatId) { LazyListState() }
@@ -188,7 +193,9 @@ internal fun AnnieChat() {
         scriptId: String? = null,
         scriptCommandName: String? = null,
     ) {
-        messages.add(ChatEntry(System.nanoTime(), false, text, catalog, menuTitle, actions, searchMedia, searchInitial, selectedItem, selectedStage, scriptMessageJson, scriptId, scriptCommandName))
+        val entry = ChatEntry(System.nanoTime(), false, text, catalog, menuTitle, actions, searchMedia, searchInitial, selectedItem, selectedStage, scriptMessageJson, scriptId, scriptCommandName)
+        animatedMessageIds[entry.id] = true
+        messages.add(entry)
         persistHistory()
         scope.launch { listState.animateScrollToItem(messages.lastIndex) }
     }
@@ -350,6 +357,7 @@ internal fun AnnieChat() {
         if (value.isEmpty()) return
         val sentMessage = ChatEntry(System.nanoTime(), true, value)
         lastSentMessageId = sentMessage.id
+        animatedMessageIds[sentMessage.id] = true
         messages.add(sentMessage)
         persistHistory()
         draft = TextFieldValue("")
@@ -477,14 +485,11 @@ internal fun AnnieChat() {
                             },
                         )
                     }
-                    if (entry.id == lastSentMessageId) {
-                        AnimatedVisibility(
-                            visible = true,
-                            modifier = Modifier.testTag("sent_message_animation"),
-                            enter = fadeIn(tween(220)) + expandVertically(tween(220)) +
-                                slideInVertically(tween(220)) { it / 7 },
-                        ) { bubbleContent() }
-                    } else bubbleContent()
+                    if (animatedMessageIds[entry.id] == true) {
+                        MessageArrivalAnimation(fromUser = entry.fromUser) { bubbleContent() }
+                    } else {
+                        Box(Modifier.animateContentSize(animationSpec = tween(180))) { bubbleContent() }
+                    }
                 }
             }
             Composer(
@@ -589,6 +594,31 @@ internal fun AnnieChat() {
                     else -> addAnnie("AniList provides anime and manga metadata; Wikidata provides movie metadata; TVmaze provides TV metadata. Search results do not provide playable or downloadable files.")
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun MessageArrivalAnimation(
+    fromUser: Boolean,
+    content: @Composable () -> Unit,
+) {
+    val visible = remember {
+        MutableTransitionState(false).apply { targetState = true }
+    }
+    val duration = if (fromUser) 190 else 210
+    AnimatedVisibility(
+        visibleState = visible,
+        modifier = Modifier
+            .testTag(if (fromUser) "sent_message_animation" else "received_message_animation")
+            .animateContentSize(animationSpec = tween(180)),
+        enter = fadeIn(tween(duration)) +
+            expandVertically(tween(duration)) +
+            slideInVertically(tween(duration)) { fullHeight -> fullHeight / 6 } +
+            scaleIn(tween(duration), initialScale = if (fromUser) 0.965f else 0.975f),
+    ) {
+        Box(Modifier.animateContentSize(animationSpec = tween(180))) {
+            content()
         }
     }
 }
