@@ -213,6 +213,40 @@ class ScriptChatFlowTest {
         compose.onNodeWithTag("script_image_fullscreen", useUnmergedTree = true).assertIsDisplayed()
     }
 
+    @Test fun chessSessionExposesOnlyDeclaredContextActionsAndAnimatesReply() {
+        compose.setContent { AnnieTheme { AnnieChat() } }
+        compose.onNodeWithTag("composer_input").performTextInput("/chess")
+        compose.waitUntil(8_000) {
+            compose.onAllNodesWithTag("slash_command_/chess").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("slash_command_/chess").performClick()
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(12_000) {
+            compose.onAllNodesWithTag("context_action_hint").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        compose.onNodeWithTag("context_action_show_board").assertIsDisplayed()
+        compose.onNodeWithTag("context_action_hint").assertIsDisplayed()
+        compose.onNodeWithTag("context_action_resign").assertIsDisplayed()
+
+        compose.onNodeWithTag("context_action_hint").performClick()
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Try ", substring = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Try ", substring = true).assertExists()
+        compose.onAllNodesWithTag("received_message_animation")[0].assertExists()
+
+        compose.onNodeWithTag("context_action_resign").performClick()
+        compose.onNodeWithTag("send_message").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Game ended.", substring = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("context_suggestions").fetchSemanticsNodes().isEmpty()
+        }
+    }
+
     @Test fun scriptVideoMessageOpensTheStandalonePlayerWithItsSourceConfig() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
